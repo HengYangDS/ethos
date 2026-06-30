@@ -80,6 +80,7 @@ ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --owner <owner> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
+ethos lane retire-landed --branch work/<name> --apply
 ```
 
 `ethos status --json` and `ethos lane status --json` expose branch action
@@ -96,6 +97,9 @@ so the workspace-status object remains schema-valid.
 The `data.closeout_support` object reports whether the current checkout can land
 to `candidate/dev`, which target path would be updated, who owns the lease when
 known, and which mutation gap blocks closeout.
+`ethos lane retire-landed` lists landed Work Lanes without mutation by default.
+Apply mode requires `--branch work/<name>` so cleanup cannot accidentally remove
+another active agent's worktree.
 
 Mutation readiness is explicit:
 

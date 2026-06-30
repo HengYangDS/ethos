@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 from ethos_workspace.state import acquire_lease
-from ethos_workspace.status import CANDIDATE_BRANCH, workspace_status
+from ethos_workspace.status import CANDIDATE_BRANCH, changed_paths, workspace_status
 
 _SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -197,6 +197,92 @@ def bootstrap_candidate(
     }
 
 
+def retire_landed_work_lanes(
+    *,
+    root: Path,
+    branch: str | None = None,
+    apply: bool = False,
+) -> dict[str, object]:
+    repo = _repo_root(root)
+    status = workspace_status(repo)
+    lanes = [
+        _retirement_lane(repo, lane)
+        for lane in status["worktrees"]
+        if lane["role"] == "work_lane"
+    ]
+    selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
+    gaps: list[str] = []
+    if branch is not None and not selected:
+        gaps.append("retire_branch_not_found")
+    if apply and not branch:
+        gaps.append("retire_branch_required")
+    if branch:
+        for lane in selected:
+            gaps.extend(str(gap) for gap in lane["required_gaps"])
+    if gaps:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch or "",
+            "lanes": lanes,
+            "required_gaps": sorted(set(gaps)),
+        }
+    if not apply:
+        return {
+            "ok": True,
+            "state": "planned",
+            "branch": branch or "",
+            "lanes": lanes,
+            "required_gaps": [],
+        }
+    lane = selected[0]
+    remove = _git(repo, "worktree", "remove", str(lane["path"]), check=False)
+    if remove.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch or "",
+            "lanes": lanes,
+            "required_gaps": ["worktree_remove_failed"],
+            "stderr": remove.stderr.strip(),
+        }
+    delete = _git(repo, "branch", "-d", str(lane["branch"]), check=False)
+    if delete.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch or "",
+            "lanes": lanes,
+            "required_gaps": ["branch_delete_failed"],
+            "stderr": delete.stderr.strip(),
+        }
+    return {
+        "ok": True,
+        "state": "retired",
+        "branch": branch or "",
+        "retired": lane,
+        "lanes": lanes,
+        "required_gaps": [],
+    }
+
+
+def _retirement_lane(repo: Path, lane: dict[str, object]) -> dict[str, object]:
+    gaps: list[str] = []
+    branch = str(lane["branch"])
+    path = Path(str(lane["path"]))
+    if not _is_ancestor(repo, branch, "HEAD"):
+        gaps.append("work_lane_not_merged")
+    if changed_paths(path):
+        gaps.append("work_lane_dirty")
+    return {
+        "branch": branch,
+        "path": path.as_posix(),
+        "head": str(lane["head"]),
+        "retire_ready": not gaps,
+        "required_gaps": gaps,
+    }
+
+
 def _slug(name: str) -> str:
     slug = _SLUG_PATTERN.sub("-", name.strip().lower()).strip("-")
     return slug or "work"
@@ -213,6 +299,11 @@ def _default_candidate_path(repo: Path) -> Path:
 
 def _branch_exists(root: Path, branch: str) -> bool:
     completed = _git(root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False)
+    return completed.returncode == 0
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
     return completed.returncode == 0
 
 

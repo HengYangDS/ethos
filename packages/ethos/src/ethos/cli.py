@@ -34,7 +34,11 @@ from ethos_kernel.result import EthosResult
 from ethos_project.fleet import inspect_adopter
 from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
 from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
-from ethos_workspace.lanes import bootstrap_candidate, start_work_lane
+from ethos_workspace.lanes import (
+    bootstrap_candidate,
+    retire_landed_work_lanes,
+    start_work_lane,
+)
 from ethos_workspace.mutation import (
     MutationDecision,
     MutationRequest,
@@ -522,6 +526,34 @@ def plan(
             "required_gates": required_gates,
             "action_graph": graph.to_dict(),
         },
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command(name="retire-landed")
+def lane_retire_landed(
+    *,
+    branch: str | None = None,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Retire a landed Work Lane after it is merged into the accepted root."""
+    repo = _root(root)
+    report = retire_landed_work_lanes(root=repo, branch=branch, apply=apply)
+    result = EthosResult(
+        command="lane retire-landed",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "landed_lane_count": sum(
+                1 for lane in report["lanes"] if lane["retire_ready"]
+            ),
+            "selected_branch": branch or "",
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
+        data=report,
     )
     _emit(result, json_output)
 

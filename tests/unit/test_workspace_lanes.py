@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ethos_governance.schema_validation import validate_schema_instance
-from ethos_workspace.lanes import start_work_lane
+from ethos_workspace.lanes import retire_landed_work_lanes, start_work_lane
 from ethos_workspace.prewrite import prewrite_guard
 from ethos_workspace.state import active_leases
 from ethos_workspace.status import workspace_status
@@ -464,3 +464,64 @@ def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> No
     assert report["dirty"] is True
     assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
     assert not worktree.exists()
+
+
+def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    active = tmp_path / "repo-work-active"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    git(repo, "worktree", "add", "-b", "work/active", active.as_posix(), "dev")
+    (active / "README.md").write_text("# active\n", encoding="utf-8")
+    git(active, "add", "README.md")
+    git(
+        active,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "active work",
+    )
+
+    report = retire_landed_work_lanes(root=repo)
+
+    assert report["ok"] is True
+    assert report["state"] == "planned"
+    assert report["required_gaps"] == []
+    lanes = {lane["branch"]: lane for lane in report["lanes"]}
+    assert lanes["work/landed"]["retire_ready"] is True
+    assert lanes["work/landed"]["required_gaps"] == []
+    assert lanes["work/active"]["retire_ready"] is False
+    assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
+
+
+def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+
+    report = retire_landed_work_lanes(root=repo, apply=True)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["retire_branch_required"]
+    assert landed.exists()
+
+
+def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+
+    report = retire_landed_work_lanes(root=repo, branch="work/landed", apply=True)
+
+    assert report["ok"] is True
+    assert report["state"] == "retired"
+    assert not landed.exists()
+    assert git(repo, "branch", "--list", "work/landed") == ""

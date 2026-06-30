@@ -69,6 +69,7 @@ Work Lane admission:
 
 ```bash
 ethos lane status
+ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --owner <owner> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ```
@@ -81,4 +82,5 @@ ethos publish --apply --authorize --expect-head <git-head>
 ```
 
 Those commands still report readiness in the current implementation; remote
-publication remains an adapter responsibility.
+publication remains an adapter responsibility. `land --apply` from an admitted
+Work Lane advances local `candidate/dev`; it does not advance `dev`.

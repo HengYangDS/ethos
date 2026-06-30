@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
 from ethos_adapters.shadow import _run_embedded, _run_external, _semantic_diff
 
 from tests.support.ethos_cli_runner import run_ethos
@@ -250,3 +251,131 @@ def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload
     }
 
     assert _semantic_diff(external, embedded) == {}
+
+
+@pytest.mark.parametrize(
+    ("command", "external_state"),
+    [
+        ("prove", "gapped"),
+        ("report", "gapped"),
+        ("land", "dry_run"),
+        ("publish", "dry_run"),
+    ],
+)
+def test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_payload(
+    command: str,
+    external_state: str,
+) -> None:
+    external = {
+        "ok": False,
+        "command": command,
+        "state": external_state,
+        "required_gaps": [
+            "docs/architecture/product-ontology.md",
+            "claims_missing",
+        ],
+        "data": {
+            "self_audit": {
+                "required_gaps": [
+                    "docs/architecture/product-ontology.md",
+                    "claims_missing",
+                ],
+            },
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": command,
+        "summary": {"command": command, "role": "accepted_root"},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_preserves_external_non_self_audit_gaps() -> None:
+    external = {
+        "ok": False,
+        "command": "prove",
+        "state": "gapped",
+        "required_gaps": [
+            "docs/architecture/product-ontology.md",
+            "action_graph_invalid",
+        ],
+        "data": {
+            "self_audit": {
+                "required_gaps": ["docs/architecture/product-ontology.md"],
+            },
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "prove",
+        "summary": {"command": "prove"},
+        "required_gaps": [],
+    }
+
+    diff = _semantic_diff(external, embedded)
+
+    assert diff["ok"] == {"external": False, "embedded": True}
+    assert diff["required_gaps"] == {"external": ["action_graph_invalid"], "embedded": []}
+
+
+def test_shadow_semantic_diff_classifies_legacy_changed_route_noop() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": [
+            "skill_missing_id",
+            "skill_missing_id",
+            "playbook_route_missing:changed-scope",
+        ],
+        "data": {
+            "subject": "changed-scope",
+            "required_gaps": [
+                "skill_missing_id",
+                "skill_missing_id",
+                "playbook_route_missing:changed-scope",
+            ],
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "summary": {
+            "changed_requested": True,
+            "changed_path_count": 0,
+            "command": "playbooks route",
+        },
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_preserves_changed_route_gap_when_paths_changed() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": ["playbook_route_missing:changed-scope"],
+        "data": {"subject": "changed-scope"},
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "summary": {
+            "changed_requested": True,
+            "changed_path_count": 1,
+            "command": "playbooks route",
+        },
+        "required_gaps": [],
+    }
+
+    diff = _semantic_diff(external, embedded)
+
+    assert diff["required_gaps"] == {
+        "external": ["playbook_route_missing:changed-scope"],
+        "embedded": [],
+    }

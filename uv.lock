@@ -5,11 +5,16 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ethos",
+    "ethos-adapters",
     "ethos-agent",
+    "ethos-assistants",
+    "ethos-contracts",
     "ethos-governance",
     "ethos-kernel",
     "ethos-product-monorepo",
     "ethos-project",
+    "ethos-repository",
+    "ethos-test",
     "ethos-workspace",
 ]
 
@@ -61,22 +66,31 @@ version = "0.1.0a1"
 source = { editable = "packages/ethos" }
 dependencies = [
     { name = "cyclopts" },
+    { name = "ethos-adapters" },
     { name = "ethos-agent" },
     { name = "ethos-governance" },
     { name = "ethos-kernel" },
     { name = "ethos-project" },
+    { name = "ethos-repository" },
     { name = "ethos-workspace" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.20" },
+    { name = "ethos-adapters", editable = "packages/ethos-adapters" },
     { name = "ethos-agent", editable = "packages/ethos-agent" },
     { name = "ethos-governance", editable = "packages/ethos-governance" },
     { name = "ethos-kernel", editable = "packages/ethos-kernel" },
     { name = "ethos-project", editable = "packages/ethos-project" },
+    { name = "ethos-repository", editable = "packages/ethos-repository" },
     { name = "ethos-workspace", editable = "packages/ethos-workspace" },
 ]
+
+[[package]]
+name = "ethos-adapters"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-adapters" }
 
 [[package]]
 name = "ethos-agent"
@@ -88,6 +102,16 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
+
+[[package]]
+name = "ethos-assistants"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-assistants" }
+
+[[package]]
+name = "ethos-contracts"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-contracts" }
 
 [[package]]
 name = "ethos-governance"
@@ -142,6 +166,22 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
+
+[[package]]
+name = "ethos-repository"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-repository" }
+dependencies = [
+    { name = "ethos-contracts" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ethos-contracts", editable = "packages/ethos-contracts" }]
+
+[[package]]
+name = "ethos-test"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-test" }
 
 [[package]]
 name = "ethos-workspace"

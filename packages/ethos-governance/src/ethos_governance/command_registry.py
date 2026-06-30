@@ -19,6 +19,7 @@ PUBLIC_COMMANDS = (
     "ethos playbooks",
     "ethos fleet",
     "ethos lane",
+    "ethos parity",
     "ethos report",
     "ethos explain",
     "ethos docs",

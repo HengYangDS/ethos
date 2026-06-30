@@ -11,7 +11,20 @@ relations:
 This page describes the current migration-host package state. The target
 ontology is [Package Ontology](package-ontology.md).
 
-Current packages are not the final product ontology:
+Current migration-host packages remain active, but the target product package
+homes now also exist as buildable packages:
+
+```text
+ethos-core
+ethos-contracts
+ethos-repository
+ethos-assistants
+ethos-adapters
+ethos
+ethos-test
+```
+
+Migration-host packages are not the final product ontology:
 
 ```text
 ethos
@@ -38,6 +51,10 @@ Current migration-host packages are:
   target home is `ethos-assistants` plus protocol adapters.
 - `ethos-node`: npm launcher adapter for the public command plane. Its target
   home is `distributions/npm`.
+
+Target packages are the semantic destination for new product work. Migration
+hosts remain available until capability parity, shadow parity, and retirement
+decisions prove that their contents can be moved or frozen safely.
 
 Adopter-specific semantics stay in adopter profiles and repositories. Product
 packages may expose adapters, but they do not hardcode adopter private names.

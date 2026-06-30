@@ -8,8 +8,9 @@ relations:
 
 # Package Ontology
 
-The current packages in this repository are migration hosts. The target Python
-product package ontology is:
+The repository now contains buildable target package homes. Existing migration
+hosts remain active until capability parity proves their contents can be moved,
+frozen, or retired. The target Python product package ontology is:
 
 ```text
 packages/ethos-core

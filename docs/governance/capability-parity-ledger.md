@@ -15,8 +15,16 @@ alphasim-dmgr embedded ETHOS
 ~/projects/ethos product ETHOS
 ```
 
-Each row must eventually include source location, target home, migration
-disposition, required tests, parity criterion, and rollback impact.
+The executable product view is available through:
+
+```bash
+ethos parity ledger --json
+ethos parity gaps --adopter <name> --json
+ethos parity shadow --target <repo> --json
+```
+
+Each row must include source location, target home, migration disposition,
+required tests, parity criterion, and rollback impact.
 
 ## Classification Vocabulary
 

@@ -44,6 +44,45 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
         assert imported_modules(path).isdisjoint(forbidden), path
 
 
+def test_target_product_packages_exist_with_build_metadata() -> None:
+    for package in (
+        "ethos-core",
+        "ethos-contracts",
+        "ethos-repository",
+        "ethos-assistants",
+        "ethos-adapters",
+        "ethos-test",
+    ):
+        root = ROOT / "packages" / package
+        assert (root / "README.md").exists(), package
+        pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'build-backend = "hatchling.build"' in pyproject
+
+
+def test_semantic_target_packages_do_not_import_provider_execution() -> None:
+    forbidden_by_package = {
+        "ethos-core": {"subprocess", "sqlite3", "shutil", "tomllib"},
+        "ethos-contracts": {"subprocess", "sqlite3", "shutil"},
+        "ethos-repository": {"subprocess", "sqlite3", "shutil"},
+    }
+    for package, forbidden in forbidden_by_package.items():
+        source = ROOT / "packages" / package / "src"
+        for path in source.rglob("*.py"):
+            assert imported_modules(path).isdisjoint(forbidden), path
+
+
+def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
+    allowed = {
+        ROOT / "packages" / "ethos-contracts" / "src" / "ethos_contracts" / "capability_parity.py",
+    }
+    for path in (ROOT / "packages").glob("*/src/**/*.py"):
+        if path in allowed:
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert "alphasim" not in text.lower(), path
+        assert "dmgr" not in text.lower(), path
+
+
 def test_cli_uses_cyclopts_not_argparse() -> None:
     cli_path = ROOT / "packages/ethos/src/ethos/cli.py"
     imports = imported_modules(cli_path)

@@ -1,0 +1,10 @@
+[project]
+name = "ethos-contracts"
+version = "0.1.0a1"
+description = "Provider-neutral ETHOS product contracts"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

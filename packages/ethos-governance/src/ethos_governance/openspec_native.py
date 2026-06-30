@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+from copy import deepcopy
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +91,51 @@ def _validation_failures(validate_payload: dict[str, Any]) -> list[str]:
 
 
 def openspec_self_governance_report(root: Path, *, change: str | None = None) -> dict[str, Any]:
+    base_command = _openspec_base_command()
+    if base_command is None:
+        return _openspec_self_governance_report(root, change=change, base_command=None)
+    signature = _openspec_workspace_signature(root)
+    return deepcopy(
+        _cached_openspec_self_governance_report(
+            root.resolve().as_posix(),
+            change,
+            base_command,
+            signature,
+        )
+    )
+
+
+def _openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...]:
+    openspec_root = root / "openspec"
+    if not openspec_root.exists():
+        return ()
+    signature: list[tuple[str, int, int]] = []
+    for path in sorted(item for item in openspec_root.rglob("*") if item.is_file()):
+        stat = path.stat()
+        signature.append((path.relative_to(root).as_posix(), stat.st_mtime_ns, stat.st_size))
+    return tuple(signature)
+
+
+@lru_cache(maxsize=32)
+def _cached_openspec_self_governance_report(
+    root_posix: str,
+    change: str | None,
+    base_command: tuple[str, ...],
+    _signature: tuple[tuple[str, int, int], ...],
+) -> dict[str, Any]:
+    return _openspec_self_governance_report(
+        Path(root_posix),
+        change=change,
+        base_command=base_command,
+    )
+
+
+def _openspec_self_governance_report(
+    root: Path,
+    *,
+    change: str | None,
+    base_command: tuple[str, ...] | None,
+) -> dict[str, Any]:
     openspec_root = root / "openspec"
     required_gaps: list[str] = []
     if not openspec_root.exists():
@@ -98,7 +145,6 @@ def openspec_self_governance_report(root: Path, *, change: str | None = None) ->
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
 
-    base_command = _openspec_base_command()
     if base_command is None:
         required_gaps.append("openspec_official_cli_missing")
         return {

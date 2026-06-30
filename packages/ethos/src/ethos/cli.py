@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 from typing import Annotated
 
+import ethos_governance.self_audit as self_audit_module
 from cyclopts import App, Parameter
 from ethos_agent.context import context_bundle
 from ethos_agent.mcp import mcp_manifest
@@ -27,12 +28,12 @@ from ethos_governance.gates import gate_graph, gate_registry
 from ethos_governance.openspec_native import openspec_self_governance_report
 from ethos_governance.release import release_policy_report
 from ethos_governance.schema_validation import schema_validation_report
-from ethos_governance.self_audit import self_audit
 from ethos_governance.standards import standard_adapter_registry
 from ethos_kernel.action_graph import ActionGraph, ActionNode
 from ethos_kernel.result import EthosResult
 from ethos_project.fleet import inspect_adopter
 from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
+from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
 from ethos_workspace.lanes import start_work_lane
 from ethos_workspace.mutation import MutationDecision, MutationRequest, evaluate_mutation
 from ethos_workspace.prewrite import prewrite_guard
@@ -49,6 +50,7 @@ assistants_app = App(name="assistants", help="Assistant and protocol projections
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.")
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.")
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.")
+parity_app = App(name="parity", help="Capability parity and adopter shadow checks.")
 app.command(quality_app)
 app.command(self_app)
 app.command(campaign_app)
@@ -57,6 +59,7 @@ app.command(assistants_app)
 app.command(playbooks_app)
 app.command(fleet_app)
 app.command(lane_app)
+app.command(parity_app)
 
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
@@ -341,7 +344,7 @@ def prove(
 ) -> None:
     """Produce a local proof-readiness summary."""
     repo = _root(root)
-    audit = self_audit(repo)
+    audit = self_audit_module.self_audit(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
     runner = LocalSubprocessRunner() if execute else DryRunRunner()
     proof_runs = tuple(
@@ -707,8 +710,7 @@ def release(
 ) -> None:
     """Report release and GitLab readiness."""
     repo = _root(root)
-    audit = self_audit(repo)
-    release_files = audit["release_files"]
+    release_files = self_audit_module.release_files_report(repo)
     result = EthosResult(
         command="quality release",
         ok=bool(release_files["ok"]),
@@ -932,7 +934,7 @@ def audit(
 ) -> None:
     """Audit ETHOS against its own product ontology."""
     repo = _root(root)
-    audit_payload = self_audit(repo)
+    audit_payload = self_audit_module.self_audit(repo)
     result = EthosResult(
         command="self audit",
         ok=bool(audit_payload["ok"]),
@@ -1042,7 +1044,7 @@ def prove_self(
 ) -> None:
     """Prove the active self-evolution hypothesis."""
     repo = _root(root)
-    audit_payload = self_audit(repo)
+    audit_payload = self_audit_module.self_audit(repo)
     ok = bool(audit_payload["ok"])
     result = EthosResult(
         command="self prove",
@@ -1297,6 +1299,67 @@ def fleet_inspect(
     _emit(result, json_output)
 
 
+@parity_app.command(name="ledger")
+def parity_ledger(*, json_output: JsonFlag = False) -> None:
+    """Emit the executable capability parity ledger."""
+    report = parity_ledger_report()
+    result = EthosResult(
+        command="parity ledger",
+        ok=bool(report["ok"]),
+        state="classified",
+        summary=report["summary"],
+        next_actions=("ethos parity gaps --adopter <adopter>",),
+        data={"records": report["records"]},
+    )
+    _emit(result, json_output)
+
+
+@parity_app.command(name="gaps")
+def parity_gaps(
+    *,
+    adopter: str | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report remaining product/adopter parity gaps."""
+    report = parity_gaps_report(adopter=adopter)
+    result = EthosResult(
+        command="parity gaps",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "gapped",
+        summary={"adopter": report["adopter"], "gap_count": len(report["required_gaps"])},
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos parity shadow --target <repo>",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@parity_app.command(name="shadow")
+def parity_shadow(
+    *,
+    target: Path,
+    execute: bool = False,
+    timeout_seconds: int = 30,
+    json_output: JsonFlag = False,
+) -> None:
+    """Plan an external shadow parity comparison for an adopter."""
+    if execute:
+        from ethos_adapters.shadow import run_shadow_parity
+
+        report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
+    else:
+        report = shadow_parity_report(target=target)
+    result = EthosResult(
+        command="parity shadow",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos prove --full",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
 @app.command
 def report(
     *,
@@ -1305,7 +1368,7 @@ def report(
 ) -> None:
     """Emit a concise scorecard."""
     repo = _root(root)
-    audit = self_audit(repo)
+    audit = self_audit_module.self_audit(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
     command_report = command_registry_report(repo)
@@ -1414,7 +1477,7 @@ def _self_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[
             "required_gaps": [],
             "root": repo.as_posix(),
         }
-    return self_audit(repo)
+    return self_audit_module.self_audit(repo, openspec_mode="shape")
 
 
 def main() -> None:

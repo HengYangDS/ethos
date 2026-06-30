@@ -122,12 +122,12 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     ):
         assert doc in REQUIRED_DOCS
 
-    report = self_audit(ROOT)
+    report = self_audit(ROOT, openspec_mode="shape")
     target = report["target_package_ontology"]
 
-    assert target["ok"] is False
+    assert target["ok"] is True
     assert target["contract_ok"] is True
-    assert target["migration_complete"] is False
+    assert target["migration_complete"] is True
     assert target["target_packages"] == [
         "ethos-core",
         "ethos-contracts",

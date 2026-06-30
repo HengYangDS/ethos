@@ -14,10 +14,16 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     assert manifest["all_package_versions_match"] is True
     assert set(manifest["packages"]) == {
         "ethos",
+        "ethos-adapters",
         "ethos-project",
         "ethos-agent",
+        "ethos-assistants",
+        "ethos-contracts",
+        "ethos-core",
         "ethos-governance",
         "ethos-kernel",
+        "ethos-repository",
+        "ethos-test",
         "ethos-workspace",
     }
 

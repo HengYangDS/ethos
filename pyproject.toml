@@ -19,29 +19,45 @@ package = false
 [tool.uv.workspace]
 members = [
   "packages/ethos",
+  "packages/ethos-adapters",
   "packages/ethos-agent",
+  "packages/ethos-assistants",
+  "packages/ethos-contracts",
   "packages/ethos-governance",
   "packages/ethos-kernel",
   "packages/ethos-project",
+  "packages/ethos-repository",
+  "packages/ethos-test",
   "packages/ethos-workspace",
 ]
 
 [tool.uv.sources]
+ethos-adapters = { workspace = true }
 ethos-project = { workspace = true }
 ethos-agent = { workspace = true }
+ethos-assistants = { workspace = true }
+ethos-contracts = { workspace = true }
 ethos-governance = { workspace = true }
 ethos-kernel = { workspace = true }
+ethos-repository = { workspace = true }
+ethos-test = { workspace = true }
 ethos-workspace = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
+  ".",
   "packages/ethos/src",
+  "packages/ethos-adapters/src",
   "packages/ethos-kernel/src",
+  "packages/ethos-contracts/src",
+  "packages/ethos-repository/src",
   "packages/ethos-governance/src",
   "packages/ethos-workspace/src",
+  "packages/ethos-assistants/src",
   "packages/ethos-agent/src",
   "packages/ethos-project/src",
+  "packages/ethos-test/src",
 ]
 
 [tool.ruff]

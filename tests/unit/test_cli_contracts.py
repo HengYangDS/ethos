@@ -1,53 +1,12 @@
 from __future__ import annotations
 
-import json
-import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 from ethos_project.planner import adoption_plan
 
-ROOT = Path(__file__).resolve().parents[2]
-PYTHONPATH = os.pathsep.join(
-    str(ROOT / package / "src")
-    for package in (
-        "packages/ethos",
-        "packages/ethos-kernel",
-        "packages/ethos-governance",
-        "packages/ethos-workspace",
-        "packages/ethos-agent",
-        "packages/ethos-project",
-    )
-)
-
-
-def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, object]:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = PYTHONPATH
-    completed = subprocess.run(
-        [sys.executable, "-m", "ethos.cli", *args],
-        cwd=cwd or ROOT,
-        env=env,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return json.loads(completed.stdout)
-
-
-def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = PYTHONPATH
-    return subprocess.run(
-        [sys.executable, "-m", "ethos.cli", *args],
-        cwd=cwd or ROOT,
-        env=env,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
 
 
 def git(root: Path, *args: str) -> str:
@@ -247,6 +206,7 @@ def test_quality_command_registry_rejects_retired_public_roots() -> None:
     assert "ethos status" in payload["data"]["public_commands"]
     assert "ethos intake" in payload["data"]["public_commands"]
     assert "ethos lane" in payload["data"]["public_commands"]
+    assert "ethos parity" in payload["data"]["public_commands"]
 
 
 def test_quality_standard_registry_declares_adapter_boundaries() -> None:

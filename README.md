@@ -28,6 +28,7 @@ ethos self
 ethos quality
 ethos assistants
 ethos playbooks
+ethos parity
 ethos fleet
 ethos report
 ```

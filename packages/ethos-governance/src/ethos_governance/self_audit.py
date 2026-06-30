@@ -115,7 +115,31 @@ def _front_matter_ok(path: Path) -> bool:
     return all(f"{key}:" in header for key in ("subject", "role", "state", "relations"))
 
 
-def self_audit(root: Path) -> dict[str, object]:
+def release_files_report(root: Path) -> dict[str, object]:
+    release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
+    return {
+        "ok": not release_files_missing,
+        "missing": release_files_missing,
+    }
+
+
+def _openspec_shape_report(root: Path) -> dict[str, object]:
+    openspec_root = root / "openspec"
+    required_gaps = []
+    if not openspec_root.exists():
+        required_gaps.append("openspec_directory_missing")
+    if not (openspec_root / "config.yaml").exists():
+        required_gaps.append("openspec_config_missing")
+    if not (openspec_root / "specs").exists():
+        required_gaps.append("openspec_specs_missing")
+    return {
+        "ok": not required_gaps,
+        "mode": "shape",
+        "required_gaps": required_gaps,
+    }
+
+
+def self_audit(root: Path, *, openspec_mode: str = "deep") -> dict[str, object]:
     package_missing = [
         package
         for package in MIGRATION_HOST_PACKAGES
@@ -145,7 +169,8 @@ def self_audit(root: Path) -> dict[str, object]:
     schemas_missing = [
         schema for schema in REQUIRED_SCHEMAS if not (root / "schemas" / "ethos" / schema).exists()
     ]
-    release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
+    release_files = release_files_report(root)
+    release_files_missing = list(release_files["missing"])
     playbooks_missing = [path for path in REQUIRED_PLAYBOOK_FILES if not (root / path).exists()]
     openspec_family_missing = [
         f"openspec/specs/{family}/spec.md"
@@ -156,7 +181,11 @@ def self_audit(root: Path) -> dict[str, object]:
     claim_report = claims_report(root)
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
-    openspec = openspec_self_governance_report(root)
+    openspec = (
+        _openspec_shape_report(root)
+        if openspec_mode == "shape"
+        else openspec_self_governance_report(root)
+    )
     claim_gaps = [str(gap) for gap in claim_report["required_gaps"]]
     schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
     evolution_gaps = [str(gap) for gap in evolution["required_gaps"]]
@@ -212,7 +241,7 @@ def self_audit(root: Path) -> dict[str, object]:
             "validation": schema_report,
         },
         "release_files": {
-            "ok": not release_files_missing,
+            "ok": release_files["ok"],
             "missing": release_files_missing,
         },
         "playbooks": {

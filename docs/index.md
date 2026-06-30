@@ -19,6 +19,8 @@ Start with [Start](start/quickstart.md), then read
 [Self Evolution](governance/self-evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
 [Conversation Ledger](governance/conversation-ledger.md).
+Executable migration parity is exposed by `ethos parity ledger` and governed by
+the [Capability Parity Ledger](governance/capability-parity-ledger.md).
 
 The documentation system uses Subject, Role, State, and Relation metadata so
 humans and agents can navigate without treating historical material as current

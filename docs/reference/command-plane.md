@@ -45,6 +45,9 @@ ethos self audit
 ethos self hypothesize
 ethos campaign hypotheses
 ethos intake status
+ethos parity ledger
+ethos parity gaps --adopter alphasim-dmgr
+ethos parity shadow --target <repo>
 ethos report
 ```
 

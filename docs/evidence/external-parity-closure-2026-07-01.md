@@ -39,8 +39,19 @@ Implemented changes:
 - `ethos parity gaps --adopter <name>` is now evidence-driven: migration/split
   capabilities close only when tracked parity evidence declares verified
   capabilities and shadow parity reports no required gaps.
+- Parity evidence must include basic traceability fields (`schema_version`,
+  `adopter`, `target`, `generated_on`, `shadow.comparison_count`, and
+  `verified_capabilities`) before it can close adopter gaps.
 - The tracked alphasim-dmgr parity evidence is
   `docs/evidence/parity/alphasim-dmgr-shadow.json`.
+- External ETHOS tolerates legacy adopter SQLite lease schemas that use
+  `resource` instead of `subject`, so read-only status, plan, and publish
+  commands do not crash on existing `.ethos/state/state.sqlite` files.
+- Repo-local skill activation records with `path_globs` are normalized to the
+  explicit `changed-scope` subject, preserving the OpenSpec changed-scope
+  routing contract while supporting dmgr-style activation metadata.
+- The active claim `claims/ethos-external-parity-closure.toml` binds this
+  evidence note by SHA-256.
 
 ## Verification Commands
 
@@ -60,6 +71,7 @@ uv run --package ethos ethos report --root /Users/yheng/projects/alphasim-dmgr-f
 uv run --package ethos ethos playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
 uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
 uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json
+uv run --package ethos ethos quality claims --json
 ```
 
 Observed results:
@@ -77,3 +89,5 @@ Observed results:
   required gaps empty across nine public commands.
 - Evidence-driven parity gaps for alphasim-dmgr: `ok=true`, `gap_count=0`,
   required gaps empty.
+- Claim digest check: `ok=true`, including
+  `ethos-external-parity-closure`.

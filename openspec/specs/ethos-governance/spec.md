@@ -95,9 +95,18 @@ ETHOS SHALL expose product migration parity as machine-readable command output.
 - **AND** the evidence reports `shadow.ok=true` with no required gaps
 - **AND** the evidence names migrated or split capabilities in
   `verified_capabilities`
+- **AND** the evidence includes traceability fields for schema version,
+  adopter, target, generation date, and comparison count
 - **WHEN** `ethos parity gaps --adopter <adopter> --json` runs
 - **THEN** ETHOS omits parity gaps for those verified capabilities
 - **AND** changing a ledger disposition alone does not close the gap
+
+#### Scenario: Incomplete shadow evidence does not close adopter parity gaps
+- **GIVEN** `docs/evidence/parity/<adopter>-shadow.json` omits required
+  traceability fields
+- **WHEN** `ethos parity gaps --adopter <adopter> --json` runs
+- **THEN** ETHOS reports a parity evidence gap
+- **AND** unresolved rows remain in `data.pending_packages`
 
 ### Requirement: Fast Daily Governance Checks
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit

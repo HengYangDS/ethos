@@ -44,8 +44,10 @@ def playbooks_report(root: Path) -> dict[str, object]:
             relative_path = f".agents/skills/{skill_id}/SKILL.md"
         if not relative_path or not (root / relative_path).exists():
             gaps.append(f"skill_missing_file:{skill_id}")
-        subjects = list(entry.get("subjects") or [])
         path_globs = list(entry.get("path_globs") or [])
+        subjects = list(entry.get("subjects") or [])
+        if path_globs and "changed-scope" not in subjects:
+            subjects.append("changed-scope")
         skills.append(
             {
                 "id": skill_id,
@@ -109,9 +111,6 @@ def _matches_route_subject(
     require_explicit_subject: bool,
 ) -> bool:
     subjects = [str(item).strip().lower() for item in record["subjects"]]
-    path_globs = [str(item).strip() for item in record.get("path_globs", [])]
-    if normalized == "changed-scope" and path_globs:
-        return True
     if require_explicit_subject:
         return normalized in subjects
     return normalized in str(record["id"]).lower() or any(normalized in item for item in subjects)

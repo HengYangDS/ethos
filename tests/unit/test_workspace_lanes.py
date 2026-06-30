@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
 import subprocess
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ethos_governance.schema_validation import validate_schema_instance
@@ -155,6 +157,52 @@ def test_workspace_status_reports_closeout_owner_from_lane_lease(tmp_path: Path)
 
     assert report["ok"] is True
     assert status["closeout_support"]["owner"] == "agent:test"
+
+
+def test_workspace_status_tolerates_legacy_state_lease_schema(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    state_db = repo / ".ethos" / "state" / "state.sqlite"
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
+    with sqlite3.connect(state_db) as connection:
+        connection.execute(
+            """
+            create table leases (
+              id text primary key,
+              owner text not null default '',
+              resource text not null default '',
+              expires_at text not null default '',
+              created_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, resource, expires_at, created_at)
+            values (?, ?, ?, ?, ?)
+            """,
+            (
+                "lease:legacy",
+                "agent:legacy",
+                "work/legacy",
+                expires_at.isoformat(),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+
+    status = workspace_status(repo)
+    leases = active_leases(state_db)
+
+    assert status["role"] == "accepted_root"
+    assert leases == [
+        {
+            "id": "lease:legacy",
+            "subject": "work/legacy",
+            "owner": "agent:legacy",
+            "expires_at": expires_at.isoformat(),
+            "payload": {},
+        }
+    ]
 
 
 def test_workspace_status_output_validates_against_workspace_status_schema(

@@ -38,3 +38,8 @@
 - [x] 5.4 Make `ethos parity gaps --adopter <name>` close only from tracked
       parity evidence.
 - [x] 5.5 Record alphasim-dmgr shadow evidence with `gap_count=0`.
+- [x] 5.6 Bind external parity closure evidence to an active Claim.
+- [x] 5.7 Reject incomplete parity evidence and preserve pending packages until
+      traceable shadow evidence is present.
+- [x] 5.8 Tolerate legacy adopter SQLite lease schemas during read-only
+      external status, plan, and publish commands.

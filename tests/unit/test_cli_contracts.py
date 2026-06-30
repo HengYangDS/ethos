@@ -506,8 +506,10 @@ post_checks = ["ethos prove"]
     assert check["ok"] is True
     assert check["data"]["records"][0]["id"] == "code-change"
     assert check["data"]["records"][0]["path_globs"] == ["src/**"]
+    assert "changed-scope" in check["data"]["records"][0]["subjects"]
     assert route["ok"] is True
     assert route["data"]["selected"][0]["id"] == "code-change"
+    assert "changed-scope" in route["data"]["selected"][0]["subjects"]
     assert route["data"]["selected"][0]["pre_reads"] == ["README.md"]
     assert route["data"]["selected"][0]["post_checks"] == ["ethos prove"]
 

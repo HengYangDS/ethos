@@ -1,0 +1,24 @@
+[claim]
+id = "ethos-external-parity-closure"
+subject = "ethos:external-parity-closure"
+state = "active"
+summary = "External ETHOS can interpret the alphasim-dmgr reference adopter through evidence-driven parity gaps and shadow comparison without using embedded ETHOS as product truth."
+
+[evidence]
+dated = "docs/evidence/external-parity-closure-2026-07-01.md"
+sha256 = "30710c1016affb430cd139ead857bad4162c9f5d11f0523e758c5ad1ec1e26d6"
+tests = [
+  "uv run --group dev pytest -q tests/unit/test_parity_command.py tests/unit/test_cli_contracts.py tests/unit/test_schema_validation_and_gates.py",
+  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
+  "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
+  "uv run --package ethos ethos prove --json",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-adapters",
+  "ethos-agent",
+  "ethos-repository",
+  "ethos-governance",
+]

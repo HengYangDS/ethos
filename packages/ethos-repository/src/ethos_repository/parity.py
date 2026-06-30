@@ -25,17 +25,20 @@ def parity_gaps_report(
 ) -> dict[str, object]:
     records = capability_parity_records()
     evidence = _parity_evidence(root or Path.cwd(), adopter) if adopter else {}
+    evidence_valid = not evidence.get("required_gaps")
     verified = set(evidence.get("verified_capabilities", []))
     pending_packages = [
         _pending_package(record)
         for record in records
         if record["disposition"] in {"migrate-to-product", "split"}
-        and record["capability"] not in verified
+        and (not evidence_valid or record["capability"] not in verified)
     ]
     shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
     if adopter and not (shadow.get("ok") is True and not shadow.get("required_gaps")):
         pending_packages.append(_shadow_pending_package(adopter))
     required_gaps = [str(package["gap"]) for package in pending_packages]
+    if evidence.get("required_gaps"):
+        required_gaps.extend(str(gap) for gap in evidence["required_gaps"])
     return {
         "ok": not required_gaps,
         "adopter": adopter or "generic",
@@ -135,4 +138,32 @@ def _parity_evidence(root: Path, adopter: str | None) -> dict[str, object]:
             "required_gaps": ["parity_evidence_not_object"],
             "verified_capabilities": [],
         }
-    return {"path": path.relative_to(root).as_posix(), **payload}
+    required_gaps = _validate_parity_evidence(payload, adopter)
+    return {
+        "path": path.relative_to(root).as_posix(),
+        **payload,
+        "required_gaps": required_gaps,
+    }
+
+
+def _validate_parity_evidence(payload: dict[str, object], adopter: str) -> list[str]:
+    required_gaps: list[str] = []
+    if payload.get("schema_version") != 1:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:schema_version")
+    if payload.get("adopter") != adopter:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:adopter")
+    if not isinstance(payload.get("target"), str) or not payload.get("target"):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:target")
+    if not isinstance(payload.get("generated_on"), str) or not payload.get("generated_on"):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:generated_on")
+    shadow = payload.get("shadow")
+    if not isinstance(shadow, dict):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:shadow")
+    elif not isinstance(shadow.get("comparison_count"), int) or shadow["comparison_count"] <= 0:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:comparison_count")
+    verified = payload.get("verified_capabilities")
+    if not isinstance(verified, list) or not all(isinstance(item, str) for item in verified):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:verified_capabilities")
+    if required_gaps:
+        return [f"parity_evidence_invalid:{adopter}", *required_gaps]
+    return []

@@ -62,7 +62,9 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
             {
                 "schema_version": 1,
                 "adopter": "sample-adopter",
-                "shadow": {"ok": True, "required_gaps": []},
+                "target": "/tmp/sample-adopter",
+                "generated_on": "2026-07-01",
+                "shadow": {"ok": True, "required_gaps": [], "comparison_count": 1},
                 "verified_capabilities": [
                     "work-lane-lifecycle",
                     "proof-evidence-chronicle",
@@ -92,6 +94,41 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/sample-adopter-shadow.json"
     )
+
+
+def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path) -> None:
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(
+            {
+                "shadow": {"ok": True, "required_gaps": []},
+                "verified_capabilities": [
+                    "work-lane-lifecycle",
+                    "proof-evidence-chronicle",
+                    "campaign-hypothesis-evolution",
+                    "assistant-playbooks-skills",
+                    "quality-determinism-local-state",
+                    "openspec-claims-trust-review",
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter" in payload["required_gaps"]
+    assert payload["data"]["pending_packages"]
 
 
 def test_parity_gaps_exposes_concrete_backlog_packages() -> None:

@@ -1,0 +1,61 @@
+---
+subject: ethos:release-hardening-evidence
+role: evidence
+state: active
+relations:
+  evidence_refs: tests/unit, tests/architecture, OpenSpec, GitLab signature API
+---
+
+# Release Hardening Evidence 2026-06-30
+
+This evidence record covers the ETHOS release governance hardening batch.
+
+Implemented scope:
+
+- Package-root `__init__.py` files are documentation-only and no longer forward
+  or re-export semantic module surfaces.
+- OpenSpec is retained as an official self-governance capability under
+  `openspec/`, validated with the official OpenSpec CLI, and kept out of the
+  public command-root surface.
+- `ethos self openspec --json` reports official OpenSpec `doctor`, `status`,
+  and `validate --all --strict` results.
+- Release policy, SBOM projection, release attestation, history identity, and
+  agentic context bundle checks are available through `ethos ...`.
+- Commit author identity moved to the GitLab-confirmed address
+  `Yang HENG <heng.yang.ds@hotmail.com>`.
+- Local `dev`, local `main`, `origin/dev`, and `origin/main` were rewritten to
+  the same SSH-signed history.
+
+Fresh validation:
+
+```text
+uv run --group dev pytest tests/unit tests/architecture -q
+result: 88 passed
+
+uv run --group dev ruff check .
+result: All checks passed
+
+openspec validate --all --strict --json
+result: passed=2, failed=0
+
+uv run --package ethos ethos self openspec --change ethos-release-hardening --json
+result: ok=true, required_gaps=[]
+
+uv run --package ethos ethos self audit --json
+result: ok=true, required_gaps=[]
+
+uv run --package ethos ethos report --json
+result: ok=true, score=11/11
+
+uv run --package ethos ethos prove --objective "ethos release hardening" --execute --full --json
+result: ok=true, gate_count=8, runs=[passed, passed, passed, passed, passed, passed, passed, passed]
+
+uv build --all-packages
+result: all six ETHOS packages built as sdist and wheel
+
+uv run --package ethos ethos quality history-identity --json
+result: ok=true, required_gaps=[]
+
+glab api projects/423/repository/commits/79d71a900ff86c67e462711734c7e44088c0e4eb/signature
+result: verification_status=verified, signature_type=SSH
+```

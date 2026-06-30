@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import subprocess
 import tomllib
 from pathlib import Path
@@ -117,6 +118,71 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
         ),
     )
     return ActionGraph(nodes=nodes)
+
+
+def _rules_config(root: Path) -> dict[str, object]:
+    path = root / ".ethos" / "rules.toml"
+    if not path.exists():
+        return {}
+    return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _path_matches(path: str, pattern: str) -> bool:
+    if pattern.endswith("/**"):
+        prefix = pattern[:-3]
+        return path == prefix or path.startswith(f"{prefix}/")
+    return fnmatch.fnmatchcase(path, pattern)
+
+
+def _matching_rule_gates(
+    root: Path,
+    paths: tuple[str, ...],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    config = _rules_config(root)
+    gates = config.get("gates") if isinstance(config.get("gates"), dict) else {}
+    matched_rules: list[dict[str, object]] = []
+    required_gates: list[dict[str, object]] = []
+    rules = config.get("rule") if isinstance(config.get("rule"), list) else []
+    for raw_rule in rules:
+        if not isinstance(raw_rule, dict):
+            continue
+        matched_paths = [
+            path
+            for path in paths
+            if any(_path_matches(path, pattern) for pattern in _string_list(raw_rule.get("paths")))
+        ]
+        if not matched_paths:
+            continue
+        rule_gates: list[dict[str, object]] = []
+        for gate_id in _string_list(raw_rule.get("requires")):
+            gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
+            gate = {
+                "id": gate_id,
+                "command": (
+                    str(gate_config.get("command", "")) if isinstance(gate_config, dict) else ""
+                ),
+                "blocking": gate_config.get("blocking", True) is not False
+                if isinstance(gate_config, dict)
+                else True,
+            }
+            rule_gates.append(gate)
+            required_gates.append(gate)
+        matched_rules.append(
+            {
+                "id": str(raw_rule.get("id", "")),
+                "risk": str(raw_rule.get("risk", "")),
+                "matched_paths": matched_paths,
+                "required_gates": rule_gates,
+                "evidence": _string_list(raw_rule.get("evidence")),
+            }
+        )
+    return matched_rules, required_gates
 
 
 @app.command
@@ -241,6 +307,7 @@ def plan(
     status_payload = workspace_status(repo)
     paths = tuple(status_payload["changed_paths"]) if changed else ()
     graph = _graph_for_paths(paths)
+    matched_rules, required_gates = _matching_rule_gates(repo, paths)
     result = EthosResult(
         command="plan",
         ok=True,
@@ -248,10 +315,14 @@ def plan(
         summary={
             "changed": changed,
             "action_count": len(graph.nodes),
+            "matched_rule_count": len(matched_rules),
+            "required_gate_count": len(required_gates),
         },
         next_actions=("ethos prove --json",),
         data={
             "changed_paths": list(paths),
+            "matched_rules": matched_rules,
+            "required_gates": required_gates,
             "action_graph": graph.to_dict(),
         },
     )

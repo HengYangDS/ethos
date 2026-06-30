@@ -165,6 +165,55 @@ def test_plan_changed_returns_action_graph() -> None:
     assert "action_graph" in payload["data"]
 
 
+def test_plan_changed_maps_repository_rules_to_required_gates(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    rules = repo / ".ethos" / "rules.toml"
+    rules.write_text(
+        """
+[gates.unit]
+command = "pytest tests/unit"
+blocking = true
+
+[[rule]]
+id = "python-source"
+risk = "source-change"
+paths = ["src/**"]
+requires = ["unit"]
+evidence = ["unit-test"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    source = repo / "src" / "demo.py"
+    source.parent.mkdir()
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--no-gpg-sign",
+        "--no-verify",
+        "-m",
+        "add governed source",
+    )
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--changed", "--json", cwd=repo)
+
+    assert payload["summary"]["matched_rule_count"] == 1
+    assert payload["summary"]["required_gate_count"] == 1
+    assert payload["data"]["matched_rules"][0]["id"] == "python-source"
+    assert payload["data"]["matched_rules"][0]["matched_paths"] == ["src/demo.py"]
+    assert payload["data"]["required_gates"] == [
+        {"id": "unit", "command": "pytest tests/unit", "blocking": True}
+    ]
+
+
 def test_self_audit_reports_product_shape() -> None:
     payload = run_ethos("self", "audit", "--json")
 

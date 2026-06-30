@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ethos_workspace.state import active_leases
+
 CANDIDATE_BRANCH = "candidate/dev"
 
 
@@ -40,6 +42,14 @@ def workspace_status(root: Path) -> dict[str, object]:
     worktrees = _worktrees(root, current_path=current_path)
     candidate = _candidate_status(root, worktrees)
     branch_actions = _branch_actions(worktrees, candidate)
+    owner_by_branch = _lease_owners(worktrees, current_path=current_path)
+    closeout_support = _closeout_support(
+        branch=branch,
+        role=role,
+        dirty=bool(paths),
+        candidate=candidate,
+        owner_by_branch=owner_by_branch,
+    )
     foreign = [
         {
             "path": worktree["path"],
@@ -69,6 +79,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "worktrees": worktrees,
         "branch_actions": branch_actions,
         "foreign_work_lanes": foreign,
+        "closeout_support": closeout_support,
         "required_gaps": required_gaps,
     }
 
@@ -173,6 +184,55 @@ def _worktree_action(path: str, *, current_path: Path) -> tuple[str, str]:
     if path and Path(path).resolve() == current_path:
         return "current_worktree", "Current Worktree"
     return "open_worktree", "Open Worktree"
+
+
+def _lease_owners(
+    worktrees: list[dict[str, str]],
+    *,
+    current_path: Path,
+) -> dict[str, str]:
+    control_root = current_path
+    for worktree in worktrees:
+        if worktree["role"] == "accepted_root" and worktree["path"]:
+            control_root = Path(worktree["path"])
+            break
+    leases = active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+    return {str(lease["subject"]): str(lease["owner"]) for lease in leases}
+
+
+def _closeout_support(
+    *,
+    branch: str,
+    role: str,
+    dirty: bool,
+    candidate: dict[str, object],
+    owner_by_branch: dict[str, str],
+) -> dict[str, object]:
+    gaps: list[str] = []
+    if role != "work_lane":
+        gaps.append("protected_root_mutation")
+    elif dirty:
+        gaps.append("work_lane_dirty")
+    if not candidate["exists"]:
+        gaps.append("candidate_branch_missing")
+    elif not candidate["worktree_exists"]:
+        gaps.append("candidate_worktree_missing")
+    else:
+        candidate_path = Path(str(candidate["worktree_path"]))
+        if changed_paths(candidate_path):
+            gaps.append("candidate_worktree_dirty")
+
+    is_work_lane = role == "work_lane"
+    return {
+        "supported": not gaps,
+        "branch": branch if is_work_lane else "",
+        "target_branch": CANDIDATE_BRANCH,
+        "target_path": str(candidate["worktree_path"]),
+        "action": "land_to_candidate" if is_work_lane else "not_supported",
+        "label": "Land to Candidate" if is_work_lane else "Not Supported",
+        "owner": owner_by_branch.get(branch, "") if is_work_lane else "",
+        "required_gaps": gaps,
+    }
 
 
 def _ref_head(root: Path, ref: str) -> str:

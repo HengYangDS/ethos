@@ -26,6 +26,13 @@ ethos parity shadow --target <repo> --json
 Each row must include source location, target home, migration disposition,
 required tests, parity criterion, and rollback impact.
 
+`ethos parity gaps --json` projects unresolved rows into
+`data.pending_packages`. Each package keeps the stable gap code and carries the
+capability, source location, target home, disposition, required tests, parity
+criterion, and rollback impact together. Adopter shadow checks add a
+`shadow_parity_pending:<adopter>` package so local planning can continue even
+when remote publication is unavailable.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

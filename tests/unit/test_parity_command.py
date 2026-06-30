@@ -26,6 +26,25 @@ def test_parity_gaps_reports_alphasim_dmgr_shadow_gap() -> None:
     assert payload["ok"] is False
     assert payload["command"] == "parity gaps"
     assert "shadow_parity_pending:alphasim-dmgr" in payload["required_gaps"]
+    assert len(payload["data"]["pending_packages"]) == len(payload["required_gaps"])
+
+
+def test_parity_gaps_exposes_concrete_backlog_packages() -> None:
+    payload = run_ethos("parity", "gaps", "--json")
+
+    package = payload["data"]["pending_packages"][0]
+    assert package["gap"] == "parity_pending:work-lane-lifecycle"
+    assert package["capability"] == "work-lane-lifecycle"
+    assert package["target_home"] == "ethos-repository + ethos-adapters + ethos-test"
+    assert package["required_tests"] == [
+        "status/lane/prewrite golden JSON",
+        "start lease and execution registry",
+        "handoff and closeout dry-run/apply admission",
+        "candidate lock and stale-base rejection",
+        "foreign lane observe-only protection",
+    ]
+    assert package["parity_criterion"]
+    assert package["rollback_impact"]
 
 
 def test_parity_shadow_defaults_to_read_only_plan(tmp_path) -> None:

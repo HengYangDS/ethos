@@ -27,7 +27,7 @@ from ethos_governance.evolution import evolution_candidates, evolution_ledger, e
 from ethos_governance.gates import gate_graph, gate_registry
 from ethos_governance.openspec_native import openspec_self_governance_report
 from ethos_governance.release import release_policy_report
-from ethos_governance.schema_validation import schema_validation_report
+from ethos_governance.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_governance.standards import standard_adapter_registry
 from ethos_kernel.action_graph import ActionGraph, ActionNode
 from ethos_kernel.result import EthosResult
@@ -193,6 +193,37 @@ def _matching_rule_gates(
     return matched_rules, required_gates
 
 
+def _workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
+    validation = validate_schema_instance("workspace-status.schema.json", payload, root=repo)
+    return {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": "workspace-status.schema.json",
+        "ok": bool(validation["ok"]),
+        "required_gaps": list(validation["required_gaps"]),
+    }
+
+
+def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:
+    return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
+
+
+def _publication_readiness(*, branch: str, local_ok: bool) -> dict[str, object]:
+    submit_branch = f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
+    return {
+        "mode": "local_readiness",
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "submit_branch": submit_branch,
+        "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
+        "next_actions": (
+            ["create submit/* and push when remote publication is available"]
+            if local_ok
+            else ["resolve local publish readiness gaps"]
+        ),
+    }
+
+
 @app.command
 def status(
     *,
@@ -202,16 +233,20 @@ def status(
     """Inspect repository state."""
     repo = _root(root)
     status_payload = workspace_status(repo)
+    validation = _workspace_status_validation(repo, status_payload)
+    validation_gaps = _workspace_status_validation_gaps(validation)
+    ok = bool(validation["ok"])
     result = EthosResult(
         command="status",
-        ok=True,
-        state="dirty" if status_payload["dirty"] else "ready",
+        ok=ok,
+        state="invalid" if not ok else "dirty" if status_payload["dirty"] else "ready",
         summary={
             "root": str(repo),
             "branch": status_payload["branch"],
             "changed_path_count": len(status_payload["changed_paths"]),
         },
-        required_gaps=tuple(status_payload.get("required_gaps", ())),
+        diagnostics=(validation,),
+        required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
         next_actions=("ethos plan --changed",),
         data=status_payload,
     )
@@ -227,16 +262,20 @@ def lane_status(
     """Inspect Work Lane topology and foreign lanes."""
     repo = _root(root)
     status_payload = workspace_status(repo)
+    validation = _workspace_status_validation(repo, status_payload)
+    validation_gaps = _workspace_status_validation_gaps(validation)
+    ok = bool(validation["ok"])
     result = EthosResult(
         command="lane status",
-        ok=True,
-        state="ready",
+        ok=ok,
+        state="ready" if ok else "invalid",
         summary={
             "branch": status_payload["branch"],
             "role": status_payload["role"],
             "foreign_work_lane_count": len(status_payload["foreign_work_lanes"]),
         },
-        required_gaps=tuple(status_payload.get("required_gaps", ())),
+        diagnostics=(validation,),
+        required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
         next_actions=("ethos lane prewrite <path>",),
         data=status_payload,
     )
@@ -503,6 +542,7 @@ def publish(
     audit = _self_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
+    branch = workspace_status(repo)["branch"]
     result = EthosResult(
         command="publish",
         ok=ok,
@@ -512,6 +552,7 @@ def publish(
         data={
             "self_audit": audit,
             "remote_push": "not_performed",
+            "publication": _publication_readiness(branch=str(branch), local_ok=ok),
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,

@@ -10,7 +10,7 @@ Commits.
 ### Added
 
 - Release governance files for GitLab visibility: `LICENSE`, `CONTRIBUTING.md`,
-  `CHANGELOG.md`, `.mailmap`, GitLab CI, and GitLab templates.
+  `CHANGELOG.md`, GitLab CI, and GitLab templates.
 - Schema validation, gate registry, commit/signature policy, adoption profiles,
   self-evolution ledger, and MCP server descriptor.
 - Machine-readable SSH commit signature enforcement for release HEAD checks.

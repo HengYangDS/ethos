@@ -70,7 +70,7 @@ repositories apply to ETHOS product changes.
 ## Release Readiness
 
 GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
-`CHANGELOG.md`, `.gitlab-ci.yml`, `.mailmap`, and GitLab templates. Use
+`CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab templates. Use
 `ethos quality release --json` before publishing.
 
 ## Development

@@ -11,7 +11,6 @@ def test_gitlab_visible_project_files_exist() -> None:
         "CONTRIBUTING.md",
         "LICENSE",
         ".gitlab-ci.yml",
-        ".mailmap",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",
     }

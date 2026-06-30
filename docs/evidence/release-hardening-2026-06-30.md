@@ -19,8 +19,8 @@ Implemented scope:
   public command-root surface.
 - `ethos self openspec --json` reports official OpenSpec `doctor`, `status`,
   and `validate --all --strict` results.
-- Release policy, SBOM projection, release attestation, history identity, and
-  agentic context bundle checks are available through `ethos ...`.
+- Release policy, SBOM projection, release attestation, and agentic context
+  bundle checks are available through `ethos ...`.
 - Commit author identity moved to the GitLab-confirmed address
   `Yang HENG <heng.yang.ds@hotmail.com>`.
 - Local `dev`, local `main`, `origin/dev`, and `origin/main` were rewritten to
@@ -52,9 +52,6 @@ result: ok=true, gate_count=8, runs=[passed, passed, passed, passed, passed, pas
 
 uv build --all-packages
 result: all six ETHOS packages built as sdist and wheel
-
-uv run --package ethos ethos quality history-identity --json
-result: ok=true, required_gaps=[]
 
 glab api projects/423/repository/commits/<published-head>/signature
 result: final published HEAD verification_status=verified, signature_type=SSH

@@ -19,12 +19,12 @@ publishing them as independent truth.
   builder facts and an SPDX-lite SBOM projection derived from repository
   metadata
 
-### Requirement: History Identity Audit
-ETHOS SHALL distinguish raw Git identity/signature status from GitLab
-service-side verification status.
+### Requirement: Commit And Hosted Verification Policy
+ETHOS SHALL distinguish current local commit/signature status from GitLab
+service-side verification status without requiring tracked historical alias
+metadata.
 
-#### Scenario: History identity is audited
-- **WHEN** `ethos quality history-identity --json` runs
-- **THEN** the result reports raw metadata mismatches and unsigned commits as
-  explicit release gaps instead of inferring GitLab verification from local Git
-  output
+#### Scenario: Current commit policy is audited
+- **WHEN** `ethos quality commits --enforce-head --json` runs
+- **THEN** the result reports local identity, subject, and signature gaps
+  without inferring GitLab verification from local Git output

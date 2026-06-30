@@ -9,7 +9,8 @@
 
 - [x] 2.1 Add release policy configuration and report model.
 - [x] 2.2 Add SBOM and release attestation projections.
-- [x] 2.3 Add history identity audit for raw Git metadata and local signature state.
+- [x] 2.3 Add current commit/signature policy checks without tracked
+      history-normalization metadata.
 
 ## 3. Agentic Context
 

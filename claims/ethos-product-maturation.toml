@@ -6,7 +6,7 @@ summary = "Mature ETHOS into a GitLab-visible, schema-validated, gate-executing 
 
 [evidence]
 dated = "docs/evidence/maturation-2026-06-30.md"
-sha256 = "ab71300d98c41f7723720dcaea203e0fae80706db4584f0f649c8fa3bbb5abd9"
+sha256 = "7fe6b93e1e73356b9e92cfb273c988f8b80a8686d2498c2b2ea73249c82617b0"
 tests = [
   "tests/unit",
   "tests/architecture",
@@ -26,5 +26,4 @@ release_files = [
   "CONTRIBUTING.md",
   "CHANGELOG.md",
   ".gitlab-ci.yml",
-  ".mailmap",
 ]

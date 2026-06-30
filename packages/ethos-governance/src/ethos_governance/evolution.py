@@ -4,8 +4,6 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from ethos_governance.history import history_identity_report
-
 
 def _ledger_path(root: Path) -> Path:
     return root / "docs" / "governance" / "self-evolution-ledger.toml"
@@ -37,26 +35,13 @@ def evolution_report(root: Path) -> dict[str, object]:
 
 
 def evolution_candidates(root: Path) -> dict[str, object]:
-    candidates: list[dict[str, str]] = []
-    history = history_identity_report(root)
-    if history["raw_mismatches"] or history["unsigned_commits"] or history["subject_mismatches"]:
-        candidates.append(
-            {
-                "id": "history-identity-normalization",
-                "campaign": "ethos-release-hardening",
-                "state": "ready",
-                "claim": "Raw commit identity and signatures should be normalized.",
-                "challenge": "GitLab-visible history remains inconsistent until rewritten.",
-            }
-        )
-    if not candidates:
-        candidates.append(
-            {
-                "id": "release-readiness-ratchet",
-                "campaign": "ethos-release-hardening",
-                "state": "ready",
-                "claim": "Release readiness should keep gaining deterministic checks.",
-                "challenge": "A clean report can still hide unmodeled ecosystem drift.",
-            }
-        )
+    candidates = [
+        {
+            "id": "release-readiness-ratchet",
+            "campaign": "ethos-release-hardening",
+            "state": "ready",
+            "claim": "Release readiness should keep gaining deterministic checks.",
+            "challenge": "A clean report can still hide unmodeled ecosystem drift.",
+        }
+    ]
     return {"ok": True, "candidates": candidates}

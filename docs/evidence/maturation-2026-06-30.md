@@ -13,7 +13,7 @@ This evidence record covers the ETHOS product maturation campaign.
 Implemented scope:
 
 - GitLab-visible project assets: `LICENSE`, `CONTRIBUTING.md`, `CHANGELOG.md`,
-  `.gitlab-ci.yml`, `.mailmap`, issue template, and merge request template.
+  `.gitlab-ci.yml`, issue template, and merge request template.
 - Commit/signature governance with Conventional Commit checks and SSH signing
   policy, including machine-readable HEAD signature status for release checks.
 - JSON Schema validation through `ethos quality schemas`.
@@ -30,7 +30,7 @@ Fresh validation:
 
 ```text
 uv run --group dev pytest tests/unit tests/architecture -q
-result: 74 passed
+result: 88 passed
 
 uv run --group dev ruff check .
 result: All checks passed
@@ -39,7 +39,7 @@ uv run --package ethos ethos self audit --json
 result: ok=true, required_gaps=[]
 
 uv run --package ethos ethos report --json
-result: ok=true, score=10/10
+result: ok=true, score=11/11
 
 uv run --package ethos ethos prove --objective "ethos product maturation" --execute --gate self-audit --gate claims --gate schemas --json
 result: ok=true, gate_count=3, runs=[passed, passed, passed]

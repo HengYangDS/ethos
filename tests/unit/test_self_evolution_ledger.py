@@ -25,5 +25,4 @@ def test_evolution_candidates_are_derived_from_audit_signals() -> None:
 
     assert candidates["ok"] is True
     candidate_ids = {item["id"] for item in candidates["candidates"]}
-    assert "history-identity-normalization" not in candidate_ids
-    assert "release-readiness-ratchet" in candidate_ids
+    assert candidate_ids == {"release-readiness-ratchet"}

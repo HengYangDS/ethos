@@ -28,6 +28,16 @@ def test_release_policy_reports_required_gitlab_and_tag_contracts() -> None:
     assert report["ok"] is True
     assert report["required_gaps"] == []
     assert report["version"]["tag"] == "v0.1.0a1"
+    assert report["required_files"] == [
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+        ".ethos/release.toml",
+    ]
     assert report["gitlab"]["ci"] == ".gitlab-ci.yml"
     assert report["protected_refs"]["branches"] == ["dev", "main"]
     assert report["protected_refs"]["tags"] == ["v*"]

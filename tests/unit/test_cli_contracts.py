@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +33,19 @@ def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, object]:
         capture_output=True,
     )
     return json.loads(completed.stdout)
+
+
+def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["PYTHONPATH"] = PYTHONPATH
+    return subprocess.run(
+        [sys.executable, "-m", "ethos.cli", *args],
+        cwd=cwd or ROOT,
+        env=env,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
 
 
 def test_status_json_contract() -> None:
@@ -118,6 +132,32 @@ def test_quality_schema_gate_and_commit_commands_are_available() -> None:
         payload = run_ethos(*command)
         assert payload["ok"] is True
         assert payload["required_gaps"] == []
+
+
+def test_quality_help_lists_canonical_commands() -> None:
+    completed = run_ethos_raw("quality", "--help")
+
+    assert completed.returncode == 0
+    commands = set(re.findall(r"^│\s+([a-z][a-z-]+)\s{2,}", completed.stdout, re.MULTILINE))
+    assert commands == {
+        "claims",
+        "command-examples",
+        "command-registry",
+        "command-surface",
+        "commits",
+        "docs-registry",
+        "evidence-freshness",
+        "format-policy",
+        "gates",
+        "projection-drift",
+        "provenance",
+        "release",
+        "release-attestation",
+        "release-policy",
+        "sbom",
+        "schemas",
+        "standards",
+    }
 
 
 def test_self_openspec_uses_official_native_cli() -> None:

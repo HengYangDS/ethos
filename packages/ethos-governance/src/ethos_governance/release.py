@@ -9,7 +9,6 @@ REQUIRED_RELEASE_FILES = (
     "LICENSE",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
-    ".mailmap",
     ".gitlab-ci.yml",
     ".gitlab/merge_request_templates/default.md",
     ".gitlab/issue_templates/task.md",

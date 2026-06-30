@@ -12,7 +12,7 @@ A release-ready ETHOS repository must be understandable from GitLab before a
 developer opens source files.
 
 Required release surfaces are `README.md`, `LICENSE`, `CONTRIBUTING.md`,
-`CHANGELOG.md`, `.gitlab-ci.yml`, `.mailmap`, and GitLab issue/MR templates.
+`CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab issue/MR templates.
 
 Release readiness is proven with:
 

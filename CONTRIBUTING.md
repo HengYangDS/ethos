@@ -16,8 +16,9 @@ git config gpg.format ssh
 
 Expected author: `Yang HENG <heng.yang.ds@hotmail.com>`.
 
-SSH signing is required for maintainer commits. The repository includes
-`.mailmap` so historical aliases render consistently in local tooling.
+SSH signing is required for maintainer commits. ETHOS validates current commit
+identity and signature policy directly instead of normalizing historical aliases
+through tracked repository metadata.
 
 ## Commit Names
 

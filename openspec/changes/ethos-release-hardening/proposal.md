@@ -15,8 +15,8 @@ Git signature verification.
   this batch.
 - Add release policy, SBOM, and in-toto/SLSA-shaped release attestation
   projections.
-- Add history identity audit so raw commit metadata and service-side signature
-  verification are treated as explicit release gates.
+- Keep service-side signature verification as a hosted release fact without
+  adding a tracked history-normalization surface.
 - Add agentic context bundle projection for MCP/ACP consumers without making
   host-local agent state authoritative.
 
@@ -24,8 +24,8 @@ Git signature verification.
 
 ### New Capabilities
 
-- `release-governance`: Release policy, attestation, SBOM, tag, and history
-  identity readiness for ETHOS itself.
+- `release-governance`: Release policy, attestation, SBOM, tag, and hosted
+  verification readiness for ETHOS itself.
 
 ### Modified Capabilities
 

@@ -17,7 +17,7 @@ def context_bundle() -> dict[str, object]:
                 "ethos self audit",
                 "ethos campaign hypotheses",
                 "ethos quality release-policy",
-                "ethos quality history-identity",
+                "ethos quality commits",
             ],
         },
         "resources": {

@@ -23,7 +23,6 @@ from ethos_governance.docs_registry import (
 from ethos_governance.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
 from ethos_governance.evolution import evolution_candidates, evolution_ledger, evolution_report
 from ethos_governance.gates import gate_graph, gate_registry
-from ethos_governance.history import history_identity_report
 from ethos_governance.openspec_native import openspec_self_governance_report
 from ethos_governance.release import release_policy_report
 from ethos_governance.schema_validation import schema_validation_report
@@ -616,30 +615,6 @@ def release_attestation_command(
         state="ready",
         summary={"tag": attestation["predicate"]["tag"]},
         data={"attestation": attestation},
-    )
-    _emit(result, json_output)
-
-
-@quality_app.command
-def history_identity(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Audit raw commit identity and signature normalization."""
-    repo = _root(root)
-    report = history_identity_report(repo)
-    result = EthosResult(
-        command="quality history-identity",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "rewrite_required",
-        required_gaps=(
-            tuple(report["raw_mismatches"])
-            + tuple(report["unsigned_commits"])
-            + tuple(report["subject_mismatches"])
-        ),
-        next_actions=("ethos quality commits --enforce-head",),
-        data=report,
     )
     _emit(result, json_output)
 

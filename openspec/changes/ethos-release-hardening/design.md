@@ -16,7 +16,7 @@ signing key or email is not registered on the GitLab account.
 
 - Keep OpenSpec as an official self-governance capability.
 - Remove package-root re-export wrappers.
-- Add release policy, SBOM, attestation, and history identity checks.
+- Add release policy, SBOM, attestation, and hosted verification checks.
 - Expose agentic context as a thin MCP/ACP projection over repository truth.
 
 **Non-Goals:**
@@ -33,7 +33,7 @@ signing key or email is not registered on the GitLab account.
   it as planning/governance records that feed source, docs, tests, and schemas.
   ETHOS calls the official OpenSpec CLI for health and strict validation instead
   of reimplementing OpenSpec parsing.
-- Add `ethos quality history-identity` for raw Git metadata and signature audit.
+- Use `ethos quality commits` for current local commit/signature policy.
   GitLab verification remains a separate service-side fact.
 - Add release projections as deterministic JSON payloads before integrating
   external signing or SBOM tooling.

@@ -20,5 +20,5 @@ git config gpg.format ssh
 Commit subjects follow Conventional Commits. `ethos quality commits --json`
 checks local identity and signing configuration; `ethos quality commits
 --enforce-head --json` additionally requires the current HEAD subject and
-signature to pass release policy. The repository `.mailmap` normalizes
-historical author aliases for local history views.
+signature to pass release policy. ETHOS does not use tracked historical alias
+metadata as a product governance mechanism.

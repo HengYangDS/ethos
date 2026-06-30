@@ -657,6 +657,13 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["scores"]["openspec"] == 1
     assert payload["data"]["scores"]["playbooks"] == 1
     assert payload["data"]["scores"]["adoption_scaffold"] == 1
+    assert payload["data"]["scores"]["parity_ledger"] == 1
+    assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
+    assert payload["data"]["parity"]["gaps"]["ok"] is False
+    assert payload["summary"]["parity_pending_count"] == len(
+        payload["data"]["parity"]["gaps"]["required_gaps"]
+    )
+    assert "ethos parity gaps --adopter <adopter>" in payload["next_actions"]
 
 
 def test_self_evolution_loop_commands_are_available() -> None:

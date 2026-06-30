@@ -24,6 +24,9 @@ This evidence records the ETHOS product-truth convergence batch.
 - Internal ETHOS JSON gates now run in-process through the local runner.
 - `ethos self audit` and `ethos self prove` now expose explicit `--mode
   shape|deep` UX. Daily gates use `shape`; release proof keeps `deep`.
+- `ethos report --json` now includes capability parity ledger health and generic
+  parity pending counts, so product readiness is not confused with completed
+  embedded-to-product parity for any adopter.
 
 ## Performance Baseline And Improvement
 

@@ -1452,6 +1452,8 @@ def report(
     signature = signature_policy_report(repo)
     playbooks = playbooks_report(repo)
     adoption_scaffold = adoption_scaffold_report()
+    parity_ledger = parity_ledger_report()
+    parity_gaps = parity_gaps_report()
     scores = {
         "package_ontology": int(bool(audit["package_ontology"]["ok"])),
         "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
@@ -1472,14 +1474,25 @@ def report(
         "openspec": int(bool(audit["openspec"]["ok"])),
         "playbooks": int(bool(playbooks["ok"])),
         "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
+        "parity_ledger": int(bool(parity_ledger["ok"])),
     }
     ok = all(value == 1 for value in scores.values())
+    parity_pending_count = len(parity_gaps["required_gaps"])
     result = EthosResult(
         command="report",
         ok=ok,
         state="ready" if ok else "gapped",
-        summary={"score": sum(scores.values()), "max_score": len(scores)},
+        summary={
+            "score": sum(scores.values()),
+            "max_score": len(scores),
+            "parity_pending_count": parity_pending_count,
+        },
         required_gaps=tuple(audit["required_gaps"]) + tuple(claim_report["required_gaps"]),
+        next_actions=(
+            ("ethos parity gaps --adopter <adopter>",)
+            if parity_pending_count
+            else ("ethos prove --full",)
+        ),
         data={
             "scores": scores,
             "self_audit": audit,
@@ -1491,6 +1504,10 @@ def report(
             "signature_policy": signature,
             "playbooks": playbooks,
             "adoption_scaffold": adoption_scaffold,
+            "parity": {
+                "ledger": parity_ledger,
+                "gaps": parity_gaps,
+            },
             "profiles": list(available_profiles()),
         },
     )

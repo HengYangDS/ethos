@@ -86,6 +86,16 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
             },
         ],
         "foreign_work_lanes": [],
+        "closeout_support": {
+            "supported": False,
+            "branch": "",
+            "target_branch": "candidate/dev",
+            "target_path": "/repo-candidate-dev",
+            "action": "not_supported",
+            "label": "Not Supported",
+            "owner": "",
+            "required_gaps": ["protected_root_mutation"],
+        },
         "required_gaps": [],
     }
 

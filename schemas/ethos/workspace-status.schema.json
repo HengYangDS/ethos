@@ -13,6 +13,7 @@
     "worktrees",
     "branch_actions",
     "foreign_work_lanes",
+    "closeout_support",
     "required_gaps"
   ],
   "properties": {
@@ -25,6 +26,7 @@
     "worktrees": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
     "branch_actions": {"type": "array", "items": {"$ref": "#/$defs/branchAction"}},
     "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
+    "closeout_support": {"$ref": "#/$defs/closeoutSupport"},
     "required_gaps": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": false,
@@ -185,6 +187,30 @@
         },
         {"$ref": "#/$defs/openAction"}
       ]
+    },
+    "closeoutSupport": {
+      "type": "object",
+      "required": [
+        "supported",
+        "branch",
+        "target_branch",
+        "target_path",
+        "action",
+        "label",
+        "owner",
+        "required_gaps"
+      ],
+      "properties": {
+        "supported": {"type": "boolean"},
+        "branch": {"type": "string"},
+        "target_branch": {"const": "candidate/dev"},
+        "target_path": {"type": "string"},
+        "action": {"enum": ["land_to_candidate", "not_supported"]},
+        "label": {"enum": ["Land to Candidate", "Not Supported"]},
+        "owner": {"type": "string"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
     }
   }
 }

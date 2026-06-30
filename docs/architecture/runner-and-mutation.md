@@ -39,5 +39,17 @@ Status output marks `candidate/dev` and `work/*` branches that already have
 linked worktrees with `action = "open_worktree"` and label `Open Worktree`, not
 as plain checkout actions.
 
+Status output also carries `closeout_support`. Only the current clean
+`work/*` checkout can advertise `action = "land_to_candidate"`. Accepted roots,
+`candidate/dev`, submit branches, detached heads, and foreign Work Lanes remain
+observe-only and report blocking gaps such as `protected_root_mutation`,
+`work_lane_dirty`, `candidate_worktree_missing`, or `candidate_worktree_dirty`.
+
+`ethos publish` is a local readiness command until a remote publication adapter
+is available. It reports `remote_push = "not_performed"` and a
+`publication.mode = "local_readiness"` package with the planned `submit/*`
+branch. Remote push is deliberately deferred; local proof and candidate
+closeout are still the required preparation.
+
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

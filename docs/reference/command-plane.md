@@ -88,6 +88,13 @@ worktree, including `candidate/dev` and `work/*`, report
 ordinary checkout targets.
 The `data.candidate` object also carries `open_action` and `open_label` for
 candidate-specific consumers.
+Both commands include a `schema_validation` diagnostic for the live
+workspace-status payload. The diagnostic validates `data` against
+`workspace-status.schema.json`; the validation result is not embedded in `data`
+so the workspace-status object remains schema-valid.
+The `data.closeout_support` object reports whether the current checkout can land
+to `candidate/dev`, which target path would be updated, who owns the lease when
+known, and which mutation gap blocks closeout.
 
 Mutation readiness is explicit:
 
@@ -97,8 +104,11 @@ ethos publish --apply --authorize --expect-head <git-head>
 ```
 
 Those commands still report readiness in the current implementation; remote
-publication remains an adapter responsibility. `land --apply` from an admitted
-Work Lane advances local `candidate/dev`; it does not advance `dev`.
+publication remains an adapter responsibility. `publish --json` reports
+`data.remote_push = "not_performed"` and `data.publication.remote_state =
+"deferred"` while still exposing the local `submit/*` branch plan.
+`land --apply` from an admitted Work Lane advances local `candidate/dev`; it
+does not advance `dev`.
 
 Self-governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes

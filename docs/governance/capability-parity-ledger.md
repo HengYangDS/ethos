@@ -32,6 +32,13 @@ that capability in `verified_capabilities` and the adopter shadow report has
 `shadow.ok=true` with no required gaps. Changing the ledger disposition alone
 does not close a parity gap.
 
+`ethos parity gaps --json` projects unresolved rows into
+`data.pending_packages`. Each package keeps the stable gap code and carries the
+capability, source location, target home, disposition, required tests, parity
+criterion, and rollback impact together. Adopter shadow checks add a
+`shadow_parity_pending:<adopter>` package until tracked shadow evidence closes
+the adopter-specific gap.
+
 The current alphasim-dmgr adopter parity evidence is:
 
 ```bash

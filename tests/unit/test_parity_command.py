@@ -38,6 +38,7 @@ def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path) -> No
     assert payload["ok"] is False
     assert payload["command"] == "parity gaps"
     assert "shadow_parity_pending:sample-adopter" in payload["required_gaps"]
+    assert len(payload["data"]["pending_packages"]) == len(payload["required_gaps"])
 
 
 def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
@@ -45,6 +46,7 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
 
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
+    assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
@@ -86,9 +88,28 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
 
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
+    assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/sample-adopter-shadow.json"
     )
+
+
+def test_parity_gaps_exposes_concrete_backlog_packages() -> None:
+    payload = run_ethos("parity", "gaps", "--json")
+
+    package = payload["data"]["pending_packages"][0]
+    assert package["gap"] == "parity_pending:work-lane-lifecycle"
+    assert package["capability"] == "work-lane-lifecycle"
+    assert package["target_home"] == "ethos-repository + ethos-adapters + ethos-test"
+    assert package["required_tests"] == [
+        "status/lane/prewrite golden JSON",
+        "start lease and execution registry",
+        "handoff and closeout dry-run/apply admission",
+        "candidate lock and stale-base rejection",
+        "foreign lane observe-only protection",
+    ]
+    assert package["parity_criterion"]
+    assert package["rollback_impact"]
 
 
 def test_parity_shadow_defaults_to_read_only_plan(tmp_path) -> None:

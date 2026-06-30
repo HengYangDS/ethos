@@ -67,6 +67,16 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         }
     ]
     assert "foreign_work_lane_present" in status["required_gaps"]
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "",
+        "target_branch": "candidate/dev",
+        "target_path": (tmp_path / "repo-candidate-dev").as_posix(),
+        "action": "not_supported",
+        "label": "Not Supported",
+        "owner": "",
+        "required_gaps": ["protected_root_mutation"],
+    }
 
 
 def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
@@ -91,6 +101,60 @@ def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
     assert worktree_actions["candidate/dev"]["path"] == candidate.as_posix()
     assert worktree_actions["work/feature"]["label"] == "Open Worktree"
     assert worktree_actions["work/feature"]["path"] == worktree.as_posix()
+
+
+def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": True,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "action": "land_to_candidate",
+        "label": "Land to Candidate",
+        "owner": "",
+        "required_gaps": [],
+    }
+
+
+def test_workspace_status_reports_current_work_lane_closeout_gaps(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"]["supported"] is False
+    assert status["closeout_support"]["action"] == "land_to_candidate"
+    assert status["closeout_support"]["required_gaps"] == ["work_lane_dirty"]
+
+
+def test_workspace_status_reports_closeout_owner_from_lane_lease(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+
+    report = start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        apply=True,
+    )
+    status = workspace_status(worktree)
+
+    assert report["ok"] is True
+    assert status["closeout_support"]["owner"] == "agent:test"
 
 
 def test_workspace_status_output_validates_against_workspace_status_schema(

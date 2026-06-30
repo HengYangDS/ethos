@@ -189,6 +189,16 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             },
         ],
         "foreign_work_lanes": [],
+        "closeout_support": {
+            "supported": False,
+            "branch": "",
+            "target_branch": "candidate/dev",
+            "target_path": "/repo-candidate-dev",
+            "action": "not_supported",
+            "label": "Not Supported",
+            "owner": "",
+            "required_gaps": ["protected_root_mutation"],
+        },
         "required_gaps": [],
     }
 

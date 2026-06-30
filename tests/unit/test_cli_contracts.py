@@ -50,6 +50,45 @@ def test_status_json_contract() -> None:
     assert payload["next_actions"]
 
 
+def test_status_json_reports_live_workspace_schema_validation() -> None:
+    payload = run_ethos("status", "--json")
+
+    validations = [
+        diagnostic
+        for diagnostic in payload["diagnostics"]
+        if diagnostic.get("kind") == "schema_validation"
+    ]
+    assert validations == [
+        {
+            "kind": "schema_validation",
+            "target": "data",
+            "schema": "workspace-status.schema.json",
+            "ok": True,
+            "required_gaps": [],
+        }
+    ]
+    assert "schema_validation" not in payload["data"]
+
+
+def test_lane_status_reports_live_workspace_schema_validation() -> None:
+    payload = run_ethos("lane", "status", "--json")
+
+    validations = [
+        diagnostic
+        for diagnostic in payload["diagnostics"]
+        if diagnostic.get("kind") == "schema_validation"
+    ]
+    assert validations == [
+        {
+            "kind": "schema_validation",
+            "target": "data",
+            "schema": "workspace-status.schema.json",
+            "ok": True,
+            "required_gaps": [],
+        }
+    ]
+
+
 def test_lane_prewrite_command_rejects_accepted_root(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
@@ -603,6 +642,24 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
     assert "protected_root_mutation" in payload["required_gaps"]
 
 
+def test_publish_reports_local_readiness_without_remote_push() -> None:
+    payload = run_ethos("publish", "--json")
+    branch = git(Path.cwd(), "branch", "--show-current")
+    submit_branch = (
+        f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
+    )
+
+    assert payload["data"]["remote_push"] == "not_performed"
+    assert payload["data"]["publication"] == {
+        "mode": "local_readiness",
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "submit_branch": submit_branch,
+        "required_gaps": [],
+        "next_actions": ["create submit/* and push when remote publication is available"],
+    }
+
+
 def test_assistant_projection_commands_are_available() -> None:
     manifest = run_ethos("assistants", "mcp-manifest", "--json")
     projections = run_ethos("assistants", "check-projections", "--json")
@@ -735,6 +792,9 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["parity"]["gaps"]["ok"] is False
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["gaps"]["required_gaps"]
+    )
+    assert payload["summary"]["parity_pending_count"] == len(
+        payload["data"]["parity"]["gaps"]["pending_packages"]
     )
     assert "ethos parity gaps --adopter <adopter>" in payload["next_actions"]
 

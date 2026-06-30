@@ -26,21 +26,58 @@ def parity_gaps_report(
     records = capability_parity_records()
     evidence = _parity_evidence(root or Path.cwd(), adopter) if adopter else {}
     verified = set(evidence.get("verified_capabilities", []))
-    required_gaps = [
-        f"parity_pending:{record['capability']}"
+    pending_packages = [
+        _pending_package(record)
         for record in records
         if record["disposition"] in {"migrate-to-product", "split"}
         and record["capability"] not in verified
     ]
     shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
     if adopter and not (shadow.get("ok") is True and not shadow.get("required_gaps")):
-        required_gaps.append(f"shadow_parity_pending:{adopter}")
+        pending_packages.append(_shadow_pending_package(adopter))
+    required_gaps = [str(package["gap"]) for package in pending_packages]
     return {
         "ok": not required_gaps,
         "adopter": adopter or "generic",
         "required_gaps": required_gaps,
+        "pending_packages": pending_packages,
         "records": records,
         "evidence": evidence,
+    }
+
+
+def _pending_package(record: dict[str, object]) -> dict[str, object]:
+    return {
+        "gap": f"parity_pending:{record['capability']}",
+        "capability": record["capability"],
+        "source_location": record["source_location"],
+        "target_home": record["target_home"],
+        "disposition": record["disposition"],
+        "required_tests": list(record["required_tests"]),
+        "parity_criterion": record["parity_criterion"],
+        "rollback_impact": record["rollback_impact"],
+    }
+
+
+def _shadow_pending_package(adopter: str) -> dict[str, object]:
+    return {
+        "gap": f"shadow_parity_pending:{adopter}",
+        "capability": f"shadow-parity:{adopter}",
+        "source_location": f"{adopter} adopter repository",
+        "target_home": "ethos-adapters + ethos-test",
+        "disposition": "shadow-parity",
+        "required_tests": [
+            "status/plan/prove/report command comparison",
+            "land and publish readiness comparison",
+            "blocking versus advisory gap classification",
+        ],
+        "parity_criterion": (
+            "external adopter command outputs preserve ETHOS branch-role, mutation, "
+            "evidence, and publication-readiness semantics"
+        ),
+        "rollback_impact": (
+            "adopter continues using local embedded fallback until shadow parity passes"
+        ),
     }
 
 

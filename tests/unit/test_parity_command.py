@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
+from ethos_adapters.shadow import _run_embedded, _run_external, _semantic_diff
+
 from tests.support.ethos_cli_runner import run_ethos
 
 
@@ -87,3 +92,161 @@ def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path) -> Non
     assert {package["gap"] for package in payload["data"]["execution_packages"]} == set(
         payload["required_gaps"]
     )
+
+
+def test_embedded_shadow_runner_accepts_pixi_pyproject_workspace(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    target = tmp_path / "adopter"
+    target.mkdir()
+    (target / "pyproject.toml").write_text(
+        """
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status", "state": "ready"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = _run_embedded(target, ("status",), timeout_seconds=5)
+
+    assert result["exit_code"] == 0
+    assert result["json"]["ok"] is True
+    assert calls == [(["pixi", "run", "ethos", "status", "--json"], target.resolve())]
+
+
+def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "assistants doctor"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
+
+    assert calls[0][0][-3:] == ["assistants", "doctor", "--json"]
+    assert "--root" not in calls[0][0]
+    assert calls[0][1] == tmp_path.resolve()
+
+
+def test_external_shadow_runner_uses_root_option_for_rooted_commands(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_external(tmp_path, ("status",), timeout_seconds=5)
+
+    assert calls[0][0][-3:] == ["--root", tmp_path.resolve().as_posix(), "--json"]
+    assert calls[0][1] != tmp_path.resolve()
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_status_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "status",
+        "state": "ready",
+        "required_gaps": [],
+        "data": {"role": "accepted_root"},
+    }
+    embedded = {
+        "ok": True,
+        "command": "status",
+        "summary": {"dirty": False},
+        "required_gaps": [],
+        "role": "accepted_root",
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_plan_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "plan",
+        "summary": {"changed_path_count": 0},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "assistants doctor",
+        "state": "ready",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "assistants doctor",
+        "summary": {"surface_count": 4},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}

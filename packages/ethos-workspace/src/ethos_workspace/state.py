@@ -182,6 +182,12 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
         return []
     now = datetime.now(UTC)
     with sqlite3.connect(db_path) as connection:
+        columns = {
+            str(row[1])
+            for row in connection.execute("pragma table_info(leases)").fetchall()
+        }
+        if not {"id", "subject", "owner", "expires_at", "payload_json"} <= columns:
+            return []
         rows = connection.execute(
             """
             select id, subject, owner, expires_at, payload_json

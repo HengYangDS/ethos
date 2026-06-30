@@ -40,6 +40,15 @@ dimensions. Executed runs map every failed command or semantic diff gap to a
 package with the same gap code, so campaign closeout can report shadow parity
 without relying on remote publication.
 
+Executed shadow comparisons run product ETHOS against the target repository and
+the embedded adopter ETHOS in the target's pixi environment. Embedded targets
+may declare pixi either with `pixi.toml` or with `[tool.pixi.*]` tables in
+`pyproject.toml`. Product commands use `--root` when the command supports it and
+fall back to `cwd=<target>` for projection commands that intentionally do not
+accept a root option. The semantic projection normalizes legacy embedded
+payloads that omit top-level `state` for read-only ready/planned commands, while
+preserving real `ok`, role, and required-gap differences.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,16 @@ READ_ONLY_COMMANDS = (
     ("land",),
     ("publish",),
 )
+
+ROOT_OPTION_COMMANDS = {
+    ("status",),
+    ("plan", "--changed"),
+    ("prove",),
+    ("report",),
+    ("playbooks", "route", "--changed"),
+    ("land",),
+    ("publish",),
+}
 
 SEMANTIC_DIMENSIONS = [
     "branch_role",
@@ -89,6 +100,12 @@ def _run_external(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    if command not in ROOT_OPTION_COMMANDS:
+        return _run_json_command(
+            [sys.executable, "-m", "ethos.cli", *command, "--json"],
+            cwd=target.resolve(),
+            timeout_seconds=timeout_seconds,
+        )
     return _run_json_command(
         [sys.executable, "-m", "ethos.cli", *command, "--root", target.as_posix(), "--json"],
         cwd=Path.cwd(),
@@ -102,11 +119,11 @@ def _run_embedded(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    if not (target / "pixi.toml").exists():
+    if not _has_pixi_project(target):
         return {
             "exit_code": 1,
             "stdout": "",
-            "stderr": "pixi.toml missing",
+            "stderr": "pixi project missing",
             "json": {},
         }
     return _run_json_command(
@@ -114,6 +131,22 @@ def _run_embedded(
         cwd=target,
         timeout_seconds=timeout_seconds,
     )
+
+
+def _has_pixi_project(target: Path) -> bool:
+    if (target / "pixi.toml").exists():
+        return True
+    pyproject = target / "pyproject.toml"
+    if not pyproject.exists():
+        return False
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError:
+        return False
+    tool = data.get("tool")
+    if not isinstance(tool, dict):
+        return False
+    return isinstance(tool.get("pixi"), dict)
 
 
 def _run_json_command(
@@ -171,10 +204,32 @@ def _semantic_diff(external: dict[str, Any], embedded: dict[str, Any]) -> dict[s
 def _semantic_projection(payload: dict[str, Any]) -> dict[str, Any]:
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    command = payload.get("command") or summary.get("command")
     return {
         "ok": payload.get("ok"),
-        "command": payload.get("command"),
-        "state": payload.get("state"),
+        "command": command,
+        "state": _semantic_state(payload, summary=summary, command=command),
         "role": payload.get("role") or summary.get("role") or data.get("role"),
         "required_gaps": payload.get("required_gaps", []),
     }
+
+
+def _semantic_state(
+    payload: dict[str, Any],
+    *,
+    summary: dict[str, Any],
+    command: object,
+) -> object:
+    state = payload.get("state")
+    if isinstance(state, str):
+        return state
+    if payload.get("ok") is not True:
+        return state
+    if command == "status":
+        dirty = payload.get("dirty", summary.get("dirty", False))
+        return "dirty" if dirty else "ready"
+    if command == "plan":
+        return "planned"
+    if command == "assistants doctor":
+        return "ready"
+    return state

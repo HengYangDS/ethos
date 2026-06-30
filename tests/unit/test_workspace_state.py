@@ -4,6 +4,7 @@ import sqlite3
 from pathlib import Path
 
 from ethos_workspace.state import (
+    active_leases,
     append_chronicle_event,
     append_event,
     initialize_state,
@@ -69,3 +70,23 @@ def test_event_append_is_transactional(tmp_path: Path) -> None:
     assert len(events) == 1
     assert events[0]["event_type"] == "quality.claims"
     assert events[0]["payload"] == {"ok": True}
+
+
+def test_active_leases_tolerates_legacy_lease_table_shape(tmp_path: Path) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                resource text not null default '',
+                expires_at text not null default '',
+                created_at text not null
+            )
+            """
+        )
+        connection.commit()
+
+    assert active_leases(db_path) == []

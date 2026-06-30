@@ -23,6 +23,17 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["workspace-status-contract"]["ok"] is True
 
 
+def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path) -> None:
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["schema_count"] >= 19
+    assert report["required_gaps"] == []
+    assert report["instances"]["docs-registry"]["ok"] is True
+
+
 def test_result_payload_validates_against_schema() -> None:
     result = EthosResult(command="status", ok=True, state="ready").to_dict()
 

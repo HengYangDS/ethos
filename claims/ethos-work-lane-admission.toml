@@ -1,0 +1,26 @@
+[claim]
+id = "ethos-work-lane-admission"
+subject = "ethos:workspace"
+state = "active"
+summary = "ETHOS enforces Work Lane admission, foreign lane visibility, protected-root mutation blocking, and lease-backed lane start."
+
+[evidence]
+dated = "docs/evidence/work-lane-admission-2026-06-30.md"
+sha256 = "c84f730deadb790f56a9b39e3f32a89e35aa80b64a9d6665b96a04575e2a5053"
+tests = [
+  "tests/unit/test_workspace_lanes.py",
+  "tests/unit/test_workspace_apply.py",
+  "tests/unit/test_cli_contracts.py",
+]
+
+[scope]
+commands = [
+  "ethos lane status",
+  "ethos lane prewrite",
+  "ethos lane start",
+  "ethos land",
+  "ethos publish",
+]
+schemas = [
+  "schemas/ethos/mutation-decision.schema.json",
+]

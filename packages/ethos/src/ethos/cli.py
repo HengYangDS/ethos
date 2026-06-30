@@ -32,7 +32,9 @@ from ethos_kernel.action_graph import ActionGraph, ActionNode
 from ethos_kernel.result import EthosResult
 from ethos_project.fleet import inspect_adopter
 from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
-from ethos_workspace.mutation import MutationRequest, evaluate_mutation
+from ethos_workspace.lanes import start_work_lane
+from ethos_workspace.mutation import MutationDecision, MutationRequest, evaluate_mutation
+from ethos_workspace.prewrite import prewrite_guard
 from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
 from ethos_workspace.state import initialize_state
 from ethos_workspace.status import workspace_status
@@ -44,12 +46,14 @@ campaign_app = App(name="campaign", help="Evolution campaign commands.")
 assistants_app = App(name="assistants", help="Assistant and protocol projections.")
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.")
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.")
+lane_app = App(name="lane", help="Work Lane lifecycle and write admission.")
 app.command(quality_app)
 app.command(self_app)
 app.command(campaign_app)
 app.command(assistants_app)
 app.command(playbooks_app)
 app.command(fleet_app)
+app.command(lane_app)
 
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
@@ -131,8 +135,94 @@ def status(
             "branch": status_payload["branch"],
             "changed_path_count": len(status_payload["changed_paths"]),
         },
+        required_gaps=tuple(status_payload.get("required_gaps", ())),
         next_actions=("ethos plan --changed",),
         data=status_payload,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command(name="status")
+def lane_status(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Inspect Work Lane topology and foreign lanes."""
+    repo = _root(root)
+    status_payload = workspace_status(repo)
+    result = EthosResult(
+        command="lane status",
+        ok=True,
+        state="ready",
+        summary={
+            "branch": status_payload["branch"],
+            "role": status_payload["role"],
+            "foreign_work_lane_count": len(status_payload["foreign_work_lanes"]),
+        },
+        required_gaps=tuple(status_payload.get("required_gaps", ())),
+        next_actions=("ethos lane prewrite <path>",),
+        data=status_payload,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command
+def prewrite(
+    paths: tuple[Path, ...],
+    *,
+    editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
+    require_editor_root: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Check tracked write admission before editing files."""
+    repo = _root(root)
+    report = prewrite_guard(
+        root=repo,
+        paths=[path if path.is_absolute() else repo / path for path in paths],
+        editor_root=editor_root,
+        require_editor_root=require_editor_root,
+    )
+    result = EthosResult(
+        command="lane prewrite",
+        ok=bool(report["ok"]),
+        state="admitted" if report["ok"] else "blocked",
+        summary={
+            "path_count": len(paths),
+            "role": report["role"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane start <name>",) if not report["ok"] else (),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command
+def start(
+    name: str,
+    *,
+    path: Annotated[Path, Parameter(name="--path")],
+    owner: str,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Start an owned Work Lane and acquire a local lease."""
+    repo = _root(root)
+    report = start_work_lane(root=repo, name=name, path=path, owner=owner, apply=apply)
+    result = EthosResult(
+        command="lane start",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "path": report.get("path", ""),
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
+        data=report,
     )
     _emit(result, json_output)
 
@@ -233,7 +323,6 @@ def land(
 ) -> None:
     """Report land readiness."""
     repo = _root(root)
-    audit = self_audit(repo)
     decision = evaluate_mutation(
         MutationRequest(
             command="land",
@@ -244,6 +333,7 @@ def land(
         root=repo,
         current_head=_current_head(repo),
     )
+    audit = _self_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
     result = EthosResult(
@@ -277,7 +367,6 @@ def publish(
 ) -> None:
     """Report publish readiness without pushing."""
     repo = _root(root)
-    audit = self_audit(repo)
     decision = evaluate_mutation(
         MutationRequest(
             command="publish",
@@ -288,6 +377,7 @@ def publish(
         root=repo,
         current_head=_current_head(repo),
     )
+    audit = _self_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
     result = EthosResult(
@@ -1190,6 +1280,18 @@ def docs(
         data={"path": path, "matches": matches},
     )
     _emit(result, json_output)
+
+
+def _self_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
+    if not decision.ok:
+        return {
+            "ok": False,
+            "state": "skipped",
+            "reason": "mutation_admission_blocked",
+            "required_gaps": [],
+            "root": repo.as_posix(),
+        }
+    return self_audit(repo)
 
 
 def main() -> None:

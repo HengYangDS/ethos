@@ -50,6 +50,38 @@ def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedPr
     )
 
 
+def git(root: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout.strip()
+
+
+def init_git_repo(path: Path) -> Path:
+    path.mkdir(parents=True)
+    git(path, "init", "-b", "dev")
+    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
+    (path / "README.md").write_text("# sample\n", encoding="utf-8")
+    (path / ".ethos" / "state").mkdir(parents=True)
+    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
+    git(path, "add", ".")
+    git(
+        path,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "init",
+    )
+    return path
+
+
 def test_status_json_contract() -> None:
     payload = run_ethos("status", "--json")
 
@@ -57,6 +89,72 @@ def test_status_json_contract() -> None:
     assert payload["command"] == "status"
     assert payload["state"] in {"ready", "dirty"}
     assert payload["next_actions"]
+
+
+def test_lane_prewrite_command_rejects_accepted_root(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos(
+        "lane",
+        "prewrite",
+        "README.md",
+        "--root",
+        repo.as_posix(),
+        "--editor-root",
+        repo.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["command"] == "lane prewrite"
+    assert "protected_lane_prewrite_blocked" in payload["required_gaps"]
+
+
+def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+
+    payload = run_ethos(
+        "lane",
+        "prewrite",
+        "README.md",
+        "--root",
+        worktree.as_posix(),
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is False
+    assert payload["command"] == "lane prewrite"
+    assert "editor_root_missing" in payload["required_gaps"]
+
+
+def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+
+    payload = run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["command"] == "lane start"
+    assert payload["data"]["branch"] == "work/feature"
+    assert git(worktree, "branch", "--show-current") == "work/feature"
 
 
 def test_plan_changed_returns_action_graph() -> None:
@@ -94,6 +192,7 @@ def test_quality_command_registry_rejects_retired_public_roots() -> None:
     assert payload["data"]["retired_public_roots"] == []
     assert payload["data"]["retired_public_root_mentions"] == []
     assert "ethos status" in payload["data"]["public_commands"]
+    assert "ethos lane" in payload["data"]["public_commands"]
 
 
 def test_quality_standard_registry_declares_adapter_boundaries() -> None:
@@ -284,6 +383,25 @@ def test_land_apply_requires_authorization_and_expected_head() -> None:
     assert "expect_head_required" in payload["required_gaps"]
 
 
+def test_land_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "protected_root_mutation" in payload["required_gaps"]
+
+
 def test_publish_apply_requires_authorization_and_expected_head() -> None:
     payload = run_ethos("publish", "--apply", "--json")
 
@@ -291,6 +409,25 @@ def test_publish_apply_requires_authorization_and_expected_head() -> None:
     assert payload["state"] == "blocked"
     assert "authorization_required" in payload["required_gaps"]
     assert "expect_head_required" in payload["required_gaps"]
+
+
+def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "publish",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "protected_root_mutation" in payload["required_gaps"]
 
 
 def test_assistant_projection_commands_are_available() -> None:

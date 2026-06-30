@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, datetime
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +143,67 @@ def append_event(
         subject=subject,
         payload=payload,
     )
+
+
+def acquire_lease(
+    db_path: Path,
+    *,
+    subject: str,
+    owner: str,
+    ttl_seconds: int = 86_400,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    initialize_state(db_path)
+    lease_id = f"lease:{uuid.uuid4()}"
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(seconds=ttl_seconds)
+    payload_json = json.dumps(payload or {}, sort_keys=True)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute(
+            """
+            insert into leases(id, subject, owner, expires_at, payload_json)
+            values (?, ?, ?, ?, ?)
+            """,
+            (lease_id, subject, owner, expires_at.isoformat(), payload_json),
+        )
+        connection.commit()
+    return {
+        "id": lease_id,
+        "subject": subject,
+        "owner": owner,
+        "expires_at": expires_at.isoformat(),
+        "payload": payload or {},
+    }
+
+
+def active_leases(db_path: Path) -> list[dict[str, Any]]:
+    if not db_path.exists():
+        return []
+    now = datetime.now(UTC)
+    with sqlite3.connect(db_path) as connection:
+        rows = connection.execute(
+            """
+            select id, subject, owner, expires_at, payload_json
+            from leases
+            order by subject, id
+            """
+        ).fetchall()
+    leases: list[dict[str, Any]] = []
+    for row in rows:
+        expires_at = datetime.fromisoformat(row[3])
+        if expires_at <= now:
+            continue
+        leases.append(
+            {
+                "id": row[0],
+                "subject": row[1],
+                "owner": row[2],
+                "expires_at": row[3],
+                "payload": json.loads(row[4]),
+            }
+        )
+    return leases
 
 
 def _append_event_row(

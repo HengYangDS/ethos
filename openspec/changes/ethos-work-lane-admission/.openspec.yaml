@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-06-30
+goal: Make ETHOS prevent protected-root tracked mutation and avoid touching
+  foreign agent work lanes.

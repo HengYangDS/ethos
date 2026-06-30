@@ -23,5 +23,12 @@ Tracked mutation is gated by a mutation decision. `ethos land --apply` and
 Without both, the command returns `authorization_required` or
 `expect_head_required` instead of mutating.
 
+Tracked file edits must pass Work Lane admission before an agent writes. `ethos
+lane start` creates an owned `work/*` checkout and records a local lease. `ethos
+lane status` exposes linked worktrees and foreign Work Lanes from the accepted
+root without entering those foreign checkouts. `ethos lane prewrite` rejects
+tracked writes from protected roots and requires the editor root to match the
+owned Work Lane.
+
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

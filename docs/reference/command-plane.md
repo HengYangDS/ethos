@@ -56,6 +56,14 @@ ethos assistants mcp-manifest
 ethos assistants mcp-server
 ```
 
+Work Lane admission:
+
+```bash
+ethos lane status
+ethos lane start <name> --path <worktree-path> --owner <owner> --apply
+ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
+```
+
 Mutation readiness is explicit:
 
 ```bash

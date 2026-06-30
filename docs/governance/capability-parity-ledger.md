@@ -49,6 +49,32 @@ ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execut
 The tracked evidence file is
 `docs/evidence/parity/alphasim-dmgr-shadow.json`.
 
+`ethos parity shadow --json` projects planned or executed comparison work into
+`data.execution_packages`. Planned runs expose a
+`shadow_parity_not_executed:<target>` package with the command list and semantic
+dimensions. Executed runs map every failed command or semantic diff gap to a
+package with the same gap code, so campaign closeout can report shadow parity
+without relying on remote publication.
+
+Executed shadow comparisons run product ETHOS against the target repository and
+the embedded adopter ETHOS in the target's pixi environment. Embedded targets
+may declare pixi either with `pixi.toml` or with `[tool.pixi.*]` tables in
+`pyproject.toml`. Product commands use `--root` when the command supports it and
+fall back to `cwd=<target>` for projection commands that intentionally do not
+accept a root option. The semantic projection normalizes legacy embedded
+payloads that omit top-level `state` for read-only ready/planned commands.
+
+Executed comparisons also expose `accepted_differences` when a mismatch belongs
+to a known cross-generation projection boundary rather than to adopter command
+semantics. Product self-audit gaps reported by an external product command are
+classified separately when the embedded command has no corresponding gap, so
+shadow parity does not mistake ETHOS product-repository maturation work for an
+adopter backend mismatch. Legacy changed-scope playbook route gaps are likewise
+classified only when the embedded route confirms `changed_path_count=0`. Any
+non-self-audit proof gap, mutation/admission gap, embedded gap, command failure,
+or changed-scope route gap with actual changed paths remains a blocking
+`shadow_diff:*` or command failure package.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

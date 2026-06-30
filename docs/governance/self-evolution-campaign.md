@@ -21,3 +21,10 @@ must either canonize a proven improvement or retire it.
 `ethos campaign hypotheses --json` exposes active hypotheses as first-class
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.
+
+`ethos campaign closeout --json` exposes the local campaign closeout package. It
+is a read-only aggregation of Work Lane closeout support, publication readiness,
+release policy, unresolved parity packages, and shadow parity execution plans.
+Remote publication remains deferred until an adapter is available; local
+campaign closeout still proceeds through `candidate/dev` and a local
+fast-forward of `dev`.

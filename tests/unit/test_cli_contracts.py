@@ -657,6 +657,19 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "submit_branch": submit_branch,
+        "local_submit_package": {
+            "kind": "submit_branch_plan",
+            "source_branch": branch,
+            "submit_branch": submit_branch,
+            "remote_push": "not_performed",
+            "remote_state": "deferred",
+            "blocking": False,
+            "required_steps": [
+                "land work lane to candidate/dev",
+                "fast-forward local dev from candidate/dev",
+                "create submit/* and push when remote publication is available",
+            ],
+        },
         "required_gaps": [],
         "next_actions": ["create submit/* and push when remote publication is available"],
     }
@@ -746,6 +759,56 @@ def test_campaign_hypotheses_are_visible() -> None:
 
     assert payload["ok"] is True
     assert payload["data"]["hypotheses"]
+
+
+def test_campaign_closeout_reports_local_campaign_packages() -> None:
+    branch = git(Path.cwd(), "branch", "--show-current")
+    expected_submit = (
+        f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
+    )
+
+    payload = run_ethos(
+        "campaign",
+        "closeout",
+        "--adopter",
+        "alphasim-dmgr",
+        "--target",
+        Path.cwd().as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["command"] == "campaign closeout"
+    assert payload["state"] == "local_ready"
+    assert payload["summary"]["remote_state"] == "deferred"
+    assert payload["summary"]["parity_pending_count"] == len(
+        payload["data"]["parity"]["pending_packages"]
+    )
+    assert payload["data"]["remote_publication"] == {
+        "remote_push": "not_performed",
+        "state": "deferred",
+        "reason": "remote publication adapter unavailable",
+    }
+
+    packages = payload["data"]["packages"]
+    assert set(packages) == {
+        "local_closeout",
+        "publication",
+        "release",
+        "parity",
+        "shadow_parity",
+    }
+    assert packages["local_closeout"]["target_branch"] == "candidate/dev"
+    assert packages["local_closeout"]["required_gaps"] == payload["data"]["workspace"][
+        "closeout_support"
+    ]["required_gaps"]
+    assert packages["publication"]["remote_push"] == "not_performed"
+    assert packages["publication"]["local_submit_package"]["source_branch"] == branch
+    assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
+    assert packages["release"]["ok"] is True
+    assert packages["parity"]["pending_count"] == len(payload["data"]["parity"]["required_gaps"])
+    assert packages["shadow_parity"]["gap"].startswith("shadow_parity_not_executed:")
+    assert packages["shadow_parity"]["target"] == Path.cwd().resolve().as_posix()
 
 
 def test_intake_status_is_public_read_only_surface() -> None:

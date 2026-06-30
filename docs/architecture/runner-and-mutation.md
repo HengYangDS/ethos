@@ -51,5 +51,14 @@ is available. It reports `remote_push = "not_performed"` and a
 branch. Remote push is deliberately deferred; local proof and candidate
 closeout are still the required preparation.
 
+The publication payload also carries `publication.local_submit_package`, a
+non-blocking package that records the source branch, planned submit branch,
+deferred remote state, and required local steps: land the Work Lane to
+`candidate/dev`, fast-forward local `dev`, then create and push `submit/*` when
+remote publication is available. `ethos campaign closeout` aggregates this
+package with workspace closeout support, release policy, parity backlog, and
+shadow parity execution packages, but it remains read-only; actual mutation
+still goes through `ethos land --apply`.
+
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

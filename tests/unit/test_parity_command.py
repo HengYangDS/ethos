@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import subprocess
+from pathlib import Path
 
+import pytest
 from ethos_adapters import shadow
+from ethos_adapters.shadow import _run_embedded, _run_external, _semantic_diff
 
 from tests.support.ethos_cli_runner import run_ethos
 
@@ -24,7 +28,7 @@ def test_parity_ledger_has_no_unclassified_capabilities() -> None:
     }
 
 
-def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path) -> None:
+def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path) -> None:
     payload = run_ethos(
         "parity",
         "gaps",
@@ -53,7 +57,7 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
 
 
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
-    tmp_path,
+    tmp_path: Path,
 ) -> None:
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
@@ -96,7 +100,7 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     )
 
 
-def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path) -> None:
+def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path: Path) -> None:
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
@@ -149,17 +153,29 @@ def test_parity_gaps_exposes_concrete_backlog_packages() -> None:
     assert package["rollback_impact"]
 
 
-def test_parity_shadow_defaults_to_read_only_plan(tmp_path) -> None:
+def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
     payload = run_ethos("parity", "shadow", "--target", str(tmp_path), "--json")
 
     assert payload["ok"] is False
     assert payload["command"] == "parity shadow"
     assert payload["state"] == "planned"
-    assert payload["data"]["comparisons"]
     assert "ethos quality command-surface --json" in payload["data"]["comparisons"]
+    assert payload["data"]["execution_packages"] == [
+        {
+            "gap": f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}",
+            "state": "planned",
+            "target": tmp_path.resolve().as_posix(),
+            "commands": payload["data"]["comparisons"],
+            "semantic_dimensions": payload["data"]["semantic_dimensions"],
+            "blocking": True,
+            "next_action": (
+                f"ethos parity shadow --target {tmp_path.resolve().as_posix()} --execute"
+            ),
+        }
+    ]
 
 
-def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path) -> None:
+def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path: Path) -> None:
     payload = run_ethos(
         "parity",
         "shadow",
@@ -174,9 +190,57 @@ def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path) -> Non
     assert payload["ok"] is False
     assert payload["state"] == "different"
     assert any(gap.startswith("embedded_command_failed:") for gap in payload["required_gaps"])
+    assert {package["gap"] for package in payload["data"]["execution_packages"]} == set(
+        payload["required_gaps"]
+    )
 
 
-def test_shadow_embedded_runner_accepts_pixi_task_in_pyproject(tmp_path, monkeypatch) -> None:
+def test_embedded_shadow_runner_accepts_pixi_pyproject_workspace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "adopter"
+    target.mkdir()
+    (target / "pyproject.toml").write_text(
+        """
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status", "state": "ready"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = _run_embedded(target, ("status",), timeout_seconds=5)
+
+    assert result["exit_code"] == 0
+    assert result["json"]["ok"] is True
+    assert calls == [(["pixi", "run", "ethos", "status", "--json"], target.resolve())]
+
+
+def test_shadow_embedded_runner_accepts_pixi_task_in_pyproject(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "pyproject.toml").write_text(
@@ -186,49 +250,118 @@ ethos = "python -m ethos.cli"
 """.lstrip(),
         encoding="utf-8",
     )
-    calls: list[tuple[list[str], str]] = []
+    calls: list[tuple[list[str], Path]] = []
 
-    def fake_run_json_command(
+    def fake_run(
         command: list[str],
         *,
-        cwd,
-        timeout_seconds: int,
-    ) -> dict[str, object]:
-        calls.append((command, cwd.as_posix()))
-        return {
-            "exit_code": 0,
-            "stdout": '{"ok": true, "command": "status", "state": "ready"}',
-            "stderr": "",
-            "json": {"ok": True, "command": "status", "state": "ready"},
-        }
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status", "state": "ready"}',
+            stderr="",
+        )
 
-    monkeypatch.setattr(shadow, "_run_json_command", fake_run_json_command)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = shadow._run_embedded(repo, ("status",), timeout_seconds=5)
+    result = _run_embedded(repo, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
-    assert calls == [(["pixi", "run", "ethos", "status", "--json"], repo.as_posix())]
+    assert calls == [(["pixi", "run", "ethos", "status", "--json"], repo.resolve())]
+
+
+def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "assistants doctor"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
+
+    assert calls[0][0][-3:] == ["assistants", "doctor", "--json"]
+    assert "--root" not in calls[0][0]
+    assert calls[0][1] == tmp_path.resolve()
+
+
+def test_external_shadow_runner_uses_root_option_for_rooted_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_external(tmp_path, ("status",), timeout_seconds=5)
+
+    assert calls[0][0][-3:] == ["--root", tmp_path.resolve().as_posix(), "--json"]
+    assert calls[0][1] != tmp_path.resolve()
 
 
 def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
-    tmp_path,
-    monkeypatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "pixi.toml").write_text("", encoding="utf-8")
     payload = {"ok": False, "command": "status", "state": "blocked", "required_gaps": ["x"]}
 
-    def fake_run_json_command(*_args: object, **_kwargs: object) -> dict[str, object]:
-        return {
-            "exit_code": 1,
-            "stdout": json.dumps(payload),
-            "stderr": "",
-            "json": payload,
-        }
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 1, stdout=json.dumps(payload), stderr="")
 
     monkeypatch.setattr(shadow, "READ_ONLY_COMMANDS", (("status",),))
-    monkeypatch.setattr(shadow, "_run_json_command", fake_run_json_command)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
     report = shadow.run_shadow_parity(repo, timeout_seconds=5)
 
@@ -329,3 +462,184 @@ def test_shadow_timeout_is_process_failure() -> None:
     }
 
     assert shadow._process_failed(result) is True
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_status_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "status",
+        "state": "ready",
+        "required_gaps": [],
+        "data": {"role": "accepted_root"},
+    }
+    embedded = {
+        "ok": True,
+        "command": "status",
+        "summary": {"dirty": False},
+        "required_gaps": [],
+        "role": "accepted_root",
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_plan_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "plan",
+        "summary": {"changed_path_count": 0},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "assistants doctor",
+        "state": "ready",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "assistants doctor",
+        "summary": {"surface_count": 4},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+@pytest.mark.parametrize(
+    ("command", "external_state"),
+    [
+        ("prove", "gapped"),
+        ("report", "gapped"),
+        ("land", "dry_run"),
+        ("publish", "dry_run"),
+    ],
+)
+def test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_payload(
+    command: str,
+    external_state: str,
+) -> None:
+    external = {
+        "ok": False,
+        "command": command,
+        "state": external_state,
+        "required_gaps": [
+            "docs/architecture/product-ontology.md",
+            "claims_missing",
+        ],
+        "data": {
+            "self_audit": {
+                "required_gaps": [
+                    "docs/architecture/product-ontology.md",
+                    "claims_missing",
+                ],
+            },
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": command,
+        "summary": {"command": command, "role": "accepted_root"},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_preserves_external_non_self_audit_gaps() -> None:
+    external = {
+        "ok": False,
+        "command": "prove",
+        "state": "gapped",
+        "required_gaps": [
+            "docs/architecture/product-ontology.md",
+            "action_graph_invalid",
+        ],
+        "data": {
+            "self_audit": {
+                "required_gaps": ["docs/architecture/product-ontology.md"],
+            },
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "prove",
+        "summary": {"command": "prove"},
+        "required_gaps": [],
+    }
+
+    diff = _semantic_diff(external, embedded)
+
+    assert diff["ok"] == {"external": False, "embedded": True}
+    assert diff["required_gaps"] == {"external": ["action_graph_invalid"], "embedded": []}
+
+
+def test_shadow_semantic_diff_classifies_legacy_changed_route_noop() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": [
+            "skill_missing_id",
+            "skill_missing_id",
+            "playbook_route_missing:changed-scope",
+        ],
+        "data": {
+            "subject": "changed-scope",
+            "required_gaps": [
+                "skill_missing_id",
+                "skill_missing_id",
+                "playbook_route_missing:changed-scope",
+            ],
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "summary": {
+            "changed_requested": True,
+            "changed_path_count": 0,
+            "command": "playbooks route",
+        },
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_preserves_changed_route_gap_when_paths_changed() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": ["playbook_route_missing:changed-scope"],
+        "data": {"subject": "changed-scope"},
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "summary": {
+            "changed_requested": True,
+            "changed_path_count": 1,
+            "command": "playbooks route",
+        },
+        "required_gaps": [],
+    }
+
+    diff = _semantic_diff(external, embedded)
+
+    assert diff["required_gaps"] == {
+        "external": ["playbook_route_missing:changed-scope"],
+        "embedded": [],
+    }

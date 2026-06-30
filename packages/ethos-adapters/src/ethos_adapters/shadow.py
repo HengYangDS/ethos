@@ -19,6 +19,30 @@ READ_ONLY_COMMANDS = (
     ("publish",),
 )
 
+ROOT_OPTION_COMMANDS = {
+    ("status",),
+    ("plan", "--changed"),
+    ("prove",),
+    ("report",),
+    ("quality", "command-surface"),
+    ("playbooks", "route", "--changed"),
+    ("land",),
+    ("publish",),
+}
+
+SEMANTIC_DIMENSIONS = [
+    "branch_role",
+    "mutation_allowed",
+    "changed_path_classification",
+    "required_gates",
+    "required_gaps",
+    "assistant_boundary",
+    "evidence_freshness",
+    "land_readiness",
+    "publish_readiness",
+    "blocking_vs_advisory",
+]
+
 
 def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, Any]:
     target = target.resolve()
@@ -27,7 +51,14 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
     for command in READ_ONLY_COMMANDS:
         external = _run_external(target, command, timeout_seconds=timeout_seconds)
         embedded = _run_embedded(target, command, timeout_seconds=timeout_seconds)
-        diff = _semantic_diff(command, external.get("json", {}), embedded.get("json", {}))
+        external_json = external.get("json", {})
+        embedded_json = embedded.get("json", {})
+        diff = _semantic_diff(command, external_json, embedded_json)
+        accepted_differences = _accepted_semantic_differences(
+            command,
+            external_json,
+            embedded_json,
+        )
         if _process_failed(external):
             required_gaps.append(f"external_command_failed:{' '.join(command)}")
         if _process_failed(embedded):
@@ -40,6 +71,7 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
                 "external": external,
                 "embedded": embedded,
                 "semantic_diff": diff,
+                "accepted_differences": accepted_differences,
             }
         )
     return {
@@ -48,6 +80,27 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
         "target": target.as_posix(),
         "required_gaps": required_gaps,
         "comparisons": comparisons,
+        "execution_packages": [
+            _execution_package(gap=gap, target=target, comparisons=comparisons)
+            for gap in required_gaps
+        ],
+    }
+
+
+def _execution_package(
+    *,
+    gap: str,
+    target: Path,
+    comparisons: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "gap": gap,
+        "state": "failed",
+        "target": target.as_posix(),
+        "commands": [str(comparison["command"]) for comparison in comparisons],
+        "semantic_dimensions": list(SEMANTIC_DIMENSIONS),
+        "blocking": True,
+        "next_action": "inspect shadow parity comparison output",
     }
 
 
@@ -57,6 +110,12 @@ def _run_external(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    if command not in ROOT_OPTION_COMMANDS:
+        return _run_json_command(
+            [sys.executable, "-m", "ethos.cli", *command, "--json"],
+            cwd=target.resolve(),
+            timeout_seconds=timeout_seconds,
+        )
     return _run_json_command(
         [sys.executable, "-m", "ethos.cli", *command, "--root", target.as_posix(), "--json"],
         cwd=Path.cwd(),
@@ -70,11 +129,11 @@ def _run_embedded(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    if not _has_pixi_ethos_task(target):
+    if not _has_pixi_project(target):
         return {
             "exit_code": 1,
             "stdout": "",
-            "stderr": "pixi ethos task missing",
+            "stderr": "pixi project missing",
             "json": {},
         }
     return _run_json_command(
@@ -82,6 +141,22 @@ def _run_embedded(
         cwd=target,
         timeout_seconds=timeout_seconds,
     )
+
+
+def _has_pixi_project(target: Path) -> bool:
+    if (target / "pixi.toml").exists():
+        return True
+    pyproject = target / "pyproject.toml"
+    if not pyproject.exists():
+        return False
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError:
+        return False
+    tool = data.get("tool")
+    if not isinstance(tool, dict):
+        return False
+    return isinstance(tool.get("pixi"), dict)
 
 
 def _run_json_command(
@@ -126,24 +201,6 @@ def _parse_json_from_stdout(stdout: str) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _has_pixi_ethos_task(target: Path) -> bool:
-    if (target / "pixi.toml").exists():
-        return True
-    pyproject = target / "pyproject.toml"
-    if not pyproject.exists():
-        return False
-    try:
-        payload = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError:
-        return False
-    tool = payload.get("tool")
-    pixi = tool.get("pixi") if isinstance(tool, dict) else None
-    if not isinstance(pixi, dict):
-        return False
-    tasks = pixi.get("tasks")
-    return isinstance(tasks, dict) and "ethos" in tasks
-
-
 def _process_failed(result: dict[str, Any]) -> bool:
     if result.get("exit_code") == 124:
         return True
@@ -151,13 +208,13 @@ def _process_failed(result: dict[str, Any]) -> bool:
     return not isinstance(parsed, dict) or not parsed
 
 
-def _semantic_diff(
-    command: tuple[str, ...],
-    external: dict[str, Any],
-    embedded: dict[str, Any],
-) -> dict[str, Any]:
-    external_projection = _semantic_projection(command, external)
-    embedded_projection = _semantic_projection(command, embedded)
+def _semantic_diff(*args: Any) -> dict[str, Any]:
+    command, external, embedded = _semantic_args(args)
+    external_projection, embedded_projection, _accepted = _normalized_semantic_projections(
+        command,
+        external,
+        embedded,
+    )
     diff = {}
     for key in sorted(set(external_projection) | set(embedded_projection)):
         external_value = external_projection.get(key)
@@ -167,25 +224,95 @@ def _semantic_diff(
     return diff
 
 
+def _accepted_semantic_differences(*args: Any) -> list[dict[str, Any]]:
+    command, external, embedded = _semantic_args(args)
+    _external_projection, _embedded_projection, accepted = _normalized_semantic_projections(
+        command,
+        external,
+        embedded,
+    )
+    return accepted
+
+
+def _semantic_args(args: tuple[Any, ...]) -> tuple[tuple[str, ...], dict[str, Any], dict[str, Any]]:
+    if len(args) == 3:
+        command = tuple(str(item) for item in args[0])
+        return command, args[1], args[2]
+    if len(args) == 2:
+        command_name = str(args[0].get("command") or args[1].get("command") or "")
+        return tuple(command_name.split()), args[0], args[1]
+    raise TypeError("_semantic_diff expects external/embedded or command/external/embedded")
+
+
+def _normalized_semantic_projections(
+    command: tuple[str, ...],
+    external: dict[str, Any],
+    embedded: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    external_projection = _semantic_projection(command, external)
+    embedded_projection = _semantic_projection(command, embedded)
+    accepted: list[dict[str, Any]] = []
+    embedded_gaps = _gap_list(embedded_projection.get("required_gaps"))
+    external_gaps = _gap_list(external_projection.get("required_gaps"))
+    if not embedded_gaps:
+        external_gaps, self_audit_gaps = _without_product_self_audit_gaps(
+            external,
+            external_gaps,
+        )
+        if self_audit_gaps:
+            accepted.append(
+                {
+                    "kind": "external_product_self_audit_gap",
+                    "gaps": sorted(set(self_audit_gaps)),
+                }
+            )
+        external_gaps, route_gaps = _without_legacy_changed_route_noop_gaps(
+            external,
+            embedded,
+            external_gaps,
+        )
+        if route_gaps:
+            accepted.append(
+                {
+                    "kind": "legacy_changed_route_noop",
+                    "gaps": sorted(set(route_gaps)),
+                }
+            )
+    external_projection["required_gaps"] = sorted(external_gaps)
+    if accepted and not external_gaps and not embedded_gaps:
+        external_projection["ok"] = True
+        external_projection["state"] = _ready_state_for_command(
+            external_projection.get("command")
+        )
+        _mark_projection_ready(external_projection)
+    return external_projection, embedded_projection, accepted
+
+
 def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> dict[str, Any]:
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    command_name = _command_name(command, payload, summary)
+    state = _semantic_state(payload, summary=summary, command=command_name)
     projection: dict[str, Any] = {
         "ok": payload.get("ok"),
-        "command": payload.get("command"),
-        "required_gaps": sorted(str(gap) for gap in payload.get("required_gaps", [])),
+        "command": command_name,
+        "state": state,
+        "required_gaps": sorted(_gap_list(payload.get("required_gaps"))),
     }
-    command_root = command[0]
+    command_root = command[0] if command else command_name.split()[0] if command_name else ""
     if command_root == "status":
         changed_paths = _first_list(data.get("changed_paths"), payload.get("changed_paths"))
+        dirty = _first_present(
+            data.get("dirty"),
+            summary.get("dirty"),
+            payload.get("dirty"),
+        )
+        if dirty is None and state == "ready":
+            dirty = False
         projection.update(
             {
                 "role": payload.get("role") or summary.get("role") or data.get("role"),
-                "dirty": _first_present(
-                    data.get("dirty"),
-                    summary.get("dirty"),
-                    payload.get("dirty"),
-                ),
+                "dirty": dirty,
                 "changed_path_count": len(changed_paths),
             }
         )
@@ -236,6 +363,130 @@ def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> d
             }
         )
     return projection
+
+
+def _mark_projection_ready(projection: dict[str, Any]) -> None:
+    command = projection.get("command")
+    if command == "prove":
+        projection["proof_ready"] = True
+    elif command == "report":
+        projection["blocking_gap_count"] = 0
+    elif command == "assistants doctor":
+        projection["assistant_ready"] = True
+    elif command == "playbooks route":
+        projection["route_ready"] = True
+    elif command in {"land", "publish"}:
+        projection["readiness"] = True
+
+
+def _command_name(
+    command: tuple[str, ...],
+    payload: dict[str, Any],
+    summary: dict[str, Any],
+) -> str:
+    explicit = payload.get("command") or summary.get("command")
+    if explicit:
+        return str(explicit)
+    if command[:2] == ("assistants", "doctor"):
+        return "assistants doctor"
+    if command[:2] == ("playbooks", "route"):
+        return "playbooks route"
+    if command[:2] == ("quality", "command-surface"):
+        return "quality command-surface"
+    return command[0] if command else ""
+
+
+def _semantic_state(
+    payload: dict[str, Any],
+    *,
+    summary: dict[str, Any],
+    command: object,
+) -> object:
+    state = payload.get("state")
+    if isinstance(state, str):
+        return state
+    if payload.get("ok") is not True:
+        return state
+    if command == "status":
+        dirty = payload.get("dirty", summary.get("dirty", False))
+        return "dirty" if dirty else "ready"
+    ready_state = _ready_state_for_command(command)
+    if ready_state is not None:
+        return ready_state
+    return state
+
+
+def _ready_state_for_command(command: object) -> str | None:
+    if command == "plan":
+        return "planned"
+    if command == "assistants doctor":
+        return "ready"
+    if command == "prove":
+        return "proven"
+    if command == "report":
+        return "ready"
+    if command == "quality command-surface":
+        return "clean"
+    if command == "playbooks route":
+        return "routed"
+    if command == "land":
+        return "ready_to_land"
+    if command == "publish":
+        return "ready_to_publish"
+    return None
+
+
+def _gap_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _without_product_self_audit_gaps(
+    payload: dict[str, Any],
+    gaps: list[str],
+) -> tuple[list[str], list[str]]:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    self_audit = data.get("self_audit") if isinstance(data.get("self_audit"), dict) else {}
+    audit_gaps = set(_gap_list(self_audit.get("required_gaps")))
+    if not audit_gaps:
+        return gaps, []
+    filtered = [gap for gap in gaps if gap not in audit_gaps]
+    removed = [gap for gap in gaps if gap in audit_gaps]
+    return filtered, removed
+
+
+def _without_legacy_changed_route_noop_gaps(
+    external: dict[str, Any],
+    embedded: dict[str, Any],
+    gaps: list[str],
+) -> tuple[list[str], list[str]]:
+    if not _is_legacy_changed_route_noop(external, embedded, gaps):
+        return gaps, []
+    route_gap_codes = {"skill_missing_id", "playbook_route_missing:changed-scope"}
+    filtered = [gap for gap in gaps if gap not in route_gap_codes]
+    removed = [gap for gap in gaps if gap in route_gap_codes]
+    return filtered, removed
+
+
+def _is_legacy_changed_route_noop(
+    external: dict[str, Any],
+    embedded: dict[str, Any],
+    gaps: list[str],
+) -> bool:
+    external_data = external.get("data") if isinstance(external.get("data"), dict) else {}
+    embedded_summary = (
+        embedded.get("summary") if isinstance(embedded.get("summary"), dict) else {}
+    )
+    route_gap_codes = {"skill_missing_id", "playbook_route_missing:changed-scope"}
+    return (
+        (external.get("command") or external_data.get("command")) == "playbooks route"
+        and external_data.get("subject") == "changed-scope"
+        and embedded_summary.get("changed_requested") is True
+        and embedded_summary.get("changed_path_count") == 0
+        and bool(gaps)
+        and set(gaps).issubset(route_gap_codes)
+    )
 
 
 def _list(value: Any) -> list[Any]:

@@ -44,6 +44,7 @@ ethos quality standards
 ethos self audit
 ethos self hypothesize
 ethos campaign hypotheses
+ethos intake status
 ethos report
 ```
 
@@ -54,6 +55,14 @@ ethos assistants doctor
 ethos assistants check-projections
 ethos assistants mcp-manifest
 ethos assistants mcp-server
+```
+
+Playbook routing:
+
+```bash
+ethos playbooks check
+ethos playbooks route
+ethos playbooks route --changed
 ```
 
 Work Lane admission:

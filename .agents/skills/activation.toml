@@ -5,6 +5,6 @@ source_of_truth = "repository"
 [[skill]]
 id = "ethos-repository-governance"
 path = ".agents/skills/ethos-repository-governance/SKILL.md"
-subjects = ["repository-governance", "ethos", "self-governance", "adoption"]
+subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
 boundary = "thin-playbook-projection"

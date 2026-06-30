@@ -8,7 +8,17 @@ from ethos_governance.evolution import evolution_report
 from ethos_governance.openspec_native import openspec_self_governance_report
 from ethos_governance.schema_validation import schema_validation_report
 
-CANONICAL_PACKAGES = (
+TARGET_PRODUCT_PACKAGES = (
+    "ethos-core",
+    "ethos-contracts",
+    "ethos-repository",
+    "ethos-assistants",
+    "ethos-adapters",
+    "ethos",
+    "ethos-test",
+)
+
+MIGRATION_HOST_PACKAGES = (
     "ethos",
     "ethos-kernel",
     "ethos-governance",
@@ -17,10 +27,13 @@ CANONICAL_PACKAGES = (
     "ethos-project",
 )
 
-DISTRIBUTION_ADAPTERS = ("ethos-node",)
+TARGET_DISTRIBUTION_ADAPTERS = ("distributions/npm",)
+
+DISTRIBUTION_MIGRATION_HOSTS = ("packages/ethos-node",)
 
 REQUIRED_DOCS = (
     "docs/architecture/product-ontology.md",
+    "docs/architecture/package-ontology.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",
     "docs/architecture/action-graph.md",
@@ -34,6 +47,9 @@ REQUIRED_DOCS = (
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
     "docs/governance/conversation-ledger.md",
+    "docs/governance/product-design-contract.md",
+    "docs/governance/product-boundary-convergence.md",
+    "docs/governance/capability-parity-ledger.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
     "docs/governance/openspec-self-governance.md",
@@ -102,17 +118,25 @@ def _front_matter_ok(path: Path) -> bool:
 def self_audit(root: Path) -> dict[str, object]:
     package_missing = [
         package
-        for package in CANONICAL_PACKAGES
+        for package in MIGRATION_HOST_PACKAGES
         if not (root / "packages" / package / "README.md").exists()
+    ]
+    target_package_missing = [
+        f"packages/{package}"
+        for package in TARGET_PRODUCT_PACKAGES
+        if not (root / "packages" / package).exists()
     ]
     distribution_missing = [
         adapter
-        for adapter in DISTRIBUTION_ADAPTERS
+        for adapter in DISTRIBUTION_MIGRATION_HOSTS
         if not (
-            (root / "packages" / adapter / "README.md").exists()
-            and (root / "packages" / adapter / "package.json").exists()
-            and (root / "packages" / adapter / "bin" / "ethos.mjs").exists()
+            (root / adapter / "README.md").exists()
+            and (root / adapter / "package.json").exists()
+            and (root / adapter / "bin" / "ethos.mjs").exists()
         )
+    ]
+    target_distribution_missing = [
+        adapter for adapter in TARGET_DISTRIBUTION_ADAPTERS if not (root / adapter).exists()
     ]
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -157,10 +181,25 @@ def self_audit(root: Path) -> dict[str, object]:
         "ok": not gaps,
         "package_ontology": {
             "ok": not package_missing and not distribution_missing,
-            "canonical_packages": list(CANONICAL_PACKAGES),
-            "distribution_adapters": list(DISTRIBUTION_ADAPTERS),
+            "stage": "migration",
+            "migration_host_packages": list(MIGRATION_HOST_PACKAGES),
+            "target_package_contract": list(TARGET_PRODUCT_PACKAGES),
+            "target_distribution_contract": list(TARGET_DISTRIBUTION_ADAPTERS),
+            "distribution_migration_hosts": list(DISTRIBUTION_MIGRATION_HOSTS),
             "missing": package_missing,
             "adapter_missing": distribution_missing,
+        },
+        "target_package_ontology": {
+            "ok": not target_package_missing and not target_distribution_missing,
+            "contract_ok": True,
+            "migration_complete": not target_package_missing
+            and not target_distribution_missing,
+            "target_packages": list(TARGET_PRODUCT_PACKAGES),
+            "migration_hosts": list(MIGRATION_HOST_PACKAGES[1:]),
+            "target_distribution_adapters": list(TARGET_DISTRIBUTION_ADAPTERS),
+            "distribution_migration_hosts": list(DISTRIBUTION_MIGRATION_HOSTS),
+            "missing": target_package_missing,
+            "adapter_missing": target_distribution_missing,
         },
         "docs": {
             "ok": not docs_missing and not docs_without_front_matter,

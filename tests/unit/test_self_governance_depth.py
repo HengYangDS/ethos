@@ -26,6 +26,7 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
 
     for doc in (
         "docs/architecture/product-ontology.md",
+        "docs/architecture/package-ontology.md",
         "docs/architecture/distribution.md",
         "docs/concepts/kernel-model.md",
         "docs/architecture/action-graph.md",
@@ -40,6 +41,9 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         "docs/governance/commit-signature-policy.md",
         "docs/governance/provenance-and-attestation.md",
         "docs/governance/docs-registry.md",
+        "docs/governance/product-design-contract.md",
+        "docs/governance/product-boundary-convergence.md",
+        "docs/governance/capability-parity-ledger.md",
         "docs/governance/openspec-self-governance.md",
         "docs/governance/playbooks-and-skills.md",
         "docs/governance/release-governance.md",

@@ -64,17 +64,23 @@ def playbooks_report(root: Path) -> dict[str, object]:
     }
 
 
-def route_playbook(root: Path, subject: str) -> dict[str, object]:
+def route_playbook(
+    root: Path,
+    subject: str,
+    *,
+    require_explicit_subject: bool = False,
+) -> dict[str, object]:
     report = playbooks_report(root)
     normalized = subject.strip().lower()
     selected = [
         record
         for record in report["records"]
-        if normalized in str(record["id"]).lower()
-        or any(normalized in str(item).lower() for item in record["subjects"])
+        if _matches_route_subject(
+            record,
+            normalized,
+            require_explicit_subject=require_explicit_subject,
+        )
     ]
-    if not selected and report["records"]:
-        selected = [report["records"][0]]
     gaps = list(report["required_gaps"])
     if not selected:
         gaps.append(f"playbook_route_missing:{subject}")
@@ -85,3 +91,15 @@ def route_playbook(root: Path, subject: str) -> dict[str, object]:
         "required_gaps": gaps,
         "skills_root": report["skills_root"],
     }
+
+
+def _matches_route_subject(
+    record: dict[str, object],
+    normalized: str,
+    *,
+    require_explicit_subject: bool,
+) -> bool:
+    subjects = [str(item).strip().lower() for item in record["subjects"]]
+    if require_explicit_subject:
+        return normalized in subjects
+    return normalized in str(record["id"]).lower() or any(normalized in item for item in subjects)

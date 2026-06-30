@@ -9,8 +9,13 @@ relations:
 # ETHOS Documentation
 
 Start with [Start](start/quickstart.md), then read
-[Kernel Model](concepts/kernel-model.md), [Product Ontology](architecture/product-ontology.md),
-[Distribution](architecture/distribution.md), [Action Graph](architecture/action-graph.md), and
+[Kernel Model](concepts/kernel-model.md),
+[Product Design Contract](governance/product-design-contract.md),
+[Package Ontology](architecture/package-ontology.md),
+[Product Boundary Convergence](governance/product-boundary-convergence.md),
+[Capability Parity Ledger](governance/capability-parity-ledger.md),
+[Distribution](architecture/distribution.md),
+[Action Graph](architecture/action-graph.md), and
 [Self Evolution](governance/self-evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
 [Conversation Ledger](governance/conversation-ledger.md).
@@ -22,6 +27,11 @@ truth.
 ## Maps
 
 - Command plane: [Command Plane](reference/command-plane.md)
+- Product design contract: [Product Design Contract](governance/product-design-contract.md)
+- Target package ontology: [Package Ontology](architecture/package-ontology.md)
+- Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
+- Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
+- Current package migration state: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)

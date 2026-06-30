@@ -8,8 +8,10 @@ relations:
 
 # Product Ontology
 
-ETHOS keeps one thin command package, five semantic Python product packages,
-and separate distribution adapters:
+This page describes the current migration-host package state. The target
+ontology is [Package Ontology](package-ontology.md).
+
+Current packages are not the final product ontology:
 
 ```text
 ethos
@@ -21,17 +23,21 @@ ethos-agent
 ethos-node
 ```
 
-Top-level packages are cohesive product families:
+Current migration-host packages are:
 
 - `ethos`: public command plane and UX composition.
 - `ethos-kernel`: pure models, result envelope, and action graph algebra.
 - `ethos-project`: init, adopt, scaffold, profile, and fleet inspection.
 - `ethos-governance`: commitments, schemas, claims, evidence, standards,
-  release readiness, and self-evolution.
+  release readiness, and self-evolution. Its contents are expected to split
+  across target contracts, repository semantics, and adapters.
 - `ethos-workspace`: local state, gate execution, lanes, land, and publish
-  boundaries.
-- `ethos-agent`: assistant, MCP, ACP, context, and playbook projections.
-- `ethos-node`: npm launcher adapter for the public command plane.
+  boundaries. Its logical semantics move to repository semantics; provider
+  implementations move to adapters.
+- `ethos-agent`: assistant, MCP, ACP, context, and playbook projections. Its
+  target home is `ethos-assistants` plus protocol adapters.
+- `ethos-node`: npm launcher adapter for the public command plane. Its target
+  home is `distributions/npm`.
 
 Adopter-specific semantics stay in adopter profiles and repositories. Product
 packages may expose adapters, but they do not hardcode adopter private names.

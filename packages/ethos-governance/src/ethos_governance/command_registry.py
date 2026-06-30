@@ -12,6 +12,7 @@ PUBLIC_COMMANDS = (
     "ethos adopt",
     "ethos doctor",
     "ethos campaign",
+    "ethos intake",
     "ethos self",
     "ethos quality",
     "ethos assistants",

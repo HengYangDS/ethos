@@ -1,6 +1,6 @@
 # ETHOS
 
-ETHOS is Evidence-backed Trust for Human-agent Operational Stewardship.
+ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.
 
 It is a reflexive, standards-compatible, agentic-native governance kernel for
 deterministic repository change, evidence, release, and evolution.
@@ -23,6 +23,7 @@ Advanced workflow:
 ethos adopt
 ethos doctor
 ethos campaign
+ethos intake
 ethos self
 ethos quality
 ethos assistants
@@ -36,7 +37,7 @@ ethos report
 ETHOS reduces repository operation to one chain:
 
 ```text
-Constitution -> Subject -> Commitment -> Change -> Evidence -> Chronicle -> Evolution
+Constitution -> Subject -> Contract -> IR -> Transition -> Inscription -> Evidence -> Chronicle -> Evolution
 ```
 
 Packages are derived shells over that kernel. They do not create separate truth
@@ -53,6 +54,9 @@ packages/ethos-agent/       context packs, playbooks, MCP/ACP projections
 packages/ethos-project/     init, adopt, scaffold, profiles, fleet inspection
 packages/ethos-node/        npm launcher adapter
 ```
+
+These packages are the current migration-host topology. The target ontology is
+defined in `docs/architecture/package-ontology.md`.
 
 The npm package is a thin launcher over the Python command plane:
 

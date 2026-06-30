@@ -43,6 +43,7 @@ app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.")
 self_app = App(name="self", help="Self-governance commands.")
 campaign_app = App(name="campaign", help="Evolution campaign commands.")
+intake_app = App(name="intake", help="Intake ledger commands.")
 assistants_app = App(name="assistants", help="Assistant and protocol projections.")
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.")
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.")
@@ -50,6 +51,7 @@ lane_app = App(name="lane", help="Work Lane lifecycle and write admission.")
 app.command(quality_app)
 app.command(self_app)
 app.command(campaign_app)
+app.command(intake_app)
 app.command(assistants_app)
 app.command(playbooks_app)
 app.command(fleet_app)
@@ -1040,6 +1042,54 @@ def hypotheses(*, json_output: JsonFlag = False) -> None:
     _emit(result, json_output)
 
 
+@intake_app.command(name="status")
+def intake_status(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report adopter intake ledger readiness."""
+    repo = _root(root)
+    config_path = repo / ".ethos" / "intake.toml"
+    gaps: tuple[str, ...] = ()
+    provider = "unconfigured"
+    configured = False
+    if config_path.exists():
+        try:
+            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            provider = "invalid"
+            gaps = ("intake_config_invalid:.ethos/intake.toml",)
+        else:
+            configured_provider = str(config.get("provider") or "").strip()
+            if configured_provider:
+                provider = configured_provider
+                configured = True
+            else:
+                provider = "invalid"
+                gaps = ("intake_provider_missing:.ethos/intake.toml",)
+    data = {
+        "truth_boundary": "adopter-ledger",
+        "provider": provider,
+        "configured": configured,
+        "expected_config": ".ethos/intake.toml",
+        "adapters": ["backlog", "github", "gitlab"],
+    }
+    result = EthosResult(
+        command="intake status",
+        ok=not gaps,
+        state="configured" if configured else ("invalid" if gaps else "unconfigured"),
+        summary={
+            "provider": data["provider"],
+            "truth_boundary": data["truth_boundary"],
+        },
+        required_gaps=gaps,
+        next_actions=("ethos adopt --dry-run",) if not configured else ("ethos plan --changed",),
+        data=data,
+    )
+    _emit(result, json_output)
+
+
 @assistants_app.command(name="doctor")
 def assistants_doctor(*, json_output: JsonFlag = False) -> None:
     """Report assistant projection readiness."""
@@ -1140,12 +1190,14 @@ def playbooks_check(
 def playbooks_route(
     *,
     subject: str = "repository-governance",
+    changed: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Route a subject to repo-local ETHOS playbooks."""
     repo = _root(root)
-    report = route_playbook(repo, subject)
+    route_subject = "changed-scope" if changed else subject
+    report = route_playbook(repo, route_subject, require_explicit_subject=changed)
     result = EthosResult(
         command="playbooks route",
         ok=bool(report["ok"]),

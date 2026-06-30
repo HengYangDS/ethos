@@ -1,0 +1,31 @@
+[claim]
+id = "ethos-product-design-contract"
+subject = "ethos:product-design-contract"
+state = "active"
+summary = "ETHOS now has a canonical product design contract, target package ontology, product/adopter boundary policy, and capability parity ledger for safe migration from embedded adopter implementation to product truth."
+
+[evidence]
+dated = "docs/evidence/product-design-contract-2026-07-01.md"
+sha256 = "1dadf15d9ea1cbaa1fd7df2bc1db7000256219915d60b0bb1a9e2d6f3261258b"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py",
+  "uv run --group dev pytest -q tests/unit/test_self_governance_depth.py tests/unit/test_cli_contracts.py::test_self_audit_reports_product_shape tests/unit/test_cli_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/test_cli_contracts.py::test_self_evolution_loop_commands_are_available",
+  "uv run --package ethos ethos self audit --json",
+  "openspec archive ethos-product-design-contract --yes --json",
+  "uv run --group dev pytest -q",
+  "uv run --group dev ruff check .",
+  "openspec validate --all --strict --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json",
+  "uv build --all-packages",
+  "npm run ethos -- --version",
+  "npm run test:npm -- --json",
+  "uv run --package ethos ethos report --json",
+]
+
+[scope]
+docs = [
+  "docs/governance/product-design-contract.md",
+  "docs/architecture/package-ontology.md",
+  "docs/governance/product-boundary-convergence.md",
+  "docs/governance/capability-parity-ledger.md",
+]

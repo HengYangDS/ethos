@@ -171,7 +171,11 @@ def test_self_audit_reports_product_shape() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "self audit"
     assert payload["required_gaps"] == []
-    assert payload["data"]["package_ontology"]["ok"] is True
+    package_ontology = payload["data"]["package_ontology"]
+    assert package_ontology["ok"] is True
+    assert "canonical_packages" not in package_ontology
+    assert "ethos-governance" in package_ontology["migration_host_packages"]
+    assert "ethos-core" in package_ontology["target_package_contract"]
 
 
 def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
@@ -192,6 +196,7 @@ def test_quality_command_registry_rejects_retired_public_roots() -> None:
     assert payload["data"]["retired_public_roots"] == []
     assert payload["data"]["retired_public_root_mentions"] == []
     assert "ethos status" in payload["data"]["public_commands"]
+    assert "ethos intake" in payload["data"]["public_commands"]
     assert "ethos lane" in payload["data"]["public_commands"]
 
 
@@ -442,11 +447,101 @@ def test_assistant_projection_commands_are_available() -> None:
     assert doctor["ok"] is True
 
 
+def test_playbooks_route_accepts_changed_scope_alias() -> None:
+    payload = run_ethos("playbooks", "route", "--changed", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "playbooks route"
+    assert payload["data"]["subject"] == "changed-scope"
+    selected = payload["data"]["selected"]
+    assert selected
+    assert any("changed-scope" in record["subjects"] for record in selected)
+
+
+def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "ethos-repository-governance" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# ETHOS Repository Governance\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+id = "ethos-repository-governance"
+path = ".agents/skills/ethos-repository-governance/SKILL.md"
+subjects = ["repository-governance"]
+commands = ["ethos status"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is False
+    assert payload["data"]["selected"] == []
+    assert "playbook_route_missing:changed-scope" in payload["required_gaps"]
+
+
+def test_playbooks_changed_scope_route_ignores_id_and_subject_substrings(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "changed-scope-helper" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# Changed Scope Helper\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+id = "changed-scope-helper"
+path = ".agents/skills/changed-scope-helper/SKILL.md"
+subjects = ["changed-scope-shadow"]
+commands = ["ethos status"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is False
+    assert payload["data"]["selected"] == []
+    assert "playbook_route_missing:changed-scope" in payload["required_gaps"]
+
+
 def test_campaign_hypotheses_are_visible() -> None:
     payload = run_ethos("campaign", "hypotheses", "--json")
 
     assert payload["ok"] is True
     assert payload["data"]["hypotheses"]
+
+
+def test_intake_status_is_public_read_only_surface() -> None:
+    payload = run_ethos("intake", "status", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "intake status"
+    assert payload["data"]["truth_boundary"] == "adopter-ledger"
+    assert payload["data"]["provider"] == "unconfigured"
+
+
+def test_intake_status_rejects_empty_configuration(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    (root / ".ethos" / "intake.toml").write_text("", encoding="utf-8")
+
+    payload = run_ethos("intake", "status", "--root", str(root), "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "invalid"
+    assert payload["data"]["configured"] is False
+    assert payload["data"]["provider"] == "invalid"
+    assert "intake_provider_missing:.ethos/intake.toml" in payload["required_gaps"]
 
 
 def test_docs_command_uses_registry_for_discovery() -> None:

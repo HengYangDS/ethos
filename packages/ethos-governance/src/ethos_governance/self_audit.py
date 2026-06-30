@@ -33,6 +33,7 @@ REQUIRED_DOCS = (
     "docs/architecture/runner-and-mutation.md",
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
+    "docs/governance/conversation-ledger.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
     "docs/governance/openspec-self-governance.md",

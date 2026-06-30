@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/workspace-status.schema.json",
+  "title": "ETHOS Workspace Status",
+  "type": "object",
+  "required": [
+    "root",
+    "branch",
+    "dirty",
+    "changed_paths",
+    "role",
+    "candidate",
+    "worktrees",
+    "branch_actions",
+    "foreign_work_lanes",
+    "required_gaps"
+  ],
+  "properties": {
+    "root": {"type": "string"},
+    "branch": {"type": "string"},
+    "dirty": {"type": "boolean"},
+    "changed_paths": {"type": "array", "items": {"type": "string"}},
+    "role": {"$ref": "#/$defs/role"},
+    "candidate": {"$ref": "#/$defs/candidate"},
+    "worktrees": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
+    "branch_actions": {"type": "array", "items": {"$ref": "#/$defs/branchAction"}},
+    "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
+    "required_gaps": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "role": {
+      "type": "string",
+      "enum": ["accepted_root", "candidate", "work_lane", "submit", "detached", "other"]
+    },
+    "openAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["action", "label"],
+          "properties": {
+            "action": {"const": "current_worktree"},
+            "label": {"const": "Current Worktree"}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["action", "label"],
+          "properties": {
+            "action": {"const": "open_worktree"},
+            "label": {"const": "Open Worktree"}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["action", "label"],
+          "properties": {
+            "action": {"const": "create_worktree"},
+            "label": {"const": "Create Worktree"}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["action", "label"],
+          "properties": {
+            "action": {"const": "bootstrap_worktree"},
+            "label": {"const": "Bootstrap Worktree"}
+          }
+        }
+      ]
+    },
+    "candidate": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": [
+            "branch",
+            "exists",
+            "head",
+            "worktree_exists",
+            "worktree_path",
+            "open_action",
+            "open_label"
+          ],
+          "properties": {
+            "branch": {"const": "candidate/dev"},
+            "exists": {"type": "boolean"},
+            "head": {"type": "string"},
+            "worktree_exists": {"type": "boolean"},
+            "worktree_path": {"type": "string"},
+            "open_action": {"type": "string"},
+            "open_label": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "open_action": {"const": "current_worktree"},
+                "open_label": {"const": "Current Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "open_worktree"},
+                "open_label": {"const": "Open Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "create_worktree"},
+                "open_label": {"const": "Create Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "bootstrap_worktree"},
+                "open_label": {"const": "Bootstrap Worktree"}
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "worktree": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": ["path", "head", "branch", "role", "open_action", "open_label"],
+          "properties": {
+            "path": {"type": "string"},
+            "head": {"type": "string"},
+            "branch": {"type": "string"},
+            "role": {"$ref": "#/$defs/role"},
+            "open_action": {"type": "string"},
+            "open_label": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "open_action": {"const": "current_worktree"},
+                "open_label": {"const": "Current Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "open_worktree"},
+                "open_label": {"const": "Open Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "create_worktree"},
+                "open_label": {"const": "Create Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "bootstrap_worktree"},
+                "open_label": {"const": "Bootstrap Worktree"}
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "branchAction": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": ["branch", "role", "head", "path", "action", "label"],
+          "properties": {
+            "branch": {"type": "string"},
+            "role": {"$ref": "#/$defs/role"},
+            "head": {"type": "string"},
+            "path": {"type": "string"},
+            "action": {"type": "string"},
+            "label": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        {"$ref": "#/$defs/openAction"}
+      ]
+    }
+  }
+}

@@ -77,6 +77,7 @@ REQUIRED_SCHEMAS = (
     "gate.schema.json",
     "assistant-projection.schema.json",
     "mutation-decision.schema.json",
+    "workspace-status.schema.json",
 )
 
 REQUIRED_RELEASE_FILES = (

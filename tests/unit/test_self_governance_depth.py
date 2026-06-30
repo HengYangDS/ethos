@@ -73,6 +73,7 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         "gate.schema.json",
         "assistant-projection.schema.json",
         "mutation-decision.schema.json",
+        "workspace-status.schema.json",
     ):
         write(tmp_path / "schemas" / "ethos" / schema, "{}\n")
 

@@ -104,7 +104,69 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    instances["workspace-status-contract"] = validate_schema_instance(
+        "workspace-status.schema.json",
+        _workspace_status_contract_sample(),
+        root=root,
+    )
     return instances
+
+
+def _workspace_status_contract_sample() -> dict[str, Any]:
+    return {
+        "root": "/repo",
+        "branch": "dev",
+        "dirty": False,
+        "changed_paths": [],
+        "role": "accepted_root",
+        "candidate": {
+            "branch": "candidate/dev",
+            "exists": True,
+            "head": "abc123",
+            "worktree_exists": True,
+            "worktree_path": "/repo-candidate-dev",
+            "open_action": "open_worktree",
+            "open_label": "Open Worktree",
+        },
+        "worktrees": [
+            {
+                "path": "/repo",
+                "head": "abc123",
+                "branch": "dev",
+                "role": "accepted_root",
+                "open_action": "current_worktree",
+                "open_label": "Current Worktree",
+            },
+            {
+                "path": "/repo-candidate-dev",
+                "head": "abc123",
+                "branch": "candidate/dev",
+                "role": "candidate",
+                "open_action": "open_worktree",
+                "open_label": "Open Worktree",
+            },
+        ],
+        "branch_actions": [
+            {
+                "branch": "dev",
+                "role": "accepted_root",
+                "head": "abc123",
+                "path": "/repo",
+                "action": "current_worktree",
+                "label": "Current Worktree",
+            },
+            {
+                "branch": "candidate/dev",
+                "role": "candidate",
+                "head": "abc123",
+                "path": "/repo-candidate-dev",
+                "action": "open_worktree",
+                "label": "Open Worktree",
+            },
+        ],
+        "foreign_work_lanes": [],
+        "required_gaps": [],
+    }
 
 
 def validate_ethos_result(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ethos_governance.schema_validation import validate_schema_instance
 from ethos_workspace.lanes import start_work_lane
 from ethos_workspace.prewrite import prewrite_guard
 from ethos_workspace.state import active_leases
@@ -90,6 +91,20 @@ def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
     assert worktree_actions["candidate/dev"]["path"] == candidate.as_posix()
     assert worktree_actions["work/feature"]["label"] == "Open Worktree"
     assert worktree_actions["work/feature"]["path"] == worktree.as_posix()
+
+
+def test_workspace_status_output_validates_against_workspace_status_schema(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+
+    validation = validate_schema_instance("workspace-status.schema.json", workspace_status(repo))
+
+    assert validation["ok"] is True
+    assert validation["required_gaps"] == []
 
 
 def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> None:

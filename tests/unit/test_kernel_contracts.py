@@ -126,6 +126,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "gate.schema.json",
         "assistant-projection.schema.json",
         "mutation-decision.schema.json",
+        "workspace-status.schema.json",
     }
 
     assert expected <= {path.name for path in schema_dir.glob("*.schema.json")}

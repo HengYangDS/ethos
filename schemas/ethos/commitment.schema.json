@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/commitment.schema.json",
+  "title": "ETHOS Commitment",
+  "type": "object",
+  "required": ["id", "subject_id", "kind", "statement"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "subject_id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "statement": {"type": "string", "minLength": 1},
+    "source": {"type": ["string", "null"]},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,9 @@
+[meta]
+version = 1
+owner = "ethos-maintainers"
+
+[semantic_axes]
+required = ["subject", "role", "state", "relations"]
+
+[states]
+allowed = ["canonical", "active", "experimental", "superseded", "archived"]

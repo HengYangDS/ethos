@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/change.schema.json",
+  "title": "ETHOS Change",
+  "type": "object",
+  "required": ["id", "subject_ids", "commitment_ids", "transition", "inscriptions", "ir"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "subject_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "commitment_ids": {"type": "array", "items": {"type": "string"}},
+    "transition": {"type": "string", "minLength": 1},
+    "inscriptions": {"type": "array", "items": {"type": "string"}},
+    "ir": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/result.schema.json",
+  "title": "ETHOS Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "command",
+    "ok",
+    "state",
+    "summary",
+    "diagnostics",
+    "required_gaps",
+    "next_actions",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer"},
+    "command": {"type": "string", "minLength": 1},
+    "ok": {"type": "boolean"},
+    "state": {"type": "string", "minLength": 1},
+    "summary": {"type": "object"},
+    "diagnostics": {"type": "array", "items": {"type": "object"}},
+    "required_gaps": {"type": "array", "items": {"type": "string"}},
+    "next_actions": {"type": "array", "items": {"type": "string"}},
+    "data": {"type": "object"}
+  },
+  "additionalProperties": false
+}

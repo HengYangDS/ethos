@@ -1,0 +1,29 @@
+[[package]]
+name = "ethos"
+path = "packages/ethos"
+domains = ["cli", "ux"]
+
+[[package]]
+name = "ethos-kernel"
+path = "packages/ethos-kernel"
+domains = ["kernel", "action-graph"]
+
+[[package]]
+name = "ethos-governance"
+path = "packages/ethos-governance"
+domains = ["policy", "proof", "quality", "attestation"]
+
+[[package]]
+name = "ethos-workspace"
+path = "packages/ethos-workspace"
+domains = ["lane", "state", "publish"]
+
+[[package]]
+name = "ethos-agent"
+path = "packages/ethos-agent"
+domains = ["agent", "context", "projection"]
+
+[[package]]
+name = "ethos-adopt"
+path = "packages/ethos-adopt"
+domains = ["profile", "adoption", "migration"]

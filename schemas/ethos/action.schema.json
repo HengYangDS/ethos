@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/action.schema.json",
+  "title": "ETHOS Action Graph",
+  "type": "object",
+  "required": ["schema_version", "nodes", "digest"],
+  "properties": {
+    "schema_version": {"type": "integer"},
+    "digest": {"type": "string"},
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "command", "inputs", "outputs", "policy", "cache_key"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "command": {"type": "array", "items": {"type": "string"}},
+          "inputs": {"type": "array", "items": {"type": "string"}},
+          "outputs": {"type": "array", "items": {"type": "string"}},
+          "policy": {"type": "string"},
+          "tool": {"type": "string"},
+          "tool_version": {"type": "string"},
+          "env": {"type": "array", "items": {"type": "string"}},
+          "cache_key": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

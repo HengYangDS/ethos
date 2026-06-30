@@ -1,0 +1,18 @@
+[meta]
+version = 1
+owner = "ethos-maintainers"
+
+[[stable_path]]
+path = "AGENTS.md"
+reason = "agent entry point"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/concepts/kernel-model.md"
+reason = "kernel model"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/architecture/product-ontology.md"
+reason = "package ontology"
+freeze_level = "hard"

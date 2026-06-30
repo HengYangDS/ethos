@@ -1,0 +1,15 @@
+[standards]
+json_schema = true
+slsa_attestation = "adapter"
+opentelemetry_semantics = "adapter"
+cue = "advanced-compiler"
+opa = "policy-adapter"
+dagger = "runner-adapter"
+temporal = "service-runtime-adapter"
+mcp = "agent-projection"
+
+[determinism]
+kernel_io = "forbidden"
+action_graph = "required"
+stable_json = "required"
+sqlite_state = "local-only"

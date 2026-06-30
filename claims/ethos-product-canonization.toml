@@ -1,0 +1,9 @@
+[claim]
+id = "ethos-product-canonization"
+subject = "ethos:product"
+state = "active"
+summary = "Bootstrap ETHOS as a standalone reflexive governance framework."
+
+[evidence]
+dated = "docs/evidence/bootstrap-2026-06-30.md"
+tests = ["tests/unit", "tests/architecture"]

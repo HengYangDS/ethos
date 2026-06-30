@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/evolution.schema.json",
+  "title": "ETHOS Evolution",
+  "type": "object",
+  "required": ["id", "subject_id", "hypothesis", "state", "evidence_ids"],
+  "properties": {
+    "id": {"type": "string"},
+    "subject_id": {"type": "string"},
+    "hypothesis": {"type": "string"},
+    "state": {"type": "string"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

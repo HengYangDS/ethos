@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from ethos_governance.standards import standard_adapter_registry
+
+
+def test_standard_adapter_registry_is_explicit_and_retirable() -> None:
+    registry = standard_adapter_registry()
+
+    assert registry["slsa"]["mode"] == "native-standard"
+    assert registry["sigstore"]["mode"] == "first-class-adapter"
+    assert registry["opentelemetry"]["mode"] == "native-standard"
+    assert registry["dagger"]["mode"] == "runner-adapter"
+    assert registry["cue"]["mode"] == "advanced-compiler"
+    assert registry["opa"]["mode"] == "policy-adapter"
+    assert registry["temporal"]["mode"] == "service-runtime-adapter"
+    assert registry["mcp"]["mode"] == "agent-projection"
+    assert all(item["exit_strategy"] for item in registry.values())

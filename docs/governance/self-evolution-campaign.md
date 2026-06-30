@@ -1,0 +1,19 @@
+---
+subject: ethos:self-evolution
+role: workflow
+state: canonical
+relations:
+  canonical_for: self governance
+---
+
+# Self Evolution Campaign
+
+ETHOS governs itself through:
+
+```text
+observe -> hypothesize -> experiment -> prove -> canonize -> retire
+```
+
+Self-audit checks command-plane growth, package ontology drift, docs metadata,
+schema coverage, profile leakage, and adapter boundaries. Self-evolution records
+must either canonize a proven improvement or retire it.

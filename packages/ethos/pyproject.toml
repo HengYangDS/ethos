@@ -1,0 +1,20 @@
+[project]
+name = "ethos"
+version = "0.1.0a1"
+description = "ETHOS public command plane"
+requires-python = ">=3.12"
+dependencies = [
+  "cyclopts>=3.20",
+  "ethos-adopt",
+  "ethos-agent",
+  "ethos-governance",
+  "ethos-kernel",
+  "ethos-workspace",
+]
+
+[project.scripts]
+ethos = "ethos.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+RETIRED_PUBLIC_ROOTS = {
+    "wt",
+    "proof",
+    "mission",
+    "skill-evolution",
+    "agent-surface-contract",
+}
+
+
+def imported_modules(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.add(node.module.split(".")[0])
+    return modules
+
+
+def test_kernel_has_no_side_effect_or_profile_imports() -> None:
+    forbidden = {
+        "ethos_adopt",
+        "ethos_agent",
+        "ethos_governance",
+        "ethos_workspace",
+        "sqlite3",
+        "subprocess",
+        "tools",
+        "dmgr",
+    }
+
+    for path in (ROOT / "packages/ethos-kernel/src").rglob("*.py"):
+        assert imported_modules(path).isdisjoint(forbidden), path
+
+
+def test_cli_uses_cyclopts_not_argparse() -> None:
+    cli_path = ROOT / "packages/ethos/src/ethos/cli.py"
+    imports = imported_modules(cli_path)
+
+    assert "cyclopts" in imports
+    assert "argparse" not in imports
+
+
+def test_retired_public_roots_are_not_console_scripts() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    for retired in RETIRED_PUBLIC_ROOTS:
+        assert f"{retired} =" not in pyproject
+
+
+def test_product_packages_have_canonical_readmes() -> None:
+    for package in (
+        "ethos",
+        "ethos-kernel",
+        "ethos-governance",
+        "ethos-workspace",
+        "ethos-agent",
+        "ethos-adopt",
+    ):
+        readme = ROOT / "packages" / package / "README.md"
+        assert readme.exists()
+        assert "Subject" in readme.read_text(encoding="utf-8")
+
+
+def test_markdown_docs_declare_subject_role_state_relations() -> None:
+    for path in (ROOT / "docs").rglob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), path
+        header = text.split("---", 2)[1]
+        for field in ("subject:", "role:", "state:", "relations:"):
+            assert field in header, path

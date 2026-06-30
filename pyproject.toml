@@ -1,0 +1,44 @@
+[project]
+name = "ethos-product-monorepo"
+version = "0.1.0a1"
+description = "ETHOS product workspace"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "cyclopts>=3.20",
+  "pytest>=8.0",
+  "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+ethos-adopt = { workspace = true }
+ethos-agent = { workspace = true }
+ethos-governance = { workspace = true }
+ethos-kernel = { workspace = true }
+ethos-workspace = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+  "packages/ethos/src",
+  "packages/ethos-kernel/src",
+  "packages/ethos-governance/src",
+  "packages/ethos-workspace/src",
+  "packages/ethos-agent/src",
+  "packages/ethos-adopt/src",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

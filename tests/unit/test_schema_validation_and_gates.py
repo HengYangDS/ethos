@@ -29,6 +29,7 @@ def test_gate_registry_has_real_default_gates() -> None:
 
     assert {"self-audit", "claims", "docs-registry", "schemas"} <= set(registry)
     assert registry["self-audit"].command[-2:] == ("audit", "--json")
+    assert {"unit-architecture", "ruff", "build"} <= set(registry)
 
 
 def test_gate_graph_can_select_requested_gates() -> None:
@@ -36,3 +37,11 @@ def test_gate_graph_can_select_requested_gates() -> None:
 
     assert [node.id for node in graph.nodes] == ["self-audit", "claims"]
     assert graph.validate().ok is True
+
+
+def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
+    graph = gate_graph(full=True)
+    nodes = {node.id: node for node in graph.nodes}
+
+    assert "build" in nodes
+    assert nodes["build"].depends_on == ("unit-architecture", "ruff")

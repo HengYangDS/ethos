@@ -6,37 +6,35 @@ from pathlib import Path
 from typing import Annotated
 
 from cyclopts import App, Parameter
-from ethos_adopt import adoption_plan, available_profiles
-from ethos_agent import mcp_manifest, mcp_server_descriptor, projection_contract
-from ethos_governance import (
-    EvidenceSet,
-    ProofRun,
+from ethos_adopt.planner import adoption_plan, available_profiles
+from ethos_agent.context import context_bundle
+from ethos_agent.mcp import mcp_manifest
+from ethos_agent.projections import projection_contract
+from ethos_agent.server import mcp_server_descriptor
+from ethos_governance.attestation import release_attestation, sbom_projection
+from ethos_governance.claims import claims_report
+from ethos_governance.command_registry import command_registry_report
+from ethos_governance.commit_policy import signature_policy_report
+from ethos_governance.docs_registry import (
     build_docs_registry,
-    claims_report,
     command_examples_report,
-    command_registry_report,
     docs_health_report,
-    evolution_ledger,
-    evolution_report,
-    gate_graph,
-    gate_registry,
-    provenance_envelope,
-    schema_validation_report,
-    self_audit,
-    signature_policy_report,
-    standard_adapter_registry,
-    trim_output,
 )
+from ethos_governance.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
+from ethos_governance.evolution import evolution_candidates, evolution_ledger, evolution_report
+from ethos_governance.gates import gate_graph, gate_registry
+from ethos_governance.history import history_identity_report
+from ethos_governance.openspec_native import openspec_self_governance_report
+from ethos_governance.release import release_policy_report
+from ethos_governance.schema_validation import schema_validation_report
+from ethos_governance.self_audit import self_audit
+from ethos_governance.standards import standard_adapter_registry
 from ethos_kernel.action_graph import ActionGraph, ActionNode
 from ethos_kernel.result import EthosResult
-from ethos_workspace import (
-    DryRunRunner,
-    LocalSubprocessRunner,
-    MutationRequest,
-    evaluate_mutation,
-    workspace_status,
-)
+from ethos_workspace.mutation import MutationRequest, evaluate_mutation
+from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
 from ethos_workspace.state import initialize_state
+from ethos_workspace.status import workspace_status
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.")
@@ -560,6 +558,93 @@ def release(
 
 
 @quality_app.command
+def release_policy(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Validate release version, GitLab, protection, and attestation policy."""
+    repo = _root(root)
+    report = release_policy_report(repo)
+    result = EthosResult(
+        command="quality release-policy",
+        ok=bool(report["ok"]),
+        state="ready" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos quality release-attestation",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def sbom(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Emit an SPDX-lite SBOM projection from workspace metadata."""
+    repo = _root(root)
+    projection = sbom_projection(repo)
+    result = EthosResult(
+        command="quality sbom",
+        ok=True,
+        state="ready",
+        summary={"package_count": len(projection["packages"])},
+        data={"sbom": projection},
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="release-attestation")
+def release_attestation_command(
+    *,
+    evidence_digest: str = "planned",
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Emit release attestation envelope without publishing it."""
+    repo = _root(root)
+    attestation = release_attestation(
+        root=repo,
+        head=_current_head(repo),
+        evidence_digest=evidence_digest,
+    )
+    result = EthosResult(
+        command="quality release-attestation",
+        ok=True,
+        state="ready",
+        summary={"tag": attestation["predicate"]["tag"]},
+        data={"attestation": attestation},
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def history_identity(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Audit raw commit identity and signature normalization."""
+    repo = _root(root)
+    report = history_identity_report(repo)
+    result = EthosResult(
+        command="quality history-identity",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "rewrite_required",
+        required_gaps=(
+            tuple(report["raw_mismatches"])
+            + tuple(report["unsigned_commits"])
+            + tuple(report["subject_mismatches"])
+        ),
+        next_actions=("ethos quality commits --enforce-head",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
 def command_registry(
     *,
     json_output: JsonFlag = False,
@@ -712,6 +797,31 @@ def audit(
 
 
 @self_app.command
+def openspec(
+    *,
+    change: str | None = None,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Audit official OpenSpec self-governance state."""
+    repo = _root(root)
+    report = openspec_self_governance_report(repo, change=change)
+    result = EthosResult(
+        command="self openspec",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "gapped",
+        summary={
+            "change": report["change"],
+            "schema_name": report["schema_name"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos self audit",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@self_app.command
 def observe(*, json_output: JsonFlag = False) -> None:
     """Observe ETHOS product shape."""
     result = EthosResult(
@@ -738,6 +848,26 @@ def hypothesize(*, json_output: JsonFlag = False) -> None:
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self experiment",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@self_app.command
+def candidates(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Derive self-evolution candidates from current audit signals."""
+    repo = _root(root)
+    report = evolution_candidates(repo)
+    result = EthosResult(
+        command="self candidates",
+        ok=bool(report["ok"]),
+        state="ready",
+        summary={"candidate_count": len(report["candidates"])},
+        next_actions=("ethos campaign hypotheses",),
         data=report,
     )
     _emit(result, json_output)
@@ -888,6 +1018,20 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
     _emit(result, json_output)
 
 
+@assistants_app.command(name="context")
+def assistants_context(*, json_output: JsonFlag = False) -> None:
+    """Emit the ETHOS agentic context bundle."""
+    bundle = context_bundle()
+    result = EthosResult(
+        command="assistants context",
+        ok=True,
+        state="ready",
+        summary={"protocol_count": len(bundle["protocols"])},
+        data={"context": bundle},
+    )
+    _emit(result, json_output)
+
+
 @app.command
 def report(
     *,
@@ -920,6 +1064,7 @@ def report(
         "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
         "evolution": int(bool(evolution["ok"])),
         "signature_policy": int(bool(signature["ok"])),
+        "openspec": int(bool(audit["openspec"]["ok"])),
     }
     ok = all(value == 1 for value in scores.values())
     result = EthosResult(

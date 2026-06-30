@@ -5,6 +5,7 @@ from pathlib import Path
 from ethos_governance.claims import claims_report
 from ethos_governance.command_registry import command_registry_report
 from ethos_governance.evolution import evolution_report
+from ethos_governance.openspec_native import openspec_self_governance_report
 from ethos_governance.schema_validation import schema_validation_report
 
 CANONICAL_PACKAGES = (
@@ -30,6 +31,7 @@ REQUIRED_DOCS = (
     "docs/governance/commit-signature-policy.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
+    "docs/governance/openspec-self-governance.md",
     "docs/governance/release-governance.md",
     "docs/governance/self-evolution-campaign.md",
 )
@@ -95,9 +97,11 @@ def self_audit(root: Path) -> dict[str, object]:
     claim_report = claims_report(root)
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
+    openspec = openspec_self_governance_report(root)
     claim_gaps = [str(gap) for gap in claim_report["required_gaps"]]
     schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
     evolution_gaps = [str(gap) for gap in evolution["required_gaps"]]
+    openspec_gaps = [str(gap) for gap in openspec["required_gaps"]]
     gaps = (
         package_missing
         + docs_missing
@@ -107,6 +111,7 @@ def self_audit(root: Path) -> dict[str, object]:
         + claim_gaps
         + schema_gaps
         + evolution_gaps
+        + openspec_gaps
     )
     return {
         "ok": not gaps and bool(command_report["ok"]),
@@ -132,5 +137,6 @@ def self_audit(root: Path) -> dict[str, object]:
         "command_registry": command_report,
         "claims": claim_report,
         "evolution": evolution,
+        "openspec": openspec,
         "required_gaps": gaps,
     }

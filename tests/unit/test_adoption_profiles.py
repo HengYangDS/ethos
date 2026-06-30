@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_adopt import adoption_plan, available_profiles
+from ethos_adopt.planner import adoption_plan, available_profiles
 
 
 def test_available_profiles_are_explicit() -> None:

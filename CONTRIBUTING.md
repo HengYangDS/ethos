@@ -9,12 +9,12 @@ Use this repository identity for commits:
 
 ```bash
 git config user.name "Yang HENG"
-git config user.email "hengyang.2003@tsinghua.org.cn"
+git config user.email "heng.yang.ds@hotmail.com"
 git config commit.gpgsign true
 git config gpg.format ssh
 ```
 
-Expected author: `Yang HENG <hengyang.2003@tsinghua.org.cn>`.
+Expected author: `Yang HENG <heng.yang.ds@hotmail.com>`.
 
 SSH signing is required for maintainer commits. The repository includes
 `.mailmap` so historical aliases render consistently in local tooling.

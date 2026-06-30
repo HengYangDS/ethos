@@ -12,7 +12,7 @@ Maintainer commits use:
 
 ```bash
 git config user.name "Yang HENG"
-git config user.email "hengyang.2003@tsinghua.org.cn"
+git config user.email "heng.yang.ds@hotmail.com"
 git config commit.gpgsign true
 git config gpg.format ssh
 ```

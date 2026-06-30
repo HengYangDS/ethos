@@ -26,7 +26,7 @@ def test_contributing_declares_commit_and_signature_policy() -> None:
 
     assert "Conventional Commits" in text
     assert "SSH signing" in text
-    assert "Yang HENG <hengyang.2003@tsinghua.org.cn>" in text
+    assert "Yang HENG <heng.yang.ds@hotmail.com>" in text
 
 
 def test_gitlab_ci_uses_ethos_public_command_plane() -> None:

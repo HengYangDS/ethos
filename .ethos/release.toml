@@ -1,0 +1,17 @@
+[release]
+version_source = "pyproject.toml"
+tag_pattern = "v{version}"
+artifact_glob = "dist/*"
+
+[protected_refs]
+branches = ["dev", "main"]
+tags = ["v*"]
+
+[gitlab]
+ci = ".gitlab-ci.yml"
+merge_request_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+signing = "git-ssh"

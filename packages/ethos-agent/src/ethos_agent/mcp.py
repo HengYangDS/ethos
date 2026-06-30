@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from ethos_agent.context import context_bundle
+
 
 def mcp_manifest() -> dict[str, object]:
     return {
         "resources": {
+            "ethos://context/bundle": {
+                "description": "ETHOS agentic context bundle",
+                "payload": context_bundle(),
+            },
             "ethos://docs/index": {
                 "description": "ETHOS documentation index",
                 "path": "docs/index.md",
@@ -24,5 +30,6 @@ def mcp_manifest() -> dict[str, object]:
             "ethos.plan": {"command": ["ethos", "plan", "--changed", "--json"]},
             "ethos.prove": {"command": ["ethos", "prove", "--json"]},
             "ethos.explain": {"command": ["ethos", "explain"]},
+            "ethos.context": {"command": ["ethos", "assistants", "context", "--json"]},
         },
     }

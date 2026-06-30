@@ -120,6 +120,29 @@ def test_quality_schema_gate_and_commit_commands_are_available() -> None:
         assert payload["required_gaps"] == []
 
 
+def test_self_openspec_uses_official_native_cli() -> None:
+    payload = run_ethos("self", "openspec", "--change", "ethos-release-hardening", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "self openspec"
+    assert payload["data"]["official_cli"]["package"] == "@fission-ai/openspec"
+    assert payload["data"]["schema_name"] == "spec-driven"
+    assert payload["data"]["commands"]["validate"]["json"]["summary"]["totals"]["failed"] == 0
+
+
+def test_full_gate_registry_includes_official_openspec_validation() -> None:
+    payload = run_ethos("quality", "gates", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["gates"]["openspec"]["command"] == [
+        "openspec",
+        "validate",
+        "--all",
+        "--strict",
+        "--json",
+    ]
+
+
 def test_prove_execute_can_select_real_gates() -> None:
     payload = run_ethos(
         "prove",
@@ -236,6 +259,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["scores"]["claims"] == 1
     assert payload["data"]["scores"]["docs"] == 1
     assert payload["data"]["scores"]["assistant_projection"] == 1
+    assert payload["data"]["scores"]["openspec"] == 1
 
 
 def test_self_evolution_loop_commands_are_available() -> None:

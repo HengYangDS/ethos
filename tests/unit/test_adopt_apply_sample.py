@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_adopt import adoption_plan, detect_repo_profile
+from ethos_adopt.planner import adoption_plan, detect_repo_profile
 
 
 def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:

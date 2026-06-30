@@ -1,5 +1,1 @@
-"""ETHOS public command surface."""
-
-__all__ = ["__version__"]
-
-__version__ = "0.1.0a1"
+"""ETHOS public command package."""

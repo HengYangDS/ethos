@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +48,40 @@ def test_cli_uses_cyclopts_not_argparse() -> None:
 
     assert "cyclopts" in imports
     assert "argparse" not in imports
+
+
+def test_package_roots_do_not_reexport_module_surfaces() -> None:
+    for path in (ROOT / "packages").glob("*/src/*/__init__.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            assert not isinstance(node, (ast.Import, ast.ImportFrom)), path
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    assert not (
+                        isinstance(target, ast.Name) and target.id == "__all__"
+                    ), path
+
+
+def test_openspec_is_official_self_governance_surface_not_command_root() -> None:
+    assert (ROOT / "openspec" / "config.yaml").exists()
+    assert (ROOT / "openspec" / "specs" / "ethos-kernel" / "spec.md").exists()
+
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "openspec =" not in pyproject
+
+
+def test_openspec_workspace_validates_with_official_cli() -> None:
+    completed = subprocess.run(
+        ["openspec", "validate", "--all", "--strict", "--json"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    payload = json.loads(completed.stdout)
+
+    assert completed.returncode == 0, payload
+    assert payload["summary"]["totals"]["failed"] == 0
 
 
 def test_retired_public_roots_are_not_console_scripts() -> None:

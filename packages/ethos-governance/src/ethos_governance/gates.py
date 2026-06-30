@@ -12,6 +12,7 @@ class Gate:
     kind: str
     command: tuple[str, ...]
     policy: str = "required"
+    depends_on: tuple[str, ...] = ()
 
     def to_node(self) -> ActionNode:
         return ActionNode(
@@ -20,6 +21,7 @@ class Gate:
             command=self.command,
             policy=self.policy,
             tool="ethos",
+            depends_on=self.depends_on,
         )
 
 
@@ -46,6 +48,12 @@ def gate_registry() -> dict[str, Gate]:
             kind="schema",
             command=(python, "-m", "ethos.cli", "quality", "schemas", "--json"),
         ),
+        "openspec": Gate(
+            id="openspec",
+            kind="governance",
+            command=("openspec", "validate", "--all", "--strict", "--json"),
+            depends_on=("schemas",),
+        ),
         "unit-architecture": Gate(
             id="unit-architecture",
             kind="test",
@@ -69,13 +77,23 @@ def gate_registry() -> dict[str, Gate]:
             id="build",
             kind="package",
             command=("uv", "build", "--all-packages"),
+            depends_on=("unit-architecture", "ruff"),
         ),
     }
 
 
 def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
     if full:
-        return ("self-audit", "claims", "docs-registry", "schemas", "unit-architecture", "ruff")
+        return (
+            "self-audit",
+            "claims",
+            "docs-registry",
+            "schemas",
+            "openspec",
+            "unit-architecture",
+            "ruff",
+            "build",
+        )
     return ("self-audit", "claims", "docs-registry", "schemas")
 
 

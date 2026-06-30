@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.evolution import evolution_ledger, evolution_report
+from ethos_governance.evolution import evolution_candidates, evolution_ledger, evolution_report
 
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:
@@ -18,3 +18,10 @@ def test_evolution_report_scores_hypothesis_states() -> None:
     assert report["ok"] is True
     assert report["active_count"] >= 1
     assert report["required_gaps"] == []
+
+
+def test_evolution_candidates_are_derived_from_audit_signals() -> None:
+    candidates = evolution_candidates(Path.cwd())
+
+    assert candidates["ok"] is True
+    assert any(item["id"] == "history-identity-normalization" for item in candidates["candidates"])

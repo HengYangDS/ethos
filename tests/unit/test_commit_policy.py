@@ -11,7 +11,7 @@ def test_conventional_commit_subjects_are_enforced() -> None:
 def test_signature_policy_reports_expected_identity() -> None:
     report = signature_policy_report()
 
-    assert report["expected_author"] == "Yang HENG <hengyang.2003@tsinghua.org.cn>"
+    assert report["expected_author"] == "Yang HENG <heng.yang.ds@hotmail.com>"
     assert report["signing_required"] is True
     assert report["gpg_format"] == "ssh"
     assert report["signing_key"]

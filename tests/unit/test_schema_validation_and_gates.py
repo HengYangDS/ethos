@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 
 from ethos_governance.gates import gate_graph, gate_registry
-from ethos_governance.schema_validation import schema_validation_report, validate_ethos_result
+from ethos_governance.schema_validation import (
+    schema_validation_report,
+    validate_ethos_result,
+    validate_schema_instance,
+)
 from ethos_kernel.result import EthosResult
 
 
@@ -13,6 +17,9 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["ok"] is True
     assert report["schema_count"] >= 15
     assert report["required_gaps"] == []
+    assert report["instances"]["evolution-ledger"]["ok"] is True
+    assert report["instances"]["docs-registry"]["ok"] is True
+    assert report["instances"]["gate-registry"]["ok"] is True
 
 
 def test_result_payload_validates_against_schema() -> None:
@@ -22,6 +29,16 @@ def test_result_payload_validates_against_schema() -> None:
 
     assert validation["ok"] is True
     json.dumps(validation)
+
+
+def test_schema_instance_validation_reports_data_gaps() -> None:
+    validation = validate_schema_instance(
+        "evolution-ledger.schema.json",
+        {"hypothesis": [{"id": "x", "campaign": "c", "state": "active"}]},
+    )
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
 
 
 def test_gate_registry_has_real_default_gates() -> None:

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
+
+from ethos_governance.docs_registry import docs_health_report
+from ethos_governance.gates import gate_registry
 
 
 def _repo_root() -> Path:
@@ -34,12 +38,73 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             schemas[path.name] = {"ok": False, "error": str(exc)}
         else:
             schemas[path.name] = {"ok": True, "title": schema.get("title", "")}
+    instances = _instance_validation_report(repo)
+    for name, instance in instances.items():
+        if not instance["ok"]:
+            gaps.extend(f"instance:{name}:{gap}" for gap in instance["required_gaps"])
     return {
         "ok": not gaps,
         "schema_count": len(schemas),
         "required_gaps": gaps,
         "schemas": schemas,
+        "instances": instances,
     }
+
+
+def validate_schema_instance(
+    schema_name: str,
+    payload: dict[str, Any],
+    *,
+    root: Path | None = None,
+) -> dict[str, object]:
+    schema = load_schema(schema_name, root=root)
+    validator = Draft202012Validator(schema)
+    try:
+        validator.validate(payload)
+    except ValidationError as exc:
+        return {"ok": False, "required_gaps": [exc.message]}
+    return {"ok": True, "required_gaps": []}
+
+
+def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
+    instances: dict[str, dict[str, object]] = {}
+    ledger_path = root / "docs" / "governance" / "self-evolution-ledger.toml"
+    if ledger_path.exists():
+        try:
+            ledger = tomllib.loads(ledger_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            instances["evolution-ledger"] = {"ok": False, "required_gaps": [str(exc)]}
+        else:
+            instances["evolution-ledger"] = validate_schema_instance(
+                "evolution-ledger.schema.json",
+                ledger,
+                root=root,
+            )
+    docs = docs_health_report(root)
+    instances["docs-registry"] = validate_schema_instance(
+        "docs-registry.schema.json",
+        docs,
+        root=root,
+    )
+    gate_results = []
+    for gate in gate_registry().values():
+        gate_results.append(
+            validate_schema_instance(
+                "gate.schema.json",
+                {
+                    "id": gate.id,
+                    "kind": gate.kind,
+                    "command": list(gate.command),
+                    "policy": gate.policy,
+                },
+                root=root,
+            )
+        )
+    gate_gaps = [
+        gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
+    ]
+    instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    return instances
 
 
 def validate_ethos_result(
@@ -47,10 +112,4 @@ def validate_ethos_result(
     *,
     root: Path | None = None,
 ) -> dict[str, object]:
-    schema = load_schema("result.schema.json", root=root)
-    validator = Draft202012Validator(schema)
-    try:
-        validator.validate(payload)
-    except ValidationError as exc:
-        return {"ok": False, "required_gaps": [exc.message]}
-    return {"ok": True, "required_gaps": []}
+    return validate_schema_instance("result.schema.json", payload, root=root)

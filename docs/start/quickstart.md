@@ -24,6 +24,10 @@ For governance and discovery:
 
 ```bash
 ethos doctor
+ethos init --profile gitlab --dry-run
+ethos adopt --profile gitlab --dry-run
+ethos fleet inspect --target .
+ethos playbooks check
 ethos quality docs-registry
 ethos quality schemas
 ethos quality gates

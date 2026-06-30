@@ -20,7 +20,7 @@ package = false
 members = ["packages/*"]
 
 [tool.uv.sources]
-ethos-adopt = { workspace = true }
+ethos-project = { workspace = true }
 ethos-agent = { workspace = true }
 ethos-governance = { workspace = true }
 ethos-kernel = { workspace = true }
@@ -34,7 +34,7 @@ pythonpath = [
   "packages/ethos-governance/src",
   "packages/ethos-workspace/src",
   "packages/ethos-agent/src",
-  "packages/ethos-adopt/src",
+  "packages/ethos-project/src",
 ]
 
 [tool.ruff]

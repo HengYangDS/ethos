@@ -24,6 +24,6 @@ path = "packages/ethos-agent"
 domains = ["agent", "context", "projection"]
 
 [[package]]
-name = "ethos-adopt"
-path = "packages/ethos-adopt"
-domains = ["profile", "adoption", "migration"]
+name = "ethos-project"
+path = "packages/ethos-project"
+domains = ["init", "adoption", "scaffold", "profile", "fleet"]

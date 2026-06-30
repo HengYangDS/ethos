@@ -5,11 +5,11 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ethos",
-    "ethos-adopt",
     "ethos-agent",
     "ethos-governance",
     "ethos-kernel",
     "ethos-product-monorepo",
+    "ethos-project",
     "ethos-workspace",
 ]
 
@@ -61,33 +61,22 @@ version = "0.1.0a1"
 source = { editable = "packages/ethos" }
 dependencies = [
     { name = "cyclopts" },
-    { name = "ethos-adopt" },
     { name = "ethos-agent" },
     { name = "ethos-governance" },
     { name = "ethos-kernel" },
+    { name = "ethos-project" },
     { name = "ethos-workspace" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.20" },
-    { name = "ethos-adopt", editable = "packages/ethos-adopt" },
     { name = "ethos-agent", editable = "packages/ethos-agent" },
     { name = "ethos-governance", editable = "packages/ethos-governance" },
     { name = "ethos-kernel", editable = "packages/ethos-kernel" },
+    { name = "ethos-project", editable = "packages/ethos-project" },
     { name = "ethos-workspace", editable = "packages/ethos-workspace" },
 ]
-
-[[package]]
-name = "ethos-adopt"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-adopt" }
-dependencies = [
-    { name = "ethos-kernel" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
 
 [[package]]
 name = "ethos-agent"
@@ -142,6 +131,17 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.8" },
 ]
+
+[[package]]
+name = "ethos-project"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-project" }
+dependencies = [
+    { name = "ethos-kernel" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
 
 [[package]]
 name = "ethos-workspace"

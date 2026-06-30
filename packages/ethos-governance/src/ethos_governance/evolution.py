@@ -13,7 +13,10 @@ def evolution_ledger(root: Path) -> dict[str, Any]:
     path = _ledger_path(root)
     if not path.exists():
         return {"hypotheses": []}
-    payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        return {"hypotheses": [], "parse_error": str(exc)}
     return {"hypotheses": payload.get("hypothesis", [])}
 
 
@@ -23,8 +26,14 @@ def evolution_report(root: Path) -> dict[str, object]:
     gaps = [
         f"hypothesis_missing_field:{index}"
         for index, item in enumerate(hypotheses)
-        if not item.get("id") or not item.get("campaign") or not item.get("state")
+        if not item.get("id")
+        or not item.get("campaign")
+        or not item.get("state")
+        or not item.get("claim")
+        or not item.get("challenge")
     ]
+    if ledger.get("parse_error"):
+        gaps.append("evolution_ledger_invalid_toml")
     active = [item for item in hypotheses if item.get("state") in {"active", "experimenting"}]
     return {
         "ok": not gaps,

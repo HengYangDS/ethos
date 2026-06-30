@@ -68,6 +68,10 @@ def _selected_change(list_payload: dict[str, Any], requested: str | None) -> str
         return str(in_progress[0].get("name") or "")
     if len(changes) == 1 and isinstance(changes[0], dict):
         return str(changes[0].get("name") or "")
+    complete = [item for item in changes if isinstance(item, dict) and item.get("name")]
+    if complete:
+        latest = max(complete, key=lambda item: str(item.get("lastModified") or ""))
+        return str(latest.get("name") or "")
     return None
 
 

@@ -1,0 +1,10 @@
+[meta]
+version = 1
+source_of_truth = "repository"
+
+[[skill]]
+id = "ethos-repository-governance"
+path = ".agents/skills/ethos-repository-governance/SKILL.md"
+subjects = ["repository-governance", "ethos", "self-governance", "adoption"]
+commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
+boundary = "thin-playbook-projection"

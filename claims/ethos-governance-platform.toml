@@ -1,0 +1,26 @@
+[claim]
+id = "ethos-governance-platform"
+subject = "ethos:governance-platform"
+state = "active"
+summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, deeper self-audit, schema instance validation, and stronger standards adapters."
+
+[evidence]
+dated = "docs/evidence/governance-platform-2026-06-30.md"
+sha256 = "12a0c9584f2954dade781d3fa221fdcfeca859c3264f0344c39812e1be43aa47"
+tests = [
+  "uv run --group dev pytest tests/unit tests/architecture -q",
+  "uv run --group dev ruff check .",
+  "openspec validate --all --strict --json",
+  "uv build --all-packages",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-kernel",
+  "ethos-project",
+  "ethos-governance",
+  "ethos-workspace",
+  "ethos-agent",
+]

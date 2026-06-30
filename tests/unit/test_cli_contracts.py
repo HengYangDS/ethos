@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ethos_project.planner import adoption_plan
+
 ROOT = Path(__file__).resolve().parents[2]
 PYTHONPATH = os.pathsep.join(
     str(ROOT / package / "src")
@@ -16,7 +18,7 @@ PYTHONPATH = os.pathsep.join(
         "packages/ethos-governance",
         "packages/ethos-workspace",
         "packages/ethos-agent",
-        "packages/ethos-adopt",
+        "packages/ethos-project",
     )
 )
 
@@ -90,6 +92,7 @@ def test_quality_command_registry_rejects_retired_public_roots() -> None:
 
     assert payload["ok"] is True
     assert payload["data"]["retired_public_roots"] == []
+    assert payload["data"]["retired_public_root_mentions"] == []
     assert "ethos status" in payload["data"]["public_commands"]
 
 
@@ -222,6 +225,30 @@ def test_assistant_mcp_server_command_is_available() -> None:
     assert payload["data"]["server"]["protocol"] == "mcp"
 
 
+def test_playbooks_commands_expose_repo_local_skills() -> None:
+    check = run_ethos("playbooks", "check", "--json")
+    route = run_ethos("playbooks", "route", "--subject", "repository-governance", "--json")
+
+    assert check["ok"] is True
+    assert check["data"]["skills_root"] == ".agents/skills"
+    assert "ethos-repository-governance" in check["data"]["skills"]
+    assert route["ok"] is True
+    assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
+
+
+def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="gitlab", apply=True)
+
+    payload = run_ethos("fleet", "inspect", "--target", str(tmp_path), "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "fleet inspect"
+    assert payload["data"]["adopter"]["root"] == str(tmp_path.resolve())
+    assert payload["data"]["adopter"]["governance"]["ethos_config"] is True
+    assert payload["data"]["adopter"]["governance"]["openspec"] is True
+    assert payload["data"]["adopter"]["governance"]["skills"] is True
+
+
 def test_quality_determinism_commands_are_available() -> None:
     for command in (
         ("quality", "command-surface", "--json"),
@@ -300,6 +327,8 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["scores"]["docs"] == 1
     assert payload["data"]["scores"]["assistant_projection"] == 1
     assert payload["data"]["scores"]["openspec"] == 1
+    assert payload["data"]["scores"]["playbooks"] == 1
+    assert payload["data"]["scores"]["adoption_scaffold"] == 1
 
 
 def test_self_evolution_loop_commands_are_available() -> None:
@@ -315,10 +344,17 @@ def test_self_evolution_loop_commands_are_available() -> None:
         assert payload["ok"] is True
         assert payload["command"].startswith("self ")
 
+    proof = run_ethos("self", "prove", "--json")
+
+    assert proof["data"]["self_audit"]["ok"] is True
+    assert proof["summary"]["proof"] == "self-audit"
+
 
 def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:
     payload = run_ethos("init", "--root", str(tmp_path), "--dry-run", "--json")
 
     assert payload["ok"] is True
     assert payload["command"] == "init"
+    assert "openspec/config.yaml" in payload["data"]["planned_files"]
+    assert ".agents/skills/activation.toml" in payload["data"]["planned_files"]
     assert not (tmp_path / ".ethos").exists()

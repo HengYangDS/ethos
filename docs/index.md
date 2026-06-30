@@ -22,6 +22,7 @@ truth.
 - Command plane: [Command Plane](reference/command-plane.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)
+- Fleet and adopters: [Fleet And Adopters](architecture/fleet-and-adopters.md)
 - Gate runner: [Gate Runner](architecture/gate-runner.md)
 - Local state: [Local State](architecture/local-state.md)
 - MCP server: [MCP Server](architecture/mcp-server.md)
@@ -30,4 +31,5 @@ truth.
 - Commit signatures: [Commit Signature Policy](governance/commit-signature-policy.md)
 - Evidence and provenance: [Provenance And Attestation](governance/provenance-and-attestation.md)
 - Docs registry: [Docs Registry](governance/docs-registry.md)
+- Playbooks and skills: [Playbooks And Skills](governance/playbooks-and-skills.md)
 - Release governance: [Release Governance](governance/release-governance.md)

@@ -33,3 +33,41 @@ def test_command_examples_do_not_leak_retired_roots() -> None:
     assert report["ok"] is True
     assert report["required_gaps"] == []
     assert any(example["command"].startswith("ethos ") for example in report["examples"])
+
+
+def test_command_examples_treat_evidence_as_observational(tmp_path: Path) -> None:
+    (tmp_path / "docs" / "evidence").mkdir(parents=True)
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+ethos status
+```
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "evidence" / "run.md").write_text(
+        """# Evidence
+
+```bash
+openspec validate --all --strict --json
+codex --version
+TERM=xterm-256color codex doctor --json
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert {
+        example["command"]
+        for example in report["examples"]
+        if example["path"] == "docs/evidence/run.md"
+    } == {
+        "openspec validate --all --strict --json",
+        "codex --version",
+        "TERM=xterm-256color codex doctor --json",
+    }

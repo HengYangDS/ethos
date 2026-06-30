@@ -18,7 +18,10 @@ def claims_report(root: Path) -> dict[str, object]:
     claims_dir = root / "claims"
     gaps: list[str] = []
     claims: dict[str, dict[str, object]] = {}
-    for path in sorted(claims_dir.glob("*.toml")):
+    claim_paths = sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []
+    if not claim_paths:
+        gaps.append("claims_missing")
+    for path in claim_paths:
         payload = _claim_payload(path)
         claim = payload.get("claim", {})
         evidence = payload.get("evidence", {})

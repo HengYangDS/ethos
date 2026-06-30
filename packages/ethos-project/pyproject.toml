@@ -1,5 +1,5 @@
 [project]
-name = "ethos-adopt"
+name = "ethos-project"
 version = "0.1.0a1"
 description = "ETHOS project adoption and profile planning"
 requires-python = ">=3.12"

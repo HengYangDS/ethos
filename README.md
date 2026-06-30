@@ -26,6 +26,8 @@ ethos campaign
 ethos self
 ethos quality
 ethos assistants
+ethos playbooks
+ethos fleet
 ethos report
 ```
 
@@ -48,7 +50,7 @@ packages/ethos-kernel/      pure kernel and action graph algebra
 packages/ethos-governance/  policy, proof, quality, docs, registry, attestation
 packages/ethos-workspace/   lanes, local state, action runs, land, publish
 packages/ethos-agent/       context packs, playbooks, MCP/ACP projections
-packages/ethos-adopt/       profiles, project adoption, migration
+packages/ethos-project/     init, adopt, scaffold, profiles, fleet inspection
 ```
 
 ## Reflexive Governance

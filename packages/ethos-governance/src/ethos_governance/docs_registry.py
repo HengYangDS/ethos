@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import re
+import shlex
 from pathlib import Path
 
 from ethos_governance.command_registry import RETIRED_PUBLIC_ROOTS
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 ALLOWED_NON_ETHOS_ROOTS = ("git", "pip", "python", "uv")
+OBSERVATIONAL_DOC_PREFIXES = ("docs/evidence/", "docs/archive/")
+_ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
 def _front_matter(path: Path) -> dict[str, str]:
@@ -71,10 +75,35 @@ def _markdown_paths(root: Path) -> tuple[Path, ...]:
     return tuple(path for path in paths if path.exists())
 
 
+def _command_root(command: str) -> str:
+    try:
+        tokens = shlex.split(command, comments=False, posix=True)
+    except ValueError:
+        tokens = command.split()
+    if not tokens:
+        return ""
+    if tokens[0] == "env":
+        tokens = tokens[1:]
+    while tokens and _ENV_ASSIGNMENT.match(tokens[0]):
+        tokens = tokens[1:]
+    return tokens[0] if tokens else ""
+
+
+def _command_scope(path: str) -> str:
+    if path.startswith("docs/evidence/"):
+        return "evidence"
+    if path.startswith("docs/archive/"):
+        return "archive"
+    return "current"
+
+
 def command_examples_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     examples: list[dict[str, str]] = []
     for path in _markdown_paths(root):
+        relative_path = path.relative_to(root).as_posix()
+        scope = _command_scope(relative_path)
+        enforce_public_plane = not relative_path.startswith(OBSERVATIONAL_DOC_PREFIXES)
         in_bash = False
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             stripped = line.strip()
@@ -83,13 +112,17 @@ def command_examples_report(root: Path) -> dict[str, object]:
                 continue
             if not in_bash or not stripped or stripped.startswith("#"):
                 continue
-            command = stripped.split()[0]
+            command = _command_root(stripped)
             record = {
-                "path": path.relative_to(root).as_posix(),
+                "path": relative_path,
                 "line": str(lineno),
                 "command": stripped,
+                "root": command,
+                "scope": scope,
             }
             examples.append(record)
+            if not enforce_public_plane:
+                continue
             if command in RETIRED_PUBLIC_ROOTS:
                 gaps.append(f"retired_command_example:{record['path']}:{lineno}:{command}")
             elif command != "ethos" and command not in ALLOWED_NON_ETHOS_ROOTS:

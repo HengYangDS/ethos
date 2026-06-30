@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Annotated
 
 from cyclopts import App, Parameter
-from ethos_adopt.planner import adoption_plan, available_profiles
 from ethos_agent.context import context_bundle
 from ethos_agent.mcp import mcp_manifest
+from ethos_agent.playbooks import playbooks_report, route_playbook
 from ethos_agent.projections import projection_contract
 from ethos_agent.server import mcp_server_descriptor
 from ethos_governance.attestation import release_attestation, sbom_projection
@@ -30,6 +30,8 @@ from ethos_governance.self_audit import self_audit
 from ethos_governance.standards import standard_adapter_registry
 from ethos_kernel.action_graph import ActionGraph, ActionNode
 from ethos_kernel.result import EthosResult
+from ethos_project.fleet import inspect_adopter
+from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
 from ethos_workspace.mutation import MutationRequest, evaluate_mutation
 from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
 from ethos_workspace.state import initialize_state
@@ -40,10 +42,14 @@ quality_app = App(name="quality", help="Quality and determinism checks.")
 self_app = App(name="self", help="Self-governance commands.")
 campaign_app = App(name="campaign", help="Evolution campaign commands.")
 assistants_app = App(name="assistants", help="Assistant and protocol projections.")
+playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.")
+fleet_app = App(name="fleet", help="External adopter and fleet inspection.")
 app.command(quality_app)
 app.command(self_app)
 app.command(campaign_app)
 app.command(assistants_app)
+app.command(playbooks_app)
+app.command(fleet_app)
 
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
@@ -379,15 +385,17 @@ def adopt(
 @quality_app.command
 def command_surface(
     *,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command surface vocabulary."""
-    report = command_registry_report()
+    repo = _root(root)
+    report = command_registry_report(repo)
     result = EthosResult(
         command="quality command-surface",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["retired_public_roots"]),
+        required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
     _emit(result, json_output)
@@ -622,15 +630,17 @@ def release_attestation_command(
 @quality_app.command
 def command_registry(
     *,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command registry."""
-    report = command_registry_report()
+    repo = _root(root)
+    report = command_registry_report(repo)
     result = EthosResult(
         command="quality command-registry",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["retired_public_roots"]),
+        required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self audit",),
         data=report,
     )
@@ -862,14 +872,23 @@ def experiment(*, json_output: JsonFlag = False) -> None:
 
 
 @self_app.command(name="prove")
-def prove_self(*, json_output: JsonFlag = False) -> None:
+def prove_self(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """Prove the active self-evolution hypothesis."""
+    repo = _root(root)
+    audit_payload = self_audit(repo)
+    ok = bool(audit_payload["ok"])
     result = EthosResult(
         command="self prove",
-        ok=True,
-        state="proven",
-        summary={"proof": "self audit plus tests"},
-        next_actions=("ethos self canonize",),
+        ok=ok,
+        state="proven" if ok else "gapped",
+        summary={"proof": "self-audit"},
+        required_gaps=tuple(audit_payload["required_gaps"]),
+        next_actions=("ethos self canonize",) if ok else ("ethos self audit",),
+        data={"self_audit": audit_payload},
     )
     _emit(result, json_output)
 
@@ -1007,6 +1026,64 @@ def assistants_context(*, json_output: JsonFlag = False) -> None:
     _emit(result, json_output)
 
 
+@playbooks_app.command(name="check")
+def playbooks_check(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Check repo-local ETHOS playbook projection."""
+    repo = _root(root)
+    report = playbooks_report(repo)
+    result = EthosResult(
+        command="playbooks check",
+        ok=bool(report["ok"]),
+        state="ready" if report["ok"] else "gapped",
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos playbooks route",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@playbooks_app.command(name="route")
+def playbooks_route(
+    *,
+    subject: str = "repository-governance",
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Route a subject to repo-local ETHOS playbooks."""
+    repo = _root(root)
+    report = route_playbook(repo, subject)
+    result = EthosResult(
+        command="playbooks route",
+        ok=bool(report["ok"]),
+        state="routed" if report["ok"] else "gapped",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@fleet_app.command(name="inspect")
+def fleet_inspect(
+    *,
+    target: Path,
+    json_output: JsonFlag = False,
+) -> None:
+    """Inspect an external repository as an ETHOS adopter."""
+    report = inspect_adopter(target)
+    result = EthosResult(
+        command="fleet inspect",
+        ok=bool(report["ok"]),
+        state="ready" if report["ok"] else "gapped",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
 @app.command
 def report(
     *,
@@ -1018,11 +1095,13 @@ def report(
     audit = self_audit(repo)
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
-    command_report = command_registry_report()
+    command_report = command_registry_report(repo)
     projection = projection_contract()
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
+    playbooks = playbooks_report(repo)
+    adoption_scaffold = adoption_scaffold_report()
     scores = {
         "package_ontology": int(bool(audit["package_ontology"]["ok"])),
         "docs": int(bool(docs_report["ok"])),
@@ -1040,6 +1119,8 @@ def report(
         "evolution": int(bool(evolution["ok"])),
         "signature_policy": int(bool(signature["ok"])),
         "openspec": int(bool(audit["openspec"]["ok"])),
+        "playbooks": int(bool(playbooks["ok"])),
+        "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
     }
     ok = all(value == 1 for value in scores.values())
     result = EthosResult(
@@ -1057,6 +1138,8 @@ def report(
             "schema_validation": schemas_report,
             "evolution": evolution,
             "signature_policy": signature,
+            "playbooks": playbooks,
+            "adoption_scaffold": adoption_scaffold,
             "profiles": list(available_profiles()),
         },
     )

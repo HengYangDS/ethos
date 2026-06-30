@@ -21,5 +21,10 @@ Adoption levels:
 - Service runtime adapter: the framework runs long-lived workflows outside CLI core.
 - Agent projection: the framework exposes ETHOS context to agent hosts.
 
-Every adapter must declare a boundary, fallback, and exit strategy before it can
-be treated as product capability.
+Every adapter must declare lifecycle, boundary, input contract, output contract,
+fallback, and exit strategy before it can be treated as product capability.
+
+The first adapter set covers SLSA provenance, in-toto attestations, Sigstore
+signing, SPDX SBOM projection, CDEvents, OpenTelemetry semantic events, Dagger
+runner projection, CUE profile compilation, OPA policy decisions, Temporal
+service runtime, and MCP agent projection.

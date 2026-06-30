@@ -14,7 +14,7 @@ CANONICAL_PACKAGES = (
     "ethos-governance",
     "ethos-workspace",
     "ethos-agent",
-    "ethos-adopt",
+    "ethos-project",
 )
 
 REQUIRED_DOCS = (
@@ -26,12 +26,14 @@ REQUIRED_DOCS = (
     "docs/architecture/gate-runner.md",
     "docs/architecture/local-state.md",
     "docs/architecture/mcp-server.md",
+    "docs/architecture/fleet-and-adopters.md",
     "docs/architecture/runner-and-mutation.md",
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
     "docs/governance/openspec-self-governance.md",
+    "docs/governance/playbooks-and-skills.md",
     "docs/governance/release-governance.md",
     "docs/governance/self-evolution-campaign.md",
 )
@@ -67,6 +69,20 @@ REQUIRED_RELEASE_FILES = (
     "docs/governance/self-evolution-ledger.toml",
 )
 
+REQUIRED_PLAYBOOK_FILES = (
+    ".agents/skills/README.md",
+    ".agents/skills/activation.toml",
+    ".agents/skills/ethos-repository-governance/SKILL.md",
+)
+
+REQUIRED_OPENSPEC_FAMILIES = (
+    "ethos-agent",
+    "ethos-governance",
+    "ethos-kernel",
+    "ethos-project",
+    "ethos-workspace",
+)
+
 
 def _front_matter_ok(path: Path) -> bool:
     if not path.exists():
@@ -92,7 +108,13 @@ def self_audit(root: Path) -> dict[str, object]:
         schema for schema in REQUIRED_SCHEMAS if not (root / "schemas" / "ethos" / schema).exists()
     ]
     release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
-    command_report = command_registry_report()
+    playbooks_missing = [path for path in REQUIRED_PLAYBOOK_FILES if not (root / path).exists()]
+    openspec_family_missing = [
+        f"openspec/specs/{family}/spec.md"
+        for family in REQUIRED_OPENSPEC_FAMILIES
+        if not (root / "openspec" / "specs" / family / "spec.md").exists()
+    ]
+    command_report = command_registry_report(root)
     claim_report = claims_report(root)
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
@@ -101,19 +123,23 @@ def self_audit(root: Path) -> dict[str, object]:
     schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
     evolution_gaps = [str(gap) for gap in evolution["required_gaps"]]
     openspec_gaps = [str(gap) for gap in openspec["required_gaps"]]
+    command_gaps = [str(gap) for gap in command_report["required_gaps"]]
     gaps = (
         package_missing
         + docs_missing
         + docs_without_front_matter
         + schemas_missing
         + release_files_missing
+        + [f"adoption_scaffold_missing:{path}" for path in playbooks_missing]
+        + [f"openspec_family_missing:{path}" for path in openspec_family_missing]
         + claim_gaps
         + schema_gaps
         + evolution_gaps
         + openspec_gaps
+        + command_gaps
     )
     return {
-        "ok": not gaps and bool(command_report["ok"]),
+        "ok": not gaps,
         "package_ontology": {
             "ok": not package_missing,
             "canonical_packages": list(CANONICAL_PACKAGES),
@@ -132,6 +158,15 @@ def self_audit(root: Path) -> dict[str, object]:
         "release_files": {
             "ok": not release_files_missing,
             "missing": release_files_missing,
+        },
+        "playbooks": {
+            "ok": not playbooks_missing,
+            "missing": playbooks_missing,
+        },
+        "openspec_families": {
+            "ok": not openspec_family_missing,
+            "expected": list(REQUIRED_OPENSPEC_FAMILIES),
+            "missing": openspec_family_missing,
         },
         "command_registry": command_report,
         "claims": claim_report,

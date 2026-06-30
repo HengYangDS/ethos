@@ -28,7 +28,7 @@ def imported_modules(path: Path) -> set[str]:
 
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
     forbidden = {
-        "ethos_adopt",
+        "ethos_project",
         "ethos_agent",
         "ethos_governance",
         "ethos_workspace",
@@ -68,6 +68,22 @@ def test_openspec_is_official_self_governance_surface_not_command_root() -> None
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "openspec =" not in pyproject
+
+
+def test_openspec_specs_are_mece_product_families() -> None:
+    expected = {
+        "ethos-agent",
+        "ethos-governance",
+        "ethos-kernel",
+        "ethos-project",
+        "ethos-workspace",
+    }
+    actual = {
+        path.parent.name
+        for path in (ROOT / "openspec" / "specs").glob("*/spec.md")
+    }
+
+    assert actual == expected
 
 
 def test_openspec_workspace_validates_with_official_cli() -> None:
@@ -113,6 +129,27 @@ def test_product_behavior_does_not_live_in_tools_directory() -> None:
     assert not (ROOT / "tools").exists()
 
 
+def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
+    config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+    assert "repo: local" in config
+    assert "uv run --group dev ruff check" in config
+    assert "github.com" not in config
+
+
+def test_repo_local_skills_are_thin_playbook_projection() -> None:
+    skills_root = ROOT / ".agents" / "skills"
+
+    assert (skills_root / "README.md").exists()
+    assert (skills_root / "activation.toml").exists()
+    assert (skills_root / "ethos-repository-governance" / "SKILL.md").exists()
+    skill_text = (skills_root / "ethos-repository-governance" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "ethos " in skill_text
+    assert "source of truth" in skill_text
+
+
 def test_product_packages_have_canonical_readmes() -> None:
     for package in (
         "ethos",
@@ -120,7 +157,7 @@ def test_product_packages_have_canonical_readmes() -> None:
         "ethos-governance",
         "ethos-workspace",
         "ethos-agent",
-        "ethos-adopt",
+        "ethos-project",
     ):
         readme = ROOT / "packages" / package / "README.md"
         assert readme.exists()

@@ -1,0 +1,27 @@
+## 1. Project And Adoption
+
+- [x] 1.1 Rename `ethos-adopt` to `ethos-project`.
+- [x] 1.2 Expand adoption scaffold to `.ethos`, `.agents/skills`, OpenSpec,
+      docs, claims, evidence, and hosted CI projections.
+- [x] 1.3 Add external adopter/fleet inspection.
+
+## 2. Agentic Playbooks
+
+- [x] 2.1 Add repo-local skills projection under `.agents/skills`.
+- [x] 2.2 Add `ethos playbooks check` and `ethos playbooks route`.
+
+## 3. Governance Depth
+
+- [x] 3.1 Split canonical OpenSpec specs into MECE product families.
+- [x] 3.2 Add self-audit checks for playbooks and OpenSpec family coverage.
+- [x] 3.3 Make empty claims a required gap.
+- [x] 3.4 Validate schema instances for evolution ledger, docs registry, and
+      gate registry.
+- [x] 3.5 Scan current documentation for retired public command roots.
+- [x] 3.6 Make `ethos self prove` depend on current self-audit.
+
+## 4. Standards And Verification
+
+- [x] 4.1 Add lifecycle and input/output contracts to standards adapters.
+- [x] 4.2 Run focused and full tests, Ruff, OpenSpec validation, CLI smoke,
+      release checks, and package build.

@@ -208,6 +208,22 @@ def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[st
     return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
 
 
+def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
+    return {
+        "kind": "submit_branch_plan",
+        "source_branch": branch,
+        "submit_branch": submit_branch,
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "blocking": False,
+        "required_steps": [
+            "land work lane to candidate/dev",
+            "fast-forward local dev from candidate/dev",
+            "create submit/* and push when remote publication is available",
+        ],
+    }
+
+
 def _publication_readiness(*, branch: str, local_ok: bool) -> dict[str, object]:
     submit_branch = f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
     return {
@@ -215,12 +231,74 @@ def _publication_readiness(*, branch: str, local_ok: bool) -> dict[str, object]:
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "submit_branch": submit_branch,
+        "local_submit_package": _local_submit_package(
+            branch=branch,
+            submit_branch=submit_branch,
+        ),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": (
             ["create submit/* and push when remote publication is available"]
             if local_ok
             else ["resolve local publish readiness gaps"]
         ),
+    }
+
+
+def _remote_publication_deferred() -> dict[str, object]:
+    return {
+        "remote_push": "not_performed",
+        "state": "deferred",
+        "reason": "remote publication adapter unavailable",
+    }
+
+
+def _campaign_closeout_report(
+    *,
+    repo: Path,
+    adopter: str,
+    target: Path,
+) -> dict[str, object]:
+    status_payload = workspace_status(repo)
+    branch = str(status_payload["branch"])
+    evolution = evolution_report(repo)
+    release = release_policy_report(repo)
+    parity = parity_gaps_report(adopter=adopter)
+    shadow = shadow_parity_report(target=target)
+    local_ready = bool(evolution["ok"]) and bool(release["ok"])
+    publication = _publication_readiness(branch=branch, local_ok=local_ready)
+    local_closeout = dict(status_payload["closeout_support"])
+    local_closeout["kind"] = "local_closeout_plan"
+    local_closeout["blocking"] = bool(local_closeout["required_gaps"])
+
+    packages = {
+        "local_closeout": local_closeout,
+        "publication": publication,
+        "release": {
+            "kind": "release_policy",
+            "ok": bool(release["ok"]),
+            "version": release["version"],
+            "required_gaps": list(release["required_gaps"]),
+        },
+        "parity": {
+            "kind": "parity_backlog",
+            "adopter": parity["adopter"],
+            "pending_count": len(parity["pending_packages"]),
+            "required_gaps": list(parity["required_gaps"]),
+            "blocking": False,
+        },
+        "shadow_parity": shadow["execution_packages"][0],
+    }
+    return {
+        "ok": local_ready,
+        "state": "local_ready" if local_ready else "gapped",
+        "workspace": status_payload,
+        "evolution": evolution,
+        "release": release,
+        "parity": parity,
+        "shadow_parity": shadow,
+        "publication": publication,
+        "remote_publication": _remote_publication_deferred(),
+        "packages": packages,
     }
 
 
@@ -1226,6 +1304,39 @@ def hypotheses(*, json_output: JsonFlag = False) -> None:
         summary={"campaign": "ethos-product-maturation"},
         next_actions=("ethos self experiment",),
         data=ledger,
+    )
+    _emit(result, json_output)
+
+
+@campaign_app.command(name="closeout")
+def campaign_closeout(
+    *,
+    adopter: str = "generic",
+    target: Annotated[Path | None, Parameter(name="--target")] = None,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report the local campaign closeout package without publishing remotely."""
+    repo = _root(root)
+    report = _campaign_closeout_report(
+        repo=repo,
+        adopter=adopter,
+        target=(target or repo).resolve(),
+    )
+    result = EthosResult(
+        command="campaign closeout",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "adopter": adopter,
+            "remote_state": report["remote_publication"]["state"],
+            "parity_pending_count": len(report["parity"]["pending_packages"]),
+            "release_ok": report["release"]["ok"],
+        },
+        required_gaps=tuple(report["evolution"]["required_gaps"])
+        + tuple(report["release"]["required_gaps"]),
+        next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
+        data=report,
     )
     _emit(result, json_output)
 

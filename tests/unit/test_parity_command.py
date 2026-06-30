@@ -54,6 +54,19 @@ def test_parity_shadow_defaults_to_read_only_plan(tmp_path) -> None:
     assert payload["command"] == "parity shadow"
     assert payload["state"] == "planned"
     assert payload["data"]["comparisons"]
+    assert payload["data"]["execution_packages"] == [
+        {
+            "gap": f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}",
+            "state": "planned",
+            "target": tmp_path.resolve().as_posix(),
+            "commands": payload["data"]["comparisons"],
+            "semantic_dimensions": payload["data"]["semantic_dimensions"],
+            "blocking": True,
+            "next_action": (
+                f"ethos parity shadow --target {tmp_path.resolve().as_posix()} --execute"
+            ),
+        }
+    ]
 
 
 def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path) -> None:
@@ -71,3 +84,6 @@ def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path) -> Non
     assert payload["ok"] is False
     assert payload["state"] == "different"
     assert any(gap.startswith("embedded_command_failed:") for gap in payload["required_gaps"])
+    assert {package["gap"] for package in payload["data"]["execution_packages"]} == set(
+        payload["required_gaps"]
+    )

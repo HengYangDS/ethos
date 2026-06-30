@@ -71,34 +71,50 @@ def _shadow_pending_package(adopter: str) -> dict[str, object]:
     }
 
 
+SHADOW_PARITY_COMMANDS = (
+    "ethos status --json",
+    "ethos plan --changed --json",
+    "ethos prove --json",
+    "ethos report --json",
+    "ethos assistants doctor --json",
+    "ethos playbooks route --changed --json",
+    "ethos land --json",
+    "ethos publish --json",
+)
+
+SHADOW_PARITY_DIMENSIONS = [
+    "branch_role",
+    "mutation_allowed",
+    "changed_path_classification",
+    "required_gates",
+    "required_gaps",
+    "assistant_boundary",
+    "evidence_freshness",
+    "land_readiness",
+    "publish_readiness",
+    "blocking_vs_advisory",
+]
+
+
 def shadow_parity_report(*, target: Path) -> dict[str, object]:
     target = target.resolve()
-    expected = (
-        "ethos status --json",
-        "ethos plan --changed --json",
-        "ethos prove --json",
-        "ethos report --json",
-        "ethos assistants doctor --json",
-        "ethos playbooks route --changed --json",
-        "ethos land --json",
-        "ethos publish --json",
-    )
+    gap = f"shadow_parity_not_executed:{target.as_posix()}"
     return {
         "ok": False,
         "state": "planned",
         "target": target.as_posix(),
-        "required_gaps": [f"shadow_parity_not_executed:{target.as_posix()}"],
-        "comparisons": list(expected),
-        "semantic_dimensions": [
-            "branch_role",
-            "mutation_allowed",
-            "changed_path_classification",
-            "required_gates",
-            "required_gaps",
-            "assistant_boundary",
-            "evidence_freshness",
-            "land_readiness",
-            "publish_readiness",
-            "blocking_vs_advisory",
+        "required_gaps": [gap],
+        "comparisons": list(SHADOW_PARITY_COMMANDS),
+        "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
+        "execution_packages": [
+            {
+                "gap": gap,
+                "state": "planned",
+                "target": target.as_posix(),
+                "commands": list(SHADOW_PARITY_COMMANDS),
+                "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
+                "blocking": True,
+                "next_action": f"ethos parity shadow --target {target.as_posix()} --execute",
+            }
         ],
     }

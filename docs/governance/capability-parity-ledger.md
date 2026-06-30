@@ -33,6 +33,13 @@ criterion, and rollback impact together. Adopter shadow checks add a
 `shadow_parity_pending:<adopter>` package so local planning can continue even
 when remote publication is unavailable.
 
+`ethos parity shadow --json` projects planned or executed comparison work into
+`data.execution_packages`. Planned runs expose a
+`shadow_parity_not_executed:<target>` package with the command list and semantic
+dimensions. Executed runs map every failed command or semantic diff gap to a
+package with the same gap code, so campaign closeout can report shadow parity
+without relying on remote publication.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

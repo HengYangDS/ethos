@@ -17,6 +17,19 @@ READ_ONLY_COMMANDS = (
     ("publish",),
 )
 
+SEMANTIC_DIMENSIONS = [
+    "branch_role",
+    "mutation_allowed",
+    "changed_path_classification",
+    "required_gates",
+    "required_gaps",
+    "assistant_boundary",
+    "evidence_freshness",
+    "land_readiness",
+    "publish_readiness",
+    "blocking_vs_advisory",
+]
+
 
 def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, Any]:
     target = target.resolve()
@@ -46,6 +59,27 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
         "target": target.as_posix(),
         "required_gaps": required_gaps,
         "comparisons": comparisons,
+        "execution_packages": [
+            _execution_package(gap=gap, target=target, comparisons=comparisons)
+            for gap in required_gaps
+        ],
+    }
+
+
+def _execution_package(
+    *,
+    gap: str,
+    target: Path,
+    comparisons: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "gap": gap,
+        "state": "failed",
+        "target": target.as_posix(),
+        "commands": [str(comparison["command"]) for comparison in comparisons],
+        "semantic_dimensions": list(SEMANTIC_DIMENSIONS),
+        "blocking": True,
+        "next_action": "inspect shadow parity comparison output",
     }
 
 

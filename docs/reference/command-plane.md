@@ -48,6 +48,7 @@ ethos self hypothesize
 ethos self prove --mode shape
 ethos self prove --mode deep
 ethos campaign hypotheses
+ethos campaign closeout --adopter alphasim-dmgr --target <repo>
 ethos intake status
 ethos parity ledger
 ethos parity gaps --adopter alphasim-dmgr
@@ -109,6 +110,13 @@ publication remains an adapter responsibility. `publish --json` reports
 "deferred"` while still exposing the local `submit/*` branch plan.
 `land --apply` from an admitted Work Lane advances local `candidate/dev`; it
 does not advance `dev`.
+
+`ethos campaign closeout --json` is the campaign-mode local closeout report. It
+does not mutate Git and does not push. The output aggregates workspace
+`closeout_support`, self-evolution state, release policy, parity backlog,
+planned shadow parity execution, and publish readiness under `data.packages`.
+`data.remote_publication.state = "deferred"` is expected while the remote
+publication adapter is unavailable.
 
 Self-governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes

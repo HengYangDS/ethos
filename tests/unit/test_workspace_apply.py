@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos_workspace.mutation import MutationRequest, evaluate_mutation
+from ethos_workspace.mutation import MutationRequest, apply_land_to_candidate, evaluate_mutation
 
 
 def git(root: Path, *args: str) -> str:
@@ -32,6 +32,11 @@ def init_repo(path: Path) -> Path:
         "-m",
         "init",
     )
+    return path
+
+
+def add_candidate_worktree(repo: Path, path: Path) -> Path:
+    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
     return path
 
 
@@ -87,3 +92,57 @@ def test_mutation_apply_rejects_protected_root_even_with_authorization(
     assert result.ok is False
     assert result.state == "blocked"
     assert "protected_root_mutation" in result.gaps
+
+
+def test_mutation_apply_rejects_dirty_work_lane(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-apply"
+    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "dev")
+    (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
+    request = MutationRequest(
+        command="land",
+        apply=True,
+        authorized=True,
+        expect_head=git(worktree, "rev-parse", "HEAD"),
+    )
+
+    result = evaluate_mutation(request, root=worktree, current_head=request.expect_head or "")
+
+    assert result.ok is False
+    assert result.state == "blocked"
+    assert "work_lane_dirty" in result.gaps
+
+
+def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-apply"
+    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    (worktree / "README.md").write_text("# work lane change\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "work lane change",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    dev_head = git(repo, "rev-parse", "dev")
+
+    report = apply_land_to_candidate(
+        root=worktree,
+        authorized=True,
+        expect_head=work_head,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "candidate_validated"
+    assert git(repo, "rev-parse", "candidate/dev") == work_head
+    assert git(candidate, "rev-parse", "HEAD") == work_head
+    assert git(repo, "rev-parse", "dev") == dev_head

@@ -34,8 +34,13 @@ from ethos_kernel.result import EthosResult
 from ethos_project.fleet import inspect_adopter
 from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
 from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
-from ethos_workspace.lanes import start_work_lane
-from ethos_workspace.mutation import MutationDecision, MutationRequest, evaluate_mutation
+from ethos_workspace.lanes import bootstrap_candidate, start_work_lane
+from ethos_workspace.mutation import (
+    MutationDecision,
+    MutationRequest,
+    apply_land_to_candidate,
+    evaluate_mutation,
+)
 from ethos_workspace.prewrite import prewrite_guard
 from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
 from ethos_workspace.state import initialize_state
@@ -239,6 +244,34 @@ def lane_status(
 
 
 @lane_app.command
+def candidate(
+    *,
+    apply: bool = False,
+    path: Annotated[Path | None, Parameter(name="--path")] = None,
+    expect_head: str | None = None,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Bootstrap or inspect the local candidate train."""
+    repo = _root(root)
+    report = bootstrap_candidate(root=repo, path=path, expect_head=expect_head, apply=apply)
+    result = EthosResult(
+        command="lane candidate",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "head": report["head"],
+            "path": report["path"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command
 def prewrite(
     paths: tuple[Path, ...],
     *,
@@ -412,14 +445,28 @@ def land(
     audit = _self_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
+    candidate_update: dict[str, object] = {}
+    if ok and apply:
+        candidate_update = apply_land_to_candidate(
+            root=repo,
+            authorized=authorize,
+            expect_head=expect_head,
+        )
+        gaps = gaps + tuple(candidate_update["required_gaps"])
+        ok = bool(candidate_update["ok"])
     result = EthosResult(
         command="land",
         ok=ok,
-        state=("ready_to_land" if ok and not apply else decision.state),
+        state=(
+            "ready_to_land"
+            if ok and not apply
+            else str(candidate_update.get("state") or decision.state)
+        ),
         required_gaps=gaps,
         next_actions=("ethos publish",) if ok else ("ethos prove --json",),
         data={
             "self_audit": audit,
+            "candidate_update": candidate_update,
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,

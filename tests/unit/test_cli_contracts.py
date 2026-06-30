@@ -93,6 +93,15 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path
 
 def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
     worktree = tmp_path / "repo-work-feature"
 
     payload = run_ethos(
@@ -114,6 +123,33 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     assert payload["command"] == "lane start"
     assert payload["data"]["branch"] == "work/feature"
     assert git(worktree, "branch", "--show-current") == "work/feature"
+
+
+def test_lane_candidate_apply_creates_candidate_branch(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    candidate_path = tmp_path / "repo-candidate-dev"
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "lane",
+        "candidate",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        candidate_path.as_posix(),
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["command"] == "lane candidate"
+    assert payload["state"] == "bootstrapped"
+    assert payload["data"]["branch"] == "candidate/dev"
+    assert git(repo, "rev-parse", "candidate/dev") == head
+    assert git(candidate_path, "branch", "--show-current") == "candidate/dev"
 
 
 def test_plan_changed_returns_action_graph() -> None:

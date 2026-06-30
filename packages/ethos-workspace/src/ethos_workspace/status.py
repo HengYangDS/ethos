@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+CANDIDATE_BRANCH = "candidate/dev"
+
 
 def _run_git(root: Path, *args: str) -> str:
     completed = subprocess.run(
@@ -36,6 +38,7 @@ def workspace_status(root: Path) -> dict[str, object]:
     branch = current_branch(root)
     role = _role_for_branch(branch)
     worktrees = _worktrees(root)
+    candidate = _candidate_status(root, worktrees)
     foreign = [
         {
             "path": worktree["path"],
@@ -46,13 +49,20 @@ def workspace_status(root: Path) -> dict[str, object]:
         for worktree in worktrees
         if worktree["role"] == "work_lane" and Path(str(worktree["path"])).resolve() != current_path
     ]
-    required_gaps = ["foreign_work_lane_present"] if foreign else []
+    required_gaps = []
+    if foreign:
+        required_gaps.append("foreign_work_lane_present")
+    if not candidate["exists"]:
+        required_gaps.append("candidate_branch_missing")
+    elif not candidate["worktree_exists"]:
+        required_gaps.append("candidate_worktree_missing")
     return {
         "root": str(root),
         "branch": branch,
         "dirty": bool(paths),
         "changed_paths": list(paths),
         "role": role,
+        "candidate": candidate,
         "worktrees": worktrees,
         "foreign_work_lanes": foreign,
         "required_gaps": required_gaps,
@@ -88,10 +98,39 @@ def _normalize_worktree(entry: dict[str, str]) -> dict[str, str]:
     }
 
 
+def _candidate_status(root: Path, worktrees: list[dict[str, str]]) -> dict[str, object]:
+    head = _ref_head(root, CANDIDATE_BRANCH)
+    worktree_path = ""
+    for worktree in worktrees:
+        if worktree["branch"] == CANDIDATE_BRANCH:
+            worktree_path = worktree["path"]
+            break
+    return {
+        "branch": CANDIDATE_BRANCH,
+        "exists": bool(head),
+        "head": head,
+        "worktree_exists": bool(worktree_path),
+        "worktree_path": worktree_path,
+    }
+
+
+def _ref_head(root: Path, ref: str) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", ref],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
 def _role_for_branch(branch: str) -> str:
     if branch.startswith("work/"):
         return "work_lane"
-    if branch == "candidate/dev":
+    if branch == CANDIDATE_BRANCH:
         return "candidate"
     if branch.startswith("submit/"):
         return "submit"

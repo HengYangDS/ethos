@@ -30,5 +30,11 @@ root without entering those foreign checkouts. `ethos lane prewrite` rejects
 tracked writes from protected roots and requires the editor root to match the
 owned Work Lane.
 
+The local candidate train is `candidate/dev` checked out in its own linked
+worktree. `ethos lane candidate --apply` bootstraps that worktree from a clean
+accepted root with an expected HEAD. New Work Lanes start from `candidate/dev`
+instead of raw `dev`, and `ethos land --apply` from an admitted Work Lane
+fast-forwards the candidate worktree without advancing `dev`.
+
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

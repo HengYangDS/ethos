@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 from ethos_workspace.state import acquire_lease
-from ethos_workspace.status import workspace_status
+from ethos_workspace.status import CANDIDATE_BRANCH, workspace_status
 
 _SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -48,6 +48,23 @@ def start_work_lane(
             "dirty": status["dirty"],
             "required_gaps": ["lane_start_requires_clean_accepted_root"],
         }
+    candidate = status["candidate"]
+    if not candidate["exists"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "path": target.as_posix(),
+            "required_gaps": ["candidate_branch_missing"],
+        }
+    if not candidate["worktree_exists"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "path": target.as_posix(),
+            "required_gaps": ["candidate_worktree_missing"],
+        }
     if _branch_exists(repo, branch):
         return {
             "ok": False,
@@ -63,7 +80,7 @@ def start_work_lane(
         "-b",
         branch,
         target.as_posix(),
-        "HEAD",
+        CANDIDATE_BRANCH,
         check=False,
     )
     if completed.returncode != 0:
@@ -85,9 +102,97 @@ def start_work_lane(
         "ok": True,
         "state": "started",
         "branch": branch,
+        "base": CANDIDATE_BRANCH,
+        "base_head": str(candidate["head"]),
         "path": target.as_posix(),
         "owner": owner,
         "lease": lease,
+        "required_gaps": [],
+    }
+
+
+def bootstrap_candidate(
+    *,
+    root: Path,
+    path: Path | None = None,
+    expect_head: str | None = None,
+    apply: bool = False,
+) -> dict[str, object]:
+    repo = _repo_root(root)
+    status = workspace_status(repo)
+    current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    target = (path or _default_candidate_path(repo)).resolve()
+    gaps: list[str] = []
+    if status["role"] != "accepted_root" or status["dirty"]:
+        gaps.append("candidate_bootstrap_requires_clean_accepted_root")
+    if expect_head is not None and expect_head != current_head:
+        gaps.append("expect_head_mismatch")
+    if gaps:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": CANDIDATE_BRANCH,
+            "head": current_head,
+            "path": target.as_posix(),
+            "required_gaps": gaps,
+        }
+    candidate = status["candidate"]
+    if candidate["exists"] and candidate["worktree_exists"]:
+        return {
+            "ok": True,
+            "state": "present",
+            "branch": CANDIDATE_BRANCH,
+            "head": candidate["head"],
+            "path": candidate["worktree_path"],
+            "required_gaps": [],
+        }
+    if not apply:
+        return {
+            "ok": True,
+            "state": "planned",
+            "branch": CANDIDATE_BRANCH,
+            "head": current_head,
+            "path": target.as_posix(),
+            "required_gaps": [],
+        }
+    if target.exists():
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": CANDIDATE_BRANCH,
+            "head": current_head,
+            "path": target.as_posix(),
+            "required_gaps": ["candidate_worktree_path_exists"],
+        }
+    if not candidate["exists"]:
+        completed = _git(repo, "branch", CANDIDATE_BRANCH, current_head, check=False)
+        if completed.returncode != 0:
+            return {
+                "ok": False,
+                "state": "blocked",
+                "branch": CANDIDATE_BRANCH,
+                "head": current_head,
+                "path": target.as_posix(),
+                "required_gaps": ["candidate_bootstrap_failed"],
+                "stderr": completed.stderr.strip(),
+            }
+    completed = _git(repo, "worktree", "add", target.as_posix(), CANDIDATE_BRANCH, check=False)
+    if completed.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": CANDIDATE_BRANCH,
+            "head": current_head,
+            "path": target.as_posix(),
+            "required_gaps": ["candidate_worktree_add_failed"],
+            "stderr": completed.stderr.strip(),
+        }
+    return {
+        "ok": True,
+        "state": "bootstrapped",
+        "branch": CANDIDATE_BRANCH,
+        "head": current_head,
+        "path": target.as_posix(),
         "required_gaps": [],
     }
 
@@ -100,6 +205,10 @@ def _slug(name: str) -> str:
 def _repo_root(root: Path) -> Path:
     completed = _git(root, "rev-parse", "--show-toplevel")
     return Path(completed.stdout.strip()).resolve()
+
+
+def _default_candidate_path(repo: Path) -> Path:
+    return repo.with_name(f"{repo.name}-candidate-dev")
 
 
 def _branch_exists(root: Path, branch: str) -> bool:

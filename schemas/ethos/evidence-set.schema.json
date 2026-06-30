@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/evidence-set.schema.json",
+  "title": "ETHOS Evidence Set",
+  "type": "object",
+  "required": ["id", "head", "durability", "digest", "runs"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "head": {"type": "string", "minLength": 1},
+    "durability": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "minLength": 1},
+    "runs": {
+      "type": "array",
+      "items": {"$ref": "proof-run.schema.json"},
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

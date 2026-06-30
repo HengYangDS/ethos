@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/provenance.schema.json",
+  "title": "ETHOS Provenance",
+  "type": "object",
+  "required": ["_type", "predicateType", "subject", "predicate"],
+  "properties": {
+    "_type": {"type": "string", "minLength": 1},
+    "predicateType": {"type": "string", "minLength": 1},
+    "subject": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "digest"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "digest": {
+            "type": "object",
+            "required": ["sha256"],
+            "properties": {"sha256": {"type": "string", "minLength": 1}},
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "predicate": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/claim.schema.json",
+  "title": "ETHOS Claim",
+  "type": "object",
+  "required": ["claim", "evidence"],
+  "properties": {
+    "claim": {
+      "type": "object",
+      "required": ["id", "subject", "state", "summary"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "subject": {"type": "string", "minLength": 1},
+        "state": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["dated", "sha256", "tests"],
+      "properties": {
+        "dated": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "minLength": 64, "maxLength": 64},
+        "tests": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "scope": {"type": "object"}
+  },
+  "additionalProperties": false
+}

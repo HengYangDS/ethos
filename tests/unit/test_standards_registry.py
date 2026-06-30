@@ -7,7 +7,10 @@ def test_standard_adapter_registry_is_explicit_and_retirable() -> None:
     registry = standard_adapter_registry()
 
     assert registry["slsa"]["mode"] == "native-standard"
+    assert registry["in_toto"]["mode"] == "attestation-envelope"
     assert registry["sigstore"]["mode"] == "first-class-adapter"
+    assert registry["spdx"]["mode"] == "artifact-metadata-adapter"
+    assert registry["cdevents"]["mode"] == "event-interchange-adapter"
     assert registry["opentelemetry"]["mode"] == "native-standard"
     assert registry["dagger"]["mode"] == "runner-adapter"
     assert registry["cue"]["mode"] == "advanced-compiler"

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/docs-registry.schema.json",
+  "title": "ETHOS Docs Registry",
+  "type": "object",
+  "required": ["ok", "document_count", "missing_metadata", "registry"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "document_count": {"type": "integer", "minimum": 0},
+    "missing_metadata": {"type": "array", "items": {"type": "string"}},
+    "registry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "subject", "role", "state", "relations"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "subject": {"type": "string"},
+          "role": {"type": "string"},
+          "state": {"type": "string"},
+          "relations": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

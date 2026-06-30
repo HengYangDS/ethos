@@ -17,6 +17,15 @@ SCHEMA = (
     )
     """,
     """
+    create table if not exists events (
+      id integer primary key autoincrement,
+      created_at text not null,
+      event_type text not null,
+      subject text not null,
+      payload_json text not null
+    )
+    """,
+    """
     create table if not exists chronicle_events (
       id integer primary key autoincrement,
       created_at text not null,
@@ -40,6 +49,16 @@ SCHEMA = (
       subject text not null,
       owner text not null,
       expires_at text not null,
+      payload_json text not null
+    )
+    """,
+    """
+    create table if not exists gate_runs (
+      id text primary key,
+      gate text not null,
+      state text not null,
+      started_at text not null,
+      finished_at text,
       payload_json text not null
     )
     """,
@@ -99,11 +118,45 @@ def append_chronicle_event(
     payload: dict[str, Any],
 ) -> None:
     initialize_state(db_path)
+    _append_event_row(
+        db_path,
+        table="chronicle_events",
+        event_type=event_type,
+        subject=subject,
+        payload=payload,
+    )
+
+
+def append_event(
+    db_path: Path,
+    *,
+    event_type: str,
+    subject: str,
+    payload: dict[str, Any],
+) -> None:
+    initialize_state(db_path)
+    _append_event_row(
+        db_path,
+        table="events",
+        event_type=event_type,
+        subject=subject,
+        payload=payload,
+    )
+
+
+def _append_event_row(
+    db_path: Path,
+    *,
+    table: str,
+    event_type: str,
+    subject: str,
+    payload: dict[str, Any],
+) -> None:
     with sqlite3.connect(db_path) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
-            """
-            insert into chronicle_events(created_at, event_type, subject, payload_json)
+            f"""
+            insert into {table}(created_at, event_type, subject, payload_json)
             values (?, ?, ?, ?)
             """,
             (_now(), event_type, subject, json.dumps(payload, sort_keys=True)),
@@ -112,13 +165,21 @@ def append_chronicle_event(
 
 
 def list_chronicle_events(db_path: Path) -> list[dict[str, Any]]:
+    return _list_event_rows(db_path, table="chronicle_events")
+
+
+def list_events(db_path: Path) -> list[dict[str, Any]]:
+    return _list_event_rows(db_path, table="events")
+
+
+def _list_event_rows(db_path: Path, *, table: str) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []
     with sqlite3.connect(db_path) as connection:
         rows = connection.execute(
-            """
+            f"""
             select id, created_at, event_type, subject, payload_json
-            from chronicle_events
+            from {table}
             order by id
             """
         ).fetchall()

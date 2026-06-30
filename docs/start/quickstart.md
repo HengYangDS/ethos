@@ -14,6 +14,21 @@ Run the public command plane:
 ethos status
 ethos plan --changed
 ethos prove
+ethos land
+ethos publish
 ```
 
 Use `--json` for stable machine output.
+
+For governance and discovery:
+
+```bash
+ethos doctor
+ethos quality docs-registry
+ethos quality provenance
+ethos assistants doctor
+ethos campaign hypotheses
+```
+
+Mutation defaults to dry-run/readiness. Apply paths require explicit
+authorization and an expected HEAD.

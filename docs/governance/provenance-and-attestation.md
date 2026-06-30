@@ -15,3 +15,8 @@ The kernel records Subject, Commitment, Change, Evidence, Chronicle, and
 Evolution facts. Governance adapters may sign those facts, publish transparency
 records, or emit hosted CI artifacts. The adapter output never replaces the
 repository evidence chain.
+
+`ethos prove --json` emits an evidence set bound to HEAD and a digest. `ethos
+quality provenance --json` emits the provenance envelope without claiming a
+release. Both are local evidence until an adopter promotes them into durable
+repository evidence or a signed release artifact.

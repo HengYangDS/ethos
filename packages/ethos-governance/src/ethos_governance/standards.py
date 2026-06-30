@@ -9,11 +9,29 @@ def standard_adapter_registry() -> dict[str, dict[str, str]]:
             "fallback": "Keep unsigned JSON evidence with HEAD and digest binding.",
             "exit_strategy": "Remove the projection while preserving ETHOS Evidence schema.",
         },
+        "in_toto": {
+            "mode": "attestation-envelope",
+            "boundary": "Wrap ETHOS evidence sets as statement envelopes.",
+            "fallback": "Emit ETHOS provenance JSON without external envelope publication.",
+            "exit_strategy": "Drop envelope projection while keeping evidence digest binding.",
+        },
         "sigstore": {
             "mode": "first-class-adapter",
             "boundary": "Sign artifacts or evidence projections; do not own truth.",
             "fallback": "Use local digest verification and Git-signed release tags.",
             "exit_strategy": "Disable signing adapter without changing proof semantics.",
+        },
+        "spdx": {
+            "mode": "artifact-metadata-adapter",
+            "boundary": "Project release package metadata and SBOM facts.",
+            "fallback": "Keep package metadata and dependency lock evidence.",
+            "exit_strategy": "Remove SBOM projection without changing release readiness.",
+        },
+        "cdevents": {
+            "mode": "event-interchange-adapter",
+            "boundary": "Project Chronicle and gate events to CI/CD event streams.",
+            "fallback": "Keep SQLite events and JSONL exports.",
+            "exit_strategy": "Disable event export while preserving Chronicle semantics.",
         },
         "opentelemetry": {
             "mode": "native-standard",

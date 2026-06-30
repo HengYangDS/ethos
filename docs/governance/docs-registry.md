@@ -1,0 +1,27 @@
+---
+subject: ethos:docs-registry
+role: reference
+state: canonical
+relations:
+  canonical_for: documentation governance
+---
+
+# Docs Registry
+
+ETHOS documentation is governed as sedimented knowledge, not as a loose page
+pile. Every current document declares Subject, Role, State, and Relation
+metadata in front matter.
+
+`ethos quality docs-registry --json` builds the machine registry. Missing
+metadata is a required gap because agents need to distinguish current truth,
+active workflow notes, experimental material, and archived history before they
+act.
+
+The registry lifecycle is:
+
+```text
+observe -> shape -> canonize -> project -> retire
+```
+
+Archive material may preserve old vocabulary. Current docs must lead with the
+single `ethos ...` command plane.

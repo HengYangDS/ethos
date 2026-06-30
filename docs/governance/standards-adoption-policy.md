@@ -13,7 +13,10 @@ ETHOS adopts mature standards before inventing formats.
 Adoption levels:
 
 - Native standard: the standard shapes ETHOS protocol output.
+- Attestation envelope: the standard wraps ETHOS evidence without owning it.
 - First-class adapter: the framework can execute or sign projections.
+- Artifact metadata adapter: the framework projects package or SBOM facts.
+- Event interchange adapter: the framework exports Chronicle or gate events.
 - Advanced compiler: the framework generates ETHOS-native config or schemas.
 - Service runtime adapter: the framework runs long-lived workflows outside CLI core.
 - Agent projection: the framework exposes ETHOS context to agent hosts.

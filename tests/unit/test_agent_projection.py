@@ -1,0 +1,19 @@
+from __future__ import annotations
+
+from ethos_agent.mcp import mcp_manifest
+from ethos_agent.projections import projection_contract
+
+
+def test_mcp_manifest_exposes_resources_prompts_and_tools() -> None:
+    manifest = mcp_manifest()
+
+    assert {"resources", "prompts", "tools"} <= set(manifest)
+    assert "ethos.status" in manifest["tools"]
+    assert "ethos://docs/index" in manifest["resources"]
+
+
+def test_projection_contract_is_thin_adapter() -> None:
+    contract = projection_contract()
+
+    assert contract["truth"] == "ethos-kernel-and-repository"
+    assert "mcp" in contract["surfaces"]

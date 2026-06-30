@@ -25,6 +25,7 @@ ethos doctor
 ethos campaign
 ethos self
 ethos quality
+ethos assistants
 ethos report
 ```
 
@@ -53,6 +54,21 @@ packages/ethos-workspace/   lanes, local state, action runs, land, publish
 packages/ethos-agent/       context packs, playbooks, MCP/ACP projections
 packages/ethos-adopt/       profiles, project adoption, migration
 ```
+
+## Reflexive Governance
+
+ETHOS can inspect and evolve itself:
+
+```bash
+ethos self audit
+ethos campaign hypotheses
+ethos quality docs-registry
+ethos quality provenance
+ethos assistants mcp-manifest
+```
+
+The same evidence, docs, schema, and command registry rules used for adopter
+repositories apply to ETHOS product changes.
 
 ## Development
 

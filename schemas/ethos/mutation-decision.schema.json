@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/mutation-decision.schema.json",
+  "title": "ETHOS Mutation Decision",
+  "type": "object",
+  "required": ["ok", "state", "gaps"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "state": {"type": "string", "minLength": 1},
+    "gaps": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

@@ -109,13 +109,20 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
     schema_dir = Path("schemas/ethos")
     expected = {
         "result.schema.json",
+        "claim.schema.json",
         "subject.schema.json",
         "commitment.schema.json",
         "change.schema.json",
         "action.schema.json",
         "evidence.schema.json",
+        "proof-run.schema.json",
+        "evidence-set.schema.json",
+        "provenance.schema.json",
         "chronicle.schema.json",
         "evolution.schema.json",
+        "docs-registry.schema.json",
+        "assistant-projection.schema.json",
+        "mutation-decision.schema.json",
     }
 
     assert expected <= {path.name for path in schema_dir.glob("*.schema.json")}

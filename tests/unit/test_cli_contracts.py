@@ -100,16 +100,90 @@ def test_quality_standard_registry_declares_adapter_boundaries() -> None:
         assert adapters[adapter]["exit_strategy"]
 
 
+def test_quality_format_policy_reads_repository_policy() -> None:
+    payload = run_ethos("quality", "format-policy", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["source"] == ".ethos/rules.toml"
+    assert payload["data"]["artifacts"]["state_tracked_truth"] is False
+
+
 def test_quality_determinism_commands_are_available() -> None:
     for command in (
         ("quality", "command-surface", "--json"),
         ("quality", "format-policy", "--json"),
         ("quality", "projection-drift", "--json"),
         ("quality", "evidence-freshness", "--json"),
+        ("quality", "docs-registry", "--json"),
+        ("quality", "provenance", "--json"),
+        ("quality", "claims", "--json"),
     ):
         payload = run_ethos(*command)
         assert payload["ok"] is True
         assert payload["required_gaps"] == []
+
+
+def test_prove_returns_evidence_and_provenance() -> None:
+    payload = run_ethos("prove", "--objective", "cli contract", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["evidence"]["digest"]
+    assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == (
+        payload["data"]["evidence"]["digest"]
+    )
+
+
+def test_land_apply_requires_authorization_and_expected_head() -> None:
+    payload = run_ethos("land", "--apply", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "authorization_required" in payload["required_gaps"]
+    assert "expect_head_required" in payload["required_gaps"]
+
+
+def test_publish_apply_requires_authorization_and_expected_head() -> None:
+    payload = run_ethos("publish", "--apply", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "authorization_required" in payload["required_gaps"]
+    assert "expect_head_required" in payload["required_gaps"]
+
+
+def test_assistant_projection_commands_are_available() -> None:
+    manifest = run_ethos("assistants", "mcp-manifest", "--json")
+    projections = run_ethos("assistants", "check-projections", "--json")
+    doctor = run_ethos("assistants", "doctor", "--json")
+
+    assert manifest["ok"] is True
+    assert "ethos.status" in manifest["data"]["manifest"]["tools"]
+    assert projections["ok"] is True
+    assert projections["data"]["contract"]["truth"] == "ethos-kernel-and-repository"
+    assert doctor["ok"] is True
+
+
+def test_campaign_hypotheses_are_visible() -> None:
+    payload = run_ethos("campaign", "hypotheses", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["hypotheses"]
+
+
+def test_docs_command_uses_registry_for_discovery() -> None:
+    payload = run_ethos("docs", "agent-projections", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["path"] == "docs/architecture/agent-projections.md"
+
+
+def test_report_scorecard_is_derived_from_governance_checks() -> None:
+    payload = run_ethos("report", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["scores"]["claims"] == 1
+    assert payload["data"]["scores"]["docs"] == 1
+    assert payload["data"]["scores"]["assistant_projection"] == 1
 
 
 def test_self_evolution_loop_commands_are_available() -> None:

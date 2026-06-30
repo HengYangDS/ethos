@@ -17,3 +17,7 @@ observe -> hypothesize -> experiment -> prove -> canonize -> retire
 Self-audit checks command-plane growth, package ontology drift, docs metadata,
 schema coverage, profile leakage, and adapter boundaries. Self-evolution records
 must either canonize a proven improvement or retire it.
+
+`ethos campaign hypotheses --json` exposes active hypotheses as first-class
+objects. A hypothesis should be challenged, proven, canonized, or retired; it
+must not linger as implicit roadmap text.

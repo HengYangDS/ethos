@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/proof-run.schema.json",
+  "title": "ETHOS Proof Run",
+  "type": "object",
+  "required": ["action_id", "command", "exit_code", "stdout", "stderr", "state"],
+  "properties": {
+    "action_id": {"type": "string", "minLength": 1},
+    "command": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "exit_code": {"type": ["integer", "null"]},
+    "stdout": {"type": "string"},
+    "stderr": {"type": "string"},
+    "state": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

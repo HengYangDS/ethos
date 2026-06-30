@@ -3,7 +3,7 @@
   "$id": "https://ethos.local/schemas/action.schema.json",
   "title": "ETHOS Action Graph",
   "type": "object",
-  "required": ["schema_version", "nodes", "digest"],
+  "required": ["schema_version", "nodes", "validation", "digest"],
   "properties": {
     "schema_version": {"type": "integer"},
     "digest": {"type": "string"},
@@ -22,10 +22,20 @@
           "tool": {"type": "string"},
           "tool_version": {"type": "string"},
           "env": {"type": "array", "items": {"type": "string"}},
+          "depends_on": {"type": "array", "items": {"type": "string"}},
           "cache_key": {"type": "string"}
         },
         "additionalProperties": false
       }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["ok", "gaps"],
+      "properties": {
+        "ok": {"type": "boolean"},
+        "gaps": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

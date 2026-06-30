@@ -110,6 +110,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
     expected = {
         "result.schema.json",
         "claim.schema.json",
+        "commit-policy.schema.json",
         "subject.schema.json",
         "commitment.schema.json",
         "change.schema.json",
@@ -121,6 +122,8 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "chronicle.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
+        "evolution-ledger.schema.json",
+        "gate.schema.json",
         "assistant-projection.schema.json",
         "mutation-decision.schema.json",
     }

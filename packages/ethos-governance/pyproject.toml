@@ -3,7 +3,7 @@ name = "ethos-governance"
 version = "0.1.0a1"
 description = "ETHOS governance, command registry, and self-audit"
 requires-python = ">=3.12"
-dependencies = ["ethos-kernel"]
+dependencies = ["ethos-kernel", "jsonschema>=4.23"]
 
 [build-system]
 requires = ["hatchling"]

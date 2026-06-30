@@ -1,0 +1,27 @@
+stages:
+  - verify
+  - package
+
+variables:
+  UV_LINK_MODE: copy
+
+ethos:verify:
+  stage: verify
+  image: python:3.12
+  script:
+    - pip install uv
+    - uv run --group dev pytest tests/unit tests/architecture -q
+    - uv run --group dev ruff check .
+    - uv run --package ethos ethos self audit --json
+    - uv run --package ethos ethos report --json
+
+ethos:package:
+  stage: package
+  image: python:3.12
+  script:
+    - pip install uv
+    - uv build --all-packages
+  artifacts:
+    when: always
+    paths:
+      - dist/

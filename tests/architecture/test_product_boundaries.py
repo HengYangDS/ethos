@@ -57,8 +57,12 @@ def test_retired_public_roots_are_not_console_scripts() -> None:
 
 def test_current_docs_do_not_promote_retired_public_roots() -> None:
     for path in [ROOT / "README.md", *(ROOT / "docs").rglob("*.md")]:
+        text = path.read_text(encoding="utf-8")
+        for retired in RETIRED_PUBLIC_ROOTS:
+            assert f"`{retired}`" not in text, path
+
         in_fence = False
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith("```"):
                 in_fence = not in_fence

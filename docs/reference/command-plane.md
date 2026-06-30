@@ -26,9 +26,14 @@ Quality and governance:
 ```bash
 ethos quality command-registry
 ethos quality command-surface
+ethos quality command-examples
 ethos quality claims
 ethos quality docs-registry
+ethos quality gates
 ethos quality provenance
+ethos quality schemas
+ethos quality commits
+ethos quality release
 ethos quality standards
 ethos self audit
 ethos self hypothesize
@@ -42,6 +47,7 @@ Agent projections:
 ethos assistants doctor
 ethos assistants check-projections
 ethos assistants mcp-manifest
+ethos assistants mcp-server
 ```
 
 Mutation readiness is explicit:

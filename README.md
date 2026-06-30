@@ -29,10 +29,6 @@ ethos assistants
 ethos report
 ```
 
-Legacy public roots such as `wt`, `proof`, `mission`,
-`skill-evolution`, and `agent-surface-contract` are retired. They may appear
-only in archive, migration notes, or negative regression tests.
-
 ## Kernel
 
 ETHOS reduces repository operation to one chain:
@@ -64,17 +60,24 @@ ethos self audit
 ethos campaign hypotheses
 ethos quality docs-registry
 ethos quality provenance
+ethos quality release
 ethos assistants mcp-manifest
 ```
 
 The same evidence, docs, schema, and command registry rules used for adopter
 repositories apply to ETHOS product changes.
 
+## Release Readiness
+
+GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
+`CHANGELOG.md`, `.gitlab-ci.yml`, `.mailmap`, and GitLab templates. Use
+`ethos quality release --json` before publishing.
+
 ## Development
 
 ```bash
 uv run --group dev pytest
 uv run --group dev ruff check .
-PYTHONPATH=packages/ethos/src:packages/ethos-kernel/src:packages/ethos-governance/src:packages/ethos-workspace/src:packages/ethos-agent/src:packages/ethos-adopt/src \
-  uv run --group dev python -m ethos.cli status --json
+uv run --package ethos ethos status --json
+uv run --package ethos ethos report --json
 ```

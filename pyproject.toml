@@ -8,6 +8,7 @@ dependencies = []
 [dependency-groups]
 dev = [
   "cyclopts>=3.20",
+  "jsonschema>=4.23",
   "pytest>=8.0",
   "ruff>=0.8",
 ]

@@ -1,0 +1,30 @@
+[claim]
+id = "ethos-product-maturation"
+subject = "ethos:product"
+state = "active"
+summary = "Mature ETHOS into a GitLab-visible, schema-validated, gate-executing product framework."
+
+[evidence]
+dated = "docs/evidence/maturation-2026-06-30.md"
+sha256 = "ab71300d98c41f7723720dcaea203e0fae80706db4584f0f649c8fa3bbb5abd9"
+tests = [
+  "tests/unit",
+  "tests/architecture",
+]
+
+[scope]
+commands = [
+  "ethos prove --execute",
+  "ethos quality schemas",
+  "ethos quality gates",
+  "ethos quality commits",
+  "ethos quality release",
+  "ethos assistants mcp-server",
+]
+release_files = [
+  "LICENSE",
+  "CONTRIBUTING.md",
+  "CHANGELOG.md",
+  ".gitlab-ci.yml",
+  ".mailmap",
+]

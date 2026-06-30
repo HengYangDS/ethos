@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/evolution-ledger.schema.json",
+  "title": "ETHOS Evolution Ledger",
+  "type": "object",
+  "required": ["hypothesis"],
+  "properties": {
+    "hypothesis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "campaign", "state", "claim", "challenge"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "campaign": {"type": "string", "minLength": 1},
+          "state": {"type": "string", "minLength": 1},
+          "claim": {"type": "string", "minLength": 1},
+          "challenge": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

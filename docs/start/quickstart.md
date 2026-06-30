@@ -25,6 +25,8 @@ For governance and discovery:
 ```bash
 ethos doctor
 ethos quality docs-registry
+ethos quality schemas
+ethos quality gates
 ethos quality provenance
 ethos assistants doctor
 ethos campaign hypotheses

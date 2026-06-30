@@ -20,3 +20,11 @@ Commitment, Change, Evidence, Chronicle, and Evolution.
   projections over repository truth.
 - ETHOS SHALL gate apply-mode land and publish readiness on explicit
   authorization plus expected HEAD.
+- ETHOS SHALL validate tracked JSON Schemas before treating command output as
+  automation-ready.
+- ETHOS SHALL run proof gates through the action graph and bind selected gate
+  runs into evidence.
+- ETHOS SHALL expose release, commit signature, schema, gate, and command
+  example readiness through `ethos quality`.
+- ETHOS SHALL keep adoption profiles and MCP server integration as adapters
+  outside the pure kernel.

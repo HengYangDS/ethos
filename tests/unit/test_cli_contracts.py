@@ -108,12 +108,64 @@ def test_quality_format_policy_reads_repository_policy() -> None:
     assert payload["data"]["artifacts"]["state_tracked_truth"] is False
 
 
+def test_quality_schema_gate_and_commit_commands_are_available() -> None:
+    for command in (
+        ("quality", "schemas", "--json"),
+        ("quality", "gates", "--json"),
+        ("quality", "commits", "--json"),
+        ("quality", "release", "--json"),
+    ):
+        payload = run_ethos(*command)
+        assert payload["ok"] is True
+        assert payload["required_gaps"] == []
+
+
+def test_prove_execute_can_select_real_gates() -> None:
+    payload = run_ethos(
+        "prove",
+        "--execute",
+        "--gate",
+        "self-audit",
+        "--gate",
+        "claims",
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["summary"]["gate_count"] == 2
+    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
+
+
+def test_adopt_gitlab_profile_is_available(tmp_path: Path) -> None:
+    payload = run_ethos(
+        "adopt",
+        "--root",
+        str(tmp_path),
+        "--profile",
+        "gitlab",
+        "--dry-run",
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["data"]["profile"] == "gitlab"
+    assert ".gitlab-ci.yml" in payload["data"]["planned_files"]
+
+
+def test_assistant_mcp_server_command_is_available() -> None:
+    payload = run_ethos("assistants", "mcp-server", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["server"]["protocol"] == "mcp"
+
+
 def test_quality_determinism_commands_are_available() -> None:
     for command in (
         ("quality", "command-surface", "--json"),
         ("quality", "format-policy", "--json"),
         ("quality", "projection-drift", "--json"),
         ("quality", "evidence-freshness", "--json"),
+        ("quality", "command-examples", "--json"),
         ("quality", "docs-registry", "--json"),
         ("quality", "provenance", "--json"),
         ("quality", "claims", "--json"),

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.docs_registry import build_docs_registry, docs_health_report
+from ethos_governance.docs_registry import (
+    build_docs_registry,
+    command_examples_report,
+    docs_health_report,
+)
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:
@@ -21,3 +25,11 @@ def test_docs_health_report_has_no_missing_metadata() -> None:
     assert report["ok"] is True
     assert report["missing_metadata"] == []
     assert report["document_count"] >= 10
+
+
+def test_command_examples_do_not_leak_retired_roots() -> None:
+    report = command_examples_report(Path.cwd())
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert any(example["command"].startswith("ethos ") for example in report["examples"])

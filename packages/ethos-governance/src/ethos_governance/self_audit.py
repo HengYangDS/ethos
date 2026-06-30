@@ -4,6 +4,8 @@ from pathlib import Path
 
 from ethos_governance.claims import claims_report
 from ethos_governance.command_registry import command_registry_report
+from ethos_governance.evolution import evolution_report
+from ethos_governance.schema_validation import schema_validation_report
 
 CANONICAL_PACKAGES = (
     "ethos",
@@ -18,17 +20,24 @@ REQUIRED_DOCS = (
     "docs/architecture/product-ontology.md",
     "docs/concepts/kernel-model.md",
     "docs/architecture/action-graph.md",
+    "docs/architecture/adoption-profiles.md",
     "docs/architecture/agent-projections.md",
+    "docs/architecture/gate-runner.md",
     "docs/architecture/local-state.md",
+    "docs/architecture/mcp-server.md",
     "docs/architecture/runner-and-mutation.md",
+    "docs/architecture/schema-validation.md",
+    "docs/governance/commit-signature-policy.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
+    "docs/governance/release-governance.md",
     "docs/governance/self-evolution-campaign.md",
 )
 
 REQUIRED_SCHEMAS = (
     "result.schema.json",
     "claim.schema.json",
+    "commit-policy.schema.json",
     "subject.schema.json",
     "commitment.schema.json",
     "change.schema.json",
@@ -40,8 +49,21 @@ REQUIRED_SCHEMAS = (
     "chronicle.schema.json",
     "evolution.schema.json",
     "docs-registry.schema.json",
+    "evolution-ledger.schema.json",
+    "gate.schema.json",
     "assistant-projection.schema.json",
     "mutation-decision.schema.json",
+)
+
+REQUIRED_RELEASE_FILES = (
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    ".mailmap",
+    ".gitlab-ci.yml",
+    ".gitlab/merge_request_templates/default.md",
+    ".gitlab/issue_templates/task.md",
+    "docs/governance/self-evolution-ledger.toml",
 )
 
 
@@ -68,15 +90,23 @@ def self_audit(root: Path) -> dict[str, object]:
     schemas_missing = [
         schema for schema in REQUIRED_SCHEMAS if not (root / "schemas" / "ethos" / schema).exists()
     ]
+    release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     command_report = command_registry_report()
     claim_report = claims_report(root)
+    schema_report = schema_validation_report(root)
+    evolution = evolution_report(root)
     claim_gaps = [str(gap) for gap in claim_report["required_gaps"]]
+    schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
+    evolution_gaps = [str(gap) for gap in evolution["required_gaps"]]
     gaps = (
         package_missing
         + docs_missing
         + docs_without_front_matter
         + schemas_missing
+        + release_files_missing
         + claim_gaps
+        + schema_gaps
+        + evolution_gaps
     )
     return {
         "ok": not gaps and bool(command_report["ok"]),
@@ -91,10 +121,16 @@ def self_audit(root: Path) -> dict[str, object]:
             "without_front_matter": docs_without_front_matter,
         },
         "schemas": {
-            "ok": not schemas_missing,
+            "ok": not schemas_missing and bool(schema_report["ok"]),
             "missing": schemas_missing,
+            "validation": schema_report,
+        },
+        "release_files": {
+            "ok": not release_files_missing,
+            "missing": release_files_missing,
         },
         "command_registry": command_report,
         "claims": claim_report,
+        "evolution": evolution,
         "required_gaps": gaps,
     }

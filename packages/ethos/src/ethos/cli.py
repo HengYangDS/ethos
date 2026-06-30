@@ -1,23 +1,29 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Annotated
 
 from cyclopts import App, Parameter
-from ethos_adopt import adoption_plan
-from ethos_agent import mcp_manifest, projection_contract
+from ethos_adopt import adoption_plan, available_profiles
+from ethos_agent import mcp_manifest, mcp_server_descriptor, projection_contract
 from ethos_governance import (
     EvidenceSet,
     ProofRun,
     build_docs_registry,
     claims_report,
+    command_examples_report,
     command_registry_report,
     docs_health_report,
+    evolution_ledger,
+    evolution_report,
+    gate_graph,
+    gate_registry,
     provenance_envelope,
+    schema_validation_report,
     self_audit,
+    signature_policy_report,
     standard_adapter_registry,
     trim_output,
 )
@@ -162,55 +168,50 @@ def prove(
     *,
     objective: str = "ethos proof",
     execute: bool = False,
+    gate: tuple[str, ...] = (),
+    full: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Produce a local proof-readiness summary."""
     repo = _root(root)
     audit = self_audit(repo)
-    action = ActionNode(
-        id="self-audit",
-        kind="governance",
-        command=(
-            sys.executable,
-            "-m",
-            "ethos.cli",
-            "self",
-            "audit",
-            "--root",
-            str(repo),
-            "--json",
-        ),
-        inputs=("packages", "docs", "schemas", "tests"),
-        outputs=(),
-        policy="required",
-    )
+    graph = gate_graph(gate, full=full)
     runner = LocalSubprocessRunner() if execute else DryRunRunner()
-    run_result = runner.run(action, root=repo)
-    proof_run = ProofRun(
-        action_id=run_result.action_id,
-        command=run_result.command,
-        exit_code=run_result.exit_code,
-        stdout=trim_output(run_result.stdout),
-        stderr=trim_output(run_result.stderr),
-        state=run_result.state,
+    proof_runs = tuple(
+        ProofRun(
+            action_id=run_result.action_id,
+            command=run_result.command,
+            exit_code=run_result.exit_code,
+            stdout=trim_output(run_result.stdout),
+            stderr=trim_output(run_result.stderr),
+            state=run_result.state,
+        )
+        for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
     )
     evidence = EvidenceSet.from_runs(
         id=f"ethos:{objective}",
         head=_current_head(repo),
-        runs=(proof_run,),
+        runs=proof_runs,
         durability="local",
     )
+    runs_ok = all(run.state in {"passed", "planned"} for run in proof_runs)
+    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok
     result = EthosResult(
         command="prove",
-        ok=bool(audit["ok"]),
-        state="proven" if audit["ok"] else "gapped",
-        summary={"objective": objective, "evidence_digest": evidence.digest},
-        required_gaps=tuple(audit["required_gaps"]),
-        next_actions=("ethos land",) if audit["ok"] else ("ethos self audit",),
+        ok=ok,
+        state="proven" if ok else "gapped",
+        summary={
+            "objective": objective,
+            "evidence_digest": evidence.digest,
+            "gate_count": len(proof_runs),
+        },
+        required_gaps=tuple(audit["required_gaps"]) + tuple(graph.validate().gaps),
+        next_actions=("ethos land",) if ok else ("ethos self audit",),
         data={
             "self_audit": audit,
             "executed": execute,
+            "action_graph": graph.to_dict(),
             "evidence": evidence.to_dict(),
             "provenance": provenance_envelope(evidence),
         },
@@ -336,12 +337,13 @@ def init(
     root: RootOption | None = None,
     dry_run: bool = True,
     apply: bool = False,
+    profile: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
     target = _root(root)
     do_apply = apply and not dry_run
-    plan_payload = adoption_plan(target, apply=do_apply)
+    plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     result = EthosResult(
         command="init",
         ok=True,
@@ -359,12 +361,13 @@ def adopt(
     root: RootOption | None = None,
     dry_run: bool = True,
     apply: bool = False,
+    profile: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
     target = _root(root)
     do_apply = apply and not dry_run
-    plan_payload = adoption_plan(target, apply=do_apply)
+    plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     result = EthosResult(
         command="adopt",
         ok=True,
@@ -459,6 +462,104 @@ def standards(
 
 
 @quality_app.command
+def schemas(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Validate ETHOS JSON Schemas."""
+    repo = _root(root)
+    report = schema_validation_report(repo)
+    result = EthosResult(
+        command="quality schemas",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def gates(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report executable proof gate registry."""
+    registry = gate_registry()
+    result = EthosResult(
+        command="quality gates",
+        ok=True,
+        state="ready",
+        summary={"gate_count": len(registry)},
+        data={
+            "gates": {
+                gate_id: {
+                    "kind": gate.kind,
+                    "command": list(gate.command),
+                    "policy": gate.policy,
+                }
+                for gate_id, gate in registry.items()
+            }
+        },
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def commits(
+    *,
+    enforce_head: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report commit naming and signature policy."""
+    repo = _root(root)
+    report = signature_policy_report(repo)
+    gaps = list(report["required_gaps"])
+    if enforce_head and not report["head_subject_ok"]:
+        gaps.append("head_subject_not_conventional")
+    if enforce_head and not report["head_signature_ok"]:
+        gaps.append("head_signature_not_good")
+    result = EthosResult(
+        command="quality commits",
+        ok=not gaps,
+        state="clean" if not gaps else "blocked",
+        required_gaps=tuple(gaps),
+        data={**report, "enforce_head": enforce_head},
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def release(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report release and GitLab readiness."""
+    repo = _root(root)
+    audit = self_audit(repo)
+    release_files = audit["release_files"]
+    result = EthosResult(
+        command="quality release",
+        ok=bool(release_files["ok"]),
+        state="ready" if release_files["ok"] else "blocked",
+        required_gaps=tuple(release_files["missing"]),
+        next_actions=("uv build --all-packages",),
+        data={
+            "release_files": release_files,
+            "gitlab": {
+                "ci": ".gitlab-ci.yml",
+                "merge_request_template": ".gitlab/merge_request_templates/default.md",
+                "issue_template": ".gitlab/issue_templates/task.md",
+            },
+        },
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
 def command_registry(
     *,
     json_output: JsonFlag = False,
@@ -538,6 +639,25 @@ def docs_registry(
 
 
 @quality_app.command
+def command_examples(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Validate documented command examples."""
+    repo = _root(root)
+    report = command_examples_report(repo)
+    result = EthosResult(
+        command="quality command-examples",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
 def provenance(
     *,
     objective: str = "ethos provenance",
@@ -607,12 +727,18 @@ def observe(*, json_output: JsonFlag = False) -> None:
 @self_app.command
 def hypothesize(*, json_output: JsonFlag = False) -> None:
     """Record the next self-evolution hypothesis shape."""
+    report = evolution_report(Path.cwd())
     result = EthosResult(
         command="self hypothesize",
-        ok=True,
-        state="ready",
-        summary={"loop": "observe -> hypothesize -> experiment -> prove -> canonize -> retire"},
+        ok=bool(report["ok"]),
+        state="ready" if report["ok"] else "gapped",
+        summary={
+            "loop": "observe -> hypothesize -> experiment -> prove -> canonize -> retire",
+            "active_count": report["active_count"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self experiment",),
+        data=report,
     )
     _emit(result, json_output)
 
@@ -672,23 +798,15 @@ def retire(*, json_output: JsonFlag = False) -> None:
 @campaign_app.command(name="status")
 def campaign_status(*, json_output: JsonFlag = False) -> None:
     """Report canonical campaign model."""
+    report = evolution_report(Path.cwd())
     result = EthosResult(
         command="campaign status",
-        ok=True,
+        ok=bool(report["ok"]),
         state="active",
-        summary={"campaign": "ethos-product-canonization"},
+        summary={"campaign": "ethos-product-maturation"},
+        required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self audit",),
-        data={
-            "opportunities": [
-                "kernel",
-                "action-graph",
-                "governance",
-                "workspace",
-                "agent",
-                "adopt",
-                "self-evolution",
-            ]
-        },
+        data=report,
     )
     _emit(result, json_output)
 
@@ -696,28 +814,14 @@ def campaign_status(*, json_output: JsonFlag = False) -> None:
 @campaign_app.command
 def hypotheses(*, json_output: JsonFlag = False) -> None:
     """List active ETHOS self-evolution hypotheses."""
+    ledger = evolution_ledger(Path.cwd())
     result = EthosResult(
         command="campaign hypotheses",
         ok=True,
         state="active",
-        summary={"campaign": "ethos-product-canonization"},
+        summary={"campaign": "ethos-product-maturation"},
         next_actions=("ethos self experiment",),
-        data={
-            "hypotheses": [
-                {
-                    "id": "kernel-first-command-plane",
-                    "state": "canonizing",
-                    "claim": "A small pure kernel plus adapters gives stronger semantics.",
-                    "challenge": "No public behavior should depend on a private host surface.",
-                },
-                {
-                    "id": "reflexive-governance-loop",
-                    "state": "active",
-                    "claim": "ETHOS can govern and evolve itself through the same evidence loop.",
-                    "challenge": "Every product-shape change must leave tests, docs, and evidence.",
-                },
-            ]
-        },
+        data=ledger,
     )
     _emit(result, json_output)
 
@@ -769,6 +873,21 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
     _emit(result, json_output)
 
 
+@assistants_app.command(name="mcp-server")
+def mcp_server_command(*, json_output: JsonFlag = False) -> None:
+    """Describe the ETHOS MCP server adapter."""
+    descriptor = mcp_server_descriptor()
+    result = EthosResult(
+        command="assistants mcp-server",
+        ok=True,
+        state="ready",
+        summary={"transport": descriptor["transport"]},
+        next_actions=("ethos assistants mcp-manifest",),
+        data={"server": descriptor},
+    )
+    _emit(result, json_output)
+
+
 @app.command
 def report(
     *,
@@ -782,10 +901,14 @@ def report(
     claim_report = claims_report(repo)
     command_report = command_registry_report()
     projection = projection_contract()
+    schemas_report = schema_validation_report(repo)
+    evolution = evolution_report(repo)
+    signature = signature_policy_report(repo)
     scores = {
         "package_ontology": int(bool(audit["package_ontology"]["ok"])),
         "docs": int(bool(docs_report["ok"])),
         "schemas": int(bool(audit["schemas"]["ok"])),
+        "schema_validation": int(bool(schemas_report["ok"])),
         "claims": int(bool(claim_report["ok"])),
         "command_registry": int(bool(command_report["ok"])),
         "standards": int(
@@ -795,6 +918,8 @@ def report(
             )
         ),
         "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
+        "evolution": int(bool(evolution["ok"])),
+        "signature_policy": int(bool(signature["ok"])),
     }
     ok = all(value == 1 for value in scores.values())
     result = EthosResult(
@@ -809,6 +934,10 @@ def report(
             "docs": docs_report,
             "claims": claim_report,
             "assistant_projection": projection,
+            "schema_validation": schemas_report,
+            "evolution": evolution,
+            "signature_policy": signature,
+            "profiles": list(available_profiles()),
         },
     )
     _emit(result, json_output)

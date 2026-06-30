@@ -1,0 +1,20 @@
+[[hypothesis]]
+id = "schema-validated-command-plane"
+campaign = "ethos-product-maturation"
+state = "active"
+claim = "Every public JSON command can be validated against tracked ETHOS schemas."
+challenge = "A command without schema validation remains a product risk."
+
+[[hypothesis]]
+id = "real-gate-runner"
+campaign = "ethos-product-maturation"
+state = "experimenting"
+claim = "ETHOS proof should execute selected gates through the action graph."
+challenge = "A proof wrapper that only summarizes self-audit is not sufficient."
+
+[[hypothesis]]
+id = "gitlab-ready-release-governance"
+campaign = "ethos-product-maturation"
+state = "active"
+claim = "A GitLab-visible product needs license, changelog, contributing rules, CI, and templates."
+challenge = "Missing repository basics reduce trust even when code tests pass."

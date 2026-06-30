@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/commit-policy.schema.json",
+  "title": "ETHOS Commit Policy",
+  "type": "object",
+  "required": [
+    "ok",
+    "required_gaps",
+    "expected_author",
+    "configured_author",
+    "signing_required",
+    "gpg_format",
+    "head_subject",
+    "head_subject_ok",
+    "head_signature_status",
+    "head_signature_ok"
+  ],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "required_gaps": {"type": "array", "items": {"type": "string"}},
+    "expected_author": {"type": "string"},
+    "configured_author": {"type": "string"},
+    "signing_required": {"type": "boolean"},
+    "gpg_format": {"type": "string"},
+    "signing_key": {"type": "string"},
+    "head_subject": {"type": "string"},
+    "head_subject_ok": {"type": "boolean"},
+    "head_signature_status": {"type": "string"},
+    "head_signature_ok": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

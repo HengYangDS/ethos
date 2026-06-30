@@ -17,18 +17,7 @@ def _repo_root() -> Path:
 
 
 def _schema_dir(root: Path) -> Path:
-    schema_dir = root / "schemas" / "ethos"
-    if schema_dir.exists():
-        return schema_dir
-    return _product_schema_dir()
-
-
-def _product_schema_dir() -> Path:
-    for parent in Path(__file__).resolve().parents:
-        schema_dir = parent / "schemas" / "ethos"
-        if schema_dir.exists():
-            return schema_dir
-    return _repo_root() / "schemas" / "ethos"
+    return root / "schemas" / "ethos"
 
 
 def _schema_dir_has_contracts(path: Path) -> bool:

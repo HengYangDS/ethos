@@ -56,6 +56,6 @@ result: all six ETHOS packages built as sdist and wheel
 uv run --package ethos ethos quality history-identity --json
 result: ok=true, required_gaps=[]
 
-glab api projects/423/repository/commits/79d71a900ff86c67e462711734c7e44088c0e4eb/signature
-result: verification_status=verified, signature_type=SSH
+glab api projects/423/repository/commits/<published-head>/signature
+result: final published HEAD verification_status=verified, signature_type=SSH
 ```

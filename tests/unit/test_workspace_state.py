@@ -90,3 +90,29 @@ def test_active_leases_tolerates_legacy_lease_table_shape(tmp_path: Path) -> Non
         connection.commit()
 
     assert active_leases(db_path) == []
+
+
+def test_active_leases_skips_legacy_rows_with_malformed_expiry(tmp_path: Path) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                resource text not null default '',
+                expires_at text not null default '',
+                created_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, resource, expires_at, created_at)
+            values ('lease:bad', 'agent', 'repo', '', '2026-07-01T00:00:00+00:00')
+            """
+        )
+        connection.commit()
+
+    assert active_leases(db_path) == []

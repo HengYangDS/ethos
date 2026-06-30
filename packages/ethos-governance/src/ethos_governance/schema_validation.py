@@ -24,6 +24,14 @@ def _schema_dir_has_contracts(path: Path) -> bool:
     return path.exists() and any(path.glob("*.schema.json"))
 
 
+def _schema_dir_has_product_contracts(path: Path) -> bool:
+    if not path.exists():
+        return False
+    return _product_schema_names().issubset(
+        {schema.name for schema in path.glob("*.schema.json")}
+    )
+
+
 def _product_schema_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "schemas" / "ethos"
@@ -32,9 +40,14 @@ def _product_schema_dir() -> Path:
     return _schema_dir(_repo_root())
 
 
+def _product_schema_names() -> set[str]:
+    product = _product_schema_dir()
+    return {schema.name for schema in product.glob("*.schema.json")}
+
+
 def _effective_schema_dir(root: Path) -> Path:
     local = _schema_dir(root)
-    if _schema_dir_has_contracts(local):
+    if _schema_dir_has_product_contracts(local):
         return local
     return _product_schema_dir()
 
@@ -49,8 +62,14 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
     gaps: list[str] = []
     schemas: dict[str, dict[str, object]] = {}
     local_schema_dir = _schema_dir(repo)
+    product_schema_dir = _product_schema_dir()
     schema_dir = _effective_schema_dir(repo)
-    mode = "product" if schema_dir == local_schema_dir else "adopter"
+    mode = (
+        "product"
+        if local_schema_dir.resolve() == product_schema_dir.resolve()
+        and schema_dir.resolve() == product_schema_dir.resolve()
+        else "adopter"
+    )
     for path in sorted(schema_dir.glob("*.schema.json")):
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))

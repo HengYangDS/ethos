@@ -8,7 +8,18 @@
     "ok": true,
     "state": "matched",
     "required_gaps": [],
-    "comparison_count": 9
+    "comparison_count": 9,
+    "commands": [
+      "ethos status --json",
+      "ethos plan --changed --json",
+      "ethos prove --json",
+      "ethos report --json",
+      "ethos quality command-surface --json",
+      "ethos assistants doctor --json",
+      "ethos playbooks route --changed --json",
+      "ethos land --json",
+      "ethos publish --json"
+    ]
   },
   "verified_capabilities": [
     "work-lane-lifecycle",

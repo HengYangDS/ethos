@@ -10,6 +10,47 @@ from ethos_adapters.shadow import _run_embedded, _run_external, _semantic_diff
 
 from tests.support.ethos_cli_runner import run_ethos
 
+MIGRATED_CAPABILITIES = [
+    "work-lane-lifecycle",
+    "proof-evidence-chronicle",
+    "campaign-hypothesis-evolution",
+    "assistant-playbooks-skills",
+    "quality-determinism-local-state",
+    "openspec-claims-trust-review",
+]
+
+SHADOW_COMMANDS = [
+    "ethos status --json",
+    "ethos plan --changed --json",
+    "ethos prove --json",
+    "ethos report --json",
+    "ethos quality command-surface --json",
+    "ethos assistants doctor --json",
+    "ethos playbooks route --changed --json",
+    "ethos land --json",
+    "ethos publish --json",
+]
+
+
+def _complete_parity_evidence(adopter: str) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "adopter": adopter,
+        "target": f"/tmp/{adopter}",
+        "generated_on": "2026-07-01",
+        "shadow": {
+            "ok": True,
+            "required_gaps": [],
+            "comparison_count": len(SHADOW_COMMANDS),
+            "commands": SHADOW_COMMANDS,
+        },
+        "verified_capabilities": MIGRATED_CAPABILITIES,
+        "capability_basis": {
+            capability: [f"{capability} shadow parity basis"]
+            for capability in MIGRATED_CAPABILITIES
+        },
+    }
+
 
 def test_parity_ledger_has_no_unclassified_capabilities() -> None:
     payload = run_ethos("parity", "ledger", "--json")
@@ -62,23 +103,7 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "adopter": "sample-adopter",
-                "target": "/tmp/sample-adopter",
-                "generated_on": "2026-07-01",
-                "shadow": {"ok": True, "required_gaps": [], "comparison_count": 1},
-                "verified_capabilities": [
-                    "work-lane-lifecycle",
-                    "proof-evidence-chronicle",
-                    "campaign-hypothesis-evolution",
-                    "assistant-playbooks-skills",
-                    "quality-determinism-local-state",
-                    "openspec-claims-trust-review",
-                ],
-            }
-        ),
+        json.dumps(_complete_parity_evidence("sample-adopter")),
         encoding="utf-8",
     )
 
@@ -98,6 +123,34 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/sample-adopter-shadow.json"
     )
+
+
+def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    weak = _complete_parity_evidence("sample-adopter")
+    weak["shadow"] = {"ok": True, "required_gaps": [], "comparison_count": 1}
+    weak.pop("capability_basis")
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(weak),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter" in payload["required_gaps"]
+    assert payload["data"]["pending_packages"]
 
 
 def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path: Path) -> None:
@@ -368,6 +421,28 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
     assert report["ok"] is True
     assert not any(gap.startswith("external_command_failed:") for gap in report["required_gaps"])
     assert not any(gap.startswith("embedded_command_failed:") for gap in report["required_gaps"])
+
+
+def test_shadow_malformed_json_payload_is_process_failure() -> None:
+    assert shadow._process_failed(
+        {
+            "exit_code": 0,
+            "stdout": '{"error": "boom"}',
+            "stderr": "",
+            "json": {"error": "boom"},
+        }
+    )
+
+
+def test_shadow_exit_code_above_one_is_process_failure_even_with_verdict() -> None:
+    assert shadow._process_failed(
+        {
+            "exit_code": 2,
+            "stdout": '{"ok": false, "command": "status", "required_gaps": []}',
+            "stderr": "",
+            "json": {"ok": False, "command": "status", "required_gaps": []},
+        }
+    )
 
 
 def test_shadow_semantic_diff_compares_plan_gate_dimension() -> None:

@@ -199,7 +199,10 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
         ).fetchall()
     leases: list[dict[str, Any]] = []
     for row in rows:
-        expires_at = datetime.fromisoformat(row[3])
+        try:
+            expires_at = datetime.fromisoformat(row[3])
+        except (TypeError, ValueError):
+            continue
         if expires_at <= now:
             continue
         leases.append(

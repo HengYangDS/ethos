@@ -175,11 +175,43 @@ def _validate_parity_evidence(payload: dict[str, object], adopter: str) -> list[
     shadow = payload.get("shadow")
     if not isinstance(shadow, dict):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:shadow")
-    elif not isinstance(shadow.get("comparison_count"), int) or shadow["comparison_count"] <= 0:
-        required_gaps.append(f"parity_evidence_invalid:{adopter}:comparison_count")
+    else:
+        if shadow.get("ok") is not True:
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:shadow_ok")
+        if shadow.get("required_gaps") != []:
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:shadow_required_gaps")
+        if shadow.get("comparison_count") != len(SHADOW_PARITY_COMMANDS):
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:comparison_count")
+        if shadow.get("commands") != list(SHADOW_PARITY_COMMANDS):
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:commands")
     verified = payload.get("verified_capabilities")
     if not isinstance(verified, list) or not all(isinstance(item, str) for item in verified):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:verified_capabilities")
+    else:
+        migratable = _migratable_capabilities()
+        unknown = sorted(set(verified) - migratable)
+        if unknown:
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:unknown_capability")
+        capability_basis = payload.get("capability_basis")
+        if not isinstance(capability_basis, dict):
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:capability_basis")
+        else:
+            for capability in verified:
+                basis = capability_basis.get(capability)
+                if not isinstance(basis, list) or not basis or not all(
+                    isinstance(item, str) and item for item in basis
+                ):
+                    required_gaps.append(
+                        f"parity_evidence_invalid:{adopter}:capability_basis:{capability}"
+                    )
     if required_gaps:
         return [f"parity_evidence_invalid:{adopter}", *required_gaps]
     return []
+
+
+def _migratable_capabilities() -> set[str]:
+    return {
+        str(record["capability"])
+        for record in capability_parity_records()
+        if record["disposition"] in {"migrate-to-product", "split"}
+    }

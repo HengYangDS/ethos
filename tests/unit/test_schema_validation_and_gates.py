@@ -29,9 +29,29 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path
 
     report = schema_validation_report(tmp_path)
 
+    assert report["mode"] == "adopter"
     assert report["ok"] is True
     assert report["schema_count"] >= 19
     assert report["required_gaps"] == []
+    assert report["instances"]["docs-registry"]["ok"] is True
+
+
+def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contracts(
+    tmp_path,
+) -> None:
+    schema_dir = tmp_path / "schemas" / "ethos"
+    schema_dir.mkdir(parents=True)
+    (schema_dir / "custom.schema.json").write_text(
+        json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema"}),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs").mkdir()
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["mode"] == "adopter"
+    assert report["ok"] is True
+    assert report["schema_count"] >= 19
     assert report["instances"]["docs-registry"]["ok"] is True
 
 

@@ -205,7 +205,19 @@ def _process_failed(result: dict[str, Any]) -> bool:
     if result.get("exit_code") == 124:
         return True
     parsed = result.get("json")
-    return not isinstance(parsed, dict) or not parsed
+    if not _is_ethos_verdict(parsed):
+        return True
+    exit_code = result.get("exit_code")
+    return exit_code not in {0, 1}
+
+
+def _is_ethos_verdict(payload: object) -> bool:
+    return (
+        isinstance(payload, dict)
+        and isinstance(payload.get("ok"), bool)
+        and isinstance(payload.get("command"), str)
+        and isinstance(payload.get("required_gaps"), list)
+    )
 
 
 def _semantic_diff(*args: Any) -> dict[str, Any]:
@@ -448,12 +460,32 @@ def _without_product_self_audit_gaps(
 ) -> tuple[list[str], list[str]]:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
     self_audit = data.get("self_audit") if isinstance(data.get("self_audit"), dict) else {}
-    audit_gaps = set(_gap_list(self_audit.get("required_gaps")))
+    audit_gaps = {
+        gap
+        for gap in _gap_list(self_audit.get("required_gaps"))
+        if _is_product_self_audit_gap(gap)
+    }
     if not audit_gaps:
         return gaps, []
     filtered = [gap for gap in gaps if gap not in audit_gaps]
     removed = [gap for gap in gaps if gap in audit_gaps]
     return filtered, removed
+
+
+def _is_product_self_audit_gap(gap: str) -> bool:
+    return (
+        gap.startswith("docs/")
+        or gap.startswith("schemas/")
+        or gap.startswith("packages/")
+        or gap.startswith("distribution_adapter_missing:")
+        or gap.startswith("adoption_scaffold_missing:")
+        or gap.startswith("openspec_family_missing:")
+        or gap.startswith("claims_")
+        or gap.startswith("claim_")
+        or gap.startswith("schema_")
+        or gap.startswith("openspec_")
+        or gap.startswith("command_")
+    )
 
 
 def _without_legacy_changed_route_noop_gaps(

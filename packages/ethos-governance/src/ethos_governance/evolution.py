@@ -39,7 +39,7 @@ def evolution_report(root: Path) -> dict[str, object]:
 def evolution_candidates(root: Path) -> dict[str, object]:
     candidates: list[dict[str, str]] = []
     history = history_identity_report(root)
-    if history["raw_mismatches"] or history["unsigned_commits"]:
+    if history["raw_mismatches"] or history["unsigned_commits"] or history["subject_mismatches"]:
         candidates.append(
             {
                 "id": "history-identity-normalization",

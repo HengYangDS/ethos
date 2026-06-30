@@ -24,4 +24,6 @@ def test_evolution_candidates_are_derived_from_audit_signals() -> None:
     candidates = evolution_candidates(Path.cwd())
 
     assert candidates["ok"] is True
-    assert any(item["id"] == "history-identity-normalization" for item in candidates["candidates"])
+    candidate_ids = {item["id"] for item in candidates["candidates"]}
+    assert "history-identity-normalization" not in candidate_ids
+    assert "release-readiness-ratchet" in candidate_ids

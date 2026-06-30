@@ -5,9 +5,7 @@
 ETHOS SHALL manage local state, work lanes, action execution, land readiness,
 publish readiness, and release boundaries without treating local runtime state
 as durable repository truth.
-
 ## Requirements
-
 ### Requirement: Authorized Mutation
 ETHOS SHALL block apply-mode land and publish unless authorization and expected
 HEAD binding are explicit.
@@ -84,3 +82,12 @@ ETHOS SHALL keep local runtime state separate from durable evidence.
 - **WHEN** ETHOS creates proof evidence
 - **THEN** the evidence is HEAD-bound, digest-addressed, and separate from
   ignored local runtime state
+
+### Requirement: Internal ETHOS Gate Fast Path
+ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
+
+#### Scenario: Internal gate runs without nested CLI process
+- **WHEN** the local runner executes `python -m ethos.cli <command> --json`
+- **THEN** ETHOS invokes the command plane in-process
+- **AND** external provider commands still use the subprocess adapter
+

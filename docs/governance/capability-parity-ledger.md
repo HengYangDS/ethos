@@ -26,6 +26,22 @@ ethos parity shadow --target <repo> --json
 Each row must include source location, target home, migration disposition,
 required tests, parity criterion, and rollback impact.
 
+`ethos parity gaps` is evidence-driven. A migration or split row remains a
+required gap until tracked parity evidence under `docs/evidence/parity/` names
+that capability in `verified_capabilities` and the adopter shadow report has
+`shadow.ok=true` with no required gaps. Changing the ledger disposition alone
+does not close a parity gap.
+
+The current alphasim-dmgr adopter parity evidence is:
+
+```bash
+ethos parity gaps --adopter alphasim-dmgr --json
+ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
+```
+
+The tracked evidence file is
+`docs/evidence/parity/alphasim-dmgr-shadow.json`.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

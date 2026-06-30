@@ -35,18 +35,27 @@ def playbooks_report(root: Path) -> dict[str, object]:
     for entry in skill_entries:
         if not isinstance(entry, dict):
             continue
-        skill_id = str(entry.get("id") or "")
+        skill_id = str(entry.get("id") or entry.get("name") or "")
         relative_path = str(entry.get("path") or "")
         if not skill_id:
             gaps.append("skill_missing_id")
             continue
+        if not relative_path:
+            relative_path = f".agents/skills/{skill_id}/SKILL.md"
         if not relative_path or not (root / relative_path).exists():
             gaps.append(f"skill_missing_file:{skill_id}")
+        subjects = list(entry.get("subjects") or [])
+        path_globs = list(entry.get("path_globs") or [])
         skills.append(
             {
                 "id": skill_id,
                 "path": relative_path,
-                "subjects": list(entry.get("subjects") or []),
+                "subjects": subjects,
+                "path_globs": path_globs,
+                "intent_tokens": list(entry.get("intent_tokens") or []),
+                "pre_reads": list(entry.get("pre_reads") or []),
+                "post_checks": list(entry.get("post_checks") or []),
+                "may_coactivate": list(entry.get("may_coactivate") or []),
                 "commands": list(entry.get("commands") or []),
                 "boundary": str(entry.get("boundary") or ""),
             }
@@ -100,6 +109,9 @@ def _matches_route_subject(
     require_explicit_subject: bool,
 ) -> bool:
     subjects = [str(item).strip().lower() for item in record["subjects"]]
+    path_globs = [str(item).strip() for item in record.get("path_globs", [])]
+    if normalized == "changed-scope" and path_globs:
+        return True
     if require_explicit_subject:
         return normalized in subjects
     return normalized in str(record["id"]).lower() or any(normalized in item for item in subjects)

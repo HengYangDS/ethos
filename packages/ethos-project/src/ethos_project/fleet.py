@@ -3,6 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 
 
+def _has_docs(root: Path) -> bool:
+    return (
+        (root / "docs" / "index.md").exists()
+        or any((root / "docs" / "current").glob("*.md"))
+        or (root / "README.md").exists()
+    )
+
+
 def inspect_adopter(root: Path) -> dict[str, object]:
     repo = root.resolve()
     governance = {
@@ -12,7 +20,7 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         "openspec": (repo / "openspec" / "config.yaml").exists()
         and (repo / "openspec" / "specs").exists(),
         "skills": (repo / ".agents" / "skills" / "activation.toml").exists(),
-        "docs": (repo / "docs" / "index.md").exists(),
+        "docs": _has_docs(repo),
         "claims": (repo / "claims").exists(),
         "evidence": (repo / "docs" / "evidence").exists(),
     }

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "adopter": "alphasim-dmgr",
+  "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3",
+  "generated_on": "2026-07-01",
+  "command": "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
+  "shadow": {
+    "ok": true,
+    "state": "matched",
+    "required_gaps": [],
+    "comparison_count": 9
+  },
+  "verified_capabilities": [
+    "work-lane-lifecycle",
+    "proof-evidence-chronicle",
+    "campaign-hypothesis-evolution",
+    "assistant-playbooks-skills",
+    "quality-determinism-local-state",
+    "openspec-claims-trust-review"
+  ],
+  "semantic_dimensions": [
+    "branch role and cleanliness",
+    "changed-path planning and required gates",
+    "proof verdict and required gaps",
+    "report blocking readiness",
+    "command-surface retired vocabulary policy",
+    "assistant readiness",
+    "playbook route readiness",
+    "land readiness",
+    "publish readiness and no-push boundary"
+  ],
+  "capability_basis": {
+    "work-lane-lifecycle": [
+      "ethos status shadow matched",
+      "ethos land shadow matched",
+      "ethos publish shadow matched",
+      "workspace lane unit tests cover candidate, prewrite, start, apply admission, and foreign lane observation"
+    ],
+    "proof-evidence-chronicle": [
+      "ethos prove shadow matched",
+      "unit tests cover proof evidence digest, HEAD binding, provenance envelope, schema validation, and planned gate runs"
+    ],
+    "campaign-hypothesis-evolution": [
+      "campaign status is exposed through the public command plane",
+      "self-evolution ledger tests cover hypothesis claim and challenge fields"
+    ],
+    "assistant-playbooks-skills": [
+      "ethos assistants doctor shadow matched",
+      "ethos playbooks route --changed shadow matched",
+      "repo-local activation schemas with name, path_globs, pre_reads, and post_checks are accepted"
+    ],
+    "quality-determinism-local-state": [
+      "ethos quality command-surface shadow matched",
+      "schema, command registry, deterministic gate, and local-state tests cover the product contract"
+    ],
+    "openspec-claims-trust-review": [
+      "official OpenSpec workspace is present and validated in deep product gates",
+      "claims digest tests cover valid, missing, and mismatch cases"
+    ]
+  }
+}

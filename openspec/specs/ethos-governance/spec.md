@@ -90,6 +90,15 @@ ETHOS SHALL expose product migration parity as machine-readable command output.
 - **THEN** ETHOS reports pending product migration gaps and an adopter shadow
   parity gap without mutating the adopter repository
 
+#### Scenario: Tracked shadow evidence closes adopter parity gaps
+- **GIVEN** `docs/evidence/parity/<adopter>-shadow.json` exists
+- **AND** the evidence reports `shadow.ok=true` with no required gaps
+- **AND** the evidence names migrated or split capabilities in
+  `verified_capabilities`
+- **WHEN** `ethos parity gaps --adopter <adopter> --json` runs
+- **THEN** ETHOS omits parity gaps for those verified capabilities
+- **AND** changing a ledger disposition alone does not close the gap
+
 ### Requirement: Fast Daily Governance Checks
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
 deep OpenSpec validation.
@@ -98,4 +107,3 @@ deep OpenSpec validation.
 - **WHEN** `ethos prove --json` runs without `--full`
 - **THEN** self-audit uses OpenSpec shape mode
 - **AND** official OpenSpec validation remains available through deep commands
-

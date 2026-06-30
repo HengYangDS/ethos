@@ -20,8 +20,27 @@ def _schema_dir(root: Path) -> Path:
     return root / "schemas" / "ethos"
 
 
+def _schema_dir_has_contracts(path: Path) -> bool:
+    return path.exists() and any(path.glob("*.schema.json"))
+
+
+def _product_schema_dir() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "schemas" / "ethos"
+        if _schema_dir_has_contracts(candidate):
+            return candidate
+    return _schema_dir(_repo_root())
+
+
+def _effective_schema_dir(root: Path) -> Path:
+    local = _schema_dir(root)
+    if _schema_dir_has_contracts(local):
+        return local
+    return _product_schema_dir()
+
+
 def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
-    base = _schema_dir(root or _repo_root())
+    base = _effective_schema_dir(root or _repo_root())
     return json.loads((base / name).read_text(encoding="utf-8"))
 
 
@@ -29,7 +48,10 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
     repo = root or _repo_root()
     gaps: list[str] = []
     schemas: dict[str, dict[str, object]] = {}
-    for path in sorted(_schema_dir(repo).glob("*.schema.json")):
+    local_schema_dir = _schema_dir(repo)
+    schema_dir = _effective_schema_dir(repo)
+    mode = "product" if schema_dir == local_schema_dir else "adopter"
+    for path in sorted(schema_dir.glob("*.schema.json")):
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))
             Draft202012Validator.check_schema(schema)
@@ -44,6 +66,8 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             gaps.extend(f"instance:{name}:{gap}" for gap in instance["required_gaps"])
     return {
         "ok": not gaps,
+        "mode": mode,
+        "schema_source": schema_dir.as_posix(),
         "schema_count": len(schemas),
         "required_gaps": gaps,
         "schemas": schemas,

@@ -26,3 +26,15 @@
 - [x] 4.1 Add lifecycle and input/output contracts to standards adapters.
 - [x] 4.2 Run focused and full tests, Ruff, OpenSpec validation, CLI smoke,
       release checks, and package build.
+
+## 5. External Parity Closure
+
+- [x] 5.1 Make shadow parity run against adopters that declare Pixi tasks in
+      `pyproject.toml`.
+- [x] 5.2 Add command-surface shadow comparison and schema-version-tolerant
+      semantic normalization.
+- [x] 5.3 Support adopter-aware schema validation, proof, report, command
+      surface policy, and repo-local playbook activation schemas.
+- [x] 5.4 Make `ethos parity gaps --adopter <name>` close only from tracked
+      parity evidence.
+- [x] 5.5 Record alphasim-dmgr shadow evidence with `gap_count=0`.

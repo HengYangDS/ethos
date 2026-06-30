@@ -135,6 +135,50 @@ def _rules_config(root: Path) -> dict[str, object]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
+def _is_product_root(root: Path) -> bool:
+    return (
+        (root / "packages" / "ethos" / "README.md").exists()
+        and (root / "schemas" / "ethos").exists()
+    )
+
+
+def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+    if _is_product_root(root):
+        return self_audit_module.self_audit(root, openspec_mode=openspec_mode)
+    return _adopter_audit(root)
+
+
+def _adopter_audit(root: Path) -> dict[str, object]:
+    adopter = inspect_adopter(root)
+    schemas = schema_validation_report(root)
+    claims = claims_report(root)
+    docs = docs_health_report(root)
+    gaps = (
+        list(adopter["required_gaps"])
+        + [f"schema:{gap}" for gap in schemas["required_gaps"]]
+    )
+    return {
+        "ok": not gaps,
+        "mode": "adopter",
+        "required_gaps": gaps,
+        "adopter": adopter,
+        "schemas": {
+            "ok": bool(schemas["ok"]),
+            "validation": schemas,
+            "missing": [],
+        },
+        "claims": claims,
+        "docs": docs,
+        "openspec": {
+            "ok": bool(adopter["adopter"]["governance"]["openspec"]),
+            "mode": "adopter-shape",
+            "required_gaps": []
+            if adopter["adopter"]["governance"]["openspec"]
+            else ["adopter_missing:openspec"],
+        },
+    }
+
+
 def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -377,7 +421,7 @@ def prove(
 ) -> None:
     """Produce a local proof-readiness summary."""
     repo = _root(root)
-    audit = self_audit_module.self_audit(repo, openspec_mode="deep" if full else "shape")
+    audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
     runner = LocalSubprocessRunner() if execute else DryRunRunner()
     proof_runs = tuple(
@@ -1238,8 +1282,13 @@ def intake_status(
 
 
 @assistants_app.command(name="doctor")
-def assistants_doctor(*, json_output: JsonFlag = False) -> None:
+def assistants_doctor(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """Report assistant projection readiness."""
+    _root(root)
     contract = projection_contract()
     result = EthosResult(
         command="assistants doctor",
@@ -1392,10 +1441,12 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
 def parity_gaps(
     *,
     adopter: str | None = None,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report remaining product/adopter parity gaps."""
-    report = parity_gaps_report(adopter=adopter)
+    repo = _root(root)
+    report = parity_gaps_report(adopter=adopter, root=repo)
     result = EthosResult(
         command="parity gaps",
         ok=bool(report["ok"]),
@@ -1442,7 +1493,7 @@ def report(
 ) -> None:
     """Emit a concise scorecard."""
     repo = _root(root)
-    audit = self_audit_module.self_audit(repo, openspec_mode="shape")
+    audit = _audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
     command_report = command_registry_report(repo)
@@ -1453,31 +1504,45 @@ def report(
     playbooks = playbooks_report(repo)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
-    parity_gaps = parity_gaps_report()
-    scores = {
-        "package_ontology": int(bool(audit["package_ontology"]["ok"])),
-        "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
-        "docs": int(bool(docs_report["ok"])),
-        "schemas": int(bool(audit["schemas"]["ok"])),
-        "schema_validation": int(bool(schemas_report["ok"])),
-        "claims": int(bool(claim_report["ok"])),
-        "command_registry": int(bool(command_report["ok"])),
-        "standards": int(
-            all(
-                item["boundary"] and item["fallback"] and item["exit_strategy"]
-                for item in standard_adapter_registry().values()
-            )
-        ),
-        "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
-        "evolution": int(bool(evolution["ok"])),
-        "signature_policy": int(bool(signature["ok"])),
-        "openspec": int(bool(audit["openspec"]["ok"])),
-        "playbooks": int(bool(playbooks["ok"])),
-        "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
-        "parity_ledger": int(bool(parity_ledger["ok"])),
-    }
+    parity_gaps = parity_gaps_report(root=repo)
+    if audit.get("mode") == "adopter":
+        scores = {
+            "adopter_governance": int(bool(audit["ok"])),
+            "schemas": int(bool(audit["schemas"]["ok"])),
+            "claims": int(bool(audit["adopter"]["adopter"]["governance"]["claims"])),
+            "docs": int(bool(audit["adopter"]["adopter"]["governance"]["docs"])),
+            "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
+            "playbooks": int(bool(playbooks["ok"])),
+            "parity_ledger": int(bool(parity_ledger["ok"])),
+        }
+    else:
+        scores = {
+            "package_ontology": int(bool(audit["package_ontology"]["ok"])),
+            "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
+            "docs": int(bool(docs_report["ok"])),
+            "schemas": int(bool(audit["schemas"]["ok"])),
+            "schema_validation": int(bool(schemas_report["ok"])),
+            "claims": int(bool(claim_report["ok"])),
+            "command_registry": int(bool(command_report["ok"])),
+            "standards": int(
+                all(
+                    item["boundary"] and item["fallback"] and item["exit_strategy"]
+                    for item in standard_adapter_registry().values()
+                )
+            ),
+            "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
+            "evolution": int(bool(evolution["ok"])),
+            "signature_policy": int(bool(signature["ok"])),
+            "openspec": int(bool(audit["openspec"]["ok"])),
+            "playbooks": int(bool(playbooks["ok"])),
+            "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
+            "parity_ledger": int(bool(parity_ledger["ok"])),
+        }
     ok = all(value == 1 for value in scores.values())
     parity_pending_count = len(parity_gaps["required_gaps"])
+    result_required_gaps = tuple(audit["required_gaps"])
+    if audit.get("mode") != "adopter":
+        result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
     result = EthosResult(
         command="report",
         ok=ok,
@@ -1487,7 +1552,7 @@ def report(
             "max_score": len(scores),
             "parity_pending_count": parity_pending_count,
         },
-        required_gaps=tuple(audit["required_gaps"]) + tuple(claim_report["required_gaps"]),
+        required_gaps=result_required_gaps,
         next_actions=(
             ("ethos parity gaps --adopter <adopter>",)
             if parity_pending_count
@@ -1568,7 +1633,7 @@ def _self_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[
             "required_gaps": [],
             "root": repo.as_posix(),
         }
-    return self_audit_module.self_audit(repo, openspec_mode="shape")
+    return _audit_for_root(repo, openspec_mode="shape")
 
 
 def main() -> None:

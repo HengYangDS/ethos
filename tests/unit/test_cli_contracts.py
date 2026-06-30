@@ -209,6 +209,13 @@ evidence = ["unit-test"]
     ]
 
 
+def test_assistants_doctor_accepts_root_for_shadow_parity(tmp_path: Path) -> None:
+    payload = run_ethos("assistants", "doctor", "--root", tmp_path.as_posix(), "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "assistants doctor"
+
+
 def test_self_audit_reports_product_shape() -> None:
     payload = run_ethos("self", "audit", "--mode", "shape", "--json")
 
@@ -435,6 +442,37 @@ def test_playbooks_commands_expose_repo_local_skills() -> None:
     assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
 
 
+def test_playbooks_accept_repo_local_activation_schema_with_path_globs(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skill_path = skills_root / "code-change" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Code Change\n", encoding="utf-8")
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "code-change"
+path_globs = ["src/**"]
+intent_tokens = ["implement"]
+pre_reads = ["README.md"]
+post_checks = ["ethos prove"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    check = run_ethos("playbooks", "check", "--root", root.as_posix(), "--json")
+    route = run_ethos("playbooks", "route", "--changed", "--root", root.as_posix(), "--json")
+
+    assert check["ok"] is True
+    assert check["data"]["records"][0]["id"] == "code-change"
+    assert check["data"]["records"][0]["path_globs"] == ["src/**"]
+    assert route["ok"] is True
+    assert route["data"]["selected"][0]["id"] == "code-change"
+    assert route["data"]["selected"][0]["pre_reads"] == ["README.md"]
+    assert route["data"]["selected"][0]["post_checks"] == ["ethos prove"]
+
+
 def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
     adoption_plan(tmp_path, profile="gitlab", apply=True)
 
@@ -446,6 +484,22 @@ def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
     assert payload["data"]["adopter"]["governance"]["ethos_config"] is True
     assert payload["data"]["adopter"]["governance"]["openspec"] is True
     assert payload["data"]["adopter"]["governance"]["skills"] is True
+
+
+def test_fleet_inspect_accepts_current_docs_layout(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+    (tmp_path / "docs" / "index.md").unlink()
+    (tmp_path / "docs" / "current").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "current" / "README.md").write_text(
+        "---\nsubject: docs:current\nrole: reference\nstate: current\nrelations: test\n---\n"
+        "# Current Docs\n",
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("fleet", "inspect", "--target", str(tmp_path), "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["adopter"]["governance"]["docs"] is True
 
 
 def test_quality_determinism_commands_are_available() -> None:
@@ -472,6 +526,25 @@ def test_prove_returns_evidence_and_provenance() -> None:
     assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == (
         payload["data"]["evidence"]["digest"]
     )
+
+
+def test_prove_uses_adopter_audit_for_non_product_repo(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["self_audit"]["mode"] == "adopter"
+
+
+def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    payload = run_ethos("report", "--root", tmp_path.as_posix(), "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["self_audit"]["mode"] == "adopter"
+    assert payload["data"]["scores"]["adopter_governance"] == 1
 
 
 def test_land_apply_requires_authorization_and_expected_head() -> None:

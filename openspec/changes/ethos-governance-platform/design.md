@@ -19,6 +19,10 @@ hardcoded into product core.
 - Make self-audit fail on missing claims, missing playbooks, missing spec
   families, malformed evolution ledgers, and retired public command roots in
   current docs.
+- Make capability parity closure depend on tracked shadow evidence rather than
+  static ledger disposition. A verified capability must be named in
+  `docs/evidence/parity/<adopter>-shadow.json`, and the shadow report must have
+  no required gaps.
 - Adopt mature standards as adapters with explicit contracts and exit
   strategies before introducing service-mode or hosted integrations.
 

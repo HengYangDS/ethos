@@ -15,6 +15,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     report = schema_validation_report()
 
     assert report["ok"] is True
+    assert report["mode"] == "product"
     assert report["schema_count"] >= 19
     assert report["required_gaps"] == []
     assert report["instances"]["evolution-ledger"]["ok"] is True
@@ -139,6 +140,26 @@ def test_schema_instance_validation_reports_data_gaps() -> None:
 
     assert validation["ok"] is False
     assert validation["required_gaps"]
+
+
+def test_schema_validation_uses_product_schemas_for_adopter_without_local_schemas(
+    tmp_path,
+) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "project.toml").write_text("[meta]\nname = 'sample'\n", encoding="utf-8")
+    (tmp_path / "docs" / "current").mkdir(parents=True)
+    (tmp_path / "docs" / "current" / "README.md").write_text(
+        "---\nsubject: docs:current\nrole: reference\nstate: current\nrelations: test\n---\n"
+        "# Current Docs\n",
+        encoding="utf-8",
+    )
+
+    report = schema_validation_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["mode"] == "adopter"
+    assert report["schema_count"] >= 19
+    assert report["instances"]["docs-registry"]["ok"] is True
 
 
 def test_gate_registry_has_real_default_gates() -> None:

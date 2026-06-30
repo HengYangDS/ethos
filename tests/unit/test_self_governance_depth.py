@@ -93,7 +93,7 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
 def test_self_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None:
     write_minimal_self_audit_repo(tmp_path)
 
-    report = self_audit(tmp_path)
+    report = self_audit(tmp_path, openspec_mode="shape")
 
     assert report["ok"] is False
     assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
@@ -122,7 +122,7 @@ def test_self_audit_surfaces_retired_command_mentions_as_required_gaps(
         "Do not promote `proof` here.\n",
     )
 
-    report = self_audit(tmp_path)
+    report = self_audit(tmp_path, openspec_mode="shape")
 
     assert report["ok"] is False
     assert report["command_registry"]["required_gaps"] == [

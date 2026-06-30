@@ -976,18 +976,33 @@ def provenance(
 @self_app.command
 def audit(
     *,
+    mode: str = "deep",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Audit ETHOS against its own product ontology."""
     repo = _root(root)
-    audit_payload = self_audit_module.self_audit(repo)
+    if mode not in {"shape", "deep"}:
+        result = EthosResult(
+            command="self audit",
+            ok=False,
+            state="invalid",
+            required_gaps=(f"invalid_audit_mode:{mode}",),
+            next_actions=("ethos self audit --mode shape", "ethos self audit --mode deep"),
+            data={"mode": mode, "allowed_modes": ["shape", "deep"]},
+        )
+        _emit(result, json_output)
+        return
+    audit_payload = self_audit_module.self_audit(repo, openspec_mode=mode)
     result = EthosResult(
         command="self audit",
         ok=bool(audit_payload["ok"]),
         state="clean" if audit_payload["ok"] else "gapped",
+        summary={"openspec_mode": mode},
         required_gaps=tuple(audit_payload["required_gaps"]),
-        next_actions=("ethos self hypothesize",),
+        next_actions=("ethos self hypothesize",)
+        if audit_payload["ok"]
+        else ("ethos self audit --mode deep",),
         data=audit_payload,
     )
     _emit(result, json_output)
@@ -1086,20 +1101,32 @@ def experiment(*, json_output: JsonFlag = False) -> None:
 @self_app.command(name="prove")
 def prove_self(
     *,
+    mode: str = "deep",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Prove the active self-evolution hypothesis."""
     repo = _root(root)
-    audit_payload = self_audit_module.self_audit(repo)
+    if mode not in {"shape", "deep"}:
+        result = EthosResult(
+            command="self prove",
+            ok=False,
+            state="invalid",
+            required_gaps=(f"invalid_audit_mode:{mode}",),
+            next_actions=("ethos self prove --mode shape", "ethos self prove --mode deep"),
+            data={"mode": mode, "allowed_modes": ["shape", "deep"]},
+        )
+        _emit(result, json_output)
+        return
+    audit_payload = self_audit_module.self_audit(repo, openspec_mode=mode)
     ok = bool(audit_payload["ok"])
     result = EthosResult(
         command="self prove",
         ok=ok,
         state="proven" if ok else "gapped",
-        summary={"proof": "self-audit"},
+        summary={"proof": "self-audit", "openspec_mode": mode},
         required_gaps=tuple(audit_payload["required_gaps"]),
-        next_actions=("ethos self canonize",) if ok else ("ethos self audit",),
+        next_actions=("ethos self canonize",) if ok else ("ethos self audit --mode deep",),
         data={"self_audit": audit_payload},
     )
     _emit(result, json_output)

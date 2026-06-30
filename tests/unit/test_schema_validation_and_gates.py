@@ -45,7 +45,7 @@ def test_gate_registry_has_real_default_gates() -> None:
     registry = gate_registry()
 
     assert {"self-audit", "claims", "docs-registry", "schemas"} <= set(registry)
-    assert registry["self-audit"].command[-2:] == ("audit", "--json")
+    assert registry["self-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
     assert {"unit-architecture", "ruff", "build"} <= set(registry)
 
 

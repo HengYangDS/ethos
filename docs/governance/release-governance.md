@@ -23,7 +23,7 @@ uv build --all-packages
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm
-ethos self audit
+ethos self audit --mode deep
 ethos report
 ```
 

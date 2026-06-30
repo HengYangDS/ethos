@@ -42,7 +42,11 @@ ethos quality commits
 ethos quality release
 ethos quality standards
 ethos self audit
+ethos self audit --mode shape
+ethos self audit --mode deep
 ethos self hypothesize
+ethos self prove --mode shape
+ethos self prove --mode deep
 ethos campaign hypotheses
 ethos intake status
 ethos parity ledger
@@ -87,3 +91,7 @@ ethos publish --apply --authorize --expect-head <git-head>
 Those commands still report readiness in the current implementation; remote
 publication remains an adapter responsibility. `land --apply` from an admitted
 Work Lane advances local `candidate/dev`; it does not advance `dev`.
+
+Self-governance modes are explicit. `shape` is the daily fast path for product
+shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
+official OpenSpec CLI validation and is required for release or archive proof.

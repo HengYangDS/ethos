@@ -31,7 +31,7 @@ def gate_registry() -> dict[str, Gate]:
         "self-audit": Gate(
             id="self-audit",
             kind="governance",
-            command=(python, "-m", "ethos.cli", "self", "audit", "--json"),
+            command=(python, "-m", "ethos.cli", "self", "audit", "--mode", "shape", "--json"),
         ),
         "claims": Gate(
             id="claims",

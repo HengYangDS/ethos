@@ -210,16 +210,25 @@ evidence = ["unit-test"]
 
 
 def test_self_audit_reports_product_shape() -> None:
-    payload = run_ethos("self", "audit", "--json")
+    payload = run_ethos("self", "audit", "--mode", "shape", "--json")
 
     assert payload["ok"] is True
     assert payload["command"] == "self audit"
+    assert payload["data"]["openspec"]["mode"] == "shape"
     assert payload["required_gaps"] == []
     package_ontology = payload["data"]["package_ontology"]
     assert package_ontology["ok"] is True
     assert "canonical_packages" not in package_ontology
     assert "ethos-governance" in package_ontology["migration_host_packages"]
     assert "ethos-core" in package_ontology["target_package_contract"]
+
+
+def test_self_audit_rejects_invalid_mode_as_json_gap() -> None:
+    payload = run_ethos("self", "audit", "--mode", "fastish", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "invalid"
+    assert payload["required_gaps"] == ["invalid_audit_mode:fastish"]
 
 
 def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
@@ -312,7 +321,39 @@ def test_quality_help_lists_canonical_commands() -> None:
     }
 
 
-def test_self_openspec_uses_official_native_cli() -> None:
+def test_self_openspec_uses_official_native_cli(monkeypatch) -> None:
+    from ethos_governance import openspec_native
+
+    def fake_base_command() -> tuple[str, ...]:
+        return ("openspec",)
+
+    def fake_run_json(
+        _root: Path,
+        _base: tuple[str, ...],
+        args: tuple[str, ...],
+    ) -> dict[str, object]:
+        if args == ("doctor", "--json"):
+            payload = {"root": {"healthy": True}}
+        elif args == ("list", "--json"):
+            payload = {"changes": [{"name": "ethos-release-hardening", "status": "in-progress"}]}
+        elif args == ("status", "--change", "ethos-release-hardening", "--json"):
+            payload = {"isComplete": True, "schemaName": "spec-driven"}
+        elif args == ("validate", "--all", "--strict", "--json"):
+            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
+        else:
+            raise AssertionError(f"unexpected OpenSpec command: {args}")
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 0,
+            "stdout": "{}",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+
     payload = run_ethos("self", "openspec", "--change", "ethos-release-hardening", "--json")
 
     assert payload["ok"] is True
@@ -326,6 +367,15 @@ def test_full_gate_registry_includes_official_openspec_validation() -> None:
     payload = run_ethos("quality", "gates", "--json")
 
     assert payload["ok"] is True
+    assert payload["data"]["gates"]["self-audit"]["command"][1:] == [
+        "-m",
+        "ethos.cli",
+        "self",
+        "audit",
+        "--mode",
+        "shape",
+        "--json",
+    ]
     assert payload["data"]["gates"]["openspec"]["command"] == [
         "openspec",
         "validate",
@@ -614,7 +664,7 @@ def test_self_evolution_loop_commands_are_available() -> None:
         ("self", "observe", "--json"),
         ("self", "hypothesize", "--json"),
         ("self", "experiment", "--json"),
-        ("self", "prove", "--json"),
+        ("self", "prove", "--mode", "shape", "--json"),
         ("self", "canonize", "--json"),
         ("self", "retire", "--json"),
     ):
@@ -622,9 +672,10 @@ def test_self_evolution_loop_commands_are_available() -> None:
         assert payload["ok"] is True
         assert payload["command"].startswith("self ")
 
-    proof = run_ethos("self", "prove", "--json")
+    proof = run_ethos("self", "prove", "--mode", "shape", "--json")
 
     assert proof["data"]["self_audit"]["ok"] is True
+    assert proof["data"]["self_audit"]["openspec"]["mode"] == "shape"
     assert proof["summary"]["proof"] == "self-audit"
 
 

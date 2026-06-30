@@ -37,14 +37,17 @@ def workspace_status(root: Path) -> dict[str, object]:
     paths = changed_paths(root)
     branch = current_branch(root)
     role = _role_for_branch(branch)
-    worktrees = _worktrees(root)
+    worktrees = _worktrees(root, current_path=current_path)
     candidate = _candidate_status(root, worktrees)
+    branch_actions = _branch_actions(worktrees, candidate)
     foreign = [
         {
             "path": worktree["path"],
             "head": worktree["head"],
             "branch": worktree["branch"],
             "role": worktree["role"],
+            "open_action": worktree["open_action"],
+            "open_label": worktree["open_label"],
         }
         for worktree in worktrees
         if worktree["role"] == "work_lane" and Path(str(worktree["path"])).resolve() != current_path
@@ -64,54 +67,112 @@ def workspace_status(root: Path) -> dict[str, object]:
         "role": role,
         "candidate": candidate,
         "worktrees": worktrees,
+        "branch_actions": branch_actions,
         "foreign_work_lanes": foreign,
         "required_gaps": required_gaps,
     }
 
 
-def _worktrees(root: Path) -> list[dict[str, str]]:
+def _worktrees(root: Path, *, current_path: Path) -> list[dict[str, str]]:
     output = _run_git(root, "worktree", "list", "--porcelain")
     entries: list[dict[str, str]] = []
     current: dict[str, str] = {}
     for line in output.splitlines():
         if not line:
             if current:
-                entries.append(_normalize_worktree(current))
+                entries.append(_normalize_worktree(current, current_path=current_path))
                 current = {}
             continue
         key, _, value = line.partition(" ")
         current[key] = value
     if current:
-        entries.append(_normalize_worktree(current))
+        entries.append(_normalize_worktree(current, current_path=current_path))
     return entries
 
 
-def _normalize_worktree(entry: dict[str, str]) -> dict[str, str]:
+def _normalize_worktree(entry: dict[str, str], *, current_path: Path) -> dict[str, str]:
     branch = entry.get("branch", "")
     if branch.startswith("refs/heads/"):
         branch = branch.removeprefix("refs/heads/")
+    path = entry.get("worktree", "")
+    action, label = _worktree_action(path, current_path=current_path)
     return {
-        "path": entry.get("worktree", ""),
+        "path": path,
         "head": entry.get("HEAD", ""),
         "branch": branch or "detached",
         "role": _role_for_branch(branch),
+        "open_action": action,
+        "open_label": label,
     }
 
 
-def _candidate_status(root: Path, worktrees: list[dict[str, str]]) -> dict[str, object]:
+def _candidate_status(
+    root: Path,
+    worktrees: list[dict[str, str]],
+) -> dict[str, object]:
     head = _ref_head(root, CANDIDATE_BRANCH)
     worktree_path = ""
+    open_action = "bootstrap_worktree"
+    open_label = "Bootstrap Worktree"
     for worktree in worktrees:
         if worktree["branch"] == CANDIDATE_BRANCH:
             worktree_path = worktree["path"]
+            open_action = worktree["open_action"]
+            open_label = worktree["open_label"]
             break
+    if head and not worktree_path:
+        open_action = "create_worktree"
+        open_label = "Create Worktree"
     return {
         "branch": CANDIDATE_BRANCH,
         "exists": bool(head),
         "head": head,
         "worktree_exists": bool(worktree_path),
         "worktree_path": worktree_path,
+        "open_action": open_action,
+        "open_label": open_label,
     }
+
+
+def _branch_actions(
+    worktrees: list[dict[str, str]],
+    candidate: dict[str, object],
+) -> list[dict[str, str]]:
+    actions: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for worktree in worktrees:
+        branch = str(worktree["branch"])
+        if branch == "detached":
+            continue
+        actions.append(
+            {
+                "branch": branch,
+                "role": str(worktree["role"]),
+                "head": str(worktree["head"]),
+                "path": str(worktree["path"]),
+                "action": str(worktree["open_action"]),
+                "label": str(worktree["open_label"]),
+            }
+        )
+        seen.add(branch)
+    if CANDIDATE_BRANCH not in seen:
+        actions.append(
+            {
+                "branch": CANDIDATE_BRANCH,
+                "role": "candidate",
+                "head": str(candidate["head"]),
+                "path": str(candidate["worktree_path"]),
+                "action": str(candidate["open_action"]),
+                "label": str(candidate["open_label"]),
+            }
+        )
+    return actions
+
+
+def _worktree_action(path: str, *, current_path: Path) -> tuple[str, str]:
+    if path and Path(path).resolve() == current_path:
+        return "current_worktree", "Current Worktree"
+    return "open_worktree", "Open Worktree"
 
 
 def _ref_head(root: Path, ref: str) -> str:

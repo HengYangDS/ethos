@@ -81,6 +81,14 @@ ethos lane start <name> --path <worktree-path> --owner <owner> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ```
 
+`ethos status --json` and `ethos lane status --json` expose branch action
+metadata under `data.branch_actions`. Branches already bound to a linked
+worktree, including `candidate/dev` and `work/*`, report
+`action = "open_worktree"` with label `Open Worktree`; they are not modeled as
+ordinary checkout targets.
+The `data.candidate` object also carries `open_action` and `open_label` for
+candidate-specific consumers.
+
 Mutation readiness is explicit:
 
 ```bash

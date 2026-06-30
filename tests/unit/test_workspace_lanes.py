@@ -58,12 +58,38 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
     assert status["foreign_work_lanes"] == [
         {
             "branch": "work/foreign",
+            "open_action": "open_worktree",
+            "open_label": "Open Worktree",
             "head": git(repo, "rev-parse", "dev"),
             "path": foreign.as_posix(),
             "role": "work_lane",
         }
     ]
     assert "foreign_work_lane_present" in status["required_gaps"]
+
+
+def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+
+    status = workspace_status(repo)
+
+    assert status["candidate"]["open_action"] == "open_worktree"
+    assert status["candidate"]["open_label"] == "Open Worktree"
+    assert status["candidate"]["worktree_path"] == candidate.as_posix()
+    worktree_actions = {
+        action["branch"]: action
+        for action in status["branch_actions"]
+        if action["action"] == "open_worktree"
+    }
+    assert worktree_actions["candidate/dev"]["label"] == "Open Worktree"
+    assert worktree_actions["candidate/dev"]["path"] == candidate.as_posix()
+    assert worktree_actions["work/feature"]["label"] == "Open Worktree"
+    assert worktree_actions["work/feature"]["path"] == worktree.as_posix()
 
 
 def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> None:
@@ -77,6 +103,8 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
         "head": "",
         "worktree_exists": False,
         "worktree_path": "",
+        "open_action": "bootstrap_worktree",
+        "open_label": "Bootstrap Worktree",
     }
     assert "candidate_branch_missing" in status["required_gaps"]
 

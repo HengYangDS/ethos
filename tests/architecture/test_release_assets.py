@@ -33,6 +33,11 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
 
     assert "ethos self audit" in text
     assert "ethos report" in text
+    assert "image: node:24" in text
+    assert "npm config set engine-strict true" in text
+    assert "npm ci --ignore-scripts" in text
+    assert "npm run ethos -- --version" in text
+    assert "npm run test:npm" in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" in text
     assert "wt " not in text
     assert "proof " not in text

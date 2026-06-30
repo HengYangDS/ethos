@@ -10,6 +10,7 @@ OPENSPEC_FAMILIES = (
     "ethos-governance",
     "ethos-workspace",
     "ethos-agent",
+    "ethos-distribution",
 )
 BASE_ADOPTION_FILES = (
     ".ethos/project.toml",
@@ -105,6 +106,7 @@ def _openspec_spec(family: str) -> str:
         "ethos-governance": "Governance And Evidence",
         "ethos-workspace": "Workspace And Release",
         "ethos-agent": "Agentic Projections",
+        "ethos-distribution": "Distribution Adapters",
     }
     title = titles[family]
     return f"""# {family}

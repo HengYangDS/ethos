@@ -1104,6 +1104,7 @@ def report(
     adoption_scaffold = adoption_scaffold_report()
     scores = {
         "package_ontology": int(bool(audit["package_ontology"]["ok"])),
+        "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
         "docs": int(bool(docs_report["ok"])),
         "schemas": int(bool(audit["schemas"]["ok"])),
         "schema_validation": int(bool(schemas_report["ok"])),

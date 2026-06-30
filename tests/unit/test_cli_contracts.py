@@ -323,6 +323,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     payload = run_ethos("report", "--json")
 
     assert payload["ok"] is True
+    assert payload["data"]["scores"]["distribution_adapter"] == 1
     assert payload["data"]["scores"]["claims"] == 1
     assert payload["data"]["scores"]["docs"] == 1
     assert payload["data"]["scores"]["assistant_projection"] == 1

@@ -7,7 +7,7 @@ from pathlib import Path
 from ethos_governance.command_registry import RETIRED_PUBLIC_ROOTS
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
-ALLOWED_NON_ETHOS_ROOTS = ("git", "pip", "python", "uv")
+ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
 OBSERVATIONAL_DOC_PREFIXES = ("docs/evidence/", "docs/archive/")
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 

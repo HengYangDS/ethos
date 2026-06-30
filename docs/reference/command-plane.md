@@ -18,6 +18,12 @@ ethos land
 ethos publish
 ```
 
+The npm launcher exposes the same root command:
+
+```bash
+npm run ethos -- --version
+```
+
 Advanced commands remain under `ethos ...`. Retired root commands are not
 compatibility surfaces.
 

@@ -8,6 +8,9 @@ hardcoded into product core.
 
 - Treat `ethos-project` as the product family for init, adopt, scaffold,
   profile, and fleet inspection.
+- Treat `ethos-distribution` as the family for npm and future package-manager
+  launchers. Launcher packages forward to the Python command plane and do not
+  own governance semantics.
 - Treat `.agents/skills` as the default repo-local playbook projection. It is
   configurable in adopter repositories, but it is not an assistant truth store.
 - Keep official OpenSpec records under `openspec/` and validate them with the

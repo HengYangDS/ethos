@@ -13,6 +13,7 @@ documentation.
 - Add `ethos playbooks` for repo-local skills and `ethos fleet inspect` for
   external adopter inspection.
 - Split canonical OpenSpec specs into MECE product families.
+- Add distribution governance for the npm launcher adapter.
 - Strengthen self-audit with playbook, OpenSpec family, command registry,
   claim, and schema instance checks.
 - Upgrade standards adapters with lifecycle, input/output contracts, fallback,
@@ -27,6 +28,7 @@ documentation.
 - `ethos-governance`
 - `ethos-workspace`
 - `ethos-agent`
+- `ethos-distribution`
 
 ## Impact
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -73,6 +75,7 @@ def test_openspec_is_official_self_governance_surface_not_command_root() -> None
 def test_openspec_specs_are_mece_product_families() -> None:
     expected = {
         "ethos-agent",
+        "ethos-distribution",
         "ethos-governance",
         "ethos-kernel",
         "ethos-project",
@@ -162,6 +165,185 @@ def test_product_packages_have_canonical_readmes() -> None:
         readme = ROOT / "packages" / package / "README.md"
         assert readme.exists()
         assert "Subject" in readme.read_text(encoding="utf-8")
+
+
+def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
+    package = ROOT / "packages" / "ethos-node" / "package.json"
+    manifest = json.loads(package.read_text(encoding="utf-8"))
+
+    assert manifest["name"] == "@agentic-workflow/ethos"
+    assert manifest["bin"] == {"ethos": "bin/ethos.mjs"}
+    assert manifest["private"] is False
+    assert manifest["repository"]["url"].endswith("/dig/research/agentic-workflow/ethos.git")
+    assert manifest["homepage"].endswith("/dig/research/agentic-workflow/ethos")
+    assert manifest["bugs"]["url"].endswith("/dig/research/agentic-workflow/ethos/-/issues")
+    assert manifest["publishConfig"]["access"] == "public"
+    assert "governance" in manifest["keywords"]
+
+    root_manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    assert root_manifest["packageManager"] == "npm@11.12.1"
+
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert '"packages/ethos-node"' not in pyproject
+
+
+def test_npm_launcher_runs_source_checkout_command_plane() -> None:
+    if not shutil.which("node") or not shutil.which("uv"):
+        return
+
+    completed = subprocess.run(
+        ["node", "packages/ethos-node/bin/ethos.mjs", "--version"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "0.1.0a1"
+
+
+def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if not node:
+        return
+
+    launcher = tmp_path / "package" / "bin" / "ethos.mjs"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(
+        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    log = tmp_path / "python-calls.log"
+    fake_python = fake_bin / "python3"
+    fake_python.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-c\" ]; then exit 0; fi\n"
+        f"printf '%s\\n' \"$*\" >> {log}\n"
+        "printf '0.1.0a1\\n'\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}/bin{os.pathsep}/usr/bin"
+    completed = subprocess.run(
+        [node, str(launcher), "--version"],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "0.1.0a1"
+    assert log.read_text(encoding="utf-8").splitlines() == ["-m ethos.cli --version"]
+
+
+def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if not node:
+        return
+
+    launcher = tmp_path / "package" / "bin" / "ethos.mjs"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(
+        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    fake_repo = tmp_path / "untrusted-repo"
+    (fake_repo / "packages" / "ethos").mkdir(parents=True)
+    (fake_repo / "pyproject.toml").write_text("[project]\nname='fake'\n", encoding="utf-8")
+    (fake_repo / "packages" / "ethos" / "pyproject.toml").write_text(
+        "[project]\nname='fake-ethos'\n",
+        encoding="utf-8",
+    )
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "uv-was-called"
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(f"#!/bin/sh\ntouch {marker}\nexit 42\n", encoding="utf-8")
+    fake_uv.chmod(0o755)
+    fake_python = fake_bin / "python3"
+    fake_python.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-c\" ]; then exit 1; fi\n"
+        "exit 127\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}/bin{os.pathsep}/usr/bin"
+    completed = subprocess.run(
+        [node, str(launcher), "--version"],
+        cwd=fake_repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 127
+    assert not marker.exists()
+
+
+def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if not node:
+        return
+
+    launcher = tmp_path / "package" / "bin" / "ethos.mjs"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(
+        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    log = tmp_path / "python-calls.log"
+    fake_python3 = fake_bin / "python3"
+    fake_python3.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-c\" ]; then exit 1; fi\n"
+        f"printf '%s\\n' \"python3:$*\" >> {log}\n"
+        "exit 99\n",
+        encoding="utf-8",
+    )
+    fake_python3.chmod(0o755)
+    fake_python = fake_bin / "python"
+    fake_python.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-c\" ]; then exit 0; fi\n"
+        f"printf '%s\\n' \"python:$*\" >> {log}\n"
+        "printf '0.1.0a1\\n'\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}/bin{os.pathsep}/usr/bin"
+    completed = subprocess.run(
+        [node, str(launcher), "--version"],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "0.1.0a1"
+    assert log.read_text(encoding="utf-8").splitlines() == ["python:-m ethos.cli --version"]
 
 
 def test_markdown_docs_declare_subject_role_state_relations() -> None:

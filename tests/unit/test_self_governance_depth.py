@@ -20,9 +20,13 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         "ethos-project",
     ):
         write(tmp_path / "packages" / package / "README.md")
+    write(tmp_path / "packages" / "ethos-node" / "README.md")
+    write(tmp_path / "packages" / "ethos-node" / "package.json", "{}\n")
+    write(tmp_path / "packages" / "ethos-node" / "bin" / "ethos.mjs")
 
     for doc in (
         "docs/architecture/product-ontology.md",
+        "docs/architecture/distribution.md",
         "docs/concepts/kernel-model.md",
         "docs/architecture/action-graph.md",
         "docs/architecture/adoption-profiles.md",
@@ -102,6 +106,7 @@ def test_self_audit_surfaces_retired_command_mentions_as_required_gaps(
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
         "openspec/specs/ethos-agent/spec.md",
+        "openspec/specs/ethos-distribution/spec.md",
         "openspec/specs/ethos-governance/spec.md",
         "openspec/specs/ethos-project/spec.md",
         "openspec/specs/ethos-workspace/spec.md",

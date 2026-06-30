@@ -20,7 +20,10 @@ Implemented changes:
 - Added `ethos playbooks check|route` and `ethos fleet inspect`.
 - Split canonical OpenSpec specs into MECE product families:
   `ethos-kernel`, `ethos-project`, `ethos-governance`, `ethos-workspace`,
-  and `ethos-agent`.
+  `ethos-agent`, and `ethos-distribution`.
+- Added `packages/ethos-node` as the npm distribution adapter for the Python
+  command plane, with package metadata, workspace lock, npm pack validation,
+  and a regression test proving fallback execution does not run commands twice.
 - Strengthened self-audit for playbooks, OpenSpec families, schema instances,
   command registry scanning, claims, and self-evolution proof.
 - Fixed command-example governance so evidence and archive documents are
@@ -38,6 +41,16 @@ Implemented changes:
 - Fixed the active npm wrapper installation selected by PATH from
   `codex-cli 0.142.3` to `codex-cli 0.142.4` with optional native package
   installed.
+- Fixed the ETHOS npm launcher gap by adding a launcher-only Node adapter; the
+  launcher delegates to `uv run --package ethos ethos` in source checkouts and
+  falls back to a single `python -m ethos.cli` execution outside source
+  checkouts.
+- Hardened the npm launcher so source-checkout mode is discovered only from the
+  package location, not arbitrary current working directories, and so fallback
+  selects a Python interpreter with `ethos.cli` via a no-side-effect import
+  probe before one real execution.
+- Split hosted CI verification so npm lock, engine, launcher, and pack checks
+  run under `node:24` with `npm ci --ignore-scripts` and engine strict mode.
 - Verified `codex doctor --json` reports fast mode, goals, memories, install
   consistency, and rollout DB parity as ok.
 - Fixed the repository pre-commit hook warning by adding a deterministic local
@@ -57,6 +70,12 @@ uv run --group dev pytest tests/unit tests/architecture -q
 uv run --group dev ruff check .
 openspec validate --all --strict --json
 uv build --all-packages
+npm install --package-lock-only --ignore-scripts
+npm ci --ignore-scripts
+npm_config_engine_strict=true npm ci --ignore-scripts
+npm run ethos -- --version
+npm exec --workspace @agentic-workflow/ethos -- ethos --version
+npm run test:npm -- --json
 uv run --package ethos ethos self audit --json
 uv run --package ethos ethos report --json
 uv run --package ethos ethos quality command-registry --json
@@ -73,6 +92,7 @@ uv run --package ethos ethos fleet inspect --target . --json
 uv run --package ethos ethos adopt --profile gitlab --dry-run --json
 uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json
 uv run --package ethos ethos self openspec --change ethos-governance-platform --json
+PATH="/Users/yheng/.local/share/mise/installs/node/24/bin:/opt/homebrew/opt/python@3.12/libexec/bin:/opt/homebrew/bin:/usr/bin:/bin" /Users/yheng/.local/bin/uv run --package ethos ethos self openspec --change ethos-governance-platform --json
 uv run --group dev pytest tests/unit/test_claims_governance.py tests/unit/test_docs_registry.py -q
 pre-commit run --all-files
 codex --version
@@ -83,16 +103,26 @@ npm ls -g @openai/codex --depth=0
 
 Observed results:
 
-- Full unit and architecture suite: `98 passed`.
-- Focused scaffold/playbooks/fleet/schema/command-registry suite: `50 passed`.
-- OpenSpec strict validation: `7 passed / 0 failed`.
+- Full unit and architecture suite: `105 passed`.
+- Focused release/docs command-example suite: `7 passed`.
+- OpenSpec strict validation: `8 passed / 0 failed`.
 - Ruff: all checks passed.
 - Package build: all six packages built successfully, including
   `ethos-project`.
-- `ethos report --json`: score `13 / 13`, no required gaps.
+- npm lock refresh: `up to date`, `0 vulnerabilities`.
+- npm lock install: `npm ci --ignore-scripts` and
+  `npm_config_engine_strict=true npm ci --ignore-scripts` completed under the
+  local Node/npm environment.
+- npm launcher smoke through root script and workspace exec: `0.1.0a1`.
+- npm pack dry run for `@agentic-workflow/ethos`: produced
+  `agentic-workflow-ethos-0.1.0-alpha.1.tgz` with three files:
+  `README.md`, `bin/ethos.mjs`, and `package.json`.
+- npx OpenSpec fallback: `base_command=["npx","--yes","@fission-ai/openspec"]`
+  and `8 passed / 0 failed`.
+- `ethos report --json`: score `14 / 14`, no required gaps.
 - `ethos prove --execute --gate self-audit --gate claims --gate schemas --json`:
   `ok=true`, no required gaps, local proof digest emitted.
-- Claims/docs command-example regression: `6 passed`.
+- Claims/docs command-example regression: `7 passed`.
 - `pre-commit run --all-files`: Ruff local hook passed.
 - `codex --version` and `codex --strict-config --version`:
   `codex-cli 0.142.4`.

@@ -51,6 +51,13 @@ packages/ethos-governance/  policy, proof, quality, docs, registry, attestation
 packages/ethos-workspace/   lanes, local state, action runs, land, publish
 packages/ethos-agent/       context packs, playbooks, MCP/ACP projections
 packages/ethos-project/     init, adopt, scaffold, profiles, fleet inspection
+packages/ethos-node/        npm launcher adapter
+```
+
+The npm package is a thin launcher over the Python command plane:
+
+```bash
+npm run ethos -- --version
 ```
 
 ## Reflexive Governance

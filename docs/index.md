@@ -10,7 +10,7 @@ relations:
 
 Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md), [Product Ontology](architecture/product-ontology.md),
-[Action Graph](architecture/action-graph.md), and
+[Distribution](architecture/distribution.md), [Action Graph](architecture/action-graph.md), and
 [Self Evolution](governance/self-evolution-campaign.md).
 
 The documentation system uses Subject, Role, State, and Relation metadata so
@@ -20,6 +20,7 @@ truth.
 ## Maps
 
 - Command plane: [Command Plane](reference/command-plane.md)
+- Distribution: [Distribution](architecture/distribution.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)
 - Fleet and adopters: [Fleet And Adopters](architecture/fleet-and-adopters.md)

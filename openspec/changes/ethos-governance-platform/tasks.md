@@ -19,6 +19,7 @@
       gate registry.
 - [x] 3.5 Scan current documentation for retired public command roots.
 - [x] 3.6 Make `ethos self prove` depend on current self-audit.
+- [x] 3.7 Add `ethos-distribution` OpenSpec family and npm launcher boundary.
 
 ## 4. Standards And Verification
 

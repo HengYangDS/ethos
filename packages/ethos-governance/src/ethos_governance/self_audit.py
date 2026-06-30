@@ -17,8 +17,11 @@ CANONICAL_PACKAGES = (
     "ethos-project",
 )
 
+DISTRIBUTION_ADAPTERS = ("ethos-node",)
+
 REQUIRED_DOCS = (
     "docs/architecture/product-ontology.md",
+    "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",
     "docs/architecture/action-graph.md",
     "docs/architecture/adoption-profiles.md",
@@ -77,6 +80,7 @@ REQUIRED_PLAYBOOK_FILES = (
 
 REQUIRED_OPENSPEC_FAMILIES = (
     "ethos-agent",
+    "ethos-distribution",
     "ethos-governance",
     "ethos-kernel",
     "ethos-project",
@@ -99,6 +103,15 @@ def self_audit(root: Path) -> dict[str, object]:
         package
         for package in CANONICAL_PACKAGES
         if not (root / "packages" / package / "README.md").exists()
+    ]
+    distribution_missing = [
+        adapter
+        for adapter in DISTRIBUTION_ADAPTERS
+        if not (
+            (root / "packages" / adapter / "README.md").exists()
+            and (root / "packages" / adapter / "package.json").exists()
+            and (root / "packages" / adapter / "bin" / "ethos.mjs").exists()
+        )
     ]
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -126,6 +139,7 @@ def self_audit(root: Path) -> dict[str, object]:
     command_gaps = [str(gap) for gap in command_report["required_gaps"]]
     gaps = (
         package_missing
+        + [f"distribution_adapter_missing:{adapter}" for adapter in distribution_missing]
         + docs_missing
         + docs_without_front_matter
         + schemas_missing
@@ -141,9 +155,11 @@ def self_audit(root: Path) -> dict[str, object]:
     return {
         "ok": not gaps,
         "package_ontology": {
-            "ok": not package_missing,
+            "ok": not package_missing and not distribution_missing,
             "canonical_packages": list(CANONICAL_PACKAGES),
+            "distribution_adapters": list(DISTRIBUTION_ADAPTERS),
             "missing": package_missing,
+            "adapter_missing": distribution_missing,
         },
         "docs": {
             "ok": not docs_missing and not docs_without_front_matter,

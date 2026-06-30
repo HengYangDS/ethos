@@ -17,7 +17,14 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = [
+  "packages/ethos",
+  "packages/ethos-agent",
+  "packages/ethos-governance",
+  "packages/ethos-kernel",
+  "packages/ethos-project",
+  "packages/ethos-workspace",
+]
 
 [tool.uv.sources]
 ethos-project = { workspace = true }

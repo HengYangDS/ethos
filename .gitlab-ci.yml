@@ -9,8 +9,8 @@ ethos:verify:
   stage: verify
   image: python:3.12
   script:
-    - apt-get update && apt-get install -y nodejs npm
-    - printf '%s\n' '#!/usr/bin/env bash' 'exec npm exec --yes @fission-ai/openspec -- "$@"' > /usr/local/bin/openspec
+    - apt-get update && apt-get install -y npm
+    - printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec "$@"' > /usr/local/bin/openspec
     - chmod +x /usr/local/bin/openspec
     - openspec --version
     - pip install uv
@@ -19,6 +19,17 @@ ethos:verify:
     - openspec validate --all --strict --json
     - uv run --package ethos ethos self audit --json
     - uv run --package ethos ethos report --json
+
+ethos:npm:
+  stage: verify
+  image: node:24
+  script:
+    - node --version
+    - npm --version
+    - npm config set engine-strict true
+    - npm ci --ignore-scripts
+    - npm run ethos -- --version
+    - npm run test:npm
 
 ethos:package:
   stage: package
@@ -30,3 +41,11 @@ ethos:package:
     when: always
     paths:
       - dist/
+
+ethos:npm-package:
+  stage: package
+  image: node:24
+  script:
+    - npm config set engine-strict true
+    - npm ci --ignore-scripts
+    - npm run test:npm

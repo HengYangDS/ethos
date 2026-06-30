@@ -8,7 +8,8 @@ relations:
 
 # Product Ontology
 
-ETHOS keeps one thin command package and five semantic product packages:
+ETHOS keeps one thin command package, five semantic Python product packages,
+and separate distribution adapters:
 
 ```text
 ethos
@@ -17,6 +18,7 @@ ethos-project
 ethos-governance
 ethos-workspace
 ethos-agent
+ethos-node
 ```
 
 Top-level packages are cohesive product families:
@@ -29,6 +31,9 @@ Top-level packages are cohesive product families:
 - `ethos-workspace`: local state, gate execution, lanes, land, and publish
   boundaries.
 - `ethos-agent`: assistant, MCP, ACP, context, and playbook projections.
+- `ethos-node`: npm launcher adapter for the public command plane.
 
 Adopter-specific semantics stay in adopter profiles and repositories. Product
 packages may expose adapters, but they do not hardcode adopter private names.
+Distribution adapters are not new truth centers; they forward to the Python
+command plane.

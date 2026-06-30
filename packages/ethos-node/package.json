@@ -1,0 +1,37 @@
+{
+  "name": "@agentic-workflow/ethos",
+  "version": "0.1.0-alpha.1",
+  "description": "Node launcher for the ETHOS command plane.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": false,
+  "keywords": [
+    "agentic",
+    "governance",
+    "evidence",
+    "workflow",
+    "repository"
+  ],
+  "homepage": "http://192.168.64.101:18086/dig/research/agentic-workflow/ethos",
+  "bugs": {
+    "url": "http://192.168.64.101:18086/dig/research/agentic-workflow/ethos/-/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@192.168.64.101:1122/dig/research/agentic-workflow/ethos.git"
+  },
+  "bin": {
+    "ethos": "bin/ethos.mjs"
+  },
+  "files": [
+    "bin/ethos.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

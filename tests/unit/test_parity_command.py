@@ -252,6 +252,14 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
             "required_gaps": [],
             "comparisons": SHADOW_COMMANDS,
             "semantic_dimensions": ["branch role", "publish readiness"],
+            "accepted_summary": {
+                "total_count": 2,
+                "kind_counts": {
+                    "changed_route_noop": 1,
+                    "report_parity_evidence_refresh_bootstrap": 1,
+                },
+                "command_count": 2,
+            },
             "execution_packages": [],
         }
 
@@ -296,6 +304,14 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     assert evidence["shadow"]["state"] == "matched"
     assert evidence["shadow"]["comparison_count"] == len(SHADOW_COMMANDS)
     assert evidence["shadow"]["commands"] == SHADOW_COMMANDS
+    assert evidence["shadow"]["accepted_summary"] == {
+        "total_count": 2,
+        "kind_counts": {
+            "changed_route_noop": 1,
+            "report_parity_evidence_refresh_bootstrap": 1,
+        },
+        "command_count": 2,
+    }
     assert evidence["verified_capabilities"] == MIGRATED_CAPABILITIES
     assert set(evidence["capability_basis"]) == set(MIGRATED_CAPABILITIES)
 

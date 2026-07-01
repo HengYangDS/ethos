@@ -117,11 +117,11 @@ accepted classification boundary without treating it as remote publication.
 Tracked shadow evidence is closeout input only when its identity is fresh. The
 evidence record must bind the adopter id, target path, product HEAD, target
 HEAD, command digest, full command identity, command list, semantic dimensions,
-verified capabilities, and capability basis. If any of those fields are missing,
-stale, target-mismatched, or produced by an old command shape, ETHOS reports a
-blocking `parity_evidence_refresh` package. The package names the adopter,
-product root, explicit target when supplied, required gaps, and the exact
-refresh command:
+verified capabilities, capability basis, and shadow accepted-difference summary.
+If any of the identity fields are missing, stale, target-mismatched, or produced
+by an old command shape, ETHOS reports a blocking `parity_evidence_refresh`
+package. The package names the adopter, product root, explicit target when
+supplied, required gaps, and the exact refresh command:
 
 When the commit that last changed a tracked evidence file is the current product
 or same-repository target commit, the commit parent is also an acceptable

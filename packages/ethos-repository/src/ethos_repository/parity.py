@@ -97,6 +97,7 @@ def build_tracked_parity_evidence(
     timeout_seconds: int,
 ) -> dict[str, object]:
     target = target.resolve()
+    accepted_summary = shadow.get("accepted_summary")
     command = _shadow_evidence_command(
         adopter=adopter,
         target=target,
@@ -121,6 +122,9 @@ def build_tracked_parity_evidence(
             else [],
             "comparison_count": len(SHADOW_PARITY_COMMANDS),
             "commands": list(SHADOW_PARITY_COMMANDS),
+            "accepted_summary": accepted_summary
+            if isinstance(accepted_summary, dict)
+            else {"total_count": 0, "kind_counts": {}, "command_count": 0},
         },
         "verified_capabilities": _migratable_capability_list(),
         "semantic_dimensions": _string_list(shadow.get("semantic_dimensions"))

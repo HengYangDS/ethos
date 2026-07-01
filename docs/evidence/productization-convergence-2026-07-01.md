@@ -365,3 +365,70 @@ new embedded-shadow execution claim.
 The boundary condition remains unchanged: this addendum does not claim hosted
 CI, remote publication, alphasim-dmgr raw/cache parity, alphasim-dmgr domain
 backend retirement parity, or di-effect publish readiness.
+
+## Committee Fix Addendum: Core Claim Policy Boundary
+
+The final architecture/complexity reviewer returned `STATUS: CHANGES_REQUIRED`
+against HEAD `9f443763efdf5d965eb8cd7fcd0295fef2d9d32c`. The blocking issue
+was that `ethos-core` embedded repository/adopter policy phrases such as
+`raw/cache`, hosted publication wording, and backend-retirement wording in the
+`EvidenceClaim` constructor, while generic `ethos report` output named
+adopter-domain mechanisms directly.
+
+The fix at code HEAD `cbc9678c88fb23926ba3501d4f94687a06928ea1` keeps the core
+claim model generic: `EvidenceClaim` validates verifier shape and only treats
+explicit semantic wording as requiring a semantic verifier. Repository claim
+quality now owns operational and domain overclaim policy for active TOML claims,
+preserving the existing required gap
+`semantic_overclaim_requires_semantic_verifier`. Generic report output now says
+that command parity does not claim domain profile parity or adopter-specific
+retirement readiness, without naming adopter mechanisms.
+
+Commands rerun from `/Users/yheng/projects/ethos-work-productization-convergence`
+after the core/report boundary fix:
+
+```bash
+uv run --group dev pytest -q tests/unit/test_kernel_contracts.py::test_core_claim_model_does_not_embed_profile_or_host_policy_terms tests/unit/test_kernel_contracts.py::test_core_claim_model_allows_policy_specific_digest_phrasing tests/unit/test_kernel_contracts.py::test_digest_only_claims_reject_generic_semantic_overclaim
+uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_report_scorecard_is_derived_from_governance_checks
+uv run --group dev pytest -q tests/unit/test_claims_governance.py::test_digest_only_claim_rejects_operational_overclaim tests/unit/test_claims_governance.py::test_digest_only_claim_rejects_summary_overclaim
+uv run --group dev ruff check packages/ethos-core/src/ethos_core/models.py packages/ethos-repository/src/ethos_repository/claims.py packages/ethos/src/ethos/cli.py tests/unit/test_kernel_contracts.py tests/unit/test_cli_contracts.py tests/unit/test_claims_governance.py
+uv run --group dev pytest -q tests/unit/test_kernel_contracts.py tests/unit/test_claims_governance.py tests/unit/test_cli_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/architecture/test_product_design_contract.py::test_capability_parity_ledger_classifies_required_capabilities
+uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json
+uv run --package ethos ethos parity gaps --json
+uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json
+uv run --package ethos ethos report --json
+```
+
+Observed results:
+
+- The new core boundary tests failed before the implementation because core
+  policy phrases contained `raw/cache`, hosted-publication wording, and
+  backend-retirement wording, and because `EvidenceClaim` rejected
+  policy-specific digest-only phrasing.
+- The new report boundary assertion failed before the CLI text change because
+  generic report output named adopter-domain mechanisms directly.
+- After the fix, the focused core claim tests returned `3 passed`.
+- The report scorecard test returned `1 passed`.
+- Repository claim overclaim tests returned `2 passed`, confirming that the
+  repository quality layer still blocks digest-only operational overclaims.
+- Ruff on the changed implementation and test files returned
+  `All checks passed!`.
+- The broader kernel, claim, report, and parity-ledger regression set returned
+  `24 passed`.
+- Fresh alphasim-dmgr shadow parity returned `ok=true`, `state=matched`, and no
+  required gaps.
+- Generic parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- alphasim-dmgr parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- Product report returned `ok=true`, `state=ready`, score `15 / 15`, and
+  `parity_pending_count=0`.
+
+Tracked generic and alphasim-dmgr parity freshness now binds product code HEAD
+`cbc9678c88fb23926ba3501d4f94687a06928ea1`. The final metadata commit that
+records this addendum may have a newer HEAD; that is intentionally accepted by
+the parity freshness rule because the parity files are refreshed in that
+metadata commit and bind to its parent code commit.
+
+This addendum narrows product-core semantics; it does not weaken claim quality.
+The boundary condition remains unchanged: this evidence does not claim hosted
+CI, remote publication, alphasim-dmgr raw/cache parity, alphasim-dmgr domain
+backend retirement parity, or di-effect publish readiness.

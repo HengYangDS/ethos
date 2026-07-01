@@ -21,21 +21,21 @@ evidence = ["docs/evidence/campaign-orchestration-2026-07-02.md"]
 [[step]]
 id = "openspec-product-protocol"
 title = "OpenSpec product protocol"
-state = "active"
+state = "closed"
 openspec_change = "ethos-openspec-product-protocol"
 work_lane = "work/openspec-product-protocol"
 claim_id = "ethos-openspec-product-protocol"
 
 [step.closeout]
-state = "planned"
-accepted_head = ""
-candidate_head = ""
+state = "retired"
+accepted_head = "811ced50a9ff25c3d748256a0d6e13e593d95a63"
+candidate_head = "811ced50a9ff25c3d748256a0d6e13e593d95a63"
 evidence = ["docs/evidence/openspec-product-protocol-2026-07-02.md"]
 
 [[step]]
 id = "openspec-archive-closeout"
 title = "OpenSpec archive closeout"
-state = "planned"
+state = "active"
 openspec_change = "ethos-openspec-archive-closeout"
 work_lane = "work/openspec-archive-closeout"
 claim_id = "ethos-openspec-archive-closeout"
@@ -44,7 +44,7 @@ claim_id = "ethos-openspec-archive-closeout"
 state = "planned"
 accepted_head = ""
 candidate_head = ""
-evidence = []
+evidence = ["docs/evidence/openspec-archive-closeout-2026-07-02.md"]
 
 [[step]]
 id = "hooked-write-admission"

@@ -33,7 +33,7 @@ owner = "ethos-adapters"
 scope = "OpenSpec lifecycle proposal protocol review and live capability routing guard"
 
 [carriers]
-openspec = "openspec/changes/ethos-openspec-product-protocol"
+openspec = "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol"
 fallback = "Keep existing artifact and claim-binding lifecycle checks while proposal protocol review is unavailable."
 kill_signal = "OpenSpec proposals can become active without live capability routing, reuse/change stance, facets, or out-of-scope boundaries."
 
@@ -44,12 +44,12 @@ targets = [
   "docs/evidence/parity/generic-shadow.json",
   "docs/evidence/parity/alphasim-dmgr-shadow.json",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
-  "openspec/changes/ethos-campaign-orchestration/proposal.md",
-  "openspec/changes/ethos-openspec-product-protocol/proposal.md",
-  "openspec/changes/ethos-openspec-product-protocol/design.md",
-  "openspec/changes/ethos-openspec-product-protocol/tasks.md",
-  "openspec/changes/ethos-openspec-product-protocol/specs/ethos-adapters/spec.md",
-  "openspec/changes/ethos-openspec-product-protocol/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/proposal.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/design.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/tasks.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/specs/ethos-adapters/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/specs/ethos-repository/spec.md",
   "packages/ethos-adapters/src/ethos_adapters/openspec_native.py",
   "tests/unit/test_openspec_native_cache.py",
 ]

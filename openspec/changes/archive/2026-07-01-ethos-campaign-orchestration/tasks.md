@@ -15,4 +15,4 @@
 - [x] 3.1 Record the OpenSpec delta for campaign orchestration.
 - [x] 3.2 Add claim and dated evidence for this lane.
 - [x] 3.3 Run focused tests, schema validation, OpenSpec strict validation, proof, and report.
-- [ ] 3.4 Land, accepted-root closeout, and retire this Work Lane before starting the next campaign step.
+- [x] 3.4 Land, accepted-root closeout, and retire this Work Lane before starting the next campaign step.

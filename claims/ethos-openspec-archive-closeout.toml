@@ -1,0 +1,64 @@
+[claim]
+id = "ethos-openspec-archive-closeout"
+subject = "ethos:openspec-archive-closeout"
+state = "active"
+summary = "ETHOS treats OpenSpec archive state as a product closeout gate and archives completed campaign carriers through official OpenSpec semantics."
+
+[evidence]
+dated = "docs/evidence/openspec-archive-closeout-2026-07-02.md"
+sha256 = "3f299596fead108b0924efdcef023863095a98795f4515f5106207ac653d9b95"
+evidence_ids = ["evidence:ethos-openspec-archive-closeout"]
+binding = "semantic OpenSpec archive closeout evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/test_openspec_native_cache.py",
+  "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/openspec_native.py tests/unit/test_openspec_native_cache.py",
+  "uv run openspec validate ethos-openspec-archive-closeout --strict --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --group dev pytest -q",
+  "uv run --group dev ruff check .",
+  "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head \"$(git rev-parse HEAD)\" --json",
+  "uv build --all-packages",
+]
+
+[scope]
+packages = [
+  "ethos-adapters",
+]
+docs = [
+  "docs/architecture/terminal-governance-product-design.md",
+]
+
+[boundary]
+owner = "ethos-adapters"
+scope = "OpenSpec archive closeout lifecycle review and completed carrier archive health"
+
+[carriers]
+openspec = "openspec/changes/ethos-openspec-archive-closeout"
+fallback = "Keep blocking only completed active changes until archive closeout review is available."
+kill_signal = "Completed OpenSpec carriers can remain active or archived carriers can be structurally incomplete without blocking land or accepted-root closeout."
+
+[promotion]
+targets = [
+  "claims/ethos-campaign-orchestration.toml",
+  "claims/ethos-openspec-archive-closeout.toml",
+  "claims/ethos-openspec-product-protocol.toml",
+  "docs/evidence/openspec-archive-closeout-2026-07-02.md",
+  "evolution/campaigns/terminal-openspec-productization/campaign.toml",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol",
+  "openspec/changes/archive/2026-07-01-ethos-productization-convergence/.openspec.yaml",
+  "openspec/changes/ethos-openspec-archive-closeout/proposal.md",
+  "openspec/changes/ethos-openspec-archive-closeout/design.md",
+  "openspec/changes/ethos-openspec-archive-closeout/tasks.md",
+  "openspec/changes/ethos-openspec-archive-closeout/specs/ethos-adapters/spec.md",
+  "openspec/changes/ethos-openspec-archive-closeout/specs/ethos-repository/spec.md",
+  "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/ethos-repository/spec.md",
+  "packages/ethos-adapters/src/ethos_adapters/openspec_native.py",
+  "tests/unit/test_openspec_native_cache.py",
+]

@@ -41,7 +41,7 @@ owner = "ethos-repository"
 scope = "Campaign manifest read model, campaign closeout package wiring, schema contract, and terminal productization campaign manifest"
 
 [carriers]
-openspec = "openspec/changes/ethos-campaign-orchestration"
+openspec = "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration"
 fallback = "Continue using hypothesis and generic campaign closeout reports while later terminal productization lanes remain planned."
 kill_signal = "Campaign orchestration would need redesign if campaign steps become a substitute for Work Lane proof, accepted-root closeout, or claim evidence."
 
@@ -54,10 +54,10 @@ targets = [
   "docs/governance/evolution-campaign.md",
   "docs/architecture/terminal-governance-product-design.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
-  "openspec/changes/ethos-campaign-orchestration/proposal.md",
-  "openspec/changes/ethos-campaign-orchestration/design.md",
-  "openspec/changes/ethos-campaign-orchestration/tasks.md",
-  "openspec/changes/ethos-campaign-orchestration/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/design.md",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/tasks.md",
+  "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/specs/ethos-repository/spec.md",
   "packages/ethos-repository/src/ethos_repository/evolution.py",
   "packages/ethos-repository/src/ethos_repository/schema_validation.py",
   "packages/ethos/src/ethos/cli.py",

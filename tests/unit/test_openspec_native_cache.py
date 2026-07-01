@@ -239,6 +239,69 @@ def test_completed_active_changes_report_blocks_complete_openspec_items(
     assert calls == [("list", "--json")]
 
 
+def test_completed_active_changes_report_blocks_invalid_archives(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "repo"
+    archive = root / "openspec" / "changes" / "archive" / "2026-07-02-sample-change"
+    (archive / "specs" / "ethos-repository").mkdir(parents=True)
+    (root / "openspec" / "changes").mkdir(parents=True, exist_ok=True)
+    (archive / "proposal.md").write_text(
+        "## Why\n\nArchive closeout needs product guards.\n\n## What Changes\n\n- Add guard.\n",
+        encoding="utf-8",
+    )
+    (archive / "design.md").write_text(
+        "## Context\n\nArchive closeout.\n\n## Design\n\nUse product guards.\n",
+        encoding="utf-8",
+    )
+    (archive / "tasks.md").write_text("- [ ] Finish archive closeout.\n", encoding="utf-8")
+    (archive / "specs" / "ethos-repository" / "spec.md").write_text(
+        "\n".join(
+            [
+                "## ADDED Requirements",
+                "### Requirement: Archive Closeout",
+                "#### Scenario: Archive is checked",
+                "- **WHEN** closeout runs",
+                "- **THEN** archive state is checked",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_base_command() -> tuple[str, ...]:
+        return ("openspec",)
+
+    def fake_run_json(
+        _root: Path,
+        _base: tuple[str, ...],
+        args: tuple[str, ...],
+    ) -> dict[str, object]:
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 0,
+            "stdout": "{}",
+            "stderr": "",
+            "json": {"changes": []},
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+
+    report = openspec_native.completed_active_changes_report(root)
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert "openspec_archive_metadata_missing:2026-07-02-sample-change" in (
+        report["required_gaps"]
+    )
+    assert "openspec_archive_tasks_incomplete:2026-07-02-sample-change" in (
+        report["required_gaps"]
+    )
+    assert report["archive_closeout"]["ok"] is False
+
+
 def test_openspec_report_reuses_result_for_unchanged_workspace(
     tmp_path: Path,
     monkeypatch,

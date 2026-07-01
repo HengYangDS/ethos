@@ -390,41 +390,40 @@ workflow prevents the invalid state before mutation when practical.
   to the mutation capability or an explicit degraded mode is declared
 
 ### Requirement: Productized OpenSpec carrier governance
+
 ETHOS SHALL treat OpenSpec as the repository case and specification carrier,
 with accepted specs, active changes, archived changes, capability profiles,
 claims, and evidence refs serving distinct product duties.
 
-#### Scenario: Capability routing uses live capability profiles
-- **WHEN** an active OpenSpec proposal routes a governance semantic change
-- **THEN** the primary capability name resolves directly to a live
-  `openspec/specs/<capability>/spec.md`
-- **AND** the sibling `capability.toml` records family, owner boundary, primary
-  invariant, routing question, boundary rules, and proof profile metadata
-
 #### Scenario: Proposal metadata explains ownership and stance
+
 - **WHEN** an active OpenSpec proposal lists a capability impact
 - **THEN** the proposal records the stable subject, reuse stance, change
   direction, lifecycle facet, surface facet, and authority facet for that impact
-- **AND** secondary impacts do not create duplicate normative owners
+- **AND** ETHOS lifecycle review reports machine-readable gaps when those
+  metadata fields are missing or invalid
+- **AND** secondary impacts do not create duplicate normative owners.
 
-#### Scenario: New or extracted capability topology requires design
-- **WHEN** an OpenSpec change introduces a new capability or extracts behavior
-  from an existing capability
-- **THEN** the change includes `design.md`
-- **AND** the design explains why reuse or extension is insufficient, the
-  official-vs-ETHOS validation boundary, proof impact, and rollback strategy
+### Requirement: Campaign Orchestration
 
-#### Scenario: Archive closeout protects live specs and evidence refs
-- **WHEN** ETHOS closes out an OpenSpec change through the archive path
-- **THEN** it verifies live spec edits are scoped to the archived deltas
-- **AND** archived task state, archive directory identity, Markdown links, claim
-  refs, and evidence refs remain valid after the archive move
+ETHOS SHALL model long-running productization work as campaigns that coordinate
+multiple OpenSpec-backed Work Lanes and their closeout state.
 
-#### Scenario: Adoption scaffold includes usable OpenSpec substrate
-- **WHEN** `ethos init` or `ethos adopt` creates a governed repository substrate
-- **THEN** the scaffold includes OpenSpec config, README files, change
-  templates, capability templates, `specs/families.toml`, and
-  profile-appropriate first capability profiles when the profile knows the
-  governed domain
-- **AND** an empty `openspec/` directory is not reported as a complete
-  governance scaffold
+#### Scenario: Campaign status reports lane steps
+
+- **GIVEN** `evolution/campaigns/<campaign-id>/campaign.toml` exists
+- **WHEN** `ethos campaign status --json` runs
+- **THEN** the result includes campaign id, objective, owner, claim id, step
+  summary, and ordered steps
+- **AND** each step names an OpenSpec change, Work Lane branch, claim id, and
+  closeout state.
+
+#### Scenario: Campaign closeout includes campaign package
+
+- **WHEN** `ethos campaign closeout --json` runs
+- **THEN** the result includes a campaign closeout package beside local
+  closeout, trust closeout, release, parity, shadow parity, and publication
+  packages
+- **AND** planned future steps do not block closeout before their Work Lane is
+  active.
+

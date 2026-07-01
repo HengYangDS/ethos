@@ -105,14 +105,25 @@ ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
 - **AND** external provider commands still use the subprocess adapter
 
 ### Requirement: Official OpenSpec Lifecycle Adapter
+
 ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
-checks without replacing official OpenSpec validation.
+review.
 
 #### Scenario: OpenSpec adapter reports lifecycle carriers
-- **WHEN** ETHOS audits OpenSpec repository governance
-- **THEN** the report includes official CLI command results
-- **AND** the report includes active change carrier facts for proposal, design,
-  tasks, delta specs, claim binding, and archive readiness
+
+- **WHEN** `ethos openspec --lifecycle --json` runs
+- **THEN** the report includes official OpenSpec doctor, list, status, and
+  strict validation command results
+- **AND** each active change reports proposal, design, tasks, delta spec, claim
+  binding, and proposal protocol state.
+
+#### Scenario: Proposal protocol gaps are product gaps
+
+- **GIVEN** an active OpenSpec change has a proposal capability entry
+- **WHEN** lifecycle review runs
+- **THEN** ETHOS reports gaps for unknown live capabilities, missing capability
+  profiles, missing subject/reuse/change/facet metadata, invalid reuse or
+  change values, and missing out-of-scope boundaries.
 
 ### Requirement: Work Lane Claim Binding Projection
 ETHOS SHALL expose Work Lane ownership as claim boundary evidence for
@@ -138,3 +149,4 @@ evidence rather than repository truth.
 - **THEN** ETHOS records the intake state as projection evidence
 - **AND** ETHOS still requires claim admission, OpenSpec lifecycle readiness,
   executed proof, and promotion targets before trust closeout
+

@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Native OpenSpec Adapter
+### Requirement: Official OpenSpec Lifecycle Adapter
 
 ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
 review.
@@ -20,4 +20,3 @@ review.
 - **THEN** ETHOS reports gaps for unknown live capabilities, missing capability
   profiles, missing subject/reuse/change/facet metadata, invalid reuse or
   change values, and missing out-of-scope boundaries.
-

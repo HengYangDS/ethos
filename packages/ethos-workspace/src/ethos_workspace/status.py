@@ -3,9 +3,15 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos_workspace.state import active_leases
+from ethos_contracts.branch_roles import (
+    ROLE_ACCEPTED_ROOT,
+    ROLE_CANDIDATE,
+    ROLE_WORK_LANE,
+    BranchRolePolicy,
+    load_branch_role_policy,
+)
 
-CANDIDATE_BRANCH = "candidate/dev"
+from ethos_workspace.state import active_leases
 
 
 def _run_git(root: Path, *args: str) -> str:
@@ -41,10 +47,11 @@ def workspace_status(root: Path) -> dict[str, object]:
     current_path = repo
     paths = changed_paths(root)
     branch = current_branch(root)
-    role = _role_for_branch(branch)
-    worktrees = _worktrees(root, current_path=current_path)
-    candidate = _candidate_status(root, worktrees)
-    branch_actions = _branch_actions(worktrees, candidate)
+    policy = load_branch_role_policy(repo)
+    role = policy.role_for_branch(branch)
+    worktrees = _worktrees(root, current_path=current_path, policy=policy)
+    candidate = _candidate_status(root, worktrees, policy=policy)
+    branch_bindings = _branch_bindings(repo, worktrees, candidate, policy=policy)
     owner_by_branch = _lease_owners(worktrees, current_path=current_path)
     closeout_support = _closeout_support(
         branch=branch,
@@ -75,7 +82,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "role": role,
         "candidate": candidate,
         "worktrees": worktrees,
-        "branch_actions": branch_actions,
+        "branch_bindings": branch_bindings,
         "foreign_work_lanes": foreign,
         "coordination_gaps": coordination_gaps,
         "closeout_support": closeout_support,
@@ -84,14 +91,14 @@ def workspace_status(root: Path) -> dict[str, object]:
 
 
 def _non_git_status(root: Path) -> dict[str, object]:
+    policy = load_branch_role_policy(root)
     candidate = {
-        "branch": CANDIDATE_BRANCH,
+        "branch": policy.candidate_branch,
         "exists": False,
         "head": "",
         "worktree_exists": False,
         "worktree_path": "",
-        "open_action": "bootstrap_worktree",
-        "open_label": "Bootstrap Worktree",
+        "worktree_binding": "absent",
     }
     return {
         "root": str(root),
@@ -101,25 +108,15 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "role": "other",
         "candidate": candidate,
         "worktrees": [],
-        "branch_actions": [
-            {
-                "branch": CANDIDATE_BRANCH,
-                "role": "candidate",
-                "head": "",
-                "path": "",
-                "action": "bootstrap_worktree",
-                "label": "Bootstrap Worktree",
-            }
-        ],
+        "branch_bindings": _branch_bindings(root, [], candidate, policy=policy),
         "foreign_work_lanes": [],
         "coordination_gaps": [],
         "closeout_support": {
             "supported": False,
             "branch": "",
-            "target_branch": CANDIDATE_BRANCH,
+            "target_branch": policy.candidate_branch,
             "target_path": "",
-            "action": "not_supported",
-            "label": "Not Supported",
+            "operation": "",
             "owner": "",
             "required_gaps": ["protected_root_mutation", "git_repository_missing"],
         },
@@ -127,36 +124,46 @@ def _non_git_status(root: Path) -> dict[str, object]:
     }
 
 
-def _worktrees(root: Path, *, current_path: Path) -> list[dict[str, str]]:
+def _worktrees(
+    root: Path,
+    *,
+    current_path: Path,
+    policy: BranchRolePolicy,
+) -> list[dict[str, str]]:
     output = _run_git(root, "worktree", "list", "--porcelain")
     entries: list[dict[str, str]] = []
     current: dict[str, str] = {}
     for line in output.splitlines():
         if not line:
             if current:
-                entries.append(_normalize_worktree(current, current_path=current_path))
+                entries.append(
+                    _normalize_worktree(current, current_path=current_path, policy=policy)
+                )
                 current = {}
             continue
         key, _, value = line.partition(" ")
         current[key] = value
     if current:
-        entries.append(_normalize_worktree(current, current_path=current_path))
+        entries.append(_normalize_worktree(current, current_path=current_path, policy=policy))
     return entries
 
 
-def _normalize_worktree(entry: dict[str, str], *, current_path: Path) -> dict[str, str]:
+def _normalize_worktree(
+    entry: dict[str, str],
+    *,
+    current_path: Path,
+    policy: BranchRolePolicy,
+) -> dict[str, str]:
     branch = entry.get("branch", "")
     if branch.startswith("refs/heads/"):
         branch = branch.removeprefix("refs/heads/")
     path = entry.get("worktree", "")
-    action, label = _worktree_action(path, current_path=current_path)
     return {
         "path": path,
         "head": entry.get("HEAD", ""),
         "branch": branch or "detached",
-        "role": _role_for_branch(branch),
-        "open_action": action,
-        "open_label": label,
+        "role": policy.role_for_branch(branch),
+        "worktree_binding": _worktree_binding(path, current_path=current_path),
     }
 
 
@@ -168,7 +175,7 @@ def _foreign_work_lanes(
 ) -> list[dict[str, str]]:
     foreign: list[dict[str, str]] = []
     for worktree in worktrees:
-        if worktree["role"] != "work_lane":
+        if worktree["role"] != ROLE_WORK_LANE:
             continue
         if Path(str(worktree["path"])).resolve() == current_path:
             continue
@@ -180,8 +187,7 @@ def _foreign_work_lanes(
                 "head": worktree["head"],
                 "branch": branch,
                 "role": worktree["role"],
-                "open_action": worktree["open_action"],
-                "open_label": worktree["open_label"],
+                "worktree_binding": worktree["worktree_binding"],
                 "lease_owner": owner,
                 "lease_state": "leased" if owner else "missing",
             }
@@ -202,70 +208,113 @@ def _coordination_gaps(foreign_work_lanes: list[dict[str, str]]) -> list[str]:
 def _candidate_status(
     root: Path,
     worktrees: list[dict[str, str]],
+    *,
+    policy: BranchRolePolicy,
 ) -> dict[str, object]:
-    head = _ref_head(root, CANDIDATE_BRANCH)
+    head = _ref_head(root, policy.candidate_branch)
     worktree_path = ""
-    open_action = "bootstrap_worktree"
-    open_label = "Bootstrap Worktree"
+    worktree_binding = "absent"
     for worktree in worktrees:
-        if worktree["branch"] == CANDIDATE_BRANCH:
+        if worktree["branch"] == policy.candidate_branch:
             worktree_path = worktree["path"]
-            open_action = worktree["open_action"]
-            open_label = worktree["open_label"]
+            worktree_binding = worktree["worktree_binding"]
             break
     if head and not worktree_path:
-        open_action = "create_worktree"
-        open_label = "Create Worktree"
+        worktree_binding = "unbound"
     return {
-        "branch": CANDIDATE_BRANCH,
+        "branch": policy.candidate_branch,
         "exists": bool(head),
         "head": head,
         "worktree_exists": bool(worktree_path),
         "worktree_path": worktree_path,
-        "open_action": open_action,
-        "open_label": open_label,
+        "worktree_binding": worktree_binding,
     }
 
 
-def _branch_actions(
+def _branch_bindings(
+    root: Path,
     worktrees: list[dict[str, str]],
     candidate: dict[str, object],
+    *,
+    policy: BranchRolePolicy,
 ) -> list[dict[str, str]]:
-    actions: list[dict[str, str]] = []
+    bindings: list[dict[str, str]] = []
     seen: set[str] = set()
+
+    worktree_by_branch = {
+        str(worktree["branch"]): worktree
+        for worktree in worktrees
+        if str(worktree["branch"]) != "detached"
+    }
+
+    for branch, role in (
+        (policy.release_branch, policy.role_for_branch(policy.release_branch)),
+        (policy.accepted_branch, policy.role_for_branch(policy.accepted_branch)),
+        (policy.candidate_branch, ROLE_CANDIDATE),
+    ):
+        if branch in seen:
+            continue
+        binding = _configured_branch_binding(
+            root,
+            branch=branch,
+            role=role,
+            worktree=worktree_by_branch.get(branch),
+            candidate=candidate if branch == policy.candidate_branch else None,
+        )
+        bindings.append(binding)
+        seen.add(branch)
+
     for worktree in worktrees:
         branch = str(worktree["branch"])
-        if branch == "detached":
+        if branch == "detached" or branch in seen:
             continue
-        actions.append(
-            {
-                "branch": branch,
-                "role": str(worktree["role"]),
-                "head": str(worktree["head"]),
-                "path": str(worktree["path"]),
-                "action": str(worktree["open_action"]),
-                "label": str(worktree["open_label"]),
-            }
-        )
+        bindings.append(_worktree_branch_binding(worktree))
         seen.add(branch)
-    if CANDIDATE_BRANCH not in seen:
-        actions.append(
-            {
-                "branch": CANDIDATE_BRANCH,
-                "role": "candidate",
-                "head": str(candidate["head"]),
-                "path": str(candidate["worktree_path"]),
-                "action": str(candidate["open_action"]),
-                "label": str(candidate["open_label"]),
-            }
-        )
-    return actions
+    return bindings
 
 
-def _worktree_action(path: str, *, current_path: Path) -> tuple[str, str]:
+def _configured_branch_binding(
+    root: Path,
+    *,
+    branch: str,
+    role: str,
+    worktree: dict[str, str] | None,
+    candidate: dict[str, object] | None,
+) -> dict[str, str]:
+    if worktree is not None:
+        return _worktree_branch_binding(worktree)
+    if candidate is not None:
+        return {
+            "branch": branch,
+            "role": role,
+            "head": str(candidate["head"]),
+            "worktree_path": str(candidate["worktree_path"]),
+            "worktree_binding": str(candidate["worktree_binding"]),
+        }
+    head = _ref_head(root, branch)
+    return {
+        "branch": branch,
+        "role": role,
+        "head": head,
+        "worktree_path": "",
+        "worktree_binding": "unbound" if head else "absent",
+    }
+
+
+def _worktree_branch_binding(worktree: dict[str, str]) -> dict[str, str]:
+    return {
+        "branch": str(worktree["branch"]),
+        "role": str(worktree["role"]),
+        "head": str(worktree["head"]),
+        "worktree_path": str(worktree["path"]),
+        "worktree_binding": str(worktree["worktree_binding"]),
+    }
+
+
+def _worktree_binding(path: str, *, current_path: Path) -> str:
     if path and Path(path).resolve() == current_path:
-        return "current_worktree", "Current Worktree"
-    return "open_worktree", "Open Worktree"
+        return "current"
+    return "linked"
 
 
 def _lease_owners(
@@ -275,7 +324,7 @@ def _lease_owners(
 ) -> dict[str, str]:
     control_root = current_path
     for worktree in worktrees:
-        if worktree["role"] == "accepted_root" and worktree["path"]:
+        if worktree["role"] == ROLE_ACCEPTED_ROOT and worktree["path"]:
             control_root = Path(worktree["path"])
             break
     leases = active_leases(control_root / ".ethos" / "state" / "state.sqlite")
@@ -291,7 +340,7 @@ def _closeout_support(
     owner_by_branch: dict[str, str],
 ) -> dict[str, object]:
     gaps: list[str] = []
-    if role != "work_lane":
+    if role != ROLE_WORK_LANE:
         gaps.append("protected_root_mutation")
     elif dirty:
         gaps.append("work_lane_dirty")
@@ -306,14 +355,13 @@ def _closeout_support(
         if changed_paths(candidate_path):
             gaps.append("candidate_worktree_dirty")
 
-    is_work_lane = role == "work_lane"
+    is_work_lane = role == ROLE_WORK_LANE
     return {
         "supported": not gaps,
         "branch": branch if is_work_lane else "",
-        "target_branch": CANDIDATE_BRANCH,
+        "target_branch": str(candidate["branch"]),
         "target_path": str(candidate["worktree_path"]),
-        "action": "land_to_candidate" if is_work_lane else "not_supported",
-        "label": "Land to Candidate" if is_work_lane else "Not Supported",
+        "operation": "land_to_candidate" if is_work_lane else "",
         "owner": owner_by_branch.get(branch, "") if is_work_lane else "",
         "required_gaps": gaps,
     }
@@ -330,17 +378,3 @@ def _ref_head(root: Path, ref: str) -> str:
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
-
-
-def _role_for_branch(branch: str) -> str:
-    if branch.startswith("work/"):
-        return "work_lane"
-    if branch == CANDIDATE_BRANCH:
-        return "candidate"
-    if branch.startswith("submit/"):
-        return "submit"
-    if branch == "detached":
-        return "detached"
-    if branch in {"dev", "main"}:
-        return "accepted_root"
-    return "other"

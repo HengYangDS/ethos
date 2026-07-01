@@ -4,8 +4,14 @@ import re
 import subprocess
 from pathlib import Path
 
+from ethos_contracts.branch_roles import (
+    ROLE_ACCEPTED_ROOT,
+    ROLE_WORK_LANE,
+    load_branch_role_policy,
+)
+
 from ethos_workspace.state import acquire_lease
-from ethos_workspace.status import CANDIDATE_BRANCH, changed_paths, workspace_status
+from ethos_workspace.status import changed_paths, workspace_status
 
 _SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -19,8 +25,9 @@ def start_work_lane(
     apply: bool = False,
 ) -> dict[str, object]:
     repo = _repo_root(root)
+    policy = load_branch_role_policy(repo)
     slug = _slug(name)
-    branch = f"work/{slug}"
+    branch = policy.work_branch(slug)
     target = path.resolve()
     if not owner.strip():
         return {
@@ -38,7 +45,7 @@ def start_work_lane(
             "required_gaps": [],
         }
     status = workspace_status(repo)
-    if status["role"] != "accepted_root" or status["dirty"]:
+    if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
         return {
             "ok": False,
             "state": "blocked",
@@ -89,7 +96,7 @@ def start_work_lane(
         "-b",
         branch,
         target.as_posix(),
-        CANDIDATE_BRANCH,
+        policy.candidate_branch,
         check=False,
     )
     if completed.returncode != 0:
@@ -111,7 +118,7 @@ def start_work_lane(
         "ok": True,
         "state": "started",
         "branch": branch,
-        "base": CANDIDATE_BRANCH,
+        "base": policy.candidate_branch,
         "base_head": str(candidate["head"]),
         "path": target.as_posix(),
         "worktree": _started_worktree(branch=branch, path=target),
@@ -129,11 +136,12 @@ def bootstrap_candidate(
     apply: bool = False,
 ) -> dict[str, object]:
     repo = _repo_root(root)
+    policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (path or _default_candidate_path(repo)).resolve()
+    target = (path or _default_candidate_path(repo, policy.candidate_branch)).resolve()
     gaps: list[str] = []
-    if status["role"] != "accepted_root" or status["dirty"]:
+    if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
         gaps.append("candidate_bootstrap_requires_clean_accepted_root")
     if expect_head is not None and expect_head != current_head:
         gaps.append("expect_head_mismatch")
@@ -141,7 +149,7 @@ def bootstrap_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": target.as_posix(),
             "required_gaps": gaps,
@@ -151,7 +159,7 @@ def bootstrap_candidate(
         return {
             "ok": True,
             "state": "present",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": candidate["head"],
             "path": candidate["worktree_path"],
             "required_gaps": [],
@@ -160,7 +168,7 @@ def bootstrap_candidate(
         return {
             "ok": True,
             "state": "planned",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": target.as_posix(),
             "required_gaps": [],
@@ -169,29 +177,36 @@ def bootstrap_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": target.as_posix(),
             "required_gaps": ["candidate_worktree_path_exists"],
         }
     if not candidate["exists"]:
-        completed = _git(repo, "branch", CANDIDATE_BRANCH, current_head, check=False)
+        completed = _git(repo, "branch", policy.candidate_branch, current_head, check=False)
         if completed.returncode != 0:
             return {
                 "ok": False,
                 "state": "blocked",
-                "branch": CANDIDATE_BRANCH,
+                "branch": policy.candidate_branch,
                 "head": current_head,
                 "path": target.as_posix(),
                 "required_gaps": ["candidate_bootstrap_failed"],
                 "stderr": completed.stderr.strip(),
             }
-    completed = _git(repo, "worktree", "add", target.as_posix(), CANDIDATE_BRANCH, check=False)
+    completed = _git(
+        repo,
+        "worktree",
+        "add",
+        target.as_posix(),
+        policy.candidate_branch,
+        check=False,
+    )
     if completed.returncode != 0:
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": target.as_posix(),
             "required_gaps": ["candidate_worktree_add_failed"],
@@ -200,7 +215,7 @@ def bootstrap_candidate(
     return {
         "ok": True,
         "state": "bootstrapped",
-        "branch": CANDIDATE_BRANCH,
+        "branch": policy.candidate_branch,
         "head": current_head,
         "path": target.as_posix(),
         "required_gaps": [],
@@ -218,7 +233,7 @@ def retire_landed_work_lanes(
     lanes = [
         _retirement_lane(repo, lane)
         for lane in status["worktrees"]
-        if lane["role"] == "work_lane"
+        if lane["role"] == ROLE_WORK_LANE
     ]
     selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
     gaps: list[str] = []
@@ -303,8 +318,8 @@ def _repo_root(root: Path) -> Path:
     return Path(completed.stdout.strip()).resolve()
 
 
-def _default_candidate_path(repo: Path) -> Path:
-    return repo.with_name(f"{repo.name}-candidate-dev")
+def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
+    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
 
 
 def _branch_exists(root: Path, branch: str) -> bool:
@@ -323,9 +338,8 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
         "branch": branch,
         "path": path.as_posix(),
         "head": head,
-        "role": "work_lane",
-        "open_action": "open_worktree",
-        "open_label": "Open Worktree",
+        "role": ROLE_WORK_LANE,
+        "worktree_binding": "linked",
     }
 
 

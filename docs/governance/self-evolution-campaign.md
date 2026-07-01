@@ -26,5 +26,5 @@ must not linger as implicit roadmap text.
 is a read-only aggregation of Work Lane closeout support, publication readiness,
 release policy, unresolved parity packages, and shadow parity execution plans.
 Remote publication remains deferred until an adapter is available; local
-campaign closeout still proceeds through `candidate/dev` and a local
-fast-forward of `dev`.
+campaign closeout still proceeds through the configured candidate branch and a
+local fast-forward of the accepted root.

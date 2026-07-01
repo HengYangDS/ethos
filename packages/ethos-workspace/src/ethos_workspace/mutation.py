@@ -4,7 +4,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from ethos_workspace.status import CANDIDATE_BRANCH, workspace_status
+from ethos_contracts.branch_roles import ROLE_WORK_LANE, load_branch_role_policy
+
+from ethos_workspace.status import workspace_status
 
 
 @dataclass(frozen=True)
@@ -38,7 +40,7 @@ def evaluate_mutation(
     elif request.expect_head != current_head:
         gaps.append("expect_head_mismatch")
     status = workspace_status(root)
-    if status["role"] != "work_lane":
+    if status["role"] != ROLE_WORK_LANE:
         gaps.append("protected_root_mutation")
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
@@ -53,6 +55,7 @@ def apply_land_to_candidate(
     authorized: bool,
     expect_head: str | None,
 ) -> dict[str, object]:
+    policy = load_branch_role_policy(root)
     current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
     decision = evaluate_mutation(
         MutationRequest(
@@ -68,7 +71,7 @@ def apply_land_to_candidate(
         return {
             "ok": False,
             "state": decision.state,
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "required_gaps": list(decision.gaps),
         }
@@ -77,7 +80,7 @@ def apply_land_to_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "required_gaps": ["candidate_branch_missing"],
         }
@@ -85,7 +88,7 @@ def apply_land_to_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "required_gaps": ["candidate_worktree_missing"],
         }
@@ -95,7 +98,7 @@ def apply_land_to_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_worktree_dirty"],
@@ -105,7 +108,7 @@ def apply_land_to_candidate(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": CANDIDATE_BRANCH,
+            "branch": policy.candidate_branch,
             "head": current_head,
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_update_failed"],
@@ -114,7 +117,7 @@ def apply_land_to_candidate(
     return {
         "ok": True,
         "state": "candidate_validated",
-        "branch": CANDIDATE_BRANCH,
+        "branch": policy.candidate_branch,
         "head": current_head,
         "path": candidate_path.as_posix(),
         "required_gaps": [],

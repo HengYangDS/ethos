@@ -118,12 +118,14 @@ name = "ethos-governance"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-governance" }
 dependencies = [
+    { name = "ethos-contracts" },
     { name = "ethos-kernel" },
     { name = "jsonschema" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
     { name = "ethos-kernel", editable = "packages/ethos-kernel" },
     { name = "jsonschema", specifier = ">=4.23" },
 ]
@@ -188,11 +190,15 @@ name = "ethos-workspace"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-workspace" }
 dependencies = [
+    { name = "ethos-contracts" },
     { name = "ethos-kernel" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
+requires-dist = [
+    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
+    { name = "ethos-kernel", editable = "packages/ethos-kernel" },
+]
 
 [[package]]
 name = "iniconfig"

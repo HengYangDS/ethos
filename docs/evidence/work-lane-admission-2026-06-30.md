@@ -12,21 +12,22 @@ This evidence record covers the Work Lane admission hardening batch.
 
 Implemented scope:
 
-- `ethos status` and `ethos lane status` classify linked worktrees and report
-  foreign `work/*` lanes from git worktree metadata.
+- `ethos status` and `ethos lane status` classify linked worktrees through
+  role-policy branch bindings and report foreign Work Lanes from git worktree
+  metadata.
 - `ethos lane prewrite` blocks tracked writes from protected roots and admits
   writes only from the current owned Work Lane with matching editor root.
-- `ethos lane prewrite` rejects tracked writes in a `work/*` lane when
-  editor-root binding is missing.
-- `ethos lane start --apply` creates a `work/*` linked worktree from a clean
-  accepted root and records an ignored local SQLite lease.
+- `ethos lane prewrite` rejects tracked writes in a Work Lane when editor-root
+  binding is missing.
+- `ethos lane start --apply` creates a linked worktree from a clean accepted
+  root using the configured Work Lane branch prefix and records an ignored local
+  SQLite lease.
 - `ethos lane start --apply --json` returns the new Work Lane as
-  `data.worktree` with `open_action = "open_worktree"` and label
-  `Open Worktree`, matching status output and avoiding checkout-style host
-  actions for already-bound worktrees.
-- `ethos lane start --apply` rejects existing `work/*` lanes and dirty accepted
-  roots with `lane_start_requires_clean_accepted_root`.
-- `ethos lane start --apply` rejects a dirty `candidate/dev` worktree with
+  `data.worktree` with product `worktree_binding` state. Host-specific labels
+  and checkout actions remain adapter projections, not product truth.
+- `ethos lane start --apply` rejects existing Work Lane branches and dirty
+  accepted roots with `lane_start_requires_clean_accepted_root`.
+- `ethos lane start --apply` rejects a dirty candidate worktree with
   `candidate_worktree_dirty` before creating a new Work Lane.
 - `ethos land --apply` and `ethos publish --apply` reject protected roots even
   when authorization and expected HEAD are supplied.

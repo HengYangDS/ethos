@@ -3,7 +3,7 @@ name = "ethos-workspace"
 version = "0.1.0a1"
 description = "ETHOS workspace, action runs, local state, and publication boundary"
 requires-python = ">=3.12"
-dependencies = ["ethos-kernel"]
+dependencies = ["ethos-contracts", "ethos-kernel"]
 
 [build-system]
 requires = ["hatchling"]

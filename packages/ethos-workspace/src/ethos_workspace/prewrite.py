@@ -3,9 +3,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos_workspace.status import workspace_status
+from ethos_contracts.branch_roles import PROTECTED_WRITE_ROLES
 
-PROTECTED_WRITE_ROLES = frozenset({"accepted_root", "candidate", "submit", "detached", "other"})
+from ethos_workspace.status import workspace_status
 
 
 def prewrite_guard(

@@ -82,33 +82,33 @@ ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --owner <owner> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
-ethos lane retire-landed --branch work/<name> --apply
+ethos lane retire-landed --branch <work-lane-branch> --apply
 ```
 
-`ethos status --json` and `ethos lane status --json` expose branch action
-metadata under `data.branch_actions`. Branches already bound to a linked
-worktree, including `candidate/dev` and `work/*`, report
-`action = "open_worktree"` with label `Open Worktree`; they are not modeled as
-ordinary checkout targets.
-The `data.candidate` object also carries `open_action` and `open_label` for
-candidate-specific consumers.
+`ethos status --json` and `ethos lane status --json` expose role-policy branch
+bindings under `data.branch_bindings`. The bindings are ordered by semantic
+role: configured release root first, accepted root second, then candidate, then
+additional bound branches such as Work Lanes. Each binding reports
+`worktree_binding` as product state: `current`, `linked`, `unbound`, or
+`absent`. Host adapters may project linked worktrees as host-specific open
+commands, but the product payload does not expose host labels or checkout
+actions as truth.
 Both commands include a `schema_validation` diagnostic for the live
 workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
 so the workspace-status object remains schema-valid.
 The `data.closeout_support` object reports whether the current checkout can land
-to `candidate/dev`, which target path would be updated, who owns the lease when
-known, and which mutation gap blocks closeout.
+to the configured candidate branch, which target path would be updated, who owns
+the lease when known, and which mutation gap blocks closeout.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
-uses the same `open_action = "open_worktree"` and `open_label = "Open Worktree"`
-vocabulary as status output, so hosts can open the new Work Lane without
-treating it as an ordinary checkout target.
+uses the same `worktree_binding` vocabulary as status output, so hosts can
+project the new Work Lane without treating adapter UI text as product truth.
 Start admission requires both the accepted root and the candidate worktree to be
 clean. A dirty candidate returns `candidate_worktree_dirty` and does not create
 a Work Lane.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
-Apply mode requires `--branch work/<name>` so cleanup cannot accidentally remove
-another active agent's worktree.
+Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
+remove another active agent's worktree.
 
 Mutation readiness is explicit:
 
@@ -120,9 +120,9 @@ ethos publish --apply --authorize --expect-head <git-head>
 Those commands still report readiness in the current implementation; remote
 publication remains an adapter responsibility. `publish --json` reports
 `data.remote_push = "not_performed"` and `data.publication.remote_state =
-"deferred"` while still exposing the local `submit/*` branch plan.
-`land --apply` from an admitted Work Lane advances local `candidate/dev`; it
-does not advance `dev`.
+"deferred"` while still exposing the configured submit branch plan.
+`land --apply` from an admitted Work Lane advances the configured candidate
+branch; it does not advance the accepted root.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. The output aggregates workspace

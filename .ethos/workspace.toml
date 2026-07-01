@@ -1,3 +1,10 @@
+[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+submit_branch_prefix = "submit/"
+
 [[package]]
 name = "ethos"
 path = "packages/ethos"

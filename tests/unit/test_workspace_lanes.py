@@ -49,6 +49,51 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
     return path
 
 
+def write_role_policy(
+    repo: Path,
+    *,
+    candidate_branch: str = "stage/dev",
+    work_branch_prefix: str = "lane/",
+    submit_branch_prefix: str = "review/",
+) -> None:
+    (repo / ".ethos" / "workspace.toml").write_text(
+        "\n".join(
+            [
+                "[branch_roles]",
+                'release_branch = "main"',
+                'accepted_branch = "dev"',
+                f'candidate_branch = "{candidate_branch}"',
+                f'work_branch_prefix = "{work_branch_prefix}"',
+                f'submit_branch_prefix = "{submit_branch_prefix}"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", ".ethos/workspace.toml")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configure branch roles",
+    )
+
+
+def assert_no_ui_projection(value: object) -> None:
+    if isinstance(value, dict):
+        forbidden = {"open_action", "open_label", "action", "label"}
+        assert not (forbidden & set(value))
+        for child in value.values():
+            assert_no_ui_projection(child)
+    elif isinstance(value, list):
+        for child in value:
+            assert_no_ui_projection(child)
+
+
 def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
@@ -61,11 +106,10 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
     assert status["foreign_work_lanes"] == [
         {
             "branch": "work/foreign",
-            "open_action": "open_worktree",
-            "open_label": "Open Worktree",
             "head": git(repo, "rev-parse", "dev"),
             "path": foreign.as_posix(),
             "role": "work_lane",
+            "worktree_binding": "linked",
             "lease_owner": "",
             "lease_state": "missing",
         }
@@ -80,36 +124,99 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "branch": "",
         "target_branch": "candidate/dev",
         "target_path": (tmp_path / "repo-candidate-dev").as_posix(),
-        "action": "not_supported",
-        "label": "Not Supported",
+        "operation": "",
         "owner": "",
         "required_gaps": ["protected_root_mutation"],
     }
+    assert_no_ui_projection(status)
 
 
-def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
+def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
+    git(repo, "branch", "main", "dev")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
 
     status = workspace_status(repo)
 
-    assert status["candidate"]["open_action"] == "open_worktree"
-    assert status["candidate"]["open_label"] == "Open Worktree"
+    assert "branch_actions" not in status
+    assert status["candidate"]["worktree_binding"] == "linked"
     assert status["candidate"]["worktree_path"] == candidate.as_posix()
-    worktree_actions = {
-        action["branch"]: action
-        for action in status["branch_actions"]
-        if action["action"] == "open_worktree"
+    assert [binding["branch"] for binding in status["branch_bindings"]] == [
+        "main",
+        "dev",
+        "candidate/dev",
+        "work/feature",
+    ]
+    bindings = {
+        binding["branch"]: binding
+        for binding in status["branch_bindings"]
     }
-    assert "checkout" not in {action["action"] for action in status["branch_actions"]}
-    assert worktree_actions["candidate/dev"]["label"] == "Open Worktree"
-    assert worktree_actions["candidate/dev"]["path"] == candidate.as_posix()
-    assert worktree_actions["work/feature"]["label"] == "Open Worktree"
-    assert worktree_actions["work/feature"]["path"] == worktree.as_posix()
+    assert bindings["main"]["role"] == "release_root"
+    assert bindings["main"]["worktree_binding"] == "unbound"
+    assert bindings["dev"]["worktree_binding"] == "current"
+    assert bindings["dev"]["worktree_path"] == repo.as_posix()
+    assert bindings["candidate/dev"]["worktree_binding"] == "linked"
+    assert bindings["candidate/dev"]["worktree_path"] == candidate.as_posix()
+    assert bindings["work/feature"]["worktree_binding"] == "linked"
+    assert bindings["work/feature"]["worktree_path"] == worktree.as_posix()
+    assert_no_ui_projection(status)
+
+
+def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    write_role_policy(repo)
+    git(repo, "branch", "stage/dev", "dev")
+
+    git(repo, "checkout", "-b", "review/ready")
+    assert workspace_status(repo)["role"] == "submit"
+
+    git(repo, "checkout", "dev")
+    git(repo, "checkout", "-b", "lane/feature")
+    assert workspace_status(repo)["role"] == "work_lane"
+
+    git(repo, "checkout", "dev")
+    status = workspace_status(repo)
+    assert status["role"] == "accepted_root"
+    assert status["candidate"]["branch"] == "stage/dev"
+    assert status["candidate"]["exists"] is True
+
+    git(repo, "branch", "main", "dev")
+    git(repo, "checkout", "main")
+    assert workspace_status(repo)["role"] == "release_root"
+
+
+def test_start_work_lane_uses_configured_candidate_and_work_role_policy(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    write_role_policy(repo)
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "stage/dev",
+        (tmp_path / "repo-stage-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-lane-feature"
+
+    report = start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        apply=True,
+    )
+
+    assert report["ok"] is True
+    assert report["branch"] == "lane/feature"
+    assert report["base"] == "stage/dev"
+    assert git(worktree, "branch", "--show-current") == "lane/feature"
 
 
 def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: Path) -> None:
@@ -131,8 +238,7 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
         "branch": "work/feature",
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
-        "action": "land_to_candidate",
-        "label": "Land to Candidate",
+        "operation": "land_to_candidate",
         "owner": "agent:test",
         "required_gaps": [],
     }
@@ -151,8 +257,7 @@ def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> 
         "branch": "work/raw",
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
-        "action": "land_to_candidate",
-        "label": "Land to Candidate",
+        "operation": "land_to_candidate",
         "owner": "",
         "required_gaps": ["work_lane_missing_lease:work/raw"],
     }
@@ -171,7 +276,7 @@ def test_workspace_status_reports_current_work_lane_closeout_gaps(
     status = workspace_status(worktree)
 
     assert status["closeout_support"]["supported"] is False
-    assert status["closeout_support"]["action"] == "land_to_candidate"
+    assert status["closeout_support"]["operation"] == "land_to_candidate"
     assert status["closeout_support"]["required_gaps"] == ["work_lane_dirty"]
 
 
@@ -253,12 +358,12 @@ def test_workspace_status_output_validates_against_workspace_status_schema(
     assert validation["required_gaps"] == []
 
 
-def test_workspace_status_schema_rejects_checkout_branch_action(tmp_path: Path) -> None:
+def test_workspace_status_schema_rejects_ui_projection_fields(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     payload = workspace_status(repo)
-    payload["branch_actions"][0]["action"] = "checkout"
-    payload["branch_actions"][0]["label"] = "Checkout"
+    payload["candidate"]["open_action"] = "open_worktree"
+    payload["candidate"]["open_label"] = "host-specific label"
 
     validation = validate_schema_instance("workspace-status.schema.json", payload)
 
@@ -277,8 +382,7 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
         "head": "",
         "worktree_exists": False,
         "worktree_path": "",
-        "open_action": "bootstrap_worktree",
-        "open_label": "Bootstrap Worktree",
+        "worktree_binding": "absent",
     }
     assert "candidate_branch_missing" in status["required_gaps"]
 
@@ -344,6 +448,7 @@ def test_prewrite_rejects_work_lane_without_editor_root_binding(tmp_path: Path) 
 
 def test_prewrite_rejects_protected_lane_roles(tmp_path: Path) -> None:
     cases = {
+        "release_root": ("main",),
         "candidate": ("candidate/dev",),
         "submit": ("submit/review",),
         "other": ("feature/unknown",),
@@ -400,8 +505,7 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
         "path": worktree.resolve().as_posix(),
         "head": git(worktree, "rev-parse", "HEAD"),
         "role": "work_lane",
-        "open_action": "open_worktree",
-        "open_label": "Open Worktree",
+        "worktree_binding": "linked",
     }
     assert worktree.exists()
     assert git(worktree, "branch", "--show-current") == "work/feature"

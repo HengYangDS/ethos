@@ -4,7 +4,7 @@ tag_pattern = "v{version}"
 artifact_glob = "dist/*"
 
 [protected_refs]
-branches = ["dev", "main"]
+branches = ["main", "dev"]
 tags = ["v*"]
 
 [gitlab]

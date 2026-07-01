@@ -13,6 +13,7 @@ from ethos_agent.mcp import mcp_manifest
 from ethos_agent.playbooks import playbooks_report, route_playbook
 from ethos_agent.projections import projection_contract
 from ethos_agent.server import mcp_server_descriptor
+from ethos_contracts.branch_roles import BranchRolePolicy, load_branch_role_policy
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_governance.attestation import release_attestation, sbom_projection
 from ethos_governance.claims import claims_report
@@ -271,15 +272,20 @@ def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, objec
         "remote_state": "deferred",
         "blocking": False,
         "required_steps": [
-            "land work lane to candidate/dev",
-            "fast-forward local dev from candidate/dev",
-            "create submit/* and push when remote publication is available",
+            "land work lane to candidate role",
+            "fast-forward accepted root from candidate role",
+            "create configured submit branch when remote publication is available",
         ],
     }
 
 
-def _publication_readiness(*, branch: str, local_ok: bool) -> dict[str, object]:
-    submit_branch = f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
+def _publication_readiness(
+    *,
+    branch: str,
+    local_ok: bool,
+    policy: BranchRolePolicy,
+) -> dict[str, object]:
+    submit_branch = policy.submit_branch_for_source(branch)
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
@@ -291,7 +297,7 @@ def _publication_readiness(*, branch: str, local_ok: bool) -> dict[str, object]:
         ),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": (
-            ["create submit/* and push when remote publication is available"]
+            ["create configured submit branch when remote publication is available"]
             if local_ok
             else ["resolve local publish readiness gaps"]
         ),
@@ -330,7 +336,11 @@ def _campaign_closeout_report(
         current_target_head=current_target_head,
     )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
-    publication = _publication_readiness(branch=branch, local_ok=local_ready)
+    publication = _publication_readiness(
+        branch=branch,
+        local_ok=local_ready,
+        policy=load_branch_role_policy(repo),
+    )
     remote_publication = _remote_publication_deferred()
     provenance = {
         "shadow_parity": shadow.get("provenance", {}),
@@ -735,7 +745,11 @@ def publish(
         data={
             "self_audit": audit,
             "remote_push": "not_performed",
-            "publication": _publication_readiness(branch=str(branch), local_ok=ok),
+            "publication": _publication_readiness(
+                branch=str(branch),
+                local_ok=ok,
+                policy=load_branch_role_policy(repo),
+            ),
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,

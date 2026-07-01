@@ -263,6 +263,7 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             },
         ],
         "foreign_work_lanes": [],
+        "coordination_gaps": [],
         "closeout_support": {
             "supported": False,
             "branch": "",

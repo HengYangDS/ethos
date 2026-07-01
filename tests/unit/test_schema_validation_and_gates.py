@@ -118,6 +118,7 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
             },
         ],
         "foreign_work_lanes": [],
+        "coordination_gaps": [],
         "closeout_support": {
             "supported": False,
             "branch": "",

@@ -53,21 +53,16 @@ def workspace_status(root: Path) -> dict[str, object]:
         candidate=candidate,
         owner_by_branch=owner_by_branch,
     )
-    foreign = [
-        {
-            "path": worktree["path"],
-            "head": worktree["head"],
-            "branch": worktree["branch"],
-            "role": worktree["role"],
-            "open_action": worktree["open_action"],
-            "open_label": worktree["open_label"],
-        }
-        for worktree in worktrees
-        if worktree["role"] == "work_lane" and Path(str(worktree["path"])).resolve() != current_path
-    ]
+    foreign = _foreign_work_lanes(
+        worktrees,
+        current_path=current_path,
+        owner_by_branch=owner_by_branch,
+    )
+    coordination_gaps = _coordination_gaps(foreign)
     required_gaps = []
-    if foreign:
-        required_gaps.append("foreign_work_lane_present")
+    missing_current_lease = f"work_lane_missing_lease:{branch}"
+    if missing_current_lease in closeout_support["required_gaps"]:
+        required_gaps.append(missing_current_lease)
     if not candidate["exists"]:
         required_gaps.append("candidate_branch_missing")
     elif not candidate["worktree_exists"]:
@@ -82,6 +77,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "worktrees": worktrees,
         "branch_actions": branch_actions,
         "foreign_work_lanes": foreign,
+        "coordination_gaps": coordination_gaps,
         "closeout_support": closeout_support,
         "required_gaps": required_gaps,
     }
@@ -116,6 +112,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
             }
         ],
         "foreign_work_lanes": [],
+        "coordination_gaps": [],
         "closeout_support": {
             "supported": False,
             "branch": "",
@@ -161,6 +158,45 @@ def _normalize_worktree(entry: dict[str, str], *, current_path: Path) -> dict[st
         "open_action": action,
         "open_label": label,
     }
+
+
+def _foreign_work_lanes(
+    worktrees: list[dict[str, str]],
+    *,
+    current_path: Path,
+    owner_by_branch: dict[str, str],
+) -> list[dict[str, str]]:
+    foreign: list[dict[str, str]] = []
+    for worktree in worktrees:
+        if worktree["role"] != "work_lane":
+            continue
+        if Path(str(worktree["path"])).resolve() == current_path:
+            continue
+        branch = str(worktree["branch"])
+        owner = owner_by_branch.get(branch, "")
+        foreign.append(
+            {
+                "path": worktree["path"],
+                "head": worktree["head"],
+                "branch": branch,
+                "role": worktree["role"],
+                "open_action": worktree["open_action"],
+                "open_label": worktree["open_label"],
+                "lease_owner": owner,
+                "lease_state": "leased" if owner else "missing",
+            }
+        )
+    return foreign
+
+
+def _coordination_gaps(foreign_work_lanes: list[dict[str, str]]) -> list[str]:
+    gaps: list[str] = []
+    if foreign_work_lanes:
+        gaps.append("foreign_work_lane_present")
+    for lane in foreign_work_lanes:
+        if lane["lease_state"] == "missing":
+            gaps.append(f"work_lane_missing_lease:{lane['branch']}")
+    return gaps
 
 
 def _candidate_status(
@@ -259,6 +295,8 @@ def _closeout_support(
         gaps.append("protected_root_mutation")
     elif dirty:
         gaps.append("work_lane_dirty")
+    elif not owner_by_branch.get(branch):
+        gaps.append(f"work_lane_missing_lease:{branch}")
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
     elif not candidate["worktree_exists"]:

@@ -13,6 +13,7 @@
     "worktrees",
     "branch_actions",
     "foreign_work_lanes",
+    "coordination_gaps",
     "closeout_support",
     "required_gaps"
   ],
@@ -25,7 +26,8 @@
     "candidate": {"$ref": "#/$defs/candidate"},
     "worktrees": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
     "branch_actions": {"type": "array", "items": {"$ref": "#/$defs/branchAction"}},
-    "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
+    "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/foreignWorkLane"}},
+    "coordination_gaps": {"type": "array", "items": {"type": "string"}},
     "closeout_support": {"$ref": "#/$defs/closeoutSupport"},
     "required_gaps": {"type": "array", "items": {"type": "string"}}
   },
@@ -186,6 +188,50 @@
           "additionalProperties": false
         },
         {"$ref": "#/$defs/openAction"}
+      ]
+    },
+    "foreignWorkLane": {
+      "allOf": [
+        {
+          "type": "object",
+          "required": [
+            "path",
+            "head",
+            "branch",
+            "role",
+            "open_action",
+            "open_label",
+            "lease_owner",
+            "lease_state"
+          ],
+          "properties": {
+            "path": {"type": "string"},
+            "head": {"type": "string"},
+            "branch": {"type": "string"},
+            "role": {"const": "work_lane"},
+            "open_action": {"type": "string"},
+            "open_label": {"type": "string"},
+            "lease_owner": {"type": "string"},
+            "lease_state": {"enum": ["leased", "missing"]}
+          },
+          "additionalProperties": false
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "open_action": {"const": "current_worktree"},
+                "open_label": {"const": "Current Worktree"}
+              }
+            },
+            {
+              "properties": {
+                "open_action": {"const": "open_worktree"},
+                "open_label": {"const": "Open Worktree"}
+              }
+            }
+          ]
+        }
       ]
     },
     "closeoutSupport": {

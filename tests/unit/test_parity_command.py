@@ -14,6 +14,7 @@ from ethos_adapters.shadow import (
     run_shadow_parity,
 )
 from ethos_governance.schema_validation import validate_schema_instance
+from ethos_repository.parity import shadow_parity_report
 
 from tests.support.ethos_cli_runner import run_ethos
 
@@ -130,6 +131,44 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/sample-adopter-shadow.json"
     )
+
+
+def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> None:
+    target = tmp_path / "sample-adopter"
+    target.mkdir()
+    evidence = _complete_parity_evidence("sample-adopter")
+    evidence["target"] = target.resolve().as_posix()
+    evidence["semantic_dimensions"] = ["branch role", "publish readiness"]
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = shadow_parity_report(
+        target=target,
+        root=tmp_path,
+        adopter="sample-adopter",
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "matched"
+    assert payload["required_gaps"] == []
+    assert payload["execution_packages"] == [
+        {
+            "kind": "shadow_parity_evidence",
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "evidence_path": "docs/evidence/parity/sample-adopter-shadow.json",
+            "comparison_count": len(SHADOW_COMMANDS),
+            "commands": SHADOW_COMMANDS,
+            "semantic_dimensions": evidence["semantic_dimensions"],
+            "blocking": False,
+            "required_gaps": [],
+            "next_action": "use tracked shadow parity evidence for local closeout",
+        }
+    ]
 
 
 def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(

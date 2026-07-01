@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -209,6 +210,91 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     assert payload["command"] == "lane start"
     assert payload["data"]["branch"] == "work/feature"
     assert git(worktree, "branch", "--show-current") == "work/feature"
+
+
+def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    payload = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["coordination_gaps"] == ["foreign_work_lane_present"]
+    assert payload["data"]["foreign_work_lanes"] == [
+        {
+            "path": worktree.as_posix(),
+            "head": git(worktree, "rev-parse", "HEAD"),
+            "branch": "work/feature",
+            "role": "work_lane",
+            "open_action": "open_worktree",
+            "open_label": "Open Worktree",
+            "lease_owner": "agent:test",
+            "lease_state": "leased",
+        }
+    ]
+
+
+def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    raw_worktree = tmp_path / "repo-work-raw"
+    git(repo, "worktree", "add", "-b", "work/raw", raw_worktree.as_posix(), "dev")
+
+    root_payload = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    raw_payload = run_ethos(
+        "status",
+        "--root",
+        raw_worktree.as_posix(),
+        "--json",
+        cwd=raw_worktree,
+    )
+
+    assert root_payload["ok"] is True
+    assert root_payload["required_gaps"] == []
+    assert root_payload["data"]["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_missing_lease:work/raw",
+    ]
+    assert root_payload["data"]["foreign_work_lanes"][0]["lease_state"] == "missing"
+    assert root_payload["data"]["foreign_work_lanes"][0]["lease_owner"] == ""
+    assert raw_payload["ok"] is True
+    assert raw_payload["required_gaps"] == ["work_lane_missing_lease:work/raw"]
+    assert raw_payload["data"]["closeout_support"]["supported"] is False
+    assert raw_payload["data"]["closeout_support"]["required_gaps"] == [
+        "work_lane_missing_lease:work/raw"
+    ]
 
 
 def test_lane_candidate_apply_creates_candidate_branch(tmp_path: Path) -> None:
@@ -935,6 +1021,10 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     expected_submit = (
         f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
     )
+    evidence = json.loads(
+        Path("docs/evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
+    )
+    target = Path(str(evidence["target"]))
 
     payload = run_ethos(
         "campaign",
@@ -942,7 +1032,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "--adopter",
         "alphasim-dmgr",
         "--target",
-        Path.cwd().as_posix(),
+        target.as_posix(),
         "--json",
     )
 
@@ -976,8 +1066,12 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
     assert packages["release"]["ok"] is True
     assert packages["parity"]["pending_count"] == len(payload["data"]["parity"]["required_gaps"])
-    assert packages["shadow_parity"]["gap"].startswith("shadow_parity_not_executed:")
-    assert packages["shadow_parity"]["target"] == Path.cwd().resolve().as_posix()
+    assert packages["shadow_parity"]["kind"] == "shadow_parity_evidence"
+    assert packages["shadow_parity"]["state"] == "matched"
+    assert packages["shadow_parity"]["evidence_path"] == (
+        "docs/evidence/parity/alphasim-dmgr-shadow.json"
+    )
+    assert packages["shadow_parity"]["blocking"] is False
 
 
 def test_intake_status_is_public_read_only_surface() -> None:
@@ -1032,11 +1126,15 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     )
     assert payload["summary"]["product_gap_count"] == 0
     assert payload["data"]["gap_layers"]["product_self_audit"] == {
+        "scope": "product_self_audit",
+        "blocking": True,
         "ok": True,
         "required_gaps": [],
         "gap_count": 0,
     }
     assert payload["data"]["gap_layers"]["adopter_parity"] == {
+        "scope": "global_capability_ledger",
+        "blocking": False,
         "ok": False,
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
         "gap_count": payload["summary"]["parity_pending_count"],

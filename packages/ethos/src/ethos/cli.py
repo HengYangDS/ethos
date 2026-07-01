@@ -311,8 +311,8 @@ def _campaign_closeout_report(
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
-    parity = parity_gaps_report(adopter=adopter)
-    shadow = shadow_parity_report(target=target)
+    parity = parity_gaps_report(adopter=adopter, root=repo)
+    shadow = shadow_parity_report(target=target, root=repo, adopter=adopter)
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(branch=branch, local_ok=local_ready)
     local_closeout = dict(status_payload["closeout_support"])
@@ -1781,11 +1781,15 @@ def report(
         result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
     gap_layers = {
         "product_self_audit": {
+            "scope": "product_self_audit",
+            "blocking": True,
             "ok": not result_required_gaps,
             "required_gaps": list(result_required_gaps),
             "gap_count": len(result_required_gaps),
         },
         "adopter_parity": {
+            "scope": "global_capability_ledger",
+            "blocking": False,
             "ok": bool(parity_gaps["ok"]),
             "required_gaps": list(parity_gaps["required_gaps"]),
             "gap_count": parity_pending_count,

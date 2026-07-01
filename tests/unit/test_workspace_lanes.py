@@ -66,9 +66,15 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "head": git(repo, "rev-parse", "dev"),
             "path": foreign.as_posix(),
             "role": "work_lane",
+            "lease_owner": "",
+            "lease_state": "missing",
         }
     ]
-    assert "foreign_work_lane_present" in status["required_gaps"]
+    assert status["required_gaps"] == []
+    assert status["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_missing_lease:work/foreign",
+    ]
     assert status["closeout_support"] == {
         "supported": False,
         "branch": "",
@@ -109,7 +115,13 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        apply=True,
+    )
 
     status = workspace_status(worktree)
 
@@ -120,9 +132,30 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
         "target_path": candidate.as_posix(),
         "action": "land_to_candidate",
         "label": "Land to Candidate",
-        "owner": "",
+        "owner": "agent:test",
         "required_gaps": [],
     }
+
+
+def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-raw"
+    git(repo, "worktree", "add", "-b", "work/raw", worktree.as_posix(), "dev")
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "work/raw",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "action": "land_to_candidate",
+        "label": "Land to Candidate",
+        "owner": "",
+        "required_gaps": ["work_lane_missing_lease:work/raw"],
+    }
+    assert status["required_gaps"] == ["work_lane_missing_lease:work/raw"]
 
 
 def test_workspace_status_reports_current_work_lane_closeout_gaps(

@@ -110,8 +110,72 @@ SHADOW_PARITY_DIMENSIONS = [
 ]
 
 
-def shadow_parity_report(*, target: Path) -> dict[str, object]:
+def shadow_parity_report(
+    *,
+    target: Path,
+    root: Path | None = None,
+    adopter: str | None = None,
+) -> dict[str, object]:
     target = target.resolve()
+    if adopter:
+        evidence = _parity_evidence(root or Path.cwd(), adopter)
+        if evidence:
+            evidence_gaps = list(evidence.get("required_gaps", []))
+            if evidence.get("target") != target.as_posix():
+                evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
+            shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
+            if not evidence_gaps and shadow.get("ok") is True:
+                commands = _string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)
+                dimensions = _string_list(evidence.get("semantic_dimensions")) or list(
+                    SHADOW_PARITY_DIMENSIONS
+                )
+                package = {
+                    "kind": "shadow_parity_evidence",
+                    "state": str(shadow.get("state") or "matched"),
+                    "target": target.as_posix(),
+                    "evidence_path": str(evidence.get("path")),
+                    "comparison_count": int(shadow.get("comparison_count") or len(commands)),
+                    "commands": commands,
+                    "semantic_dimensions": dimensions,
+                    "blocking": False,
+                    "required_gaps": [],
+                    "next_action": "use tracked shadow parity evidence for local closeout",
+                }
+                return {
+                    "ok": True,
+                    "state": package["state"],
+                    "target": target.as_posix(),
+                    "required_gaps": [],
+                    "comparisons": commands,
+                    "semantic_dimensions": dimensions,
+                    "evidence_path": evidence.get("path"),
+                    "execution_packages": [package],
+                }
+            gap = f"shadow_parity_evidence_invalid:{adopter}"
+            return {
+                "ok": False,
+                "state": "invalid",
+                "target": target.as_posix(),
+                "required_gaps": [gap, *evidence_gaps],
+                "comparisons": list(SHADOW_PARITY_COMMANDS),
+                "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
+                "evidence_path": evidence.get("path"),
+                "execution_packages": [
+                    {
+                        "gap": gap,
+                        "state": "invalid",
+                        "target": target.as_posix(),
+                        "evidence_path": evidence.get("path"),
+                        "commands": list(SHADOW_PARITY_COMMANDS),
+                        "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
+                        "blocking": True,
+                        "required_gaps": evidence_gaps,
+                        "next_action": (
+                            f"ethos parity shadow --target {target.as_posix()} --execute"
+                        ),
+                    }
+                ],
+            }
     gap = f"shadow_parity_not_executed:{target.as_posix()}"
     return {
         "ok": False,
@@ -132,6 +196,10 @@ def shadow_parity_report(*, target: Path) -> dict[str, object]:
             }
         ],
     }
+
+
+def _string_list(value: object) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
 
 
 def _parity_evidence(root: Path, adopter: str | None) -> dict[str, object]:

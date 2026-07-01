@@ -32,5 +32,5 @@ truth; source, tests, schemas, docs, OpenSpec records, claims, and evidence do.
 ## Adoption Profiles
 
 The supported profile names are `generic`, `python`, `monorepo`, `github`, and
-`gitlab`. `python-package` remains an alias for compatibility. Dry-run output
-identifies read files, planned files, apply criteria, and rollback.
+`gitlab`. Dry-run output identifies read files, planned files, apply criteria,
+and rollback.

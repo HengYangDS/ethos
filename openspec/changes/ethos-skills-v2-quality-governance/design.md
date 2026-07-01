@@ -22,8 +22,8 @@ workflow packages whose activation semantics are governed by ETHOS contracts.
   guidance.
 - Keep `activation.toml` as ETHOS activation registry input, not provider skill
   metadata.
-- Add strict and legacy-compatible modes so product proof can fail closed while
-  external adopters continue to route through v1 metadata.
+- Add strict validation so product proof fails closed while external adopter
+  migration evidence remains modeled as historical replay fixtures.
 - Add package manifests and capability classification for skill packages,
   scripts, MCP surfaces, and host projections.
 - Make reports and proof distinguish skill presence from skill quality.
@@ -47,19 +47,19 @@ The provider-neutral model belongs in `ethos-contracts`, not in
 packages, emits projections, and routes tasks. It does not own the semantic
 contract.
 
-### V1 inputs normalize into a V2 IR
+### Historical inputs normalize into a V2 IR
 
-ETHOS v1 and dmgr-style `activation.toml` records remain readable. di-effect
-style `skill_activation_contracts.toml` is supported as a fixture-compatible
-input. Importers preserve old output fields and add V2 enrichment rather than
-breaking existing shadow parity.
+ETHOS v1 and dmgr-style `activation.toml` records remain readable as
+historical replay fixtures. di-effect style `skill_activation_contracts.toml`
+is supported as a fixture input. Importers preserve fixture fields and add V2
+enrichment rather than breaking existing shadow parity.
 
-### Strict mode fails closed, legacy mode degrades
+### Strict mode fails closed
 
 `v2-strict` rejects placeholder skills, missing package manifests, missing path
 coverage, stale commands, stale package digests, and missing proof obligations.
-`legacy-compat` keeps v1 adopter routing readable but emits advisory gaps and
-score degradation.
+Historical replay fixtures keep adopter records readable without adding a
+current product mode.
 
 ### Skill packages are authority-thin but package-real
 
@@ -77,8 +77,9 @@ lifecycle semantics.
 
 ## Risks / Trade-offs
 
-- **Strict mode can break existing adopters** -> Use `legacy-compat` for
-  external adopter inspection until refreshed migration evidence exists.
+- **Strict mode can break existing adopters** -> Keep external adopter
+  migration evidence as historical replay fixtures until refreshed evidence
+  exists.
 - **Digest fields can destabilize parity output** -> Keep shadow semantic diff
   focused on route readiness and ignore additive digest enrichment.
 - **Package manifests can become a second authority** -> Treat manifests as
@@ -93,7 +94,7 @@ lifecycle semantics.
 1. Add OpenSpec artifacts and failing tests.
 2. Add V2 IR and schema validation.
 3. Normalize v1 and di-effect inputs into the IR.
-4. Add strict/compat playbook check and route modes.
+4. Add strict playbook check and route mode.
 5. Add skill package manifest validation and capability classification.
 6. Add scaffold, projection drift, report, repository-audit, and proof integration.
 7. Migrate the ETHOS product root skill package.

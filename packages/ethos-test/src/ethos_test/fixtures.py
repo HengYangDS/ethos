@@ -2,7 +2,7 @@ from __future__ import annotations
 
 SAMPLE_REPOSITORIES = (
     "sample-basic-git",
-    "sample-python-package",
+    "sample-python",
     "sample-monorepo",
     "sample-gitlab",
     "sample-agentic",

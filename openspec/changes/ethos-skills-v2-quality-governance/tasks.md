@@ -5,8 +5,8 @@
       digests.
 - [x] 1.3 Add failing tests for strict playbook checks rejecting placeholder
       skills.
-- [x] 1.4 Add failing tests for legacy-compatible routing preserving v1
-      adopter behavior.
+- [x] 1.4 Add failing tests for historical routing fixtures preserving v1
+      adopter evidence.
 
 ## 2. Contracts And Schemas
 
@@ -20,7 +20,7 @@
 
 - [x] 3.1 Normalize ETHOS v1, dmgr v1, and di-effect style activation records
       into the V2 IR.
-- [x] 3.2 Add `legacy-compat` and `v2-strict` playbook check modes.
+- [x] 3.2 Add `v2-strict` playbook check mode.
 - [x] 3.3 Route changed-scope requests through changed-path evidence and V2
       routing metadata.
 - [x] 3.4 Preserve existing JSON output fields while adding V2 enrichment.
@@ -41,8 +41,8 @@
       package manifests, and official-quality skill content.
 - [x] 5.2 Add Skills V2 scorecard data to `ethos report`.
 - [x] 5.3 Add Skills V2 gaps to repository-audit and proof gate output.
-- [x] 5.4 Keep external adopter inspection in legacy-compatible mode during
-      migration.
+- [x] 5.4 Keep external adopter inspection on strict current product mode while
+      retaining historical migration fixtures.
 
 ## 6. Product Root Migration And Evidence
 

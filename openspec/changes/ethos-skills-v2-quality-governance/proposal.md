@@ -11,15 +11,15 @@ with provider-native skill metadata.
 
 - Add a Skills V2 contract that separates ETHOS activation semantics from
   official skill packages.
-- Normalize ETHOS v1, dmgr-style v1, and di-effect-style activation contracts
-  into one provider-neutral skill activation IR.
-- Add strict and legacy-compatible playbook validation modes.
+- Normalize historical ETHOS, dmgr-style, and di-effect-style activation
+  fixtures into one provider-neutral skill activation IR.
+- Add strict playbook validation mode for current product proof.
 - Require official-quality skill package manifests for loadable `.agents/skills`
   packages.
 - Bind playbook reports, routing, projections, scaffold output, and proof gates
   to machine-readable skill quality and package-digest evidence.
-- Preserve external adopter compatibility while making the ETHOS product root
-  fail closed when skills are only presence-checked placeholders.
+- Preserve historical adopter replay fixtures while making the ETHOS product
+  root fail closed when skills are only presence-checked placeholders.
 
 ## Capabilities
 

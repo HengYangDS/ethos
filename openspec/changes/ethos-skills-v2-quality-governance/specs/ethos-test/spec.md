@@ -11,9 +11,9 @@ outside runtime semantic packages.
   `SKILL.md`
 - **THEN** the fixture reports required quality gaps
 
-#### Scenario: adopter migration replay remains compatible
+#### Scenario: adopter migration replay remains readable
 
 - **WHEN** Skills V2 migration replay tests run against ETHOS v1, dmgr v1, and
   di-effect style activation records
 - **THEN** each input normalizes into the provider-neutral IR without losing
-  legacy fields
+  historical fixture fields

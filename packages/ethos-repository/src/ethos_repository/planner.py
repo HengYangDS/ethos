@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
-PROFILE_ALIASES = {"python-package": "python"}
 PROFILE_READ_FILES = {
     "generic": (".git", ".gitignore", "README.md"),
     "python": ("pyproject.toml", "uv.lock", "noxfile.py", "pytest.ini", "ruff.toml"),
@@ -108,7 +107,7 @@ def available_profiles() -> tuple[str, ...]:
 
 
 def _canonical_profile(profile: str) -> str:
-    return PROFILE_ALIASES.get(profile, profile)
+    return profile
 
 
 def _workspace_toml(root: Path, profile: str) -> str:
@@ -675,9 +674,7 @@ def adoption_plan(
         "detected_profile": detected_profile,
         "profile_match": profile_match,
         "requested_profile": requested_profile,
-        "profile_aliases": sorted(
-            alias for alias, target in PROFILE_ALIASES.items() if target == selected_profile
-        ),
+        "profile_aliases": [],
         "available_profiles": list(PROFILES),
         "existing_files": existing,
         "write_plan": write_plan,

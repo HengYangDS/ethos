@@ -10,9 +10,9 @@ truth rather than truth stores.
 #### Scenario: Playbooks are checked
 
 - **WHEN** `ethos playbooks check --json` runs
-- **THEN** ETHOS reports legacy-compatible skill records, normalized V2
-  registry metadata, package quality, package digest state, routing coverage,
-  projection drift, and required or advisory gaps
+- **THEN** ETHOS reports normalized V2 registry metadata, package quality,
+  package digest state, routing coverage, projection drift, and required or
+  advisory gaps
 
 #### Scenario: strict mode rejects placeholder skills
 
@@ -20,13 +20,12 @@ truth rather than truth stores.
 - **WHEN** `ethos playbooks check --mode v2-strict --json` runs
 - **THEN** ETHOS reports a required gap for official skill package quality
 
-#### Scenario: legacy compatibility preserves adopter routing
+#### Scenario: historical migration fixtures preserve adopter routing evidence
 
-- **GIVEN** an adopter repository has v1 activation metadata
-- **WHEN** `ethos playbooks route --changed --mode legacy-compat --root <repo>
-  --json` runs
-- **THEN** ETHOS preserves readable routing behavior while reporting advisory
-  V2 migration gaps
+- **GIVEN** a migration fixture contains v1 activation metadata
+- **WHEN** Skills V2 migration replay runs
+- **THEN** ETHOS preserves readable routing evidence while reporting V2
+  migration gaps
 
 ### Requirement: Projection Boundary
 

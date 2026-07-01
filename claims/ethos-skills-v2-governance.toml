@@ -2,7 +2,7 @@
 id = "ethos-skills-v2-governance"
 subject = "ethos:skills-v2-governance"
 state = "active"
-summary = "ETHOS Skills V2 now separates activation semantics from provider-visible skill packages, enforces strict product-root package quality, keeps external adopters in legacy-compatible migration mode, and binds routing to changed-path evidence."
+summary = "ETHOS Skills V2 now separates activation semantics from provider-visible skill packages, enforces strict product-root package quality, keeps historical adopter migration evidence readable, and binds routing to changed-path evidence."
 
 [evidence]
 dated = "docs/evidence/skills-v2-governance-2026-07-01.md"
@@ -12,7 +12,7 @@ binding = "semantic skills-v2 governance evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/test_skill_activation_contracts.py tests/unit/test_skill_package_manifest.py tests/unit/test_agent_projection.py tests/unit/test_schema_validation_and_gates.py",
-  "uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_matched_changed_path_evidence tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_unmatched_changed_paths tests/unit/test_cli_contracts.py::test_report_uses_legacy_compat_playbooks_for_external_adopter_root tests/unit/test_cli_contracts.py::test_projection_drift_reports_registry_and_generator_digest_state tests/unit/test_cli_contracts.py::test_playbooks_v2_gate_can_execute tests/architecture/test_product_boundaries.py::test_active_openspec_change_deltas_use_target_product_families",
+  "uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_matched_changed_path_evidence tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_unmatched_changed_paths tests/unit/test_cli_contracts.py::test_report_uses_strict_playbooks_for_external_adopter_root tests/unit/test_cli_contracts.py::test_projection_drift_reports_registry_and_generator_digest_state tests/unit/test_cli_contracts.py::test_playbooks_v2_gate_can_execute tests/architecture/test_product_boundaries.py::test_active_openspec_change_deltas_use_target_product_families",
   "uv run --group dev pytest -q tests/unit tests/architecture",
   "uv run --group dev ruff check .",
   "uv run --group dev ruff format --check packages/ethos-contracts/src/ethos_contracts/skill_activation.py packages/ethos-assistants/src/ethos_assistants/skill_packages.py packages/ethos-assistants/src/ethos_assistants/playbooks.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-adapters/src/ethos_adapters/status.py packages/ethos-repository/src/ethos_repository/planner.py packages/ethos-repository/src/ethos_repository/schema_validation.py packages/ethos-repository/src/ethos_repository/gates.py packages/ethos-repository/src/ethos_repository/repository_audit.py packages/ethos/src/ethos/cli.py tests/unit/test_adopt_apply_sample.py tests/unit/test_agent_projection.py tests/unit/test_cli_contracts.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_skill_activation_contracts.py tests/unit/test_skill_package_manifest.py",
@@ -54,7 +54,7 @@ scope = "Skills V2 activation normalization, package projections, changed-scope 
 [carriers]
 openspec = "openspec/changes/ethos-skills-v2-quality-governance"
 
-fallback = "Keep external adopters in legacy-compatible playbook mode and block product strict proof on Skills V2 package or registry gaps."
+fallback = "Keep external adopter migration evidence as historical replay fixtures and block product strict proof on Skills V2 package or registry gaps."
 kill_signal = "Provider-visible skill package metadata can diverge from activation routing or product proof can pass without strict Skills V2 validation."
 
 [promotion]

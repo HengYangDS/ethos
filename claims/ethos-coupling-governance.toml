@@ -2,7 +2,7 @@
 id = "ethos-coupling-governance"
 subject = "ethos:coupling-governance"
 state = "active"
-summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, legacy evidence, and fixtures through explicit binding layers."
+summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, historical evidence, and fixtures through explicit binding layers."
 
 [evidence]
 dated = "docs/evidence/coupling-contract-hardening-2026-07-01.md"

@@ -38,7 +38,7 @@ owner = "ethos-adapters"
 scope = "OpenSpec archive closeout lifecycle review and completed carrier archive health"
 
 [carriers]
-openspec = "openspec/changes/ethos-openspec-archive-closeout"
+openspec = "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout"
 fallback = "Keep blocking only completed active changes until archive closeout review is available."
 kill_signal = "Completed OpenSpec carriers can remain active or archived carriers can be structurally incomplete without blocking land or accepted-root closeout."
 
@@ -52,11 +52,12 @@ targets = [
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration",
   "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol",
   "openspec/changes/archive/2026-07-01-ethos-productization-convergence/.openspec.yaml",
-  "openspec/changes/ethos-openspec-archive-closeout/proposal.md",
-  "openspec/changes/ethos-openspec-archive-closeout/design.md",
-  "openspec/changes/ethos-openspec-archive-closeout/tasks.md",
-  "openspec/changes/ethos-openspec-archive-closeout/specs/ethos-adapters/spec.md",
-  "openspec/changes/ethos-openspec-archive-closeout/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/.openspec.yaml",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/proposal.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/design.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/tasks.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/specs/ethos-adapters/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/specs/ethos-repository/spec.md",
   "openspec/specs/ethos-adapters/spec.md",
   "openspec/specs/ethos-repository/spec.md",
   "packages/ethos-adapters/src/ethos_adapters/openspec_native.py",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 from ethos_assistants.skill_packages import compute_skill_package_digest
@@ -532,6 +533,63 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path
     assert payload["ok"] is False
     assert payload["command"] == "lane prewrite"
     assert "editor_root_missing" in payload["required_gaps"]
+
+
+def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos(
+        "hook",
+        "admit",
+        "pre-tool",
+        "README.md",
+        "--root",
+        repo.as_posix(),
+        "--editor-root",
+        repo.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["command"] == "hook admit"
+    assert payload["state"] == "blocked"
+    assert payload["summary"] == {
+        "layer": "pre-tool",
+        "role": "accepted_root",
+        "decision": "block",
+    }
+    assert payload["data"]["decision"] == {
+        "action": "block",
+        "reason": "protected_lane_prewrite_blocked",
+    }
+    assert "protected_lane_prewrite_blocked" in payload["required_gaps"]
+
+
+def test_hook_admit_pre_run_blocks_mutation_risk_without_paths(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos(
+        "hook",
+        "admit",
+        "pre-run",
+        "--root",
+        repo.as_posix(),
+        "--editor-root",
+        repo.as_posix(),
+        "--require-editor-root",
+        "--command",
+        "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["command"] == "hook admit"
+    assert payload["state"] == "blocked"
+    assert payload["data"]["command_risk"]["tracked_mutation_risk"] is True
+    assert "hook_prerun_paths_required" in payload["required_gaps"]
 
 
 def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
@@ -2461,6 +2519,18 @@ boundary = "workflow-package-projection"
     assert payload["data"]["unmatched_paths"] == []
 
 
+def test_product_playbook_activation_routes_evolution_campaigns() -> None:
+    activation = tomllib.loads(Path(".agents/skills/activation.toml").read_text(encoding="utf-8"))
+    record = next(
+        item
+        for item in activation["skill"]
+        if item["id"] == "ethos-repository-governance"
+    )
+
+    assert "evolution/**" in record["path_globs"]
+    assert "skills/**" in record["path_globs"]
+
+
 def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     skills_root = root / ".agents" / "skills"
@@ -2838,7 +2908,12 @@ def test_campaign_status_reports_manifest_steps() -> None:
     )
     assert campaign["step_summary"]["total"] >= 8
     assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
+    assert campaign["lane_topology"]["mode"] == "strict_serial"
+    assert campaign["lane_topology"]["active_step"] == "hooked-write-admission"
+    assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
     assert {
+        "ordinal",
+        "depends_on",
         "openspec_change",
         "work_lane",
         "claim_id",

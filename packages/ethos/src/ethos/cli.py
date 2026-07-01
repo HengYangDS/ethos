@@ -14,6 +14,7 @@ import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
+from ethos_adapters.hook_admission import hook_admission_report
 from ethos_adapters.lanes import (
     bind_work_lane_claim,
     bootstrap_candidate,
@@ -100,6 +101,7 @@ assistants_app = App(name="assistants", help="Assistant and protocol projections
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.", show=False)
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.", show=False)
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
+hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
 parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
 app.command(quality_app)
 app.command(campaign_app)
@@ -108,6 +110,7 @@ app.command(assistants_app)
 app.command(playbooks_app)
 app.command(fleet_app)
 app.command(lane_app)
+app.command(hook_app)
 app.command(parity_app)
 
 
@@ -791,6 +794,49 @@ def prewrite(
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos lane start <name>",) if not report["ok"] else (),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@hook_app.command
+def admit(
+    layer: str,
+    paths: tuple[Path, ...] = (),
+    *,
+    command: Annotated[str, Parameter(name="--command")] = "",
+    editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
+    expected_root: Annotated[Path | None, Parameter(name="--expected-root")] = None,
+    require_editor_root: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Evaluate hook-time write admission before a host mutates tracked files."""
+    repo = _root(root)
+    report = hook_admission_report(
+        root=repo,
+        layer=layer,
+        paths=[path if path.is_absolute() else repo / path for path in paths],
+        editor_root=editor_root,
+        expected_root=expected_root,
+        require_editor_root=require_editor_root,
+        command=command,
+    )
+    decision = report.get("decision", {})
+    decision_action = ""
+    if isinstance(decision, dict):
+        decision_action = str(decision.get("action", ""))
+    result = EthosResult(
+        command="hook admit",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "layer": report["layer"],
+            "role": report["role"],
+            "decision": decision_action,
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
         data=report,
     )
     _emit(result, json_output)

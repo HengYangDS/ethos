@@ -220,6 +220,7 @@ path_globs = [
   ".ethos/**",
   ".agents/skills/**",
   "docs/**",
+  "evolution/**",
   "openspec/**",
   "claims/**",
   "packages/**",

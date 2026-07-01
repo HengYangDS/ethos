@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-openspec-product-protocol",
+  "target": "/Users/yheng/projects/ethos-work-hooked-write-admission-runtime",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-openspec-product-protocol --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-hooked-write-admission-runtime --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "207382deb940ab32231d919ef9360ded8ab81470",
-    "target_head": "207382deb940ab32231d919ef9360ded8ab81470",
-    "command_sha256": "53b546829e21e2b5b712081fb058bb57cb3f7199c06c3c551b63ff3ff03ae552"
+    "product_head": "25b5be2e9973008ca57c22a3dae6d09689b89060",
+    "target_head": "25b5be2e9973008ca57c22a3dae6d09689b89060",
+    "command_sha256": "fe4a972d8921d793f48b97645e5d227384e6b3887bea948a020547de8bb38f34"
   },
   "shadow": {
     "ok": true,

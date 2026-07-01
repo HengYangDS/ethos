@@ -61,6 +61,14 @@ def test_openspec_is_governance_dependency_not_second_public_command_plane() -> 
     ]
 
 
+def test_hook_admission_is_reference_command_not_public_workflow() -> None:
+    report = command_registry_report()
+
+    assert "ethos hook" in report["maintainer_reference_commands"]
+    assert "ethos hook" in report["known_commands"]
+    assert "ethos hook" not in report["public_workflow_commands"]
+
+
 def test_local_closeout_and_evidence_refresh_are_mechanism_commands_not_public_roots() -> None:
     report = command_registry_report()
 

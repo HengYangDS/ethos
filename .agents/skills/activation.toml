@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:1ff07c59165459a1dc67e9ff3e4e4d9e5053a56866e97ab950548a38ac4e732f"
+expected_registry_digest = "sha256:0ef442034f1663278bc8eedc082d42f4eabd9ad65cd0b0c72122fd395170a421"
 expected_generator_digest = "sha256:20e2c447726aba2d0aa2e65ffd6830889f2a5a59c276c44331937c301c45301c"
 
 [[skill]]
@@ -20,8 +20,10 @@ path_globs = [
   ".gitlab-ci.yml",
   ".ethos/**",
   ".agents/skills/**",
+  "skills/**",
   "distributions/**",
   "docs/**",
+  "evolution/**",
   "openspec/**",
   "claims/**",
   "packages/**",

@@ -24,6 +24,8 @@
         "id",
         "title",
         "state",
+        "ordinal",
+        "depends_on",
         "openspec_change",
         "work_lane",
         "claim_id",
@@ -33,6 +35,11 @@
         "id": {"type": "string", "minLength": 1},
         "title": {"type": "string", "minLength": 1},
         "state": {"enum": ["planned", "active", "in_progress", "landed", "closed", "retired"]},
+        "ordinal": {"type": "integer", "minimum": 1},
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
         "openspec_change": {"type": "string", "minLength": 1},
         "work_lane": {
           "type": "string",

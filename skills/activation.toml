@@ -19,6 +19,7 @@ path_globs = [
   "rules/**",
   "skills/**",
   ".agents/skills/**",
+  "evolution/**",
   "openspec/**",
   "evidence/**",
   "claims/**",

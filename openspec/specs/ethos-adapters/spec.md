@@ -109,21 +109,14 @@ ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
 ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
 review.
 
-#### Scenario: OpenSpec adapter reports lifecycle carriers
+#### Scenario: Archive closeout gaps block land and closeout
 
-- **WHEN** `ethos openspec --lifecycle --json` runs
-- **THEN** the report includes official OpenSpec doctor, list, status, and
-  strict validation command results
-- **AND** each active change reports proposal, design, tasks, delta spec, claim
-  binding, and proposal protocol state.
-
-#### Scenario: Proposal protocol gaps are product gaps
-
-- **GIVEN** an active OpenSpec change has a proposal capability entry
-- **WHEN** lifecycle review runs
-- **THEN** ETHOS reports gaps for unknown live capabilities, missing capability
-  profiles, missing subject/reuse/change/facet metadata, invalid reuse or
-  change values, and missing out-of-scope boundaries.
+- **GIVEN** official OpenSpec list status has no completed active changes
+- **AND** an archived change is missing archive metadata or has incomplete tasks
+- **WHEN** ETHOS evaluates OpenSpec lifecycle closeout for land or accepted-root
+  closeout
+- **THEN** ETHOS reports the archive issue as a required gap
+- **AND** land or closeout remains blocked until archive state is repaired.
 
 ### Requirement: Work Lane Claim Binding Projection
 ETHOS SHALL expose Work Lane ownership as claim boundary evidence for

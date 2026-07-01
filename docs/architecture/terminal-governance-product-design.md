@@ -552,12 +552,29 @@ feedback -> review -> challenge -> hypothesis -> experiment -> evaluation -> ret
 | retrospective | Human-readable learning after a campaign or repeated pattern. |
 | campaign | Long-running goal container that coordinates entries and changes. |
 
-Campaigns are not Work Lanes. A campaign is the batch-level orchestration
-record for a long-running objective. Its `campaign.toml` manifest orders
-OpenSpec-backed Work Lane steps and records each step's OpenSpec change, branch,
-claim, evidence refs, and closeout state. The executable closeout unit remains
-the Work Lane: each step must prove, land to candidate, closeout-apply to the
-accepted root, and retire before downstream steps treat it as closed.
+Campaigns are not Work Lanes and they are not a "total lane". A campaign is
+the productization orchestration record for a long-running objective. Its
+`campaign.toml` manifest is a strict serial graph of OpenSpec-backed Work Lane
+steps. Each step records an `ordinal`, `depends_on`, OpenSpec change, Work Lane
+branch, claim, evidence refs, and closeout state. The executable closeout unit
+remains the Work Lane: each step must prove, land to candidate,
+closeout-apply to the accepted root, and retire before downstream steps can
+activate or treat it as closed.
+
+`ethos campaign status --json` projects this manifest as `lane_topology`:
+
+| Field | Meaning |
+| --- | --- |
+| `mode = "strict_serial"` | Only one OpenSpec-backed lane is active at a time. |
+| `edges[]` | `depends_on` relationships requiring upstream closeout retirement. |
+| `active_step` | The current lane that may mutate and prove. |
+| `next_planned_step` | The next lane that can activate after current closeout. |
+
+This absorbs the useful `alphasim-dmgr` campaign pattern: long-running work is
+tracked as mission/campaign state with tasks, proof, challenge, and closeout
+projection. ETHOS keeps the durable state in tracked campaign manifests,
+OpenSpec records, claims, and evidence rather than a hidden local mission
+store.
 
 Superpowers can support brainstorming, review, challenge, planning, TDD,
 verification, and subagent execution. It is a method pack, not repository

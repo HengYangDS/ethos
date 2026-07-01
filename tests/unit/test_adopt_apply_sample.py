@@ -87,6 +87,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert 'entrypoint = "SKILL.md"' in package_manifest
     assert 'expected_digest = "sha256:' in package_manifest
     assert 'kind = "command_readonly"' in package_manifest
+    assert '"evolution/**"' in activation
     assert "## Workflow" in skill_text
     assert "## Evidence" in skill_text
     assert "## Trust Boundary" in skill_text

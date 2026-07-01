@@ -54,8 +54,20 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert campaign["state"] == "active"
     assert campaign["step_summary"]["total"] >= 8
     assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
+    assert campaign["lane_topology"]["kind"] == "openspec_lane_sequence"
+    assert campaign["lane_topology"]["mode"] == "strict_serial"
+    assert campaign["lane_topology"]["active_step"] == "hooked-write-admission"
+    assert campaign["lane_topology"]["edges"][0] == {
+        "from": "campaign-orchestration",
+        "to": "openspec-product-protocol",
+        "rule": "closeout_retired_before_activation",
+    }
     first_step = campaign["steps"][0]
+    assert first_step["ordinal"] == 1
+    assert first_step["depends_on"] == []
     assert first_step["openspec_change"]
     assert first_step["work_lane"].startswith("work/")
     assert first_step["claim_id"]
     assert first_step["closeout"]["state"] in {"planned", "landed", "closed", "retired"}
+    active_step = next(item for item in campaign["steps"] if item["state"] == "active")
+    assert active_step["depends_on"] == ["openspec-archive-closeout"]

@@ -17,5 +17,5 @@
 - [x] 3.2 Add claim and dated evidence for this lane.
 - [x] 3.3 Run focused tests, full tests, schema validation, OpenSpec strict
   validation, proof, report, and build.
-- [ ] 3.4 Land, accepted-root closeout, and retire this Work Lane before
+- [x] 3.4 Land, accepted-root closeout, and retire this Work Lane before
   starting the next campaign step.

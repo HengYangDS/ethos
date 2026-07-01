@@ -204,6 +204,8 @@ def test_campaign_schema_accepts_lane_closeout_steps() -> None:
                 "id": "campaign-orchestration",
                 "title": "Campaign orchestration",
                 "state": "closed",
+                "ordinal": 1,
+                "depends_on": [],
                 "openspec_change": "ethos-campaign-orchestration",
                 "work_lane": "work/campaign-orchestration",
                 "claim_id": "ethos-campaign-orchestration",

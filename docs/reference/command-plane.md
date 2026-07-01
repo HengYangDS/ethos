@@ -88,6 +88,9 @@ ethos prove --expect-head <git-head>
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
+ethos hook admit pre-tool <path> --editor-root <worktree-path> --require-editor-root
+ethos hook admit pre-run --command <shell-command>
+ethos hook admit post-write <path> --editor-root <worktree-path>
 ethos parity ledger
 ethos parity gaps --adopter <adopter-id>
 ethos parity gaps --adopter <adopter-id> --target <repo>
@@ -187,6 +190,24 @@ worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary.
 
+Hook admission:
+
+```bash
+ethos hook admit context --expected-root <repo-root>
+ethos hook admit pre-tool <path> --editor-root <worktree-path> --require-editor-root
+ethos hook admit pre-run <path> --command <shell-command> --editor-root <worktree-path>
+ethos hook admit post-write <path> --editor-root <worktree-path>
+```
+
+`ethos hook admit --json` is the product decision endpoint for write-capable
+hosts. It reports the hook layer, target root, checkout role, editor root,
+target paths, command-risk classification when applicable, the underlying
+prewrite admission payload when applicable, and a decision of `allow`, `block`,
+or `fuse`. `pre-tool` and mutation-risk `pre-run` decisions bind to
+`prewrite_guard`; `post-write` fuses on protected-root dirty state or unexpected
+tracked paths. Git hooks and CI remain fallback/proof layers, not the mandatory
+choke point for direct tracked writes.
+
 Mutation readiness is explicit:
 
 ```bash
@@ -216,6 +237,12 @@ claim envelopes, promotion readiness, executed proof evidence, and Work Lane
 claim binding. The `intake_projection` package records provider state as
 projection evidence with `repository_truth=false`; it does not promote intake
 state into repository truth.
+`ethos campaign status --json` reports campaigns as strict serial sequences of
+OpenSpec-backed Work Lanes. Each `data.campaigns[].steps[]` item carries
+`ordinal`, `depends_on`, `openspec_change`, `work_lane`, `claim_id`, and
+`closeout`; `data.campaigns[].lane_topology` reports the serial edges, current
+active step, and next planned step. A campaign coordinates many lane closeouts;
+it is not itself the executable lane.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 Parity refresh is likewise command-bound. When tracked shadow evidence is

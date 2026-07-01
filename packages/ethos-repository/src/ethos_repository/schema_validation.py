@@ -407,6 +407,8 @@ def _campaign_contract_sample() -> dict[str, Any]:
                 "id": "campaign-orchestration",
                 "title": "Campaign orchestration",
                 "state": "closed",
+                "ordinal": 1,
+                "depends_on": [],
                 "openspec_change": "ethos-campaign-orchestration",
                 "work_lane": "work/campaign-orchestration",
                 "claim_id": "ethos-campaign-orchestration",

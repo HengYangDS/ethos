@@ -29,6 +29,7 @@ MAINTAINER_REFERENCE_COMMANDS = (
     "ethos playbooks",
     "ethos fleet",
     "ethos lane",
+    "ethos hook",
     "ethos parity",
     "ethos explain",
     "ethos docs",

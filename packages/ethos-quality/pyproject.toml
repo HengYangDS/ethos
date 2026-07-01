@@ -1,0 +1,10 @@
+[project]
+name = "ethos-quality"
+version = "0.1.0a1"
+description = "ETHOS quality and determinism semantics"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

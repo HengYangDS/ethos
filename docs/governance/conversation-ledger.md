@@ -112,3 +112,9 @@ profiles. The core should speak in subjects, contracts, transitions,
 inscriptions, chronicles, evolution, evidence, gates, policies, projections,
 and releases. Adopters then bind those abstractions to dmgr, alphasim,
 raw/cache parity, hosted-provider profiles, or local assistant surfaces.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

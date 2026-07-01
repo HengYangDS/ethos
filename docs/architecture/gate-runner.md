@@ -32,3 +32,9 @@ profile and the `ethos` toolchain. The current repository's test, lint, and
 build gates use the `self-hosting` profile and `uv-python` toolchain so local
 proof evidence can name the current tools without making those tools product
 semantics.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

@@ -42,3 +42,9 @@ Canonical capability profiles live beside canonical specs as
 routing question, boundary rules, and proof profile. They are routing and
 contract metadata; promoted truth still lives in source, tests, schemas,
 current docs, claims, and dated evidence.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

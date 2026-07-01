@@ -79,3 +79,9 @@ packages, but it remains read-only; actual mutation still goes through
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

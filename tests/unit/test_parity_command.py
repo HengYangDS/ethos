@@ -88,7 +88,7 @@ def test_parity_ledger_has_no_unclassified_capabilities() -> None:
         "assistant-playbooks-skills",
         "quality-determinism-local-state",
         "openspec-claims-trust-review",
-        "dmgr-domain-contract-profile",
+        "reference-adopter-domain-contract-profile",
     }
 
 

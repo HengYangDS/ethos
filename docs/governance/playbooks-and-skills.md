@@ -56,3 +56,9 @@ substring matching alone.
 Assistant host memory, local sessions, MCP servers, and provider-specific
 prompts remain context providers or adapters. Durable guidance must be promoted
 into source, tests, schemas, docs, OpenSpec records, claims, or evidence.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

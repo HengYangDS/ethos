@@ -1,0 +1,17 @@
+family = "ethos-quality"
+primary_invariant = "Quality and determinism semantics are provider-neutral and separated from repository lifecycle orchestration."
+routing_question = "Does this change alter quality policy, proof-state semantics, docs quality, or gate descriptors?"
+boundary_rules = [
+  "Quality owns verdict semantics; adapters execute tools.",
+  "Repository lifecycle consumes quality verdicts but does not own quality policy.",
+  "Adopter-specific quality mappings stay in adopter profiles or evidence.",
+]
+
+[owner]
+package = "ethos-quality"
+scope = "quality, determinism, docs profile, and proof policy"
+
+[proof_profile]
+default_command = "ethos quality asset-policy --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["schemas", "docs-registry", "proof-policy"]

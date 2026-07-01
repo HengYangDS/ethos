@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from ethos_contracts.skill_activation import normalize_skill_activation, skill_registry_digest
+from ethos_quality.gates import product_gate_plan
+from ethos_quality.profiles import product_quality_profile
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
@@ -99,13 +101,35 @@ def validate_schema_instance(
     *,
     root: Path | None = None,
 ) -> dict[str, object]:
-    schema = load_schema(schema_name, root=root)
+    schema_root = root or _repo_root()
+    schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
     try:
         validator.validate(payload)
     except ValidationError as exc:
         return {"ok": False, "required_gaps": [exc.message]}
     return {"ok": True, "required_gaps": []}
+
+
+def _bundle_local_refs(schema: dict[str, Any], *, root: Path) -> dict[str, Any]:
+    return _bundle_node(schema, root=root, seen=frozenset())
+
+
+def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
+    if isinstance(value, list):
+        return [_bundle_node(item, root=root, seen=seen) for item in value]
+    if not isinstance(value, dict):
+        return value
+    ref = value.get("$ref")
+    if isinstance(ref, str) and ref.endswith(".schema.json"):
+        if ref in seen:
+            return value
+        referenced = load_schema(ref, root=root)
+        return _bundle_node(referenced, root=root, seen=seen | {ref})
+    return {
+        key: _bundle_node(item, root=root, seen=seen)
+        for key, item in value.items()
+    }
 
 
 def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
@@ -142,6 +166,16 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
                     "policy": gate.policy,
                     "profile": gate.profile,
                     "toolchain": gate.toolchain,
+                    "asset_classes": list(gate.asset_classes),
+                    "dimensions": list(gate.dimensions),
+                    "execution_mode": gate.execution_mode,
+                    "evidence_class": gate.evidence_class,
+                    "trust_bearing": gate.trust_bearing,
+                    "tool_adapter": gate.tool_adapter,
+                    "writes_files": gate.writes_files,
+                    "network_policy": gate.network_policy,
+                    "version_source": gate.version_source,
+                    "depends_on": list(gate.depends_on),
                 },
                 root=root,
             )
@@ -150,6 +184,16 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    instances["quality-profile"] = validate_schema_instance(
+        "quality-profile.schema.json",
+        product_quality_profile(),
+        root=root,
+    )
+    instances["quality-gate-plan"] = validate_schema_instance(
+        "quality-gate-plan.schema.json",
+        product_gate_plan(),
+        root=root,
+    )
     instances["campaign-closeout-contract"] = validate_schema_instance(
         "campaign-closeout.schema.json",
         _campaign_closeout_contract_sample(),

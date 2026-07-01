@@ -18,7 +18,12 @@ domains = ["schemas", "contracts", "protocols"]
 [[package]]
 name = "ethos-repository"
 path = "packages/ethos-repository"
-domains = ["repository-lifecycle", "quality", "evidence", "release"]
+domains = ["repository-lifecycle"]
+
+[[package]]
+name = "ethos-quality"
+path = "packages/ethos-quality"
+domains = ["quality", "determinism", "proof-policy", "docs-quality"]
 
 [[package]]
 name = "ethos-assistants"

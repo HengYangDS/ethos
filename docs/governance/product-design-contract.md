@@ -213,3 +213,9 @@ Homebrew/Docker/CI = future distribution or runner adapters, not current scope
 The current phase explicitly does not perform PyPI/TestPyPI publish, npm
 registry publish, Homebrew publish, Docker/OCI push, GitHub Action marketplace
 publish, or GitLab Component publish.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

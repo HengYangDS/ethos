@@ -1,0 +1,157 @@
+[claim]
+id = "ethos-asset-quality-kernel"
+subject = "ethos:quality-kernel"
+state = "active"
+summary = "ETHOS quality, determinism, docs quality, and proof policy semantics are a first-class product capability."
+
+[evidence]
+dated = "docs/evidence/asset-quality-kernel-2026-07-01.md"
+sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6"
+tests = [
+  "uv run --group dev pytest tests/unit/test_quality_kernel.py tests/unit/test_docs_registry.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_cli_contracts.py tests/unit/test_self_evolution_ledger.py tests/unit/test_parity_command.py tests/architecture/test_product_boundaries.py -q",
+  "uv run --group dev pytest -q",
+  "uv run --group dev ruff check .",
+  "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality asset-policy --json",
+  "uv run --package ethos ethos quality docs --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos quality command-examples --json",
+  "uv run --package ethos ethos quality proof-policy --json",
+  "uv run --package ethos ethos quality tool-profiles --json",
+  "uv run --package ethos ethos playbooks route --changed --json",
+  "uv run --package ethos ethos prove --execute --gate playbooks-v2 --json",
+  "uv run --package ethos ethos self audit --mode deep --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate docs-registry --gate schemas --gate markdown-structure --gate format-policy --gate asset-determinism --gate schema-contracts --gate proof-policy --json",
+  "uv run --package ethos ethos prove --full --execute --json",
+  "uv build --all-packages",
+  "npm run test:npm",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-contracts",
+  "ethos-quality",
+  "ethos-repository",
+]
+schemas = [
+  "schemas/ethos/gate.schema.json",
+  "schemas/ethos/proof-run.schema.json",
+  "schemas/ethos/quality-asset.schema.json",
+  "schemas/ethos/quality-finding.schema.json",
+  "schemas/ethos/quality-gate-plan.schema.json",
+  "schemas/ethos/quality-profile.schema.json",
+  "schemas/ethos/review-record.schema.json",
+  "schemas/ethos/host-capability.schema.json",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Quality assets, gate descriptors, docs profile, and proof-state lattice"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel"
+
+fallback = "Keep existing repository lifecycle commands as readiness wrappers while quality semantics remain provider-neutral."
+kill_signal = "Quality or proof trust semantics require adopter-private terms or provider execution inside product contracts."
+
+[promotion]
+targets = [
+  ".agents/skills/activation.toml",
+  ".ethos/workspace.toml",
+  "claims/ethos-asset-quality-kernel.toml",
+  "distributions/npm/README.md",
+  "docs/_meta/stable_paths.toml",
+  "docs/architecture/action-graph.md",
+  "docs/architecture/adoption-profiles.md",
+  "docs/architecture/agent-projections.md",
+  "docs/architecture/distribution.md",
+  "docs/architecture/fleet-and-adopters.md",
+  "docs/architecture/gate-runner.md",
+  "docs/architecture/local-state.md",
+  "docs/architecture/mcp-server.md",
+  "docs/architecture/package-ontology.md",
+  "docs/architecture/product-ontology.md",
+  "docs/architecture/protocol-contracts.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/architecture/schema-validation.md",
+  "docs/concepts/kernel-model.md",
+  "docs/evidence/asset-quality-kernel-2026-07-01.md",
+  "docs/governance/adapter-lifecycle.md",
+  "docs/governance/capability-parity-ledger.md",
+  "docs/governance/commit-signature-policy.md",
+  "docs/governance/conversation-ledger.md",
+  "docs/governance/docs-registry.md",
+  "docs/governance/openspec-self-governance.md",
+  "docs/governance/playbooks-and-skills.md",
+  "docs/governance/product-boundary-convergence.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/provenance-and-attestation.md",
+  "docs/governance/release-governance.md",
+  "docs/governance/self-evolution-campaign.md",
+  "docs/governance/self-evolution-ledger.toml",
+  "docs/governance/standards-adoption-policy.md",
+  "docs/index.md",
+  "docs/reference/command-plane.md",
+  "docs/reference/glossary.md",
+  "docs/start/quickstart.md",
+  "docs/superpowers/plans/2026-07-01-asset-quality-kernel.md",
+  "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/.openspec.yaml",
+  "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/design.md",
+  "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/proposal.md",
+  "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/specs/ethos-quality/spec.md",
+  "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/tasks.md",
+  "openspec/specs/ethos-quality/capability.toml",
+  "openspec/specs/ethos-quality/spec.md",
+  "packages/ethos-adapters/pyproject.toml",
+  "packages/ethos-adapters/src/ethos_adapters/runner.py",
+  "packages/ethos-contracts/src/ethos_contracts/capability_parity.py",
+  "packages/ethos-contracts/src/ethos_contracts/package_ontology.py",
+  "packages/ethos-core/src/ethos_core/action_graph.py",
+  "packages/ethos-quality/README.md",
+  "pyproject.toml",
+  "uv.lock",
+  "packages/ethos/pyproject.toml",
+  "packages/ethos/src/ethos/cli.py",
+  "packages/ethos-repository/pyproject.toml",
+  "packages/ethos-repository/src/ethos_repository/docs_registry.py",
+  "packages/ethos-repository/src/ethos_repository/evidence.py",
+  "packages/ethos-repository/src/ethos_repository/evolution.py",
+  "packages/ethos-repository/src/ethos_repository/gates.py",
+  "packages/ethos-repository/src/ethos_repository/planner.py",
+  "packages/ethos-repository/src/ethos_repository/schema_validation.py",
+  "packages/ethos-repository/src/ethos_repository/self_audit.py",
+  "packages/ethos-quality/pyproject.toml",
+  "packages/ethos-quality/src/ethos_quality/__init__.py",
+  "packages/ethos-quality/src/ethos_quality/docs_profile.py",
+  "packages/ethos-quality/src/ethos_quality/gates.py",
+  "packages/ethos-quality/src/ethos_quality/models.py",
+  "packages/ethos-quality/src/ethos_quality/profiles.py",
+  "packages/ethos-quality/src/ethos_quality/proof_policy.py",
+  "schemas/ethos/action.schema.json",
+  "schemas/ethos/docs-registry.schema.json",
+  "schemas/ethos/evolution-ledger.schema.json",
+  "schemas/ethos/gate.schema.json",
+  "schemas/ethos/host-capability.schema.json",
+  "schemas/ethos/proof-run.schema.json",
+  "schemas/ethos/quality-asset.schema.json",
+  "schemas/ethos/quality-finding.schema.json",
+  "schemas/ethos/quality-gate-plan.schema.json",
+  "schemas/ethos/quality-profile.schema.json",
+  "schemas/ethos/review-record.schema.json",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/architecture/test_product_design_contract.py",
+  "tests/support/ethos_cli_runner.py",
+  "tests/unit/test_claims_governance.py",
+  "tests/unit/test_cli_contracts.py",
+  "tests/unit/test_docs_registry.py",
+  "tests/unit/test_kernel_contracts.py",
+  "tests/unit/test_parity_command.py",
+  "tests/unit/test_quality_kernel.py",
+  "tests/unit/test_release_policy_and_attestation.py",
+  "tests/unit/test_runner_and_evidence.py",
+  "tests/unit/test_schema_validation_and_gates.py",
+  "tests/unit/test_self_evolution_ledger.py",
+]

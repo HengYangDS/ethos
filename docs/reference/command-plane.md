@@ -8,6 +8,14 @@ relations:
 
 # Command Plane
 
+Status: canonical.
+
+Purpose: define the public `ethos ...` command vocabulary and keep retired root
+commands out of normal workflow docs.
+
+See also: [Quickstart](../start/quickstart.md), [Docs Registry](../governance/docs-registry.md),
+and [Glossary](glossary.md).
+
 Public daily commands:
 
 ```bash
@@ -33,7 +41,14 @@ Quality and governance:
 ethos quality command-registry
 ethos quality command-surface
 ethos quality command-examples
+ethos quality format-policy
+ethos quality projection-drift
+ethos quality evidence-freshness
 ethos quality coupling-audit
+ethos quality asset-policy
+ethos quality docs
+ethos quality proof-policy
+ethos quality tool-profiles
 ethos quality package-ontology
 ethos quality claims
 ethos quality docs-registry
@@ -58,12 +73,14 @@ ethos self hypothesize
 ethos self prove --mode shape
 ethos self prove --mode deep
 ethos campaign hypotheses
-ethos campaign closeout --adopter alphasim-dmgr --target <repo>
+ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
 ethos parity ledger
-ethos parity gaps --adopter alphasim-dmgr
+ethos parity gaps --adopter <adopter-id>
 ethos parity shadow --target <repo>
 ethos report
+ethos docs
+ethos explain required_gaps
 ```
 
 Agent projections:

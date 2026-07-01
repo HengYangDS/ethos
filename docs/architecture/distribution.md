@@ -29,3 +29,9 @@ The distribution boundary is:
 
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one
 ETHOS command plane.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

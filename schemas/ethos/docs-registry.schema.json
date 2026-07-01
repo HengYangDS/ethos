@@ -3,11 +3,15 @@
   "$id": "https://ethos.local/schemas/docs-registry.schema.json",
   "title": "ETHOS Docs Registry",
   "type": "object",
-  "required": ["ok", "document_count", "missing_metadata", "registry"],
+  "required": ["ok", "document_count", "missing_metadata", "required_gaps", "registry"],
   "properties": {
     "ok": {"type": "boolean"},
     "document_count": {"type": "integer", "minimum": 0},
     "missing_metadata": {"type": "array", "items": {"type": "string"}},
+    "invalid_state": {"type": "array", "items": {"type": "string"}},
+    "duplicate_subjects": {"type": "array", "items": {"type": "string"}},
+    "missing_visible_sections": {"type": "array", "items": {"type": "string"}},
+    "required_gaps": {"type": "array", "items": {"type": "string"}},
     "registry": {
       "type": "array",
       "items": {

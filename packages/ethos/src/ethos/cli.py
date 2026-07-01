@@ -28,7 +28,12 @@ from ethos_adapters.mutation import (
 )
 from ethos_adapters.openspec_native import openspec_self_governance_report
 from ethos_adapters.prewrite import prewrite_guard
-from ethos_adapters.runner import ActionRunResult, DryRunRunner, LocalSubprocessRunner
+from ethos_adapters.runner import (
+    ActionRunResult,
+    DryRunRunner,
+    LocalSubprocessRunner,
+    classify_action_result,
+)
 from ethos_adapters.state import initialize_state
 from ethos_adapters.status import workspace_status
 from ethos_assistants.context import context_bundle
@@ -44,6 +49,9 @@ from ethos_contracts.package_ontology import (
 )
 from ethos_core.action_graph import ActionGraph, ActionNode
 from ethos_core.result import EthosResult
+from ethos_quality.docs_profile import docs_quality_profile
+from ethos_quality.profiles import product_quality_profile, tool_profiles
+from ethos_quality.proof_policy import proof_lattice
 from ethos_repository.attestation import release_attestation, sbom_projection
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
@@ -52,6 +60,7 @@ from ethos_repository.docs_registry import (
     build_docs_registry,
     command_examples_report,
     docs_health_report,
+    docs_quality_report,
 )
 from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
 from ethos_repository.evolution import evolution_candidates, evolution_ledger, evolution_report
@@ -117,12 +126,15 @@ def _current_tracked_head(root: Path) -> str:
 
 
 def _emit(result: EthosResult, json_output: bool) -> None:
-    if json_output:
-        print(result.to_json())
+    try:
+        if json_output:
+            print(result.to_json())
+            return
+        print(f"{result.command}: {result.state}")
+        for action in result.next_actions:
+            print(f"next: {action}")
+    except BrokenPipeError:
         return
-    print(f"{result.command}: {result.state}")
-    for action in result.next_actions:
-        print(f"next: {action}")
 
 
 def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
@@ -813,19 +825,23 @@ def prove(
     current_head = _current_head(repo)
     audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
+    gates_by_id = gate_registry()
     runner = (
         LocalSubprocessRunner(inprocess_handler=_run_inprocess_cli_gate)
         if execute
         else DryRunRunner()
     )
     proof_runs = tuple(
-        ProofRun(
+        ProofRun.from_adapter_result(
             action_id=run_result.action_id,
             command=run_result.command,
             exit_code=run_result.exit_code,
             stdout=trim_output(run_result.stdout),
             stderr=trim_output(run_result.stderr),
-            state=run_result.state,
+            adapter_state=run_result.state,
+            evidence_class=gates_by_id[run_result.action_id].evidence_class,
+            trust_bearing=gates_by_id[run_result.action_id].trust_bearing,
+            diagnostics=run_result.diagnostics,
         )
         for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
     )
@@ -835,12 +851,22 @@ def prove(
         runs=proof_runs,
         durability="local",
     )
+    verdicts_ok = all(run.verdict == "passed" for run in proof_runs)
+    trust_bearing_runs = tuple(run for run in proof_runs if run.trust_bearing)
+    trust_bearing_ok = bool(trust_bearing_runs) and all(
+        run.state == "proven" for run in trust_bearing_runs
+    )
     runs_ok = (
-        all(run.state == "passed" for run in proof_runs)
+        verdicts_ok and trust_bearing_ok
         if execute
         else all(run.state == "planned" for run in proof_runs)
     )
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
+    trust_gaps: tuple[str, ...] = (
+        ("trust_bearing_proof_missing",)
+        if execute and verdicts_ok and not trust_bearing_ok
+        else ()
+    )
     head_gaps: tuple[str, ...] = (
         ("expected_head_mismatch",)
         if expect_head is not None and expect_head != current_head
@@ -871,7 +897,11 @@ def prove(
             "gate_count": len(proof_runs),
         },
         required_gaps=(
-            tuple(audit["required_gaps"]) + tuple(graph.validate().gaps) + proof_gaps + head_gaps
+            tuple(audit["required_gaps"])
+            + tuple(graph.validate().gaps)
+            + proof_gaps
+            + trust_gaps
+            + head_gaps
         ),
         next_actions=next_actions,
         data={
@@ -911,13 +941,18 @@ def _run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | N
         stderr.write(f"{type(exc).__name__}: {exc}")
     finally:
         os.chdir(previous_cwd)
+    state, diagnostics = classify_action_result(
+        exit_code=exit_code,
+        stdout=stdout.getvalue(),
+    )
     return ActionRunResult(
         action_id=node.id,
         command=node.command,
-        state="passed" if exit_code == 0 else "failed",
+        state=state,
         exit_code=exit_code,
         stdout=stdout.getvalue(),
         stderr=stderr.getvalue(),
+        diagnostics=diagnostics,
     )
 
 
@@ -1097,6 +1132,81 @@ def adopt(
         summary={"planned_file_count": len(plan_payload["planned_files"])},
         next_actions=("ethos status",),
         data=plan_payload,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def asset_policy(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report repository asset quality policy."""
+    profile = product_quality_profile()
+    result = EthosResult(
+        command="quality asset-policy",
+        ok=True,
+        state="clean",
+        summary={"asset_class_count": len(profile["asset_classes"])},
+        data=profile,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="docs")
+def quality_docs(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report documentation quality profile and registry health."""
+    repo = _root(root)
+    profile = docs_quality_profile()
+    report = docs_quality_report(repo)
+    result = EthosResult(
+        command="quality docs",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data={
+            "profile": profile,
+            "style_goals": profile["style_goals"],
+            "health": report,
+        },
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def proof_policy(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report proof-state lattice and trust-bearing rules."""
+    lattice = proof_lattice()
+    result = EthosResult(
+        command="quality proof-policy",
+        ok=True,
+        state="clean",
+        summary={"state_count": len(lattice["states"])},
+        data=lattice,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="tool-profiles")
+def tool_profiles_command(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report quality tool adapter profiles."""
+    profiles = tool_profiles()
+    result = EthosResult(
+        command="quality tool-profiles",
+        ok=True,
+        state="clean",
+        summary={"tool_adapter_count": len(profiles["tool_adapters"])},
+        data=profiles,
     )
     _emit(result, json_output)
 
@@ -1333,6 +1443,16 @@ def gates(
                     "policy": gate.policy,
                     "profile": gate.profile,
                     "toolchain": gate.toolchain,
+                    "asset_classes": list(gate.asset_classes),
+                    "dimensions": list(gate.dimensions),
+                    "execution_mode": gate.execution_mode,
+                    "evidence_class": gate.evidence_class,
+                    "trust_bearing": gate.trust_bearing,
+                    "tool_adapter": gate.tool_adapter,
+                    "writes_files": gate.writes_files,
+                    "network_policy": gate.network_policy,
+                    "version_source": gate.version_source,
+                    "depends_on": list(gate.depends_on),
                 }
                 for gate_id, gate in registry.items()
             }
@@ -1556,7 +1676,7 @@ def docs_registry(
         command="quality docs-registry",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["missing_metadata"]),
+        required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos docs",),
         data=report,
     )

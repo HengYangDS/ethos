@@ -84,6 +84,12 @@ REQUIRED_SCHEMAS = (
     "skill-package-manifest.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
+    "quality-asset.schema.json",
+    "quality-finding.schema.json",
+    "quality-gate-plan.schema.json",
+    "quality-profile.schema.json",
+    "review-record.schema.json",
+    "host-capability.schema.json",
 )
 
 REQUIRED_RELEASE_FILES = (
@@ -103,6 +109,7 @@ REQUIRED_OPENSPEC_FAMILIES = (
     "ethos-contracts",
     "ethos-core",
     "ethos-distribution",
+    "ethos-quality",
     "ethos-repository",
     "ethos-adapters",
     "ethos-test",

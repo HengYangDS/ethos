@@ -8,6 +8,7 @@ PROFILES = ("generic", "python-package", "monorepo", "github", "gitlab")
 OPENSPEC_FAMILIES = (
     "ethos-core",
     "ethos-contracts",
+    "ethos-quality",
     "ethos-repository",
     "ethos-adapters",
     "ethos-assistants",
@@ -107,6 +108,7 @@ def _openspec_spec(family: str) -> str:
     titles = {
         "ethos-core": "Pure Kernel",
         "ethos-contracts": "Provider-neutral Contracts",
+        "ethos-quality": "Quality And Determinism",
         "ethos-repository": "Repository Lifecycle Governance",
         "ethos-adapters": "Provider Adapters",
         "ethos-assistants": "Assistant And Context Boundaries",
@@ -138,6 +140,7 @@ def _capability_profile(family: str) -> str:
     scopes = {
         "ethos-core": "pure kernel result and action graph semantics",
         "ethos-contracts": "provider-neutral repository contracts",
+        "ethos-quality": "quality, determinism, docs profile, and proof policy",
         "ethos-repository": "repository lifecycle governance",
         "ethos-adapters": "provider and projection adapters",
         "ethos-assistants": "assistant and context projection boundaries",
@@ -301,6 +304,13 @@ relations: canonical_for: navigation
 
 # {root.name} ETHOS Governance
 
+Status: canonical.
+
+Purpose: provide the adopted repository's ETHOS documentation map.
+
+See also: [Quickstart](start/quickstart.md) and
+[ETHOS Governance](governance/ethos.md).
+
 Start with [Quickstart](start/quickstart.md), then read
 [ETHOS Governance](governance/ethos.md).
 """
@@ -315,6 +325,13 @@ relations: canonical_for: first run
 ---
 
 # Quickstart
+
+Status: active.
+
+Purpose: give the adopted repository a first-run ETHOS command path.
+
+See also: [Documentation Index](../index.md) and
+[ETHOS Governance](../governance/ethos.md).
 
 ```bash
 ethos status
@@ -340,6 +357,13 @@ relations: canonical_for: repository governance
 ---
 
 # ETHOS Governance
+
+Status: canonical.
+
+Purpose: define the adopted repository's ETHOS governance boundary.
+
+See also: [Documentation Index](../index.md) and
+[Quickstart](../start/quickstart.md).
 
 ETHOS governs this repository through tracked config, official OpenSpec records,
 repo-local skills, claims, evidence, and deterministic command output.

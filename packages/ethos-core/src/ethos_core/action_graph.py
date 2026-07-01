@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -28,6 +28,7 @@ class ActionNode:
     tool_version: str = "0.1.0"
     env: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def normalized(self) -> dict[str, Any]:
         return {
@@ -41,6 +42,7 @@ class ActionNode:
             "tool_version": self.tool_version,
             "env": sorted(self.env),
             "depends_on": sorted(self.depends_on),
+            "metadata": self.metadata,
         }
 
     def cache_key(self) -> str:

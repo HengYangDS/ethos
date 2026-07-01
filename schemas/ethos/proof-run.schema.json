@@ -3,14 +3,68 @@
   "$id": "https://ethos.local/schemas/proof-run.schema.json",
   "title": "ETHOS Proof Run",
   "type": "object",
-  "required": ["action_id", "command", "exit_code", "stdout", "stderr", "state"],
+  "required": [
+    "action_id",
+    "command",
+    "exit_code",
+    "stdout",
+    "stderr",
+    "state",
+    "evidence_class",
+    "verdict",
+    "trust_bearing",
+    "diagnostics"
+  ],
   "properties": {
     "action_id": {"type": "string", "minLength": 1},
     "command": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "exit_code": {"type": ["integer", "null"]},
     "stdout": {"type": "string"},
     "stderr": {"type": "string"},
-    "state": {"type": "string", "minLength": 1}
+    "state": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "readiness",
+        "executed",
+        "proven",
+        "blocked",
+        "accepted-risk",
+        "waived_nonblocking"
+      ]
+    },
+    "evidence_class": {"type": "string", "minLength": 1},
+    "verdict": {"type": "string", "minLength": 1},
+    "trust_bearing": {"type": "boolean"},
+    "diagnostics": {"type": "array", "items": {"type": "object"}},
+    "governance_ref": {"type": "string"}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "proven"}}},
+      "then": {
+        "properties": {
+          "trust_bearing": {"const": true},
+          "verdict": {"const": "passed"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"trust_bearing": {"const": true}}},
+      "then": {
+        "properties": {
+          "state": {"const": "proven"},
+          "verdict": {"const": "passed"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"state": {"enum": ["accepted-risk", "waived_nonblocking"]}}},
+      "then": {
+        "required": ["governance_ref"],
+        "properties": {"governance_ref": {"type": "string", "minLength": 1}}
+      }
+    }
+  ],
   "additionalProperties": false
 }

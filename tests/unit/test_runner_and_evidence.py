@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from ethos_adapters.runner import DryRunRunner, LocalSubprocessRunner
 from ethos_core.action_graph import ActionNode
 from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
@@ -27,6 +28,35 @@ def test_local_runner_executes_successful_command(tmp_path: Path) -> None:
     assert result.stdout.strip() == "ok"
 
 
+def test_local_runner_treats_ethos_json_failure_as_failed(tmp_path: Path) -> None:
+    node = ActionNode(
+        id="ethos-json",
+        kind="quality",
+        command=(
+            "python",
+            "-c",
+            (
+                "import json; "
+                "print(json.dumps({'ok': False, 'state': 'blocked', "
+                "'required_gaps': ['sample_gap']}))"
+            ),
+        ),
+    )
+
+    result = LocalSubprocessRunner().run(node, root=tmp_path)
+
+    assert result.exit_code == 0
+    assert result.state == "failed"
+    assert result.diagnostics == (
+        {
+            "kind": "ethos_result",
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["sample_gap"],
+        },
+    )
+
+
 def test_evidence_set_binds_head_and_digests() -> None:
     run = ProofRun(
         action_id="pytest",
@@ -34,7 +64,9 @@ def test_evidence_set_binds_head_and_digests() -> None:
         exit_code=0,
         stdout="22 passed",
         stderr="",
-        state="passed",
+        state="proven",
+        verdict="passed",
+        trust_bearing=True,
     )
 
     evidence = EvidenceSet.from_runs(
@@ -46,7 +78,7 @@ def test_evidence_set_binds_head_and_digests() -> None:
 
     assert evidence.head == "abc123"
     assert evidence.digest
-    assert evidence.runs[0].state == "passed"
+    assert evidence.runs[0].state == "proven"
 
 
 def test_provenance_envelope_is_slsa_shaped() -> None:
@@ -56,7 +88,9 @@ def test_provenance_envelope_is_slsa_shaped() -> None:
         exit_code=0,
         stdout="22 passed",
         stderr="",
-        state="passed",
+        state="proven",
+        verdict="passed",
+        trust_bearing=True,
     )
     evidence = EvidenceSet.from_runs(id="evidence:test", head="abc123", runs=(run,))
 
@@ -71,3 +105,55 @@ def test_run_output_trimming_is_stable() -> None:
     trimmed = trim_output("x" * 50, limit=16)
 
     assert trimmed == "xxxxxxxxxxxxxxxx\n[trimmed 34 bytes]"
+
+
+def test_proof_run_rejects_schema_invalid_states() -> None:
+    with pytest.raises(ValueError, match="invalid proof run state"):
+        ProofRun(
+            action_id="pytest",
+            command=("pytest", "-q"),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="passed",
+        )
+
+
+def test_accepted_risk_proof_run_requires_governance_reference() -> None:
+    with pytest.raises(ValueError, match="requires governance_ref"):
+        ProofRun(
+            action_id="waiver",
+            command=("ethos", "prove"),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="accepted-risk",
+        )
+
+
+def test_proven_proof_run_must_be_trust_bearing() -> None:
+    with pytest.raises(ValueError, match="proven proof run must be trust_bearing"):
+        ProofRun(
+            action_id="claim",
+            command=("ethos", "quality", "claims", "--json"),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="proven",
+            verdict="passed",
+            trust_bearing=False,
+        )
+
+
+def test_non_proven_proof_run_cannot_be_trust_bearing() -> None:
+    with pytest.raises(ValueError, match="trust_bearing proof run must be proven"):
+        ProofRun(
+            action_id="claim",
+            command=("ethos", "quality", "claims", "--json"),
+            exit_code=None,
+            stdout="",
+            stderr="",
+            state="planned",
+            verdict="not_run",
+            trust_bearing=True,
+        )

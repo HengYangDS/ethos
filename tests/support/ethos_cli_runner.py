@@ -18,6 +18,7 @@ PYTHONPATH = os.pathsep.join(
         "packages/ethos-assistants",
         "packages/ethos-contracts",
         "packages/ethos-core",
+        "packages/ethos-quality",
         "packages/ethos-repository",
         "packages/ethos-test",
     )

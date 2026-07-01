@@ -20,3 +20,9 @@ adopter repository or profile.
 This keeps ETHOS core reusable. A dmgr-style repository can declare raw/cache
 contracts, assistant projections, Backlog intake, and OpenSpec changes in its
 own tracked profile without adding dmgr terms to product packages.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

@@ -37,3 +37,9 @@ Projection rules:
 - Keep host-local credentials, caches, and session logs out of repository truth.
 - Retire a projection by removing the adapter while preserving kernel schemas,
   evidence, docs, and command contracts.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

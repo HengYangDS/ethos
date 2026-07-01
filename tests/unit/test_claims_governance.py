@@ -15,6 +15,30 @@ def test_claim_evidence_digests_are_verified() -> None:
     assert "ethos-framework-hardening" in report["claims"]
 
 
+def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -> None:
+    report = claims_report(Path.cwd())
+    claim = report["claims"]["ethos-asset-quality-kernel"]
+    envelope = claim["trust_envelope"]
+    targets = {target["path"] for target in envelope["promotion"]["targets"]}
+
+    assert {
+        "packages/ethos/src/ethos/cli.py",
+        "packages/ethos-repository/src/ethos_repository/gates.py",
+        "packages/ethos-repository/src/ethos_repository/evidence.py",
+        "packages/ethos-repository/src/ethos_repository/docs_registry.py",
+        "packages/ethos-repository/src/ethos_repository/schema_validation.py",
+        "packages/ethos-core/src/ethos_core/action_graph.py",
+        "tests/unit/test_quality_kernel.py",
+        "tests/unit/test_runner_and_evidence.py",
+        "tests/unit/test_cli_contracts.py",
+        "tests/unit/test_schema_validation_and_gates.py",
+        "docs/reference/command-plane.md",
+        "docs/reference/glossary.md",
+        "docs/superpowers/plans/2026-07-01-asset-quality-kernel.md",
+        "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/proposal.md",
+    } <= targets
+
+
 def test_empty_claims_directory_is_a_gap(tmp_path: Path) -> None:
     (tmp_path / "claims").mkdir()
 

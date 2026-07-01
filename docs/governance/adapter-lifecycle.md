@@ -19,3 +19,9 @@ candidate -> experimental -> active -> deprecated -> retired
 
 Retiring an adapter must not alter Subject, Commitment, Change, Evidence,
 Chronicle, or Evolution semantics.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

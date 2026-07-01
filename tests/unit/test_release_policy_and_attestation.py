@@ -18,6 +18,7 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
         "ethos-assistants",
         "ethos-contracts",
         "ethos-core",
+        "ethos-quality",
         "ethos-repository",
         "ethos-test",
     }

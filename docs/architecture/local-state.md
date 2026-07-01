@@ -31,3 +31,9 @@ support future ownership, handoff, and closeout ordering checks, but they do not
 replace Git history, OpenSpec records, claims, or evidence. Current prewrite and
 apply-mode admission are enforced by checkout role, editor-root binding, and
 HEAD checks; lease ownership enforcement is a later lifecycle extension.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

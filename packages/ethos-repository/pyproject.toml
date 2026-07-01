@@ -7,6 +7,7 @@ dependencies = [
   "ethos-assistants",
   "ethos-contracts",
   "ethos-core",
+  "ethos-quality",
   "jsonschema>=4.23",
 ]
 

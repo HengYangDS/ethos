@@ -34,3 +34,9 @@ release policy, unresolved parity packages, and shadow parity execution plans.
 Remote publication remains deferred until an adapter is available; local
 campaign closeout still proceeds through the configured candidate branch and a
 local fast-forward of the accepted root.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

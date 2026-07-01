@@ -8,6 +8,12 @@ relations:
 
 # Adoption Profiles
 
+Status: canonical.
+
+Purpose: explain how ETHOS projects repository governance into adopters without copying adopter semantics into product core.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
 `ethos adopt` projects ETHOS into another repository without copying adopter
 semantics into ETHOS core.
 

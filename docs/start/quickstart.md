@@ -8,6 +8,14 @@ relations:
 
 # Quickstart
 
+Status: active.
+
+Purpose: give a first-run path for inspecting a repository, planning proof,
+and understanding the mutation boundary.
+
+See also: [Command Plane](../reference/command-plane.md) and
+[Glossary](../reference/glossary.md).
+
 Run the public command plane:
 
 ```bash
@@ -20,6 +28,14 @@ ethos publish
 
 Use `--json` for stable machine output.
 
+First validation path:
+
+```bash
+ethos status --json
+ethos prove --execute
+ethos quality command-examples
+```
+
 For governance and discovery:
 
 ```bash
@@ -28,7 +44,7 @@ ethos init --profile gitlab --dry-run
 ethos adopt --profile gitlab --dry-run
 ethos fleet inspect --target .
 ethos playbooks check
-ethos quality docs-registry
+ethos quality docs
 ethos quality schemas
 ethos quality gates
 ethos quality provenance

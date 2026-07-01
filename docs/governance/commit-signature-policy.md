@@ -22,3 +22,9 @@ checks local identity and signing configuration; `ethos quality commits
 --enforce-head --json` additionally requires the current HEAD subject and
 signature to pass release policy. ETHOS does not use tracked historical alias
 metadata as a product governance mechanism.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

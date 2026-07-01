@@ -150,3 +150,9 @@ accepted classification boundary without treating it as remote publication.
 No adopter backend switch can occur until every row has an explicit target home,
 migration disposition, parity criterion, and rollback impact. New capabilities
 must be added to this ledger before migration work begins.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

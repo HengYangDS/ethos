@@ -20,3 +20,9 @@ repository evidence chain.
 quality provenance --json` emits the provenance envelope without claiming a
 release. Both are local evidence until an adopter promotes them into durable
 repository evidence or a signed release artifact.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/review-record.schema.json",
+  "title": "ETHOS Review Record",
+  "type": "object",
+  "required": ["id", "reviewer", "scope", "verdict", "findings"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "reviewer": {"type": "string", "minLength": 1},
+    "scope": {"type": "string", "minLength": 1},
+    "verdict": {"type": "string", "minLength": 1},
+    "findings": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

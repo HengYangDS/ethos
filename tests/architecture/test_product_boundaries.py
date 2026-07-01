@@ -66,6 +66,13 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
             "sqlite3",
             "shutil",
         },
+        "ethos-quality": {
+            "ethos_adapters",
+            "ethos_repository",
+            "subprocess",
+            "sqlite3",
+            "shutil",
+        },
     }
     for package, forbidden in forbidden_by_package.items():
         source = ROOT / "packages" / package / "src"
@@ -82,12 +89,7 @@ def test_repository_package_does_not_depend_on_provider_adapters() -> None:
 
 
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
-    allowed = {
-        ROOT / "packages" / "ethos-contracts" / "src" / "ethos_contracts" / "capability_parity.py",
-    }
     for path in (ROOT / "packages").glob("*/src/**/*.py"):
-        if path in allowed:
-            continue
         text = path.read_text(encoding="utf-8")
         assert "alphasim" not in text.lower(), path
         assert "dmgr" not in text.lower(), path
@@ -127,6 +129,20 @@ def test_ethos_workspace_config_uses_target_product_packages() -> None:
     paths = {package["path"] for package in packages}
 
     assert names == set(package_ontology_report()["target_packages"])
+    repository_domains = {
+        domain
+        for package in packages
+        if package["name"] == "ethos-repository"
+        for domain in package.get("domains", [])
+    }
+    quality_domains = {
+        domain
+        for package in packages
+        if package["name"] == "ethos-quality"
+        for domain in package.get("domains", [])
+    }
+    assert repository_domains == {"repository-lifecycle"}
+    assert quality_domains >= {"quality", "determinism", "proof-policy", "docs-quality"}
     for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
         assert retired not in names
         assert f"packages/{retired}" not in paths
@@ -194,6 +210,7 @@ def test_openspec_specs_are_mece_product_families() -> None:
         "ethos-contracts",
         "ethos-core",
         "ethos-distribution",
+        "ethos-quality",
         "ethos-repository",
         "ethos-test",
     }
@@ -213,6 +230,7 @@ def test_active_openspec_change_deltas_use_target_product_families() -> None:
         "ethos-contracts",
         "ethos-core",
         "ethos-distribution",
+        "ethos-quality",
         "ethos-repository",
         "ethos-test",
     }

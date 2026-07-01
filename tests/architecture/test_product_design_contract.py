@@ -207,6 +207,7 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     assert target["target_packages"] == [
         "ethos-core",
         "ethos-contracts",
+        "ethos-quality",
         "ethos-repository",
         "ethos-assistants",
         "ethos-adapters",

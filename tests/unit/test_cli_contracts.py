@@ -97,6 +97,50 @@ def test_full_proof_requires_executed_evidence() -> None:
     assert "full_proof_requires_execute" in payload["required_gaps"]
 
 
+def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text(
+        "\n".join(
+            [
+                "---",
+                "subject: sample:guide",
+                "role: guide",
+                "state: active",
+                "relations: {}",
+                "---",
+                "",
+                "# Guide",
+                "",
+                "Body without required visible sections.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "prove",
+        "--execute",
+        "--gate",
+        "docs-registry",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    run = payload["data"]["evidence"]["runs"][0]
+    assert run["action_id"] == "docs-registry"
+    assert run["state"] == "blocked"
+    assert run["verdict"] == "failed"
+    assert run["diagnostics"][0]["required_gaps"] == [
+        "missing_visible_section:docs/guide.md:status",
+        "missing_visible_section:docs/guide.md:purpose",
+        "missing_visible_section:docs/guide.md:see also",
+    ]
+
+
 def test_default_proof_reports_readiness_not_proven() -> None:
     payload = run_ethos("prove", "--json")
 
@@ -104,6 +148,7 @@ def test_default_proof_reports_readiness_not_proven() -> None:
     assert payload["state"] == "ready"
     assert payload["data"]["executed"] is False
     assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"planned"}
+    assert all(run["trust_bearing"] is False for run in payload["data"]["evidence"]["runs"])
 
 
 def test_prove_accepts_matching_expected_head() -> None:
@@ -164,8 +209,114 @@ def test_quality_package_ontology_reports_migration_state() -> None:
     assert payload["data"]["migration_complete"] is True
     assert payload["data"]["migration_status"] == "complete"
     assert "ethos" in payload["data"]["target_packages"]
+    assert "ethos-quality" in payload["data"]["target_packages"]
     assert "ethos" not in payload["data"]["migration_hosts"]
     assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == ("migrated")
+
+
+def test_quality_asset_policy_command_reports_mechanical_quality_assets() -> None:
+    payload = run_ethos("quality", "asset-policy", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality asset-policy"
+    assert payload["state"] == "clean"
+    assert payload["summary"]["asset_class_count"] >= 9
+    asset_classes = {asset["class"] for asset in payload["data"]["asset_classes"]}
+    assert {"python-code", "markdown-docs", "shell-scripts", "toml-config"} <= asset_classes
+
+
+def test_quality_docs_command_reports_docs_profile_dimensions() -> None:
+    payload = run_ethos("quality", "docs", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality docs"
+    assert payload["state"] == "clean"
+    checks = {check["id"]: check for check in payload["data"]["profile"]["checks"]}
+    assert checks["link-integrity"]["tool_adapter"] == "lychee"
+    assert checks["reader-purpose"]["dimensions"] == ["status", "purpose", "see_also"]
+    assert payload["data"]["style_goals"] == ["faithful", "expressive", "elegant"]
+
+
+def test_quality_proof_policy_command_reports_lattice() -> None:
+    payload = run_ethos("quality", "proof-policy", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality proof-policy"
+    assert payload["state"] == "clean"
+    states = {state["state"]: state for state in payload["data"]["states"]}
+    assert states["planned"]["trust_bearing"] is False
+    assert states["proven"]["trust_bearing"] is True
+    assert payload["data"]["trust_consumers"] == [
+        "claim",
+        "land",
+        "publish",
+        "release",
+        "self-governance",
+    ]
+
+
+def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
+    payload = run_ethos("quality", "tool-profiles", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality tool-profiles"
+    adapters = {adapter["id"]: adapter for adapter in payload["data"]["tool_adapters"]}
+    assert adapters["ruff"]["asset_classes"] == ["python-code"]
+    assert adapters["lychee"]["asset_classes"] == ["markdown-docs"]
+    assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
+    assert adapters["taplo"]["asset_classes"] == ["toml-config"]
+
+
+def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text(
+        "\n".join(
+            [
+                "---",
+                "subject: sample:guide",
+                "role: guide",
+                "state: active",
+                "relations: {}",
+                "---",
+                "",
+                "# Guide",
+                "",
+                "Body without required visible sections.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "quality",
+        "docs-registry",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == [
+        "missing_visible_section:docs/guide.md:status",
+        "missing_visible_section:docs/guide.md:purpose",
+        "missing_visible_section:docs/guide.md:see also",
+    ]
+    assert payload["data"]["required_gaps"] == payload["required_gaps"]
+
+
+def test_emit_handles_closed_pipes(monkeypatch) -> None:
+    import builtins
+
+    from ethos.cli import _emit
+    from ethos_core.result import EthosResult
+
+    def closed_pipe(*args, **kwargs) -> None:
+        raise BrokenPipeError
+
+    monkeypatch.setattr(builtins, "print", closed_pipe)
+
+    _emit(EthosResult(command="status", ok=True, state="ready"), json_output=True)
 
 
 def test_quality_package_ontology_rejects_retired_workspace_config(
@@ -792,18 +943,21 @@ def test_quality_help_lists_canonical_commands() -> None:
     assert completed.returncode == 0
     commands = set(re.findall(r"^│\s+([a-z][a-z-]+)\s{2,}", completed.stdout, re.MULTILINE))
     assert commands == {
+        "asset-policy",
         "claims",
         "command-examples",
         "command-registry",
         "command-surface",
         "commits",
         "coupling-audit",
+        "docs",
         "docs-registry",
         "evidence-freshness",
         "format-policy",
         "gates",
         "package-ontology",
         "projection-drift",
+        "proof-policy",
         "provenance",
         "release",
         "release-attestation",
@@ -811,6 +965,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "sbom",
         "schemas",
         "standards",
+        "tool-profiles",
     }
 
 
@@ -926,7 +1081,30 @@ def test_prove_execute_can_select_real_gates() -> None:
     assert payload["state"] == "proven"
     assert payload["data"]["executed"] is True
     assert payload["summary"]["gate_count"] == 2
-    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
+    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"proven"}
+    assert {run["verdict"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
+    assert all(run["trust_bearing"] is True for run in payload["data"]["evidence"]["runs"])
+
+
+def test_prove_execute_preserves_non_trust_bearing_gate_classification() -> None:
+    payload = run_ethos(
+        "prove",
+        "--execute",
+        "--gate",
+        "ruff",
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert "trust_bearing_proof_missing" in payload["required_gaps"]
+    assert payload["summary"]["gate_count"] == 1
+    run = payload["data"]["evidence"]["runs"][0]
+    assert run["action_id"] == "ruff"
+    assert run["state"] == "executed"
+    assert run["verdict"] == "passed"
+    assert run["evidence_class"] == "diagnostic"
+    assert run["trust_bearing"] is False
 
 
 def test_adopt_gitlab_profile_is_available(tmp_path: Path) -> None:
@@ -1830,7 +2008,7 @@ def test_playbooks_v2_gate_can_execute() -> None:
     assert payload["ok"] is True
     assert payload["data"]["executed"] is True
     assert payload["data"]["evidence"]["runs"][0]["action_id"] == "playbooks-v2"
-    assert payload["data"]["evidence"]["runs"][0]["state"] == "passed"
+    assert payload["data"]["evidence"]["runs"][0]["state"] == "proven"
 
 
 def test_campaign_hypotheses_are_visible() -> None:

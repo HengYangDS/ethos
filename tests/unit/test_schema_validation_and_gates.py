@@ -58,8 +58,14 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
 
     assert report["ok"] is True
     assert report["mode"] == "product"
-    assert report["schema_count"] >= 24
+    assert report["schema_count"] >= 30
     assert report["required_gaps"] == []
+    assert report["schemas"]["quality-asset.schema.json"]["ok"] is True
+    assert report["schemas"]["quality-finding.schema.json"]["ok"] is True
+    assert report["schemas"]["quality-gate-plan.schema.json"]["ok"] is True
+    assert report["schemas"]["quality-profile.schema.json"]["ok"] is True
+    assert report["schemas"]["review-record.schema.json"]["ok"] is True
+    assert report["schemas"]["host-capability.schema.json"]["ok"] is True
     assert report["schemas"]["campaign-closeout.schema.json"]["ok"] is True
     assert report["schemas"]["trust-envelope.schema.json"]["ok"] is True
     assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
@@ -75,6 +81,8 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["evolution-ledger"]["ok"] is True
     assert report["instances"]["docs-registry"]["ok"] is True
     assert report["instances"]["gate-registry"]["ok"] is True
+    assert report["instances"]["quality-profile"]["ok"] is True
+    assert report["instances"]["quality-gate-plan"]["ok"] is True
     assert report["instances"]["skill-registry-contract"]["ok"] is True
     assert report["instances"]["skill-package-manifest-contract"]["ok"] is True
     assert report["instances"]["live-skill-activation-contract"]["ok"] is True
@@ -123,6 +131,111 @@ def test_result_payload_validates_against_schema() -> None:
 
     assert validation["ok"] is True
     json.dumps(validation)
+
+
+def test_gate_schema_accepts_quality_descriptor_fields() -> None:
+    payload = {
+        "id": "markdown-links",
+        "kind": "docs",
+        "command": ["lychee", "--offline", "docs"],
+        "policy": "required",
+        "profile": "product",
+        "toolchain": "quality-adapter",
+        "asset_classes": ["markdown-docs"],
+        "dimensions": ["links", "anchors"],
+        "execution_mode": "adapter",
+        "evidence_class": "diagnostic",
+        "trust_bearing": False,
+        "tool_adapter": "lychee",
+        "writes_files": False,
+        "network_policy": "offline",
+        "version_source": "adopter-toolchain",
+        "depends_on": [],
+    }
+
+    validation = validate_schema_instance("gate.schema.json", payload)
+
+    assert validation["ok"] is True
+
+
+def test_proof_run_schema_uses_trust_bearing_lattice() -> None:
+    payload = {
+        "action_id": "proof-policy",
+        "command": ["ethos", "quality", "proof-policy", "--json"],
+        "exit_code": 0,
+        "stdout": "{}",
+        "stderr": "",
+        "state": "proven",
+        "evidence_class": "proof",
+        "verdict": "passed",
+        "trust_bearing": True,
+        "diagnostics": [],
+        "governance_ref": "",
+    }
+
+    validation = validate_schema_instance("proof-run.schema.json", payload)
+
+    assert validation["ok"] is True
+
+
+def test_proof_run_schema_rejects_proven_without_trust_bearing() -> None:
+    payload = {
+        "action_id": "claims",
+        "command": ["ethos", "quality", "claims", "--json"],
+        "exit_code": 0,
+        "stdout": "{}",
+        "stderr": "",
+        "state": "proven",
+        "evidence_class": "contract",
+        "verdict": "passed",
+        "trust_bearing": False,
+        "diagnostics": [],
+        "governance_ref": "",
+    }
+
+    validation = validate_schema_instance("proof-run.schema.json", payload)
+
+    assert validation["ok"] is False
+
+
+def test_proof_run_schema_rejects_trust_bearing_non_proven_state() -> None:
+    payload = {
+        "action_id": "claims",
+        "command": ["ethos", "quality", "claims", "--json"],
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+        "state": "planned",
+        "evidence_class": "contract",
+        "verdict": "not_run",
+        "trust_bearing": True,
+        "diagnostics": [],
+        "governance_ref": "",
+    }
+
+    validation = validate_schema_instance("proof-run.schema.json", payload)
+
+    assert validation["ok"] is False
+
+
+def test_waived_proof_run_schema_requires_governance_reference() -> None:
+    payload = {
+        "action_id": "waiver",
+        "command": ["ethos", "prove"],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "state": "accepted-risk",
+        "evidence_class": "proof",
+        "verdict": "accepted",
+        "trust_bearing": False,
+        "diagnostics": [],
+        "governance_ref": "",
+    }
+
+    validation = validate_schema_instance("proof-run.schema.json", payload)
+
+    assert validation["ok"] is False
 
 
 def test_workspace_status_payload_validates_worktree_bindings() -> None:
@@ -466,3 +579,6 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
 
     assert "build" in nodes
     assert nodes["build"].depends_on == ("unit-architecture", "ruff")
+    assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
+    assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
+    assert {"schema-contracts", "proof-policy"} <= nodes.keys()

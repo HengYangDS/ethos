@@ -179,3 +179,7 @@ worktrees, refs, and branch roles as product semantics; OpenSpec as mandatory
 governance; command JSON, schemas, TOML, JSONL, and ignored SQLite state as
 native protocols; and hosted forge, editor, model, and current proof toolchain
 terms as non-product-semantic bindings.
+The registry also names the official OpenSpec CLI, uv workspace orchestration,
+Hatchling build backend, pytest, Ruff, the configured GitLab release profile,
+MCP/ACP protocol adapters, the npm launcher distribution adapter, legacy
+evidence, and provider fixtures under their explicit binding layers.

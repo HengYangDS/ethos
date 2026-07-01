@@ -110,6 +110,8 @@ def validate_schema_instance(
 
 
 def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
+    from ethos_repository.coupling import coupling_audit_report
+
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "docs" / "governance" / "self-evolution-ledger.toml"
     if ledger_path.exists():
@@ -180,6 +182,11 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         root=root,
     )
     instances["capability-profiles"] = _capability_profiles_report(root)
+    instances["coupling-audit-contract"] = validate_schema_instance(
+        "coupling-audit.schema.json",
+        coupling_audit_report(root),
+        root=root,
+    )
     return instances
 
 

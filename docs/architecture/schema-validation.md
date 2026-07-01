@@ -31,9 +31,12 @@ the raw workspace-status payload so existing consumers can continue to read
 `data.role_policy`, `data.candidate`, `data.branch_bindings`, and
 `data.closeout_support` directly.
 
-Coupling audit output exposes `binding_registry` as the product classification
-vocabulary for hard bindings, mandatory dependencies, native protocols,
-self-hosting tools, adapters, legacy evidence, and fixtures.
+Coupling audit output is governed by
+`schemas/ethos/coupling-audit.schema.json`. It exposes `binding_registry` as
+the product classification vocabulary for hard bindings, mandatory
+dependencies, native protocols, self-hosting tools, adapters, legacy evidence,
+and fixtures. Registry entries cannot carry host open, checkout, action, or
+label fields; those are adapter projections, not coupling contract state.
 
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured

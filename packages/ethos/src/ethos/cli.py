@@ -281,6 +281,22 @@ def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[st
     return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
 
 
+def _command_data_validation(
+    repo: Path,
+    *,
+    schema_name: str,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    validation = validate_schema_instance(schema_name, payload, root=repo)
+    return {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": schema_name,
+        "ok": bool(validation["ok"]),
+        "required_gaps": list(validation["required_gaps"]),
+    }
+
+
 def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
     return {
         "kind": "submit_branch_plan",
@@ -1280,11 +1296,21 @@ def coupling_audit(
     """Report product, profile, adapter, and self-hosting coupling boundaries."""
     repo = _root(root)
     report = coupling_audit_report(repo)
+    validation = _command_data_validation(
+        repo,
+        schema_name="coupling-audit.schema.json",
+        payload=report,
+    )
+    validation_gaps = tuple(
+        f"coupling_audit_schema:{gap}" for gap in validation["required_gaps"]
+    )
+    ok = bool(report["ok"]) and bool(validation["ok"])
     result = EthosResult(
         command="quality coupling-audit",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        ok=ok,
+        state="clean" if ok else "blocked",
+        diagnostics=(validation,),
+        required_gaps=tuple(report["required_gaps"]) + validation_gaps,
         data=report,
     )
     _emit(result, json_output)

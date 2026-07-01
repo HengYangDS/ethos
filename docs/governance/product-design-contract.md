@@ -89,7 +89,8 @@ governance dependency for promoted spec records and deep proof. Backlog, MCP,
 ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
 similar systems are adapters, providers, profiles, method packs, or
 self-hosting tools; they are not ontology anchors.
-OpenSpec remains mandatory governance, not a product substrate.
+OpenSpec remains mandatory governance, not a product substrate and not a
+second command plane.
 
 ### Git-native repository substrate
 

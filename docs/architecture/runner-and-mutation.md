@@ -41,7 +41,8 @@ Status output reports configured `role_policy` and role-policy
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane.
 Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific open or checkout labels are adapter projections, not
-workspace semantics.
+workspace semantics. Adapters derive presentation from `worktree_binding`; they
+do not own branch role, lane, or mutation semantics.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane

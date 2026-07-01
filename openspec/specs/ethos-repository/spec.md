@@ -28,7 +28,7 @@ ETHOS SHALL keep `openspec/` as an official self-governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
 
-OpenSpec remains mandatory governance, not a product substrate.
+OpenSpec remains mandatory governance, not a product substrate and not a second command plane.
 
 #### Scenario: OpenSpec validation is used
 - **WHEN** ETHOS audits OpenSpec self-governance
@@ -47,6 +47,8 @@ coupling registry.
 - **AND** Git repository substrate and configured branch roles are classified as
   product-semantic hard bindings
 - **AND** OpenSpec is classified as a mandatory governance dependency
+- **AND** the official OpenSpec CLI is classified as a mandatory governance
+  dependency rather than a product substrate
 - **AND** command JSON, JSON Schema, claims, evidence, and ignored local state
   are classified as native protocols
 - **AND** self-hosting proof tools and host projections do not own product

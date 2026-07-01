@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from ethos_core.result import EthosResult
+from ethos_repository.coupling import coupling_audit_report
 from ethos_repository.gates import gate_graph, gate_registry
 from ethos_repository.schema_validation import (
     schema_validation_report,
@@ -72,6 +74,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["gate-registry"]["ok"] is True
     assert report["instances"]["shadow-parity-contract"]["ok"] is True
     assert report["instances"]["workspace-status-contract"]["ok"] is True
+    assert report["instances"]["coupling-audit-contract"]["ok"] is True
 
 
 def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path) -> None:
@@ -362,6 +365,26 @@ def test_capability_profile_contract_validates_boundary_and_proof_metadata() -> 
             "proof_profile": {"default_command": "ethos prove --json"},
         },
     )
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_coupling_audit_payload_validates_binding_registry_contract() -> None:
+    validation = validate_schema_instance(
+        "coupling-audit.schema.json",
+        coupling_audit_report(Path.cwd()),
+    )
+
+    assert validation["ok"] is True
+    json.dumps(validation)
+
+
+def test_coupling_audit_schema_rejects_ui_projection_fields() -> None:
+    payload = coupling_audit_report(Path.cwd())
+    payload["binding_registry"][0]["open_label"] = "Open Worktree"
+
+    validation = validate_schema_instance("coupling-audit.schema.json", payload)
 
     assert validation["ok"] is False
     assert validation["required_gaps"]

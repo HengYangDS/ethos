@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ethos_repository.coupling as coupling
+import pytest
 from ethos_repository.coupling import coupling_audit_report
 
 
@@ -51,12 +53,17 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "git_repository_substrate",
         "branch_role_policy",
         "openspec_workspace",
+        "openspec_cli",
         "command_json_schema_protocol",
-        "claims_evidence_protocol",
-        "local_state_protocol",
-        "self_hosting_python_toolchain",
-        "release_host_profile",
-        "assistant_protocol_adapters",
+        "claims_evidence_digest_protocol",
+        "sqlite_local_state_protocol",
+        "uv_workspace_toolchain",
+        "hatchling_build_backend",
+        "pytest_test_runner",
+        "ruff_lint_runner",
+        "gitlab_release_profile",
+        "mcp_acp_protocol_adapters",
+        "npm_launcher_distribution_adapter",
         "legacy_evidence_records",
         "provider_test_fixtures",
     ]
@@ -90,8 +97,27 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "owns_product_semantics": False,
         "adapter_replaceable": False,
         "not_a_second_command_plane": True,
+        "not_product_substrate": True,
     }
-    assert registry["release_host_profile"]["layer"] == "profile_or_adapter_binding"
+    assert registry["openspec_cli"] == {
+        "id": "openspec_cli",
+        "layer": "mandatory_governance_dependency",
+        "required": True,
+        "owns_product_semantics": False,
+        "adapter_replaceable": False,
+        "surfaces": ["official OpenSpec status", "official OpenSpec strict validation"],
+        "not_a_second_command_plane": True,
+        "not_product_substrate": True,
+    }
+    assert registry["uv_workspace_toolchain"]["layer"] == "self_hosting_toolchain_binding"
+    assert registry["hatchling_build_backend"]["layer"] == "self_hosting_toolchain_binding"
+    assert registry["pytest_test_runner"]["layer"] == "self_hosting_toolchain_binding"
+    assert registry["ruff_lint_runner"]["layer"] == "self_hosting_toolchain_binding"
+    assert registry["gitlab_release_profile"]["layer"] == "profile_or_adapter_binding"
+    assert registry["mcp_acp_protocol_adapters"]["layer"] == "profile_or_adapter_binding"
+    assert registry["npm_launcher_distribution_adapter"]["layer"] == (
+        "profile_or_adapter_binding"
+    )
     assert report["release_product_files"] == [
         "README.md",
         "LICENSE",
@@ -108,6 +134,82 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "toolchains": ["uv-python"],
         "product_ontology_anchor": False,
     }
+
+
+def test_coupling_audit_flags_missing_git_product_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_without_git(root: Path) -> list[dict[str, object]]:
+        return [
+            entry
+            for entry in original_registry(root)
+            if entry["id"] != "git_repository_substrate"
+        ]
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_without_git)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert "binding_registry_missing:git_repository_substrate" in report["required_gaps"]
+
+
+def test_coupling_audit_flags_openspec_as_product_substrate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_with_wrong_openspec_layer(root: Path) -> list[dict[str, object]]:
+        entries = original_registry(root)
+        for entry in entries:
+            if entry["id"] == "openspec_workspace":
+                entry["layer"] = "product_semantic_hard_binding"
+                entry["owns_product_semantics"] = True
+                entry["not_product_substrate"] = False
+        return entries
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_with_wrong_openspec_layer)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert "binding_registry_layer:openspec_workspace:product_semantic_hard_binding" in (
+        report["required_gaps"]
+    )
+    assert "binding_registry_product_semantics:openspec_workspace" in (
+        report["required_gaps"]
+    )
+    assert "binding_registry_product_substrate:openspec_workspace" in (
+        report["required_gaps"]
+    )
+
+
+def test_coupling_audit_flags_adapter_owning_product_semantics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_with_adapter_semantics(root: Path) -> list[dict[str, object]]:
+        entries = original_registry(root)
+        for entry in entries:
+            if entry["id"] == "npm_launcher_distribution_adapter":
+                entry["owns_product_semantics"] = True
+                entry["action"] = "checkout"
+        return entries
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_with_adapter_semantics)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert "binding_registry_product_semantics:npm_launcher_distribution_adapter" in (
+        report["required_gaps"]
+    )
+    assert "binding_registry_ui_projection:npm_launcher_distribution_adapter:action" in (
+        report["required_gaps"]
+    )
 
 
 def test_coupling_audit_flags_model_and_editor_terms_in_product_docs(tmp_path: Path) -> None:

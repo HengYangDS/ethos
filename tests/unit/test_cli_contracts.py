@@ -1032,6 +1032,14 @@ def test_quality_coupling_audit_reports_git_native_boundary() -> None:
     assert payload["data"]["self_hosting_toolchain"]["layer"] == (
         "self_hosting_toolchain_binding"
     )
+    assert {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": "coupling-audit.schema.json",
+        "ok": True,
+        "required_gaps": [],
+    } in payload["diagnostics"]
+    assert "schema_validation" not in payload["data"]
 
 
 def test_prove_returns_evidence_and_provenance() -> None:

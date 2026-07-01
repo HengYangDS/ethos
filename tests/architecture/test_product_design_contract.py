@@ -67,6 +67,8 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     product = read("docs/governance/product-design-contract.md")
     command_plane = read("docs/reference/command-plane.md")
     schema = read("docs/architecture/schema-validation.md")
+    repository_spec = read("openspec/specs/ethos-repository/spec.md")
+    adapters_spec = read("openspec/specs/ethos-adapters/spec.md")
 
     for text in (product, command_plane, schema):
         assert "release_root -> accepted_root -> candidate -> work_lane -> submit_lane" in text
@@ -75,6 +77,12 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
 
     assert "adapter UI text is not product state" in command_plane
     assert "OpenSpec remains mandatory governance, not a product substrate" in product
+    assert "OpenSpec remains mandatory governance, not a product substrate" in (
+        repository_spec
+    )
+    assert "not a second command plane" in repository_spec
+    assert "adapters derive presentation from `worktree_binding`" in adapters_spec
+    assert "host open or checkout labels are not product state" in adapters_spec
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:

@@ -27,6 +27,8 @@ Lanes without entering their file trees.
   `release_root -> accepted_root -> candidate -> work_lane -> submit_lane`
 - **AND** `branch_bindings` follow that semantic order before branch name
 - **AND** host open or checkout labels are not product state
+- **AND** adapters derive presentation from `worktree_binding` rather than
+  owning branch, lane, or mutation semantics
 
 #### Scenario: Foreign Work Lanes exist
 - **WHEN** `ethos status` or `ethos lane status` inspects a repository with a

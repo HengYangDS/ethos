@@ -149,6 +149,51 @@ def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
     assert git(repo, "rev-parse", "dev") == dev_head
 
 
+def test_apply_land_to_candidate_reports_stale_candidate_base(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-apply"
+    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    (worktree / "README.md").write_text("# work lane change\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "work lane change",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    report = apply_land_to_candidate(
+        root=worktree,
+        authorized=True,
+        expect_head=work_head,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["head"] == work_head
+    assert report["candidate_head"] == candidate_head
+    assert report["required_gaps"] == ["candidate_base_stale"]
+
+
 def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     tmp_path: Path,
 ) -> None:

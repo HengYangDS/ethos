@@ -137,6 +137,17 @@ def apply_land_to_candidate(
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_worktree_dirty"],
         }
+    candidate_head = str(status["candidate"]["head"])
+    if not _is_ancestor(root, candidate_head, current_head):
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "candidate_head": candidate_head,
+            "path": candidate_path.as_posix(),
+            "required_gaps": ["candidate_base_stale"],
+        }
     completed = _git(candidate_path, "merge", "--ff-only", current_head, check=False)
     if completed.returncode != 0:
         return {
@@ -209,6 +220,11 @@ def apply_candidate_to_accepted(
         "previous_head": current_head,
         "required_gaps": [],
     }
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
+    return completed.returncode == 0
 
 
 def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:

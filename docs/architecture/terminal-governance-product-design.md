@@ -589,7 +589,7 @@ forge APIs, SQLite, pytest, or adopter semantics.
 CLI
 MCP server
 bootstrap/adopt
-proof execution
+evidence runner
 Git/process adapters
 OpenSpec adapter
 projection generation
@@ -869,7 +869,7 @@ the human release history and does not create a second release truth.
 
 ## Low-Code Implementation Rule
 
-Default implementation posture:
+Default implementation shape:
 
 ```text
 declarative TOML registry

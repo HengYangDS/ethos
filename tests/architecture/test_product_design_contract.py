@@ -5,6 +5,15 @@ from pathlib import Path
 from ethos_governance.self_audit import REQUIRED_DOCS, self_audit
 
 ROOT = Path(__file__).resolve().parents[2]
+PROVIDER_NEUTRAL_CANONICAL_DOCS = (
+    "docs/governance/product-design-contract.md",
+    "docs/governance/conversation-ledger.md",
+    "docs/architecture/agent-projections.md",
+    "docs/governance/playbooks-and-skills.md",
+    "docs/reference/command-plane.md",
+    "docs/architecture/runner-and-mutation.md",
+)
+PRODUCT_VENDOR_TERMS = ("PyCharm", "Claude", "Codex", "OpenAI", "GPT", "IDE")
 
 
 def read(relative: str) -> str:
@@ -30,6 +39,13 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
         assert principle in text
     assert "PyPI/TestPyPI publish" in text
     assert "not current scope" in text
+
+
+def test_canonical_product_docs_are_provider_neutral() -> None:
+    for doc in PROVIDER_NEUTRAL_CANONICAL_DOCS:
+        text = read(doc)
+        for term in PRODUCT_VENDOR_TERMS:
+            assert term not in text, (doc, term)
 
 
 def test_package_ontology_declares_target_mece_packages_and_migration_hosts() -> None:

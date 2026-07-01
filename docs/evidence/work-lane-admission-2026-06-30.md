@@ -20,8 +20,14 @@ Implemented scope:
   editor-root binding is missing.
 - `ethos lane start --apply` creates a `work/*` linked worktree from a clean
   accepted root and records an ignored local SQLite lease.
+- `ethos lane start --apply --json` returns the new Work Lane as
+  `data.worktree` with `open_action = "open_worktree"` and label
+  `Open Worktree`, matching status output and avoiding checkout-style host
+  actions for already-bound worktrees.
 - `ethos lane start --apply` rejects existing `work/*` lanes and dirty accepted
   roots with `lane_start_requires_clean_accepted_root`.
+- `ethos lane start --apply` rejects a dirty `candidate/dev` worktree with
+  `candidate_worktree_dirty` before creating a new Work Lane.
 - `ethos land --apply` and `ethos publish --apply` reject protected roots even
   when authorization and expected HEAD are supplied.
 - Apply-mode admission is evaluated before product self-audit, so non-ETHOS
@@ -58,3 +64,36 @@ result: ok=true, score=14/14
 openspec validate --all --strict --json
 result: 9 passed
 ```
+
+2026-07-01 hardening addendum:
+
+```text
+uv run --group dev pytest tests/unit/test_workspace_lanes.py tests/unit/test_cli_contracts.py::test_lane_start_apply_creates_worktree_and_lease tests/unit/test_cli_contracts.py::test_status_reports_foreign_work_lane_as_coordination_gap tests/architecture/test_product_design_contract.py tests/unit/test_conversation_ledger.py -q
+result: 40 passed
+
+uv run --group dev pytest tests/unit/test_workspace_state.py tests/unit/test_workspace_lanes.py tests/unit/test_workspace_apply.py tests/unit/test_cli_contracts.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_conversation_ledger.py tests/architecture/test_product_design_contract.py tests/architecture/test_product_boundaries.py -q
+result: 141 passed
+
+uv run --group dev ruff check .
+result: All checks passed
+
+uv run --group dev pytest -q
+result: 238 passed
+
+uv build --all-packages
+result: all ETHOS workspace packages built as wheel and sdist artifacts
+
+uv run --package ethos ethos quality claims --json
+result: ok=true, required_gaps=[]
+
+uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json
+result: ok=true, state=proven, gate_count=3
+
+uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
+result: ok=true, state=local_ready, remote_state=deferred
+
+uv run --package ethos ethos publish --json
+result: ok=true, remote_push=not_performed, remote_state=deferred
+```
+
+No remote publication was performed for this addendum.

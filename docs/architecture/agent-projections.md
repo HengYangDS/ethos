@@ -9,8 +9,8 @@ relations:
 # Agent Projections
 
 ETHOS is agentic-native, but assistant files, MCP resources, ACP adapters,
-hosted runners, and vendor prompts are projections. They expose repository
-truth; they do not become truth.
+hosted runners, and provider-specific prompts are projections. They expose
+repository truth; they do not become truth.
 
 `ethos assistants doctor --json` reports the projection contract.
 `ethos assistants mcp-manifest --json` emits resources, prompts, and tools that

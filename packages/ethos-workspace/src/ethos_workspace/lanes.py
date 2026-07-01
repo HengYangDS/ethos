@@ -65,6 +65,15 @@ def start_work_lane(
             "path": target.as_posix(),
             "required_gaps": ["candidate_worktree_missing"],
         }
+    candidate_path = Path(str(candidate["worktree_path"]))
+    if changed_paths(candidate_path):
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "path": target.as_posix(),
+            "required_gaps": ["candidate_worktree_dirty"],
+        }
     if _branch_exists(repo, branch):
         return {
             "ok": False,
@@ -105,6 +114,7 @@ def start_work_lane(
         "base": CANDIDATE_BRANCH,
         "base_head": str(candidate["head"]),
         "path": target.as_posix(),
+        "worktree": _started_worktree(branch=branch, path=target),
         "owner": owner,
         "lease": lease,
         "required_gaps": [],
@@ -305,6 +315,18 @@ def _branch_exists(root: Path, branch: str) -> bool:
 def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
     return completed.returncode == 0
+
+
+def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
+    head = _git(path, "rev-parse", "HEAD").stdout.strip()
+    return {
+        "branch": branch,
+        "path": path.as_posix(),
+        "head": head,
+        "role": "work_lane",
+        "open_action": "open_worktree",
+        "open_label": "Open Worktree",
+    }
 
 
 def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:

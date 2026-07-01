@@ -210,6 +210,14 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     assert payload["ok"] is True
     assert payload["command"] == "lane start"
     assert payload["data"]["branch"] == "work/feature"
+    assert payload["data"]["worktree"] == {
+        "branch": "work/feature",
+        "path": worktree.resolve().as_posix(),
+        "head": git(worktree, "rev-parse", "HEAD"),
+        "role": "work_lane",
+        "open_action": "open_worktree",
+        "open_label": "Open Worktree",
+    }
     assert git(worktree, "branch", "--show-current") == "work/feature"
 
 

@@ -31,9 +31,9 @@ def test_conversation_ledger_preserves_critical_chat_requirements() -> None:
 
     for phrase in (
         "governance junk drawer",
-        "official-quality Codex Skills",
+        "official-quality assistant skills",
         "Superpowers",
-        "Codex memory",
+        "assistant host memory",
         "backlog-md",
         "tools/agent",
         "dmgr reference adopter",

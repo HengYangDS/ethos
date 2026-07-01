@@ -105,6 +105,7 @@ def test_workspace_status_marks_candidate_and_work_lanes_as_open_worktree(
         for action in status["branch_actions"]
         if action["action"] == "open_worktree"
     }
+    assert "checkout" not in {action["action"] for action in status["branch_actions"]}
     assert worktree_actions["candidate/dev"]["label"] == "Open Worktree"
     assert worktree_actions["candidate/dev"]["path"] == candidate.as_posix()
     assert worktree_actions["work/feature"]["label"] == "Open Worktree"
@@ -252,6 +253,19 @@ def test_workspace_status_output_validates_against_workspace_status_schema(
     assert validation["required_gaps"] == []
 
 
+def test_workspace_status_schema_rejects_checkout_branch_action(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    payload = workspace_status(repo)
+    payload["branch_actions"][0]["action"] = "checkout"
+    payload["branch_actions"][0]["label"] = "Checkout"
+
+    validation = validate_schema_instance("workspace-status.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
 def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
 
@@ -381,6 +395,14 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
 
     assert report["ok"] is True
     assert report["branch"] == "work/feature"
+    assert report["worktree"] == {
+        "branch": "work/feature",
+        "path": worktree.resolve().as_posix(),
+        "head": git(worktree, "rev-parse", "HEAD"),
+        "role": "work_lane",
+        "open_action": "open_worktree",
+        "open_label": "Open Worktree",
+    }
     assert worktree.exists()
     assert git(worktree, "branch", "--show-current") == "work/feature"
     leases = active_leases(repo / ".ethos" / "state" / "state.sqlite")
@@ -423,6 +445,26 @@ def test_start_work_lane_apply_requires_candidate_worktree(tmp_path: Path) -> No
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert "candidate_worktree_missing" in report["required_gaps"]
+    assert not worktree.exists()
+
+
+def test_start_work_lane_apply_rejects_dirty_candidate_worktree(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    (candidate / "README.md").write_text("# dirty candidate\n", encoding="utf-8")
+    worktree = tmp_path / "repo-work-feature"
+
+    report = start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["candidate_worktree_dirty"]
     assert not worktree.exists()
 
 

@@ -70,6 +70,130 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
     }
 
 
+def test_openspec_lifecycle_requires_product_protocol_metadata(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "repo"
+    change = root / "openspec" / "changes" / "sample-change"
+    (root / "openspec" / "specs" / "ethos-repository").mkdir(parents=True)
+    change.mkdir(parents=True)
+    (root / "openspec" / "config.yaml").write_text("project: ethos\n", encoding="utf-8")
+    (root / "openspec" / "specs" / "ethos-repository" / "spec.md").write_text(
+        "# ETHOS Repository\n",
+        encoding="utf-8",
+    )
+    (change / "proposal.md").write_text(
+        "\n".join(
+            [
+                "## Why",
+                "Test product protocol validation.",
+                "",
+                "## Capabilities",
+                "- `unknown-capability`: subject=sample; reuse=borrow; change=modify",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    for artifact in ("design.md", "tasks.md"):
+        (change / artifact).write_text("# artifact\n", encoding="utf-8")
+    (change / "specs" / "ethos-repository").mkdir(parents=True)
+    (change / "specs" / "ethos-repository" / "spec.md").write_text(
+        "## ADDED Requirements\n",
+        encoding="utf-8",
+    )
+    (root / "claims").mkdir()
+    (root / "claims" / "sample.toml").write_text(
+        "\n".join(
+            [
+                "[claim]",
+                'id = "sample"',
+                'subject = "ethos:sample"',
+                'state = "active"',
+                'summary = "sample"',
+                "",
+                "[evidence]",
+                'dated = "docs/evidence/sample.md"',
+                f'sha256 = "{"0" * 64}"',
+                'tests = ["pytest"]',
+                'evidence_ids = ["evidence:sample"]',
+                'binding = "sample"',
+                'verifier = "digest_only"',
+                "",
+                "[boundary]",
+                'owner = "ethos-repository"',
+                'scope = "sample"',
+                "",
+                "[carriers]",
+                'openspec = "openspec/changes/sample-change"',
+                'fallback = "sample"',
+                'kill_signal = "sample"',
+                "",
+                "[promotion]",
+                'targets = ["openspec/changes/sample-change"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_base_command() -> tuple[str, ...]:
+        return ("openspec",)
+
+    def fake_run_json(
+        _root: Path,
+        _base: tuple[str, ...],
+        args: tuple[str, ...],
+    ) -> dict[str, object]:
+        if args == ("doctor", "--json"):
+            payload = {"root": {"healthy": True}}
+        elif args == ("list", "--json"):
+            payload = {"changes": [{"name": "sample-change", "status": "in-progress"}]}
+        elif args == ("status", "--change", "sample-change", "--json"):
+            payload = {"isComplete": True, "schemaName": "spec-driven"}
+        elif args == ("validate", "--all", "--strict", "--json"):
+            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
+        else:
+            payload = {}
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 0,
+            "stdout": "{}",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+
+    report = openspec_native.openspec_governance_report(
+        root,
+        change="sample-change",
+        lifecycle=True,
+    )
+
+    assert report["ok"] is False
+    assert "openspec_proposal_out_of_scope_missing:sample-change" in report["required_gaps"]
+    assert (
+        "openspec_proposal_capability_unknown:sample-change:unknown-capability"
+        in report["required_gaps"]
+    )
+    assert (
+        "openspec_capability_profile_missing:sample-change:unknown-capability"
+        in report["required_gaps"]
+    )
+    assert (
+        "openspec_proposal_metadata_missing:sample-change:unknown-capability:facet:lifecycle"
+        in report["required_gaps"]
+    )
+    assert (
+        "openspec_proposal_reuse_invalid:sample-change:unknown-capability:borrow"
+        in report["required_gaps"]
+    )
+
+
 def test_completed_active_changes_report_blocks_complete_openspec_items(
     tmp_path: Path,
     monkeypatch,

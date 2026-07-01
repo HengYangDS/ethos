@@ -1,0 +1,55 @@
+[claim]
+id = "ethos-openspec-product-protocol"
+subject = "ethos:openspec-product-protocol"
+state = "active"
+summary = "ETHOS OpenSpec lifecycle review enforces proposal protocol metadata and live capability routing."
+
+[evidence]
+dated = "docs/evidence/openspec-product-protocol-2026-07-02.md"
+sha256 = "dbd3181559774e971aa0bb14bceb145ff03b4a0634347210eda863dcf3ba71ba"
+evidence_ids = ["evidence:ethos-openspec-product-protocol"]
+binding = "digest-bound OpenSpec product protocol evidence"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/test_openspec_native_cache.py",
+  "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/openspec_native.py tests/unit/test_openspec_native_cache.py",
+  "uv run openspec validate ethos-openspec-product-protocol --strict --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-openspec-product-protocol --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --json",
+]
+
+[scope]
+packages = [
+  "ethos-adapters",
+]
+docs = [
+  "docs/governance/openspec-governance.md",
+  "docs/architecture/terminal-governance-product-design.md",
+]
+
+[boundary]
+owner = "ethos-adapters"
+scope = "OpenSpec lifecycle proposal protocol review and live capability routing guard"
+
+[carriers]
+openspec = "openspec/changes/ethos-openspec-product-protocol"
+fallback = "Keep existing artifact and claim-binding lifecycle checks while proposal protocol review is unavailable."
+kill_signal = "OpenSpec proposals can become active without live capability routing, reuse/change stance, facets, or out-of-scope boundaries."
+
+[promotion]
+targets = [
+  "claims/ethos-openspec-product-protocol.toml",
+  "docs/evidence/openspec-product-protocol-2026-07-02.md",
+  "docs/evidence/parity/generic-shadow.json",
+  "docs/evidence/parity/alphasim-dmgr-shadow.json",
+  "evolution/campaigns/terminal-openspec-productization/campaign.toml",
+  "openspec/changes/ethos-campaign-orchestration/proposal.md",
+  "openspec/changes/ethos-openspec-product-protocol/proposal.md",
+  "openspec/changes/ethos-openspec-product-protocol/design.md",
+  "openspec/changes/ethos-openspec-product-protocol/tasks.md",
+  "openspec/changes/ethos-openspec-product-protocol/specs/ethos-adapters/spec.md",
+  "openspec/changes/ethos-openspec-product-protocol/specs/ethos-repository/spec.md",
+  "packages/ethos-adapters/src/ethos_adapters/openspec_native.py",
+  "tests/unit/test_openspec_native_cache.py",
+]

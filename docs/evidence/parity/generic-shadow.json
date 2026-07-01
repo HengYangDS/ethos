@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-campaign-orchestration",
+  "target": "/Users/yheng/projects/ethos-work-openspec-product-protocol",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-campaign-orchestration --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-openspec-product-protocol --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "72e5b93f152febf5a242d7589c8b575c86865963",
-    "target_head": "72e5b93f152febf5a242d7589c8b575c86865963",
-    "command_sha256": "678afb73e46ec719d359e3fe94125c922a9f7af48103c13c049bf05432119db0"
+    "product_head": "45ae8ec8f2b98218b4637122fa3d82974d1874c8",
+    "target_head": "45ae8ec8f2b98218b4637122fa3d82974d1874c8",
+    "command_sha256": "53b546829e21e2b5b712081fb058bb57cb3f7199c06c3c551b63ff3ff03ae552"
   },
   "shadow": {
     "ok": true,

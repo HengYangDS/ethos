@@ -18,13 +18,11 @@ closeout package.
 ## Capabilities
 
 - `ethos-repository`: subject=campaign-orchestration; reuse=extend;
-  change=repository governance records long-running objectives as campaign
-  manifests with OpenSpec changes, Work Lanes, claims, and closeout state;
+  change=modify;
   facet:lifecycle=authoring,validation,archive; facet:surface=cli,schema,docs;
   facet:authority=source,schema,openspec,evidence,claim
 - `ethos-cli`: subject=campaign-status-closeout; reuse=extend;
-  change=`ethos campaign status` and `ethos campaign closeout` expose campaign
-  manifest state without creating another command plane;
+  change=modify;
   facet:lifecycle=validation,runtime; facet:surface=cli;
   facet:authority=source,schema,openspec
 

@@ -62,10 +62,10 @@ claims, and evidence refs serving distinct product duties.
 - **AND** the sibling `capability.toml` records family, owner boundary, primary
   invariant, routing question, boundary rules, and proof profile metadata
 
-#### Scenario: Proposal metadata explains ownership and posture
+#### Scenario: Proposal metadata explains ownership and stance
 - **WHEN** an active OpenSpec proposal lists a capability impact
-- **THEN** the proposal records the stable subject, reuse posture, change
-  posture, lifecycle facet, surface facet, and authority facet for that impact
+- **THEN** the proposal records the stable subject, reuse stance, change
+  stance, lifecycle facet, surface facet, and authority facet for that impact
 - **AND** secondary impacts do not create duplicate normative owners
 
 #### Scenario: New or extracted capability topology requires design

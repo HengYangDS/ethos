@@ -17,6 +17,7 @@ from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.lanes import (
     bind_work_lane_claim,
     bootstrap_candidate,
+    refresh_work_lane_base,
     retire_landed_work_lanes,
     start_work_lane,
 )
@@ -25,6 +26,7 @@ from ethos_adapters.mutation import (
     MutationRequest,
     apply_candidate_to_accepted,
     apply_land_to_candidate,
+    candidate_base_report,
     evaluate_closeout_mutation,
     evaluate_mutation,
 )
@@ -830,6 +832,40 @@ def start(
     _emit(result, json_output)
 
 
+@lane_app.command(name="refresh-base")
+def lane_refresh_base(
+    *,
+    apply: bool = False,
+    authorize: bool = False,
+    expect_head: str | None = None,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Replay the current Work Lane onto the configured candidate branch."""
+    repo = _root(root)
+    report = refresh_work_lane_base(
+        root=repo,
+        apply=apply,
+        authorized=authorize,
+        expect_head=expect_head,
+    )
+    result = EthosResult(
+        command="lane refresh-base",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "candidate_branch": report["candidate_branch"],
+            "head": report["head"],
+            "candidate_head": report["candidate_head"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos land --json",) if report["ok"] else ("ethos status --json",),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
 @lane_app.command(name="bind-claim")
 def lane_bind_claim(
     *,
@@ -1176,6 +1212,11 @@ def land(
         )
         gaps = gaps + tuple(candidate_update["required_gaps"])
         ok = bool(candidate_update["ok"])
+    elif ok:
+        candidate_update = candidate_base_report(root=repo)
+        if not candidate_update["ok"]:
+            gaps = gaps + tuple(candidate_update["required_gaps"])
+            ok = False
     if ok and not apply:
         land_state = "ready_to_land"
     elif gaps:
@@ -1187,7 +1228,7 @@ def land(
         ok=ok,
         state=land_state,
         required_gaps=gaps,
-        next_actions=("ethos publish",) if ok else ("ethos prove --json",),
+        next_actions=_land_next_actions(ok=ok, gaps=gaps, current_head=_current_head(repo)),
         data={
             "repository_audit": audit,
             "openspec_lifecycle": openspec_lifecycle,
@@ -1203,6 +1244,19 @@ def land(
         },
     )
     _emit(result, json_output)
+
+
+def _land_next_actions(
+    *,
+    ok: bool,
+    gaps: tuple[str, ...],
+    current_head: str,
+) -> tuple[str, ...]:
+    if ok:
+        return ("ethos publish",)
+    if "candidate_base_stale" in gaps:
+        return (f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json",)
+    return ("ethos prove --json",)
 
 
 def _closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:

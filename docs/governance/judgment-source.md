@@ -9,6 +9,14 @@ relations:
 
 # Judgment Source
 
+Status: canonical.
+
+Purpose: define the source of product judgment before reader-facing summaries,
+derived views, or evidence claims.
+
+See also: [Product Design Contract](product-design-contract.md), [Command Plane](../reference/command-plane.md),
+and [Quickstart](../start/quickstart.md).
+
 ETHOS product judgment starts from user instruction, repository truth, accepted
 governance decisions, and fresh proof. A reader-facing North Star is derived
 from this judgment source; it cannot override authority, evidence, or a current

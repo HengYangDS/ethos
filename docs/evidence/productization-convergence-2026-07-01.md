@@ -243,3 +243,63 @@ Six independent committee reviewers returned `STATUS: APPROVED`. Their common
 boundary condition remains unchanged: generic ETHOS command parity is not a
 claim of hosted CI, remote publication, alphasim-dmgr raw/cache or domain
 backend retirement parity, or di-effect publish readiness.
+
+## Committee Fix Addendum: Canonical Governance Context
+
+The final committee re-review at post-merge HEAD
+`f41d1fe61079a3ad6eec124127fa5269187ba876` produced one
+`STATUS: CHANGES_REQUIRED` finding. The reviewer identified that live
+`governance_context` JSON still emitted the retired nine-term kernel chain and
+classified `ethos report` with the transition loop.
+
+The fix converges live command JSON, docs, specs, and glossary surfaces to the
+canonical seven-term kernel:
+
+```text
+JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+```
+
+`governance_context.shared_commands` and `governance_context.transition_commands`
+now both contain only the five transition commands:
+
+```text
+ethos status
+ethos plan
+ethos prove
+ethos land
+ethos publish
+```
+
+`governance_context.scorecard_commands` now carries `ethos report` as the
+read-only scorecard surface. The product design contract, command-plane
+reference, OpenSpec contracts, and glossary were updated to match that split.
+
+Commands rerun from `/Users/yheng/projects/ethos-work-productization-convergence`
+after the fix:
+
+```bash
+uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_self_audit_reports_product_shape tests/unit/test_cli_contracts.py::test_prove_uses_adopter_audit_for_non_product_repo
+uv run --group dev pytest -q tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_single_kernel_dual_posture tests/unit/test_cli_contracts.py::test_self_audit_reports_product_shape tests/unit/test_cli_contracts.py::test_prove_uses_adopter_audit_for_non_product_repo
+uv run --group dev pytest -q tests/architecture/test_product_design_contract.py::test_glossary_uses_canonical_kernel_terms tests/architecture/test_product_design_contract.py::test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms tests/unit/test_docs_registry.py
+uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_self_audit_reports_product_shape tests/unit/test_cli_contracts.py::test_prove_uses_adopter_audit_for_non_product_repo tests/unit/test_cli_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/test_cli_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/architecture/test_product_design_contract.py tests/unit/test_kernel_contracts.py tests/unit/test_command_registry_depth.py tests/unit/test_docs_registry.py
+uv run --group dev ruff check packages/ethos-contracts/src/ethos_contracts/governance_context.py packages/ethos-repository/src/ethos_repository/docs_registry.py tests/unit/test_cli_contracts.py tests/architecture/test_product_design_contract.py
+uv run openspec validate ethos-productization-convergence --strict --json
+uv run openspec validate ethos-contracts --strict --json
+uv run openspec validate ethos-repository --strict --json
+```
+
+Observed results:
+
+- Initial red tests failed on the retired kernel chain, `shared_commands`
+  containing `ethos report`, and missing scorecard classification.
+- Focused governance-context tests passed: `2 passed`, then `3 passed`.
+- Glossary and docs registry focused tests passed: `10 passed`.
+- Broader focused regression passed: `47 passed`.
+- Ruff reported `All checks passed!`.
+- OpenSpec strict validation passed for `ethos-productization-convergence`,
+  `ethos-contracts`, and `ethos-repository`.
+
+The boundary condition remains unchanged: this addendum fixes local product
+contract semantics and candidate landing readiness. It does not claim hosted CI,
+remote publication, alphasim-dmgr raw/cache or domain backend retirement parity,
+or di-effect publish readiness.

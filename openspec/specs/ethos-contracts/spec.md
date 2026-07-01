@@ -72,6 +72,9 @@ model across product self-governance and adopter repository governance.
 - **WHEN** ETHOS emits `governance_context`
 - **THEN** the context identifies `product_self` or `adopter_repository`
 - **AND** the context records the governed repository subject, profile, kernel
-  chain, and shared command semantics
+  chain, and transition and scorecard command semantics
+- **AND** `shared_commands` and `transition_commands` contain the five transition
+  commands
+- **AND** `scorecard_commands` contains `ethos report`
 - **AND** provider, host, editor, model, and toolchain choices remain outside
   product semantics

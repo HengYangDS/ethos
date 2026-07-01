@@ -101,11 +101,14 @@ it is the highest-intensity use of the same product capability.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the posture, profile, repository
-subject, single-kernel flag, kernel chain, shared commands, repository truth
-boundary, and profile or adapter boundary. The shared command semantics are
-`ethos status`, `ethos plan`, `ethos prove`, `ethos land`, `ethos publish`, and
-`ethos report`; posture-specific commands such as `ethos self audit` refine
-self-hosting proof depth without replacing those shared semantics.
+subject, single-kernel flag, kernel chain, shared transition commands,
+scorecard commands, repository truth boundary, and profile or adapter boundary.
+The shared transition semantics are exposed as `shared_commands` and
+`transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
+`ethos land`, and `ethos publish`. Read-only scorecard semantics are exposed as
+`scorecard_commands`: `ethos report`. Posture-specific commands such as
+`ethos self audit` refine self-hosting proof depth without replacing those
+shared transition or scorecard semantics.
 
 ## Principles
 

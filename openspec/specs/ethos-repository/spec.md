@@ -153,8 +153,9 @@ single-kernel dual-posture repository semantics.
 - **WHEN** ETHOS emits audit, proof, or report payloads for either posture
 - **THEN** the payload includes `governance_context`
 - **AND** the context identifies `product_self` or `adopter_repository`
-- **AND** both postures use the same command semantics for status, plan, prove,
-  land, publish, and report
+- **AND** both postures use the same transition command semantics for status,
+  plan, prove, land, and publish
+- **AND** both postures classify report as a separate read-only scorecard command
 - **AND** profile or adapter differences do not create a second product command
   plane
 

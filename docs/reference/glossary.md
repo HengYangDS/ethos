@@ -21,29 +21,39 @@ and [Docs Registry](../governance/docs-registry.md).
 The public `ethos ...` command vocabulary. Other tools may execute underneath
 ETHOS, but they do not become public workflow roots.
 
-## Constitution
+## JudgmentSource
 
-The repository operation charter: authority order, mutation boundary, public
-command plane, truth/projection/context boundary, and release discipline.
+The authority used for product decisions: user instruction, repository truth,
+accepted decisions, authority order, and truth boundaries. North Star language
+is derived from this source; it is not the source.
 
-## Contract
+## Subject
+
+The governed object, such as a repository, path, package, domain, surface,
+evidence set, or release target.
+
+## Commitment
 
 A rule or commitment that binds a subject. Contracts may come from schemas,
 claims, OpenSpec families, release policy, quality policy, or adopter profiles.
+
+## Change
+
+The governed movement from one repository state to another, such as plan to
+prove, Work Lane to candidate, candidate to accepted root, or release readiness.
 
 ## Evidence
 
 Digest-bound proof material that supports claims and lifecycle decisions.
 
-## Inscription
+## Claim
 
-Tracked writes that change source, docs, config, schemas, evidence, projections,
-or artifacts.
+A trust-bearing statement bound to evidence.
 
-## Transition
+## Chronicle
 
-The governed movement from one repository state to another, such as plan to
-prove, Work Lane to candidate, candidate to accepted root, or release readiness.
+The judged history index for decisions, evidence used, supersession, and current
+state movement.
 
 ## Accepted Root
 
@@ -56,10 +66,6 @@ An isolated lane for tracked mutation.
 ## Candidate
 
 The local integration branch used before accepted-root fast-forward.
-
-## Claim
-
-A trust-bearing statement bound to evidence.
 
 ## Projection
 

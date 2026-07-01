@@ -6,7 +6,7 @@ summary = "Records the ETHOS productization convergence batch across judgment-so
 
 [evidence]
 dated = "docs/evidence/productization-convergence-2026-07-01.md"
-sha256 = "3b434899125b76a31d87e3499febb4449a84b9463fb996c4c5265eeef72f4116"
+sha256 = "9220ad42f311abcaff21fbc0a8c8b35001db166882526bc00fbb4ad0f0857a34"
 evidence_ids = ["evidence:ethos-productization-convergence"]
 binding = "digest-bound convergence evidence binding"
 verifier = "digest_only"
@@ -33,6 +33,8 @@ docs = [
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",
   "docs/governance/judgment-source.md",
+  "docs/reference/command-plane.md",
+  "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",
 ]
 
@@ -54,14 +56,21 @@ targets = [
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",
   "docs/governance/judgment-source.md",
+  "docs/reference/command-plane.md",
+  "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",
   "openspec/changes/ethos-productization-convergence",
+  "openspec/specs/ethos-contracts/spec.md",
+  "openspec/specs/ethos-repository/spec.md",
   "packages/ethos-core/src/ethos_core/models.py",
+  "packages/ethos-contracts/src/ethos_contracts/governance_context.py",
+  "packages/ethos-repository/src/ethos_repository/docs_registry.py",
   "packages/ethos-repository/src/ethos_repository/planner.py",
   "packages/ethos-repository/src/ethos_repository/parity.py",
   "packages/ethos/src/ethos/cli.py",
   "tests/unit/test_adoption_profiles.py",
   "tests/unit/test_authority_graph.py",
+  "tests/unit/test_cli_contracts.py",
   "tests/unit/test_parity_command.py",
   "tests/architecture/test_product_design_contract.py",
 ]

@@ -893,15 +893,13 @@ def test_self_audit_reports_product_shape() -> None:
         },
         "single_kernel": True,
         "kernel_chain": [
-            "Constitution",
+            "JudgmentSource",
             "Subject",
-            "Contract",
-            "IR",
-            "Transition",
-            "Inscription",
+            "Commitment",
+            "Change",
             "Evidence",
+            "Claim",
             "Chronicle",
-            "Evolution",
         ],
         "shared_commands": [
             "ethos status",
@@ -909,6 +907,15 @@ def test_self_audit_reports_product_shape() -> None:
             "ethos prove",
             "ethos land",
             "ethos publish",
+        ],
+        "transition_commands": [
+            "ethos status",
+            "ethos plan",
+            "ethos prove",
+            "ethos land",
+            "ethos publish",
+        ],
+        "scorecard_commands": [
             "ethos report",
         ],
         "truth_boundary": "repository",
@@ -1600,6 +1607,19 @@ def test_prove_uses_adopter_audit_for_non_product_repo(tmp_path: Path) -> None:
         "ethos prove",
         "ethos land",
         "ethos publish",
+    ]
+    assert payload["data"]["self_audit"]["governance_context"][
+        "transition_commands"
+    ] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert payload["data"]["self_audit"]["governance_context"][
+        "scorecard_commands"
+    ] == [
         "ethos report",
     ]
 

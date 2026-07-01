@@ -129,9 +129,15 @@ def test_product_design_contract_defines_single_kernel_dual_posture() -> None:
         assert "`governance_context`" in text
 
     assert "self-governance is not a private command plane" in product
+    assert "`transition_commands`" in product
+    assert "`scorecard_commands`" in product
+    assert "`transition_commands`" in command_plane
+    assert "`scorecard_commands`" in command_plane
     assert "governance_audit" in command_plane
     assert "capability_parity" in command_plane
-    assert "same command semantics" in repository_spec
+    assert "same transition command semantics" in repository_spec
+    assert "read-only scorecard command" in repository_spec
+    assert "transition and scorecard command semantics" in contracts_spec
     assert "shared governance context contract" in contracts_spec
 
 
@@ -170,6 +176,7 @@ def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
     )
     canonical_surfaces = (
         "docs/architecture/package-ontology.md",
+        "docs/reference/glossary.md",
         "packages/ethos-core/README.md",
         "openspec/specs/ethos-core/spec.md",
     )
@@ -178,6 +185,24 @@ def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
         text = read(surface)
         for phrase in retired_phrases:
             assert phrase not in text, (surface, phrase)
+
+
+def test_glossary_uses_canonical_kernel_terms() -> None:
+    glossary = read("docs/reference/glossary.md")
+
+    for term in (
+        "JudgmentSource",
+        "Subject",
+        "Commitment",
+        "Change",
+        "Evidence",
+        "Claim",
+        "Chronicle",
+    ):
+        assert f"## {term}" in glossary
+
+    for retired_term in ("Constitution", "Contract", "Inscription", "Transition"):
+        assert f"## {retired_term}" not in glossary
 
 
 def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -> None:

@@ -167,7 +167,7 @@ Run the same pytest command. Expected: pass.
 
 - [x] **Step 1: Write failing binding-boundary tests**
 
-Add tests that assert Git remains `product_semantic_hard_binding`; OpenSpec remains `mandatory_governance_dependency`; `uv`, `pytest`, `Ruff`, and hatchling remain `product_toolchain_binding`; GitLab, MCP, ACP, and npm launcher remain `profile_or_adapter_binding`; legacy evidence remains `legacy_evidence`; fixtures remain `test_fixture`.
+Add tests that assert Git remains `product_semantic_hard_binding`; OpenSpec remains `mandatory_governance_dependency`; `uv`, `pytest`, `Ruff`, and hatchling remain `product_toolchain_binding`; GitLab, MCP, ACP, and npm launcher remain `profile_or_adapter_binding`; historical evidence remains `historical_evidence`; fixtures remain `test_fixture`.
 
 - [x] **Step 2: Verify RED**
 

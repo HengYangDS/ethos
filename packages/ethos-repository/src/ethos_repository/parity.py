@@ -345,6 +345,12 @@ def shadow_parity_report(
             "command_sha256": "",
         },
     }
+    refresh_package = parity_evidence_refresh_package(
+        root=root or Path.cwd(),
+        adopter=adopter or "generic",
+        target=target,
+        required_gaps=[gap],
+    )
     return {
         "ok": False,
         "state": "planned",
@@ -362,15 +368,8 @@ def shadow_parity_report(
                 "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
                 "blocking": True,
                 "provenance": provenance,
-                "refresh_package": parity_evidence_refresh_package(
-                    root=root or Path.cwd(),
-                    adopter=adopter or "generic",
-                    target=target,
-                    required_gaps=[gap],
-                ),
-                "next_action": (
-                    f"ethos parity shadow --target {target.as_posix()} --execute"
-                ),
+                "refresh_package": refresh_package,
+                "next_action": refresh_package["command"],
             }
         ],
     }

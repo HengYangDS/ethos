@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import ethos_repository.coupling as coupling
@@ -19,7 +20,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "product_toolchain_binding",
         "profile_or_adapter_binding",
         "default_policy",
-        "legacy_evidence",
+        "historical_evidence",
         "test_fixture",
     ]
     assert report["git_native"] == {
@@ -65,7 +66,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "gitlab_release_profile",
         "mcp_acp_protocol_adapters",
         "npm_launcher_distribution_adapter",
-        "legacy_evidence_records",
+        "historical_evidence_records",
         "provider_test_fixtures",
     ]
     assert registry["git_repository_substrate"]["layer"] == "product_semantic_hard_binding"
@@ -196,8 +197,17 @@ def test_binding_registry_keeps_each_binding_in_its_mechanism_layer() -> None:
     ):
         assert registry[binding_id]["layer"] == "profile_or_adapter_binding"
         assert registry[binding_id]["owns_product_semantics"] is False
-    assert registry["legacy_evidence_records"]["layer"] == "legacy_evidence"
+    assert registry["historical_evidence_records"]["layer"] == "historical_evidence"
     assert registry["provider_test_fixtures"]["layer"] == "test_fixture"
+
+
+def test_coupling_report_has_no_self_or_legacy_current_surface_terms() -> None:
+    report = coupling_audit_report(Path.cwd())
+
+    rendered = json.dumps(report, sort_keys=True)
+    assert not hasattr(coupling, "SELF_HOSTING_GATES")
+    assert "self_hosting" not in rendered
+    assert "legacy" not in rendered
 
 
 def test_binding_registry_exposes_substantive_binding_contract_metadata() -> None:

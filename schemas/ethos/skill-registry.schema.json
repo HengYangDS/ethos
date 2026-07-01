@@ -24,7 +24,7 @@
           "obligations",
           "relations",
           "commands",
-          "legacy"
+          "source_version"
         ],
         "properties": {
           "id": {"type": "string"},
@@ -45,7 +45,7 @@
           "relations": {"type": "object"},
           "commands": {"type": "array", "items": {"type": "string"}},
           "boundary": {"type": "string"},
-          "legacy": {"type": "object"}
+          "source_version": {"type": "integer"}
         },
         "additionalProperties": true
       }

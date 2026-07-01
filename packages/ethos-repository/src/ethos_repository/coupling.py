@@ -33,7 +33,7 @@ COUPLING_LAYERS: dict[str, str] = {
     "default_policy": (
         "Repository-default policies that can be configured without changing semantics."
     ),
-    "legacy_evidence": "Historical proof records that preserve prior provider facts.",
+    "historical_evidence": "Historical proof records that preserve prior provider facts.",
     "test_fixture": "Tests and fixtures that intentionally model a provider or adopter.",
 }
 BINDING_UI_PROJECTION_FIELDS = frozenset({"open_action", "open_label", "action", "label"})
@@ -149,8 +149,8 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
         "owns_product_semantics": False,
         "adapter_replaceable": True,
     },
-    "legacy_evidence_records": {
-        "layer": "legacy_evidence",
+    "historical_evidence_records": {
+        "layer": "historical_evidence",
         "required": False,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
@@ -259,10 +259,10 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "degradation_state": "deferred:npm_distribution_unavailable",
         "proof_gate": "uv build --all-packages",
     },
-    "legacy_evidence_records": {
+    "historical_evidence_records": {
         "required_for": ["historical auditability"],
         "replaceability": "historical",
-        "degradation_state": "nonblocking:legacy_evidence_absent",
+        "degradation_state": "nonblocking:historical_evidence_absent",
         "proof_gate": "ethos report --json",
     },
     "provider_test_fixtures": {
@@ -304,7 +304,7 @@ NATIVE_PROTOCOL_FORMATS = (
     "JSONL",
     "SQLite local state",
 )
-SELF_HOSTING_GATES = ("unit-architecture", "ruff", "build")
+PRODUCT_REPOSITORY_GATES = ("unit-architecture", "ruff", "build")
 
 
 def _vendor_term_gaps(root: Path) -> list[str]:
@@ -350,7 +350,7 @@ def _release_report(root: Path) -> dict[str, Any]:
 def _gate_profile_gaps() -> list[str]:
     registry = gate_registry()
     gaps = []
-    for gate_id in SELF_HOSTING_GATES:
+    for gate_id in PRODUCT_REPOSITORY_GATES:
         gate = registry[gate_id]
         if gate.profile != "product-toolchain":
             gaps.append(f"gate_profile_mismatch:{gate_id}:{gate.profile}")
@@ -361,11 +361,13 @@ def _gate_profile_gaps() -> list[str]:
 
 def _product_toolchain() -> dict[str, object]:
     registry = gate_registry()
-    toolchains = sorted({registry[gate_id].toolchain for gate_id in SELF_HOSTING_GATES})
+    toolchains = sorted(
+        {registry[gate_id].toolchain for gate_id in PRODUCT_REPOSITORY_GATES}
+    )
     return {
         "profile": "product-toolchain",
         "layer": "product_toolchain_binding",
-        "gates": list(SELF_HOSTING_GATES),
+        "gates": list(PRODUCT_REPOSITORY_GATES),
         "toolchains": toolchains,
         "product_ontology_anchor": False,
     }
@@ -562,8 +564,8 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
             "surfaces": ["distributions/npm", "npm launcher"],
         },
         {
-            "id": "legacy_evidence_records",
-            "layer": "legacy_evidence",
+            "id": "historical_evidence_records",
+            "layer": "historical_evidence",
             "required": False,
             "owns_product_semantics": False,
             "adapter_replaceable": True,

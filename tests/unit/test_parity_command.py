@@ -792,8 +792,26 @@ def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
                     "command_sha256": "",
                 },
             },
+            "refresh_package": {
+                "kind": "parity_evidence_refresh",
+                "adopter": "generic",
+                "root": Path.cwd().resolve().as_posix(),
+                "target": tmp_path.resolve().as_posix(),
+                "blocking": True,
+                "required_gaps": [
+                    f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}"
+                ],
+                "command": (
+                    "ethos parity shadow --adopter generic "
+                    f"--target {tmp_path.resolve().as_posix()} "
+                    "--execute --write-evidence --json"
+                ),
+                "next_action": "refresh tracked shadow parity evidence",
+            },
             "next_action": (
-                f"ethos parity shadow --target {tmp_path.resolve().as_posix()} --execute"
+                "ethos parity shadow --adopter generic "
+                f"--target {tmp_path.resolve().as_posix()} "
+                "--execute --write-evidence --json"
             ),
         }
     ]
@@ -1179,7 +1197,7 @@ def test_shadow_timeout_is_process_failure() -> None:
     assert shadow._process_failed(result) is True
 
 
-def test_shadow_semantic_diff_derives_state_for_legacy_status_payload() -> None:
+def test_shadow_semantic_diff_derives_state_for_minimal_status_payload() -> None:
     external = {
         "ok": True,
         "command": "status",
@@ -1232,7 +1250,7 @@ def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload
     assert _semantic_diff(external, embedded) == {}
 
 
-def test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload() -> None:
+def test_shadow_semantic_diff_normalizes_ready_prove_against_minimal_payload() -> None:
     external = {
         "ok": True,
         "command": "prove",
@@ -1258,7 +1276,7 @@ def test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload() ->
         ("publish", "dry_run"),
     ],
 )
-def test_shadow_semantic_diff_classifies_external_repository_audit_gaps_for_legacy_payload(
+def test_shadow_semantic_diff_classifies_external_repository_audit_gaps_for_minimal_payload(
     command: str,
     external_state: str,
 ) -> None:
@@ -1317,7 +1335,7 @@ def test_shadow_semantic_diff_preserves_external_non_repository_audit_gaps() -> 
     assert diff["required_gaps"] == {"external": ["action_graph_invalid"], "embedded": []}
 
 
-def test_shadow_semantic_diff_classifies_legacy_changed_route_noop() -> None:
+def test_shadow_semantic_diff_classifies_changed_route_noop() -> None:
     external = {
         "ok": False,
         "command": "playbooks route",

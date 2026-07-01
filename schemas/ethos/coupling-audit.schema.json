@@ -112,7 +112,7 @@
         "product_toolchain_binding",
         "profile_or_adapter_binding",
         "default_policy",
-        "legacy_evidence",
+        "historical_evidence",
         "test_fixture"
       ]
     },

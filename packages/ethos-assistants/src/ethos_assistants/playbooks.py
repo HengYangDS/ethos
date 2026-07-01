@@ -17,7 +17,7 @@ from ethos_assistants.skill_packages import (
     validate_skill_package_manifest,
 )
 
-PLAYBOOK_MODES = ("legacy-compat", "v2-strict")
+PLAYBOOK_MODES = ("v2-strict",)
 
 
 def _skills_root(root: Path) -> Path:
@@ -39,7 +39,7 @@ def _load_activation(root: Path) -> tuple[dict[str, Any], list[str]]:
     return payload, []
 
 
-def playbooks_report(root: Path, *, mode: str = "legacy-compat") -> dict[str, object]:
+def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object]:
     selected_mode = _mode(mode)
     skills_root = _skills_root(root)
     payload, missing = _load_activation(root)
@@ -53,24 +53,24 @@ def playbooks_report(root: Path, *, mode: str = "legacy-compat") -> dict[str, ob
     package_capabilities: list[dict[str, Any]] = []
     activation_version = int(registry.get("meta", {}).get("version") or 1)
     if activation_version < 2:
-        v2_gaps.append(f"playbook_activation_legacy_version:{activation_version}")
+        v2_gaps.append(f"playbook_activation_unsupported_version:{activation_version}")
     for record in registry["records"]:
-        legacy_record = _legacy_record(record)
-        records.append(legacy_record)
-        skill_id = legacy_record["id"]
+        playbook_record = _playbook_record(record)
+        records.append(playbook_record)
+        skill_id = playbook_record["id"]
         if not skill_id:
             required_gaps.append("skill_missing_id")
             continue
-        path_gaps = _record_path_gaps(root, str(skill_id), str(legacy_record["path"]))
+        path_gaps = _record_path_gaps(root, str(skill_id), str(playbook_record["path"]))
         if path_gaps:
             v2_gaps.extend(path_gaps)
-        elif not (root / str(legacy_record["path"])).exists():
+        elif not (root / str(playbook_record["path"])).exists():
             required_gaps.append(f"skill_missing_file:{skill_id}")
         v2_gaps.extend(_strict_record_gaps(record))
         if not path_gaps:
             quality = validate_skill_markdown(
                 root,
-                str(legacy_record["path"]),
+                str(playbook_record["path"]),
                 str(skill_id),
                 DEFAULT_REQUIRED_SECTIONS,
             )
@@ -84,7 +84,7 @@ def playbooks_report(root: Path, *, mode: str = "legacy-compat") -> dict[str, ob
             _package_entrypoint_gaps(
                 root,
                 str(skill_id),
-                str(legacy_record["path"]),
+                str(playbook_record["path"]),
                 package_report,
             )
         )
@@ -93,10 +93,7 @@ def playbooks_report(root: Path, *, mode: str = "legacy-compat") -> dict[str, ob
         required_gaps.append(".agents/skills/README.md")
     if not skills_root.exists():
         required_gaps.append(".agents/skills")
-    if selected_mode == "v2-strict":
-        required_gaps.extend(_dedupe(v2_gaps))
-    else:
-        advisory_gaps.extend(_dedupe(v2_gaps))
+    required_gaps.extend(_dedupe(v2_gaps))
     score = _skills_v2_score(required_gaps, advisory_gaps, selected_mode)
     return {
         "ok": not required_gaps,
@@ -129,7 +126,7 @@ def route_playbook(
     subject: str,
     *,
     require_explicit_subject: bool = False,
-    mode: str = "legacy-compat",
+    mode: str = "v2-strict",
     changed_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     report = playbooks_report(root, mode=mode)
@@ -170,7 +167,7 @@ def route_playbook(
     }
 
 
-def _legacy_record(record: dict[str, Any]) -> dict[str, object]:
+def _playbook_record(record: dict[str, Any]) -> dict[str, object]:
     return {
         "id": record["id"],
         "path": record["path"],
@@ -198,7 +195,7 @@ def _strict_record_gaps(record: dict[str, Any]) -> list[str]:
         gaps.append(f"playbook_skill_missing_subject:{skill_id}")
     if not record["operation"]:
         gaps.append(f"playbook_skill_missing_operation:{skill_id}")
-    if not record["authority"] or record["authority"] == "legacy":
+    if not record["authority"]:
         gaps.append(f"playbook_skill_missing_authority:{skill_id}")
     if not record["lifecycle"]:
         gaps.append(f"playbook_skill_missing_lifecycle:{skill_id}")
@@ -341,7 +338,7 @@ def _command_covers(capability: tuple[str, ...], command: tuple[str, ...]) -> bo
 
 
 def _skills_v2_score(required: list[str], advisory: list[str], mode: str) -> int:
-    gaps = required if mode == "v2-strict" else advisory
+    gaps = required
     return max(0, 5 - min(5, len(_dedupe(gaps))))
 
 

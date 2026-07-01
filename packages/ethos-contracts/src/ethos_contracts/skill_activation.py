@@ -35,8 +35,8 @@ def skill_registry_digest(registry: dict[str, Any]) -> str:
 def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, Any]:
     declared_id = _string(entry.get("id"))
     declared_name = _string(entry.get("name"))
-    skill_id = declared_id or declared_name
-    identifier_source = "id" if declared_id else "name" if declared_name else "missing"
+    skill_id = declared_id
+    identifier_source = "id" if declared_id else "missing"
     primary_subject = _string(entry.get("subject") or entry.get("primary_subject"))
     path_globs = _string_list(entry.get("path_globs"))
     subjects = _route_subjects(
@@ -50,11 +50,12 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
         "declared_name": declared_name,
         "identifier_source": identifier_source,
         "priority": int(entry.get("priority") or 0),
-        "path": _string(entry.get("path")) or f".agents/skills/{skill_id}/SKILL.md",
+        "path": _string(entry.get("path"))
+        or (f".agents/skills/{skill_id}/SKILL.md" if skill_id else ""),
         "package_manifest": _string(entry.get("package_manifest")),
         "primary_subject": primary_subject,
         "operation": _string(entry.get("operation")),
-        "authority": _string(entry.get("authority")) or ("legacy" if raw_version < 2 else ""),
+        "authority": _string(entry.get("authority")),
         "lifecycle": _string(entry.get("lifecycle")) or "active",
         "route_subjects": subjects,
         "subjects": subjects,
@@ -72,10 +73,7 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
         },
         "commands": _string_list(entry.get("commands")),
         "boundary": _string(entry.get("boundary")),
-        "legacy": {
-            "raw_version": raw_version,
-            "identifier_source": identifier_source,
-        },
+        "source_version": raw_version,
         "extensions": _extensions(entry),
     }
 

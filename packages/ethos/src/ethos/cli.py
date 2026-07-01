@@ -449,7 +449,6 @@ def _intake_projection_report(repo: Path) -> dict[str, object]:
         "kind": "intake_projection",
         "state": state,
         "truth_boundary": "projection-evidence",
-        "legacy_truth_boundary": "adopter-ledger",
         "repository_truth": False,
         "provider": provider,
         "configured": configured,
@@ -2187,7 +2186,7 @@ def assistants_context(*, json_output: JsonFlag = False) -> None:
 def playbooks_check(
     *,
     root: RootOption | None = None,
-    mode: str = "legacy-compat",
+    mode: str = "v2-strict",
     json_output: JsonFlag = False,
 ) -> None:
     """Check repo-local ETHOS playbook projection."""
@@ -2210,7 +2209,7 @@ def playbooks_route(
     subject: str = "repository-governance",
     changed: bool = False,
     root: RootOption | None = None,
-    mode: str = "legacy-compat",
+    mode: str = "v2-strict",
     json_output: JsonFlag = False,
 ) -> None:
     """Route a subject to repo-local ETHOS playbooks."""
@@ -2391,8 +2390,7 @@ def report(
     signature = signature_policy_report(repo)
     audit_profile = str(audit["governance_context"]["profile"])
     product_profile = audit_profile == "product"
-    playbook_mode = "v2-strict" if product_profile else "legacy-compat"
-    playbooks = playbooks_report(repo, mode=playbook_mode)
+    playbooks = playbooks_report(repo, mode="v2-strict")
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
     parity_gaps = parity_gaps_report(

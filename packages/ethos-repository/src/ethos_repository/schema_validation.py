@@ -570,7 +570,6 @@ def _intake_projection_contract_sample() -> dict[str, Any]:
         "kind": "intake_projection",
         "state": "unconfigured",
         "truth_boundary": "projection-evidence",
-        "legacy_truth_boundary": "adopter-ledger",
         "repository_truth": False,
         "provider": "unconfigured",
         "configured": False,

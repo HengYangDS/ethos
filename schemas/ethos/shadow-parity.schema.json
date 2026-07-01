@@ -30,10 +30,10 @@
   "additionalProperties": false,
   "$defs": {
     "acceptedKind": {
-      "enum": ["external_product_repository_audit_gap", "legacy_changed_route_noop"]
+      "enum": ["external_product_repository_audit_gap", "changed_route_noop"]
     },
     "acceptedScope": {
-      "enum": ["external_product_repository_audit", "legacy_changed_scope_route"]
+      "enum": ["external_product_repository_audit", "changed_scope_route"]
     },
     "acceptedSummary": {
       "type": "object",

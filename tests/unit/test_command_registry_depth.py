@@ -163,6 +163,23 @@ def test_current_plan_docs_do_not_contain_retired_closeout_mechanisms() -> None:
             assert residue not in text, f"{path} contains retired closeout residue"
 
 
+def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> None:
+    surfaces = (
+        Path("packages/ethos/src/ethos/cli.py"),
+        Path("packages/ethos-assistants/src/ethos_assistants/playbooks.py"),
+        Path("packages/ethos-contracts/src/ethos_contracts/skill_activation.py"),
+        Path("packages/ethos-adapters/src/ethos_adapters/shadow.py"),
+        Path("schemas/ethos/campaign-closeout.schema.json"),
+        Path("schemas/ethos/shadow-parity.schema.json"),
+        Path("schemas/ethos/skill-registry.schema.json"),
+        Path("schemas/ethos/coupling-audit.schema.json"),
+    )
+
+    for path in surfaces:
+        text = path.read_text(encoding="utf-8")
+        assert "legacy" not in text.lower(), f"{path} exposes legacy compatibility"
+
+
 def test_command_examples_reject_unknown_ethos_subcommands(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "README.md").write_text(

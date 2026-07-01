@@ -8,13 +8,15 @@ from ethos_contracts.skill_activation import (
 )
 
 
-def test_normalizes_v1_activation_without_losing_legacy_fields() -> None:
+def test_normalizes_activation_contract_without_compatibility_surface() -> None:
     payload = {
-        "meta": {"version": 1, "source_of_truth": "repository"},
+        "meta": {"version": 2, "source_of_truth": "repository"},
         "skill": [
             {
-                "name": "code-change",
+                "id": "code-change",
                 "path": ".agents/skills/code-change/SKILL.md",
+                "subject": "implementation",
+                "authority": "primary",
                 "subjects": ["implementation"],
                 "path_globs": ["src/**", "tests/**"],
                 "intent_tokens": ["implement", "refactor"],
@@ -33,8 +35,8 @@ def test_normalizes_v1_activation_without_losing_legacy_fields() -> None:
     assert registry["source"] == ".agents/skills/activation.toml"
     record = registry["records"][0]
     assert record["id"] == "code-change"
-    assert record["declared_name"] == "code-change"
-    assert record["identifier_source"] == "name"
+    assert record["declared_id"] == "code-change"
+    assert record["identifier_source"] == "id"
     assert record["path"] == ".agents/skills/code-change/SKILL.md"
     assert record["route_subjects"] == ["implementation", "changed-scope"]
     assert record["activation"]["path_globs"] == ["src/**", "tests/**"]
@@ -44,7 +46,8 @@ def test_normalizes_v1_activation_without_losing_legacy_fields() -> None:
     assert record["relations"]["may_coactivate"] == ["quality-gate"]
     assert record["commands"] == ["ethos status"]
     assert record["boundary"] == "thin-playbook-projection"
-    assert record["legacy"]["raw_version"] == 1
+    assert record["source_version"] == 2
+    assert "legacy" not in record
 
 
 def test_normalizes_di_effect_v2_style_activation_contract() -> None:
@@ -54,7 +57,7 @@ def test_normalizes_di_effect_v2_style_activation_contract() -> None:
         "retired": {"skill_names": ["old-skill"]},
         "skill": [
             {
-                "name": "di-effect-openspec-governance",
+                "id": "di-effect-openspec-governance",
                 "priority": 30,
                 "subject": "openspec-governance",
                 "operation": "govern",

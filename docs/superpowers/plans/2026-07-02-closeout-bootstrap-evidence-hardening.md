@@ -1,3 +1,11 @@
+---
+subject: ethos:plan:closeout-bootstrap-evidence-hardening
+role: execution-plan
+state: active
+relations:
+  change: ethos-closeout-bootstrap-evidence-hardening
+---
+
 # Closeout Bootstrap Evidence Hardening Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -294,3 +302,12 @@ uv run --package ethos ethos lane retire-landed --branch work/closeout-bootstrap
 - Spec coverage: closeout bootstrap, parity evidence refresh, shadow backend selection, coordination advisory shape, residue cleanup, verification, and local closeout are covered.
 - Placeholder scan: `<repo>`, `<name>`, and `<path>` appear only where the product intentionally cannot know a target before the user supplies one.
 - Type consistency: new package names are `closeout_bootstrap`, `parity_evidence_refresh`, `embedded_backend`, and `coordination`; all are JSON dictionaries consistent with existing ETHOS package shapes.
+
+Status: active execution plan for the local closeout hardening lane.
+
+Purpose: define the implementation, verification, evidence refresh, and local
+closeout steps for closeout bootstrap and parity evidence hardening.
+
+See also: [Command Plane](../../reference/command-plane.md),
+[Runner And Mutation](../../architecture/runner-and-mutation.md), and
+[Capability Parity Ledger](../../governance/capability-parity-ledger.md).

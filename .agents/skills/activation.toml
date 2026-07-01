@@ -1,8 +1,8 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:17679c4a491d15710ee1d2f05c2600faf6e9baa55219df0bedd3ce1a58687215"
-expected_generator_digest = "sha256:4ecddd8dd720b1e42ba65b0f4db3b19da62be733307c70a04e970f9fab266cc0"
+expected_registry_digest = "sha256:1ff07c59165459a1dc67e9ff3e4e4d9e5053a56866e97ab950548a38ac4e732f"
+expected_generator_digest = "sha256:20e2c447726aba2d0aa2e65ffd6830889f2a5a59c276c44331937c301c45301c"
 
 [[skill]]
 id = "ethos-repository-governance"

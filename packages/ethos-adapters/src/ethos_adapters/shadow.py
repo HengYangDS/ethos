@@ -368,7 +368,7 @@ def _normalized_semantic_projections(
                     gaps=repository_audit_gaps,
                 )
             )
-        external_gaps, route_gaps = _without_legacy_changed_route_noop_gaps(
+        external_gaps, route_gaps = _without_changed_route_noop_gaps(
             external,
             embedded,
             external_gaps,
@@ -376,7 +376,7 @@ def _normalized_semantic_projections(
         if route_gaps:
             accepted.append(
                 _accepted_difference(
-                    "legacy_changed_route_noop",
+                    "changed_route_noop",
                     command=external_projection.get("command"),
                     gaps=route_gaps,
                 )
@@ -395,9 +395,9 @@ def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict
     if kind == "external_product_repository_audit_gap":
         scope = "external_product_repository_audit"
         reason = "external product repository audit gap is not an embedded adopter parity gap"
-    elif kind == "legacy_changed_route_noop":
-        scope = "legacy_changed_scope_route"
-        reason = "legacy changed-scope route has no changed paths to route"
+    elif kind == "changed_route_noop":
+        scope = "changed_scope_route"
+        reason = "changed-scope route has no changed paths to route"
     else:
         scope = "unknown"
         reason = "unclassified accepted difference"
@@ -615,12 +615,12 @@ def _is_product_repository_audit_gap(gap: str) -> bool:
     )
 
 
-def _without_legacy_changed_route_noop_gaps(
+def _without_changed_route_noop_gaps(
     external: dict[str, Any],
     embedded: dict[str, Any],
     gaps: list[str],
 ) -> tuple[list[str], list[str]]:
-    if not _is_legacy_changed_route_noop(external, embedded, gaps):
+    if not _is_changed_route_noop(external, embedded, gaps):
         return gaps, []
     route_gap_codes = {"skill_missing_id", "playbook_route_missing:changed-scope"}
     filtered = [gap for gap in gaps if gap not in route_gap_codes]
@@ -628,7 +628,7 @@ def _without_legacy_changed_route_noop_gaps(
     return filtered, removed
 
 
-def _is_legacy_changed_route_noop(
+def _is_changed_route_noop(
     external: dict[str, Any],
     embedded: dict[str, Any],
     gaps: list[str],

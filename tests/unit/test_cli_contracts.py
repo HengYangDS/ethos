@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from ethos_contracts.branch_roles import load_branch_role_policy
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_repository.planner import adoption_plan
 from ethos_repository.schema_validation import validate_schema_instance
@@ -42,6 +43,40 @@ def init_git_repo(path: Path) -> Path:
         "init",
     )
     return path
+
+
+def write_role_policy(
+    repo: Path,
+    *,
+    candidate_branch: str = "stage/dev",
+    work_branch_prefix: str = "lane/",
+    submit_branch_prefix: str = "review/",
+) -> None:
+    (repo / ".ethos" / "workspace.toml").write_text(
+        "\n".join(
+            [
+                "[branch_roles]",
+                'release_branch = "main"',
+                'accepted_branch = "dev"',
+                f'candidate_branch = "{candidate_branch}"',
+                f'work_branch_prefix = "{work_branch_prefix}"',
+                f'submit_branch_prefix = "{submit_branch_prefix}"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", ".ethos/workspace.toml")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configure branch roles",
+    )
 
 
 def test_status_json_contract() -> None:
@@ -268,8 +303,7 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
         "path": worktree.resolve().as_posix(),
         "head": git(worktree, "rev-parse", "HEAD"),
         "role": "work_lane",
-        "open_action": "open_worktree",
-        "open_label": "Open Worktree",
+        "worktree_binding": "linked",
     }
     assert git(worktree, "branch", "--show-current") == "work/feature"
 
@@ -312,8 +346,7 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
             "head": git(worktree, "rev-parse", "HEAD"),
             "branch": "work/feature",
             "role": "work_lane",
-            "open_action": "open_worktree",
-            "open_label": "Open Worktree",
+            "worktree_binding": "linked",
             "lease_owner": "agent:test",
             "lease_state": "leased",
         }
@@ -384,6 +417,33 @@ def test_lane_candidate_apply_creates_candidate_branch(tmp_path: Path) -> None:
     assert payload["data"]["branch"] == "candidate/dev"
     assert git(repo, "rev-parse", "candidate/dev") == head
     assert git(candidate_path, "branch", "--show-current") == "candidate/dev"
+
+
+def test_lane_candidate_apply_default_path_uses_configured_candidate_role(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_role_policy(repo)
+    expected_candidate_path = tmp_path / "repo-stage-dev"
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "lane",
+        "candidate",
+        "--root",
+        repo.as_posix(),
+        "--expect-head",
+        head,
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "bootstrapped"
+    assert payload["data"]["branch"] == "stage/dev"
+    assert payload["data"]["path"] == expected_candidate_path.as_posix()
+    assert git(expected_candidate_path, "branch", "--show-current") == "stage/dev"
 
 
 def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> None:
@@ -905,9 +965,7 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
 def test_publish_reports_local_readiness_without_remote_push() -> None:
     payload = run_ethos("publish", "--json")
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
-    submit_branch = (
-        f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
-    )
+    submit_branch = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
 
     assert payload["data"]["remote_push"] == "not_performed"
     assert payload["data"]["publication"] == {
@@ -923,14 +981,27 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
             "remote_state": "deferred",
             "blocking": False,
             "required_steps": [
-                "land work lane to candidate/dev",
-                "fast-forward local dev from candidate/dev",
-                "create submit/* and push when remote publication is available",
+                "land work lane to candidate role",
+                "fast-forward accepted root from candidate role",
+                "create configured submit branch when remote publication is available",
             ],
         },
         "required_gaps": [],
-        "next_actions": ["create submit/* and push when remote publication is available"],
+        "next_actions": ["create configured submit branch when remote publication is available"],
     }
+
+
+def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_role_policy(repo)
+    git(repo, "checkout", "-b", "lane/topic")
+
+    payload = run_ethos("publish", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    publication = payload["data"]["publication"]
+    assert publication["local_submit_package"]["source_branch"] == "lane/topic"
+    assert publication["submit_branch"] == "review/topic"
+    assert publication["local_submit_package"]["submit_branch"] == "review/topic"
 
 
 def test_assistant_projection_commands_are_available() -> None:
@@ -1080,9 +1151,7 @@ def test_campaign_hypotheses_are_visible() -> None:
 
 def test_campaign_closeout_reports_local_campaign_packages() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
-    expected_submit = (
-        f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
-    )
+    expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
     evidence = json.loads(
         Path("docs/evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
     )

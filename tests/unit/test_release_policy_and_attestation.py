@@ -40,8 +40,75 @@ def test_release_policy_reports_required_gitlab_and_tag_contracts() -> None:
         ".ethos/release.toml",
     ]
     assert report["gitlab"]["ci"] == ".gitlab-ci.yml"
-    assert report["protected_refs"]["branches"] == ["dev", "main"]
+    assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert report["protected_refs"]["tags"] == ["v*"]
+
+
+def test_release_policy_uses_configured_branch_roles_for_protected_refs(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    (root / ".gitlab" / "merge_request_templates").mkdir(parents=True)
+    (root / ".gitlab" / "issue_templates").mkdir(parents=True)
+    for path in (
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+    ):
+        (root / path).write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (root / ".ethos" / "workspace.toml").write_text(
+        "\n".join(
+            [
+                "[branch_roles]",
+                'release_branch = "release"',
+                'accepted_branch = "integration"',
+                'candidate_branch = "stage/integration"',
+                'work_branch_prefix = "lane/"',
+                'submit_branch_prefix = "review/"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        "\n".join(
+            [
+                "[release]",
+                'version_source = "pyproject.toml"',
+                'tag_pattern = "v{version}"',
+                'artifact_glob = "dist/*"',
+                "",
+                "[protected_refs]",
+                'branches = ["release", "integration"]',
+                'tags = ["v*"]',
+                "",
+                "[gitlab]",
+                'ci = ".gitlab-ci.yml"',
+                'merge_request_template = ".gitlab/merge_request_templates/default.md"',
+                'issue_template = ".gitlab/issue_templates/task.md"',
+                "",
+                "[attestation]",
+                'formats = ["in-toto", "slsa", "spdx-lite"]',
+                'signing = "git-ssh"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert "protected_branches_policy_missing" not in report["required_gaps"]
+    assert report["protected_refs"]["branches"] == ["release", "integration"]
 
 
 def test_release_attestation_is_in_toto_and_slsa_shaped() -> None:

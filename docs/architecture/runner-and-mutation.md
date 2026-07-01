@@ -24,45 +24,49 @@ Without both, the command returns `authorization_required` or
 `expect_head_required` instead of mutating.
 
 Tracked file edits must pass Work Lane admission before an agent writes. `ethos
-lane start` creates an owned `work/*` linked worktree and records a local lease.
-`ethos lane status` exposes linked worktrees and foreign Work Lanes from the
-accepted root without entering those foreign worktrees. `ethos lane prewrite`
-rejects tracked writes from protected roots and requires the editor root to
-match the owned Work Lane.
+lane start` creates an owned Work Lane branch under the configured prefix,
+binds it to a linked worktree, and records a local lease. `ethos lane status`
+exposes linked worktrees and foreign Work Lanes from the accepted root without
+entering those foreign worktrees. `ethos lane prewrite` rejects tracked writes
+from protected roles and requires the editor root to match the owned Work Lane.
 
-The local candidate train is `candidate/dev` bound to its own linked worktree.
-`ethos lane candidate --apply` bootstraps that worktree from a clean accepted
-root with an expected HEAD. New Work Lanes start from `candidate/dev` instead of
-raw `dev`, and `ethos land --apply` from an admitted Work Lane fast-forwards the
-candidate worktree without advancing `dev`.
-Status output marks `candidate/dev` and `work/*` branches that already have
-linked worktrees with `action = "open_worktree"` and label `Open Worktree`, not
-as plain checkout actions.
+The local candidate train is the configured candidate branch bound to its own
+linked worktree. `ethos lane candidate --apply` bootstraps that worktree from a
+clean accepted root with an expected HEAD. New Work Lanes start from the
+candidate branch instead of the accepted root, and `ethos land --apply` from an
+admitted Work Lane fast-forwards the candidate worktree without advancing the
+accepted root.
+Status output reports role-policy `branch_bindings` in semantic order: release
+root, accepted root, candidate, then additional bound branches. Existing linked
+worktrees report `worktree_binding = "linked"` as product state; host-specific
+open or checkout labels are adapter projections, not workspace semantics.
 `ethos lane start --apply --json` returns the newly created Work Lane under
-`data.worktree` with that same Open Worktree vocabulary. Start admission also
-rejects a dirty candidate worktree with `candidate_worktree_dirty`, so a new
-Work Lane cannot be created from ambiguous local candidate state.
+`data.worktree` with the same binding vocabulary. Start admission also rejects a
+dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
+cannot be created from ambiguous local candidate state.
 
 Status output also carries `closeout_support`. Only the current clean
-`work/*` checkout can advertise `action = "land_to_candidate"`. Accepted roots,
-`candidate/dev`, submit branches, detached heads, and foreign Work Lanes remain
-observe-only and report blocking gaps such as `protected_root_mutation`,
-`work_lane_dirty`, `candidate_worktree_missing`, or `candidate_worktree_dirty`.
+Work Lane checkout can advertise `operation = "land_to_candidate"`. Release
+roots, accepted roots, candidate branches, submit branches, detached heads, and
+foreign Work Lanes remain observe-only and report blocking gaps such as
+`protected_root_mutation`, `work_lane_dirty`, `candidate_worktree_missing`, or
+`candidate_worktree_dirty`.
 
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"` and a
-`publication.mode = "local_readiness"` package with the planned `submit/*`
-branch. Remote push is deliberately deferred; local proof and candidate
-closeout are still the required preparation.
+`publication.mode = "local_readiness"` package with the planned submit branch
+under the configured submit prefix. Remote push is deliberately deferred; local
+proof and candidate closeout are still the required preparation.
 
 The publication payload also carries `publication.local_submit_package`, a
 non-blocking package that records the source branch, planned submit branch,
-deferred remote state, and required local steps: land the Work Lane to
-`candidate/dev`, fast-forward local `dev`, then create and push `submit/*` when
-remote publication is available. `ethos campaign closeout` aggregates this
-package with workspace closeout support, release policy, parity backlog, and
-shadow parity execution packages, but it remains read-only; actual mutation
-still goes through `ethos land --apply`.
+deferred remote state, and required local steps: land the Work Lane to the
+candidate branch, fast-forward the accepted root from the candidate branch, then
+create and push the configured submit branch when remote publication is
+available. `ethos campaign closeout` aggregates this package with workspace
+closeout support, release policy, parity backlog, and shadow parity execution
+packages, but it remains read-only; actual mutation still goes through
+`ethos land --apply`.
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.

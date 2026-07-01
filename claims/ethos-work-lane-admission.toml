@@ -6,7 +6,7 @@ summary = "ETHOS enforces Work Lane admission, foreign lane visibility, protecte
 
 [evidence]
 dated = "docs/evidence/work-lane-admission-2026-06-30.md"
-sha256 = "adac1b3939e91bc747da4b1d62ddb5124738c3f5beb94f8a56a89541db922de1"
+sha256 = "d871787f4fb3e33543168dcb9655ef28d1e0b41ad4845e80a955e66e8e20bf5a"
 tests = [
   "tests/unit/test_workspace_lanes.py",
   "tests/unit/test_workspace_apply.py",

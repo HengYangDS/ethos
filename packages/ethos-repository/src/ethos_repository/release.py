@@ -4,6 +4,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ethos_contracts.branch_roles import load_branch_role_policy
+
 REQUIRED_RELEASE_FILES = (
     "README.md",
     "LICENSE",
@@ -54,13 +56,15 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     version = version_manifest(root)
     protected_refs = config.get("protected_refs", {})
+    branch_policy = load_branch_role_policy(root)
+    expected_protected_branches = list(branch_policy.protected_branches)
     gitlab = config.get("gitlab", {})
     attestation = config.get("attestation", {})
     gaps: list[str] = []
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)
     if not version["all_package_versions_match"]:
         gaps.append("package_version_mismatch")
-    if protected_refs.get("branches") != ["dev", "main"]:
+    if protected_refs.get("branches") != expected_protected_branches:
         gaps.append("protected_branches_policy_missing")
     if protected_refs.get("tags") != ["v*"]:
         gaps.append("protected_tags_policy_missing")

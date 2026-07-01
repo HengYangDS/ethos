@@ -67,7 +67,7 @@ def test_result_payload_validates_against_schema() -> None:
     json.dumps(validation)
 
 
-def test_workspace_status_payload_validates_open_worktree_actions() -> None:
+def test_workspace_status_payload_validates_worktree_bindings() -> None:
     payload = {
         "root": "/repo",
         "branch": "dev",
@@ -80,8 +80,7 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
             "head": "abc123",
             "worktree_exists": True,
             "worktree_path": "/repo-candidate-dev",
-            "open_action": "open_worktree",
-            "open_label": "Open Worktree",
+            "worktree_binding": "linked",
         },
         "worktrees": [
             {
@@ -89,34 +88,37 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
                 "head": "abc123",
                 "branch": "dev",
                 "role": "accepted_root",
-                "open_action": "current_worktree",
-                "open_label": "Current Worktree",
+                "worktree_binding": "current",
             },
             {
                 "path": "/repo-candidate-dev",
                 "head": "abc123",
                 "branch": "candidate/dev",
                 "role": "candidate",
-                "open_action": "open_worktree",
-                "open_label": "Open Worktree",
+                "worktree_binding": "linked",
             },
         ],
-        "branch_actions": [
+        "branch_bindings": [
+            {
+                "branch": "main",
+                "role": "release_root",
+                "head": "abc123",
+                "worktree_path": "",
+                "worktree_binding": "unbound",
+            },
             {
                 "branch": "dev",
                 "role": "accepted_root",
                 "head": "abc123",
-                "path": "/repo",
-                "action": "current_worktree",
-                "label": "Current Worktree",
+                "worktree_path": "/repo",
+                "worktree_binding": "current",
             },
             {
                 "branch": "candidate/dev",
                 "role": "candidate",
                 "head": "abc123",
-                "path": "/repo-candidate-dev",
-                "action": "open_worktree",
-                "label": "Open Worktree",
+                "worktree_path": "/repo-candidate-dev",
+                "worktree_binding": "linked",
             },
         ],
         "foreign_work_lanes": [],
@@ -126,8 +128,7 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
             "branch": "",
             "target_branch": "candidate/dev",
             "target_path": "/repo-candidate-dev",
-            "action": "not_supported",
-            "label": "Not Supported",
+            "operation": "",
             "owner": "",
             "required_gaps": ["protected_root_mutation"],
         },
@@ -140,7 +141,7 @@ def test_workspace_status_payload_validates_open_worktree_actions() -> None:
     json.dumps(validation)
 
 
-def test_workspace_status_schema_rejects_checkout_for_linked_candidate() -> None:
+def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
     payload = {
         "root": "/repo",
         "branch": "dev",
@@ -153,21 +154,44 @@ def test_workspace_status_schema_rejects_checkout_for_linked_candidate() -> None
             "head": "abc123",
             "worktree_exists": True,
             "worktree_path": "/repo-candidate-dev",
-            "open_action": "checkout",
-            "open_label": "Checkout",
+            "worktree_binding": "linked",
+            "open_action": "open_worktree",
         },
         "worktrees": [],
-        "branch_actions": [
+        "branch_bindings": [
+            {
+                "branch": "main",
+                "role": "release_root",
+                "head": "abc123",
+                "worktree_path": "",
+                "worktree_binding": "unbound",
+            },
+            {
+                "branch": "dev",
+                "role": "accepted_root",
+                "head": "abc123",
+                "worktree_path": "/repo",
+                "worktree_binding": "current",
+            },
             {
                 "branch": "candidate/dev",
                 "role": "candidate",
                 "head": "abc123",
-                "path": "/repo-candidate-dev",
-                "action": "checkout",
-                "label": "Checkout",
+                "worktree_path": "/repo-candidate-dev",
+                "worktree_binding": "linked",
             }
         ],
         "foreign_work_lanes": [],
+        "coordination_gaps": [],
+        "closeout_support": {
+            "supported": False,
+            "branch": "",
+            "target_branch": "candidate/dev",
+            "target_path": "/repo-candidate-dev",
+            "operation": "",
+            "owner": "",
+            "required_gaps": ["protected_root_mutation"],
+        },
         "required_gaps": [],
     }
 

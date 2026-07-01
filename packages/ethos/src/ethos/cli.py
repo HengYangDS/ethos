@@ -1037,7 +1037,8 @@ def land(
             root=repo,
             current_head=_current_head(repo),
         )
-        audit = _repository_audit_after_admission(repo, decision)
+        audit_root = _closeout_audit_root(repo, decision)
+        audit = _repository_audit_after_admission(audit_root, decision)
         gaps = tuple(audit["required_gaps"]) + decision.gaps
         ok = bool(audit["ok"]) and decision.ok
         accepted_update: dict[str, object] = {}
@@ -1133,6 +1134,16 @@ def land(
         },
     )
     _emit(result, json_output)
+
+
+def _closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
+    if not decision.ok:
+        return repo
+    candidate = workspace_status(repo).get("candidate", {})
+    if not isinstance(candidate, dict):
+        return repo
+    candidate_path = str(candidate.get("worktree_path") or "")
+    return Path(candidate_path) if candidate_path else repo
 
 
 @app.command

@@ -1802,6 +1802,57 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     assert git(repo, "rev-parse", "HEAD") == candidate_head
 
 
+def test_land_closeout_audits_candidate_content_before_fast_forward(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from ethos import cli
+
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+
+    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+        if root.resolve() == candidate.resolve():
+            return {"ok": True, "required_gaps": [], "root": root.as_posix()}
+        return {
+            "ok": False,
+            "required_gaps": ["accepted_root_precloseout_audit"],
+            "root": root.as_posix(),
+        }
+
+    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+
+    payload = run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
+
+
 def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

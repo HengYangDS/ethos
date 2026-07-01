@@ -12,7 +12,7 @@ ETHOS means Evidence-grounded Trust for Human-Agent Operational Stewardship.
 ETHOS is the evidence-grounded operating layer for human-agent repository
 change.
 
-The product answers seven operational questions:
+The product answers five transition questions and two read-only questions:
 
 ```text
 Where am I?
@@ -34,18 +34,30 @@ ethos land
 ethos publish
 ```
 
-Advanced workflows stay under `ethos ...`:
+`ethos report` is a read-only scorecard. It is a payoff view over readiness,
+proof, parity, and release policy; it is not a sixth transition verb.
+
+Setup and onboarding commands are outside the transition loop:
 
 ```bash
 ethos init
 ethos adopt
 ethos doctor
+```
+
+Advanced workflows stay under `ethos ...` as maintainer/reference surfaces:
+
+```bash
 ethos campaign
 ethos intake
 ethos quality
 ethos assistants
 ethos playbooks
-ethos report
+ethos fleet
+ethos lane
+ethos parity
+ethos explain
+ethos docs
 ```
 
 ## Kernel Chain
@@ -53,33 +65,40 @@ ethos report
 ETHOS is kernel-first. The product model is:
 
 ```text
-Constitution -> Subject -> Contract -> IR -> Transition -> Inscription -> Evidence -> Chronicle -> Evolution
+JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-- Constitution: authority order, truth boundaries, public command plane,
-  workspace discipline, and context policy.
+- JudgmentSource: authority order, truth boundaries, product principles, and
+  decision policy. North Star is a derived reader view, not the judgment source.
 - Subject: the governed object, such as a path, package, domain, surface,
-  claim, evidence set, or release target.
-- Contract: policy, claim, spec, domain contract, quality rule, release rule, or
-  adapter contract that applies to a Subject.
-- IR: changed scope, risk classes, required gates, evidence requirements, and
-  explanations.
-- Transition: state movement from one repository condition to another, including
-  lane, land, publish, authorization, and expected HEAD.
-- Inscription: source, docs, config, evidence, projection, or artifact written by
-  a transition.
-- Evidence: gate runs, digests, HEAD binding, claim binding, CI proof, and
-  attestations.
-- Chronicle: durable decisions, closeouts, campaign events, and retirement
-  records.
-- Evolution: gaps, hypotheses, profile improvements, and retirement proposals.
+  evidence set, or release target.
+- Commitment: the Subject's contracts, policies, specs, rules, promises, and
+  durable decisions.
+- Change: the lifecycle owner for planned, active, landed, superseded, or
+  retired repository truth. Contract, IR, Transition, and Inscription are fields
+  or phases inside Commitment and Change, not competing top-level owners.
+- Evidence: gate runs, digests, HEAD binding, CI proof, attestations, and
+  artifacts.
+- Claim: digest-bound or verifier-bound evidence binding.
+  Claim binds evidence; it does not own the Change lifecycle.
+  It must not assert semantic truth unless a semantic verifier actually checked
+  that truth.
+- Chronicle: judged execution and history index: what happened, which evidence
+  was used, which decision was made, what was superseded, and how current truth
+  changed.
 
 ## Principles
 
+### Judgment-source first
+
+Product decisions cite the Judgment Source, user instruction, repository truth,
+or accepted decisions. Reader-facing North Star language is derived from that
+source and cannot override it.
+
 ### Kernel-first
 
-Folders and packages follow the kernel chain. Existing package names are
-migration hosts until they match the target ontology.
+Folders and packages follow the kernel chain. Package names do not create
+separate truth centers.
 
 ### Contracts before providers
 

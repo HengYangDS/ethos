@@ -8,6 +8,7 @@ from ethos_contracts.package_ontology import (
     workspace_package_config_report,
 )
 
+from ethos_repository.authority_graph import authority_graph_report
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
 from ethos_repository.coupling import coupling_audit_report
@@ -49,6 +50,7 @@ REQUIRED_DOCS = (
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
     "docs/governance/conversation-ledger.md",
+    "docs/governance/judgment-source.md",
     "docs/governance/product-design-contract.md",
     "docs/governance/product-boundary-convergence.md",
     "docs/governance/capability-parity-ledger.md",
@@ -80,6 +82,8 @@ REQUIRED_SCHEMAS = (
     "assistant-projection.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
+    "judgment-source.schema.json",
+    "authority-graph.schema.json",
 )
 
 REQUIRED_RELEASE_FILES = (
@@ -194,6 +198,7 @@ def self_audit(
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
     command_report = command_registry_report(root)
+    authority_graph = authority_graph_report(root)
     claim_report = claims_report(root)
     workspace_config = workspace_package_config_report(root)
     schema_report = schema_validation_report(root)
@@ -211,6 +216,9 @@ def self_audit(
     coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
     openspec_gaps = [str(gap) for gap in openspec["required_gaps"]]
     command_gaps = [str(gap) for gap in command_report["required_gaps"]]
+    authority_graph_gaps = [
+        str(gap) for gap in authority_graph["required_gaps"]
+    ]
     workspace_config_gaps = [
         str(gap) for gap in workspace_config["required_gaps"]
     ]
@@ -229,6 +237,7 @@ def self_audit(
         + coupling_gaps
         + openspec_gaps
         + command_gaps
+        + authority_graph_gaps
         + workspace_config_gaps
     )
     return {
@@ -285,6 +294,7 @@ def self_audit(
             "missing": openspec_family_missing,
         },
         "command_registry": command_report,
+        "authority_graph": authority_graph,
         "workspace_config": workspace_config,
         "claims": claim_report,
         "evolution": evolution,

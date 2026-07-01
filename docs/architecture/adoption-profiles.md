@@ -15,7 +15,7 @@ Supported profiles:
 
 ```bash
 ethos adopt --profile generic --dry-run
-ethos adopt --profile python-package --dry-run
+ethos adopt --profile python --dry-run
 ethos adopt --profile monorepo --dry-run
 ethos adopt --profile github --dry-run
 ethos adopt --profile gitlab --dry-run
@@ -35,3 +35,10 @@ claims/
 GitHub and GitLab profiles also generate hosted-CI projections and declare
 those projections under `.ethos/release.toml` host-profile surfaces. The kernel
 remains profile-free; repository-specific contracts stay in adopter profiles.
+
+Domain-specific gates are profile extensions. An adopter declares domain gate
+mappings in its own profile, `ethos plan` selects those gates as repository
+requirements, `ethos prove` records local evidence, and `ethos report` keeps
+local readiness separate from hosted or domain-specific proof. ETHOS core does
+not hardcode adopter domain names or treat generic command parity as domain
+backend retirement readiness.

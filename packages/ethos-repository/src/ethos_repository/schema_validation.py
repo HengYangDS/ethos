@@ -196,6 +196,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
             "ok": True,
             "required_gaps": [],
             "product_head": "product-head",
+            "current_product_head": "product-head",
             "target_head": "target-head",
             "current_target_head": "target-head",
             "command_sha256": "0" * 64,

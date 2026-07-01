@@ -4,14 +4,15 @@ import re
 import shlex
 from pathlib import Path
 
-from ethos_repository.command_registry import RETIRED_PUBLIC_ROOTS, public_commands
+from ethos_repository.command_registry import RETIRED_PUBLIC_ROOTS, known_commands
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
 OBSERVATIONAL_DOC_PREFIXES = ("docs/evidence/", "docs/archive/")
 REQUIRED_COMMAND_EXAMPLES = (
-    "ethos quality command-examples",
-    "ethos prove --execute",
+    "ethos land",
+    "ethos publish",
+    "ethos report",
 )
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
@@ -121,7 +122,7 @@ def _ethos_command_key(command: str) -> str:
 
 def _known_ethos_command(command: str) -> bool:
     key = _ethos_command_key(command)
-    return bool(key) and key in public_commands()
+    return bool(key) and key in known_commands()
 
 
 def _has_command_example(examples: list[dict[str, str]], required: str) -> bool:

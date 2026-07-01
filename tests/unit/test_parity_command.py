@@ -14,7 +14,7 @@ from ethos_adapters.shadow import (
     _semantic_diff,
     run_shadow_parity,
 )
-from ethos_repository.parity import shadow_parity_report
+from ethos_repository.parity import parity_gaps_report, shadow_parity_report
 from ethos_repository.schema_validation import validate_schema_instance
 
 from tests.support.ethos_cli_runner import run_ethos
@@ -198,6 +198,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
                     "ok": True,
                     "required_gaps": [],
                     "product_head": "product-head",
+                    "current_product_head": "",
                     "target_head": "target-head",
                     "current_target_head": "",
                     "command_sha256": evidence["freshness"]["command_sha256"],
@@ -233,6 +234,26 @@ def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:freshness" in payload["required_gaps"]
+
+
+def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    stale = _complete_parity_evidence("sample-adopter")
+    stale["freshness"]["product_head"] = "old-product-head"
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(stale),
+        encoding="utf-8",
+    )
+
+    payload = parity_gaps_report(
+        adopter="sample-adopter",
+        root=tmp_path,
+        current_product_head="current-product-head",
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter:product_head" in payload["required_gaps"]
 
 
 def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> None:
@@ -378,6 +399,13 @@ def test_parity_gaps_exposes_concrete_backlog_packages_without_evidence(
 
 def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
     payload = run_ethos("parity", "shadow", "--target", str(tmp_path), "--json")
+    current_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=Path.cwd(),
+        text=True,
+        check=True,
+        capture_output=True,
+    ).stdout.strip()
 
     assert payload["ok"] is False
     assert payload["command"] == "parity shadow"
@@ -400,6 +428,7 @@ def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
                         f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}"
                     ],
                     "product_head": "",
+                    "current_product_head": current_head,
                     "target_head": "",
                     "current_target_head": "",
                     "command_sha256": "",

@@ -2,13 +2,12 @@
 
 ## Purpose
 
-ETHOS SHALL model repository operation through Constitution, Subject,
-Contract, IR, Transition, Inscription, Evidence, Chronicle, and Evolution.
+ETHOS SHALL model repository operation through JudgmentSource, Subject,
+Commitment, Change, Evidence, Claim, and Chronicle.
 ## Requirements
 ### Requirement: Kernel Chain
-ETHOS SHALL model repository operation through the kernel chain Constitution,
-Subject, Contract, IR, Transition, Inscription, Evidence, Chronicle, and
-Evolution.
+ETHOS SHALL model repository operation through the kernel chain
+JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation

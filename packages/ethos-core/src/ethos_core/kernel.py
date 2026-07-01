@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 KERNEL_CHAIN = (
-    "Constitution",
+    "JudgmentSource",
     "Subject",
-    "Contract",
-    "IR",
-    "Transition",
-    "Inscription",
+    "Commitment",
+    "Change",
     "Evidence",
+    "Claim",
     "Chronicle",
-    "Evolution",
 )
 
 

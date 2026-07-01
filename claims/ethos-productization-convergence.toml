@@ -1,0 +1,37 @@
+[claim]
+id = "ethos-productization-convergence"
+subject = "ethos:productization-convergence"
+state = "active"
+summary = "Records the ETHOS productization convergence batch across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
+
+[evidence]
+dated = "docs/evidence/productization-convergence-2026-07-01.md"
+sha256 = "355f2e5eb31ab803770fa7ca5e1802479567b31389fa60f47a35225ae4d922f1"
+evidence_ids = ["evidence:ethos-productization-convergence"]
+binding = "digest-bound convergence evidence binding"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev ruff check .",
+  "uv run --group dev pytest tests/unit tests/architecture -q",
+  "uv run --group dev pytest -q",
+  "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos report --json",
+  "uv build --all-packages",
+  "uv run --package ethos ethos prove --expect-head \"$(git rev-parse HEAD)\" --json",
+  "uv run --package ethos ethos prove --full --execute --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/di-effect --execute --timeout-seconds 60 --json",
+]
+
+[scope]
+docs = [
+  "README.md",
+  "docs/start/quickstart.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/judgment-source.md",
+  "docs/_meta/authority_graph.toml",
+]

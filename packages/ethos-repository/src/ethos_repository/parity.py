@@ -25,6 +25,7 @@ def parity_gaps_report(
     root: Path | None = None,
     target: Path | None = None,
     current_target_head: str = "",
+    current_product_head: str = "",
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
@@ -33,6 +34,7 @@ def parity_gaps_report(
         adopter_name,
         target=target,
         current_target_head=current_target_head,
+        current_product_head=current_product_head,
     )
     evidence_valid = not evidence.get("required_gaps")
     verified = set(evidence.get("verified_capabilities", []))
@@ -125,6 +127,7 @@ def shadow_parity_report(
     root: Path | None = None,
     adopter: str | None = None,
     current_target_head: str = "",
+    current_product_head: str = "",
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
@@ -133,6 +136,7 @@ def shadow_parity_report(
             adopter,
             target=target,
             current_target_head=current_target_head,
+            current_product_head=current_product_head,
         )
         if evidence:
             evidence_gaps = list(evidence.get("required_gaps", []))
@@ -143,6 +147,7 @@ def shadow_parity_report(
                 evidence,
                 required_gaps=evidence_gaps,
                 current_target_head=current_target_head,
+                current_product_head=current_product_head,
             )
             if not evidence_gaps and shadow.get("ok") is True:
                 commands = _string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)
@@ -208,6 +213,7 @@ def shadow_parity_report(
             "ok": False,
             "required_gaps": [gap],
             "product_head": "",
+            "current_product_head": current_product_head,
             "target_head": "",
             "current_target_head": current_target_head,
             "command_sha256": "",
@@ -245,6 +251,7 @@ def _tracked_evidence_provenance(
     *,
     required_gaps: list[str],
     current_target_head: str,
+    current_product_head: str = "",
 ) -> dict[str, object]:
     freshness = evidence.get("freshness") if isinstance(evidence.get("freshness"), dict) else {}
     return {
@@ -254,6 +261,7 @@ def _tracked_evidence_provenance(
             "ok": not required_gaps,
             "required_gaps": list(required_gaps),
             "product_head": str(freshness.get("product_head") or ""),
+            "current_product_head": current_product_head,
             "target_head": str(freshness.get("target_head") or ""),
             "current_target_head": current_target_head,
             "command_sha256": str(freshness.get("command_sha256") or ""),
@@ -267,6 +275,7 @@ def _parity_evidence(
     *,
     target: Path | None = None,
     current_target_head: str = "",
+    current_product_head: str = "",
 ) -> dict[str, object]:
     if not adopter:
         return {}
@@ -292,6 +301,7 @@ def _parity_evidence(
         adopter,
         target=target,
         current_target_head=current_target_head,
+        current_product_head=current_product_head,
     )
     return {
         "path": path.relative_to(root).as_posix(),
@@ -306,6 +316,7 @@ def _validate_parity_evidence(
     *,
     target: Path | None = None,
     current_target_head: str = "",
+    current_product_head: str = "",
 ) -> list[str]:
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
@@ -324,6 +335,7 @@ def _validate_parity_evidence(
         adopter=adopter,
         command=command if isinstance(command, str) else "",
         current_target_head=current_target_head,
+        current_product_head=current_product_head,
         required_gaps=required_gaps,
     )
     shadow = payload.get("shadow")
@@ -369,6 +381,7 @@ def _validate_freshness(
     adopter: str,
     command: str,
     current_target_head: str,
+    current_product_head: str,
     required_gaps: list[str],
 ) -> None:
     if not isinstance(freshness, dict):
@@ -380,6 +393,8 @@ def _validate_freshness(
     expected_digest = _sha256_text(command)
     if command and freshness.get("command_sha256") != expected_digest:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command_sha256")
+    if current_product_head and freshness.get("product_head") != current_product_head:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:product_head")
     if current_target_head and freshness.get("target_head") != current_target_head:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")
 

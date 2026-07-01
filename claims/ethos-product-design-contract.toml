@@ -7,6 +7,9 @@ summary = "ETHOS now has a canonical product design contract, target package ont
 [evidence]
 dated = "docs/evidence/product-design-contract-2026-07-01.md"
 sha256 = "1dadf15d9ea1cbaa1fd7df2bc1db7000256219915d60b0bb1a9e2d6f3261258b"
+evidence_ids = ["evidence:ethos-product-design-contract"]
+binding = "digest-bound design evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py",
   "uv run --group dev pytest -q tests/unit/test_self_governance_depth.py tests/unit/test_cli_contracts.py::test_self_audit_reports_product_shape tests/unit/test_cli_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/test_cli_contracts.py::test_self_evolution_loop_commands_are_available",

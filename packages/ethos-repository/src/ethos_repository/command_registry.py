@@ -4,15 +4,22 @@ import fnmatch
 import tomllib
 from pathlib import Path
 
-PUBLIC_COMMANDS = (
+PUBLIC_WORKFLOW_COMMANDS = (
     "ethos status",
     "ethos plan",
     "ethos prove",
     "ethos land",
     "ethos publish",
+)
+SCORECARD_COMMANDS = (
+    "ethos report",
+)
+SETUP_COMMANDS = (
     "ethos init",
     "ethos adopt",
     "ethos doctor",
+)
+MAINTAINER_REFERENCE_COMMANDS = (
     "ethos campaign",
     "ethos intake",
     "ethos self",
@@ -22,9 +29,17 @@ PUBLIC_COMMANDS = (
     "ethos fleet",
     "ethos lane",
     "ethos parity",
-    "ethos report",
     "ethos explain",
     "ethos docs",
+)
+PUBLIC_COMMANDS = (
+    *PUBLIC_WORKFLOW_COMMANDS,
+)
+KNOWN_COMMANDS = (
+    *PUBLIC_WORKFLOW_COMMANDS,
+    *SCORECARD_COMMANDS,
+    *SETUP_COMMANDS,
+    *MAINTAINER_REFERENCE_COMMANDS,
 )
 
 RETIRED_PUBLIC_ROOTS = (
@@ -47,6 +62,10 @@ DEFAULT_HISTORICAL_EXEMPT_ROOTS = ("docs/evidence", "docs/archive")
 
 def public_commands() -> tuple[str, ...]:
     return PUBLIC_COMMANDS
+
+
+def known_commands() -> tuple[str, ...]:
+    return KNOWN_COMMANDS
 
 
 def _command_surface_policy(root: Path) -> dict[str, object]:
@@ -156,6 +175,13 @@ def _scan_retired_public_command_prefixes(root: Path) -> list[str]:
 
 
 def command_registry_report(root: Path | None = None) -> dict[str, object]:
+    classified = (
+        set(PUBLIC_WORKFLOW_COMMANDS)
+        | set(SCORECARD_COMMANDS)
+        | set(SETUP_COMMANDS)
+        | set(MAINTAINER_REFERENCE_COMMANDS)
+    )
+    advanced_public_commands = [command for command in PUBLIC_COMMANDS if command not in classified]
     leaked = [
         command
         for command in PUBLIC_COMMANDS
@@ -167,6 +193,9 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         f"retired_public_root:{command}"
         for command in leaked
     ] + [
+        f"advanced_public_command:{command}"
+        for command in advanced_public_commands
+    ] + [
         f"retired_public_root_mention:{mention}"
         for mention in mentions
     ] + [
@@ -176,6 +205,17 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
     return {
         "ok": not required_gaps,
         "public_commands": list(PUBLIC_COMMANDS),
+        "known_commands": list(KNOWN_COMMANDS),
+        "public_workflow_commands": list(PUBLIC_WORKFLOW_COMMANDS),
+        "scorecard_commands": list(SCORECARD_COMMANDS),
+        "setup_commands": list(SETUP_COMMANDS),
+        "maintainer_reference_commands": list(MAINTAINER_REFERENCE_COMMANDS),
+        "advanced_public_commands": advanced_public_commands,
+        "public_workflow_count": len(PUBLIC_WORKFLOW_COMMANDS),
+        "scorecard_count": len(SCORECARD_COMMANDS),
+        "setup_count": len(SETUP_COMMANDS),
+        "known_command_count": len(KNOWN_COMMANDS),
+        "maintainer_reference_count": len(MAINTAINER_REFERENCE_COMMANDS),
         "retired_public_roots": leaked,
         "retired_public_root_mentions": mentions,
         "retired_public_command_prefix_mentions": retired_prefix_mentions,

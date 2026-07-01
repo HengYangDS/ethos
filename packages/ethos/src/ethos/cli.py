@@ -60,15 +60,15 @@ from ethos_repository.schema_validation import schema_validation_report, validat
 from ethos_repository.standards import standard_adapter_registry
 
 app = App(name="ethos", help="ETHOS command plane.")
-quality_app = App(name="quality", help="Quality and determinism checks.")
-self_app = App(name="self", help="Self-governance commands.")
-campaign_app = App(name="campaign", help="Evolution campaign commands.")
-intake_app = App(name="intake", help="Intake ledger commands.")
-assistants_app = App(name="assistants", help="Assistant and protocol projections.")
-playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.")
-fleet_app = App(name="fleet", help="External adopter and fleet inspection.")
-lane_app = App(name="lane", help="Work Lane lifecycle and write admission.")
-parity_app = App(name="parity", help="Capability parity and adopter shadow checks.")
+quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
+self_app = App(name="self", help="Self-governance commands.", show=False)
+campaign_app = App(name="campaign", help="Evolution campaign commands.", show=False)
+intake_app = App(name="intake", help="Intake ledger commands.", show=False)
+assistants_app = App(name="assistants", help="Assistant and protocol projections.", show=False)
+playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.", show=False)
+fleet_app = App(name="fleet", help="External adopter and fleet inspection.", show=False)
+lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
+parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
 app.command(quality_app)
 app.command(self_app)
 app.command(campaign_app)
@@ -105,6 +105,27 @@ def _current_head(root: Path) -> str:
 def _current_tracked_head(root: Path) -> str:
     head = _current_head(root)
     return "" if head == "untracked" else head
+
+
+def _adoption_mutation_gaps(
+    *,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    current_head: str,
+) -> tuple[str, ...]:
+    if not apply:
+        return ()
+    gaps: list[str] = []
+    if not authorize:
+        gaps.append("authorization_required")
+    if current_head == "untracked":
+        gaps.append("git_repository_missing")
+    if not expect_head:
+        gaps.append("expect_head_required")
+    elif expect_head != current_head:
+        gaps.append("expected_head_mismatch")
+    return tuple(gaps)
 
 
 def _emit(result: EthosResult, json_output: bool) -> None:
@@ -345,12 +366,14 @@ def _campaign_closeout_report(
         root=repo,
         target=target,
         current_target_head=current_target_head,
+        current_product_head=_current_tracked_head(repo),
     )
     shadow = shadow_parity_report(
         target=target,
         root=repo,
         adopter=adopter,
         current_target_head=current_target_head,
+        current_product_head=_current_tracked_head(repo),
     )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(
@@ -737,6 +760,11 @@ def land(
 ) -> None:
     """Report land readiness."""
     repo = _root(root)
+    status_payload = workspace_status(repo)
+    closeout_support = dict(status_payload.get("closeout_support", {}))
+    closeout_gaps: tuple[str, ...] = ()
+    if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
+        closeout_gaps = tuple(str(gap) for gap in closeout_support.get("required_gaps", ()))
     decision = evaluate_mutation(
         MutationRequest(
             command="land",
@@ -748,8 +776,10 @@ def land(
         current_head=_current_head(repo),
     )
     audit = _self_audit_after_admission(repo, decision)
-    gaps = tuple(audit["required_gaps"]) + decision.gaps
+    gaps = tuple(audit["required_gaps"]) + decision.gaps + closeout_gaps
     ok = bool(audit["ok"]) and decision.ok
+    if closeout_gaps:
+        ok = False
     candidate_update: dict[str, object] = {}
     if ok and apply:
         candidate_update = apply_land_to_candidate(
@@ -759,19 +789,22 @@ def land(
         )
         gaps = gaps + tuple(candidate_update["required_gaps"])
         ok = bool(candidate_update["ok"])
+    if ok and not apply:
+        land_state = "ready_to_land"
+    elif closeout_gaps:
+        land_state = "blocked"
+    else:
+        land_state = str(candidate_update.get("state") or decision.state)
     result = EthosResult(
         command="land",
         ok=ok,
-        state=(
-            "ready_to_land"
-            if ok and not apply
-            else str(candidate_update.get("state") or decision.state)
-        ),
+        state=land_state,
         required_gaps=gaps,
         next_actions=("ethos publish",) if ok else ("ethos prove --json",),
         data={
             "self_audit": audit,
             "candidate_update": candidate_update,
+            "closeout_support": closeout_support,
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,
@@ -835,7 +868,7 @@ def publish(
     _emit(result, json_output)
 
 
-@app.command
+@app.command(show=False)
 def doctor(
     *,
     root: RootOption | None = None,
@@ -864,21 +897,39 @@ def init(
     root: RootOption | None = None,
     dry_run: bool = True,
     apply: bool = False,
+    authorize: bool = False,
+    expect_head: str | None = None,
     profile: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
     target = _root(root)
-    do_apply = apply
+    current_head = _current_head(target)
+    mutation_gaps = _adoption_mutation_gaps(
+        apply=apply,
+        authorize=authorize,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
+    do_apply = apply and not mutation_gaps
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
+    required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
+    ok = not required_gaps
     result = EthosResult(
         command="init",
-        ok=True,
-        state="applied" if do_apply else "planned",
+        ok=ok,
+        state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
         summary={"planned_file_count": len(plan_payload["planned_files"])},
         next_actions=("ethos status",),
+        required_gaps=required_gaps,
         data=plan_payload,
     )
+    result.data["mutation"] = {
+        "apply": apply,
+        "authorized": authorize,
+        "expect_head": expect_head,
+        "current_head": current_head,
+    }
     _emit(result, json_output)
 
 
@@ -888,21 +939,39 @@ def adopt(
     root: RootOption | None = None,
     dry_run: bool = True,
     apply: bool = False,
+    authorize: bool = False,
+    expect_head: str | None = None,
     profile: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
     target = _root(root)
-    do_apply = apply
+    current_head = _current_head(target)
+    mutation_gaps = _adoption_mutation_gaps(
+        apply=apply,
+        authorize=authorize,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
+    do_apply = apply and not mutation_gaps
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
+    required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
+    ok = not required_gaps
     result = EthosResult(
         command="adopt",
-        ok=True,
-        state="applied" if do_apply else "planned",
+        ok=ok,
+        state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
         summary={"planned_file_count": len(plan_payload["planned_files"])},
         next_actions=("ethos status",),
+        required_gaps=required_gaps,
         data=plan_payload,
     )
+    result.data["mutation"] = {
+        "apply": apply,
+        "authorized": authorize,
+        "expect_head": expect_head,
+        "current_head": current_head,
+    }
     _emit(result, json_output)
 
 
@@ -1829,7 +1898,11 @@ def parity_gaps(
 ) -> None:
     """Report remaining product/adopter parity gaps."""
     repo = _root(root)
-    report = parity_gaps_report(adopter=adopter, root=repo)
+    report = parity_gaps_report(
+        adopter=adopter,
+        root=repo,
+        current_product_head=_current_tracked_head(repo),
+    )
     result = EthosResult(
         command="parity gaps",
         ok=bool(report["ok"]),
@@ -1859,6 +1932,7 @@ def parity_shadow(
         report = shadow_parity_report(
             target=target,
             current_target_head=_current_tracked_head(target),
+            current_product_head=_current_tracked_head(_root(None)),
         )
     result = EthosResult(
         command="parity shadow",
@@ -1890,7 +1964,7 @@ def report(
     playbooks = playbooks_report(repo)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
-    parity_gaps = parity_gaps_report(root=repo)
+    parity_gaps = parity_gaps_report(root=repo, current_product_head=_current_tracked_head(repo))
     if audit.get("mode") == "adopter":
         scores = {
             "adopter_governance": int(bool(audit["ok"])),
@@ -1929,6 +2003,18 @@ def report(
     result_required_gaps = tuple(audit["required_gaps"])
     if audit.get("mode") != "adopter":
         result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
+    first_hour = {}
+    if audit.get("mode") == "adopter":
+        evidence_gap_count = len(result_required_gaps)
+        readiness = "local_readiness" if evidence_gap_count == 0 else "blocked"
+        first_hour = {
+            "proof_status": "ready" if evidence_gap_count == 0 else "gapped",
+            "evidence_gap_count": evidence_gap_count,
+            "land_readiness": readiness,
+            "publish_readiness": readiness,
+            "hosted_ci_truth": "external-evidence",
+            "next_action": "ethos prove" if evidence_gap_count == 0 else "resolve evidence gaps",
+        }
     gap_layers = {
         "product_self_audit": {
             "scope": "product_self_audit",
@@ -1963,6 +2049,7 @@ def report(
         ),
         data={
             "scores": scores,
+            "first_hour": first_hour,
             "self_audit": audit,
             "docs": docs_report,
             "claims": claim_report,
@@ -1974,6 +2061,14 @@ def report(
             "adoption_scaffold": adoption_scaffold,
             "gap_layers": gap_layers,
             "parity": {
+                "scope": {
+                    "generic_gap_count": parity_pending_count,
+                    "domain_profile_parity_closed": False,
+                    "note": (
+                        "Generic command parity does not claim adopter raw/cache or "
+                        "domain backend retirement readiness."
+                    ),
+                },
                 "ledger": parity_ledger,
                 "gaps": parity_gaps,
             },
@@ -1983,7 +2078,7 @@ def report(
     _emit(result, json_output)
 
 
-@app.command
+@app.command(show=False)
 def explain(gap: str, *, json_output: JsonFlag = False) -> None:
     """Explain a required gap."""
     result = EthosResult(
@@ -1996,7 +2091,7 @@ def explain(gap: str, *, json_output: JsonFlag = False) -> None:
     _emit(result, json_output)
 
 
-@app.command
+@app.command(show=False)
 def docs(
     topic: str = "index",
     *,

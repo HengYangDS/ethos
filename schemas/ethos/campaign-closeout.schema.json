@@ -130,6 +130,7 @@
             "ok",
             "required_gaps",
             "product_head",
+            "current_product_head",
             "target_head",
             "current_target_head",
             "command_sha256"
@@ -138,6 +139,7 @@
             "ok": {"type": "boolean"},
             "required_gaps": {"type": "array", "items": {"type": "string"}},
             "product_head": {"type": "string"},
+            "current_product_head": {"type": "string"},
             "target_head": {"type": "string"},
             "current_target_head": {"type": "string"},
             "command_sha256": {"type": "string"}

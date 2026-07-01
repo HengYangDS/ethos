@@ -40,9 +40,9 @@ distributions/gitlab-component
 
 ### `ethos-core`
 
-Pure kernel algebra. Owns Constitution, Subject, Contract, IR, Transition,
-Inscription, Evidence, Chronicle, Evolution, action graph primitives, state
-machine primitives, and result envelope primitives.
+Pure kernel algebra. Owns JudgmentSource, Subject, Commitment, Change,
+Evidence, Claim, Chronicle, action graph primitives, state machine primitives,
+and result envelope primitives.
 
 Forbidden: Git, OpenSpec, MCP, SQLite implementation, CLI parsing, pytest, nox,
 Ruff, GitHub, GitLab, npm, dmgr, alphasim, and adopter-specific semantics.

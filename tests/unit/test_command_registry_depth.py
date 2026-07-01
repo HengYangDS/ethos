@@ -2,8 +2,45 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.command_registry import command_registry_report
+from ethos_repository.command_registry import command_registry_report, public_commands
 from ethos_repository.docs_registry import command_examples_report
+
+
+def test_command_registry_separates_public_workflow_from_maintainer_reference() -> None:
+    report = command_registry_report()
+
+    assert public_commands() == (
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    )
+    assert report["public_workflow_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert report["scorecard_commands"] == ["ethos report"]
+    assert report["setup_commands"] == [
+        "ethos init",
+        "ethos adopt",
+        "ethos doctor",
+    ]
+    assert "ethos report" not in report["public_workflow_commands"]
+    assert "ethos adopt" not in report["maintainer_reference_commands"]
+    assert "ethos init" not in report["maintainer_reference_commands"]
+    assert "ethos doctor" not in report["maintainer_reference_commands"]
+    assert "ethos quality" in report["maintainer_reference_commands"]
+    assert "ethos quality" in report["known_commands"]
+    assert "ethos adopt" in report["known_commands"]
+    assert "ethos report" in report["known_commands"]
+    assert report["advanced_public_commands"] == []
+    assert report["public_workflow_count"] == 5
+    assert report["scorecard_count"] == 1
+    assert report["setup_count"] == 3
 
 
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
@@ -98,5 +135,8 @@ def test_command_examples_require_key_product_examples(tmp_path: Path) -> None:
     report = command_examples_report(tmp_path)
 
     assert report["ok"] is False
-    assert "missing_command_example:ethos quality command-examples" in report["required_gaps"]
-    assert "missing_command_example:ethos prove --execute" in report["required_gaps"]
+    assert "missing_command_example:ethos land" in report["required_gaps"]
+    assert "missing_command_example:ethos publish" in report["required_gaps"]
+    assert "missing_command_example:ethos report" in report["required_gaps"]
+    assert "missing_command_example:ethos quality command-examples" not in report["required_gaps"]
+    assert "missing_command_example:ethos prove --execute" not in report["required_gaps"]

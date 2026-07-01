@@ -56,7 +56,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
 
     assert report["ok"] is True
     assert report["mode"] == "product"
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 23
     assert report["required_gaps"] == []
     assert report["schemas"]["campaign-closeout.schema.json"]["ok"] is True
     assert report["instances"]["campaign-closeout-contract"]["ok"] is True
@@ -74,7 +74,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path
 
     assert report["mode"] == "adopter"
     assert report["ok"] is True
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 23
     assert report["required_gaps"] == []
     assert report["instances"]["docs-registry"]["ok"] is True
 
@@ -94,7 +94,7 @@ def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contra
 
     assert report["mode"] == "adopter"
     assert report["ok"] is True
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 23
     assert report["instances"]["docs-registry"]["ok"] is True
 
 

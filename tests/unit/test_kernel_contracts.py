@@ -3,12 +3,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import ethos_core.models as models
+import pytest
 from ethos_core.action_graph import ActionGraph, ActionNode
-from ethos_core.models import Change, Commitment, Evidence, Evolution, Subject
+from ethos_core.kernel import kernel_chain
+from ethos_core.models import Change, Commitment, Evidence, Subject
 from ethos_core.result import EthosResult
+from ethos_repository.schema_validation import validate_schema_instance
 
 
 def test_kernel_entities_project_to_chain() -> None:
+    assert hasattr(models, "JudgmentSource")
+    assert hasattr(models, "EvidenceClaim")
+
+    judgment = models.JudgmentSource(
+        id="judgment:ethos",
+        authority="User instruction, repository truth, and accepted decisions",
+        derived_views=("North Star",),
+    )
     subject = Subject(
         id="repo:ethos",
         kind="repository",
@@ -35,19 +47,184 @@ def test_kernel_entities_project_to_chain() -> None:
         refs=("tests/unit/test_kernel_contracts.py",),
         head="abc123",
     )
-    evolution = Evolution(
-        id="evolution:self",
+    claim = models.EvidenceClaim(
+        id="claim:bootstrap",
+        change_id=change.id,
+        evidence_ids=(evidence.id,),
+        binding="digest-bound evidence binding",
+        verifier="digest_only",
+    )
+    chronicle = models.ChronicleEvent(
+        id="chronicle:bootstrap",
         subject_id=subject.id,
-        hypothesis="ETHOS can govern its own command plane.",
-        state="hypothesis",
+        event_type="decision",
+        evidence_ids=(evidence.id,),
+        decision="bootstrap product repository",
+        supersedes=(),
+        current_state_delta="kernel model accepted",
     )
 
+    assert kernel_chain() == (
+        "JudgmentSource",
+        "Subject",
+        "Commitment",
+        "Change",
+        "Evidence",
+        "Claim",
+        "Chronicle",
+    )
+    assert judgment.chain_term == "judgment_source"
+    assert judgment.to_dict()["derived_views"] == ["North Star"]
     assert subject.chain_term == "subject"
     assert commitment.chain_term == "commitment"
     assert change.chain_term == "change"
     assert evidence.chain_term == "evidence"
-    assert evolution.chain_term == "evolution"
+    assert claim.chain_term == "claim"
+    assert chronicle.chain_term == "chronicle"
     assert change.inscriptions == ("docs/concepts/kernel-model.md",)
+    assert claim.verifier == "digest_only"
+    assert chronicle.to_dict()["current_state_delta"] == "kernel model accepted"
+
+
+def test_semantic_claims_require_semantic_verifier() -> None:
+    assert hasattr(models, "EvidenceClaim")
+    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+        models.EvidenceClaim(
+            id="claim:overreach",
+            change_id="change:example",
+            evidence_ids=("evidence:example",),
+            binding="semantic truth is proven",
+            verifier="digest_only",
+        )
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "dmgr raw/cache parity passed",
+        "hosted CI verified",
+        "remote publication completed",
+        "external backend retirement is safe",
+    ],
+)
+def test_digest_only_claims_reject_operational_overclaims(binding: str) -> None:
+    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+        models.EvidenceClaim(
+            id="claim:overreach",
+            change_id="change:example",
+            evidence_ids=("evidence:example",),
+            binding=binding,
+            verifier="digest_only",
+        )
+
+
+def test_chronicle_decision_events_require_judgment_and_evidence() -> None:
+    with pytest.raises(ValueError, match="decision events require evidence"):
+        models.ChronicleEvent(
+            id="chronicle:decision",
+            subject_id="repo:ethos",
+            event_type="decision",
+            evidence_ids=(),
+            decision="accept product chain",
+            current_state_delta="judged current",
+        )
+    with pytest.raises(ValueError, match="decision is required"):
+        models.ChronicleEvent(
+            id="chronicle:decision",
+            subject_id="repo:ethos",
+            event_type="decision",
+            evidence_ids=("evidence:chain",),
+            current_state_delta="judged current",
+        )
+    with pytest.raises(ValueError, match="current_state_delta is required"):
+        models.ChronicleEvent(
+            id="chronicle:decision",
+            subject_id="repo:ethos",
+            event_type="decision",
+            evidence_ids=("evidence:chain",),
+            decision="accept product chain",
+        )
+
+
+def test_chronicle_rejects_unknown_event_type() -> None:
+    with pytest.raises(ValueError, match="event_type must be one of"):
+        models.ChronicleEvent(
+            id="chronicle:unknown",
+            subject_id="repo:ethos",
+            event_type="payload",
+        )
+
+
+def test_chronicle_non_decision_events_require_relevant_payloads() -> None:
+    with pytest.raises(ValueError, match="evidence events require evidence"):
+        models.ChronicleEvent(
+            id="chronicle:evidence",
+            subject_id="repo:ethos",
+            event_type="evidence",
+        )
+    with pytest.raises(ValueError, match="state_change events require current_state_delta"):
+        models.ChronicleEvent(
+            id="chronicle:state",
+            subject_id="repo:ethos",
+            event_type="state_change",
+        )
+    with pytest.raises(ValueError, match="supersession events require supersedes"):
+        models.ChronicleEvent(
+            id="chronicle:supersession",
+            subject_id="repo:ethos",
+            event_type="supersession",
+            evidence_ids=("evidence:chain",),
+        )
+    with pytest.raises(ValueError, match="supersession events require evidence"):
+        models.ChronicleEvent(
+            id="chronicle:supersession",
+            subject_id="repo:ethos",
+            event_type="supersession",
+            supersedes=("chronicle:old",),
+        )
+
+
+def test_chronicle_schema_rejects_empty_non_decision_payloads() -> None:
+    evidence_validation = validate_schema_instance(
+        "chronicle.schema.json",
+        {
+            "id": "chronicle:evidence",
+            "subject_id": "repo:ethos",
+            "event_type": "evidence",
+            "evidence_ids": [],
+            "decision": "",
+            "supersedes": [],
+            "current_state_delta": "",
+        },
+    )
+    state_validation = validate_schema_instance(
+        "chronicle.schema.json",
+        {
+            "id": "chronicle:state",
+            "subject_id": "repo:ethos",
+            "event_type": "state_change",
+            "evidence_ids": [],
+            "decision": "",
+            "supersedes": [],
+            "current_state_delta": "",
+        },
+    )
+    supersession_validation = validate_schema_instance(
+        "chronicle.schema.json",
+        {
+            "id": "chronicle:supersession",
+            "subject_id": "repo:ethos",
+            "event_type": "supersession",
+            "evidence_ids": [],
+            "decision": "",
+            "supersedes": [],
+            "current_state_delta": "",
+        },
+    )
+
+    assert evidence_validation["ok"] is False
+    assert state_validation["ok"] is False
+    assert supersession_validation["ok"] is False
 
 
 def test_action_graph_is_deterministic_and_digest_bound() -> None:
@@ -127,6 +304,8 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "assistant-projection.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
+        "judgment-source.schema.json",
+        "authority-graph.schema.json",
     }
 
     assert expected <= {path.name for path in schema_dir.glob("*.schema.json")}

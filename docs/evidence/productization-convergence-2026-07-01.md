@@ -1,0 +1,196 @@
+---
+subject: ethos:evidence:productization-convergence
+role: evidence
+state: active
+relations:
+  evidence_refs: OpenSpec, pytest, Ruff, build, proof, shadow parity, expert committee
+---
+
+# Productization Convergence Evidence - 2026-07-01
+
+## Scope
+
+This evidence records the `ethos-productization-convergence` campaign slice.
+
+The product question for this batch was not "add more governance surface." The
+question was whether ETHOS can be read, adopted, proved, closed out, and
+published as a product instead of as a half-migrated projection from advanced
+adopter repositories.
+
+The convergence target is:
+
+- A single product judgment authority:
+  `JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle`.
+- A first-hour adopter path that starts with profile selection, dry-run
+  inspection, explicit apply criteria, generated-file rollback, and the command
+  loop `status -> plan -> prove -> land -> publish`.
+- `report` as a read-only scorecard, not a workflow transition.
+- Maintainer/reference commands that remain reachable but do not pollute the
+  adopter first-hour surface.
+- Claims that bind evidence without turning digest-only evidence into semantic,
+  hosted, publication, or domain parity proof.
+- A typed authority graph read model that separates canonical docs from evidence
+  references and reports drift through self-audit.
+- External shadow parity that compares ETHOS command behavior against adopter
+  repositories without claiming adopter domain closure.
+
+## Implemented Changes
+
+- Public command registry now exposes only the five workflow commands as public
+  workflow commands. `report` is a scorecard command, setup/onboarding commands
+  are separate from the transition loop, and advanced command roots are
+  maintainer/reference commands.
+- CLI help hides maintainer/reference subapps and root reference commands from
+  first-hour help while keeping the commands callable.
+- Adoption planning now records requested profile, detected profile, observed
+  files, profile match, write plan, generated rollback list, apply criteria,
+  conflict gaps, and next action. Apply is blocked when the requested profile
+  does not match the repository shape.
+- `init --apply` and `adopt --apply` require explicit authorization and
+  expected Git HEAD binding. Non-Git apply is blocked with
+  `git_repository_missing` instead of treating `untracked` as a valid mutable
+  HEAD.
+- `land --json` dry-run consumes closeout support and reports dirty Work Lane
+  blockage instead of presenting local closeout as ready.
+- Generated quickstart, skill, and contributing scaffold content teach the
+  five-command loop plus `report`; they no longer route first-hour users through
+  execution-only proof or quality subcommands.
+- Kernel docs, OpenSpec specs, package README, and product docs now converge on
+  the seven-term Judgment Source chain.
+- `EvidenceClaim` requires typed evidence ids, binding, and verifier. Claim
+  reporting applies digest-only overclaim checks to both active claim summary and
+  binding text, rejecting semantic, hosted, publication, and domain closure
+  wording without a semantic verifier.
+- `ChronicleEvent` is constrained to decision, evidence, state-change, and
+  supersession event types. Decision events require evidence, decision, and
+  current-state delta fields; evidence, state-change, and supersession events
+  require the payload fields relevant to that event type.
+- Active claim TOML records now carry digest-only binding metadata compatible
+  with the stricter claim schema.
+- Authority graph validation now checks list fields, unique ids, relation type,
+  doc refs, evidence refs, evidence location, and derived-view derivation.
+- Parity freshness now includes current product HEAD in generic gaps, shadow
+  parity, and closeout records; stale product-head records are rejected.
+- Product report parity output explicitly states that generic command parity is
+  not domain profile closure.
+
+## Expert Committee Findings And Resolution
+
+Five reviewers were used in the committee pass: Aquinas, Gibbs, Hypatia,
+Laplace, and Pasteur. The initial pass blocked the batch.
+
+Blocking findings and resolution:
+
+- Public command leak: reviewers required the public transition path to be
+  exactly `status -> plan -> prove -> land -> publish`, with `report` as a
+  scorecard. The registry, docs checks, CLI help, README, Quickstart, and product
+  design contract were updated around that split.
+- Adoption first hour: reviewers required real dry-run/apply safety, profile
+  mismatch reporting, write plan inspection, and generated scaffold updates. The
+  planner and CLI apply path now report those fields and block unsafe apply.
+- Kernel ontology: reviewers rejected the old vocabulary chain as canonical. The
+  product chain is now the seven-term Judgment Source chain across code, specs,
+  docs, and package README.
+- Evidence and Chronicle constraints: reviewers found digest-bound claims and
+  chronicle decisions underconstrained. The kernel model, JSON schemas, and claim
+  report now enforce typed evidence ids, binding, verifier, active summary
+  overclaim rejection, and event-type payload requirements.
+- Authority graph: reviewers found docs masquerading as evidence. The read model
+  now separates `doc_refs` from `evidence_refs` and validates evidence paths.
+- Parity overclaim: reviewers required freshness checks and explicit caveats.
+  Parity reports now bind current product HEAD and the product report states that
+  command shadow parity does not close domain profile work.
+- Batch closeout: reviewers required dated evidence, claim binding, and OpenSpec
+  task closeout for this batch. This evidence file and its claim record are the
+  closeout artifacts for that requirement.
+
+## Verification
+
+Commands run from `/Users/yheng/projects/ethos-work-productization-convergence`
+on branch `work/productization-convergence`, product HEAD
+`992b52a0cb7d0e70a2ecff1a92bfa36e3f9de5c3`.
+
+```bash
+uv run --group dev ruff check packages/ethos-repository/src/ethos_repository/planner.py tests/unit/test_kernel_contracts.py --fix
+uv run --group dev ruff check .
+uv run --group dev pytest tests/unit tests/architecture -q
+uv run --group dev pytest -q
+uv run openspec validate --all --strict --json
+uv run --package ethos ethos quality schemas --json
+uv run --package ethos ethos quality claims --json
+uv run --package ethos ethos self audit --mode shape --json
+uv run --package ethos ethos report --json
+uv build --all-packages
+uv run --package ethos ethos prove --expect-head "$(git rev-parse HEAD)" --json
+uv run --package ethos ethos prove --full --execute --json
+uv run --package ethos ethos parity gaps --json
+uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json
+uv run --package ethos ethos parity shadow --target /Users/yheng/projects/di-effect --execute --timeout-seconds 60 --json
+uv run --group dev pytest tests/unit/test_command_registry_depth.py tests/unit/test_claims_governance.py tests/unit/test_kernel_contracts.py -q
+uv run --group dev pytest tests/unit/test_adoption_profiles.py tests/unit/test_cli_contracts.py -q
+uv run --package ethos ethos quality claims --json
+```
+
+Observed results:
+
+- Ruff fixed two import-order issues, then full Ruff returned
+  `All checks passed!`.
+- Focused convergence regression suite returned `163 passed in 26.06s`.
+- Reviewer-driven adoption safety regressions returned `79 passed in 28.81s`.
+- Full pytest returned `300 passed in 56.49s`.
+- OpenSpec strict validation returned `9` items passed, `0` failed.
+- Schema quality returned `ok=true`, `state=clean`, `schema_count=23`, and no
+  required gaps.
+- Claim quality returned `ok=true`, `state=clean`, and no required gaps.
+- Self audit returned `ok=true`, `state=clean`, and no required gaps.
+- Product report returned `ok=true`, `state=ready`, score `15 / 15`, no product
+  gaps, and no parity pending count.
+- `uv build --all-packages` built wheel and sdist artifacts for all seven
+  Python packages.
+- HEAD-bound proof returned `state=proven`,
+  `expected=current=992b52a0cb7d0e70a2ecff1a92bfa36e3f9de5c3`, no required
+  gaps, and evidence digest
+  `08ac42063c7ae86f73ea24d0b0c846fe5812220e7014f131ee73c8a96eeac62b`.
+- Executed full proof returned `state=proven`, no required gaps, evidence
+  digest `49dcec973134770959799e71332812c9406b4597826a9d4cfb9122bfe198ee4e`,
+  and 8 passed gate runs: claims, docs-registry, ruff, schemas, self-audit,
+  unit-architecture, build, and openspec. The unit-architecture gate returned
+  `300 passed in 55.84s`.
+- Generic parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- alphasim-dmgr shadow returned `ok=true`, `state=matched`, and no required
+  gaps for the ETHOS command comparison set.
+- di-effect shadow returned `ok=true`, `state=matched`, and no command
+  comparison required gaps for the same command set.
+- Focused post-review regressions for command registry classification, active
+  claim overclaim checks, and Chronicle event constraints returned
+  `26 passed in 0.17s`.
+- Post-review claim quality returned `ok=true`, `state=clean`, and no required
+  gaps after active digest-only claim summaries were downgraded to
+  evidence-record wording.
+
+## External Shadow Boundaries
+
+The alphasim-dmgr shadow run targeted
+`/Users/yheng/projects/alphasim-dmgr-fix-b3` at target HEAD
+`8b8bf19ef8df92b3096c0e651433cac74c15f7f1`. Its external `ethos status` output
+reported branch `dev`, `dirty=false`, and `changed_path_count=0`.
+
+The di-effect shadow run targeted `/Users/yheng/projects/di-effect` at target
+HEAD `e9e474fe1e4a1b00d01d97b0e706235465cd21f6`. Its external `ethos status`
+output reported branch `dev`, `dirty=true`, `changed_path_count=2`, and
+`candidate_branch_missing`. Its publish comparison included
+`local_publish_readiness_blocked` on the target side. The shadow still matched
+because product ETHOS and the embedded/adopter command surface agreed on the
+reported state.
+
+These shadow results are command-surface evidence only. They do not claim
+hosted CI, remote publication, adopter domain migration, backend retirement, or
+dmgr raw/cache parity. dmgr-specific validation remains an adopter profile and
+domain evidence problem, not an ETHOS product-core claim.
+
+## Remaining Product Boundary
+
+The Work Lane remains dirty until this batch is committed and landed through the
+ETHOS lane mechanism. `ethos status --json` therefore reports closeout support
+blocked by `work_lane_dirty` during this evidence-writing stage. That is a
+workflow state, not a product audit gap.

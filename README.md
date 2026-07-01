@@ -2,10 +2,21 @@
 
 ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.
 
-It is a reflexive, standards-compatible, agentic-native governance kernel for
-deterministic repository change, evidence, release, and evolution.
+It gives a Git repository a safe operating loop for human-agent change: inspect
+where you are, plan the required proof, run that proof, land through a controlled
+review path, and publish only when local and hosted evidence are separated.
 
-## Command Plane
+ETHOS does not take over your domain model, CI provider, assistant host, or issue
+tracker. Those systems stay adapters or projections. Repository source, tests,
+schemas, docs, evidence, and promoted decisions remain the truth.
+
+## First Hour
+
+The first hour is deliberately small:
+
+```text
+status -> plan -> prove -> land -> publish
+```
 
 Daily workflow:
 
@@ -17,32 +28,31 @@ ethos land
 ethos publish
 ```
 
-Advanced workflow:
+report is a read-only scorecard. It shows the payoff after the loop, but it is
+not another transition verb:
 
 ```bash
-ethos adopt
-ethos doctor
-ethos campaign
-ethos intake
-ethos self
-ethos quality
-ethos assistants
-ethos playbooks
-ethos parity
-ethos fleet
 ethos report
 ```
 
+Start read-only. Choose an adoption profile, review the planned files with a
+dry run, apply only when the generated file list and rollback path are clear,
+then use the five-command loop above.
+
 ## Kernel
 
-ETHOS reduces repository operation to one chain:
+ETHOS product truth is judged from one source and projected through one canonical
+chain:
 
 ```text
-Constitution -> Subject -> Contract -> IR -> Transition -> Inscription -> Evidence -> Chronicle -> Evolution
+JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-Packages are derived shells over that kernel. They do not create separate truth
-centers.
+`JudgmentSource` is the authority for product decisions. `Subject` names the
+governed object. `Commitment` collects contracts, policies, specs, and decisions.
+`Change` owns the lifecycle. `Evidence` carries proof material. `Claim` binds
+evidence and does not own lifecycle state. `Chronicle` records judged history,
+decisions, supersession, and current-state movement.
 
 ## Packages
 
@@ -66,9 +76,9 @@ The npm package is a thin launcher over the Python command plane:
 npm run ethos -- --version
 ```
 
-## Reflexive Governance
+## Maintainer Reference
 
-ETHOS can inspect and evolve itself:
+ETHOS can inspect and evolve itself through maintainer/reference commands:
 
 ```bash
 ethos self audit

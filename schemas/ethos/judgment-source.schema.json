@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/judgment-source.schema.json",
+  "title": "ETHOS Judgment Source",
+  "type": "object",
+  "required": ["id", "authority", "derived_views", "policy_refs"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "authority": {"type": "string", "minLength": 1},
+    "derived_views": {"type": "array", "items": {"type": "string"}},
+    "policy_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

@@ -8,7 +8,51 @@ relations:
 
 # Quickstart
 
-Run the public command plane:
+## First Hour
+
+Start with a read-only status check:
+
+```bash
+ethos status
+```
+
+Then choose a profile:
+
+| Profile | Use when | Reads | Plans to write |
+| --- | --- | --- | --- |
+| `generic` | Any Git repository needs the ETHOS loop | `.git`, README, package hints | `.ethos/`, `.agents/`, docs, OpenSpec, claims |
+| `python` | A Python package or app is present | `pyproject.toml`, lock files, test/lint config | Python proof gates and workspace profile |
+| `monorepo` | Multiple packages share one repository | workspace manifests, `packages/*` | package map and changed-scope routing |
+| `github` | GitHub Actions is the hosted projection | `.github/workflows/*`, remote metadata when available | hosted CI projection only |
+| `gitlab` | GitLab CI/MR is the hosted projection | `.gitlab-ci.yml`, GitLab templates | hosted CI/MR projection only |
+
+Preview before applying:
+
+```bash
+ethos adopt --profile python --dry-run --json
+```
+
+Use the dry-run output to review generated files. The important fields are
+`detected_profile`, `requested_profile`, `profile_match`, `observed_files`,
+`write_plan`, `required_gaps`, and `rollback`. The apply criteria are:
+
+- the profile matches the repository shape;
+- `write_plan` contains only expected ETHOS governance files;
+- `required_gaps` is empty, especially no `adoption_conflict:<path>` entries;
+- no hosted CI or remote publication is claimed from local evidence;
+- rollback is clear: remove `rollback.generated_files` or restore the
+  pre-adoption Git state.
+
+Apply only with explicit authorization and the current HEAD:
+
+```bash
+ethos adopt --profile python --apply --authorize --expect-head <git-head> --json
+```
+
+If the repository is not tracked by Git yet, initialize Git first or use the
+dry-run plan as a review artifact without claiming HEAD-bound adoption.
+
+After the scaffold is applied, use the five-command loop:
 
 ```bash
 ethos status
@@ -18,9 +62,31 @@ ethos land
 ethos publish
 ```
 
-Use `--json` for stable machine output.
+Use `--json` for stable machine output. report is the payoff view, not a
+transition:
 
-For governance and discovery:
+```bash
+ethos report
+```
+
+Common next actions:
+
+- `git_repository_missing`: initialize Git or run from a repository root.
+- edit blocked on a protected checkout: switch to an editable checkout before
+  changing tracked files.
+- land target not ready: keep the result at local proof/readiness and ask the
+  maintainer to prepare the landing target.
+- `expected_head_mismatch`: refresh the plan against the current HEAD.
+- hosted CI unavailable: keep the claim local-ready only.
+- domain gates: declare them in the adopter profile, let `ethos plan` select
+  the mapped proof gates, and use `ethos report` to keep local evidence separate
+  from hosted or domain-specific proof. Product core must not hardcode domain
+  names.
+
+## Maintainer Reference
+
+Advanced commands remain available for maintainers and evidence work, but they
+are not part of the first-hour path:
 
 ```bash
 ethos doctor

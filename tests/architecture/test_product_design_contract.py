@@ -38,12 +38,14 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
 
     assert "Evidence-grounded Trust for Human-Agent Operational Stewardship" in text
     kernel_chain = (
-        "Constitution -> Subject -> Contract -> IR -> Transition -> "
-        "Inscription -> Evidence -> Chronicle -> Evolution"
+        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> "
+        "Claim -> Chronicle"
     )
     assert kernel_chain in text
+    assert "North Star is a derived reader view, not the judgment source" in text
+    assert "Claim binds evidence; it does not own the Change lifecycle" in text
     for principle in (
-        "Kernel-first",
+        "Judgment-source first",
         "Contracts before providers",
         "Git-native repository substrate",
         "Capability before surface",
@@ -61,6 +63,35 @@ def test_product_design_contract_keeps_git_native_not_generic_vcs() -> None:
     assert "ETHOS is Git-native" in text
     assert "not a generic VCS abstraction" in text
     assert "Git, OpenSpec, Backlog" not in text
+
+
+def test_first_hour_docs_keep_advanced_workflows_out_of_primary_path() -> None:
+    readme = read("README.md")
+    quickstart = read("docs/start/quickstart.md")
+
+    assert "First Hour" in readme
+    assert "status -> plan -> prove -> land -> publish" in readme
+    assert "report is a read-only scorecard" in readme
+    assert "Advanced workflow:" not in readme
+
+    first_hour = quickstart.split("## Maintainer Reference", 1)[0]
+    for advanced in (
+        "ethos campaign",
+        "ethos quality",
+        "ethos assistants",
+        "ethos playbooks",
+        "ethos parity",
+        "ethos fleet",
+    ):
+        assert advanced not in first_hour
+    for phrase in (
+        "choose a profile",
+        "review generated files",
+        "apply criteria",
+        "rollback",
+        "report is the payoff view",
+    ):
+        assert phrase in first_hour
 
 
 def test_product_design_contract_defines_configured_role_and_binding_contracts() -> None:
@@ -101,6 +132,25 @@ def test_package_ontology_declares_target_mece_packages_and_migration_hosts() ->
     assert "No active product migration host remains in `packages/`" in text
     assert "distributions/npm" in text
     assert "Python product package ontology" in text
+
+
+def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
+    retired_phrases = (
+        "Constitution, Subject",
+        "Contract, IR",
+        "Transition, Inscription",
+        "Chronicle, Evolution",
+    )
+    canonical_surfaces = (
+        "docs/architecture/package-ontology.md",
+        "packages/ethos-core/README.md",
+        "openspec/specs/ethos-core/spec.md",
+    )
+
+    for surface in canonical_surfaces:
+        text = read(surface)
+        for phrase in retired_phrases:
+            assert phrase not in text, (surface, phrase)
 
 
 def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -> None:

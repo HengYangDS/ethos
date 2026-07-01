@@ -7,4 +7,7 @@ summary = "Bootstrap ETHOS as a standalone reflexive governance framework."
 [evidence]
 dated = "docs/evidence/bootstrap-2026-06-30.md"
 sha256 = "1d925561d9a03d288fe912677a57563451243c478acc649b8b5ee44949ce0b75"
+evidence_ids = ["evidence:ethos-product-canonization"]
+binding = "digest-bound evidence binding"
+verifier = "digest_only"
 tests = ["tests/unit", "tests/architecture"]

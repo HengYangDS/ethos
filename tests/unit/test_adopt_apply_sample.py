@@ -8,7 +8,7 @@ from ethos_repository.planner import adoption_plan, detect_repo_profile
 def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n", encoding="utf-8")
 
-    assert detect_repo_profile(tmp_path) == "python-package"
+    assert detect_repo_profile(tmp_path) == "python"
 
 
 def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
@@ -23,6 +23,8 @@ def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
 
 
 def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None:
+    (tmp_path / ".gitlab").mkdir()
+
     result = adoption_plan(tmp_path, profile="gitlab", apply=True)
 
     planned = set(result["planned_files"])
@@ -57,6 +59,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".gitlab-ci.yml",
     }
 
+    assert result["applied"] is True
     assert required <= planned
     for relative in required:
         assert (tmp_path / relative).exists(), relative
@@ -69,3 +72,43 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(
         encoding="utf-8"
     )
+
+
+def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
+    tmp_path: Path,
+) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    quickstart = (tmp_path / "docs/start/quickstart.md").read_text(encoding="utf-8")
+    first_hour = quickstart.split("## Maintainer Reference", 1)[0]
+
+    for command in (
+        "ethos status",
+        "ethos plan --changed",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ):
+        assert command in first_hour
+    assert "ethos report" in first_hour
+    assert "ethos prove --execute" not in first_hour
+    assert "ethos quality" not in first_hour
+
+
+def test_generated_skill_loop_uses_workflow_plus_scorecard(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    skill = (
+        tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    for command in (
+        "ethos status",
+        "ethos plan --changed",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ):
+        assert command in skill
+    assert "ethos report" in skill
+    assert "ethos quality" not in skill

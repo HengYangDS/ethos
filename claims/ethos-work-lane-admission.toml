@@ -2,11 +2,14 @@
 id = "ethos-work-lane-admission"
 subject = "ethos:repository-lane-admission"
 state = "active"
-summary = "ETHOS enforces Work Lane admission, foreign lane visibility, protected-root mutation blocking, and lease-backed lane start."
+summary = "Records digest-bound evidence for Work Lane admission, foreign lane visibility, protected-root mutation blocking, and lease-backed lane start."
 
 [evidence]
 dated = "docs/evidence/work-lane-admission-2026-06-30.md"
 sha256 = "d871787f4fb3e33543168dcb9655ef28d1e0b41ad4845e80a955e66e8e20bf5a"
+evidence_ids = ["evidence:ethos-work-lane-admission"]
+binding = "digest-bound lane admission evidence binding"
+verifier = "digest_only"
 tests = [
   "tests/unit/test_workspace_lanes.py",
   "tests/unit/test_workspace_apply.py",

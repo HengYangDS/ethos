@@ -7,6 +7,9 @@ summary = "Mature ETHOS into a host-profiled, schema-validated, gate-executing p
 [evidence]
 dated = "docs/evidence/maturation-2026-06-30.md"
 sha256 = "7fe6b93e1e73356b9e92cfb273c988f8b80a8686d2498c2b2ea73249c82617b0"
+evidence_ids = ["evidence:ethos-product-maturation"]
+binding = "digest-bound evidence binding"
+verifier = "digest_only"
 tests = [
   "tests/unit",
   "tests/architecture",

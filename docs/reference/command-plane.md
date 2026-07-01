@@ -8,7 +8,7 @@ relations:
 
 # Command Plane
 
-Public daily commands:
+Public workflow commands:
 
 ```bash
 ethos status
@@ -18,14 +18,30 @@ ethos land
 ethos publish
 ```
 
+`ethos report` is the read-only scorecard over that workflow. It is not a
+transition command:
+
+```bash
+ethos report
+```
+
 The npm launcher exposes the same root command:
 
 ```bash
 npm run ethos -- --version
 ```
 
-Advanced commands remain under `ethos ...`. Retired root commands are not
-compatibility surfaces.
+Maintainer/reference commands remain under `ethos ...`. Retired root commands
+are not compatibility surfaces.
+
+Setup/onboarding commands:
+
+```bash
+ethos adopt --profile python --dry-run --json
+ethos adopt --profile python --apply --authorize --expect-head <git-head> --json
+ethos init --profile gitlab --dry-run --json
+ethos doctor
+```
 
 Quality and governance:
 
@@ -60,7 +76,6 @@ ethos intake status
 ethos parity ledger
 ethos parity gaps --adopter alphasim-dmgr
 ethos parity shadow --target <repo>
-ethos report
 ```
 
 Agent projections:

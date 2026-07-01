@@ -120,11 +120,69 @@ def test_prove_rejects_mismatched_expected_head() -> None:
     assert payload["data"]["expected_head"]["ok"] is False
 
 
-def test_init_apply_flag_applies_scaffold(tmp_path: Path) -> None:
+def test_init_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     target = tmp_path / "sample"
     target.mkdir()
 
-    payload = run_ethos("init", "--root", target.as_posix(), "--apply", "--json")
+    payload = run_ethos(
+        "init",
+        "--root",
+        target.as_posix(),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "untracked",
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "git_repository_missing" in payload["required_gaps"]
+    assert not (target / ".ethos" / "project.toml").exists()
+
+    assert payload["data"]["mutation"] == {
+        "apply": True,
+        "authorized": True,
+        "expect_head": "untracked",
+        "current_head": "untracked",
+    }
+
+
+def test_adopt_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
+    target = tmp_path / "sample"
+    target.mkdir()
+
+    payload = run_ethos(
+        "adopt",
+        "--root",
+        target.as_posix(),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        "untracked",
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "git_repository_missing" in payload["required_gaps"]
+    assert not (target / ".ethos" / "project.toml").exists()
+
+
+def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
+    target = init_git_repo(tmp_path / "sample")
+    head = git(target, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "init",
+        "--root",
+        target.as_posix(),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+    )
 
     assert payload["ok"] is True
     assert payload["state"] == "applied"
@@ -605,6 +663,45 @@ def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
     assert not (tmp_path / ".ethos").exists()
 
 
+def test_adopt_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos("adopt", "--root", str(repo), "--apply", "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "authorization_required" in payload["required_gaps"]
+    assert "expect_head_required" in payload["required_gaps"]
+    assert not (repo / ".ethos/project.toml").exists()
+
+
+def test_adopt_apply_accepts_authorized_matching_head(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "adopt",
+        "--root",
+        str(repo),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "applied"
+    assert payload["data"]["mutation"] == {
+        "apply": True,
+        "authorized": True,
+        "expect_head": head,
+        "current_head": head,
+    }
+    assert (repo / ".ethos/project.toml").exists()
+
+
 def test_quality_command_registry_rejects_retired_public_roots() -> None:
     payload = run_ethos("quality", "command-registry", "--json")
 
@@ -612,9 +709,28 @@ def test_quality_command_registry_rejects_retired_public_roots() -> None:
     assert payload["data"]["retired_public_roots"] == []
     assert payload["data"]["retired_public_root_mentions"] == []
     assert "ethos status" in payload["data"]["public_commands"]
-    assert "ethos intake" in payload["data"]["public_commands"]
-    assert "ethos lane" in payload["data"]["public_commands"]
-    assert "ethos parity" in payload["data"]["public_commands"]
+    assert "ethos intake" not in payload["data"]["public_commands"]
+    assert "ethos lane" not in payload["data"]["public_commands"]
+    assert "ethos parity" not in payload["data"]["public_commands"]
+    assert "ethos intake" in payload["data"]["known_commands"]
+    assert "ethos lane" in payload["data"]["known_commands"]
+    assert "ethos parity" in payload["data"]["known_commands"]
+
+
+def test_root_help_foregrounds_workflow_and_hides_maintainer_apps() -> None:
+    completed = run_ethos_raw("--help")
+
+    assert completed.returncode == 0
+    assert "status" in completed.stdout
+    assert "plan" in completed.stdout
+    assert "prove" in completed.stdout
+    assert "land" in completed.stdout
+    assert "publish" in completed.stdout
+    assert "report" in completed.stdout
+    for maintainer in ("quality", "self", "campaign", "lane", "parity"):
+        assert f"│ {maintainer} " not in completed.stdout
+    for reference in ("doctor", "docs", "explain"):
+        assert f"│ {reference} " not in completed.stdout
 
 
 def test_quality_standard_registry_declares_adapter_boundaries() -> None:
@@ -834,6 +950,7 @@ post_checks = ["ethos prove"]
 
 
 def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
+    (tmp_path / ".gitlab").mkdir()
     adoption_plan(tmp_path, profile="gitlab", apply=True)
 
     payload = run_ethos("fleet", "inspect", "--target", str(tmp_path), "--json")
@@ -927,6 +1044,49 @@ def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> N
     assert payload["ok"] is True
     assert payload["data"]["self_audit"]["mode"] == "adopter"
     assert payload["data"]["scores"]["adopter_governance"] == 1
+    assert payload["data"]["first_hour"] == {
+        "proof_status": "ready",
+        "evidence_gap_count": 0,
+        "land_readiness": "local_readiness",
+        "publish_readiness": "local_readiness",
+        "hosted_ci_truth": "external-evidence",
+        "next_action": "ethos prove",
+    }
+
+
+def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "work_lane_dirty" in payload["required_gaps"]
 
 
 def test_land_apply_requires_authorization_and_expected_head() -> None:

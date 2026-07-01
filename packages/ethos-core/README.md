@@ -9,9 +9,8 @@ Relations: owns kernel primitives
 
 Subject: ETHOS kernel algebra.
 
-Role: own Constitution, Subject, Contract, IR, Transition, Inscription,
-Evidence, Chronicle, Evolution, and action graph primitives without provider
-execution.
+Role: own JudgmentSource, Subject, Commitment, Change, Evidence, Claim,
+Chronicle, and action graph primitives without provider execution.
 
 State: target package home.
 

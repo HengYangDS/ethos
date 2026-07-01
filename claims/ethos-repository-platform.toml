@@ -7,6 +7,9 @@ summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection,
 [evidence]
 dated = "docs/evidence/governance-platform-2026-06-30.md"
 sha256 = "fc28a000adef11627233f78a8798cafd764226bd7388556f3bbb4c836ddc91a6"
+evidence_ids = ["evidence:ethos-repository-platform"]
+binding = "digest-bound evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit tests/architecture -q",
   "uv run --group dev ruff check .",

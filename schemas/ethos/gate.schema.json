@@ -3,12 +3,14 @@
   "$id": "https://ethos.local/schemas/gate.schema.json",
   "title": "ETHOS Gate",
   "type": "object",
-  "required": ["id", "kind", "command", "policy"],
+  "required": ["id", "kind", "command", "policy", "profile", "toolchain"],
   "properties": {
     "id": {"type": "string", "minLength": 1},
     "kind": {"type": "string", "minLength": 1},
     "command": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-    "policy": {"type": "string", "minLength": 1}
+    "policy": {"type": "string", "minLength": 1},
+    "profile": {"type": "string", "minLength": 1},
+    "toolchain": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }

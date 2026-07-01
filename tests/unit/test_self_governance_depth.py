@@ -82,6 +82,7 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "LICENSE",
+        ".ethos/release.toml",
         ".gitlab-ci.yml",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",

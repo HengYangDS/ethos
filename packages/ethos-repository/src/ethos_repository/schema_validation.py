@@ -139,6 +139,8 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
                     "kind": gate.kind,
                     "command": list(gate.command),
                     "policy": gate.policy,
+                    "profile": gate.profile,
+                    "toolchain": gate.toolchain,
                 },
                 root=root,
             )

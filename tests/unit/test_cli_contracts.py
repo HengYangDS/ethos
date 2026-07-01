@@ -669,6 +669,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "command-registry",
         "command-surface",
         "commits",
+        "coupling-audit",
         "docs-registry",
         "evidence-freshness",
             "format-policy",
@@ -868,6 +869,7 @@ def test_quality_determinism_commands_are_available() -> None:
         ("quality", "projection-drift", "--json"),
         ("quality", "evidence-freshness", "--json"),
         ("quality", "command-examples", "--json"),
+        ("quality", "coupling-audit", "--json"),
         ("quality", "docs-registry", "--json"),
         ("quality", "provenance", "--json"),
         ("quality", "claims", "--json"),
@@ -875,6 +877,18 @@ def test_quality_determinism_commands_are_available() -> None:
         payload = run_ethos(*command)
         assert payload["ok"] is True
         assert payload["required_gaps"] == []
+
+
+def test_quality_coupling_audit_reports_git_native_boundary() -> None:
+    payload = run_ethos("quality", "coupling-audit", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality coupling-audit"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["git_native"]["strongly_bound"] is True
+    assert payload["data"]["git_native"]["layer"] == "product_semantic"
+    assert payload["data"]["release_host_profile"]["provider"] == "gitlab"
+    assert payload["data"]["self_hosting_toolchain"]["profile"] == "self-hosting"
 
 
 def test_prove_returns_evidence_and_provenance() -> None:

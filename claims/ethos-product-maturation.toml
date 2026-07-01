@@ -2,7 +2,7 @@
 id = "ethos-product-maturation"
 subject = "ethos:product"
 state = "active"
-summary = "Mature ETHOS into a GitLab-visible, schema-validated, gate-executing product framework."
+summary = "Mature ETHOS into a host-profiled, schema-validated, gate-executing product framework."
 
 [evidence]
 dated = "docs/evidence/maturation-2026-06-30.md"
@@ -25,5 +25,5 @@ release_files = [
   "LICENSE",
   "CONTRIBUTING.md",
   "CHANGELOG.md",
-  ".gitlab-ci.yml",
+  ".ethos/release.toml",
 ]

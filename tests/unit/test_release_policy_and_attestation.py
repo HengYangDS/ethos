@@ -23,7 +23,7 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     }
 
 
-def test_release_policy_reports_required_gitlab_and_tag_contracts() -> None:
+def test_release_policy_reports_host_profile_separately_from_product_files() -> None:
     report = release_policy_report(Path.cwd())
 
     assert report["ok"] is True
@@ -34,12 +34,18 @@ def test_release_policy_reports_required_gitlab_and_tag_contracts() -> None:
         "LICENSE",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
-        ".gitlab-ci.yml",
-        ".gitlab/merge_request_templates/default.md",
-        ".gitlab/issue_templates/task.md",
         ".ethos/release.toml",
     ]
-    assert report["gitlab"]["ci"] == ".gitlab-ci.yml"
+    assert "gitlab" not in report
+    assert report["host_profile"] == {
+        "provider": "gitlab",
+        "layer": "profile_config",
+        "surfaces": {
+            "ci": ".gitlab-ci.yml",
+            "merge_request_template": ".gitlab/merge_request_templates/default.md",
+            "issue_template": ".gitlab/issue_templates/task.md",
+        },
+    }
     assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert report["protected_refs"]["tags"] == ["v*"]
 
@@ -91,7 +97,10 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
                 'branches = ["release", "integration"]',
                 'tags = ["v*"]',
                 "",
-                "[gitlab]",
+                "[host_profile]",
+                'provider = "gitlab"',
+                "",
+                "[host_profile.surfaces]",
                 'ci = ".gitlab-ci.yml"',
                 'merge_request_template = ".gitlab/merge_request_templates/default.md"',
                 'issue_template = ".gitlab/issue_templates/task.md"',
@@ -109,6 +118,45 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
 
     assert "protected_branches_policy_missing" not in report["required_gaps"]
     assert report["protected_refs"]["branches"] == ["release", "integration"]
+    assert report["host_profile"]["provider"] == "gitlab"
+
+
+def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md"):
+        (root / path).write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        "\n".join(
+            [
+                "[protected_refs]",
+                'branches = ["main", "dev"]',
+                'tags = ["v*"]',
+                "",
+                "[host_profile]",
+                'provider = "gitlab"',
+                "",
+                "[host_profile.surfaces]",
+                'ci = ".gitlab-ci.yml"',
+                "",
+                "[attestation]",
+                'formats = ["in-toto", "slsa", "spdx-lite"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert "release_file_missing:.gitlab-ci.yml" not in report["required_gaps"]
+    assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" in report["required_gaps"]
 
 
 def test_release_attestation_is_in_toto_and_slsa_shaped() -> None:

@@ -1,0 +1,32 @@
+[claim]
+id = "ethos-coupling-governance"
+subject = "ethos:coupling-governance"
+state = "active"
+summary = "ETHOS preserves Git-native repository semantics while classifying hosted providers, editor/model vendors, and self-hosting tools as profiles, adapters, or evidence layers."
+
+[evidence]
+dated = "docs/evidence/coupling-governance-2026-07-01.md"
+sha256 = "99d93af53b5b17ff04f0b893de82eeaf38525a99956f4b848f4cc28b4ed09744"
+tests = [
+  "uv run --group dev pytest -q",
+  "uv run --group dev ruff check .",
+  "uv build --all-packages",
+  "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality coupling-audit --json",
+  "uv run --package ethos ethos self audit --mode shape --json",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-adapters",
+  "ethos-contracts",
+  "ethos-repository",
+]
+docs = [
+  "docs/governance/product-design-contract.md",
+  "docs/governance/release-governance.md",
+  "docs/architecture/gate-runner.md",
+  "docs/architecture/package-ontology.md",
+  "docs/reference/command-plane.md",
+]

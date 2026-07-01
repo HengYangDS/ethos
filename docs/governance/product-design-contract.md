@@ -83,9 +83,17 @@ migration hosts until they match the target ontology.
 
 ### Contracts before providers
 
-Provider-neutral contracts precede implementation. Git, OpenSpec, Backlog, MCP,
-ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, and pixi
-are adapters or providers, not ontology anchors.
+Provider-neutral contracts precede hosted forge, runtime, model, editor, and
+toolchain implementations. OpenSpec, Backlog, MCP, ACP, Superpowers, GitHub,
+GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and similar systems are
+adapters or providers, not ontology anchors.
+
+### Git-native repository substrate
+
+ETHOS is Git-native. Commits, refs, branches, worktrees, HEAD binding, and
+configured branch roles are product semantics, not a generic VCS abstraction.
+Hosted forges, review systems, and CI surfaces may project those Git facts, but
+they do not replace them.
 
 ### Capability before surface
 

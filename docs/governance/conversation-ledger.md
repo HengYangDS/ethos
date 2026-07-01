@@ -87,8 +87,8 @@ not normal user workflow vocabulary.
 | CL-012 | Enforce format, artifact, and evidence governance. | Generated state and durable truth can blur. | Format policy, artifact policy, and location checks. |
 | CL-013 | Keep dmgr as a reference adopter, the dmgr reference adopter, with its own profile and evidence. | Core can accidentally hardcode dmgr or alphasim. | Reference adoption fixture and boundary tests. |
 | CL-014 | Express dmgr contracts through generic contract-profile mechanisms. | Raw/cache/alphasim rules can become product-private code. | Contract profile schema and adopter proof mapping. |
-| CL-015 | Complete release and publish governance, including hosted parity and break-glass semantics. | Local checks can be mistaken for release readiness. | Release policy tests, GitLab checks, provenance evidence. |
-| CL-016 | Verify GitLab commit signature status as a release signal. | Local GPG signature can still be Unverified on GitLab. | Hosted signature check in release report. |
+| CL-015 | Complete release and publish governance, including hosted parity and break-glass semantics. | Local checks can be mistaken for release readiness. | Release policy tests, host-profile checks, provenance evidence. |
+| CL-016 | Verify hosted-provider commit signature status as a release signal. | Local GPG or SSH signature can still be untrusted by the configured host. | Hosted signature check in release report. |
 | CL-017 | Prevent .mailmap return. | Identity cleanup can reintroduce repo-level rewriting artifacts. | Architecture test asserting no .mailmap. |
 | CL-018 | Treat historical commit identity rewrite as an explicit migration plan only. | History rewrite can be attempted casually. | Migration design, authorization, and hosted verification. |
 | CL-019 | Redesign docs information architecture for clarity, fidelity, and elegance. | Docs can be complete but hard to navigate. | Docs registry, taxonomy, stable paths, and UX review. |
@@ -111,4 +111,4 @@ When in doubt, productize the abstract mechanism and keep adopter vocabulary in
 profiles. The core should speak in subjects, contracts, transitions,
 inscriptions, chronicles, evolution, evidence, gates, policies, projections,
 and releases. Adopters then bind those abstractions to dmgr, alphasim,
-raw/cache parity, hosted GitLab, or local assistant surfaces.
+raw/cache parity, hosted-provider profiles, or local assistant surfaces.

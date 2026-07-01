@@ -8,11 +8,15 @@ relations:
 
 # Release Governance
 
-A release-ready ETHOS repository must be understandable from GitLab before a
-developer opens source files.
+A release-ready ETHOS repository must be understandable from tracked source,
+license, contribution, changelog, release policy, and evidence files before a
+developer opens implementation code.
 
-Required release surfaces are `README.md`, `LICENSE`, `CONTRIBUTING.md`,
-`CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab issue/MR templates.
+Required product release surfaces are `README.md`, `LICENSE`,
+`CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
+CI files are host-profile surfaces declared under `.ethos/release.toml`; the
+current product repository uses a GitLab host profile, but GitLab is not a
+product release-file requirement.
 
 Release readiness is proven with:
 
@@ -27,5 +31,6 @@ ethos self audit --mode deep
 ethos report
 ```
 
-Hosted CI uses Python images for Python package verification and `node:24` for
-npm lock, engine, launcher, and pack verification.
+The commands above are the current self-hosting toolchain profile for proving
+this repository. They do not make `uv`, pytest, Ruff, npm, or a hosted runner
+product ontology anchors.

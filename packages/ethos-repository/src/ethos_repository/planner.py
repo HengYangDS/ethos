@@ -68,13 +68,6 @@ jetbrains = "projection"
 mcp = "protocol-projection"
 acp = "protocol-projection"
 """,
-    ".ethos/release.toml": """[release]
-version_source = "pyproject.toml"
-tag_pattern = "v{version}"
-
-[attestation]
-formats = ["in-toto", "slsa", "spdx-lite"]
-""",
     ".ethos/state/.gitignore": "*\n!.gitignore\n",
     "openspec/changes/.gitkeep": "",
     "openspec/changes/archive/.gitkeep": "",
@@ -289,6 +282,33 @@ def _changelog_doc() -> str:
 """
 
 
+def _release_toml(profile: str) -> str:
+    text = """[release]
+version_source = "pyproject.toml"
+tag_pattern = "v{version}"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+"""
+    if profile == "gitlab":
+        text += """
+[host_profile]
+provider = "gitlab"
+
+[host_profile.surfaces]
+ci = ".gitlab-ci.yml"
+"""
+    if profile == "github":
+        text += """
+[host_profile]
+provider = "github"
+
+[host_profile.surfaces]
+ci = ".github/workflows/ethos.yml"
+"""
+    return text
+
+
 def _gitlab_ci() -> str:
     return (
         "stages:\n"
@@ -318,6 +338,7 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
             f"[meta]\nname = {project_name}\nproduct = \"ETHOS\"\nversion = 1\n"
         ),
         ".ethos/workspace.toml": _workspace_toml(root, profile),
+        ".ethos/release.toml": _release_toml(profile),
         "openspec/config.yaml": _openspec_config(root),
         ".agents/skills/README.md": _skills_readme(),
         ".agents/skills/activation.toml": _skills_activation(),

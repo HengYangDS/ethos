@@ -7,7 +7,10 @@ artifact_glob = "dist/*"
 branches = ["main", "dev"]
 tags = ["v*"]
 
-[gitlab]
+[host_profile]
+provider = "gitlab"
+
+[host_profile.surfaces]
 ci = ".gitlab-ci.yml"
 merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"

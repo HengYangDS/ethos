@@ -32,5 +32,6 @@ docs/evidence/
 claims/
 ```
 
-GitHub and GitLab profiles also generate hosted-CI projections. The kernel
+GitHub and GitLab profiles also generate hosted-CI projections and declare
+those projections under `.ethos/release.toml` host-profile surfaces. The kernel
 remains profile-free; repository-specific contracts stay in adopter profiles.

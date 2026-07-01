@@ -13,8 +13,8 @@ claim = "ETHOS proof should execute selected gates through the action graph."
 challenge = "A proof wrapper that only summarizes self-audit is not sufficient."
 
 [[hypothesis]]
-id = "gitlab-ready-release-governance"
+id = "host-profile-release-governance"
 campaign = "ethos-product-maturation"
 state = "active"
-claim = "A GitLab-visible product needs license, changelog, contributing rules, CI, and templates."
-challenge = "Missing repository basics reduce trust even when code tests pass."
+claim = "A release-ready product needs generic repository basics plus explicit host-profile surfaces."
+challenge = "Missing repository basics or hidden hosted-provider assumptions reduce trust even when code tests pass."

@@ -239,6 +239,18 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert {"unit-architecture", "ruff", "build"} <= set(registry)
 
 
+def test_gate_registry_classifies_self_hosting_toolchain_profile() -> None:
+    registry = gate_registry()
+
+    for gate_id in ("self-audit", "claims", "docs-registry", "schemas"):
+        assert registry[gate_id].profile == "product"
+        assert registry[gate_id].toolchain == "ethos"
+
+    for gate_id in ("unit-architecture", "ruff", "build"):
+        assert registry[gate_id].profile == "self-hosting"
+        assert registry[gate_id].toolchain == "uv-python"
+
+
 def test_gate_graph_can_select_requested_gates() -> None:
     graph = gate_graph(("self-audit", "claims"))
 

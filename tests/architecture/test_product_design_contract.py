@@ -32,6 +32,7 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     for principle in (
         "Kernel-first",
         "Contracts before providers",
+        "Git-native repository substrate",
         "Capability before surface",
         "Governance before tooling",
         "Proof separation",
@@ -39,6 +40,14 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
         assert principle in text
     assert "PyPI/TestPyPI publish" in text
     assert "not current scope" in text
+
+
+def test_product_design_contract_keeps_git_native_not_generic_vcs() -> None:
+    text = read("docs/governance/product-design-contract.md")
+
+    assert "ETHOS is Git-native" in text
+    assert "not a generic VCS abstraction" in text
+    assert "Git, OpenSpec, Backlog" not in text
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:

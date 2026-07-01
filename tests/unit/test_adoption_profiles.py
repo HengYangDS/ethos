@@ -13,10 +13,15 @@ def test_available_profiles_are_explicit() -> None:
 
 def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     result = adoption_plan(tmp_path, profile="gitlab", apply=True)
+    release = (tmp_path / ".ethos" / "release.toml").read_text(encoding="utf-8")
 
     assert result["profile"] == "gitlab"
     assert ".gitlab-ci.yml" in result["planned_files"]
     assert (tmp_path / ".gitlab-ci.yml").exists()
+    assert "[host_profile]" in release
+    assert 'provider = "gitlab"' in release
+    assert '[host_profile.surfaces]' in release
+    assert 'ci = ".gitlab-ci.yml"' in release
 
 
 def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 PROVIDERS = (
-    "git",
+    "git-command-execution",
     "sqlite",
     "openspec",
     "gitlab",

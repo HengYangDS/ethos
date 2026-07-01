@@ -13,8 +13,7 @@ TARGET_PACKAGES = (
     "ethos-test",
 )
 
-MIGRATION_HOSTS = (
-)
+MIGRATION_HOSTS = ()
 
 TARGET_DISTRIBUTIONS = ("distributions/npm",)
 RETIRED_PRODUCT_FAMILIES = (
@@ -42,6 +41,15 @@ MIGRATION_DISTRIBUTIONS = {
 }
 
 MIGRATION_DISPOSITIONS = {
+    "ethos-kernel": "migrate kernel algebra to ethos-core and contracts to ethos-contracts",
+    "ethos-governance": "split contracts, repository semantics, and provider adapters",
+    "ethos-workspace": (
+        "move Git-native lifecycle semantics to ethos-repository and local command "
+        "execution to adapters"
+    ),
+    "ethos-agent": "move assistant semantics to ethos-assistants and protocols to adapters",
+    "ethos-project": "move adoption semantics to repository and scaffold writers to adapters",
+    "ethos-node": "move npm launcher distribution to distributions/npm",
 }
 MIGRATION_HOST_LIFECYCLE = {}
 

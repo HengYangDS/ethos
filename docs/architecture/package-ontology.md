@@ -58,10 +58,10 @@ Forbidden: provider-specific execution.
 
 ### `ethos-repository`
 
-Repository operation lifecycle semantics. Owns status, plan, prove, land,
-publish, intake, campaign, quality and determinism semantics, command surface
-semantics, evidence freshness semantics, local state logical model, and
-workspace/lane logical model.
+Git-native repository operation lifecycle semantics. Owns status, plan, prove,
+land, publish, intake, campaign, quality and determinism semantics, command
+surface semantics, evidence freshness semantics, local state logical model,
+workspace/lane logical model, and branch-role/worktree semantics.
 
 It answers one question: how one human-agent repository change is planned,
 proved, landed, published, remembered, and evolved.
@@ -80,13 +80,14 @@ assistant/context boundaries; it does not implement an agent.
 
 ### `ethos-adapters`
 
-Provider-specific integrations. Owns adapters for Git, SQLite, official
-OpenSpec, Backlog, GitHub, GitLab, MCP, ACP, Superpowers detection, Dagger,
-Pants, Bazel, Nx, SLSA, in-toto, Sigstore, pre-commit, Ruff, pytest, nox, pixi,
-and hosted CI.
+Provider-specific integrations. Owns adapters for Git command execution, SQLite,
+official OpenSpec, Backlog, GitHub, GitLab, MCP, ACP, Superpowers detection,
+Dagger, Pants, Bazel, Nx, SLSA, in-toto, Sigstore, pre-commit, Ruff, pytest,
+nox, pixi, and hosted CI.
 
 Adapters observe, execute, translate, and bind evidence. They do not own
-product semantics.
+product semantics. Git semantics remain native to ETHOS; this package only owns
+execution and projection boundaries around those semantics.
 
 ### `ethos`
 
@@ -115,3 +116,8 @@ This does not delete or decide the lifecycle of embedded ETHOS implementations
 inside adopter repositories such as alphasim-dmgr. Those adopters still follow
 the separate capability parity, external shadow parity, freeze, rollback window,
 and retirement decision process.
+
+Historical product family dispositions are retained only as retired-family
+explanations. `ethos-workspace` moved Git-native lifecycle semantics to
+`ethos-repository` and local command execution to `ethos-adapters`; it is not a
+generic VCS abstraction and is no longer an active product migration host.

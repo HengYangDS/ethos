@@ -12,6 +12,8 @@ class Gate:
     kind: str
     command: tuple[str, ...]
     policy: str = "required"
+    profile: str = "product"
+    toolchain: str = "ethos"
     depends_on: tuple[str, ...] = ()
 
     def to_node(self) -> ActionNode:
@@ -57,6 +59,8 @@ def gate_registry() -> dict[str, Gate]:
         "unit-architecture": Gate(
             id="unit-architecture",
             kind="test",
+            profile="self-hosting",
+            toolchain="uv-python",
             command=(
                 "uv",
                 "run",
@@ -71,11 +75,15 @@ def gate_registry() -> dict[str, Gate]:
         "ruff": Gate(
             id="ruff",
             kind="lint",
+            profile="self-hosting",
+            toolchain="uv-python",
             command=("uv", "run", "--group", "dev", "ruff", "check", "."),
         ),
         "build": Gate(
             id="build",
             kind="package",
+            profile="self-hosting",
+            toolchain="uv-python",
             command=("uv", "build", "--all-packages"),
             depends_on=("unit-architecture", "ruff"),
         ),

@@ -43,6 +43,7 @@ from ethos_core.result import EthosResult
 from ethos_repository.attestation import release_attestation, sbom_projection
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
+from ethos_repository.coupling import coupling_audit_report
 from ethos_repository.docs_registry import (
     build_docs_registry,
     command_examples_report,
@@ -1091,10 +1092,31 @@ def gates(
                     "kind": gate.kind,
                     "command": list(gate.command),
                     "policy": gate.policy,
+                    "profile": gate.profile,
+                    "toolchain": gate.toolchain,
                 }
                 for gate_id, gate in registry.items()
             }
         },
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="coupling-audit")
+def coupling_audit(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report product, profile, adapter, and self-hosting coupling boundaries."""
+    repo = _root(root)
+    report = coupling_audit_report(repo)
+    result = EthosResult(
+        command="quality coupling-audit",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
     )
     _emit(result, json_output)
 
@@ -1130,9 +1152,10 @@ def release(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Report release and GitLab readiness."""
+    """Report product release surface and host-profile readiness."""
     repo = _root(root)
     release_files = self_audit_module.release_files_report(repo)
+    policy = release_policy_report(repo)
     result = EthosResult(
         command="quality release",
         ok=bool(release_files["ok"]),
@@ -1141,11 +1164,7 @@ def release(
         next_actions=("uv build --all-packages",),
         data={
             "release_files": release_files,
-            "gitlab": {
-                "ci": ".gitlab-ci.yml",
-                "merge_request_template": ".gitlab/merge_request_templates/default.md",
-                "issue_template": ".gitlab/issue_templates/task.md",
-            },
+            "host_profile": policy["host_profile"],
         },
     )
     _emit(result, json_output)
@@ -1157,7 +1176,7 @@ def release_policy(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Validate release version, GitLab, protection, and attestation policy."""
+    """Validate release version, host profile, protection, and attestation policy."""
     repo = _root(root)
     report = release_policy_report(repo)
     result = EthosResult(

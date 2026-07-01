@@ -11,9 +11,6 @@ REQUIRED_RELEASE_FILES = (
     "LICENSE",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
-    ".gitlab-ci.yml",
-    ".gitlab/merge_request_templates/default.md",
-    ".gitlab/issue_templates/task.md",
     ".ethos/release.toml",
 )
 
@@ -51,6 +48,28 @@ def version_manifest(root: Path) -> dict[str, Any]:
     }
 
 
+def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
+    profile = config.get("host_profile", {})
+    if isinstance(profile, dict) and profile:
+        surfaces = profile.get("surfaces", {})
+        return {
+            "provider": str(profile.get("provider", "")),
+            "layer": "profile_config",
+            "surfaces": {
+                str(key): str(value)
+                for key, value in (surfaces if isinstance(surfaces, dict) else {}).items()
+            },
+        }
+    legacy_gitlab = config.get("gitlab", {})
+    if isinstance(legacy_gitlab, dict) and legacy_gitlab:
+        return {
+            "provider": "gitlab",
+            "layer": "profile_config",
+            "surfaces": {str(key): str(value) for key, value in legacy_gitlab.items()},
+        }
+    return {"provider": "", "layer": "profile_config", "surfaces": {}}
+
+
 def release_policy_report(root: Path) -> dict[str, Any]:
     config = release_config(root)
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
@@ -58,7 +77,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     protected_refs = config.get("protected_refs", {})
     branch_policy = load_branch_role_policy(root)
     expected_protected_branches = list(branch_policy.protected_branches)
-    gitlab = config.get("gitlab", {})
+    host_profile = _host_profile(config)
     attestation = config.get("attestation", {})
     gaps: list[str] = []
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)
@@ -68,9 +87,10 @@ def release_policy_report(root: Path) -> dict[str, Any]:
         gaps.append("protected_branches_policy_missing")
     if protected_refs.get("tags") != ["v*"]:
         gaps.append("protected_tags_policy_missing")
-    for key, path in gitlab.items():
+    provider = str(host_profile["provider"])
+    for key, path in host_profile["surfaces"].items():
         if not (root / path).exists():
-            gaps.append(f"gitlab_surface_missing:{key}:{path}")
+            gaps.append(f"host_surface_missing:{provider}:{key}:{path}")
     if set(attestation.get("formats", [])) < {"in-toto", "slsa", "spdx-lite"}:
         gaps.append("attestation_formats_incomplete")
     return {
@@ -82,11 +102,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
             "branches": list(protected_refs.get("branches", [])),
             "tags": list(protected_refs.get("tags", [])),
         },
-        "gitlab": {
-            "ci": gitlab.get("ci", ""),
-            "merge_request_template": gitlab.get("merge_request_template", ""),
-            "issue_template": gitlab.get("issue_template", ""),
-        },
+        "host_profile": host_profile,
         "attestation": {
             "formats": list(attestation.get("formats", [])),
             "signing": attestation.get("signing", ""),

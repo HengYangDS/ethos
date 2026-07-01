@@ -5,8 +5,8 @@
   "generated_on": "2026-07-01",
   "command": "uv run --package ethos ethos parity gaps --json",
   "freshness": {
-    "product_head": "c28aa7e62ba16235bc911599bec046b3ecc7ee3a",
-    "target_head": "c28aa7e62ba16235bc911599bec046b3ecc7ee3a",
+    "product_head": "72d633fb6052c740ba728237b7ece066428badc4",
+    "target_head": "72d633fb6052c740ba728237b7ece066428badc4",
     "command_sha256": "10f094dee1dbd9eb112e4603bdf4ce79a4eaee943d6f38bbd0ed88c99bbc46a6"
   },
   "shadow": {

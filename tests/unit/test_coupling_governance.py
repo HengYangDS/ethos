@@ -108,6 +108,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "adapter_replaceable": False,
         "commands": [
             "ethos lane start",
+            "ethos lane prewrite",
             "ethos lane bind-claim",
             "ethos land",
             "ethos lane retire-landed",
@@ -158,6 +159,57 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "toolchains": ["uv-python"],
         "product_ontology_anchor": False,
     }
+
+
+def test_work_lane_lifecycle_binding_excludes_raw_git_worktree_entrypoint() -> None:
+    report = coupling_audit_report(Path.cwd())
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+    lifecycle = registry["work_lane_lifecycle_command_contract"]
+
+    assert lifecycle["commands"] == [
+        "ethos lane start",
+        "ethos lane prewrite",
+        "ethos lane bind-claim",
+        "ethos land",
+        "ethos lane retire-landed",
+    ]
+    assert lifecycle["forbidden_workflow_state"] == ["raw_git_worktree_add"]
+    assert "git worktree add" not in lifecycle["commands"]
+    assert lifecycle["layer"] == "product_semantic_hard_binding"
+    assert lifecycle["owns_product_semantics"] is True
+
+
+def test_binding_registry_keeps_each_binding_in_its_mechanism_layer() -> None:
+    report = coupling_audit_report(Path.cwd())
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+
+    assert registry["git_repository_substrate"]["layer"] == (
+        "product_semantic_hard_binding"
+    )
+    assert registry["branch_role_policy"]["layer"] == "product_semantic_hard_binding"
+    assert registry["work_lane_lifecycle_command_contract"]["layer"] == (
+        "product_semantic_hard_binding"
+    )
+    assert registry["openspec_workspace"]["layer"] == "mandatory_governance_dependency"
+    assert registry["openspec_cli"]["layer"] == "mandatory_governance_dependency"
+    for binding_id in (
+        "uv_workspace_toolchain",
+        "hatchling_build_backend",
+        "pytest_test_runner",
+        "ruff_lint_runner",
+    ):
+        assert registry[binding_id]["layer"] == "product_toolchain_binding"
+        assert registry[binding_id]["owns_product_semantics"] is False
+        assert registry[binding_id]["adapter_replaceable"] is True
+    for binding_id in (
+        "gitlab_release_profile",
+        "mcp_acp_protocol_adapters",
+        "npm_launcher_distribution_adapter",
+    ):
+        assert registry[binding_id]["layer"] == "profile_or_adapter_binding"
+        assert registry[binding_id]["owns_product_semantics"] is False
+    assert registry["legacy_evidence_records"]["layer"] == "legacy_evidence"
+    assert registry["provider_test_fixtures"]["layer"] == "test_fixture"
 
 
 def test_coupling_audit_branch_role_policy_reports_config_source(tmp_path: Path) -> None:

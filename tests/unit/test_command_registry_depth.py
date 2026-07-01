@@ -43,6 +43,24 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     assert report["setup_count"] == 3
 
 
+def test_openspec_is_governance_dependency_not_second_public_command_plane() -> None:
+    report = command_registry_report()
+
+    assert report["public_workflow_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert "ethos openspec" in report["maintainer_reference_commands"]
+    assert "ethos openspec" not in report["public_workflow_commands"]
+    assert "openspec validate --all --strict --json" not in report["known_commands"]
+    assert report["governance_gate_commands"] == [
+        "openspec validate --all --strict --json",
+    ]
+
+
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "bad.md").write_text(

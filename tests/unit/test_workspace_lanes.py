@@ -9,6 +9,7 @@ from ethos_adapters.lanes import bind_work_lane_claim, retire_landed_work_lanes,
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.state import active_leases
 from ethos_adapters.status import workspace_status
+from ethos_contracts.branch_roles import BranchRolePolicy
 from ethos_repository.schema_validation import validate_schema_instance
 
 
@@ -236,6 +237,66 @@ def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> 
     git(repo, "branch", "main", "dev")
     git(repo, "checkout", "main")
     assert workspace_status(repo)["role"] == "release_root"
+
+
+def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcoded_names() -> None:
+    policy = BranchRolePolicy(
+        release_branch="release",
+        accepted_branch="integration",
+        candidate_branch="stage/integration",
+        work_branch_prefix="lane/",
+        submit_branch_prefix="review/",
+    )
+
+    assert policy.as_status_policy() == {
+        "release_branch": "release",
+        "accepted_branch": "integration",
+        "candidate_branch": "stage/integration",
+        "work_branch_prefix": "lane/",
+        "submit_branch_prefix": "review/",
+        "semantic_order": [
+            {
+                "role": "release_root",
+                "kind": "exact_branch",
+                "config_key": "release_branch",
+                "pattern": "release",
+            },
+            {
+                "role": "accepted_root",
+                "kind": "exact_branch",
+                "config_key": "accepted_branch",
+                "pattern": "integration",
+            },
+            {
+                "role": "candidate",
+                "kind": "exact_branch",
+                "config_key": "candidate_branch",
+                "pattern": "stage/integration",
+            },
+            {
+                "role": "work_lane",
+                "kind": "branch_prefix",
+                "config_key": "work_branch_prefix",
+                "pattern": "lane/*",
+            },
+            {
+                "role": "submit_lane",
+                "kind": "branch_prefix",
+                "config_key": "submit_branch_prefix",
+                "pattern": "review/*",
+            },
+        ],
+    }
+    assert policy.role_for_branch("release") == "release_root"
+    assert policy.role_for_branch("integration") == "accepted_root"
+    assert policy.role_for_branch("stage/integration") == "candidate"
+    assert policy.role_for_branch("lane/feature") == "work_lane"
+    assert policy.role_for_branch("review/feature") == "submit_lane"
+    assert policy.role_for_branch("main") == "other"
+    assert policy.role_for_branch("dev") == "other"
+    assert policy.role_for_branch("candidate/dev") == "other"
+    assert policy.role_for_branch("work/feature") == "other"
+    assert policy.role_for_branch("submit/feature") == "other"
 
 
 def test_start_work_lane_uses_configured_candidate_and_work_role_policy(

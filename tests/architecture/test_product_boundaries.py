@@ -51,6 +51,10 @@ RETIRED_SELF_TERMS = (
     "adopter_repository",
     "posture",
 )
+HOST_PROJECTION_LABELS = (
+    "Open Worktree",
+    "Checkout",
+)
 
 
 def product_surface_files() -> list[Path]:
@@ -145,6 +149,17 @@ def test_current_product_surfaces_do_not_use_retired_self_terms() -> None:
         for term in RETIRED_SELF_TERMS:
             if term in text:
                 findings.append(f"{path.relative_to(ROOT)}: {term}")
+
+    assert findings == []
+
+
+def test_current_product_surfaces_do_not_use_host_projection_labels() -> None:
+    findings: list[str] = []
+    for path in product_surface_files():
+        text = path.read_text(encoding="utf-8")
+        for label in HOST_PROJECTION_LABELS:
+            if label in text:
+                findings.append(f"{path.relative_to(ROOT)}: {label}")
 
     assert findings == []
 

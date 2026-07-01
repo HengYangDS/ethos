@@ -67,6 +67,7 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
         "adapter_replaceable": False,
         "commands": [
             "ethos lane start",
+            "ethos lane prewrite",
             "ethos lane bind-claim",
             "ethos land",
             "ethos lane retire-landed",
@@ -335,6 +336,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
             "adapter_replaceable": False,
             "commands": [
                 "ethos lane start",
+                "ethos lane prewrite",
                 "ethos lane bind-claim",
                 "ethos land",
                 "ethos lane retire-landed",

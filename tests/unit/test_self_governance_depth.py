@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.self_audit import self_audit
+from ethos_repository.self_audit import self_audit
 
 
 def write(path: Path, text: str = "x\n") -> None:
@@ -13,16 +13,17 @@ def write(path: Path, text: str = "x\n") -> None:
 def write_minimal_self_audit_repo(tmp_path: Path) -> None:
     for package in (
         "ethos",
-        "ethos-kernel",
-        "ethos-governance",
-        "ethos-workspace",
-        "ethos-agent",
-        "ethos-project",
+        "ethos-core",
+        "ethos-contracts",
+        "ethos-repository",
+        "ethos-adapters",
+        "ethos-assistants",
+        "ethos-test",
     ):
         write(tmp_path / "packages" / package / "README.md")
-    write(tmp_path / "packages" / "ethos-node" / "README.md")
-    write(tmp_path / "packages" / "ethos-node" / "package.json", "{}\n")
-    write(tmp_path / "packages" / "ethos-node" / "bin" / "ethos.mjs")
+    write(tmp_path / "distributions" / "npm" / "README.md")
+    write(tmp_path / "distributions" / "npm" / "package.json", "{}\n")
+    write(tmp_path / "distributions" / "npm" / "bin" / "ethos.mjs")
 
     for doc in (
         "docs/architecture/product-ontology.md",
@@ -86,7 +87,7 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         ".gitlab/issue_templates/task.md",
         "docs/governance/self-evolution-ledger.toml",
         "openspec/config.yaml",
-        "openspec/specs/ethos-kernel/spec.md",
+        "openspec/specs/ethos-core/spec.md",
     ):
         write(tmp_path / path)
 
@@ -98,7 +99,7 @@ def test_self_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None:
 
     assert report["ok"] is False
     assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
-    assert "openspec/specs/ethos-project/spec.md" in report["openspec_families"]["missing"]
+    assert "openspec/specs/ethos-contracts/spec.md" in report["openspec_families"]["missing"]
     assert "adoption_scaffold_missing:.agents/skills/activation.toml" in report["required_gaps"]
 
 
@@ -110,11 +111,13 @@ def test_self_audit_surfaces_retired_command_mentions_as_required_gaps(
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
-        "openspec/specs/ethos-agent/spec.md",
+        "openspec/specs/ethos-assistants/spec.md",
+        "openspec/specs/ethos-cli/spec.md",
+        "openspec/specs/ethos-contracts/spec.md",
         "openspec/specs/ethos-distribution/spec.md",
-        "openspec/specs/ethos-governance/spec.md",
-        "openspec/specs/ethos-project/spec.md",
-        "openspec/specs/ethos-workspace/spec.md",
+        "openspec/specs/ethos-repository/spec.md",
+        "openspec/specs/ethos-adapters/spec.md",
+        "openspec/specs/ethos-test/spec.md",
     ):
         write(tmp_path / path)
     write(

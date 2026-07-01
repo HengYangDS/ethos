@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from ethos_kernel.action_graph import ActionNode
-from ethos_workspace import runner
+from ethos_adapters import runner
+from ethos_core.action_graph import ActionNode
 
 
 def test_local_runner_executes_ethos_internal_json_gate_inprocess(monkeypatch) -> None:
@@ -22,7 +22,24 @@ def test_local_runner_executes_ethos_internal_json_gate_inprocess(monkeypatch) -
         command=(sys.executable, "-m", "ethos.cli", "status", "--json"),
     )
 
-    result = runner.LocalSubprocessRunner().run(node, root=Path.cwd())
+    def inprocess_handler(
+        action: ActionNode,
+        _root: Path,
+    ) -> runner.ActionRunResult | None:
+        if action.command[1:3] != ("-m", "ethos.cli"):
+            return None
+        return runner.ActionRunResult(
+            action_id=action.id,
+            command=action.command,
+            state="passed",
+            exit_code=0,
+            stdout='{"command": "status"}',
+        )
+
+    result = runner.LocalSubprocessRunner(inprocess_handler=inprocess_handler).run(
+        node,
+        root=Path.cwd(),
+    )
 
     assert result.state == "passed"
     assert result.exit_code == 0

@@ -1,55 +1,61 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 import subprocess
 import tomllib
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
-import ethos_governance.self_audit as self_audit_module
+import ethos_repository.self_audit as self_audit_module
 from cyclopts import App, Parameter
-from ethos_agent.context import context_bundle
-from ethos_agent.mcp import mcp_manifest
-from ethos_agent.playbooks import playbooks_report, route_playbook
-from ethos_agent.projections import projection_contract
-from ethos_agent.server import mcp_server_descriptor
-from ethos_contracts.package_ontology import package_ontology_report
-from ethos_governance.attestation import release_attestation, sbom_projection
-from ethos_governance.claims import claims_report
-from ethos_governance.command_registry import command_registry_report
-from ethos_governance.commit_policy import signature_policy_report
-from ethos_governance.docs_registry import (
-    build_docs_registry,
-    command_examples_report,
-    docs_health_report,
-)
-from ethos_governance.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
-from ethos_governance.evolution import evolution_candidates, evolution_ledger, evolution_report
-from ethos_governance.gates import gate_graph, gate_registry
-from ethos_governance.openspec_native import openspec_self_governance_report
-from ethos_governance.release import release_policy_report
-from ethos_governance.schema_validation import schema_validation_report, validate_schema_instance
-from ethos_governance.standards import standard_adapter_registry
-from ethos_kernel.action_graph import ActionGraph, ActionNode
-from ethos_kernel.result import EthosResult
-from ethos_project.fleet import inspect_adopter
-from ethos_project.planner import adoption_plan, adoption_scaffold_report, available_profiles
-from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
-from ethos_workspace.lanes import (
+from ethos_adapters.commit_policy import signature_policy_report
+from ethos_adapters.lanes import (
     bootstrap_candidate,
     retire_landed_work_lanes,
     start_work_lane,
 )
-from ethos_workspace.mutation import (
+from ethos_adapters.mutation import (
     MutationDecision,
     MutationRequest,
     apply_land_to_candidate,
     evaluate_mutation,
 )
-from ethos_workspace.prewrite import prewrite_guard
-from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
-from ethos_workspace.state import initialize_state
-from ethos_workspace.status import workspace_status
+from ethos_adapters.openspec_native import openspec_self_governance_report
+from ethos_adapters.prewrite import prewrite_guard
+from ethos_adapters.runner import ActionRunResult, DryRunRunner, LocalSubprocessRunner
+from ethos_adapters.state import initialize_state
+from ethos_adapters.status import workspace_status
+from ethos_assistants.context import context_bundle
+from ethos_assistants.mcp import mcp_manifest
+from ethos_assistants.playbooks import playbooks_report, route_playbook
+from ethos_assistants.projections import projection_contract
+from ethos_assistants.server import mcp_server_descriptor
+from ethos_contracts.package_ontology import (
+    package_ontology_report,
+    workspace_package_config_report,
+)
+from ethos_core.action_graph import ActionGraph, ActionNode
+from ethos_core.result import EthosResult
+from ethos_repository.attestation import release_attestation, sbom_projection
+from ethos_repository.claims import claims_report
+from ethos_repository.command_registry import command_registry_report
+from ethos_repository.docs_registry import (
+    build_docs_registry,
+    command_examples_report,
+    docs_health_report,
+)
+from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
+from ethos_repository.evolution import evolution_candidates, evolution_ledger, evolution_report
+from ethos_repository.fleet import inspect_adopter
+from ethos_repository.gates import gate_graph, gate_registry
+from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
+from ethos_repository.planner import adoption_plan, adoption_scaffold_report, available_profiles
+from ethos_repository.release import release_policy_report
+from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
+from ethos_repository.standards import standard_adapter_registry
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.")
@@ -74,6 +80,7 @@ app.command(parity_app)
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 RootOption = Annotated[Path, Parameter(name="--root")]
+ASSISTANT_TRUTH_BOUNDARY = "repository-source-and-contracts"
 
 
 def _root(root: Path | None) -> Path:
@@ -149,8 +156,17 @@ def _is_product_root(root: Path) -> bool:
 
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
     if _is_product_root(root):
-        return self_audit_module.self_audit(root, openspec_mode=openspec_mode)
+        return _product_self_audit(root, openspec_mode=openspec_mode)
     return _adopter_audit(root)
+
+
+def _product_self_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
+    reporter = openspec_self_governance_report if openspec_mode == "deep" else None
+    return self_audit_module.self_audit(
+        root,
+        openspec_mode=openspec_mode,
+        openspec_reporter=reporter,
+    )
 
 
 def _adopter_audit(root: Path) -> dict[str, object]:
@@ -573,7 +589,11 @@ def prove(
     repo = _root(root)
     audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
-    runner = LocalSubprocessRunner() if execute else DryRunRunner()
+    runner = (
+        LocalSubprocessRunner(inprocess_handler=_run_inprocess_cli_gate)
+        if execute
+        else DryRunRunner()
+    )
     proof_runs = tuple(
         ProofRun(
             action_id=run_result.action_id,
@@ -616,6 +636,37 @@ def prove(
         },
     )
     _emit(result, json_output)
+
+
+def _run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
+    if not (len(node.command) >= 4 and node.command[1:3] == ("-m", "ethos.cli")):
+        return None
+    if "--json" not in node.command:
+        return None
+    stdout = StringIO()
+    stderr = StringIO()
+    previous_cwd = Path.cwd()
+    exit_code = 0
+    try:
+        os.chdir(root)
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            try:
+                app(list(node.command[3:]), exit_on_error=False)
+            except SystemExit as exc:
+                exit_code = exc.code if isinstance(exc.code, int) else 1
+    except BaseException as exc:  # pragma: no cover - returned as runner failure.
+        exit_code = 1
+        stderr.write(f"{type(exc).__name__}: {exc}")
+    finally:
+        os.chdir(previous_cwd)
+    return ActionRunResult(
+        action_id=node.id,
+        command=node.command,
+        state="passed" if exit_code == 0 else "failed",
+        exit_code=exit_code,
+        stdout=stdout.getvalue(),
+        stderr=stderr.getvalue(),
+    )
 
 
 @app.command
@@ -851,7 +902,7 @@ def projection_drift(
 ) -> None:
     """Report projection drift readiness."""
     contract = projection_contract()
-    ok = contract["truth"] == "ethos-kernel-and-repository"
+    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
     result = EthosResult(
         command="quality projection-drift",
         ok=ok,
@@ -902,13 +953,27 @@ def package_ontology(
         for distribution in contract["target_distributions"]
         if not (repo / str(distribution)).exists()
     ]
+    workspace_config = workspace_package_config_report(repo)
+    workspace_config_gaps = [
+        str(gap) for gap in workspace_config["required_gaps"]
+    ]
+    migration_complete = (
+        not contract["migration_hosts"]
+        and all(
+            item.get("state") == "migrated"
+            for item in contract["migration_distributions"].values()
+            if isinstance(item, dict)
+        )
+    )
+    physical_missing = target_missing + host_missing + distribution_missing
     data = {
         **contract,
         "physical_target_homes_present": not target_missing and not distribution_missing,
-        "migration_complete": False,
-        "migration_status": "in_progress",
-        "missing": target_missing + host_missing + distribution_missing,
+        "migration_complete": migration_complete,
+        "migration_status": "complete" if migration_complete else "in_progress",
+        "missing": physical_missing + workspace_config_gaps,
         "distribution_status": contract["migration_distributions"],
+        "workspace_config": workspace_config,
     }
     result = EthosResult(
         command="quality package-ontology",
@@ -919,7 +984,10 @@ def package_ontology(
             "migration_host_count": len(contract["migration_hosts"]),
             "migration_status": data["migration_status"],
         },
-        required_gaps=tuple(f"package_ontology_missing:{item}" for item in data["missing"]),
+        required_gaps=tuple(
+            [f"package_ontology_missing:{item}" for item in physical_missing]
+            + workspace_config_gaps
+        ),
         next_actions=("ethos self audit",),
         data=data,
     )
@@ -1240,7 +1308,7 @@ def audit(
         )
         _emit(result, json_output)
         return
-    audit_payload = self_audit_module.self_audit(repo, openspec_mode=mode)
+    audit_payload = _product_self_audit(repo, openspec_mode=mode)
     result = EthosResult(
         command="self audit",
         ok=bool(audit_payload["ok"]),
@@ -1365,7 +1433,7 @@ def prove_self(
         )
         _emit(result, json_output)
         return
-    audit_payload = self_audit_module.self_audit(repo, openspec_mode=mode)
+    audit_payload = _product_self_audit(repo, openspec_mode=mode)
     ok = bool(audit_payload["ok"])
     result = EthosResult(
         command="self prove",
@@ -1543,7 +1611,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
     contract = projection_contract()
     result = EthosResult(
         command="assistants check-projections",
-        ok=contract["truth"] == "ethos-kernel-and-repository",
+        ok=contract["truth"] == ASSISTANT_TRUTH_BOUNDARY,
         state="clean",
         next_actions=("ethos quality projection-drift",),
         data={"contract": contract},
@@ -1747,7 +1815,7 @@ def report(
             "schemas": int(bool(audit["schemas"]["ok"])),
             "claims": int(bool(audit["adopter"]["adopter"]["governance"]["claims"])),
             "docs": int(bool(audit["adopter"]["adopter"]["governance"]["docs"])),
-            "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
+            "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
             "playbooks": int(bool(playbooks["ok"])),
             "parity_ledger": int(bool(parity_ledger["ok"])),
         }
@@ -1766,7 +1834,7 @@ def report(
                     for item in standard_adapter_registry().values()
                 )
             ),
-            "assistant_projection": int(projection["truth"] == "ethos-kernel-and-repository"),
+            "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
             "evolution": int(bool(evolution["ok"])),
             "signature_policy": int(bool(signature["ok"])),
             "openspec": int(bool(audit["openspec"]["ok"])),

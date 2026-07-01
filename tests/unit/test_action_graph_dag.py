@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_kernel.action_graph import ActionGraph, ActionNode
+from ethos_core.action_graph import ActionGraph, ActionNode
 
 
 def test_action_graph_orders_dependencies_before_dependents() -> None:

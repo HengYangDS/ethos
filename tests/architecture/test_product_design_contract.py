@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.self_audit import REQUIRED_DOCS, self_audit
+from ethos_repository.self_audit import REQUIRED_DOCS, self_audit
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,14 +46,7 @@ def test_package_ontology_declares_target_mece_packages_and_migration_hosts() ->
     )
     for package in target_packages:
         assert f"`{package}`" in text
-    for migration_host in (
-        "ethos-governance",
-        "ethos-workspace",
-        "ethos-agent",
-        "ethos-project",
-    ):
-        assert f"`{migration_host}`" in text
-        assert "migration host" in text
+    assert "No active product migration host remains in `packages/`" in text
     assert "distributions/npm" in text
     assert "Python product package ontology" in text
 
@@ -130,8 +123,8 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     assert target["ok"] is True
     assert target["contract_ok"] is True
     assert target["physical_target_homes_present"] is True
-    assert target["migration_complete"] is False
-    assert target["migration_status"] == "in_progress"
+    assert target["migration_complete"] is True
+    assert target["migration_status"] == "complete"
     assert target["target_packages"] == [
         "ethos-core",
         "ethos-contracts",
@@ -141,15 +134,9 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
         "ethos",
         "ethos-test",
     ]
-    assert target["migration_hosts"] == [
-        "ethos-kernel",
-        "ethos-governance",
-        "ethos-workspace",
-        "ethos-agent",
-        "ethos-project",
-    ]
+    assert target["migration_hosts"] == []
     assert target["target_distribution_adapters"] == ["distributions/npm"]
-    assert target["distribution_migration_hosts"] == ["packages/ethos-node"]
+    assert target["distribution_migration_hosts"] == []
 
 
 def test_self_audit_uses_canonical_package_ontology_contract() -> None:
@@ -164,8 +151,8 @@ def test_self_audit_uses_canonical_package_ontology_contract() -> None:
     assert audit["target_package_ontology"]["migration_hosts"] == contract["migration_hosts"]
     assert audit["target_package_ontology"]["distribution_status"] == {
         "distributions/npm": {
-            "state": "planned_not_migrated",
-            "migration_host": "packages/ethos-node",
+            "state": "migrated",
+            "home": "distributions/npm",
         }
     }
 
@@ -180,10 +167,4 @@ def test_product_package_and_migration_host_sets_are_disjoint() -> None:
     assert target_packages.isdisjoint(migration_hosts)
     assert "ethos" in target_packages
     assert "ethos" not in migration_hosts
-    assert ontology["migration_host_lifecycle"] == {
-        "ethos-kernel": "migration-host",
-        "ethos-governance": "migration-host",
-        "ethos-workspace": "migration-host",
-        "ethos-agent": "migration-host",
-        "ethos-project": "migration-host",
-    }
+    assert ontology["migration_host_lifecycle"] == {}

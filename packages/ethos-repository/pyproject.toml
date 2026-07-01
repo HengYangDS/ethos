@@ -5,6 +5,8 @@ description = "ETHOS repository lifecycle semantics"
 requires-python = ">=3.12"
 dependencies = [
   "ethos-contracts",
+  "ethos-core",
+  "jsonschema>=4.23",
 ]
 
 [build-system]

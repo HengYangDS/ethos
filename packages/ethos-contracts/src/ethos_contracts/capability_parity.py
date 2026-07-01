@@ -67,7 +67,9 @@ CAPABILITY_PARITY_LEDGER = (
     ),
     CapabilityParityRecord(
         capability="assistant-playbooks-skills",
-        source_location="alphasim-dmgr .agents/skills and ethos-agent activation/surface modules",
+        source_location=(
+            "alphasim-dmgr .agents/skills and ethos-assistants activation/surface modules"
+        ),
         target_home="ethos-assistants + ethos-contracts + ethos-adapters",
         disposition="split",
         required_tests=(

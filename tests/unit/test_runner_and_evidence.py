@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
-from ethos_kernel.action_graph import ActionNode
-from ethos_workspace.runner import DryRunRunner, LocalSubprocessRunner
+from ethos_adapters.runner import DryRunRunner, LocalSubprocessRunner
+from ethos_core.action_graph import ActionNode
+from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
 
 
 def test_dry_run_runner_records_action_without_execution() -> None:

@@ -3,7 +3,9 @@ name = "ethos-adapters"
 version = "0.1.0a1"
 description = "ETHOS provider adapters"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "ethos-core",
+]
 
 [build-system]
 requires = ["hatchling"]

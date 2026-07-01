@@ -48,15 +48,16 @@ centers.
 
 ```text
 packages/ethos/             thin CLI and UX composition
-packages/ethos-kernel/      pure kernel and action graph algebra
-packages/ethos-governance/  policy, proof, quality, docs, registry, attestation
-packages/ethos-workspace/   lanes, local state, action runs, land, publish
-packages/ethos-agent/       context packs, playbooks, MCP/ACP projections
-packages/ethos-project/     init, adopt, scaffold, profiles, fleet inspection
-packages/ethos-node/        npm launcher adapter
+packages/ethos-core/        pure kernel and action graph algebra
+packages/ethos-contracts/   provider-neutral contracts and schemas
+packages/ethos-repository/  repository lifecycle, governance, proof, quality
+packages/ethos-assistants/  context packs, playbooks, MCP/ACP projections
+packages/ethos-adapters/    Git, SQLite, process, OpenSpec, and distribution adapters
+packages/ethos-test/        conformance, parity, and sample proof fixtures
+distributions/npm/          npm launcher adapter
 ```
 
-These packages are the current migration-host topology. The target ontology is
+These packages are the current product topology. The canonical ontology is
 defined in `docs/architecture/package-ontology.md`.
 
 The npm package is a thin launcher over the Python command plane:

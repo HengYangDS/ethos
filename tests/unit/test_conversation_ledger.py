@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.self_audit import REQUIRED_DOCS
+from ethos_repository.self_audit import REQUIRED_DOCS
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "docs" / "governance" / "conversation-ledger.md"

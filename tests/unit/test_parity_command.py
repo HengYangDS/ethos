@@ -13,8 +13,8 @@ from ethos_adapters.shadow import (
     _semantic_diff,
     run_shadow_parity,
 )
-from ethos_governance.schema_validation import validate_schema_instance
 from ethos_repository.parity import shadow_parity_report
+from ethos_repository.schema_validation import validate_schema_instance
 
 from tests.support.ethos_cli_runner import run_ethos
 
@@ -103,6 +103,15 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
+
+
+def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
+    payload = run_ethos("parity", "gaps", "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["pending_packages"] == []
+    assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/generic-shadow.json"
 
 
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
@@ -234,8 +243,16 @@ def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path: Path) -> None:
     assert payload["data"]["pending_packages"]
 
 
-def test_parity_gaps_exposes_concrete_backlog_packages() -> None:
-    payload = run_ethos("parity", "gaps", "--json")
+def test_parity_gaps_exposes_concrete_backlog_packages_without_evidence(
+    tmp_path: Path,
+) -> None:
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
 
     package = payload["data"]["pending_packages"][0]
     assert package["gap"] == "parity_pending:work-lane-lifecycle"

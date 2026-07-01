@@ -117,7 +117,7 @@ accepted classification boundary without treating it as remote publication.
 | MCP / ACP / Superpowers | product agent projection and embedded host package | `ethos-assistants` + adapters | split | method-pack and protocol manifest tests | same external method pack, host-local context, and protocol projection boundaries | embedded host remains oracle |
 | quality determinism | product governance checks and embedded quality package | `ethos-repository` + adapters | migrate-to-product | format, artifact, command, and evidence policy fixtures | same required gates and deterministic policies | embedded quality remains reference |
 | Hatchling local build | embedded Hatchling package metadata and product metadata | all Python packages | already-in-product | `uv build --all-packages` | all Python packages build wheel and sdist locally | no remote release needed |
-| npm launcher design | product `ethos-node` package | `distributions/npm` | migrate-to-product | launcher smoke and no-second-implementation tests | npm only launches Python command plane | launcher can be disabled |
+| npm launcher design | npm launcher distribution adapter | `distributions/npm` | migrate-to-product | launcher smoke and no-second-implementation tests | npm only launches Python command plane | launcher can be disabled |
 | dmgr raw/cache/conf/alphasim rules | alphasim-dmgr `rules/dmgr` and profile adapters | adopter profile only | adopter-domain-only | dmgr adapter fixture and gate mapping tests | generic ETHOS plans dmgr gates without hardcoding domain details | embedded dmgr gates remain fallback |
 
 ## Use

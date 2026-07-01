@@ -1,0 +1,33 @@
+[claim]
+id = "ethos-repository-platform"
+subject = "ethos:repository-platform"
+state = "active"
+summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, npm distribution policy, deeper self-audit, schema instance validation, and stronger standards adapters."
+
+[evidence]
+dated = "docs/evidence/governance-platform-2026-06-30.md"
+sha256 = "fc28a000adef11627233f78a8798cafd764226bd7388556f3bbb4c836ddc91a6"
+tests = [
+  "uv run --group dev pytest tests/unit tests/architecture -q",
+  "uv run --group dev ruff check .",
+  "openspec validate --all --strict --json",
+  "uv build --all-packages",
+  "npm ci --ignore-scripts",
+  "npm run ethos -- --version",
+  "npm run test:npm -- --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-core",
+  "ethos-contracts",
+  "ethos-repository",
+  "ethos-assistants",
+  "ethos-adapters",
+  "ethos-test",
+]
+distributions = [
+  "distributions/npm",
+]

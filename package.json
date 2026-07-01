@@ -4,10 +4,10 @@
   "private": true,
   "packageManager": "npm@11.12.1",
   "workspaces": [
-    "packages/ethos-node"
+    "distributions/npm"
   ],
   "scripts": {
-    "ethos": "node packages/ethos-node/bin/ethos.mjs",
+    "ethos": "node distributions/npm/bin/ethos.mjs",
     "test:npm": "npm pack --dry-run --workspace @agentic-workflow/ethos"
   }
 }

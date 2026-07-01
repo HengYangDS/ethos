@@ -6,16 +6,12 @@ requires-python = ">=3.12"
 members = [
     "ethos",
     "ethos-adapters",
-    "ethos-agent",
     "ethos-assistants",
     "ethos-contracts",
-    "ethos-governance",
-    "ethos-kernel",
+    "ethos-core",
     "ethos-product-monorepo",
-    "ethos-project",
     "ethos-repository",
     "ethos-test",
-    "ethos-workspace",
 ]
 
 [[package]]
@@ -67,41 +63,32 @@ source = { editable = "packages/ethos" }
 dependencies = [
     { name = "cyclopts" },
     { name = "ethos-adapters" },
-    { name = "ethos-agent" },
-    { name = "ethos-governance" },
-    { name = "ethos-kernel" },
-    { name = "ethos-project" },
+    { name = "ethos-assistants" },
+    { name = "ethos-contracts" },
+    { name = "ethos-core" },
     { name = "ethos-repository" },
-    { name = "ethos-workspace" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.20" },
     { name = "ethos-adapters", editable = "packages/ethos-adapters" },
-    { name = "ethos-agent", editable = "packages/ethos-agent" },
-    { name = "ethos-governance", editable = "packages/ethos-governance" },
-    { name = "ethos-kernel", editable = "packages/ethos-kernel" },
-    { name = "ethos-project", editable = "packages/ethos-project" },
+    { name = "ethos-assistants", editable = "packages/ethos-assistants" },
+    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
+    { name = "ethos-core", editable = "packages/ethos-core" },
     { name = "ethos-repository", editable = "packages/ethos-repository" },
-    { name = "ethos-workspace", editable = "packages/ethos-workspace" },
 ]
 
 [[package]]
 name = "ethos-adapters"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-adapters" }
-
-[[package]]
-name = "ethos-agent"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-agent" }
 dependencies = [
-    { name = "ethos-kernel" },
+    { name = "ethos-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
+requires-dist = [{ name = "ethos-core", editable = "packages/ethos-core" }]
 
 [[package]]
 name = "ethos-assistants"
@@ -114,24 +101,9 @@ version = "0.1.0a1"
 source = { editable = "packages/ethos-contracts" }
 
 [[package]]
-name = "ethos-governance"
+name = "ethos-core"
 version = "0.1.0a1"
-source = { editable = "packages/ethos-governance" }
-dependencies = [
-    { name = "ethos-kernel" },
-    { name = "jsonschema" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ethos-kernel", editable = "packages/ethos-kernel" },
-    { name = "jsonschema", specifier = ">=4.23" },
-]
-
-[[package]]
-name = "ethos-kernel"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-kernel" }
+source = { editable = "packages/ethos-core" }
 
 [[package]]
 name = "ethos-product-monorepo"
@@ -157,42 +129,26 @@ dev = [
 ]
 
 [[package]]
-name = "ethos-project"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-project" }
-dependencies = [
-    { name = "ethos-kernel" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
-
-[[package]]
 name = "ethos-repository"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-repository" }
 dependencies = [
     { name = "ethos-contracts" },
+    { name = "ethos-core" },
+    { name = "jsonschema" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethos-contracts", editable = "packages/ethos-contracts" }]
+requires-dist = [
+    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
+    { name = "ethos-core", editable = "packages/ethos-core" },
+    { name = "jsonschema", specifier = ">=4.23" },
+]
 
 [[package]]
 name = "ethos-test"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-test" }
-
-[[package]]
-name = "ethos-workspace"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-workspace" }
-dependencies = [
-    { name = "ethos-kernel" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ethos-kernel", editable = "packages/ethos-kernel" }]
 
 [[package]]
 name = "iniconfig"

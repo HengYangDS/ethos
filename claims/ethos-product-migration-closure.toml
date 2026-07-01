@@ -1,0 +1,39 @@
+[claim]
+id = "ethos-product-migration-closure"
+subject = "ethos:product-migration-closure"
+state = "active"
+summary = "ETHOS product migration hosts are retired from active product topology; target MECE packages, distribution adapters, OpenSpec records, claims, parity evidence, local builds, npm launcher smoke, and execution proof are closed."
+
+[evidence]
+dated = "docs/evidence/product-migration-closure-2026-07-01.md"
+sha256 = "54fe582224a66ab30de9e8bf284f6630e66f5a91535aa246bf3919f5dde4e969"
+tests = [
+  "uv run --group dev pytest -q tests/unit tests/architecture",
+  "uv run --group dev ruff check .",
+  "openspec validate --all --strict --json",
+  "uv build --all-packages",
+  "npm ci --ignore-scripts",
+  "npm run ethos -- --version",
+  "npm run test:npm",
+  "uv run --package ethos ethos self audit --mode deep --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --full --execute --json",
+]
+
+[scope]
+packages = [
+  "ethos-core",
+  "ethos-contracts",
+  "ethos-repository",
+  "ethos-assistants",
+  "ethos-adapters",
+  "ethos",
+  "ethos-test",
+]
+distributions = [
+  "distributions/npm",
+]
+adopters = [
+  "alphasim-dmgr",
+]

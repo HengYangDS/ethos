@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.evolution import evolution_candidates, evolution_ledger, evolution_report
+from ethos_repository.evolution import evolution_candidates, evolution_ledger, evolution_report
 
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:

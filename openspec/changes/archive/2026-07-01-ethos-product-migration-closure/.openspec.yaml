@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-01
+goal: Complete ETHOS product package migration, retire migration hosts from
+  active product topology, and preserve adopter rollback safety through parity
+  evidence instead of embedded product source.

@@ -41,6 +41,9 @@ ethos quality provenance
 ethos quality schemas
 ethos quality commits
 ethos quality release
+ethos quality release-policy
+ethos quality release-attestation
+ethos quality sbom
 ethos quality standards
 ethos self audit
 ethos self audit --mode shape

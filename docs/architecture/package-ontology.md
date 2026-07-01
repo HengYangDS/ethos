@@ -8,9 +8,11 @@ relations:
 
 # Package Ontology
 
-The repository now contains buildable target package homes. Existing migration
-hosts remain active until capability parity proves their contents can be moved,
-frozen, or retired. The target Python product package ontology is:
+The repository contains the buildable product package homes.
+
+No active product migration host remains in `packages/`.
+
+The Python product package ontology is:
 
 ```text
 packages/ethos-core
@@ -73,7 +75,8 @@ Assistant-facing repository operation boundary. Owns Playbooks, assistant
 surfaces, method packs, context providers, projection classification, truth
 boundaries, changed-scope routing to playbooks, and assistant doctor models.
 
-It is not named `ethos-agent` because ETHOS does not implement an agent.
+It is named `ethos-assistants` rather than `ethos-agent` because ETHOS governs
+assistant/context boundaries; it does not implement an agent.
 
 ### `ethos-adapters`
 
@@ -91,8 +94,7 @@ Public CLI surface. Owns cyclopts command tree, UX composition, human-readable
 rendering, and JSON output routing.
 
 The CLI must remain a thin shell and must not become the semantic center.
-Temporary imports from migration hosts are bridge debt and must be visible in
-the parity ledger before they are removed or frozen.
+The CLI depends only on target product packages.
 
 ### `ethos-test`
 
@@ -100,27 +102,16 @@ Conformance, parity, and proof host. Owns conformance fixtures, sample
 repositories, golden JSON outputs, adapter contract tests, schema compatibility
 tests, migration replay fixtures, and shadow parity harnesses.
 
-## Migration Hosts
+## Migration State
 
-Current packages such as `ethos-kernel`, `ethos-governance`,
-`ethos-workspace`, `ethos-agent`, and `ethos-project` are migration host
-packages. They are not the final package ontology.
+The external ETHOS product repository has retired the internal product
+migration-host packages. The current state is:
 
-Their contents migrate as follows:
+- Python product packages: complete in `packages/ethos-*` and `packages/ethos`.
+- npm launcher: migrated to `distributions/npm`.
+- product package migration hosts: none.
 
-- `ethos-governance`: contracts move to `ethos-contracts`; self-evolution and
-  release semantics move to `ethos-repository`; provider invocation moves to
-  `ethos-adapters`.
-- `ethos-workspace`: logical workspace semantics move to `ethos-repository`;
-  Git and SQLite implementations move to `ethos-adapters`.
-- `ethos-agent`: assistant boundary semantics move to `ethos-assistants`;
-  MCP/ACP provider details move to `ethos-adapters`.
-- `ethos-project`: adoption and profile semantics move to `ethos-repository`;
-  rendering and provider-specific scaffold writers move to `ethos-adapters`.
-
-The npm launcher currently represented by `ethos-node` migrates to
-`distributions/npm` and remains launcher-only.
-
-The distribution adapter state is `planned_not_migrated` until
-`distributions/npm` owns its launcher manifest and smoke tests. Until then,
-`packages/ethos-node` remains the distribution migration host.
+This does not delete or decide the lifecycle of embedded ETHOS implementations
+inside adopter repositories such as alphasim-dmgr. Those adopters still follow
+the separate capability parity, external shadow parity, freeze, rollback window,
+and retirement decision process.

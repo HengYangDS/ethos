@@ -50,7 +50,7 @@ Focused verification already run during implementation:
 ```bash
 uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/test_command_registry_depth.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py
 uv run --group dev pytest -q tests/architecture/test_product_boundaries.py tests/unit/test_cli_contracts.py::test_init_apply_flag_applies_scaffold tests/unit/test_cli_contracts.py::test_quality_package_ontology_reports_migration_state
-uv run --group dev ruff check packages/ethos/src/ethos/cli.py packages/ethos-governance/src/ethos_governance/docs_registry.py packages/ethos-governance/src/ethos_governance/self_audit.py packages/ethos-project/src/ethos_project/planner.py packages/ethos-contracts/src/ethos_contracts/package_ontology.py tests/architecture/test_product_design_contract.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py tests/unit/test_command_registry_depth.py
+uv run --group dev ruff check packages/ethos/src/ethos/cli.py packages/ethos-repository/src/ethos_repository/docs_registry.py packages/ethos-repository/src/ethos_repository/self_audit.py packages/ethos-repository/src/ethos_repository/planner.py packages/ethos-contracts/src/ethos_contracts/package_ontology.py tests/architecture/test_product_design_contract.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py tests/unit/test_command_registry_depth.py
 uv run --package ethos ethos quality package-ontology --json
 uv run --package ethos ethos quality command-examples --json
 ```

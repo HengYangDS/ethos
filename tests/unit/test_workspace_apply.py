@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos_workspace.mutation import MutationRequest, apply_land_to_candidate, evaluate_mutation
+from ethos_adapters.mutation import MutationRequest, apply_land_to_candidate, evaluate_mutation
 
 
 def git(root: Path, *args: str) -> str:

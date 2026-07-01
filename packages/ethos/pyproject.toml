@@ -6,12 +6,10 @@ requires-python = ">=3.12"
 dependencies = [
   "cyclopts>=3.20",
   "ethos-adapters",
+  "ethos-assistants",
+  "ethos-contracts",
+  "ethos-core",
   "ethos-repository",
-  "ethos-project",
-  "ethos-agent",
-  "ethos-governance",
-  "ethos-kernel",
-  "ethos-workspace",
 ]
 
 [project.scripts]

@@ -24,7 +24,8 @@ def parity_gaps_report(
     root: Path | None = None,
 ) -> dict[str, object]:
     records = capability_parity_records()
-    evidence = _parity_evidence(root or Path.cwd(), adopter) if adopter else {}
+    adopter_name = adopter or "generic"
+    evidence = _parity_evidence(root or Path.cwd(), adopter_name)
     evidence_valid = not evidence.get("required_gaps")
     verified = set(evidence.get("verified_capabilities", []))
     pending_packages = [
@@ -41,7 +42,7 @@ def parity_gaps_report(
         required_gaps.extend(str(gap) for gap in evidence["required_gaps"])
     return {
         "ok": not required_gaps,
-        "adopter": adopter or "generic",
+        "adopter": adopter_name,
         "required_gaps": required_gaps,
         "pending_packages": pending_packages,
         "records": records,

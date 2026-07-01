@@ -5,11 +5,11 @@ import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ethos_governance.schema_validation import validate_schema_instance
-from ethos_workspace.lanes import retire_landed_work_lanes, start_work_lane
-from ethos_workspace.prewrite import prewrite_guard
-from ethos_workspace.state import active_leases
-from ethos_workspace.status import workspace_status
+from ethos_adapters.lanes import retire_landed_work_lanes, start_work_lane
+from ethos_adapters.prewrite import prewrite_guard
+from ethos_adapters.state import active_leases
+from ethos_adapters.status import workspace_status
+from ethos_repository.schema_validation import validate_schema_instance
 
 
 def git(root: Path, *args: str) -> str:

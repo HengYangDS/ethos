@@ -17,8 +17,10 @@ tests = [
 [scope]
 packages = [
   "ethos",
+  "ethos-core",
+  "ethos-contracts",
   "ethos-adapters",
-  "ethos-agent",
   "ethos-repository",
-  "ethos-governance",
+  "ethos-assistants",
+  "ethos-test",
 ]

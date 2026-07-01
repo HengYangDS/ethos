@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "adopter": "generic",
+  "target": "/Users/yheng/projects/ethos",
+  "generated_on": "2026-07-01",
+  "command": "uv run --package ethos ethos parity gaps --json",
+  "shadow": {
+    "ok": true,
+    "state": "matched",
+    "required_gaps": [],
+    "comparison_count": 9,
+    "commands": [
+      "ethos status --json",
+      "ethos plan --changed --json",
+      "ethos prove --json",
+      "ethos report --json",
+      "ethos quality command-surface --json",
+      "ethos assistants doctor --json",
+      "ethos playbooks route --changed --json",
+      "ethos land --json",
+      "ethos publish --json"
+    ]
+  },
+  "verified_capabilities": [
+    "work-lane-lifecycle",
+    "proof-evidence-chronicle",
+    "campaign-hypothesis-evolution",
+    "assistant-playbooks-skills",
+    "quality-determinism-local-state",
+    "openspec-claims-trust-review"
+  ],
+  "semantic_dimensions": [
+    "product package migration hosts retired",
+    "public command plane still emits stable JSON",
+    "work lane and mutation admission remain tested",
+    "proof evidence and in-process gate execution remain tested",
+    "campaign hypothesis and self-evolution ledger remain tested",
+    "assistant projection and playbook routing remain tested",
+    "command surface and docs registry remain tested",
+    "OpenSpec families and claims governance remain tested",
+    "npm launcher moved to distribution layout with safety tests"
+  ],
+  "capability_basis": {
+    "work-lane-lifecycle": [
+      "workspace lane tests cover prewrite, start, land, publish, candidate, and foreign lane observation",
+      "ethos status, land, and publish commands remain in the public command plane"
+    ],
+    "proof-evidence-chronicle": [
+      "runner and evidence tests cover proof run digests, HEAD binding, provenance, and output trimming",
+      "prove execute smoke exercises the in-process CLI gate handler without adapter-to-CLI imports"
+    ],
+    "campaign-hypothesis-evolution": [
+      "self-evolution ledger tests cover active hypotheses, claims, and challenge fields",
+      "campaign commands remain routed through the public command plane"
+    ],
+    "assistant-playbooks-skills": [
+      "assistant projection tests cover the repository-source-and-contracts truth boundary",
+      "playbook tests cover explicit changed-scope routing and projection readiness"
+    ],
+    "quality-determinism-local-state": [
+      "package ontology, docs registry, schema validation, command examples, and runner tests cover deterministic product governance",
+      "architecture tests assert no active product migration host remains in packages"
+    ],
+    "openspec-claims-trust-review": [
+      "canonical OpenSpec families now match the target product ontology",
+      "claims report verifies evidence SHA-256 bindings with no mismatch gaps"
+    ]
+  },
+  "required_gaps": []
+}

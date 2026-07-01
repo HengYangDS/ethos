@@ -72,7 +72,7 @@ not normal user workflow vocabulary.
 
 | ID | Requirement | Current Risk | Required Landing Evidence |
 | --- | --- | --- | --- |
-| CL-001 | Split governance into bounded packages such as evidence, quality, policy, spec, and evolution; keep governance orchestration thin. | ethos-governance can become a governance junk drawer. | Product ontology, package README, tests proving MECE ownership. |
+| CL-001 | Split governance into bounded packages such as evidence, quality, policy, spec, and evolution; keep governance orchestration thin. | ethos-repository can become a governance junk drawer. | Product ontology, package README, tests proving MECE ownership. |
 | CL-002 | Generate or maintain official-quality Codex Skills, not minimal hand-written placeholders. | Skills may exist but fail provider expectations. | Skill quality tests, templates, and lifecycle docs. |
 | CL-003 | Treat activation.toml as an ETHOS registry, not official skill metadata. | Registry and provider metadata can be conflated. | Schema and docs that separate registry from projection. |
 | CL-004 | Keep Superpowers external and observable through method-pack adapters. | Vendoring or silent non-use can break trust. | Adapter docs, report fields, and execution evidence. |

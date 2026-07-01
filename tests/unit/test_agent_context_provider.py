@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_agent.context import context_bundle
-from ethos_agent.server import mcp_server_descriptor
+from ethos_assistants.context import context_bundle
+from ethos_assistants.server import mcp_server_descriptor
 
 
 def test_agent_context_bundle_is_agentic_native_but_repository_bounded() -> None:

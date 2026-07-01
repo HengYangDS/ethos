@@ -5,9 +5,14 @@ import json
 import os
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
-from ethos_contracts.package_ontology import package_ontology_report
+from ethos_contracts.package_ontology import (
+    RETIRED_PRODUCT_FAMILIES,
+    RETIRED_PRODUCT_FAMILY_TOKENS,
+    package_ontology_report,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
@@ -17,8 +22,6 @@ RETIRED_PUBLIC_ROOTS = {
     "skill-evolution",
     "agent-surface-contract",
 }
-
-
 def imported_modules(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     modules: set[str] = set()
@@ -32,17 +35,16 @@ def imported_modules(path: Path) -> set[str]:
 
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
     forbidden = {
-        "ethos_project",
-        "ethos_agent",
-        "ethos_governance",
-        "ethos_workspace",
+        "ethos_repository",
+        "ethos_assistants",
+        "ethos_adapters",
         "sqlite3",
         "subprocess",
         "tools",
         "dmgr",
     }
 
-    for path in (ROOT / "packages/ethos-kernel/src").rglob("*.py"):
+    for path in (ROOT / "packages/ethos-core/src").rglob("*.py"):
         assert imported_modules(path).isdisjoint(forbidden), path
 
 
@@ -58,12 +60,25 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
     forbidden_by_package = {
         "ethos-core": {"subprocess", "sqlite3", "shutil", "tomllib"},
         "ethos-contracts": {"subprocess", "sqlite3", "shutil"},
-        "ethos-repository": {"subprocess", "sqlite3", "shutil"},
+        "ethos-repository": {
+            "ethos_adapters",
+            "subprocess",
+            "sqlite3",
+            "shutil",
+        },
     }
     for package, forbidden in forbidden_by_package.items():
         source = ROOT / "packages" / package / "src"
         for path in source.rglob("*.py"):
             assert imported_modules(path).isdisjoint(forbidden), path
+
+
+def test_repository_package_does_not_depend_on_provider_adapters() -> None:
+    pyproject = (
+        ROOT / "packages" / "ethos-repository" / "pyproject.toml"
+    ).read_text(encoding="utf-8")
+
+    assert '"ethos-adapters"' not in pyproject
 
 
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
@@ -78,21 +93,69 @@ def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
         assert "dmgr" not in text.lower(), path
 
 
-def test_target_packages_do_not_import_migration_hosts_except_cli_bridge() -> None:
+def test_target_packages_do_not_import_migration_hosts() -> None:
     contract = package_ontology_report()
     migration_imports = {
         package.replace("-", "_") for package in contract["migration_hosts"]
-    }
-    bridge_exceptions = {
-        ROOT / "packages" / "ethos" / "src" / "ethos" / "cli.py",
     }
 
     for package in contract["target_packages"]:
         source = ROOT / "packages" / package / "src"
         for path in source.rglob("*.py"):
-            if path in bridge_exceptions:
-                continue
             assert imported_modules(path).isdisjoint(migration_imports), path
+
+
+def test_adapters_do_not_import_public_cli_surface() -> None:
+    for path in (ROOT / "packages" / "ethos-adapters" / "src").rglob("*.py"):
+        assert "ethos" not in imported_modules(path), path
+
+
+def test_product_workspace_has_no_migration_host_packages() -> None:
+    contract = package_ontology_report()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert contract["migration_hosts"] == []
+    for package in RETIRED_PRODUCT_FAMILIES:
+        assert f"packages/{package}" not in pyproject
+        assert not (ROOT / "packages" / package).exists()
+
+
+def test_ethos_workspace_config_uses_target_product_packages() -> None:
+    workspace = tomllib.loads((ROOT / ".ethos" / "workspace.toml").read_text())
+    packages = workspace.get("package", [])
+    names = {package["name"] for package in packages}
+    paths = {package["path"] for package in packages}
+
+    assert names == set(package_ontology_report()["target_packages"])
+    for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
+        assert retired not in names
+        assert f"packages/{retired}" not in paths
+
+
+def test_active_claims_do_not_use_retired_product_family_subjects() -> None:
+    for path in sorted((ROOT / "claims").glob("*.toml")):
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        claim = payload.get("claim", {})
+        if claim.get("state") != "active":
+            continue
+        text = "\n".join(
+            [path.stem]
+            + [
+                str(claim.get(field, ""))
+                for field in (
+                    "id",
+                    "subject",
+                )
+            ]
+        )
+        for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
+            assert retired not in text, path
+
+
+def test_npm_distribution_lives_outside_python_packages() -> None:
+    assert (ROOT / "distributions" / "npm" / "package.json").exists()
+    assert (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").exists()
+    assert not (ROOT / "packages" / "ethos-node").exists()
 
 
 def test_cli_uses_cyclopts_not_argparse() -> None:
@@ -117,7 +180,7 @@ def test_package_roots_do_not_reexport_module_surfaces() -> None:
 
 def test_openspec_is_official_self_governance_surface_not_command_root() -> None:
     assert (ROOT / "openspec" / "config.yaml").exists()
-    assert (ROOT / "openspec" / "specs" / "ethos-kernel" / "spec.md").exists()
+    assert (ROOT / "openspec" / "specs" / "ethos-core" / "spec.md").exists()
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "openspec =" not in pyproject
@@ -125,12 +188,14 @@ def test_openspec_is_official_self_governance_surface_not_command_root() -> None
 
 def test_openspec_specs_are_mece_product_families() -> None:
     expected = {
-        "ethos-agent",
+        "ethos-adapters",
+        "ethos-assistants",
+        "ethos-cli",
+        "ethos-contracts",
+        "ethos-core",
         "ethos-distribution",
-        "ethos-governance",
-        "ethos-kernel",
-        "ethos-project",
-        "ethos-workspace",
+        "ethos-repository",
+        "ethos-test",
     }
     actual = {
         path.parent.name
@@ -138,6 +203,28 @@ def test_openspec_specs_are_mece_product_families() -> None:
     }
 
     assert actual == expected
+
+
+def test_active_openspec_change_deltas_use_target_product_families() -> None:
+    expected = {
+        "ethos-adapters",
+        "ethos-assistants",
+        "ethos-cli",
+        "ethos-contracts",
+        "ethos-core",
+        "ethos-distribution",
+        "ethos-repository",
+        "ethos-test",
+    }
+    changes_root = ROOT / "openspec" / "changes"
+    active_spec_files = [
+        path
+        for path in changes_root.glob("*/specs/*/spec.md")
+        if "/archive/" not in path.as_posix()
+    ]
+
+    for path in active_spec_files:
+        assert path.parent.name in expected, path
 
 
 def test_openspec_workspace_validates_with_official_cli() -> None:
@@ -207,11 +294,12 @@ def test_repo_local_skills_are_thin_playbook_projection() -> None:
 def test_product_packages_have_canonical_readmes() -> None:
     for package in (
         "ethos",
-        "ethos-kernel",
-        "ethos-governance",
-        "ethos-workspace",
-        "ethos-agent",
-        "ethos-project",
+        "ethos-core",
+        "ethos-contracts",
+        "ethos-repository",
+        "ethos-adapters",
+        "ethos-assistants",
+        "ethos-test",
     ):
         readme = ROOT / "packages" / package / "README.md"
         assert readme.exists()
@@ -219,7 +307,7 @@ def test_product_packages_have_canonical_readmes() -> None:
 
 
 def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
-    package = ROOT / "packages" / "ethos-node" / "package.json"
+    package = ROOT / "distributions" / "npm" / "package.json"
     manifest = json.loads(package.read_text(encoding="utf-8"))
 
     assert manifest["name"] == "@agentic-workflow/ethos"
@@ -243,7 +331,7 @@ def test_npm_launcher_runs_source_checkout_command_plane() -> None:
         return
 
     completed = subprocess.run(
-        ["node", "packages/ethos-node/bin/ethos.mjs", "--version"],
+        ["node", "distributions/npm/bin/ethos.mjs", "--version"],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -262,7 +350,7 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
             encoding="utf-8"
         ),
         encoding="utf-8",
@@ -273,7 +361,7 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
     fake_python = fake_bin / "python3"
     fake_python.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ]; then exit 0; fi\n"
+        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 0; fi\n"
         f"printf '%s\\n' \"$*\" >> {log}\n"
         "printf '0.1.0a1\\n'\n",
         encoding="utf-8",
@@ -293,7 +381,7 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
 
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "0.1.0a1"
-    assert log.read_text(encoding="utf-8").splitlines() == ["-m ethos.cli --version"]
+    assert log.read_text(encoding="utf-8").splitlines() == ["-P -m ethos.cli --version"]
 
 
 def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: Path) -> None:
@@ -304,7 +392,7 @@ def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: P
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
             encoding="utf-8"
         ),
         encoding="utf-8",
@@ -325,7 +413,7 @@ def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: P
     fake_python = fake_bin / "python3"
     fake_python.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ]; then exit 1; fi\n"
+        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 1; fi\n"
         "exit 127\n",
         encoding="utf-8",
     )
@@ -354,7 +442,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "packages" / "ethos-node" / "bin" / "ethos.mjs").read_text(
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
             encoding="utf-8"
         ),
         encoding="utf-8",
@@ -365,7 +453,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     fake_python3 = fake_bin / "python3"
     fake_python3.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ]; then exit 1; fi\n"
+        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 1; fi\n"
         f"printf '%s\\n' \"python3:$*\" >> {log}\n"
         "exit 99\n",
         encoding="utf-8",
@@ -374,7 +462,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     fake_python = fake_bin / "python"
     fake_python.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ]; then exit 0; fi\n"
+        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 0; fi\n"
         f"printf '%s\\n' \"python:$*\" >> {log}\n"
         "printf '0.1.0a1\\n'\n",
         encoding="utf-8",
@@ -394,7 +482,9 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
 
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "0.1.0a1"
-    assert log.read_text(encoding="utf-8").splitlines() == ["python:-m ethos.cli --version"]
+    assert log.read_text(encoding="utf-8").splitlines() == [
+        "python:-P -m ethos.cli --version"
+    ]
 
 
 def test_markdown_docs_declare_subject_role_state_relations() -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.docs_registry import (
+from ethos_repository.docs_registry import (
     build_docs_registry,
     command_examples_report,
     docs_health_report,

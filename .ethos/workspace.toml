@@ -1,29 +1,34 @@
 [[package]]
+name = "ethos-core"
+path = "packages/ethos-core"
+domains = ["kernel", "action-graph", "state-machine"]
+
+[[package]]
+name = "ethos-contracts"
+path = "packages/ethos-contracts"
+domains = ["schemas", "contracts", "protocols"]
+
+[[package]]
+name = "ethos-repository"
+path = "packages/ethos-repository"
+domains = ["repository-lifecycle", "quality", "evidence", "release"]
+
+[[package]]
+name = "ethos-assistants"
+path = "packages/ethos-assistants"
+domains = ["assistants", "playbooks", "context", "projection"]
+
+[[package]]
+name = "ethos-adapters"
+path = "packages/ethos-adapters"
+domains = ["providers", "workspace-io", "execution", "local-state"]
+
+[[package]]
 name = "ethos"
 path = "packages/ethos"
 domains = ["cli", "ux"]
 
 [[package]]
-name = "ethos-kernel"
-path = "packages/ethos-kernel"
-domains = ["kernel", "action-graph"]
-
-[[package]]
-name = "ethos-governance"
-path = "packages/ethos-governance"
-domains = ["policy", "proof", "quality", "attestation"]
-
-[[package]]
-name = "ethos-workspace"
-path = "packages/ethos-workspace"
-domains = ["lane", "state", "publish"]
-
-[[package]]
-name = "ethos-agent"
-path = "packages/ethos-agent"
-domains = ["agent", "context", "projection"]
-
-[[package]]
-name = "ethos-project"
-path = "packages/ethos-project"
-domains = ["init", "adoption", "scaffold", "profile", "fleet"]
+name = "ethos-test"
+path = "packages/ethos-test"
+domains = ["conformance", "parity", "fixtures"]

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.command_registry import command_registry_report
-from ethos_governance.docs_registry import command_examples_report
+from ethos_repository.command_registry import command_registry_report
+from ethos_repository.docs_registry import command_examples_report
 
 
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
@@ -50,6 +50,26 @@ historical_exempt_roots = ["docs/evidence"]
     assert report["ok"] is False
     assert report["retired_public_root_mentions"] == [
         "docs/current/bad.md:1:proof",
+    ]
+
+
+def test_command_registry_rejects_retired_family_style_ethos_commands(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "bad.md").write_text(
+        "```bash\nethos governance status\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_registry_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["retired_public_command_prefix_mentions"] == [
+        "docs/bad.md:2:ethos governance",
+    ]
+    assert report["required_gaps"] == [
+        "retired_public_command_prefix_mention:docs/bad.md:2:ethos governance",
     ]
 
 

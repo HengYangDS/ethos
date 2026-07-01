@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 
-from ethos_governance.gates import gate_graph, gate_registry
-from ethos_governance.schema_validation import (
+from ethos_core.result import EthosResult
+from ethos_repository.gates import gate_graph, gate_registry
+from ethos_repository.schema_validation import (
     schema_validation_report,
     validate_ethos_result,
     validate_schema_instance,
 )
-from ethos_kernel.result import EthosResult
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:

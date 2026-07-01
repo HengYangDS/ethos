@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_project.planner import adoption_plan, detect_repo_profile
+from ethos_repository.planner import adoption_plan, detect_repo_profile
 
 
 def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:
@@ -39,11 +39,14 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "CONTRIBUTING.md",
         "CHANGELOG.md",
         "openspec/config.yaml",
-        "openspec/specs/ethos-kernel/spec.md",
-        "openspec/specs/ethos-project/spec.md",
-        "openspec/specs/ethos-governance/spec.md",
-        "openspec/specs/ethos-workspace/spec.md",
-        "openspec/specs/ethos-agent/spec.md",
+        "openspec/specs/ethos-core/spec.md",
+        "openspec/specs/ethos-contracts/spec.md",
+        "openspec/specs/ethos-repository/spec.md",
+        "openspec/specs/ethos-adapters/spec.md",
+        "openspec/specs/ethos-assistants/spec.md",
+        "openspec/specs/ethos-cli/spec.md",
+        "openspec/specs/ethos-distribution/spec.md",
+        "openspec/specs/ethos-test/spec.md",
         "openspec/changes/.gitkeep",
         "openspec/changes/archive/.gitkeep",
         "docs/index.md",

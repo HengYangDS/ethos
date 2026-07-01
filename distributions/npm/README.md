@@ -1,8 +1,8 @@
 ---
-Subject: distributions:npm
-Role: distribution adapter
-State: planned
-Relations: wraps Python command plane
+subject: distributions:npm
+role: distribution adapter
+state: current
+relations: wraps Python command plane
 ---
 
 # npm Distribution Adapter

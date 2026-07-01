@@ -5,7 +5,8 @@ import re
 import subprocess
 from pathlib import Path
 
-from ethos_project.planner import adoption_plan
+from ethos_contracts.package_ontology import package_ontology_report
+from ethos_repository.planner import adoption_plan
 
 from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
 
@@ -89,13 +90,41 @@ def test_quality_package_ontology_reports_migration_state() -> None:
 
     assert payload["ok"] is True
     assert payload["command"] == "quality package-ontology"
-    assert payload["data"]["migration_complete"] is False
-    assert payload["data"]["migration_status"] == "in_progress"
+    assert payload["data"]["migration_complete"] is True
+    assert payload["data"]["migration_status"] == "complete"
     assert "ethos" in payload["data"]["target_packages"]
     assert "ethos" not in payload["data"]["migration_hosts"]
     assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == (
-        "planned_not_migrated"
+        "migrated"
     )
+
+
+def test_quality_package_ontology_rejects_retired_workspace_config(
+    tmp_path: Path,
+) -> None:
+    for package in package_ontology_report()["target_packages"]:
+        (tmp_path / "packages" / str(package)).mkdir(parents=True)
+    (tmp_path / "distributions" / "npm").mkdir(parents=True)
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "workspace.toml").write_text(
+        '[[package]]\nname = "ethos-kernel"\npath = "packages/ethos-kernel"\n',
+        encoding="utf-8",
+    )
+
+    completed = run_ethos_raw(
+        "quality",
+        "package-ontology",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+    payload = json.loads(completed.stdout)
+
+    assert completed.returncode == 0
+    assert payload["ok"] is False
+    assert "workspace_config_retired_product_family:ethos-kernel" in payload[
+        "required_gaps"
+    ]
 
 
 def test_status_json_reports_live_workspace_schema_validation() -> None:
@@ -460,7 +489,7 @@ def test_self_audit_reports_product_shape() -> None:
     package_ontology = payload["data"]["package_ontology"]
     assert package_ontology["ok"] is True
     assert "canonical_packages" not in package_ontology
-    assert "ethos-governance" in package_ontology["migration_host_packages"]
+    assert package_ontology["migration_host_packages"] == []
     assert "ethos-core" in package_ontology["target_package_contract"]
 
 
@@ -564,7 +593,7 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_self_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos_governance import openspec_native
+    from ethos_adapters import openspec_native
 
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
@@ -879,7 +908,7 @@ def test_assistant_projection_commands_are_available() -> None:
     assert manifest["ok"] is True
     assert "ethos.status" in manifest["data"]["manifest"]["tools"]
     assert projections["ok"] is True
-    assert projections["data"]["contract"]["truth"] == "ethos-kernel-and-repository"
+    assert projections["data"]["contract"]["truth"] == "repository-source-and-contracts"
     assert doctor["ok"] is True
 
 
@@ -1117,7 +1146,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["scores"]["adoption_scaffold"] == 1
     assert payload["data"]["scores"]["parity_ledger"] == 1
     assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["ok"] is False
+    assert payload["data"]["parity"]["gaps"]["ok"] is True
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["gaps"]["required_gaps"]
     )
@@ -1135,11 +1164,11 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["gap_layers"]["adopter_parity"] == {
         "scope": "global_capability_ledger",
         "blocking": False,
-        "ok": False,
+        "ok": True,
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
         "gap_count": payload["summary"]["parity_pending_count"],
     }
-    assert "ethos parity gaps --adopter <adopter>" in payload["next_actions"]
+    assert payload["next_actions"] == ["ethos prove --full"]
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:

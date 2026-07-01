@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_agent.server import mcp_server_descriptor
+from ethos_assistants.server import mcp_server_descriptor
 
 
 def test_mcp_server_descriptor_is_protocol_native() -> None:

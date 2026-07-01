@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from ethos_workspace.state import (
+from ethos_adapters.state import (
     active_leases,
     append_chronicle_event,
     append_event,

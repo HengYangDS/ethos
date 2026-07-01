@@ -1,6 +1,6 @@
 [claim]
 id = "ethos-work-lane-admission"
-subject = "ethos:workspace"
+subject = "ethos:repository-lane-admission"
 state = "active"
 summary = "ETHOS enforces Work Lane admission, foreign lane visibility, protected-root mutation blocking, and lease-backed lane start."
 

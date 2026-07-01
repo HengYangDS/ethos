@@ -15,15 +15,11 @@ PYTHONPATH = os.pathsep.join(
     for package in (
         "packages/ethos",
         "packages/ethos-adapters",
-        "packages/ethos-agent",
         "packages/ethos-assistants",
         "packages/ethos-contracts",
-        "packages/ethos-kernel",
-        "packages/ethos-project",
+        "packages/ethos-core",
         "packages/ethos-repository",
         "packages/ethos-test",
-        "packages/ethos-governance",
-        "packages/ethos-workspace",
     )
 )
 

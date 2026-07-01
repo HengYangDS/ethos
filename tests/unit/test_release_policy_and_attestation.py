@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_governance.attestation import release_attestation, sbom_projection
-from ethos_governance.release import release_policy_report, version_manifest
+from ethos_repository.attestation import release_attestation, sbom_projection
+from ethos_repository.release import release_policy_report, version_manifest
 
 
 def test_version_manifest_keeps_workspace_packages_aligned() -> None:
@@ -15,16 +15,11 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     assert set(manifest["packages"]) == {
         "ethos",
         "ethos-adapters",
-        "ethos-project",
-        "ethos-agent",
         "ethos-assistants",
         "ethos-contracts",
         "ethos-core",
-        "ethos-governance",
-        "ethos-kernel",
         "ethos-repository",
         "ethos-test",
-        "ethos-workspace",
     }
 
 
@@ -67,4 +62,4 @@ def test_sbom_projection_lists_workspace_packages_without_owning_truth() -> None
 
     assert sbom["format"] == "SPDX-lite"
     assert sbom["truth"] == "pyproject-and-lockfile"
-    assert {package["name"] for package in sbom["packages"]} >= {"ethos", "ethos-kernel"}
+    assert {package["name"] for package in sbom["packages"]} >= {"ethos", "ethos-core"}

@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ethos_kernel.action_graph import ActionGraph, ActionNode
-from ethos_kernel.models import Change, Commitment, Evidence, Evolution, Subject
-from ethos_kernel.result import EthosResult
+from ethos_core.action_graph import ActionGraph, ActionNode
+from ethos_core.models import Change, Commitment, Evidence, Evolution, Subject
+from ethos_core.result import EthosResult
 
 
 def test_kernel_entities_project_to_chain() -> None:

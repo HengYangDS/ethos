@@ -140,8 +140,11 @@ Self-governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
 official OpenSpec CLI validation and is required for release or archive proof.
 
-`ethos quality coupling-audit --json` reports product, profile, adapter,
-self-hosting evidence, legacy evidence, and test-fixture coupling boundaries.
-It explicitly treats Git, worktrees, refs, and branch roles as product
-semantics while keeping hosted forge, editor, model, and current proof toolchain
-terms out of product semantics.
+`ethos quality coupling-audit --json` reports product-semantic hard bindings,
+mandatory governance dependencies, native protocol bindings, self-hosting
+toolchain bindings, profile or adapter bindings, legacy evidence, and
+test-fixture coupling boundaries. It treats Git, worktrees, refs, and branch
+roles as product semantics; OpenSpec as mandatory governance; command JSON,
+schemas, TOML, JSONL, and ignored SQLite state as native protocols; and hosted
+forge, editor, model, and current proof toolchain terms as non-product-semantic
+bindings.

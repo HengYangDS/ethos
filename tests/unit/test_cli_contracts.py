@@ -886,9 +886,18 @@ def test_quality_coupling_audit_reports_git_native_boundary() -> None:
     assert payload["command"] == "quality coupling-audit"
     assert payload["required_gaps"] == []
     assert payload["data"]["git_native"]["strongly_bound"] is True
-    assert payload["data"]["git_native"]["layer"] == "product_semantic"
+    assert payload["data"]["git_native"]["layer"] == "product_semantic_hard_binding"
+    assert payload["data"]["openspec_governance"]["layer"] == (
+        "mandatory_governance_dependency"
+    )
+    assert payload["data"]["openspec_governance"]["not_a_second_command_plane"] is True
+    assert payload["data"]["native_protocols"]["layer"] == "native_protocol_binding"
+    assert payload["data"]["native_protocols"]["provider_optional"] is False
     assert payload["data"]["release_host_profile"]["provider"] == "gitlab"
     assert payload["data"]["self_hosting_toolchain"]["profile"] == "self-hosting"
+    assert payload["data"]["self_hosting_toolchain"]["layer"] == (
+        "self_hosting_toolchain_binding"
+    )
 
 
 def test_prove_returns_evidence_and_provenance() -> None:

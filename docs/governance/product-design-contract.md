@@ -84,9 +84,11 @@ migration hosts until they match the target ontology.
 ### Contracts before providers
 
 Provider-neutral contracts precede hosted forge, runtime, model, editor, and
-toolchain implementations. OpenSpec, Backlog, MCP, ACP, Superpowers, GitHub,
-GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and similar systems are
-adapters or providers, not ontology anchors.
+toolchain implementations. OpenSpec is the current mandatory official
+governance dependency for promoted spec records and deep proof. Backlog, MCP,
+ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
+similar systems are adapters, providers, profiles, method packs, or
+self-hosting tools; they are not ontology anchors.
 
 ### Git-native repository substrate
 
@@ -94,6 +96,15 @@ ETHOS is Git-native. Commits, refs, branches, worktrees, HEAD binding, and
 configured branch roles are product semantics, not a generic VCS abstraction.
 Hosted forges, review systems, and CI surfaces may project those Git facts, but
 they do not replace them.
+
+### Binding taxonomy
+
+ETHOS distinguishes product-semantic hard bindings, mandatory governance
+dependencies, native protocol bindings, self-hosting toolchain bindings, and
+profile or adapter bindings. Git belongs to product semantics. OpenSpec belongs
+to mandatory governance. JSON Schema, command JSON, TOML, JSONL, and ignored
+SQLite local state are native protocols. The current Python, uv, Hatchling,
+pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology.
 
 ### Capability before surface
 

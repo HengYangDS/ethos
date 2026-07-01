@@ -11,17 +11,18 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     assert report["ok"] is True
     assert report["required_gaps"] == []
     assert list(report["taxonomy"]) == [
-        "product_semantic",
+        "product_semantic_hard_binding",
+        "mandatory_governance_dependency",
+        "native_protocol_binding",
+        "self_hosting_toolchain_binding",
+        "profile_or_adapter_binding",
         "default_policy",
-        "profile_config",
-        "adapter_projection",
-        "self_hosting_evidence",
         "legacy_evidence",
         "test_fixture",
     ]
     assert report["git_native"] == {
         "strongly_bound": True,
-        "layer": "product_semantic",
+        "layer": "product_semantic_hard_binding",
         "allowed_terms": [
             "Git",
             "git",
@@ -33,6 +34,18 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         ],
         "not_a_generic_vcs_abstraction": True,
     }
+    assert report["openspec_governance"] == {
+        "required": True,
+        "layer": "mandatory_governance_dependency",
+        "capability": "official-native governance records",
+        "execution_surface": "profile_or_adapter_binding",
+        "not_a_second_command_plane": True,
+    }
+    assert report["native_protocols"] == {
+        "layer": "native_protocol_binding",
+        "formats": ["JSON Schema", "command JSON", "TOML", "JSONL", "SQLite local state"],
+        "provider_optional": False,
+    }
     assert report["release_product_files"] == [
         "README.md",
         "LICENSE",
@@ -41,12 +54,13 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         ".ethos/release.toml",
     ]
     assert report["release_host_profile"]["provider"] == "gitlab"
-    assert report["release_host_profile"]["layer"] == "profile_config"
+    assert report["release_host_profile"]["layer"] == "profile_or_adapter_binding"
     assert report["self_hosting_toolchain"] == {
         "profile": "self-hosting",
-        "layer": "self_hosting_evidence",
+        "layer": "self_hosting_toolchain_binding",
         "gates": ["unit-architecture", "ruff", "build"],
         "toolchains": ["uv-python"],
+        "product_ontology_anchor": False,
     }
 
 

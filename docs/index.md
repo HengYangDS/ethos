@@ -19,6 +19,7 @@ and [Glossary](reference/glossary.md).
 Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
 [Product Design Contract](governance/product-design-contract.md),
+[Terminal Governance Product Design](architecture/terminal-governance-product-design.md),
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
@@ -41,6 +42,9 @@ truth.
 - Command plane: [Command Plane](reference/command-plane.md)
 - Glossary: [Glossary](reference/glossary.md)
 - Product design contract: [Product Design Contract](governance/product-design-contract.md)
+- Terminal target design: [Terminal Governance Product Design](architecture/terminal-governance-product-design.md)
+- Rule system: [Rules System](../rules/README.md)
+- Skills: [Skills](../skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)

@@ -1,24 +1,50 @@
-# Agent Entry Point
+# Agent Entry Points
 
-ETHOS is governed through the repository source, tests, schemas, docs, and
-command plane.
+This file is the neutral entrypoint for coding agents working in this
+repository. It points agents to tracked repository truth without making any
+vendor-specific assistant root canonical.
 
-## Authority
+## Canonical Surfaces
 
-1. User instruction.
-1. Source code, tests, schemas, and package metadata.
-1. Canonical docs under `docs/concepts/`, `docs/architecture/`, and
-   `docs/governance/`.
-1. Evidence under `docs/evidence/`.
-1. Archive material under `docs/archive/`.
+- Project overview: [README](README.md)
+- Contribution workflow: [CONTRIBUTING](CONTRIBUTING.md)
+- Product design contract: [Product Design Contract](docs/governance/product-design-contract.md)
+- Terminal target design:
+  [Terminal Governance Product Design](docs/architecture/terminal-governance-product-design.md)
+- Rule system: [Rules System](rules/README.md)
+- Agent rules: [Agent Rules](rules/agents.md)
+- Mutation and Work Lane rules: [Mutation Rules](rules/mutation.md)
+- Hook and guard rules: [Hook Rules](rules/hooks.md)
+- Evidence rules: [Evidence Rules](rules/evidence.md)
+- Release rules: [Release Rules](rules/release.md)
+- Skill rules: [Skill Rules](rules/skills.md)
+- Repo-local skills: [Skills](skills/README.md)
+- Skill activation policy: [Skill Activation](skills/activation.toml)
+- OpenSpec workspace: [OpenSpec](openspec/)
+- Current docs index: [Documentation Index](docs/index.md)
 
-## Operating Rules
+## Authority Order
 
-- Use `ethos ...` as the only public command vocabulary.
-- Treat assistant, MCP, ACP, hosted CI, and external workflow runtimes as
-  projections or adapters, not truth stores.
-- Keep product behavior inside `packages/ethos-*`; do not create `tools/`
-  product behavior.
-- Keep profile-specific semantics in profiles or adopter repositories.
-- Write tests for behavior changes.
-- Do not turn local state under `.ethos/state/` into tracked truth.
+1. User instruction in the current session.
+1. Repository source code, tests, schemas, and package metadata.
+1. Machine contracts under `system/` when present.
+1. Canonical docs under `docs/`.
+1. OpenSpec records under `openspec/`.
+1. Evidence under `evidence/` or current legacy evidence paths.
+1. Rules and skills in this repository.
+1. Host projections and generated assistant surfaces.
+
+If these conflict, obey the higher authority and treat the lower surface as
+stale until it is repaired.
+
+## Load Order
+
+1. Read this file.
+1. Read [Rules System](rules/README.md).
+1. Read the rule file matching the task.
+1. Use [Skill Activation](skills/activation.toml) to select candidate skills.
+1. Run `ethos status --json` before mutation planning.
+
+Host-local memory, IDE state, generated views, and assistant outputs are context
+only. They become repository truth only after promotion into tracked source,
+docs, OpenSpec, or evidence.

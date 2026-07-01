@@ -1,0 +1,33 @@
+schema_version = 1
+id = "ethos-repository-governance"
+entrypoint = "SKILL.md"
+boundary = "repository-skill-source"
+truth = "repository-source-docs-rules-and-evidence"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+required_sections = ["Required Pre-Reads", "Workflow", "Evidence", "Trust Boundary"]
+
+[quality]
+placeholder_allowed = false
+host_projection = false
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
+id = "ethos.prewrite"
+kind = "command_guard"
+command = ["ethos", "lane", "prewrite"]
+
+[[capability]]
+id = "ethos.docs"
+kind = "command_proof"
+command = ["ethos", "quality", "docs", "--json"]
+
+[[capability]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]

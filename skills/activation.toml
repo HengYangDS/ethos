@@ -1,0 +1,48 @@
+[meta]
+version = 1
+source_of_truth = "skills"
+projection_boundary = "host-native skill directories are projections"
+
+[[skill]]
+id = "ethos-repository-governance"
+path = "skills/ethos-repository-governance/SKILL.md"
+package_manifest = "skills/ethos-repository-governance/package.toml"
+subjects = ["ethos", "repository-governance", "work-lane", "proof", "rules", "skills", "adoption"]
+intent_tokens = ["ethos", "governance", "proof", "work lane", "rules", "skills", "adoption", "hooks"]
+path_globs = [
+  "AGENTS.md",
+  "README.md",
+  "CONTRIBUTING.md",
+  "pyproject.toml",
+  "package.json",
+  "docs/**",
+  "rules/**",
+  "skills/**",
+  ".agents/skills/**",
+  "openspec/**",
+  "evidence/**",
+  "claims/**",
+  "schemas/**",
+  "packages/**",
+  "distributions/**",
+  "tests/**",
+]
+pre_reads = [
+  "AGENTS.md",
+  "rules/README.md",
+  "rules/mutation.md",
+  "rules/hooks.md",
+  "docs/architecture/terminal-governance-product-design.md",
+]
+post_checks = [
+  "ethos quality docs-registry --json",
+  "ethos quality docs --json",
+  "ethos quality command-examples --json",
+  "ethos report --json",
+]
+commands = [
+  "ethos status --json",
+  "ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json",
+  "ethos prove --json",
+  "ethos report --json",
+]

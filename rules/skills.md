@@ -1,0 +1,22 @@
+# Skill Rules
+
+Purpose: define the canonical skill system and projection boundary.
+
+| Field | Rule |
+| --- | --- |
+| Authority | [Skills](../skills/README.md), [Skill Activation](../skills/activation.toml), [Agent Projections](../docs/architecture/agent-projections.md) |
+| Trigger | Creating, updating, routing, projecting, or invoking repo-local skills. |
+| Action | Keep canonical skill source under `skills/` and treat host-native copies as projections. |
+| Evidence | Activation entry, skill manifest, projection digest, and post-check commands. |
+| Stop | Skill duplicates docs, conflicts with rules, or creates host-specific truth. |
+
+## Rules
+
+- Add a skill only when repeated repository-specific procedure would otherwise
+  be missed by a general agent.
+- Keep each skill narrow and loadable. Put long explanation in docs or
+  references, not in `SKILL.md`.
+- `skills/activation.toml` is routing metadata, not authority over source,
+  tests, docs, OpenSpec, or evidence.
+- `.agents/skills`, `.claude/skills`, `.codex/skills`, IDE rules, and MCP
+  prompt packs are projections unless the host owns an official native artifact.

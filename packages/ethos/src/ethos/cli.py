@@ -107,6 +107,32 @@ def _current_tracked_head(root: Path) -> str:
     return "" if head == "untracked" else head
 
 
+def _git_stdout(root: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
+    current_head = _current_tracked_head(root)
+    if not current_head:
+        return ()
+    accepted = [current_head]
+    evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+    last_change = _git_stdout(root, "log", "-1", "--format=%H", "--", evidence_path.as_posix())
+    if last_change == current_head:
+        parents_line = _git_stdout(root, "rev-list", "--parents", "-n", "1", current_head)
+        accepted.extend(parents_line.split()[1:])
+    return tuple(dict.fromkeys(head for head in accepted if head))
+
+
 def _adoption_mutation_gaps(
     *,
     apply: bool,
@@ -361,19 +387,23 @@ def _campaign_closeout_report(
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
     current_target_head = _current_tracked_head(target)
+    current_product_head = _current_tracked_head(repo)
+    acceptable_product_heads = _acceptable_parity_product_heads(repo, adopter)
     parity = parity_gaps_report(
         adopter=adopter,
         root=repo,
         target=target,
         current_target_head=current_target_head,
-        current_product_head=_current_tracked_head(repo),
+        current_product_head=current_product_head,
+        acceptable_product_heads=acceptable_product_heads,
     )
     shadow = shadow_parity_report(
         target=target,
         root=repo,
         adopter=adopter,
         current_target_head=current_target_head,
-        current_product_head=_current_tracked_head(repo),
+        current_product_head=current_product_head,
+        acceptable_product_heads=acceptable_product_heads,
     )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(
@@ -1902,6 +1932,7 @@ def parity_gaps(
         adopter=adopter,
         root=repo,
         current_product_head=_current_tracked_head(repo),
+        acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
     )
     result = EthosResult(
         command="parity gaps",
@@ -1929,10 +1960,12 @@ def parity_shadow(
 
         report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
     else:
+        repo = _root(None)
         report = shadow_parity_report(
             target=target,
             current_target_head=_current_tracked_head(target),
-            current_product_head=_current_tracked_head(_root(None)),
+            current_product_head=_current_tracked_head(repo),
+            acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
         )
     result = EthosResult(
         command="parity shadow",
@@ -1964,7 +1997,11 @@ def report(
     playbooks = playbooks_report(repo)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
-    parity_gaps = parity_gaps_report(root=repo, current_product_head=_current_tracked_head(repo))
+    parity_gaps = parity_gaps_report(
+        root=repo,
+        current_product_head=_current_tracked_head(repo),
+        acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
+    )
     if audit.get("mode") == "adopter":
         scores = {
             "adopter_governance": int(bool(audit["ok"])),

@@ -210,6 +210,36 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
     assert payload["provenance"] == payload["execution_packages"][0]["provenance"]
 
 
+def test_shadow_parity_report_accepts_current_commit_parent_product_head(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "sample-adopter"
+    target.mkdir()
+    evidence = _complete_parity_evidence("sample-adopter")
+    evidence["target"] = target.resolve().as_posix()
+    evidence["freshness"]["product_head"] = "parent-product-head"
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = shadow_parity_report(
+        target=target,
+        root=tmp_path,
+        adopter="sample-adopter",
+        current_product_head="current-product-head",
+        acceptable_product_heads=("parent-product-head",),
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "matched"
+    assert payload["required_gaps"] == []
+    assert payload["provenance"]["freshness"]["product_head"] == "parent-product-head"
+    assert payload["provenance"]["freshness"]["current_product_head"] == "current-product-head"
+
+
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
     tmp_path: Path,
 ) -> None:
@@ -254,6 +284,80 @@ def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:product_head" in payload["required_gaps"]
+
+
+def test_parity_gaps_accepts_evidence_updated_in_current_commit(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-b", "dev"], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / "README.md").write_text("# sample\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "base",
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    parent_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    evidence = _complete_parity_evidence("sample-adopter")
+    evidence["freshness"]["product_head"] = parent_head
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "refresh parity evidence",
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    current_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert parent_head != current_head
 
 
 def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> None:

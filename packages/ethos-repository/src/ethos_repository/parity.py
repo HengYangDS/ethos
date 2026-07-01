@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 from ethos_contracts.capability_parity import capability_parity_records
@@ -26,6 +27,7 @@ def parity_gaps_report(
     target: Path | None = None,
     current_target_head: str = "",
     current_product_head: str = "",
+    acceptable_product_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
@@ -35,6 +37,7 @@ def parity_gaps_report(
         target=target,
         current_target_head=current_target_head,
         current_product_head=current_product_head,
+        acceptable_product_heads=acceptable_product_heads,
     )
     evidence_valid = not evidence.get("required_gaps")
     verified = set(evidence.get("verified_capabilities", []))
@@ -128,6 +131,7 @@ def shadow_parity_report(
     adopter: str | None = None,
     current_target_head: str = "",
     current_product_head: str = "",
+    acceptable_product_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
@@ -137,6 +141,7 @@ def shadow_parity_report(
             target=target,
             current_target_head=current_target_head,
             current_product_head=current_product_head,
+            acceptable_product_heads=acceptable_product_heads,
         )
         if evidence:
             evidence_gaps = list(evidence.get("required_gaps", []))
@@ -276,6 +281,7 @@ def _parity_evidence(
     target: Path | None = None,
     current_target_head: str = "",
     current_product_head: str = "",
+    acceptable_product_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     if not adopter:
         return {}
@@ -302,6 +308,7 @@ def _parity_evidence(
         target=target,
         current_target_head=current_target_head,
         current_product_head=current_product_head,
+        acceptable_product_heads=acceptable_product_heads,
     )
     return {
         "path": path.relative_to(root).as_posix(),
@@ -317,6 +324,7 @@ def _validate_parity_evidence(
     target: Path | None = None,
     current_target_head: str = "",
     current_product_head: str = "",
+    acceptable_product_heads: Iterable[str] = (),
 ) -> list[str]:
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
@@ -336,6 +344,7 @@ def _validate_parity_evidence(
         command=command if isinstance(command, str) else "",
         current_target_head=current_target_head,
         current_product_head=current_product_head,
+        acceptable_product_heads=acceptable_product_heads,
         required_gaps=required_gaps,
     )
     shadow = payload.get("shadow")
@@ -382,6 +391,7 @@ def _validate_freshness(
     command: str,
     current_target_head: str,
     current_product_head: str,
+    acceptable_product_heads: Iterable[str],
     required_gaps: list[str],
 ) -> None:
     if not isinstance(freshness, dict):
@@ -393,7 +403,12 @@ def _validate_freshness(
     expected_digest = _sha256_text(command)
     if command and freshness.get("command_sha256") != expected_digest:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command_sha256")
-    if current_product_head and freshness.get("product_head") != current_product_head:
+    product_head = str(freshness.get("product_head") or "")
+    if (
+        current_product_head
+        and product_head != current_product_head
+        and product_head not in set(acceptable_product_heads)
+    ):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:product_head")
     if current_target_head and freshness.get("target_head") != current_target_head:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")

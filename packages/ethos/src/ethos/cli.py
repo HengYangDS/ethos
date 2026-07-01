@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import subprocess
 import tomllib
@@ -9,6 +10,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
+import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.self_audit as self_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
@@ -156,10 +158,9 @@ def _rules_config(root: Path) -> dict[str, object]:
 
 
 def _is_product_root(root: Path) -> bool:
-    return (
-        (root / "packages" / "ethos" / "README.md").exists()
-        and (root / "schemas" / "ethos").exists()
-    )
+    return (root / "packages" / "ethos" / "README.md").exists() and (
+        root / "schemas" / "ethos"
+    ).exists()
 
 
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
@@ -182,10 +183,7 @@ def _adopter_audit(root: Path) -> dict[str, object]:
     schemas = schema_validation_report(root)
     claims = claims_report(root)
     docs = docs_health_report(root)
-    gaps = (
-        list(adopter["required_gaps"])
-        + [f"schema:{gap}" for gap in schemas["required_gaps"]]
-    )
+    gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
     return {
         "ok": not gaps,
         "mode": "adopter",
@@ -212,6 +210,12 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value]
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return f"sha256:{digest.hexdigest()}"
 
 
 def _path_matches(path: str, pattern: str) -> bool:
@@ -772,9 +776,7 @@ def lane_retire_landed(
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
-            "landed_lane_count": sum(
-                1 for lane in report["lanes"] if lane["retire_ready"]
-            ),
+            "landed_lane_count": sum(1 for lane in report["lanes"] if lane["retire_ready"]),
             "selected_branch": branch or "",
         },
         required_gaps=tuple(report["required_gaps"]),
@@ -858,10 +860,7 @@ def prove(
             "gate_count": len(proof_runs),
         },
         required_gaps=(
-            tuple(audit["required_gaps"])
-            + tuple(graph.validate().gaps)
-            + proof_gaps
-            + head_gaps
+            tuple(audit["required_gaps"]) + tuple(graph.validate().gaps) + proof_gaps + head_gaps
         ),
         next_actions=next_actions,
         data={
@@ -1144,17 +1143,66 @@ def format_policy(
 @quality_app.command
 def projection_drift(
     *,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report projection drift readiness."""
+    repo = _root(root)
     contract = projection_contract()
-    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
+    playbooks = playbooks_report(repo, mode="v2-strict")
+    registry_meta = playbooks["registry"]["meta"]
+    registry_digest = str(playbooks["registry"]["digest"])
+    expected_registry_digest = str(registry_meta.get("expected_registry_digest") or "")
+    generator_digest = _sha256_file(Path(playbooks_module.__file__))
+    expected_generator_digest = str(registry_meta.get("expected_generator_digest") or "")
+    activation_digest = _sha256_file(repo / ".agents" / "skills" / "activation.toml")
+    drift = [
+        {"kind": "skill_package", "gap": gap}
+        for gap in playbooks["required_gaps"]
+        if str(gap).startswith("skill_package_")
+    ]
+    if not expected_registry_digest:
+        drift.append({"kind": "skill_registry", "gap": "skill_registry_expected_digest_missing"})
+    elif expected_registry_digest != registry_digest:
+        drift.append({"kind": "skill_registry", "gap": "skill_registry_digest_mismatch"})
+    if not expected_generator_digest:
+        drift.append(
+            {"kind": "projection_generator", "gap": "projection_generator_expected_digest_missing"}
+        )
+    elif expected_generator_digest != generator_digest:
+        drift.append(
+            {"kind": "projection_generator", "gap": "projection_generator_digest_mismatch"}
+        )
+    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY and not drift
     result = EthosResult(
         command="quality projection-drift",
         ok=ok,
         state="clean" if ok else "blocked",
-        required_gaps=() if ok else ("assistant_projection_truth_drift",),
-        data={"contract": contract, "drift": []},
+        required_gaps=tuple(item["gap"] for item in drift)
+        if contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
+        else ("assistant_projection_truth_drift",),
+        data={
+            "contract": contract,
+            "drift": drift,
+            "registry_digest": registry_digest,
+            "registry": {
+                "digest": registry_digest,
+                "expected_digest": expected_registry_digest,
+                "ok": expected_registry_digest == registry_digest,
+            },
+            "generator": {
+                "id": "ethos_assistants.playbooks",
+                "digest": generator_digest,
+                "expected_digest": expected_generator_digest,
+                "ok": expected_generator_digest == generator_digest,
+            },
+            "inputs": [
+                {
+                    "path": ".agents/skills/activation.toml",
+                    "digest": activation_digest,
+                }
+            ],
+        },
     )
     _emit(result, json_output)
 
@@ -1200,16 +1248,11 @@ def package_ontology(
         if not (repo / str(distribution)).exists()
     ]
     workspace_config = workspace_package_config_report(repo)
-    workspace_config_gaps = [
-        str(gap) for gap in workspace_config["required_gaps"]
-    ]
-    migration_complete = (
-        not contract["migration_hosts"]
-        and all(
-            item.get("state") == "migrated"
-            for item in contract["migration_distributions"].values()
-            if isinstance(item, dict)
-        )
+    workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
+    migration_complete = not contract["migration_hosts"] and all(
+        item.get("state") == "migrated"
+        for item in contract["migration_distributions"].values()
+        if isinstance(item, dict)
     )
     physical_missing = target_missing + host_missing + distribution_missing
     data = {
@@ -1935,11 +1978,12 @@ def assistants_context(*, json_output: JsonFlag = False) -> None:
 def playbooks_check(
     *,
     root: RootOption | None = None,
+    mode: str = "legacy-compat",
     json_output: JsonFlag = False,
 ) -> None:
     """Check repo-local ETHOS playbook projection."""
     repo = _root(root)
-    report = playbooks_report(repo)
+    report = playbooks_report(repo, mode=mode)
     result = EthosResult(
         command="playbooks check",
         ok=bool(report["ok"]),
@@ -1957,12 +2001,20 @@ def playbooks_route(
     subject: str = "repository-governance",
     changed: bool = False,
     root: RootOption | None = None,
+    mode: str = "legacy-compat",
     json_output: JsonFlag = False,
 ) -> None:
     """Route a subject to repo-local ETHOS playbooks."""
     repo = _root(root)
     route_subject = "changed-scope" if changed else subject
-    report = route_playbook(repo, route_subject, require_explicit_subject=changed)
+    changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
+    report = route_playbook(
+        repo,
+        route_subject,
+        require_explicit_subject=changed,
+        mode=mode,
+        changed_paths=changed_paths,
+    )
     result = EthosResult(
         command="playbooks route",
         ok=bool(report["ok"]),
@@ -2073,7 +2125,8 @@ def report(
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
-    playbooks = playbooks_report(repo)
+    playbook_mode = "legacy-compat" if audit.get("mode") == "adopter" else "v2-strict"
+    playbooks = playbooks_report(repo, mode=playbook_mode)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
     parity_gaps = parity_gaps_report(root=repo)
@@ -2130,7 +2183,28 @@ def report(
             "required_gaps": list(parity_gaps["required_gaps"]),
             "gap_count": parity_pending_count,
         },
+        "playbook_projection": {
+            "scope": "skills-v2",
+            "blocking": True,
+            "ok": bool(playbooks["ok"]),
+            "required_gaps": list(playbooks["required_gaps"]),
+            "advisory_gaps": list(playbooks["advisory_gaps"]),
+            "gap_count": len(playbooks["required_gaps"]),
+        },
     }
+    scorecards = [
+        {
+            "id": "skills-v2",
+            "scope": "playbook_projection",
+            "mode": playbooks["mode"],
+            "ok": bool(playbooks["ok"]),
+            "score": playbooks["v2_compliance"]["score"],
+            "max_score": playbooks["v2_compliance"]["max_score"],
+            "blocking": True,
+            "required_gaps": list(playbooks["required_gaps"]),
+            "advisory_gaps": list(playbooks["advisory_gaps"]),
+        }
+    ]
     result = EthosResult(
         command="report",
         ok=ok,
@@ -2149,6 +2223,7 @@ def report(
         ),
         data={
             "scores": scores,
+            "scorecards": scorecards,
             "self_audit": audit,
             "docs": docs_report,
             "claims": claim_report,

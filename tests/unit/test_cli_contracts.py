@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from ethos_assistants.skill_packages import compute_skill_package_digest
 from ethos_contracts.branch_roles import load_branch_role_policy
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_repository.planner import adoption_plan
@@ -164,9 +165,7 @@ def test_quality_package_ontology_reports_migration_state() -> None:
     assert payload["data"]["migration_status"] == "complete"
     assert "ethos" in payload["data"]["target_packages"]
     assert "ethos" not in payload["data"]["migration_hosts"]
-    assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == (
-        "migrated"
-    )
+    assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == ("migrated")
 
 
 def test_quality_package_ontology_rejects_retired_workspace_config(
@@ -192,9 +191,7 @@ def test_quality_package_ontology_rejects_retired_workspace_config(
 
     assert completed.returncode == 0
     assert payload["ok"] is False
-    assert "workspace_config_retired_product_family:ethos-kernel" in payload[
-        "required_gaps"
-    ]
+    assert "workspace_config_retired_product_family:ethos-kernel" in payload["required_gaps"]
 
 
 def test_status_json_reports_live_workspace_schema_validation() -> None:
@@ -771,11 +768,11 @@ def test_quality_help_lists_canonical_commands() -> None:
         "coupling-audit",
         "docs-registry",
         "evidence-freshness",
-            "format-policy",
-            "gates",
-            "package-ontology",
-            "projection-drift",
-            "provenance",
+        "format-policy",
+        "gates",
+        "package-ontology",
+        "projection-drift",
+        "provenance",
         "release",
         "release-attestation",
         "release-policy",
@@ -934,8 +931,64 @@ def test_playbooks_commands_expose_repo_local_skills() -> None:
     assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
 
 
+OFFICIAL_PLAYBOOK_SKILL = """---
+name: sample-skill
+description: Use when governing sample repositories with ETHOS.
+---
+
+# Sample Skill
+
+## When to Use
+
+Use this skill for sample governance work.
+
+## Workflow
+
+1. Read the repository guidance.
+2. Run the focused ETHOS check.
+3. Record evidence before making a claim.
+
+## Evidence
+
+Run `ethos report --json` and keep the output with the delivery note.
+
+## Trust Boundary
+
+Repository source, tests, schemas, docs, claims, evidence, and command JSON are truth.
+"""
+
+
+def write_v2_playbook_package(skills_root: Path, skill_id: str) -> str:
+    package_dir = skills_root / skill_id
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_PLAYBOOK_SKILL, encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    package_manifest = package_dir / "package.toml"
+    package_manifest.write_text(
+        f"""
+schema_version = 2
+id = "{skill_id}"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[quality]
+placeholder_allowed = false
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    return package_manifest.as_posix()
+
+
 def test_playbooks_accept_repo_local_activation_schema_with_path_globs(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
+    root = init_git_repo(tmp_path / "repo")
     skills_root = root / ".agents" / "skills"
     skill_path = skills_root / "code-change" / "SKILL.md"
     skill_path.parent.mkdir(parents=True)
@@ -952,6 +1005,19 @@ post_checks = ["ethos prove"]
 """.lstrip(),
         encoding="utf-8",
     )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add playbook routing",
+    )
+    (root / "src").mkdir()
+    (root / "src" / "code.py").write_text("VALUE = 1\n", encoding="utf-8")
 
     check = run_ethos("playbooks", "check", "--root", root.as_posix(), "--json")
     route = run_ethos("playbooks", "route", "--changed", "--root", root.as_posix(), "--json")
@@ -965,6 +1031,137 @@ post_checks = ["ethos prove"]
     assert "changed-scope" in route["data"]["selected"][0]["subjects"]
     assert route["data"]["selected"][0]["pre_reads"] == ["README.md"]
     assert route["data"]["selected"][0]["post_checks"] == ["ethos prove"]
+    assert route["data"]["selected"][0]["matched_paths"] == ["src/code.py"]
+
+
+def test_playbooks_changed_scope_without_changed_paths_selects_nothing(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    skills_root = root / ".agents" / "skills"
+    skill_path = skills_root / "docs-governance" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Docs Governance\n", encoding="utf-8")
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "docs-governance"
+path = ".agents/skills/docs-governance/SKILL.md"
+subjects = ["changed-scope"]
+path_globs = ["docs/**"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add playbook routing",
+    )
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["changed_paths"] == []
+    assert payload["data"]["selected"] == []
+    assert payload["data"]["unmatched_paths"] == []
+
+
+def test_playbooks_changed_scope_reports_matched_changed_path_evidence(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    skills_root = root / ".agents" / "skills"
+    skill_path = skills_root / "docs-governance" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Docs Governance\n", encoding="utf-8")
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "docs-governance"
+path = ".agents/skills/docs-governance/SKILL.md"
+subjects = ["changed-scope"]
+path_globs = ["docs/**"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add playbook routing",
+    )
+    (root / "docs").mkdir()
+    (root / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["changed_paths"] == ["docs/guide.md"]
+    selected = payload["data"]["selected"][0]
+    assert selected["id"] == "docs-governance"
+    assert selected["matched_paths"] == ["docs/guide.md"]
+    assert payload["data"]["unmatched_paths"] == []
+
+
+def test_playbooks_changed_scope_reports_unmatched_changed_paths(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    skills_root = root / ".agents" / "skills"
+    skill_path = skills_root / "docs-governance" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Docs Governance\n", encoding="utf-8")
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "docs-governance"
+path = ".agents/skills/docs-governance/SKILL.md"
+subjects = ["changed-scope"]
+path_globs = ["docs/**"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add playbook routing",
+    )
+    (root / "src").mkdir()
+    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is False
+    assert payload["data"]["selected"] == []
+    assert "src/app.py" in payload["data"]["unmatched_paths"]
+    assert "playbook_changed_path_unmatched:src/app.py" in payload["required_gaps"]
 
 
 def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
@@ -1021,9 +1218,7 @@ def test_quality_coupling_audit_reports_git_native_boundary() -> None:
     assert payload["required_gaps"] == []
     assert payload["data"]["git_native"]["strongly_bound"] is True
     assert payload["data"]["git_native"]["layer"] == "product_semantic_hard_binding"
-    assert payload["data"]["openspec_governance"]["layer"] == (
-        "mandatory_governance_dependency"
-    )
+    assert payload["data"]["openspec_governance"]["layer"] == ("mandatory_governance_dependency")
     assert payload["data"]["openspec_governance"]["not_a_second_command_plane"] is True
     assert payload["data"]["native_protocols"]["layer"] == "native_protocol_binding"
     assert payload["data"]["native_protocols"]["provider_optional"] is False
@@ -1047,8 +1242,9 @@ def test_prove_returns_evidence_and_provenance() -> None:
 
     assert payload["ok"] is True
     assert payload["data"]["evidence"]["digest"]
-    assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == (
-        payload["data"]["evidence"]["digest"]
+    assert (
+        payload["data"]["provenance"]["subject"][0]["digest"]["sha256"]
+        == (payload["data"]["evidence"]["digest"])
     )
 
 
@@ -1214,9 +1410,10 @@ boundary = "thin-playbook-projection"
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
-    assert payload["ok"] is False
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
     assert payload["data"]["selected"] == []
-    assert "playbook_route_missing:changed-scope" in payload["required_gaps"]
+    assert payload["data"]["changed_paths"] == []
 
 
 def test_playbooks_changed_scope_route_ignores_id_and_subject_substrings(
@@ -1243,13 +1440,14 @@ boundary = "thin-playbook-projection"
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
-    assert payload["ok"] is False
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
     assert payload["data"]["selected"] == []
-    assert "playbook_route_missing:changed-scope" in payload["required_gaps"]
+    assert payload["data"]["changed_paths"] == []
 
 
 def test_playbooks_route_accepts_legacy_name_activation_entries(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
+    root = init_git_repo(tmp_path / "repo")
     skills_root = root / ".agents" / "skills"
     skills_root.mkdir(parents=True)
     (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
@@ -1262,11 +1460,25 @@ def test_playbooks_route_accepts_legacy_name_activation_entries(tmp_path: Path) 
 name = "changed-scope-router"
 path = ".agents/skills/changed-scope-router/SKILL.md"
 subjects = ["changed-scope"]
+path_globs = ["src/**"]
 commands = ["ethos playbooks route --changed"]
 boundary = "thin-playbook-projection"
 """.lstrip(),
         encoding="utf-8",
     )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add legacy route",
+    )
+    (root / "src").mkdir()
+    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
@@ -1279,6 +1491,95 @@ boundary = "thin-playbook-projection"
     assert selected["subjects"] == ["changed-scope"]
     assert selected["commands"] == ["ethos playbooks route --changed"]
     assert selected["boundary"] == "thin-playbook-projection"
+    assert selected["matched_paths"] == ["src/app.py"]
+
+
+def test_playbooks_strict_mode_rejects_activation_path_escape(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    package_manifest = Path(write_v2_playbook_package(skills_root, "escape-skill"))
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[[skill]]
+id = "escape-skill"
+path = "../outside/SKILL.md"
+package_manifest = "{package_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "playbook_skill_path_escape:escape-skill" in payload["required_gaps"]
+
+
+def test_playbooks_strict_mode_requires_activation_path_to_match_package_entrypoint(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    package_manifest = Path(write_v2_playbook_package(skills_root, "entrypoint-skill"))
+    alternate = skills_root / "entrypoint-skill" / "ALT.md"
+    alternate.write_text(OFFICIAL_PLAYBOOK_SKILL, encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[[skill]]
+id = "entrypoint-skill"
+path = ".agents/skills/entrypoint-skill/ALT.md"
+package_manifest = "{package_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "skill_package_entrypoint_mismatch:entrypoint-skill" in payload["required_gaps"]
 
 
 def test_playbooks_report_infers_legacy_name_skill_path(tmp_path: Path) -> None:
@@ -1305,6 +1606,173 @@ boundary = "thin-playbook-projection"
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["records"][0]["path"] == ".agents/skills/legacy-router/SKILL.md"
+
+
+def test_playbooks_strict_mode_rejects_placeholder_v1_skill(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "placeholder" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# Placeholder\n\nThin routing note.\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[meta]
+version = 1
+
+[[skill]]
+id = "placeholder"
+path = ".agents/skills/placeholder/SKILL.md"
+subjects = ["changed-scope"]
+path_globs = ["src/**"]
+commands = ["ethos status"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["data"]["mode"] == "v2-strict"
+    assert "playbook_activation_legacy_version:1" in payload["required_gaps"]
+    assert "skill_package_manifest_missing:placeholder" in payload["required_gaps"]
+    assert "skill_quality_missing_frontmatter:placeholder" in payload["required_gaps"]
+
+
+def test_playbooks_legacy_compat_preserves_v1_route_with_advisory_gaps(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "legacy-router" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# Legacy Router\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[meta]
+version = 1
+
+[[skill]]
+name = "legacy-router"
+path = ".agents/skills/legacy-router/SKILL.md"
+path_globs = ["src/**"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add legacy route",
+    )
+    (root / "src").mkdir()
+    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
+
+    payload = run_ethos(
+        "playbooks",
+        "route",
+        "--changed",
+        "--mode",
+        "legacy-compat",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["mode"] == "legacy-compat"
+    assert payload["data"]["selected"][0]["id"] == "legacy-router"
+    assert payload["data"]["selected"][0]["subjects"] == ["changed-scope"]
+    assert "playbook_activation_legacy_version:1" in payload["data"]["advisory_gaps"]
+    assert "skill_package_manifest_missing:legacy-router" in payload["data"]["advisory_gaps"]
+
+
+def test_report_uses_legacy_compat_playbooks_for_external_adopter_root(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skill_path = skills_root / "legacy-router" / "SKILL.md"
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("# Legacy Router\n", encoding="utf-8")
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[meta]
+version = 1
+
+[[skill]]
+name = "legacy-router"
+path = ".agents/skills/legacy-router/SKILL.md"
+subjects = ["changed-scope"]
+path_globs = ["src/**"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("report", "--root", str(root), "--json")
+
+    assert payload["data"]["self_audit"]["mode"] == "adopter"
+    assert payload["data"]["playbooks"]["mode"] == "legacy-compat"
+    assert payload["data"]["gap_layers"]["playbook_projection"]["required_gaps"] == []
+    assert (
+        "skill_package_manifest_missing:legacy-router"
+        in payload["data"]["playbooks"]["advisory_gaps"]
+    )
+
+
+def test_product_playbooks_strict_mode_passes_after_v2_migration() -> None:
+    payload = run_ethos("playbooks", "check", "--mode", "v2-strict", "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["registry"]["digest"].startswith("sha256:")
+    assert payload["data"]["package_quality"]["ok"] is True
+
+
+def test_projection_drift_reports_registry_and_generator_digest_state() -> None:
+    payload = run_ethos("quality", "projection-drift", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["registry"]["digest"].startswith("sha256:")
+    assert payload["data"]["registry"]["expected_digest"].startswith("sha256:")
+    assert payload["data"]["registry"]["ok"] is True
+    assert payload["data"]["generator"]["digest"].startswith("sha256:")
+    assert payload["data"]["generator"]["expected_digest"].startswith("sha256:")
+    assert payload["data"]["generator"]["ok"] is True
+    assert payload["data"]["inputs"][0]["path"] == ".agents/skills/activation.toml"
+    assert payload["data"]["inputs"][0]["digest"].startswith("sha256:")
+
+
+def test_playbooks_v2_gate_can_execute() -> None:
+    payload = run_ethos("prove", "--execute", "--gate", "playbooks-v2", "--json")
+
+    assert payload["ok"] is True
+    assert payload["data"]["executed"] is True
+    assert payload["data"]["evidence"]["runs"][0]["action_id"] == "playbooks-v2"
+    assert payload["data"]["evidence"]["runs"][0]["state"] == "passed"
 
 
 def test_campaign_hypotheses_are_visible() -> None:
@@ -1356,9 +1824,10 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "shadow_parity",
     }
     assert packages["local_closeout"]["target_branch"] == "candidate/dev"
-    assert packages["local_closeout"]["required_gaps"] == payload["data"]["workspace"][
-        "closeout_support"
-    ]["required_gaps"]
+    assert (
+        packages["local_closeout"]["required_gaps"]
+        == payload["data"]["workspace"]["closeout_support"]["required_gaps"]
+    )
     assert packages["publication"]["remote_push"] == "not_performed"
     assert packages["publication"]["local_submit_package"]["source_branch"] == branch
     assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
@@ -1377,8 +1846,8 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["trust_closeout"]["promotion_ready"] is True
     assert packages["trust_closeout"]["executed_proof_evidence"] is True
     assert packages["shadow_parity"]["provenance"]["mode"] == "tracked_evidence"
-    assert payload["data"]["provenance"]["shadow_parity"] == (
-        packages["shadow_parity"]["provenance"]
+    assert (
+        payload["data"]["provenance"]["shadow_parity"] == (packages["shadow_parity"]["provenance"])
     )
     assert payload["data"]["provenance"]["closeout"] == {
         "mode": "local_only",
@@ -1432,6 +1901,10 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["scores"]["playbooks"] == 1
     assert payload["data"]["scores"]["adoption_scaffold"] == 1
     assert payload["data"]["scores"]["parity_ledger"] == 1
+    scorecards = {item["id"]: item for item in payload["data"]["scorecards"]}
+    assert scorecards["skills-v2"]["ok"] is True
+    assert scorecards["skills-v2"]["mode"] == "v2-strict"
+    assert scorecards["skills-v2"]["score"] == scorecards["skills-v2"]["max_score"]
     assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
     assert payload["data"]["parity"]["gaps"]["ok"] is True
     assert payload["summary"]["parity_pending_count"] == len(

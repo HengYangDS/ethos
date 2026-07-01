@@ -42,6 +42,17 @@ the raw-worktree bypass state that is not admitted as standard ETHOS workflow.
 Registry entries cannot carry host navigation, action, or label fields; those
 are adapter projections, not coupling contract state.
 
+Skills V2 adds three provider-neutral schemas:
+
+- `skill-activation.schema.json` validates activation registry input such as
+  subjects, path globs, operation metadata, lifecycle, package manifest paths,
+  proof obligations, commands, and boundary fields.
+- `skill-registry.schema.json` validates the normalized Skills V2 registry,
+  including legacy-preserving records and the stable registry digest.
+- `skill-package-manifest.schema.json` validates package manifests for
+  loadable `SKILL.md` packages, included files, digest algorithm, expected
+  digest, required sections, quality flags, and capability classes.
+
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured
 candidate branch, the target worktree path, the planned operation, the lease
@@ -65,3 +76,8 @@ and any canonical capability profiles present under `openspec/specs/`.
 
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.
+`ethos quality schemas --json` validates both schemas and representative
+instances for docs registry, gate registry, workspace status, campaign closeout,
+shadow parity, and Skills V2 contracts. Product-root runs also validate the live
+`.agents/skills/activation.toml`, the normalized live skill registry, and every
+live `.agents/skills/*/package.toml` against the Skills V2 schemas.

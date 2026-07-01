@@ -1,0 +1,156 @@
+---
+subject: evidence:skills-v2-governance
+role: evidence
+state: active
+relations:
+  supports: ethos-skills-v2-governance
+---
+
+# Skills V2 Governance Evidence - 2026-07-01
+
+## Scope
+
+This evidence records the ETHOS Skills V2 governance batch.
+
+Implemented changes:
+
+- `ethos-contracts` now owns provider-neutral skill activation normalization
+  and stable registry digests.
+- `.agents/skills/activation.toml` is the activation registry input, not a
+  provider-native skill file.
+- `.agents/skills/<id>/package.toml` is the package digest and capability
+  inventory SSOT for provider-visible skill packages.
+- Product-root playbooks run in `v2-strict`; external adopter inspection keeps
+  `legacy-compat` and reports V2 gaps as advisory migration gaps.
+- Changed-scope routing now uses real changed-path evidence, returns
+  `matched_paths`, `matched_globs`, and `unmatched_paths`, and reports required
+  unmatched-path gaps.
+- Skill package validation now checks manifest path containment, package path
+  containment, missing included files without crashing, required schema fields,
+  stale digests, official `SKILL.md` sections, placeholder sections, capability
+  kinds, readonly/proof/guarded-mutation semantics, and registry command
+  coverage by package capabilities.
+- MCP tool projections now distinguish proof tools with `mcp_tool_proof`.
+- `ethos quality schemas --json` validates live product-root skill activation,
+  normalized live registry, and live package manifests in addition to
+  representative contract samples.
+- `ethos quality projection-drift --json` compares current and expected
+  registry and playbook-generator digests, and reports activation input digests.
+- The ETHOS product-root skill package is now an official-quality `SKILL.md`
+  workflow package with a digest-bound `package.toml`.
+- Adoption scaffold output now emits Skills V2 activation metadata, an
+  official-quality skill package, and package manifest records.
+
+## Expert Review
+
+The expert committee used four reviewers:
+
+- Reviewer A: Skills V2 contract and SSOT architecture.
+- Reviewer B: migration and parity compatibility.
+- Reviewer C: package manifest, capability, and safety.
+- Reviewer D: proof, tests, docs, and evidence.
+
+Initial review found blocking issues in changed-path routing, adopter report
+mode, di-effect fixture field preservation, projection drift, digest SSOT,
+manifest containment, runtime schema enforcement, capability semantics, live
+schema validation, and evidence/claim closeout. The implementation was revised
+against those findings.
+
+Final review status:
+
+- Reviewer A approved the SSOT and changed-scope architecture after
+  `changed-scope` clean-worktree routing was changed to return no selected
+  playbooks instead of falling back to subject or ID matches.
+- Reviewer B approved migration and parity compatibility after legacy adopter
+  routing remained `legacy-compat` and changed-scope selection was bound to
+  real changed paths.
+- Reviewer C approved package and capability safety after activation paths were
+  made repo-contained, activation paths were bound to package manifest
+  entrypoints, readonly capabilities moved to a conservative ETHOS allowlist,
+  and proof capabilities rejected non-proof `ethos self` commands.
+- Reviewer D approved tests, docs, and proof shape after evidence and claim
+  binding were left as the only remaining closeout work.
+
+## Verification Commands
+
+Focused and broad implementation verification:
+
+```bash
+uv run --group dev pytest -q tests/unit/test_skill_activation_contracts.py tests/unit/test_skill_package_manifest.py tests/unit/test_agent_projection.py tests/unit/test_schema_validation_and_gates.py
+uv run --group dev pytest -q tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_matched_changed_path_evidence tests/unit/test_cli_contracts.py::test_playbooks_changed_scope_reports_unmatched_changed_paths tests/unit/test_cli_contracts.py::test_report_uses_legacy_compat_playbooks_for_external_adopter_root tests/unit/test_cli_contracts.py::test_projection_drift_reports_registry_and_generator_digest_state tests/unit/test_cli_contracts.py::test_playbooks_v2_gate_can_execute tests/architecture/test_product_boundaries.py::test_active_openspec_change_deltas_use_target_product_families
+uv run --group dev pytest -q tests/unit tests/architecture
+```
+
+Observed results:
+
+- Focused contract/package/schema/projection tests: `27 passed in 0.61s`.
+- Focused routing/report/projection/proof/OpenSpec-family tests:
+  `6 passed in 1.64s`.
+- Broad unit and architecture tests: `290 passed in 77.25s`.
+
+Governance and command-plane verification:
+
+```bash
+uv run --group dev ruff check .
+uv run --group dev ruff format --check packages/ethos-contracts/src/ethos_contracts/skill_activation.py packages/ethos-assistants/src/ethos_assistants/skill_packages.py packages/ethos-assistants/src/ethos_assistants/playbooks.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-adapters/src/ethos_adapters/status.py packages/ethos-repository/src/ethos_repository/planner.py packages/ethos-repository/src/ethos_repository/schema_validation.py packages/ethos-repository/src/ethos_repository/gates.py packages/ethos-repository/src/ethos_repository/self_audit.py packages/ethos/src/ethos/cli.py tests/unit/test_adopt_apply_sample.py tests/unit/test_agent_projection.py tests/unit/test_cli_contracts.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_skill_activation_contracts.py tests/unit/test_skill_package_manifest.py
+uv run openspec validate ethos-skills-v2-quality-governance --strict --json
+uv run --package ethos ethos quality schemas --json
+uv run --package ethos ethos self audit --mode shape --json
+uv run --package ethos ethos playbooks check --mode v2-strict --json
+uv run --package ethos ethos playbooks route --changed --mode v2-strict --json
+uv run --package ethos ethos quality projection-drift --json
+uv run --package ethos ethos report --json
+uv run --package ethos ethos prove --execute --gate playbooks-v2 --json
+```
+
+Observed results:
+
+- Ruff check: `All checks passed`.
+- Changed-file Ruff format check: `16 files already formatted`.
+- OpenSpec strict validation for `ethos-skills-v2-quality-governance`: passed,
+  1 item passed, 0 failed.
+- Schema validation: `ok=true`, 24 schemas, required gaps empty, live skill
+  activation/registry/package manifest instances all `ok=true`.
+- Self-audit shape: `ok=true`, required gaps empty.
+- Product strict playbooks check: `ok=true`, required gaps empty, Skills V2
+  score `5 / 5`.
+- Product changed-scope route: `ok=true`, every current changed path matched by
+  declared path globs, `unmatched_paths=[]`.
+- Projection drift: `ok=true`, current and expected registry digest
+  `sha256:be7c031c7587a82c7ea120993ed20617fa8378542109a2cd9b04c1b2c9ab2d82`,
+  current and expected generator digest
+  `sha256:4ecddd8dd720b1e42ba65b0f4db3b19da62be733307c70a04e970f9fab266cc0`.
+- Product report: `ok=true`, score `15 / 15`, product gap count `0`, Skills V2
+  scorecard `5 / 5`.
+- Executed playbooks-v2 proof: `ok=true`, executed `true`, gate count `1`,
+  evidence digest
+  `70a35409e3c17fc74a22b1c86676e36d2cbbb083f6a496d5e16b2195afcb6f5b`.
+
+External adopter compatibility verification:
+
+```bash
+uv run --package ethos ethos playbooks check --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
+uv run --package ethos ethos playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
+uv run --package ethos ethos report --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
+uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json
+uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
+```
+
+Observed results:
+
+- alphasim-dmgr playbooks check: `ok=true`, mode `legacy-compat`, required gaps
+  empty, V2 gaps reported as advisory migration gaps.
+- alphasim-dmgr changed route: `ok=true`, mode `legacy-compat`, changed paths
+  empty, selected playbooks empty, required gaps empty.
+- alphasim-dmgr report: `ok=true`, adopter score `7 / 7`, product required
+  gaps empty, playbooks mode `legacy-compat`.
+- alphasim-dmgr parity gaps: `ok=true`, `gap_count=0`.
+- alphasim-dmgr shadow parity: `ok=true`, `state=matched`, required gaps empty
+  across nine public command comparisons.
+
+## Known Baseline
+
+`uv run --group dev ruff format --check .` was also run. It reported 14
+pre-existing unformatted files outside this Skills V2 change set. The batch did
+not reformat those unrelated files to avoid broad non-behavioral churn. The
+changed-file format gate listed above passed.

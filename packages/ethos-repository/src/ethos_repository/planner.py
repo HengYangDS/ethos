@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -28,6 +29,7 @@ BASE_ADOPTION_FILES = (
     ".agents/skills/README.md",
     ".agents/skills/activation.toml",
     ".agents/skills/ethos-repository-governance/SKILL.md",
+    ".agents/skills/ethos-repository-governance/package.toml",
     "openspec/config.yaml",
     "openspec/changes/.gitkeep",
     "openspec/changes/archive/.gitkeep",
@@ -165,23 +167,48 @@ required_gates = ["claims", "schemas"]
 def _skills_readme() -> str:
     return """# ETHOS Skills
 
-Repo-local skills are thin playbook projections. They route agents toward
-tracked ETHOS commands, docs, schemas, and evidence; they are not an independent
-source of truth.
+Repo-local skills are workflow package projections over ETHOS repository truth.
+They route agents toward tracked ETHOS commands, docs, schemas, claims, and
+evidence; they are not an independent source of truth.
 """
 
 
-def _skills_activation() -> str:
+def _skills_activation(package_digest: str) -> str:
     return """[meta]
-version = 1
+version = 2
 source_of_truth = "repository"
 
 [[skill]]
 id = "ethos-repository-governance"
 path = ".agents/skills/ethos-repository-governance/SKILL.md"
-subjects = ["repository-governance", "ethos", "self-governance", "adoption"]
+package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
+path_globs = [
+  "AGENTS.md",
+  ".ethos/**",
+  ".agents/skills/**",
+  "docs/**",
+  "openspec/**",
+  "claims/**",
+  "packages/**",
+  "schemas/**",
+  "tests/**",
+  "uv.lock",
+  "pyproject.toml",
+]
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
+pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
+during_rules = [
+  "treat skills as projections over repository truth",
+  "use ETHOS command JSON as machine evidence",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
-boundary = "thin-playbook-projection"
+boundary = "workflow-package-projection"
 """
 
 
@@ -193,17 +220,73 @@ description: Use when governing a repository with ETHOS commands, evidence, and 
 
 # ETHOS Repository Governance
 
-Use the `ethos ...` public command plane first:
+## When to Use
+
+Use this skill when governing an ETHOS-adopted repository, changing repository
+governance files, planning proof, or validating adoption readiness.
+
+## Workflow
+
+1. Read `AGENTS.md` and the current governance docs for the target repository.
+2. Run `ethos status --json` to classify checkout role and required gaps.
+3. Use `ethos plan --changed --json` or `ethos playbooks route --changed --json`
+   to select the focused governance path.
+4. Run the narrow proof command first, then `ethos report --json` before
+   claiming readiness.
+
+## Evidence
+
+Use the `ethos ...` public command plane for machine-readable evidence:
 
 ```bash
-ethos status
-ethos plan --changed
-ethos prove
-ethos report
+ethos status --json
+ethos plan --changed --json
+ethos prove --json
+ethos report --json
 ```
 
-This skill is a thin playbook projection. Repository source, tests, schemas,
-OpenSpec records, claims, evidence, and ETHOS command output remain the source of truth.
+## Trust Boundary
+
+This skill is a workflow package projection. Repository source, tests, schemas,
+OpenSpec records, claims, evidence, and ETHOS command JSON remain the source of truth.
+"""
+
+
+def _governance_skill_package(package_digest: str) -> str:
+    return f"""schema_version = 2
+id = "ethos-repository-governance"
+entrypoint = "SKILL.md"
+boundary = "workflow-package-projection"
+truth = "repository-source-and-contracts"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+expected_digest = "{package_digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[quality]
+official_codex_loadable = true
+placeholder_allowed = false
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed", "--json"]
+
+[[capability]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+
+[[capability]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]
 """
 
 
@@ -363,19 +446,22 @@ def _gitlab_ci() -> str:
 
 def _default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
+    governance_skill = _governance_skill()
+    package_digest = _package_digest_from_content({"SKILL.md": governance_skill})
     files = {
         "AGENTS.md": _agents_doc(),
         "CONTRIBUTING.md": _contributing_doc(),
         "CHANGELOG.md": _changelog_doc(),
-        ".ethos/project.toml": (
-            f"[meta]\nname = {project_name}\nproduct = \"ETHOS\"\nversion = 1\n"
-        ),
+        ".ethos/project.toml": (f'[meta]\nname = {project_name}\nproduct = "ETHOS"\nversion = 1\n'),
         ".ethos/workspace.toml": _workspace_toml(root, profile),
         ".ethos/release.toml": _release_toml(profile),
         "openspec/config.yaml": _openspec_config(root),
         ".agents/skills/README.md": _skills_readme(),
-        ".agents/skills/activation.toml": _skills_activation(),
-        ".agents/skills/ethos-repository-governance/SKILL.md": _governance_skill(),
+        ".agents/skills/activation.toml": _skills_activation(package_digest),
+        ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,
+        ".agents/skills/ethos-repository-governance/package.toml": (
+            _governance_skill_package(package_digest)
+        ),
         "docs/index.md": _docs_index(root),
         "docs/start/quickstart.md": _quickstart(),
         "docs/governance/ethos.md": _governance_doc(),
@@ -395,6 +481,16 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
             "      - run: uv run --package ethos ethos report --json\n"
         )
     return files
+
+
+def _package_digest_from_content(files: dict[str, str]) -> str:
+    digest = hashlib.sha256()
+    for relative, content in sorted(files.items()):
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(content.encode("utf-8"))
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
 
 
 def detect_repo_profile(root: Path) -> str:

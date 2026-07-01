@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from ethos_assistants.playbooks import playbooks_report
 from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
@@ -21,8 +22,7 @@ _PACKAGE_ONTOLOGY = package_ontology_report()
 TARGET_PRODUCT_PACKAGES = tuple(str(item) for item in _PACKAGE_ONTOLOGY["target_packages"])
 MIGRATION_HOST_PACKAGES = tuple(str(item) for item in _PACKAGE_ONTOLOGY["migration_hosts"])
 MIGRATION_HOST_LIFECYCLE = {
-    str(key): str(value)
-    for key, value in _PACKAGE_ONTOLOGY["migration_host_lifecycle"].items()
+    str(key): str(value) for key, value in _PACKAGE_ONTOLOGY["migration_host_lifecycle"].items()
 }
 TARGET_DISTRIBUTION_ADAPTERS = tuple(
     str(item) for item in _PACKAGE_ONTOLOGY["target_distributions"]
@@ -78,6 +78,9 @@ REQUIRED_SCHEMAS = (
     "evolution-ledger.schema.json",
     "gate.schema.json",
     "assistant-projection.schema.json",
+    "skill-activation.schema.json",
+    "skill-registry.schema.json",
+    "skill-package-manifest.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
 )
@@ -211,9 +214,9 @@ def self_audit(
     coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
     openspec_gaps = [str(gap) for gap in openspec["required_gaps"]]
     command_gaps = [str(gap) for gap in command_report["required_gaps"]]
-    workspace_config_gaps = [
-        str(gap) for gap in workspace_config["required_gaps"]
-    ]
+    workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
+    playbook_report = playbooks_report(root, mode="v2-strict")
+    playbook_gaps = [str(gap) for gap in playbook_report["required_gaps"]]
     gaps = (
         package_missing
         + [f"distribution_adapter_missing:{adapter}" for adapter in distribution_missing]
@@ -230,6 +233,7 @@ def self_audit(
         + openspec_gaps
         + command_gaps
         + workspace_config_gaps
+        + playbook_gaps
     )
     return {
         "ok": not gaps,
@@ -248,8 +252,7 @@ def self_audit(
             "ok": not target_package_missing and not target_distribution_missing,
             "contract_ok": True,
             "physical_target_homes_present": physical_target_homes_present,
-            "migration_complete": not MIGRATION_HOST_PACKAGES
-            and not DISTRIBUTION_MIGRATION_HOSTS,
+            "migration_complete": not MIGRATION_HOST_PACKAGES and not DISTRIBUTION_MIGRATION_HOSTS,
             "migration_status": "complete"
             if not MIGRATION_HOST_PACKAGES and not DISTRIBUTION_MIGRATION_HOSTS
             else "in_progress",
@@ -276,8 +279,9 @@ def self_audit(
             "missing": release_files_missing,
         },
         "playbooks": {
-            "ok": not playbooks_missing,
+            "ok": not playbooks_missing and bool(playbook_report["ok"]),
             "missing": playbooks_missing,
+            "validation": playbook_report,
         },
         "openspec_families": {
             "ok": not openspec_family_missing,

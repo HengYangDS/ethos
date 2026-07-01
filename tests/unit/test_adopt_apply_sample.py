@@ -35,6 +35,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
+        ".agents/skills/ethos-repository-governance/package.toml",
         "AGENTS.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
@@ -65,6 +66,27 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "sourceOfTruth" not in (tmp_path / ".agents/skills/activation.toml").read_text(
         encoding="utf-8"
     )
+    activation = (tmp_path / ".agents/skills/activation.toml").read_text(encoding="utf-8")
+    package_manifest = (
+        tmp_path / ".agents/skills/ethos-repository-governance/package.toml"
+    ).read_text(encoding="utf-8")
+    skill_text = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "version = 2" in activation
+    assert 'subject = "repository-governance"' in activation
+    assert 'operation = "govern"' in activation
+    assert 'authority = "primary"' in activation
+    assert (
+        'package_manifest = ".agents/skills/ethos-repository-governance/package.toml"' in activation
+    )
+    assert 'expected_digest = "sha256:' not in activation
+    assert 'entrypoint = "SKILL.md"' in package_manifest
+    assert 'expected_digest = "sha256:' in package_manifest
+    assert 'kind = "command_readonly"' in package_manifest
+    assert "## Workflow" in skill_text
+    assert "## Evidence" in skill_text
+    assert "## Trust Boundary" in skill_text
     assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")

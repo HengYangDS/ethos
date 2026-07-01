@@ -30,7 +30,7 @@ def current_branch(root: Path) -> str:
 
 
 def changed_paths(root: Path) -> tuple[str, ...]:
-    output = _run_git(root, "status", "--porcelain")
+    output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
     paths: list[str] = []
     for line in output.splitlines():
         if not line:
@@ -287,8 +287,7 @@ def _branch_bindings(
         seen.add(branch)
 
     role_order = {
-        str(record["role"]): index
-        for index, record in enumerate(policy.semantic_order())
+        str(record["role"]): index for index, record in enumerate(policy.semantic_order())
     }
     remaining_worktrees = sorted(
         worktrees,

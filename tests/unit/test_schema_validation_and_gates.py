@@ -64,6 +64,9 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schemas"]["trust-envelope.schema.json"]["ok"] is True
     assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
     assert report["schemas"]["capability-profile.schema.json"]["ok"] is True
+    assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
+    assert report["schemas"]["skill-registry.schema.json"]["ok"] is True
+    assert report["schemas"]["skill-package-manifest.schema.json"]["ok"] is True
     assert report["instances"]["campaign-closeout-contract"]["ok"] is True
     assert report["instances"]["trust-envelope-contract"]["ok"] is True
     assert report["instances"]["promotion-target-contract"]["ok"] is True
@@ -72,6 +75,11 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["evolution-ledger"]["ok"] is True
     assert report["instances"]["docs-registry"]["ok"] is True
     assert report["instances"]["gate-registry"]["ok"] is True
+    assert report["instances"]["skill-registry-contract"]["ok"] is True
+    assert report["instances"]["skill-package-manifest-contract"]["ok"] is True
+    assert report["instances"]["live-skill-activation-contract"]["ok"] is True
+    assert report["instances"]["live-skill-registry-contract"]["ok"] is True
+    assert report["instances"]["live-skill-package-manifests"]["ok"] is True
     assert report["instances"]["shadow-parity-contract"]["ok"] is True
     assert report["instances"]["workspace-status-contract"]["ok"] is True
     assert report["instances"]["coupling-audit-contract"]["ok"] is True
@@ -245,7 +253,7 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
                 "worktree_binding": "linked",
                 "claim_id": "",
                 "claim_binding": "missing",
-            }
+            },
         ],
         "foreign_work_lanes": [],
         "coordination_gaps": [],
@@ -423,15 +431,20 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
 def test_gate_registry_has_real_default_gates() -> None:
     registry = gate_registry()
 
-    assert {"self-audit", "claims", "docs-registry", "schemas"} <= set(registry)
+    assert {"self-audit", "claims", "docs-registry", "schemas", "playbooks-v2"} <= set(registry)
     assert registry["self-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
+    assert registry["playbooks-v2"].command[-3:] == (
+        "--mode",
+        "v2-strict",
+        "--json",
+    )
     assert {"unit-architecture", "ruff", "build"} <= set(registry)
 
 
 def test_gate_registry_classifies_self_hosting_toolchain_profile() -> None:
     registry = gate_registry()
 
-    for gate_id in ("self-audit", "claims", "docs-registry", "schemas"):
+    for gate_id in ("self-audit", "claims", "docs-registry", "schemas", "playbooks-v2"):
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 

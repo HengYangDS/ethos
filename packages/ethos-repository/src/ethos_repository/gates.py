@@ -50,6 +50,20 @@ def gate_registry() -> dict[str, Gate]:
             kind="schema",
             command=(python, "-m", "ethos.cli", "quality", "schemas", "--json"),
         ),
+        "playbooks-v2": Gate(
+            id="playbooks-v2",
+            kind="governance",
+            command=(
+                python,
+                "-m",
+                "ethos.cli",
+                "playbooks",
+                "check",
+                "--mode",
+                "v2-strict",
+                "--json",
+            ),
+        ),
         "openspec": Gate(
             id="openspec",
             kind="governance",
@@ -97,12 +111,13 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "claims",
             "docs-registry",
             "schemas",
+            "playbooks-v2",
             "openspec",
             "unit-architecture",
             "ruff",
             "build",
         )
-    return ("self-audit", "claims", "docs-registry", "schemas")
+    return ("self-audit", "claims", "docs-registry", "schemas", "playbooks-v2")
 
 
 def gate_graph(gate_ids: tuple[str, ...] = (), *, full: bool = False) -> ActionGraph:

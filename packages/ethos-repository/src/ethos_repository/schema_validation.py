@@ -5,6 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ethos_contracts.skill_activation import normalize_skill_activation, skill_registry_digest
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
@@ -27,9 +28,7 @@ def _schema_dir_has_contracts(path: Path) -> bool:
 def _schema_dir_has_product_contracts(path: Path) -> bool:
     if not path.exists():
         return False
-    return _product_schema_names().issubset(
-        {schema.name for schema in path.glob("*.schema.json")}
-    )
+    return _product_schema_names().issubset({schema.name for schema in path.glob("*.schema.json")})
 
 
 def _product_schema_dir() -> Path:
@@ -187,6 +186,78 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         coupling_audit_report(root),
         root=root,
     )
+    skill_registry = normalize_skill_activation(
+        _skill_activation_contract_sample(),
+        source=".agents/skills/activation.toml",
+    )
+    skill_registry["digest"] = skill_registry_digest(skill_registry)
+    instances["skill-activation-contract"] = validate_schema_instance(
+        "skill-activation.schema.json",
+        _skill_activation_contract_sample(),
+        root=root,
+    )
+    instances["skill-registry-contract"] = validate_schema_instance(
+        "skill-registry.schema.json",
+        skill_registry,
+        root=root,
+    )
+    instances["skill-package-manifest-contract"] = validate_schema_instance(
+        "skill-package-manifest.schema.json",
+        _skill_package_manifest_contract_sample(),
+        root=root,
+    )
+    instances.update(_live_skill_contract_instances(root))
+    return instances
+
+
+def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
+    instances: dict[str, dict[str, object]] = {}
+    activation_path = root / ".agents" / "skills" / "activation.toml"
+    if not activation_path.exists():
+        return instances
+    try:
+        activation = tomllib.loads(activation_path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        gap = str(exc)
+        return {
+            "live-skill-activation-contract": {"ok": False, "required_gaps": [gap]},
+            "live-skill-registry-contract": {"ok": False, "required_gaps": [gap]},
+            "live-skill-package-manifests": {"ok": False, "required_gaps": [gap]},
+        }
+    instances["live-skill-activation-contract"] = validate_schema_instance(
+        "skill-activation.schema.json",
+        activation,
+        root=root,
+    )
+    live_registry = normalize_skill_activation(
+        activation,
+        source=".agents/skills/activation.toml",
+    )
+    live_registry["digest"] = skill_registry_digest(live_registry)
+    instances["live-skill-registry-contract"] = validate_schema_instance(
+        "skill-registry.schema.json",
+        live_registry,
+        root=root,
+    )
+    package_gaps: list[str] = []
+    for manifest_path in sorted((root / ".agents" / "skills").glob("*/package.toml")):
+        try:
+            manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            package_gaps.append(f"{manifest_path.relative_to(root).as_posix()}:{exc}")
+            continue
+        result = validate_schema_instance(
+            "skill-package-manifest.schema.json",
+            manifest,
+            root=root,
+        )
+        package_gaps.extend(
+            f"{manifest_path.relative_to(root).as_posix()}:{gap}" for gap in result["required_gaps"]
+        )
+    instances["live-skill-package-manifests"] = {
+        "ok": not package_gaps,
+        "required_gaps": package_gaps,
+    }
     return instances
 
 
@@ -311,8 +382,7 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
                         "commands": ["ethos prove"],
                         "gaps": ["claims_missing"],
                         "reason": (
-                            "external product self-audit gap is not an embedded "
-                            "adopter parity gap"
+                            "external product self-audit gap is not an embedded adopter parity gap"
                         ),
                     }
                 ],
@@ -558,6 +628,59 @@ def _capability_profiles_report(root: Path) -> dict[str, object]:
         "ok": not gaps,
         "profile_count": len(profile_paths),
         "required_gaps": gaps,
+    }
+
+
+def _skill_activation_contract_sample() -> dict[str, Any]:
+    return {
+        "meta": {"version": 2, "owner": "ethos"},
+        "coverage": {"required_roots": [".agents", "docs", "packages"]},
+        "retired": {"skill_names": []},
+        "skill": [
+            {
+                "id": "ethos-repository-governance",
+                "path": ".agents/skills/ethos-repository-governance/SKILL.md",
+                "package_manifest": ".agents/skills/ethos-repository-governance/package.toml",
+                "subject": "repository-governance",
+                "operation": "govern",
+                "authority": "primary",
+                "lifecycle": "active",
+                "subjects": ["repository-governance", "changed-scope"],
+                "path_globs": ["docs/**", "packages/**"],
+                "intent_tokens": ["ethos", "governance"],
+                "pre_reads": ["AGENTS.md"],
+                "during_rules": ["keep repository truth authoritative"],
+                "post_checks": ["ethos report --json"],
+                "may_coactivate": [],
+                "supports": [],
+                "excludes": [],
+                "commands": ["ethos status --json", "ethos report --json"],
+                "boundary": "workflow-package-projection",
+            }
+        ],
+    }
+
+
+def _skill_package_manifest_contract_sample() -> dict[str, Any]:
+    return {
+        "schema_version": 2,
+        "id": "ethos-repository-governance",
+        "entrypoint": "SKILL.md",
+        "boundary": "workflow-package-projection",
+        "truth": "repository-source-and-contracts",
+        "digest_algorithm": "sha256",
+        "include": ["SKILL.md"],
+        "exclude": [".DS_Store"],
+        "expected_digest": "sha256:" + ("0" * 64),
+        "required_sections": ["When to Use", "Workflow", "Evidence", "Trust Boundary"],
+        "quality": {"official_codex_loadable": True, "placeholder_allowed": False},
+        "capability": [
+            {
+                "id": "ethos.report",
+                "kind": "command_readonly",
+                "command": ["ethos", "report", "--json"],
+            }
+        ],
     }
 
 

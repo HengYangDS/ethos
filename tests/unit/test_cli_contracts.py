@@ -2274,16 +2274,15 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["parity"]["pending_count"] == len(
         payload["data"]["parity"]["pending_packages"]
     )
-    assert len(packages["parity"]["required_gaps"]) >= packages["parity"]["pending_count"]
-    assert packages["shadow_parity"]["gap"] == "shadow_parity_evidence_invalid:alphasim-dmgr"
-    assert packages["shadow_parity"]["state"] == "invalid"
+    assert packages["parity"]["pending_count"] == 0
+    assert packages["parity"]["required_gaps"] == []
+    assert packages["shadow_parity"]["kind"] == "shadow_parity_evidence"
+    assert packages["shadow_parity"]["state"] == "matched"
     assert packages["shadow_parity"]["evidence_path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
-    assert packages["shadow_parity"]["blocking"] is True
-    assert "parity_evidence_invalid:alphasim-dmgr" in packages["shadow_parity"][
-        "required_gaps"
-    ]
+    assert packages["shadow_parity"]["blocking"] is False
+    assert packages["shadow_parity"]["required_gaps"] == []
     assert packages["intake_projection"]["kind"] == "intake_projection"
     assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
     assert packages["trust_closeout"]["kind"] == "trust_closeout"
@@ -2351,16 +2350,13 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert scorecards["skills-v2"]["mode"] == "v2-strict"
     assert scorecards["skills-v2"]["score"] == scorecards["skills-v2"]["max_score"]
     assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["ok"] is False
-    assert "parity_evidence_invalid:generic" in payload["data"]["parity"]["gaps"][
-        "required_gaps"
-    ]
+    assert payload["data"]["parity"]["gaps"]["ok"] is True
+    assert payload["data"]["parity"]["gaps"]["required_gaps"] == []
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["gaps"]["required_gaps"]
     )
-    assert payload["summary"]["parity_pending_count"] >= len(
-        payload["data"]["parity"]["gaps"]["pending_packages"]
-    )
+    assert payload["summary"]["parity_pending_count"] == 0
+    assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
     assert payload["summary"]["governance_gap_count"] == 0
     assert "self_audit" not in payload["data"]
     assert payload["data"]["governance_context"] == payload["data"]["repository_audit"][
@@ -2377,7 +2373,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["gap_layers"]["capability_parity"] == {
         "scope": "capability_parity",
         "blocking": False,
-        "ok": False,
+        "ok": True,
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
         "gap_count": payload["summary"]["parity_pending_count"],
     }
@@ -2385,7 +2381,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert "raw/cache" not in parity_note
     assert "backend retirement" not in parity_note
     assert "domain profile parity" in parity_note
-    assert payload["next_actions"] == ["ethos parity gaps --adopter <adopter>"]
+    assert payload["next_actions"] == ["ethos prove --full"]
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:

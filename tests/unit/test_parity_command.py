@@ -109,27 +109,51 @@ def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path)
     assert len(payload["data"]["pending_packages"]) == len(payload["required_gaps"])
 
 
-def test_parity_gaps_reports_stale_alphasim_dmgr_tracked_evidence() -> None:
+def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     payload = run_ethos("parity", "gaps", "--adopter", "alphasim-dmgr", "--json")
 
-    assert payload["ok"] is False
-    assert "parity_evidence_invalid:alphasim-dmgr" in payload["required_gaps"]
-    assert "parity_evidence_invalid:alphasim-dmgr:product_head" in payload["required_gaps"]
-    assert len(payload["data"]["pending_packages"]) == 6
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
 
 
-def test_parity_gaps_reports_stale_generic_tracked_product_evidence() -> None:
+def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
     payload = run_ethos("parity", "gaps", "--json")
 
-    assert payload["ok"] is False
-    assert "parity_evidence_invalid:generic" in payload["required_gaps"]
-    assert "parity_evidence_invalid:generic:product_head" in payload["required_gaps"]
-    assert len(payload["data"]["pending_packages"]) == 6
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/generic-shadow.json"
+
+
+def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:
+    retired_terms = (
+        "self_audit",
+        "self-audit",
+        "self audit",
+        "self-governance",
+        "self-evolution",
+        "self-hosting",
+        "single-kernel dual-posture",
+        "single_kernel_dual_posture",
+        "dual-posture",
+        "product_self",
+        "adopter_repository",
+        "posture",
+    )
+    findings: list[str] = []
+
+    for path in Path("docs/evidence/parity").glob("*-shadow.json"):
+        text = path.read_text(encoding="utf-8").lower()
+        for term in retired_terms:
+            if term in text:
+                findings.append(f"{path}: {term}")
+
+    assert findings == []
 
 
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(

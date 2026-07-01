@@ -5,8 +5,8 @@
   "generated_on": "2026-07-01",
   "command": "uv run --package ethos ethos parity gaps --json",
   "freshness": {
-    "product_head": "cbc9678c88fb23926ba3501d4f94687a06928ea1",
-    "target_head": "f494ad4b1386638dc0739680e557b98547d25ed0",
+    "product_head": "c28aa7e62ba16235bc911599bec046b3ecc7ee3a",
+    "target_head": "c28aa7e62ba16235bc911599bec046b3ecc7ee3a",
     "command_sha256": "10f094dee1dbd9eb112e4603bdf4ce79a4eaee943d6f38bbd0ed88c99bbc46a6"
   },
   "shadow": {
@@ -39,7 +39,7 @@
     "public command plane still emits stable JSON",
     "work lane and mutation admission remain tested",
     "proof evidence and in-process gate execution remain tested",
-    "campaign hypothesis and self-evolution ledger remain tested",
+    "campaign hypothesis and evolution ledger remain tested",
     "assistant projection and playbook routing remain tested",
     "command surface and docs registry remain tested",
     "OpenSpec families and claims governance remain tested",
@@ -55,7 +55,7 @@
       "prove execute smoke exercises the in-process CLI gate handler without adapter-to-CLI imports"
     ],
     "campaign-hypothesis-evolution": [
-      "self-evolution ledger tests cover active hypotheses, claims, and challenge fields",
+      "evolution ledger tests cover active hypotheses, claims, and challenge fields",
       "campaign commands remain routed through the public command plane"
     ],
     "assistant-playbooks-skills": [

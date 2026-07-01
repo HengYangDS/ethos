@@ -17,7 +17,7 @@
 - [x] 3.1 Split command registry output into public workflow, scorecard, and
       maintainer/reference commands.
 - [x] 3.2 Keep `report` out of transition verb count.
-- [x] 3.3 Support `python` profile with `python-package` compatibility alias.
+- [x] 3.3 Support `python` as the current profile name without historical aliases.
 - [x] 3.4 Add read/apply/rollback fields to adoption dry-run output.
 
 ## 4. Authority Graph

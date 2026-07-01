@@ -19,4 +19,4 @@ explains profile choice before mutation.
 - **WHEN** `ethos adopt --profile python --dry-run --json` runs
 - **THEN** the result reports read files, planned files, apply criteria, and
   rollback instructions
-- **AND** `python-package` remains a compatibility alias for `python`
+- **AND** unsupported historical profile names are rejected instead of normalized

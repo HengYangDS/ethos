@@ -151,16 +151,8 @@ def test_command_registry_rejects_retired_family_style_ethos_commands(
     ]
 
 
-def test_current_plan_docs_do_not_contain_retired_closeout_mechanisms() -> None:
-    forbidden = (
-        "git -C /Users/yheng/projects/ethos merge --ff-only candidate/dev",
-        "ethos land --closeout asset-quality-kernel",
-    )
-
-    for path in Path("docs/superpowers/plans").glob("*.md"):
-        text = path.read_text(encoding="utf-8")
-        for residue in forbidden:
-            assert residue not in text, f"{path} contains retired closeout residue"
+def test_current_product_docs_do_not_track_superpowers_execution_plans() -> None:
+    assert not Path("docs/superpowers").exists()
 
 
 def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> None:

@@ -34,9 +34,39 @@ def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -
         "tests/unit/test_schema_validation_and_gates.py",
         "docs/reference/command-plane.md",
         "docs/reference/glossary.md",
-        "docs/superpowers/plans/2026-07-01-asset-quality-kernel.md",
         "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/proposal.md",
     } <= targets
+
+
+def test_active_claims_do_not_promote_transient_execution_plans() -> None:
+    report = claims_report(Path.cwd())
+
+    findings = []
+    for claim_id, claim in report["claims"].items():
+        if claim["state"] != "active":
+            continue
+        targets = claim["trust_envelope"]["promotion"]["targets"]
+        findings.extend(
+            f"{claim_id}:{target['path']}"
+            for target in targets
+            if str(target["path"]).startswith("docs/superpowers/")
+        )
+
+    assert findings == []
+
+
+def test_active_claim_text_uses_historical_not_legacy_binding_language() -> None:
+    report = claims_report(Path.cwd())
+
+    findings = []
+    for claim_id, claim in report["claims"].items():
+        if claim["state"] != "active":
+            continue
+        text = Path(claim["path"]).read_text(encoding="utf-8").lower()
+        if "legacy" in text:
+            findings.append(claim_id)
+
+    assert findings == []
 
 
 def test_empty_claims_directory_is_a_gap(tmp_path: Path) -> None:

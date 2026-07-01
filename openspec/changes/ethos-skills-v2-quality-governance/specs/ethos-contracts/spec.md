@@ -3,10 +3,11 @@
 ### Requirement: Provider-neutral Skill Activation Contract
 
 ETHOS SHALL represent skill activation through a provider-neutral contract IR
-that preserves legacy activation rows while exposing V2 ownership, operation,
-lifecycle, routing, composition, package, projection, and proof metadata.
+that preserves historical activation fixture rows while exposing V2 ownership,
+operation, lifecycle, routing, composition, package, projection, and proof
+metadata.
 
-#### Scenario: legacy activation normalizes without data loss
+#### Scenario: historical activation normalizes without data loss
 
 - **GIVEN** a v1 `.agents/skills/activation.toml` record with `id` or `name`
 - **WHEN** ETHOS loads skill activation contracts
@@ -14,7 +15,7 @@ lifecycle, routing, composition, package, projection, and proof metadata.
   subjects, path, path globs, intent tokens, pre-reads, post-checks,
   co-activation hints, commands, boundary fields, and fixture-specific
   extension fields
-- **AND** the output remains compatible with existing playbook JSON records
+- **AND** the output remains readable for existing playbook JSON records
 
 #### Scenario: strict activation requires V2 ownership
 

@@ -151,7 +151,7 @@ def test_command_examples_join_shell_continuation_lines_before_classification(
 
 ```bash
 uv run --package ethos ethos lane prewrite \\
-  docs/superpowers/plans/example.md \\
+  docs/evidence/example.md \\
   packages/ethos/src/ethos/cli.py \\
   --require-editor-root \\
   --editor-root /tmp/ethos-work \\
@@ -168,7 +168,7 @@ uv run --package ethos ethos lane prewrite \\
     assert [example["command"] for example in report["examples"]] == [
         (
             "uv run --package ethos ethos lane prewrite "
-            "docs/superpowers/plans/example.md "
+            "docs/evidence/example.md "
             "packages/ethos/src/ethos/cli.py "
             "--require-editor-root "
             "--editor-root /tmp/ethos-work "

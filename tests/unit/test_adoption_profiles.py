@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from ethos_repository.planner import adoption_plan, available_profiles
 
 
@@ -11,13 +12,17 @@ def test_available_profiles_are_explicit() -> None:
     )
 
 
-def test_python_package_profile_is_compatibility_alias(tmp_path: Path) -> None:
+def test_python_package_profile_alias_is_not_current_product_surface(
+    tmp_path: Path,
+) -> None:
     current = adoption_plan(tmp_path, profile="python", apply=False)
-    legacy = adoption_plan(tmp_path, profile="python-package", apply=False)
 
     assert current["profile"] == "python"
-    assert legacy["profile"] == "python"
-    assert "python-package" in legacy["profile_aliases"]
+    assert current["profile_aliases"] == []
+    assert "python-package" not in available_profiles()
+
+    with pytest.raises(ValueError, match="unknown ETHOS adoption profile: python-package"):
+        adoption_plan(tmp_path, profile="python-package", apply=False)
 
 
 def test_adoption_plan_explains_dry_run_apply_and_rollback(tmp_path: Path) -> None:

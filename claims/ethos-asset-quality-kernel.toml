@@ -100,7 +100,6 @@ targets = [
   "docs/reference/command-plane.md",
   "docs/reference/glossary.md",
   "docs/start/quickstart.md",
-  "docs/superpowers/plans/2026-07-01-asset-quality-kernel.md",
   "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/.openspec.yaml",
   "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/design.md",
   "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/proposal.md",

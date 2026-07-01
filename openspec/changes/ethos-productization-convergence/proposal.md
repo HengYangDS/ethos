@@ -26,8 +26,7 @@ not own, and how closeout should be proved.
   rollback, and the five-command loop.
 - Add an authority graph read model with owner, canonical target, derivation,
   supersession, evidence references, and stable path.
-- Support `python` as the current adoption profile name while preserving
-  `python-package` as a compatibility alias.
+- Support `python` as the current adoption profile name.
 
 ## Non-goals
 

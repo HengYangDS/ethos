@@ -36,6 +36,10 @@ CURRENT_PRODUCT_SURFACES = (
     ROOT / "claims",
     ROOT / ".agents",
 )
+ACTIVE_OPENSPEC_CHANGES = (
+    ROOT / "openspec" / "changes" / "ethos-productization-convergence",
+    ROOT / "openspec" / "changes" / "ethos-skills-v2-quality-governance",
+)
 RETIRED_SELF_TERMS = (
     "ethos self",
     "self_audit",
@@ -55,6 +59,14 @@ HOST_PROJECTION_LABELS = (
     "Open Worktree",
     "Checkout",
 )
+CURRENT_COMPATIBILITY_RESIDUE = (
+    "legacy",
+    "legacy-compat",
+    "legacy-compatible",
+    "compatibility alias",
+    "compat playbook",
+    "compat mode",
+)
 
 
 def product_surface_files() -> list[Path]:
@@ -64,6 +76,15 @@ def product_surface_files() -> list[Path]:
             files.append(surface)
             continue
         for path in surface.rglob("*"):
+            if path.is_file() and path.suffix in {".md", ".toml", ".yaml", ".yml"}:
+                files.append(path)
+    return sorted(files)
+
+
+def active_openspec_files() -> list[Path]:
+    files: list[Path] = []
+    for root in ACTIVE_OPENSPEC_CHANGES:
+        for path in root.rglob("*"):
             if path.is_file() and path.suffix in {".md", ".toml", ".yaml", ".yml"}:
                 files.append(path)
     return sorted(files)
@@ -160,6 +181,21 @@ def test_current_product_surfaces_do_not_use_host_projection_labels() -> None:
         for label in HOST_PROJECTION_LABELS:
             if label in text:
                 findings.append(f"{path.relative_to(ROOT)}: {label}")
+
+    assert findings == []
+
+
+def test_current_product_surface_has_no_superpowers_execution_plan_docs() -> None:
+    assert not (ROOT / "docs" / "superpowers").exists()
+
+
+def test_active_openspec_changes_do_not_expose_compatibility_residue() -> None:
+    findings: list[str] = []
+    for path in active_openspec_files():
+        text = path.read_text(encoding="utf-8").lower()
+        for phrase in CURRENT_COMPATIBILITY_RESIDUE:
+            if phrase in text:
+                findings.append(f"{path.relative_to(ROOT)}: {phrase}")
 
     assert findings == []
 

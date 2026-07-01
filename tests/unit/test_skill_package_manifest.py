@@ -321,7 +321,7 @@ command = ["scripts/inspect.sh"]
     )
 
 
-def test_skill_package_manifest_rejects_non_proof_self_commands(
+def test_skill_package_manifest_rejects_non_proof_internal_commands(
     tmp_path: Path,
 ) -> None:
     package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
@@ -339,9 +339,9 @@ expected_digest = "{digest}"
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
 [[capability]]
-id = "ethos.self-canonize"
+id = "ethos.internal-canonize"
 kind = "command_proof"
-command = ["ethos", "self", "canonize"]
+command = ["ethos", "internal", "canonize"]
 """.lstrip(),
         encoding="utf-8",
     )
@@ -353,6 +353,6 @@ command = ["ethos", "self", "canonize"]
 
     assert result["ok"] is False
     assert (
-        "skill_package_capability_proof_invalid:sample-skill:ethos.self-canonize"
+        "skill_package_capability_proof_invalid:sample-skill:ethos.internal-canonize"
         in result["required_gaps"]
     )

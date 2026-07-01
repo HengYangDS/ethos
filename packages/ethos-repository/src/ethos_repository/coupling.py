@@ -24,7 +24,7 @@ COUPLING_LAYERS: dict[str, str] = {
     ),
     "product_toolchain_binding": (
         "Current product-repository implementation and proof tools required to "
-        "validate ETHOS itself, without becoming adopter ontology."
+        "validate the ETHOS product repository, without becoming adopter ontology."
     ),
     "profile_or_adapter_binding": (
         "Configured host, provider, projection, distribution, or execution surfaces "

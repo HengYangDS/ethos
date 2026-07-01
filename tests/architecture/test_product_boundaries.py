@@ -22,6 +22,49 @@ RETIRED_PUBLIC_ROOTS = {
     "skill-evolution",
     "agent-surface-contract",
 }
+
+CURRENT_PRODUCT_SURFACES = (
+    ROOT / "README.md",
+    ROOT / "CONTRIBUTING.md",
+    ROOT / "docs" / "architecture",
+    ROOT / "docs" / "concepts",
+    ROOT / "docs" / "governance",
+    ROOT / "docs" / "reference",
+    ROOT / "openspec" / "specs",
+    ROOT / "openspec" / "changes" / "ethos-productization-convergence",
+    ROOT / "openspec" / "changes" / "ethos-skills-v2-quality-governance",
+    ROOT / "claims",
+    ROOT / ".agents",
+)
+RETIRED_SELF_TERMS = (
+    "ethos self",
+    "self_audit",
+    "self-audit",
+    "self audit",
+    "self-governance",
+    "self-evolution",
+    "self-hosting",
+    "single-kernel dual-posture",
+    "single_kernel_dual_posture",
+    "dual-posture",
+    "product_self",
+    "adopter_repository",
+    "posture",
+)
+
+
+def product_surface_files() -> list[Path]:
+    files: list[Path] = []
+    for surface in CURRENT_PRODUCT_SURFACES:
+        if surface.is_file():
+            files.append(surface)
+            continue
+        for path in surface.rglob("*"):
+            if path.is_file() and path.suffix in {".md", ".toml", ".yaml", ".yml"}:
+                files.append(path)
+    return sorted(files)
+
+
 def imported_modules(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
     modules: set[str] = set()
@@ -93,6 +136,17 @@ def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
         text = path.read_text(encoding="utf-8")
         assert "alphasim" not in text.lower(), path
         assert "dmgr" not in text.lower(), path
+
+
+def test_current_product_surfaces_do_not_use_retired_self_terms() -> None:
+    findings: list[str] = []
+    for path in product_surface_files():
+        text = path.read_text(encoding="utf-8").lower()
+        for term in RETIRED_SELF_TERMS:
+            if term in text:
+                findings.append(f"{path.relative_to(ROOT)}: {term}")
+
+    assert findings == []
 
 
 def test_target_packages_do_not_import_migration_hosts() -> None:
@@ -194,7 +248,7 @@ def test_package_roots_do_not_reexport_module_surfaces() -> None:
                     ), path
 
 
-def test_openspec_is_official_self_governance_surface_not_command_root() -> None:
+def test_openspec_is_official_governance_surface_not_command_root() -> None:
     assert (ROOT / "openspec" / "config.yaml").exists()
     assert (ROOT / "openspec" / "specs" / "ethos-core" / "spec.md").exists()
 

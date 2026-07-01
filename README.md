@@ -78,7 +78,8 @@ npm run ethos -- --version
 
 ## Maintainer Reference
 
-ETHOS can inspect and evolve itself through maintainer/reference commands:
+ETHOS can inspect and evolve the governed repository through
+maintainer/reference commands:
 
 ```bash
 ethos audit

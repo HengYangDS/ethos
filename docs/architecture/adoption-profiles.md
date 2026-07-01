@@ -49,8 +49,9 @@ local readiness separate from hosted or domain-specific proof. ETHOS core does
 not hardcode adopter domain names or treat generic command parity as domain
 backend retirement readiness.
 
-An adopted repository runs the `adopter_repository` posture of the same
-single-kernel dual-posture model used by ETHOS self-governance. Generated rules
-use `ethos report --json` for governance audit and `ethos prove --json` for
-proof readiness. `ethos self audit` remains a self-hosting depth command for
-the product repository, not the default adopter governance gate.
+An adopted repository uses the same governed-repository contract as the product
+repository, with profile-specific gates supplied by the adopter profile.
+Generated rules use `ethos report --json` for governance audit and
+`ethos prove --json` for proof readiness. `ethos audit` remains the repository
+governance depth command; adopter defaults do not create a separate command
+plane.

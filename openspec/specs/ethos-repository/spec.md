@@ -15,7 +15,7 @@ required gaps.
 - **THEN** every active claim is bound to dated evidence and a matching SHA-256
   digest
 
-### Requirement: Self Evolution
+### Requirement: Evolution Governance
 ETHOS SHALL expose hypotheses as challengeable objects and shall not mark
 evolution proven from static declarations alone.
 
@@ -23,7 +23,7 @@ evolution proven from static declarations alone.
 - **WHEN** `ethos campaign hypotheses --json` runs
 - **THEN** hypotheses include campaign, state, claim, and challenge fields
 
-### Requirement: Official OpenSpec Self-Governance
+### Requirement: Official OpenSpec Governance
 ETHOS SHALL keep `openspec/` as an official repository governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
@@ -206,7 +206,7 @@ metadata.
 - **THEN** the result reports local identity, subject, and signature gaps
   without inferring GitLab verification from local Git output
 
-### Requirement: Provider-neutral Self Audit
+### Requirement: Provider-neutral Repository Audit Composition
 ETHOS repository lifecycle semantics SHALL accept provider reports through
 explicit composition rather than importing provider execution packages.
 

@@ -44,14 +44,14 @@ def test_chronicle_append_is_transactional(tmp_path: Path) -> None:
 
     append_chronicle_event(
         db_path,
-        event_type="self.audit",
+        event_type="repository.audit",
         subject="repo:ethos",
         payload={"ok": True},
     )
 
     events = list_chronicle_events(db_path)
     assert len(events) == 1
-    assert events[0]["event_type"] == "self.audit"
+    assert events[0]["event_type"] == "repository.audit"
     assert events[0]["payload"] == {"ok": True}
 
 

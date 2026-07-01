@@ -40,7 +40,7 @@ the raw workspace-status payload so existing consumers can continue to read
 Coupling audit output is governed by
 `schemas/ethos/coupling-audit.schema.json`. It exposes `binding_registry` as
 the product classification vocabulary for hard bindings, mandatory
-dependencies, native protocols, self-hosting tools, adapters, legacy evidence,
+dependencies, native protocols, product-toolchain tools, adapters, legacy evidence,
 and fixtures. The branch role entry carries its configuration source, config
 keys, default-policy state, semantic role order, and configured patterns. The
 Work Lane lifecycle entry carries the standard ETHOS lifecycle commands and

@@ -590,7 +590,7 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert {"unit-architecture", "ruff", "build"} <= set(registry)
 
 
-def test_gate_registry_classifies_self_hosting_toolchain_profile() -> None:
+def test_gate_registry_classifies_product_toolchain_profile() -> None:
     registry = gate_registry()
 
     for gate_id in ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2"):

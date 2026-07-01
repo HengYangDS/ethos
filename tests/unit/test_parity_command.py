@@ -109,24 +109,26 @@ def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path)
     assert len(payload["data"]["pending_packages"]) == len(payload["required_gaps"])
 
 
-def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
+def test_parity_gaps_reports_stale_alphasim_dmgr_tracked_evidence() -> None:
     payload = run_ethos("parity", "gaps", "--adopter", "alphasim-dmgr", "--json")
 
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["pending_packages"] == []
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:alphasim-dmgr" in payload["required_gaps"]
+    assert "parity_evidence_invalid:alphasim-dmgr:product_head" in payload["required_gaps"]
+    assert len(payload["data"]["pending_packages"]) == 6
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
 
 
-def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
+def test_parity_gaps_reports_stale_generic_tracked_product_evidence() -> None:
     payload = run_ethos("parity", "gaps", "--json")
 
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["pending_packages"] == []
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:generic" in payload["required_gaps"]
+    assert "parity_evidence_invalid:generic:product_head" in payload["required_gaps"]
+    assert len(payload["data"]["pending_packages"]) == 6
     assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/generic-shadow.json"
 
 

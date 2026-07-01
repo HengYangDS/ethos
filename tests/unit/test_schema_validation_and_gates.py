@@ -16,11 +16,12 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
 
     assert report["ok"] is True
     assert report["mode"] == "product"
-    assert report["schema_count"] >= 19
+    assert report["schema_count"] >= 20
     assert report["required_gaps"] == []
     assert report["instances"]["evolution-ledger"]["ok"] is True
     assert report["instances"]["docs-registry"]["ok"] is True
     assert report["instances"]["gate-registry"]["ok"] is True
+    assert report["instances"]["shadow-parity-contract"]["ok"] is True
     assert report["instances"]["workspace-status-contract"]["ok"] is True
 
 
@@ -31,7 +32,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path
 
     assert report["mode"] == "adopter"
     assert report["ok"] is True
-    assert report["schema_count"] >= 19
+    assert report["schema_count"] >= 20
     assert report["required_gaps"] == []
     assert report["instances"]["docs-registry"]["ok"] is True
 

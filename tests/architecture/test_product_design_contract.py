@@ -111,6 +111,8 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
         "rollback impact",
     ):
         assert field in text
+    assert "accepted_summary" in text
+    assert "shadow-parity.schema.json" in text
 
 
 def test_product_design_contract_is_self_audited_with_target_ontology() -> None:

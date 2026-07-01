@@ -59,6 +59,7 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
             external_json,
             embedded_json,
         )
+        command_label = "ethos " + " ".join(command)
         if _process_failed(external):
             required_gaps.append(f"external_command_failed:{' '.join(command)}")
         if _process_failed(embedded):
@@ -67,10 +68,11 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
             required_gaps.append(f"shadow_diff:{' '.join(command)}")
         comparisons.append(
             {
-                "command": "ethos " + " ".join(command),
+                "command": command_label,
                 "external": external,
                 "embedded": embedded,
                 "semantic_diff": diff,
+                "accepted_summary": _accepted_summary(accepted_differences),
                 "accepted_differences": accepted_differences,
             }
         )
@@ -79,6 +81,16 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
         "state": "matched" if not required_gaps else "different",
         "target": target.as_posix(),
         "required_gaps": required_gaps,
+        "accepted_summary": _accepted_summary(
+            difference
+            for comparison in comparisons
+            for difference in comparison["accepted_differences"]
+        )
+        | {
+            "command_count": sum(
+                1 for comparison in comparisons if comparison["accepted_differences"]
+            )
+        },
         "comparisons": comparisons,
         "execution_packages": [
             _execution_package(gap=gap, target=target, comparisons=comparisons)
@@ -246,6 +258,22 @@ def _accepted_semantic_differences(*args: Any) -> list[dict[str, Any]]:
     return accepted
 
 
+def _accepted_summary(differences: object) -> dict[str, Any]:
+    items = list(differences) if not isinstance(differences, list) else differences
+    kind_counts: dict[str, int] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "")
+        if not kind:
+            continue
+        kind_counts[kind] = kind_counts.get(kind, 0) + 1
+    return {
+        "total_count": sum(kind_counts.values()),
+        "kind_counts": dict(sorted(kind_counts.items())),
+    }
+
+
 def _semantic_args(args: tuple[Any, ...]) -> tuple[tuple[str, ...], dict[str, Any], dict[str, Any]]:
     if len(args) == 3:
         command = tuple(str(item) for item in args[0])
@@ -273,10 +301,11 @@ def _normalized_semantic_projections(
         )
         if self_audit_gaps:
             accepted.append(
-                {
-                    "kind": "external_product_self_audit_gap",
-                    "gaps": sorted(set(self_audit_gaps)),
-                }
+                _accepted_difference(
+                    "external_product_self_audit_gap",
+                    command=external_projection.get("command"),
+                    gaps=self_audit_gaps,
+                )
             )
         external_gaps, route_gaps = _without_legacy_changed_route_noop_gaps(
             external,
@@ -285,10 +314,11 @@ def _normalized_semantic_projections(
         )
         if route_gaps:
             accepted.append(
-                {
-                    "kind": "legacy_changed_route_noop",
-                    "gaps": sorted(set(route_gaps)),
-                }
+                _accepted_difference(
+                    "legacy_changed_route_noop",
+                    command=external_projection.get("command"),
+                    gaps=route_gaps,
+                )
             )
     external_projection["required_gaps"] = sorted(external_gaps)
     if accepted and not external_gaps and not embedded_gaps:
@@ -298,6 +328,31 @@ def _normalized_semantic_projections(
         )
         _mark_projection_ready(external_projection)
     return external_projection, embedded_projection, accepted
+
+
+def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict[str, Any]:
+    if kind == "external_product_self_audit_gap":
+        scope = "external_product_self_audit"
+        reason = "external product self-audit gap is not an embedded adopter parity gap"
+    elif kind == "legacy_changed_route_noop":
+        scope = "legacy_changed_scope_route"
+        reason = "legacy changed-scope route has no changed paths to route"
+    else:
+        scope = "unknown"
+        reason = "unclassified accepted difference"
+    return {
+        "kind": kind,
+        "classification": "accepted",
+        "scope": scope,
+        "commands": [_command_label(command)],
+        "gaps": sorted(set(gaps)),
+        "reason": reason,
+    }
+
+
+def _command_label(command: object) -> str:
+    text = str(command or "").strip()
+    return text if text.startswith("ethos ") else f"ethos {text}".strip()
 
 
 def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> dict[str, Any]:

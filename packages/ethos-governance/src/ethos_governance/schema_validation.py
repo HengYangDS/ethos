@@ -147,12 +147,67 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    instances["shadow-parity-contract"] = validate_schema_instance(
+        "shadow-parity.schema.json",
+        _shadow_parity_contract_sample(),
+        root=root,
+    )
     instances["workspace-status-contract"] = validate_schema_instance(
         "workspace-status.schema.json",
         _workspace_status_contract_sample(),
         root=root,
     )
     return instances
+
+
+def _shadow_parity_contract_sample() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "state": "matched",
+        "target": "/repo",
+        "required_gaps": [],
+        "accepted_summary": {
+            "total_count": 1,
+            "command_count": 1,
+            "kind_counts": {"external_product_self_audit_gap": 1},
+        },
+        "comparisons": [
+            {
+                "command": "ethos prove",
+                "external": {
+                    "exit_code": 0,
+                    "stdout": "",
+                    "stderr": "",
+                    "json": {},
+                },
+                "embedded": {
+                    "exit_code": 0,
+                    "stdout": "",
+                    "stderr": "",
+                    "json": {},
+                },
+                "semantic_diff": {},
+                "accepted_summary": {
+                    "total_count": 1,
+                    "kind_counts": {"external_product_self_audit_gap": 1},
+                },
+                "accepted_differences": [
+                    {
+                        "kind": "external_product_self_audit_gap",
+                        "classification": "accepted",
+                        "scope": "external_product_self_audit",
+                        "commands": ["ethos prove"],
+                        "gaps": ["claims_missing"],
+                        "reason": (
+                            "external product self-audit gap is not an embedded "
+                            "adopter parity gap"
+                        ),
+                    }
+                ],
+            }
+        ],
+        "execution_packages": [],
+    }
 
 
 def _workspace_status_contract_sample() -> dict[str, Any]:

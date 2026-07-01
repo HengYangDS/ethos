@@ -1040,6 +1040,11 @@ def land(
         audit_root = _closeout_audit_root(repo, decision)
         audit = _repository_audit_after_admission(audit_root, decision)
         gaps = tuple(audit["required_gaps"]) + decision.gaps
+        closeout_bootstrap = _closeout_bootstrap_package(
+            repo=repo,
+            audit_root=audit_root,
+            required_gaps=gaps,
+        )
         ok = bool(audit["ok"]) and decision.ok
         accepted_update: dict[str, object] = {}
         if ok and apply:
@@ -1067,6 +1072,7 @@ def land(
             data={
                 "repository_audit": audit,
                 "accepted_update": accepted_update,
+                "closeout_bootstrap": closeout_bootstrap,
                 "mutation": {
                     "apply": apply,
                     "authorized": authorize,
@@ -1144,6 +1150,37 @@ def _closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
         return repo
     candidate_path = str(candidate.get("worktree_path") or "")
     return Path(candidate_path) if candidate_path else repo
+
+
+def _closeout_bootstrap_package(
+    *,
+    repo: Path,
+    audit_root: Path,
+    required_gaps: tuple[str, ...],
+) -> dict[str, object]:
+    policy = load_branch_role_policy(repo)
+    status = workspace_status(repo)
+    candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
+    accepted_head = _current_tracked_head(repo)
+    expect_head = accepted_head or "<HEAD>"
+    command = (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {expect_head} --root {repo.resolve().as_posix()} --json"
+    )
+    return {
+        "kind": "closeout_bootstrap",
+        "state": "blocked" if required_gaps else "ready",
+        "accepted_root": repo.resolve().as_posix(),
+        "audit_root": audit_root.resolve().as_posix(),
+        "accepted_branch": policy.accepted_branch,
+        "candidate_branch": policy.candidate_branch,
+        "accepted_head": accepted_head,
+        "candidate_head": str(candidate.get("head") or ""),
+        "blocking": bool(required_gaps),
+        "required_gaps": list(required_gaps),
+        "command": command,
+        "next_action": "run closeout with a current ETHOS runner against accepted_root",
+    }
 
 
 @app.command
@@ -2234,6 +2271,7 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
 def parity_gaps(
     *,
     adopter: str | None = None,
+    target: Path | None = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -2242,8 +2280,15 @@ def parity_gaps(
     report = parity_gaps_report(
         adopter=adopter,
         root=repo,
+        target=target,
+        current_target_head=_current_tracked_head(target) if target is not None else "",
         current_product_head=_current_tracked_head(repo),
         acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
+    )
+    evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
+    refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
+    refresh_command = (
+        str(refresh["command"]) if isinstance(refresh, dict) and refresh.get("command") else ""
     )
     result = EthosResult(
         command="parity gaps",
@@ -2252,7 +2297,13 @@ def parity_gaps(
         summary={"adopter": report["adopter"], "gap_count": len(report["required_gaps"])},
         required_gaps=tuple(report["required_gaps"]),
         next_actions=(
-            ("ethos parity shadow --target <repo> --execute --write-evidence",)
+            (
+                refresh_command
+                or (
+                    "ethos parity shadow --adopter <adopter-id> --target <repo> "
+                    "--execute --write-evidence"
+                ),
+            )
             if report["required_gaps"]
             else ("ethos prove --full",)
         ),

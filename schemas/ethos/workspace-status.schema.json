@@ -15,6 +15,7 @@
     "branch_bindings",
     "foreign_work_lanes",
     "coordination_gaps",
+    "coordination",
     "closeout_support",
     "required_gaps"
   ],
@@ -30,6 +31,7 @@
     "branch_bindings": {"type": "array", "items": {"$ref": "#/$defs/branchBinding"}},
     "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/foreignWorkLane"}},
     "coordination_gaps": {"type": "array", "items": {"type": "string"}},
+    "coordination": {"$ref": "#/$defs/coordination"},
     "closeout_support": {"$ref": "#/$defs/closeoutSupport"},
     "required_gaps": {"type": "array", "items": {"type": "string"}}
   },
@@ -196,6 +198,32 @@
         "claim_id": {"type": "string"},
         "claim_binding": {"enum": ["bound", "missing", "unbound"]},
         "required_gaps": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "coordination": {
+      "type": "object",
+      "required": [
+        "kind",
+        "blocking",
+        "required_gaps",
+        "advisory_gaps",
+        "foreign_work_lane_count",
+        "missing_lease_count",
+        "next_action"
+      ],
+      "properties": {
+        "kind": {"const": "work_lane_coordination"},
+        "blocking": {"const": false},
+        "required_gaps": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {"type": "string"}
+        },
+        "advisory_gaps": {"type": "array", "items": {"type": "string"}},
+        "foreign_work_lane_count": {"type": "integer", "minimum": 0},
+        "missing_lease_count": {"type": "integer", "minimum": 0},
+        "next_action": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
     }

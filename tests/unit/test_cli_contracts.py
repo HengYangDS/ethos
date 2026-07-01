@@ -1853,6 +1853,51 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
+def test_land_closeout_exposes_bootstrap_package_for_current_runner(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+
+    bootstrap = payload["data"]["closeout_bootstrap"]
+    assert payload["ok"] is True
+    assert bootstrap == {
+        "kind": "closeout_bootstrap",
+        "state": "ready",
+        "accepted_root": repo.resolve().as_posix(),
+        "audit_root": candidate.resolve().as_posix(),
+        "accepted_branch": "dev",
+        "candidate_branch": "candidate/dev",
+        "accepted_head": accepted_head,
+        "candidate_head": candidate_head,
+        "blocking": False,
+        "required_gaps": [],
+        "command": (
+            "ethos land --closeout --apply --authorize "
+            f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
+        ),
+        "next_action": "run closeout with a current ETHOS runner against accepted_root",
+    }
+
+
 def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

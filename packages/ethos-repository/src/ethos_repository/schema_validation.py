@@ -539,6 +539,17 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
         ],
         "foreign_work_lanes": [],
         "coordination_gaps": [],
+        "coordination": {
+            "kind": "work_lane_coordination",
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [],
+            "foreign_work_lane_count": 0,
+            "missing_lease_count": 0,
+            "next_action": (
+                "coordinate foreign work lanes before local closeout if they overlap scope"
+            ),
+        },
         "closeout_support": {
             "supported": False,
             "branch": "",

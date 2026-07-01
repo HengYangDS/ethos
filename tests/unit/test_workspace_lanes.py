@@ -122,6 +122,18 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "foreign_work_lane_present",
         "work_lane_missing_lease:work/foreign",
     ]
+    assert status["coordination"] == {
+        "kind": "work_lane_coordination",
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [
+            "foreign_work_lane_present",
+            "work_lane_missing_lease:work/foreign",
+        ],
+        "foreign_work_lane_count": 1,
+        "missing_lease_count": 1,
+        "next_action": "coordinate foreign work lanes before local closeout if they overlap scope",
+    }
     assert status["closeout_support"] == {
         "supported": False,
         "branch": "",

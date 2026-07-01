@@ -90,7 +90,9 @@ ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
 ethos parity ledger
 ethos parity gaps --adopter <adopter-id>
+ethos parity gaps --adopter <adopter-id> --target <repo>
 ethos parity shadow --target <repo>
+ethos parity shadow --adopter <adopter-id> --target <repo>
 ethos report
 ethos docs
 ethos explain required_gaps
@@ -150,6 +152,12 @@ The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap
 blocks closeout.
+The `data.coordination` object reports foreign Work Lanes as advisory
+coordination state. It carries `blocking=false`, an empty `required_gaps` list,
+and `advisory_gaps` such as `foreign_work_lane_present` or
+`work_lane_missing_lease:<branch>`. These gaps describe collaboration risk; they
+do not block the current clean lane unless the current lane's own
+`closeout_support.required_gaps` contains a blocking gap.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.
@@ -175,6 +183,7 @@ Mutation readiness is explicit:
 
 ```bash
 ethos land --apply --authorize --expect-head <git-head>
+ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root>
 ethos publish --apply --authorize --expect-head <git-head>
 ```
 
@@ -184,6 +193,11 @@ publication remains an adapter responsibility. `publish --json` reports
 "deferred"` while still exposing the configured submit branch plan.
 `land --apply` from an admitted Work Lane advances the configured candidate
 branch; it does not advance the accepted root.
+Accepted-root closeout is also an ETHOS mutation. The current ETHOS runner may
+execute the closeout command above against the clean accepted-root checkout, audits
+the configured candidate worktree before mutation, and then fast-forwards the
+accepted branch from the candidate branch. Raw Git merge commands are repository
+operations, not the ETHOS product mechanism.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. The output aggregates workspace
@@ -196,6 +210,13 @@ projection evidence with `repository_truth=false`; it does not promote intake
 state into repository truth.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
+Parity refresh is likewise command-bound. When tracked shadow evidence is
+missing, stale, or target-mismatched, `ethos parity gaps --json` and
+`ethos parity shadow --json` expose a `parity_evidence_refresh` package with the
+adopter id, product root, explicit target when supplied, blocking gaps, and the
+exact `ethos parity shadow --adopter <adopter-id> --target <repo> --execute
+--write-evidence --json` command. If no target is supplied, ETHOS does not reuse
+a target path from stale evidence as the next action.
 
 ETHOS report and audit payloads use a governed repository contract. Every
 governed repository exposes `governance_context` so consumers can read the same

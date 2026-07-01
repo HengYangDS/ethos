@@ -20,7 +20,7 @@ The executable product view is available through:
 ```bash
 ethos parity ledger --json
 ethos parity gaps --adopter <name> --json
-ethos parity shadow --target <repo> --json
+ethos parity shadow --adopter <name> --target <repo> --json
 ```
 
 Each row must include source location, target home, migration disposition,
@@ -43,7 +43,8 @@ The current alphasim-dmgr adopter parity evidence is:
 
 ```bash
 ethos parity gaps --adopter alphasim-dmgr --json
-ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
+ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
+ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --timeout-seconds 30 --json
 ```
 
 The tracked evidence file is
@@ -82,12 +83,15 @@ package with the same gap code, so campaign closeout can report shadow parity
 without relying on remote publication.
 
 Executed shadow comparisons run product ETHOS against the target repository and
-the embedded adopter ETHOS in the target's pixi environment. Embedded targets
-may declare pixi either with `pixi.toml` or with `[tool.pixi.*]` tables in
-`pyproject.toml`. Product commands use `--root` when the command supports it and
-fall back to `cwd=<target>` for projection commands that intentionally do not
-accept a root option. The semantic projection normalizes legacy embedded
-payloads that omit top-level `state` for read-only ready/planned commands.
+the embedded adopter ETHOS through an explicit backend profile. Supported
+embedded backends are `pixi`, declared by `pixi.toml` or `[tool.pixi.*]` tables
+in `pyproject.toml`, and `uv-workspace`, declared by `[tool.uv.workspace]`.
+Targets without either profile report `embedded_backend_missing` and a
+`backend.kind = "missing"` result instead of silently selecting a fallback.
+Product commands use `--root` when the command supports it and use
+`cwd=<target>` for projection commands that intentionally do not accept a root
+option. The semantic projection normalizes legacy embedded payloads that omit
+top-level `state` for read-only ready/planned commands.
 
 Executed comparisons also expose `accepted_differences` when a mismatch belongs
 to a known cross-generation projection boundary rather than to adopter command
@@ -106,6 +110,22 @@ without scanning every raw payload. The `shadow-parity.schema.json` contract
 validates the accepted-difference record shape, allowed kinds, command context,
 and summary counters. Dated evidence under `docs/evidence/` records the current
 accepted classification boundary without treating it as remote publication.
+
+Tracked shadow evidence is closeout input only when its identity is fresh. The
+evidence record must bind the adopter id, target path, product HEAD, target
+HEAD, command digest, full command identity, command list, semantic dimensions,
+verified capabilities, and capability basis. If any of those fields are missing,
+stale, target-mismatched, or produced by an old command shape, ETHOS reports a
+blocking `parity_evidence_refresh` package. The package names the adopter,
+product root, explicit target when supplied, required gaps, and the exact
+refresh command:
+
+```bash
+ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --json
+```
+
+When no target is supplied, ETHOS leaves the target as `<repo>` rather than
+reusing a stale path from old evidence.
 
 ## Classification Vocabulary
 

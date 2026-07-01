@@ -40,7 +40,7 @@ LOCAL_CLOSEOUT_COMMANDS = (
     "ethos land --closeout --apply --authorize --expect-head <HEAD>",
 )
 EVIDENCE_REFRESH_COMMANDS = (
-    "ethos parity shadow --target <repo> --execute --write-evidence",
+    "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
 )
 PUBLIC_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,

@@ -43,6 +43,10 @@ Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
+Foreign Work Lanes appear in `foreign_work_lanes` and in the `coordination`
+package. That package is non-blocking and advisory: it tells operators which
+lanes may need human coordination, while `required_gaps` remains reserved for
+the current checkout's own proof or mutation blockers.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
@@ -60,6 +64,20 @@ roots, accepted roots, candidate branches, submit lanes, detached heads, and
 foreign Work Lanes remain observe-only and report blocking gaps such as
 `protected_root_mutation`, `work_lane_dirty`, `candidate_worktree_missing`, or
 `candidate_worktree_dirty`.
+
+Accepted-root closeout is the matching protected-root mutation. It runs through
+the ETHOS command plane from a current ETHOS runner:
+
+```bash
+ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root> --json
+```
+
+The command audits the configured candidate worktree first, and only then
+fast-forwards the accepted branch from the candidate branch. The
+`closeout_bootstrap` package in `ethos land --closeout --json` records the
+accepted root, audit root, configured branches, heads, blocking gaps, and exact
+command so the handoff is product state rather than a host UI, assistant
+runtime, or shell convention.
 
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"` and a

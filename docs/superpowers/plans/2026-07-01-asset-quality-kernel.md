@@ -225,4 +225,4 @@ Expected: all PASS.
 
 - [x] **Step 3: Commit and closeout**
 
-Commit from `work/asset-quality-kernel`, then use `ethos land --closeout asset-quality-kernel` or the repository-supported equivalent to stage into `candidate/dev`. Do not push remote.
+Commit from `work/asset-quality-kernel`, then run the repository-supported ETHOS local closeout sequence: `ethos land --apply --authorize --expect-head "$(git rev-parse HEAD)" --json`, followed by `ethos land --closeout --apply --authorize --expect-head "$(git -C /Users/yheng/projects/ethos rev-parse HEAD)" --root /Users/yheng/projects/ethos --json` from a current ETHOS runner. Do not push remote.

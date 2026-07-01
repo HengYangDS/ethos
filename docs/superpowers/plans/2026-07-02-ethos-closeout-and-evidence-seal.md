@@ -90,14 +90,14 @@ See also: [Command Plane](../../reference/command-plane.md), [Runner And Mutatio
 
 ## Task 8: Full Verification And Closeout
 
-- [ ] Run focused tests for every changed area.
-- [ ] Run `uv run --group dev pytest tests/unit tests/architecture -q`.
-- [ ] Run `uv run --group dev ruff check .`.
-- [ ] Run `uv run openspec validate --all --strict --json`.
-- [ ] Run `uv run --package ethos ethos playbooks check --mode v2-strict --json`.
-- [ ] Run `uv run --package ethos ethos report --json`.
-- [ ] Run `uv run --package ethos ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json`.
-- [ ] Commit code changes, refresh parity evidence as a separate commit if HEAD freshness requires it, land to candidate, fast-forward accepted root through ETHOS local closeout, and retire only `work/ethos-closeout-and-evidence-seal`.
+- [x] Run focused tests for every changed area.
+- [x] Run `uv run --group dev pytest tests/unit tests/architecture -q`.
+- [x] Run `uv run --group dev ruff check .`.
+- [x] Run `uv run openspec validate --all --strict --json`.
+- [x] Run `uv run --package ethos ethos playbooks check --mode v2-strict --json`.
+- [x] Run `uv run --package ethos ethos report --json`.
+- [x] Run `uv run --package ethos ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json`.
+- [x] Commit code changes, refresh parity evidence as a separate commit if HEAD freshness requires it, land to candidate, fast-forward accepted root through ETHOS local closeout, and retire only `work/ethos-closeout-and-evidence-seal`.
 
 ## Self-Review
 

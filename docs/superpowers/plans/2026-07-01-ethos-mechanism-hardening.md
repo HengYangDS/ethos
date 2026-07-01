@@ -227,7 +227,7 @@ Expected: all pass; report remains `score=15`, `governance_gap_count=0`, and `pa
 git add docs/superpowers/plans/2026-07-01-ethos-mechanism-hardening.md packages/ethos-repository/src/ethos_repository/command_registry.py packages/ethos-repository/src/ethos_repository/coupling.py tests/unit/test_workspace_lanes.py tests/unit/test_coupling_governance.py tests/unit/test_command_registry_depth.py tests/architecture/test_product_boundaries.py
 git commit -m "Harden ETHOS mechanism boundaries"
 uv run --package ethos ethos land --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
-git -C /Users/yheng/projects/ethos merge --ff-only candidate/dev
+uv run --package ethos ethos land --closeout --apply --authorize --expect-head "$(git -C /Users/yheng/projects/ethos rev-parse HEAD)" --root /Users/yheng/projects/ethos --json
 uv run --package ethos ethos lane retire-landed --branch work/ethos-mechanism-hardening --apply --json
 ```
 

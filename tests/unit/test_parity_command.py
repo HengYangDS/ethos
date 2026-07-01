@@ -80,8 +80,8 @@ def _git_head(path: Path) -> str:
 
 def _complete_parity_evidence(adopter: str) -> dict[str, object]:
     command = (
-        f"uv run --package ethos ethos parity shadow --target /tmp/{adopter} "
-        "--execute --timeout-seconds 30 --json"
+        f"uv run --package ethos ethos parity shadow --adopter {adopter} "
+        f"--target /tmp/{adopter} --execute --timeout-seconds 30 --json"
     )
     return {
         "schema_version": 1,
@@ -106,6 +106,25 @@ def _complete_parity_evidence(adopter: str) -> dict[str, object]:
             for capability in MIGRATED_CAPABILITIES
         },
     }
+
+
+def _retarget_parity_evidence(
+    evidence: dict[str, object],
+    *,
+    adopter: str,
+    target: Path,
+    timeout_seconds: int = 30,
+) -> None:
+    command = (
+        f"uv run --package ethos ethos parity shadow --adopter {adopter} "
+        f"--target {target.resolve().as_posix()} --execute "
+        f"--timeout-seconds {timeout_seconds} --json"
+    )
+    evidence["target"] = target.resolve().as_posix()
+    evidence["command"] = command
+    freshness = evidence["freshness"]
+    assert isinstance(freshness, dict)
+    freshness["command_sha256"] = _sha256_text(command)
 
 
 def test_parity_ledger_has_no_unclassified_capabilities() -> None:
@@ -145,11 +164,14 @@ def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path)
 def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
     tmp_path: Path,
 ) -> None:
-    _init_git_repo(tmp_path)
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    product = _init_git_repo(tmp_path / "product")
+    target = _init_git_repo(tmp_path / "sample-adopter")
+    evidence_dir = product / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     stale = _complete_parity_evidence("sample-adopter")
+    _retarget_parity_evidence(stale, adopter="sample-adopter", target=target)
     stale["freshness"]["product_head"] = "old-product-head"
+    stale["freshness"]["target_head"] = _git_head(target)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(stale),
         encoding="utf-8",
@@ -161,14 +183,37 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
         "--adopter",
         "sample-adopter",
         "--root",
-        tmp_path.as_posix(),
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
         "--json",
+        cwd=product,
     )
 
     assert payload["ok"] is False
     assert payload["next_actions"] == [
-        "ethos parity shadow --target <repo> --execute --write-evidence"
+        (
+            "ethos parity shadow --adopter sample-adopter "
+            f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
+        )
     ]
+    refresh = payload["data"]["evidence"]["refresh_package"]
+    assert refresh == {
+        "kind": "parity_evidence_refresh",
+        "adopter": "sample-adopter",
+        "root": product.resolve().as_posix(),
+        "target": target.resolve().as_posix(),
+        "blocking": True,
+        "required_gaps": [
+            "parity_evidence_invalid:sample-adopter",
+            "parity_evidence_invalid:sample-adopter:product_head",
+        ],
+        "command": (
+            "ethos parity shadow --adopter sample-adopter "
+            f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
+        ),
+        "next_action": "refresh tracked shadow parity evidence",
+    }
 
 
 def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
@@ -232,8 +277,8 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     evidence_path = product / "docs" / "evidence" / "parity" / "sample-adopter-shadow.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     expected_command = (
-        f"uv run --package ethos ethos parity shadow --target {target.resolve().as_posix()} "
-        "--execute --timeout-seconds 60 --json"
+        "uv run --package ethos ethos parity shadow --adopter sample-adopter "
+        f"--target {target.resolve().as_posix()} --execute --timeout-seconds 60 --json"
     )
 
     assert payload["ok"] is True
@@ -354,7 +399,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
     target = tmp_path / "sample-adopter"
     target.mkdir()
     evidence = _complete_parity_evidence("sample-adopter")
-    evidence["target"] = target.resolve().as_posix()
+    _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["semantic_dimensions"] = ["branch role", "publish readiness"]
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
@@ -408,7 +453,7 @@ def test_shadow_parity_report_accepts_current_commit_parent_product_head(
     target = tmp_path / "sample-adopter"
     target.mkdir()
     evidence = _complete_parity_evidence("sample-adopter")
-    evidence["target"] = target.resolve().as_posix()
+    _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["product_head"] = "parent-product-head"
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
@@ -581,7 +626,7 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
         capture_output=True,
     ).stdout.strip()
     evidence = _complete_parity_evidence("sample-adopter")
-    evidence["target"] = target.resolve().as_posix()
+    _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["target_head"] = "stale-target-head"
     evidence_dir = tmp_path / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
@@ -602,6 +647,23 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
     assert payload["provenance"]["mode"] == "tracked_evidence"
     assert payload["provenance"]["freshness"]["ok"] is False
     assert payload["provenance"]["freshness"]["current_target_head"] == current_target_head
+    refresh = payload["execution_packages"][0]["refresh_package"]
+    assert refresh == {
+        "kind": "parity_evidence_refresh",
+        "adopter": "sample-adopter",
+        "root": tmp_path.resolve().as_posix(),
+        "target": target.resolve().as_posix(),
+        "blocking": True,
+        "required_gaps": [
+            "parity_evidence_invalid:sample-adopter",
+            "parity_evidence_invalid:sample-adopter:target_head",
+        ],
+        "command": (
+            "ethos parity shadow --adopter sample-adopter "
+            f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
+        ),
+        "next_action": "refresh tracked shadow parity evidence",
+    }
 
 
 def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
@@ -751,6 +813,14 @@ def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path: Path) 
 
     assert payload["ok"] is False
     assert payload["state"] == "different"
+    embedded = payload["data"]["comparisons"][0]["embedded"]
+    assert embedded["backend"] == {
+        "kind": "missing",
+        "command": "",
+        "blocking": True,
+        "required_gaps": ["embedded_backend_missing"],
+    }
+    assert "embedded_backend_missing" in payload["required_gaps"]
     assert any(gap.startswith("embedded_command_failed:") for gap in payload["required_gaps"])
     assert {package["gap"] for package in payload["data"]["execution_packages"]} == set(
         payload["required_gaps"]
@@ -796,6 +866,12 @@ platforms = ["osx-arm64"]
 
     assert result["exit_code"] == 0
     assert result["json"]["ok"] is True
+    assert result["backend"] == {
+        "kind": "pixi",
+        "command": "pixi run ethos status --json",
+        "blocking": False,
+        "required_gaps": [],
+    }
     assert calls == [(["pixi", "run", "ethos", "status", "--json"], target.resolve())]
 
 
@@ -836,6 +912,12 @@ ethos = "python -m ethos.cli"
     result = _run_embedded(repo, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
+    assert result["backend"] == {
+        "kind": "pixi",
+        "command": "pixi run ethos status --json",
+        "blocking": False,
+        "required_gaps": [],
+    }
     assert calls == [(["pixi", "run", "ethos", "status", "--json"], repo.resolve())]
 
 
@@ -877,6 +959,12 @@ members = ["packages/ethos"]
 
     assert result["exit_code"] == 0
     assert result["json"]["ok"] is True
+    assert result["backend"] == {
+        "kind": "uv-workspace",
+        "command": "uv run --package ethos ethos status --json",
+        "blocking": False,
+        "required_gaps": [],
+    }
     assert calls == [
         (["uv", "run", "--package", "ethos", "ethos", "status", "--json"], repo.resolve())
     ]

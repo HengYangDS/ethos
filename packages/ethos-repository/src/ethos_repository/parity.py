@@ -32,8 +32,9 @@ def parity_gaps_report(
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
+    evidence_root = root or Path.cwd()
     evidence = _parity_evidence(
-        root or Path.cwd(),
+        evidence_root,
         adopter_name,
         target=target,
         current_target_head=current_target_head,
@@ -41,6 +42,26 @@ def parity_gaps_report(
         acceptable_product_heads=acceptable_product_heads,
     )
     evidence_valid = not evidence.get("required_gaps")
+    evidence_gaps = [str(gap) for gap in evidence.get("required_gaps", [])]
+    if not evidence:
+        evidence = {
+            "refresh_package": parity_evidence_refresh_package(
+                root=evidence_root,
+                adopter=adopter_name,
+                target=target,
+                required_gaps=[f"parity_evidence_missing:{adopter_name}"],
+            )
+        }
+    elif evidence_gaps:
+        evidence = {
+            **evidence,
+            "refresh_package": parity_evidence_refresh_package(
+                root=evidence_root,
+                adopter=adopter_name,
+                target=target,
+                required_gaps=evidence_gaps,
+            ),
+        }
     verified = set(evidence.get("verified_capabilities", []))
     pending_packages = [
         _pending_package(record)
@@ -52,8 +73,8 @@ def parity_gaps_report(
     if adopter and not (shadow.get("ok") is True and not shadow.get("required_gaps")):
         pending_packages.append(_shadow_pending_package(adopter))
     required_gaps = [str(package["gap"]) for package in pending_packages]
-    if evidence.get("required_gaps"):
-        required_gaps.extend(str(gap) for gap in evidence["required_gaps"])
+    if evidence_gaps:
+        required_gaps.extend(evidence_gaps)
     return {
         "ok": not required_gaps,
         "adopter": adopter_name,
@@ -74,7 +95,11 @@ def build_tracked_parity_evidence(
     timeout_seconds: int,
 ) -> dict[str, object]:
     target = target.resolve()
-    command = _shadow_evidence_command(target=target, timeout_seconds=timeout_seconds)
+    command = _shadow_evidence_command(
+        adopter=adopter,
+        target=target,
+        timeout_seconds=timeout_seconds,
+    )
     return {
         "schema_version": 1,
         "adopter": adopter,
@@ -120,10 +145,37 @@ def write_tracked_parity_evidence(
     return path
 
 
-def _shadow_evidence_command(*, target: Path, timeout_seconds: int) -> str:
+def parity_evidence_refresh_package(
+    *,
+    root: Path,
+    adopter: str,
+    target: Path | None,
+    required_gaps: Iterable[str] = (),
+) -> dict[str, object]:
+    target_text = target.resolve().as_posix() if target is not None else "<repo>"
+    return {
+        "kind": "parity_evidence_refresh",
+        "adopter": adopter,
+        "root": root.resolve().as_posix(),
+        "target": target_text,
+        "blocking": True,
+        "required_gaps": [str(gap) for gap in required_gaps],
+        "command": _shadow_refresh_command(adopter=adopter, target=target_text),
+        "next_action": "refresh tracked shadow parity evidence",
+    }
+
+
+def _shadow_refresh_command(*, adopter: str, target: str) -> str:
     return (
-        f"uv run --package ethos ethos parity shadow --target {target.as_posix()} "
-        f"--execute --timeout-seconds {timeout_seconds} --json"
+        f"ethos parity shadow --adopter {adopter} --target {target} "
+        "--execute --write-evidence --json"
+    )
+
+
+def _shadow_evidence_command(*, adopter: str, target: Path, timeout_seconds: int) -> str:
+    return (
+        f"uv run --package ethos ethos parity shadow --adopter {adopter} "
+        f"--target {target.as_posix()} --execute --timeout-seconds {timeout_seconds} --json"
     )
 
 
@@ -248,6 +300,12 @@ def shadow_parity_report(
                     "execution_packages": [package],
                 }
             gap = f"shadow_parity_evidence_invalid:{adopter}"
+            refresh_package = parity_evidence_refresh_package(
+                root=root or Path.cwd(),
+                adopter=adopter,
+                target=target,
+                required_gaps=evidence_gaps,
+            )
             return {
                 "ok": False,
                 "state": "invalid",
@@ -268,9 +326,8 @@ def shadow_parity_report(
                         "blocking": True,
                         "required_gaps": evidence_gaps,
                         "provenance": provenance,
-                        "next_action": (
-                            f"ethos parity shadow --target {target.as_posix()} --execute"
-                        ),
+                        "refresh_package": refresh_package,
+                        "next_action": refresh_package["command"],
                     }
                 ],
             }
@@ -305,7 +362,15 @@ def shadow_parity_report(
                 "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
                 "blocking": True,
                 "provenance": provenance,
-                "next_action": f"ethos parity shadow --target {target.as_posix()} --execute",
+                "refresh_package": parity_evidence_refresh_package(
+                    root=root or Path.cwd(),
+                    adopter=adopter or "generic",
+                    target=target,
+                    required_gaps=[gap],
+                ),
+                "next_action": (
+                    f"ethos parity shadow --target {target.as_posix()} --execute"
+                ),
             }
         ],
     }
@@ -402,6 +467,8 @@ def _validate_parity_evidence(
     command = payload.get("command")
     if not isinstance(command, str) or not command:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command")
+    elif not _command_matches_identity(command, adopter=adopter, target=payload.get("target")):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:command_identity")
     _validate_freshness(
         payload.get("freshness"),
         adopter=adopter,
@@ -446,6 +513,16 @@ def _validate_parity_evidence(
     if required_gaps:
         return [f"parity_evidence_invalid:{adopter}", *required_gaps]
     return []
+
+
+def _command_matches_identity(command: str, *, adopter: str, target: object) -> bool:
+    if "ethos parity shadow" not in command:
+        return False
+    if f"--adopter {adopter}" not in command:
+        return False
+    if isinstance(target, str) and target and f"--target {target}" not in command:
+        return False
+    return "--execute" in command and "--json" in command
 
 
 def _validate_freshness(

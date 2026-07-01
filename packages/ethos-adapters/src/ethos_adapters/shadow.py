@@ -62,6 +62,9 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
         command_label = "ethos " + " ".join(command)
         if _process_failed(external):
             required_gaps.append(f"external_command_failed:{' '.join(command)}")
+        for gap in _list(embedded.get("required_gaps")):
+            if str(gap) not in required_gaps:
+                required_gaps.append(str(gap))
         if _process_failed(embedded):
             required_gaps.append(f"embedded_command_failed:{' '.join(command)}")
         if diff:
@@ -142,27 +145,61 @@ def _run_embedded(
     timeout_seconds: int,
 ) -> dict[str, Any]:
     target = target.resolve()
-    embedded_command = _embedded_ethos_command(target, command)
-    if embedded_command is None:
+    backend = _embedded_backend(target, command)
+    embedded_command = backend.get("argv")
+    if not isinstance(embedded_command, list):
         return {
             "exit_code": 1,
             "stdout": "",
             "stderr": "embedded ETHOS backend missing",
             "json": {},
+            "backend": {key: value for key, value in backend.items() if key != "argv"},
+            "required_gaps": list(backend.get("required_gaps", [])),
         }
-    return _run_json_command(
+    result = _run_json_command(
         embedded_command,
         cwd=target,
         timeout_seconds=timeout_seconds,
     )
+    return {
+        **result,
+        "backend": {key: value for key, value in backend.items() if key != "argv"},
+        "required_gaps": list(backend.get("required_gaps", [])),
+    }
 
 
 def _embedded_ethos_command(target: Path, command: tuple[str, ...]) -> list[str] | None:
+    backend = _embedded_backend(target, command)
+    argv = backend.get("argv")
+    return argv if isinstance(argv, list) else None
+
+
+def _embedded_backend(target: Path, command: tuple[str, ...]) -> dict[str, Any]:
     if _has_pixi_project(target):
-        return ["pixi", "run", "ethos", *command, "--json"]
+        argv = ["pixi", "run", "ethos", *command, "--json"]
+        return {
+            "kind": "pixi",
+            "command": " ".join(argv),
+            "blocking": False,
+            "required_gaps": [],
+            "argv": argv,
+        }
     if _has_uv_ethos_workspace(target):
-        return ["uv", "run", "--package", "ethos", "ethos", *command, "--json"]
-    return None
+        argv = ["uv", "run", "--package", "ethos", "ethos", *command, "--json"]
+        return {
+            "kind": "uv-workspace",
+            "command": " ".join(argv),
+            "blocking": False,
+            "required_gaps": [],
+            "argv": argv,
+        }
+    return {
+        "kind": "missing",
+        "command": "",
+        "blocking": True,
+        "required_gaps": ["embedded_backend_missing"],
+        "argv": None,
+    }
 
 
 def _has_pixi_project(target: Path) -> bool:

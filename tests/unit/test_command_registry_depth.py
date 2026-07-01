@@ -75,12 +75,13 @@ def test_local_closeout_and_evidence_refresh_are_mechanism_commands_not_public_r
         "ethos land --closeout --apply --authorize --expect-head <HEAD>",
     ]
     assert report["evidence_refresh_commands"] == [
-        "ethos parity shadow --target <repo> --execute --write-evidence",
+        "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
     ]
     assert "ethos land --closeout" not in report["public_workflow_commands"]
-    assert "ethos parity shadow --target <repo> --execute --write-evidence" not in report[
-        "public_workflow_commands"
-    ]
+    assert (
+        "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence"
+        not in report["public_workflow_commands"]
+    )
 
 
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
@@ -148,6 +149,18 @@ def test_command_registry_rejects_retired_family_style_ethos_commands(
     assert report["required_gaps"] == [
         "retired_public_command_prefix_mention:docs/bad.md:2:ethos governance",
     ]
+
+
+def test_current_plan_docs_do_not_contain_retired_closeout_mechanisms() -> None:
+    forbidden = (
+        "git -C /Users/yheng/projects/ethos merge --ff-only candidate/dev",
+        "ethos land --closeout asset-quality-kernel",
+    )
+
+    for path in Path("docs/superpowers/plans").glob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        for residue in forbidden:
+            assert residue not in text, f"{path} contains retired closeout residue"
 
 
 def test_command_examples_reject_unknown_ethos_subcommands(tmp_path: Path) -> None:

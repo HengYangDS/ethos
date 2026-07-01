@@ -72,6 +72,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         lease_by_branch=lease_by_branch,
     )
     coordination_gaps = _coordination_gaps(foreign)
+    coordination = _coordination_package(foreign, coordination_gaps)
     required_gaps = []
     missing_current_lease = f"work_lane_missing_lease:{branch}"
     if missing_current_lease in closeout_support["required_gaps"]:
@@ -92,6 +93,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "branch_bindings": branch_bindings,
         "foreign_work_lanes": foreign,
         "coordination_gaps": coordination_gaps,
+        "coordination": coordination,
         "closeout_support": closeout_support,
         "required_gaps": required_gaps,
     }
@@ -125,6 +127,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         ),
         "foreign_work_lanes": [],
         "coordination_gaps": [],
+        "coordination": _coordination_package([], []),
         "closeout_support": {
             "supported": False,
             "branch": "",
@@ -223,6 +226,23 @@ def _coordination_gaps(foreign_work_lanes: list[dict[str, str]]) -> list[str]:
         if lane["lease_state"] == "missing":
             gaps.append(f"work_lane_missing_lease:{lane['branch']}")
     return gaps
+
+
+def _coordination_package(
+    foreign_work_lanes: list[dict[str, str]],
+    coordination_gaps: list[str],
+) -> dict[str, object]:
+    return {
+        "kind": "work_lane_coordination",
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": list(coordination_gaps),
+        "foreign_work_lane_count": len(foreign_work_lanes),
+        "missing_lease_count": sum(
+            1 for lane in foreign_work_lanes if lane["lease_state"] == "missing"
+        ),
+        "next_action": "coordinate foreign work lanes before local closeout if they overlap scope",
+    }
 
 
 def _candidate_status(

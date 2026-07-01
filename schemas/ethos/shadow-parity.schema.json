@@ -86,9 +86,22 @@
         "exit_code": {"type": "integer"},
         "stdout": {"type": "string"},
         "stderr": {"type": "string"},
-        "json": {"type": "object"}
+        "json": {"type": "object"},
+        "backend": {"$ref": "#/$defs/embeddedBackend"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": true
+    },
+    "embeddedBackend": {
+      "type": "object",
+      "required": ["kind", "command", "blocking", "required_gaps"],
+      "properties": {
+        "kind": {"enum": ["pixi", "uv-workspace", "missing"]},
+        "command": {"type": "string"},
+        "blocking": {"type": "boolean"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
     },
     "comparison": {
       "type": "object",

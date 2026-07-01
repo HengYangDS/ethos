@@ -52,6 +52,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     assert list(registry) == [
         "git_repository_substrate",
         "branch_role_policy",
+        "work_lane_lifecycle_command_contract",
         "openspec_workspace",
         "openspec_cli",
         "command_json_schema_protocol",
@@ -81,6 +82,15 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "required": True,
         "owns_product_semantics": True,
         "adapter_replaceable": False,
+        "config_source": ".ethos/workspace.toml",
+        "config_keys": [
+            "release_branch",
+            "accepted_branch",
+            "candidate_branch",
+            "work_branch_prefix",
+            "submit_branch_prefix",
+        ],
+        "default_policy": False,
         "role_order": [
             "release_root",
             "accepted_root",
@@ -89,6 +99,20 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
             "submit_lane",
         ],
         "configured_patterns": ["main", "dev", "candidate/dev", "work/*", "submit/*"],
+    }
+    assert registry["work_lane_lifecycle_command_contract"] == {
+        "id": "work_lane_lifecycle_command_contract",
+        "layer": "product_semantic_hard_binding",
+        "required": True,
+        "owns_product_semantics": True,
+        "adapter_replaceable": False,
+        "commands": [
+            "ethos lane start",
+            "ethos lane bind-claim",
+            "ethos land",
+            "ethos lane retire-landed",
+        ],
+        "forbidden_workflow_state": ["raw_git_worktree_add"],
     }
     assert registry["openspec_workspace"] == {
         "id": "openspec_workspace",
@@ -134,6 +158,80 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "toolchains": ["uv-python"],
         "product_ontology_anchor": False,
     }
+
+
+def test_coupling_audit_branch_role_policy_reports_config_source(tmp_path: Path) -> None:
+    workspace = tmp_path / ".ethos" / "workspace.toml"
+    workspace.parent.mkdir(parents=True)
+    workspace.write_text(
+        "[branch_roles]\n"
+        'release_branch = "release"\n'
+        'accepted_branch = "integration"\n'
+        'candidate_branch = "stage/integration"\n'
+        'work_branch_prefix = "lane/"\n'
+        'submit_branch_prefix = "review/"\n',
+        encoding="utf-8",
+    )
+
+    report = coupling_audit_report(tmp_path)
+
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+    assert registry["branch_role_policy"]["config_source"] == ".ethos/workspace.toml"
+    assert registry["branch_role_policy"]["config_keys"] == [
+        "release_branch",
+        "accepted_branch",
+        "candidate_branch",
+        "work_branch_prefix",
+        "submit_branch_prefix",
+    ]
+    assert registry["branch_role_policy"]["default_policy"] is False
+    assert registry["branch_role_policy"]["role_order"] == [
+        "release_root",
+        "accepted_root",
+        "candidate",
+        "work_lane",
+        "submit_lane",
+    ]
+    assert registry["branch_role_policy"]["configured_patterns"] == [
+        "release",
+        "integration",
+        "stage/integration",
+        "lane/*",
+        "review/*",
+    ]
+
+
+def test_coupling_audit_default_branch_role_policy_marks_default_source(
+    tmp_path: Path,
+) -> None:
+    report = coupling_audit_report(tmp_path)
+
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+
+    assert registry["branch_role_policy"]["config_source"] == ".ethos/workspace.toml"
+    assert registry["branch_role_policy"]["default_policy"] is True
+
+
+def test_coupling_audit_flags_missing_work_lane_lifecycle_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_without_lifecycle(root: Path) -> list[dict[str, object]]:
+        return [
+            entry
+            for entry in original_registry(root)
+            if entry["id"] != "work_lane_lifecycle_command_contract"
+        ]
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_without_lifecycle)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert "binding_registry_missing:work_lane_lifecycle_command_contract" in (
+        report["required_gaps"]
+    )
 
 
 def test_coupling_audit_flags_missing_git_product_binding(
@@ -275,5 +373,32 @@ def test_coupling_audit_flags_additional_model_editor_and_host_vendor_names(
         report["required_gaps"]
     )
     assert "product_vendor_term:docs/governance/product-design-contract.md:Windsurf" in (
+        report["required_gaps"]
+    )
+
+
+def test_coupling_audit_flags_host_projection_labels_in_product_docs(
+    tmp_path: Path,
+) -> None:
+    doc = tmp_path / "docs" / "reference" / "command-plane.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text(
+        "---\n"
+        "subject: ethos:command-plane\n"
+        "role: reference\n"
+        "state: canonical\n"
+        "relations: canonical_for: test\n"
+        "---\n\n"
+        "# Command Plane\n\n"
+        "A host may show Open Worktree or Checkout, but product state cannot.\n",
+        encoding="utf-8",
+    )
+
+    report = coupling_audit_report(tmp_path)
+
+    assert "product_host_projection_term:docs/reference/command-plane.md:Open Worktree" in (
+        report["required_gaps"]
+    )
+    assert "product_host_projection_term:docs/reference/command-plane.md:Checkout" in (
         report["required_gaps"]
     )

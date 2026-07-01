@@ -101,6 +101,16 @@ they do not replace them.
 Configured branch roles are reported through `role_policy` and ordered as
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane. The
 branch names and prefixes are configurable, but the roles are product semantics.
+The configured role policy is auditable through its configuration source,
+configuration keys, default-policy state, semantic role order, and configured
+patterns; release_root and accepted_root are both protected roles but they are
+not interchangeable.
+Work Lane lifecycle commands are also product semantics: `ethos lane start`,
+`ethos lane bind-claim`, `ethos land`, and `ethos lane retire-landed` define the
+local ownership, evidence binding, candidate closeout, and retirement path.
+Git worktree facts remain observable, but raw worktree creation is not the
+standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
+boundaries.
 
 ### Binding taxonomy
 
@@ -113,7 +123,7 @@ pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology
 `ethos quality coupling-audit --json` exposes these classifications as a
 `binding_registry` so product hard bindings, mandatory dependencies, native
 protocols, self-hosting tools, adapters, legacy evidence, and fixtures are
-auditable without binding ETHOS to a specific editor host or model vendor.
+auditable without binding ETHOS to a specific host or model provider.
 
 ### Capability before surface
 

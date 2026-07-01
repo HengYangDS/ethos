@@ -26,7 +26,7 @@ Lanes without entering their file trees.
 - **AND** the role order is
   `release_root -> accepted_root -> candidate -> work_lane -> submit_lane`
 - **AND** `branch_bindings` follow that semantic order before branch name
-- **AND** host open or checkout labels are not product state
+- **AND** host navigation labels are not product state
 - **AND** adapters derive presentation from `worktree_binding` rather than
   owning branch, lane, or mutation semantics
 
@@ -67,6 +67,8 @@ public lane command plane.
 - **THEN** ETHOS creates a `work/<name>` linked worktree
 - **AND** ETHOS records an active lease in ignored local state under
   `.ethos/state/state.sqlite`
+- **AND** raw Git worktree creation is not treated as standard ETHOS workflow
+  state because it has no ETHOS lease or claim boundary
 
 #### Scenario: Work Lane start is requested from a non-accepted or dirty root
 - **WHEN** `ethos lane start <name> --apply --owner <owner>` runs from an

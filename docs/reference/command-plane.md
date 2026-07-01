@@ -105,9 +105,9 @@ binding reports
 `absent`. Work Lane bindings also report `claim_id` and `claim_binding` as
 boundary evidence. Missing claim binding does not block ordinary local work, but
 trust-bearing closeout reports it as a governance gap when a lane is otherwise
-ready to land. Host adapters may project linked worktrees as host-specific open
-commands, but the product payload does not expose host labels or checkout
-actions as truth; adapter UI text is not product state.
+ready to land. Host adapters may project linked worktrees as host-specific
+navigation commands, but the product payload does not expose host labels or
+navigation actions as truth; adapter UI text is not product state.
 Both commands include a `schema_validation` diagnostic for the live
 workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
@@ -129,6 +129,13 @@ worktrees and does not promote lane presence into repository truth.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree.
+The standard local lifecycle is product state even when a host provides its own
+presentation: create the Work Lane through `ethos lane start`, attach claim
+evidence with `ethos lane bind-claim` when needed, land only through
+`ethos land`, and retire only through `ethos lane retire-landed`. Raw Git
+worktree creation is an observable repository fact, but it is not admitted as
+the standard ETHOS workflow state because it has no ETHOS lease or claim
+boundary.
 
 Mutation readiness is explicit:
 
@@ -175,10 +182,15 @@ toolchain bindings, profile or adapter bindings, legacy evidence, and
 test-fixture coupling boundaries through `data.binding_registry`. The
 `binding_registry` field is the machine-readable binding classification
 contract. It treats Git,
-worktrees, refs, and branch roles as product semantics; OpenSpec as mandatory
-governance; command JSON, schemas, TOML, JSONL, and ignored SQLite state as
-native protocols; and hosted forge, editor, model, and current proof toolchain
-terms as non-product-semantic bindings.
+worktrees, refs, branch roles, and the Work Lane lifecycle command contract as
+product semantics; OpenSpec as mandatory governance; command JSON, schemas,
+TOML, JSONL, and ignored SQLite state as native protocols; and hosted forge,
+editor, model, and current proof toolchain terms as non-product-semantic
+bindings.
+The branch role policy entry also reports its configuration source, config
+keys, default-policy state, semantic role order, and configured patterns so
+release_root, accepted_root, candidate, work_lane, and submit_lane remain
+distinct configured roles rather than hard-coded branch names.
 The registry also names the official OpenSpec CLI, uv workspace orchestration,
 Hatchling build backend, pytest, Ruff, the configured GitLab release profile,
 MCP/ACP protocol adapters, the npm launcher distribution adapter, legacy

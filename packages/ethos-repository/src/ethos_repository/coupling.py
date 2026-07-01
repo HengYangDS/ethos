@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,14 @@ COUPLING_LAYERS: dict[str, str] = {
     "test_fixture": "Tests and fixtures that intentionally model a provider or adopter.",
 }
 BINDING_UI_PROJECTION_FIELDS = frozenset({"open_action", "open_label", "action", "label"})
+BRANCH_ROLE_CONFIG_SOURCE = ".ethos/workspace.toml"
+BRANCH_ROLE_CONFIG_KEYS = (
+    "release_branch",
+    "accepted_branch",
+    "candidate_branch",
+    "work_branch_prefix",
+    "submit_branch_prefix",
+)
 BINDING_CONTRACTS: dict[str, dict[str, object]] = {
     "git_repository_substrate": {
         "layer": "product_semantic_hard_binding",
@@ -48,6 +57,21 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
         "required": True,
         "owns_product_semantics": True,
         "adapter_replaceable": False,
+        "config_source": BRANCH_ROLE_CONFIG_SOURCE,
+        "config_keys": list(BRANCH_ROLE_CONFIG_KEYS),
+    },
+    "work_lane_lifecycle_command_contract": {
+        "layer": "product_semantic_hard_binding",
+        "required": True,
+        "owns_product_semantics": True,
+        "adapter_replaceable": False,
+        "commands": [
+            "ethos lane start",
+            "ethos lane bind-claim",
+            "ethos land",
+            "ethos lane retire-landed",
+        ],
+        "forbidden_workflow_state": ["raw_git_worktree_add"],
     },
     "openspec_workspace": {
         "layer": "mandatory_governance_dependency",
@@ -159,6 +183,7 @@ PRODUCT_VENDOR_TERMS = (
     "Cursor",
     "Windsurf",
 )
+PRODUCT_HOST_PROJECTION_TERMS = ("Open Worktree", "Checkout")
 GIT_NATIVE_TERMS = ("Git", "git", "worktree", "branch", "candidate/dev", "work/*", "submit/*")
 NATIVE_PROTOCOL_FORMATS = (
     "JSON Schema",
@@ -180,6 +205,19 @@ def _vendor_term_gaps(root: Path) -> list[str]:
         for term in PRODUCT_VENDOR_TERMS:
             if term in text:
                 gaps.append(f"product_vendor_term:{relative}:{term}")
+    return gaps
+
+
+def _host_projection_term_gaps(root: Path) -> list[str]:
+    gaps: list[str] = []
+    for relative in PRODUCT_SEMANTIC_DOCS:
+        path = root / relative
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for term in PRODUCT_HOST_PROJECTION_TERMS:
+            if term in text:
+                gaps.append(f"product_host_projection_term:{relative}:{term}")
     return gaps
 
 
@@ -245,8 +283,25 @@ def _native_protocols() -> dict[str, object]:
     }
 
 
+def _branch_role_policy_metadata(root: Path) -> dict[str, object]:
+    path = root / BRANCH_ROLE_CONFIG_SOURCE
+    configured = False
+    if path.exists():
+        try:
+            payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            payload = {}
+        configured = isinstance(payload.get("branch_roles"), dict)
+    return {
+        "config_source": BRANCH_ROLE_CONFIG_SOURCE,
+        "config_keys": list(BRANCH_ROLE_CONFIG_KEYS),
+        "default_policy": not configured,
+    }
+
+
 def _binding_registry(root: Path) -> list[dict[str, object]]:
     policy = load_branch_role_policy(root)
+    branch_role_metadata = _branch_role_policy_metadata(root)
     release_profile = _release_host_profile(root)
     self_hosting = _self_hosting_toolchain()
     return [
@@ -264,12 +319,27 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
             "required": True,
             "owns_product_semantics": True,
             "adapter_replaceable": False,
+            **branch_role_metadata,
             "role_order": [
                 str(record["role"]) for record in policy.semantic_order()
             ],
             "configured_patterns": [
                 str(record["pattern"]) for record in policy.semantic_order()
             ],
+        },
+        {
+            "id": "work_lane_lifecycle_command_contract",
+            "layer": "product_semantic_hard_binding",
+            "required": True,
+            "owns_product_semantics": True,
+            "adapter_replaceable": False,
+            "commands": [
+                "ethos lane start",
+                "ethos lane bind-claim",
+                "ethos land",
+                "ethos lane retire-landed",
+            ],
+            "forbidden_workflow_state": ["raw_git_worktree_add"],
         },
         {
             "id": "openspec_workspace",
@@ -423,6 +493,17 @@ def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
                 gaps.append(f"binding_registry_{key}:{entry_id}:{entry.get(key)}")
                 if key == "owns_product_semantics" and expected[key] is False:
                     gaps.append(f"binding_registry_product_semantics:{entry_id}")
+        for key, expected_value in expected.items():
+            if key in {
+                "layer",
+                "required",
+                "owns_product_semantics",
+                "adapter_replaceable",
+                "not_product_substrate",
+            }:
+                continue
+            if entry.get(key) != expected_value:
+                gaps.append(f"binding_registry_{key}:{entry_id}:{entry.get(key)}")
         if expected.get("not_product_substrate") and entry.get("not_product_substrate") is not True:
             gaps.append(f"binding_registry_product_substrate:{entry_id}")
         if (
@@ -438,7 +519,12 @@ def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
 def coupling_audit_report(root: Path) -> dict[str, Any]:
     release = _release_report(root)
     registry = _binding_registry(root)
-    gaps = _vendor_term_gaps(root) + _gate_profile_gaps() + _binding_registry_gaps(registry)
+    gaps = (
+        _vendor_term_gaps(root)
+        + _host_projection_term_gaps(root)
+        + _gate_profile_gaps()
+        + _binding_registry_gaps(registry)
+    )
     return {
         "ok": not gaps,
         "required_gaps": gaps,

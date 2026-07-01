@@ -46,6 +46,11 @@ coupling registry.
 - **THEN** the output includes `binding_registry`
 - **AND** Git repository substrate and configured branch roles are classified as
   product-semantic hard bindings
+- **AND** the branch role policy entry reports its configuration source,
+  configuration keys, default-policy state, semantic role order, and configured
+  patterns
+- **AND** the standard Work Lane lifecycle command contract is classified as a
+  product-semantic hard binding
 - **AND** OpenSpec is classified as a mandatory governance dependency
 - **AND** the official OpenSpec CLI is classified as a mandatory governance
   dependency rather than a product substrate
@@ -53,6 +58,8 @@ coupling registry.
   are classified as native protocols
 - **AND** self-hosting proof tools and host projections do not own product
   semantics
+- **AND** host navigation labels in product semantic docs are reported as
+  required gaps
 
 ### Requirement: Standards Adapter Lifecycle
 ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,

@@ -82,7 +82,7 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     )
     assert "not a second command plane" in repository_spec
     assert "adapters derive presentation from `worktree_binding`" in adapters_spec
-    assert "host open or checkout labels are not product state" in adapters_spec
+    assert "host navigation labels are not product state" in adapters_spec
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:

@@ -137,8 +137,13 @@
             {"type": "object"}
           ]
         },
+        "config_source": {"type": "string"},
+        "config_keys": {"type": "array", "items": {"type": "string"}},
+        "default_policy": {"type": "boolean"},
         "role_order": {"type": "array", "items": {"type": "string"}},
         "configured_patterns": {"type": "array", "items": {"type": "string"}},
+        "commands": {"type": "array", "items": {"type": "string"}},
+        "forbidden_workflow_state": {"type": "array", "items": {"type": "string"}},
         "not_a_second_command_plane": {"type": "boolean"},
         "not_product_substrate": {"type": "boolean"},
         "formats": {"type": "array", "items": {"type": "string"}},

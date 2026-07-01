@@ -1377,15 +1377,16 @@ def test_assistant_projection_commands_are_available() -> None:
     assert doctor["ok"] is True
 
 
-def test_playbooks_route_accepts_changed_scope_alias() -> None:
+def test_playbooks_route_accepts_changed_scope_alias_without_changed_paths() -> None:
     payload = run_ethos("playbooks", "route", "--changed", "--json")
 
     assert payload["ok"] is True
     assert payload["command"] == "playbooks route"
     assert payload["data"]["subject"] == "changed-scope"
-    selected = payload["data"]["selected"]
-    assert selected
-    assert any("changed-scope" in record["subjects"] for record in selected)
+    assert payload["data"]["changed"] is True
+    assert payload["data"]["changed_paths"] == []
+    assert payload["data"]["selected"] == []
+    assert payload["data"]["unmatched_paths"] == []
 
 
 def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path) -> None:

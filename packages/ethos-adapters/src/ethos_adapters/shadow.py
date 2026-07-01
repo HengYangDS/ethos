@@ -141,34 +141,58 @@ def _run_embedded(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    if not _has_pixi_project(target):
+    target = target.resolve()
+    embedded_command = _embedded_ethos_command(target, command)
+    if embedded_command is None:
         return {
             "exit_code": 1,
             "stdout": "",
-            "stderr": "pixi project missing",
+            "stderr": "embedded ETHOS backend missing",
             "json": {},
         }
     return _run_json_command(
-        ["pixi", "run", "ethos", *command, "--json"],
+        embedded_command,
         cwd=target,
         timeout_seconds=timeout_seconds,
     )
 
 
+def _embedded_ethos_command(target: Path, command: tuple[str, ...]) -> list[str] | None:
+    if _has_pixi_project(target):
+        return ["pixi", "run", "ethos", *command, "--json"]
+    if _has_uv_ethos_workspace(target):
+        return ["uv", "run", "--package", "ethos", "ethos", *command, "--json"]
+    return None
+
+
 def _has_pixi_project(target: Path) -> bool:
     if (target / "pixi.toml").exists():
         return True
+    data = _pyproject_tool(target)
+    return isinstance(data.get("pixi"), dict)
+
+
+def _has_uv_ethos_workspace(target: Path) -> bool:
+    tool = _pyproject_tool(target)
+    uv = tool.get("uv")
+    if not isinstance(uv, dict):
+        return False
+    workspace = uv.get("workspace")
+    return isinstance(workspace, dict)
+
+
+def _pyproject_tool(target: Path) -> dict[str, Any]:
     pyproject = target / "pyproject.toml"
     if not pyproject.exists():
-        return False
+        return {}
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError:
-        return False
+        return {}
     tool = data.get("tool")
     if not isinstance(tool, dict):
-        return False
-    return isinstance(tool.get("pixi"), dict)
+        return {}
+    return tool
 
 
 def _run_json_command(

@@ -839,6 +839,49 @@ ethos = "python -m ethos.cli"
     assert calls == [(["pixi", "run", "ethos", "status", "--json"], repo.resolve())]
 
 
+def test_shadow_embedded_runner_accepts_uv_workspace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text(
+        """
+[tool.uv.workspace]
+members = ["packages/ethos"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    calls: list[tuple[list[str], Path]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((command, cwd))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"ok": true, "command": "status", "state": "ready"}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = _run_embedded(repo, ("status",), timeout_seconds=5)
+
+    assert result["exit_code"] == 0
+    assert result["json"]["ok"] is True
+    assert calls == [
+        (["uv", "run", "--package", "ethos", "ethos", "status", "--json"], repo.resolve())
+    ]
+
+
 def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

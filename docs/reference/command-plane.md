@@ -167,6 +167,18 @@ state into repository truth.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 
+ETHOS report and audit payloads use a single-kernel dual-posture contract.
+`product_self` and `adopter_repository` both expose `governance_context` so
+consumers can read the same command semantics without inferring product truth
+from a special self-governance branch. The context records the posture, profile,
+repository subject, kernel chain, shared commands, repository truth boundary,
+and profile or adapter boundary. `ethos report --json` projects required gaps
+through posture-neutral layers: `governance_audit` for the active repository
+governance verdict, `capability_parity` for migration or adopter parity, and
+`playbook_projection` for assistant-facing projection proof. Its summary uses
+`governance_gap_count` for active repository governance gaps and
+`parity_pending_count` for capability parity backlog.
+
 Self-governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
 official OpenSpec CLI validation and is required for release or archive proof.

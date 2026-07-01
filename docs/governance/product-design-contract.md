@@ -74,6 +74,26 @@ Constitution -> Subject -> Contract -> IR -> Transition -> Inscription -> Eviden
   records.
 - Evolution: gaps, hypotheses, profile improvements, and retirement proposals.
 
+## Single-Kernel Dual-Posture
+
+ETHOS uses a single-kernel dual-posture model. The same kernel chain, command
+semantics, evidence contracts, mutation discipline, and profile boundaries serve
+both `product_self` and `adopter_repository`.
+
+`product_self` is ETHOS governing this product repository through the
+self-hosting profile. `adopter_repository` is ETHOS governing another repository
+through an adoption profile. These are postures of one product model, not two
+truth stores and not two command planes. In this model, self-governance is not a private command plane;
+it is the highest-intensity use of the same product capability.
+
+Command payloads that audit or summarize repository governance expose
+`governance_context`. That context records the posture, profile, repository
+subject, single-kernel flag, kernel chain, shared commands, repository truth
+boundary, and profile or adapter boundary. The shared command semantics are
+`ethos status`, `ethos plan`, `ethos prove`, `ethos land`, `ethos publish`, and
+`ethos report`; posture-specific commands such as `ethos self audit` refine
+self-hosting proof depth without replacing those shared semantics.
+
 ## Principles
 
 ### Kernel-first

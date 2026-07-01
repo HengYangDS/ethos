@@ -57,7 +57,8 @@ state_tracked_truth = false
 durable_evidence_roots = ["docs/evidence", "claims"]
 
 [gates]
-self_audit = "ethos self audit --json"
+governance_audit = "ethos report --json"
+proof = "ethos prove --json"
 report = "ethos report --json"
 openspec = "openspec validate --all --strict --json"
 """,
@@ -438,8 +439,8 @@ def _gitlab_ci() -> str:
         "    - uv run --group dev pytest tests/unit tests/architecture -q\n"
         "    - uv run --group dev ruff check .\n"
         "    - openspec validate --all --strict --json\n"
-        "    - uv run --package ethos ethos self audit --json\n"
         "    - uv run --package ethos ethos report --json\n"
+        "    - uv run --package ethos ethos prove --json\n"
         "    - uv run --package ethos ethos quality release-policy --json\n"
     )
 

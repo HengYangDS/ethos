@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ethos_assistants.playbooks import playbooks_report
+from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
@@ -237,6 +238,11 @@ def self_audit(
     )
     return {
         "ok": not gaps,
+        "governance_context": governance_context(
+            root,
+            posture="product_self",
+            profile="self-hosting",
+        ),
         "package_ontology": {
             "ok": not package_missing and not distribution_missing,
             "stage": "complete",

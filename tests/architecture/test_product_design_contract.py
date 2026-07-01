@@ -85,6 +85,25 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     assert "host navigation labels are not product state" in adapters_spec
 
 
+def test_product_design_contract_defines_single_kernel_dual_posture() -> None:
+    product = read("docs/governance/product-design-contract.md")
+    command_plane = read("docs/reference/command-plane.md")
+    repository_spec = read("openspec/specs/ethos-repository/spec.md")
+    contracts_spec = read("openspec/specs/ethos-contracts/spec.md")
+
+    for text in (product, command_plane, repository_spec, contracts_spec):
+        assert "single-kernel dual-posture" in text
+        assert "product_self" in text
+        assert "adopter_repository" in text
+        assert "`governance_context`" in text
+
+    assert "self-governance is not a private command plane" in product
+    assert "governance_audit" in command_plane
+    assert "capability_parity" in command_plane
+    assert "same command semantics" in repository_spec
+    assert "shared governance context contract" in contracts_spec
+
+
 def test_canonical_product_docs_are_provider_neutral() -> None:
     for doc in PROVIDER_NEUTRAL_CANONICAL_DOCS:
         text = read(doc)

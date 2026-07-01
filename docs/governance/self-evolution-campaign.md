@@ -18,6 +18,12 @@ Self-audit checks command-plane growth, package ontology drift, docs metadata,
 schema coverage, profile leakage, and adapter boundaries. Self-evolution records
 must either canonize a proven improvement or retire it.
 
+Self-evolution is the `product_self` posture of the single-kernel
+dual-posture model. It reuses the same governance context, command semantics,
+evidence contracts, and mutation discipline that `adopter_repository` uses.
+`ethos self audit` changes proof depth for the self-hosting profile; it does
+not create a private command plane or a second product lifecycle.
+
 `ethos campaign hypotheses --json` exposes active hypotheses as first-class
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.

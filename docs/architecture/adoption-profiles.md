@@ -35,3 +35,9 @@ claims/
 GitHub and GitLab profiles also generate hosted-CI projections and declare
 those projections under `.ethos/release.toml` host-profile surfaces. The kernel
 remains profile-free; repository-specific contracts stay in adopter profiles.
+
+An adopted repository runs the `adopter_repository` posture of the same
+single-kernel dual-posture model used by ETHOS self-governance. Generated rules
+use `ethos report --json` for governance audit and `ethos prove --json` for
+proof readiness. `ethos self audit` remains a self-hosting depth command for
+the product repository, not the default adopter governance gate.

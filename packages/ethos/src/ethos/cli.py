@@ -37,6 +37,7 @@ from ethos_assistants.playbooks import playbooks_report, route_playbook
 from ethos_assistants.projections import projection_contract
 from ethos_assistants.server import mcp_server_descriptor
 from ethos_contracts.branch_roles import BranchRolePolicy, load_branch_role_policy
+from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
@@ -57,7 +58,12 @@ from ethos_repository.evolution import evolution_candidates, evolution_ledger, e
 from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph, gate_registry
 from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
-from ethos_repository.planner import adoption_plan, adoption_scaffold_report, available_profiles
+from ethos_repository.planner import (
+    adoption_plan,
+    adoption_scaffold_report,
+    available_profiles,
+    detect_repo_profile,
+)
 from ethos_repository.release import release_policy_report
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
@@ -187,6 +193,11 @@ def _adopter_audit(root: Path) -> dict[str, object]:
     return {
         "ok": not gaps,
         "mode": "adopter",
+        "governance_context": governance_context(
+            root,
+            posture="adopter_repository",
+            profile=detect_repo_profile(root),
+        ),
         "required_gaps": gaps,
         "adopter": adopter,
         "schemas": {
@@ -2169,15 +2180,15 @@ def report(
     if audit.get("mode") != "adopter":
         result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
     gap_layers = {
-        "product_self_audit": {
-            "scope": "product_self_audit",
+        "governance_audit": {
+            "scope": "governance_audit",
             "blocking": True,
             "ok": not result_required_gaps,
             "required_gaps": list(result_required_gaps),
             "gap_count": len(result_required_gaps),
         },
-        "adopter_parity": {
-            "scope": "global_capability_ledger",
+        "capability_parity": {
+            "scope": "capability_parity",
             "blocking": False,
             "ok": bool(parity_gaps["ok"]),
             "required_gaps": list(parity_gaps["required_gaps"]),
@@ -2212,7 +2223,7 @@ def report(
         summary={
             "score": sum(scores.values()),
             "max_score": len(scores),
-            "product_gap_count": len(result_required_gaps),
+            "governance_gap_count": len(result_required_gaps),
             "parity_pending_count": parity_pending_count,
         },
         required_gaps=result_required_gaps,
@@ -2222,6 +2233,7 @@ def report(
             else ("ethos prove --full",)
         ),
         data={
+            "governance_context": audit["governance_context"],
             "scores": scores,
             "scorecards": scorecards,
             "self_audit": audit,

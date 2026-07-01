@@ -673,6 +673,38 @@ def test_self_audit_reports_product_shape() -> None:
 
     assert payload["ok"] is True
     assert payload["command"] == "self audit"
+    assert payload["data"]["governance_context"] == {
+        "contract": "single_kernel_dual_posture",
+        "posture": "product_self",
+        "profile": "self-hosting",
+        "subject": {
+            "kind": "repository",
+            "role": "product_self",
+            "root": str(Path.cwd()),
+        },
+        "single_kernel": True,
+        "kernel_chain": [
+            "Constitution",
+            "Subject",
+            "Contract",
+            "IR",
+            "Transition",
+            "Inscription",
+            "Evidence",
+            "Chronicle",
+            "Evolution",
+        ],
+        "shared_commands": [
+            "ethos status",
+            "ethos plan",
+            "ethos prove",
+            "ethos land",
+            "ethos publish",
+            "ethos report",
+        ],
+        "truth_boundary": "repository",
+        "profile_boundary": "profile_or_adapter",
+    }
     assert payload["data"]["openspec"]["mode"] == "shape"
     assert payload["required_gaps"] == []
     package_ontology = payload["data"]["package_ontology"]
@@ -1255,6 +1287,26 @@ def test_prove_uses_adopter_audit_for_non_product_repo(tmp_path: Path) -> None:
 
     assert payload["ok"] is True
     assert payload["data"]["self_audit"]["mode"] == "adopter"
+    assert payload["data"]["self_audit"]["governance_context"]["contract"] == (
+        "single_kernel_dual_posture"
+    )
+    assert payload["data"]["self_audit"]["governance_context"]["posture"] == (
+        "adopter_repository"
+    )
+    assert payload["data"]["self_audit"]["governance_context"]["profile"] == "generic"
+    assert payload["data"]["self_audit"]["governance_context"]["subject"] == {
+        "kind": "repository",
+        "role": "adopter_repository",
+        "root": str(tmp_path.resolve()),
+    }
+    assert payload["data"]["self_audit"]["governance_context"]["shared_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+        "ethos report",
+    ]
 
 
 def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> None:
@@ -1264,6 +1316,11 @@ def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> N
 
     assert payload["ok"] is True
     assert payload["data"]["self_audit"]["mode"] == "adopter"
+    assert payload["data"]["governance_context"] == payload["data"]["self_audit"][
+        "governance_context"
+    ]
+    assert payload["data"]["governance_context"]["posture"] == "adopter_repository"
+    assert payload["summary"]["governance_gap_count"] == 0
     assert payload["data"]["scores"]["adopter_governance"] == 1
 
 
@@ -1914,16 +1971,20 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["gaps"]["pending_packages"]
     )
-    assert payload["summary"]["product_gap_count"] == 0
-    assert payload["data"]["gap_layers"]["product_self_audit"] == {
-        "scope": "product_self_audit",
+    assert payload["summary"]["governance_gap_count"] == 0
+    assert payload["data"]["governance_context"] == payload["data"]["self_audit"][
+        "governance_context"
+    ]
+    assert payload["data"]["governance_context"]["posture"] == "product_self"
+    assert payload["data"]["gap_layers"]["governance_audit"] == {
+        "scope": "governance_audit",
         "blocking": True,
         "ok": True,
         "required_gaps": [],
         "gap_count": 0,
     }
-    assert payload["data"]["gap_layers"]["adopter_parity"] == {
-        "scope": "global_capability_ledger",
+    assert payload["data"]["gap_layers"]["capability_parity"] == {
+        "scope": "capability_parity",
         "blocking": False,
         "ok": True,
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],

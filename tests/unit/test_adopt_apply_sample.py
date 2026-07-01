@@ -96,3 +96,13 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "primary_invariant" in (
         tmp_path / "openspec/specs/ethos-repository/capability.toml"
     ).read_text(encoding="utf-8")
+
+
+def test_adopt_rules_use_single_kernel_governance_entrypoints(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    rules = (tmp_path / ".ethos/rules.toml").read_text(encoding="utf-8")
+
+    assert 'governance_audit = "ethos report --json"' in rules
+    assert 'proof = "ethos prove --json"' in rules
+    assert 'self_audit = "ethos self audit --json"' not in rules

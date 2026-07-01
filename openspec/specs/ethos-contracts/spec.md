@@ -63,3 +63,15 @@ boundary, routing, and proof metadata.
 - **WHEN** ETHOS validates capability profile metadata
 - **THEN** the profile names a family, owner object, primary invariant,
   routing question, boundary rules, and proof profile
+
+### Requirement: Single-Kernel Dual-Posture Contract
+ETHOS SHALL define a shared governance context contract for the single-kernel dual-posture
+model across product self-governance and adopter repository governance.
+
+#### Scenario: Governance context is provider-neutral
+- **WHEN** ETHOS emits `governance_context`
+- **THEN** the context identifies `product_self` or `adopter_repository`
+- **AND** the context records the governed repository subject, profile, kernel
+  chain, and shared command semantics
+- **AND** provider, host, editor, model, and toolchain choices remain outside
+  product semantics

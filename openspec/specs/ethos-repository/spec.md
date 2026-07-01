@@ -145,6 +145,19 @@ deep OpenSpec validation.
 - **THEN** self-audit uses OpenSpec shape mode
 - **AND** official OpenSpec validation remains available through deep commands
 
+### Requirement: Single-Kernel Dual-Posture Governance
+ETHOS SHALL govern `product_self` and `adopter_repository` through
+single-kernel dual-posture repository semantics.
+
+#### Scenario: Governance context is shared
+- **WHEN** ETHOS emits audit, proof, or report payloads for either posture
+- **THEN** the payload includes `governance_context`
+- **AND** the context identifies `product_self` or `adopter_repository`
+- **AND** both postures use the same command semantics for status, plan, prove,
+  land, publish, and report
+- **AND** profile or adapter differences do not create a second product command
+  plane
+
 ### Requirement: Adoption Scaffold
 ETHOS SHALL generate repository governance surfaces for `.ethos`, official
 OpenSpec records, repo-local skills, docs, claims, evidence placeholders, and

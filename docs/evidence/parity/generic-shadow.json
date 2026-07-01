@@ -5,8 +5,8 @@
   "generated_on": "2026-07-01",
   "command": "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/ethos-work-closeout-evidence-seal --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "cfda7022b420b6525a2a87e57f3035978f5fdf09",
-    "target_head": "cfda7022b420b6525a2a87e57f3035978f5fdf09",
+    "product_head": "d66721a674ec9268a7da5f370ba595157e06ac8a",
+    "target_head": "d66721a674ec9268a7da5f370ba595157e06ac8a",
     "command_sha256": "9c9f75f4f3e63a85a9c35cecf94a5664947c3be64b828edec0431b793c0b44cb"
   },
   "shadow": {

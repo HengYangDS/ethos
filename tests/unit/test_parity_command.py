@@ -477,6 +477,36 @@ def test_shadow_parity_report_accepts_current_commit_parent_product_head(
     assert payload["provenance"]["freshness"]["current_product_head"] == "current-product-head"
 
 
+def test_shadow_parity_report_accepts_current_commit_parent_target_head(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "sample-adopter"
+    target.mkdir()
+    evidence = _complete_parity_evidence("sample-adopter")
+    _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
+    evidence["freshness"]["target_head"] = "parent-target-head"
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = shadow_parity_report(
+        target=target,
+        root=tmp_path,
+        adopter="sample-adopter",
+        current_target_head="current-target-head",
+        acceptable_target_heads=("parent-target-head",),
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "matched"
+    assert payload["required_gaps"] == []
+    assert payload["provenance"]["freshness"]["target_head"] == "parent-target-head"
+    assert payload["provenance"]["freshness"]["current_target_head"] == "current-target-head"
+
+
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
     tmp_path: Path,
 ) -> None:
@@ -1366,6 +1396,114 @@ def test_shadow_semantic_diff_classifies_changed_route_noop() -> None:
     }
 
     assert _semantic_diff(external, embedded) == {}
+
+
+def test_shadow_semantic_diff_classifies_changed_route_noop_with_strict_activation_gap() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": [
+            "skill_missing_id",
+            "playbook_activation_unsupported_version:1",
+        ],
+        "data": {
+            "subject": "changed-scope",
+            "required_gaps": [
+                "skill_missing_id",
+                "playbook_activation_unsupported_version:1",
+            ],
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "summary": {
+            "changed_requested": True,
+            "changed_path_count": 0,
+            "command": "playbooks route",
+        },
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+    assert _accepted_semantic_differences(external, embedded) == [
+        {
+            "kind": "changed_route_noop",
+            "classification": "accepted",
+            "scope": "changed_scope_route",
+            "commands": ["ethos playbooks route"],
+            "gaps": [
+                "playbook_activation_unsupported_version:1",
+                "skill_missing_id",
+            ],
+            "reason": "changed-scope route has no changed paths to route",
+        }
+    ]
+
+
+def test_shadow_semantic_diff_classifies_report_parity_evidence_refresh_bootstrap() -> None:
+    external = {
+        "ok": False,
+        "command": "report",
+        "state": "gapped",
+        "summary": {
+            "score": 6,
+            "max_score": 7,
+            "governance_gap_count": 0,
+            "parity_pending_count": 6,
+        },
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "report",
+        "state": "ready",
+        "summary": {"blocking_gap_count": 0},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(external, embedded) == {}
+    accepted = _accepted_semantic_differences(external, embedded)
+    assert accepted == [
+        {
+            "kind": "report_parity_evidence_refresh_bootstrap",
+            "classification": "accepted",
+            "scope": "parity_evidence_refresh",
+            "commands": ["ethos report"],
+            "gaps": ["parity_pending_count:6"],
+            "reason": "report parity freshness is being refreshed by the current shadow run",
+        }
+    ]
+
+    payload = {
+        "ok": True,
+        "state": "matched",
+        "target": "/repo",
+        "required_gaps": [],
+        "accepted_summary": {
+            "total_count": 1,
+            "command_count": 1,
+            "kind_counts": {"report_parity_evidence_refresh_bootstrap": 1},
+        },
+        "comparisons": [
+            {
+                "command": "ethos report",
+                "external": {"exit_code": 0, "stdout": "", "stderr": "", "json": external},
+                "embedded": {"exit_code": 0, "stdout": "", "stderr": "", "json": embedded},
+                "semantic_diff": {},
+                "accepted_summary": {
+                    "total_count": 1,
+                    "kind_counts": {"report_parity_evidence_refresh_bootstrap": 1},
+                },
+                "accepted_differences": accepted,
+            }
+        ],
+        "execution_packages": [],
+    }
+
+    validation = validate_schema_instance("shadow-parity.schema.json", payload)
+    assert validation["ok"] is True
 
 
 def test_shadow_semantic_diff_preserves_changed_route_gap_when_paths_changed() -> None:

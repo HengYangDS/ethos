@@ -28,12 +28,20 @@
     }
   },
   "additionalProperties": false,
-  "$defs": {
+    "$defs": {
     "acceptedKind": {
-      "enum": ["external_product_repository_audit_gap", "changed_route_noop"]
+      "enum": [
+        "external_product_repository_audit_gap",
+        "changed_route_noop",
+        "report_parity_evidence_refresh_bootstrap"
+      ]
     },
     "acceptedScope": {
-      "enum": ["external_product_repository_audit", "changed_scope_route"]
+      "enum": [
+        "external_product_repository_audit",
+        "changed_scope_route",
+        "parity_evidence_refresh"
+      ]
     },
     "acceptedSummary": {
       "type": "object",

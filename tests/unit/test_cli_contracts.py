@@ -2739,6 +2739,8 @@ def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
     assert "accepted_differences" in text
     assert "external_product_repository_audit_gap" in text
     assert "changed_route_noop" in text
+    assert "report_parity_evidence_refresh_bootstrap" in text
+    assert "legacy_changed_route_noop" not in text
     assert "shadow_parity_digest" in text
 
 

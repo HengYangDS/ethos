@@ -29,6 +29,7 @@ def parity_gaps_report(
     current_target_head: str = "",
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
+    acceptable_target_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
@@ -40,6 +41,7 @@ def parity_gaps_report(
         current_target_head=current_target_head,
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
+        acceptable_target_heads=acceptable_target_heads,
     )
     evidence_valid = not evidence.get("required_gaps")
     evidence_gaps = [str(gap) for gap in evidence.get("required_gaps", [])]
@@ -248,6 +250,7 @@ def shadow_parity_report(
     current_target_head: str = "",
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
+    acceptable_target_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
@@ -258,6 +261,7 @@ def shadow_parity_report(
             current_target_head=current_target_head,
             current_product_head=current_product_head,
             acceptable_product_heads=acceptable_product_heads,
+            acceptable_target_heads=acceptable_target_heads,
         )
         if evidence:
             evidence_gaps = list(evidence.get("required_gaps", []))
@@ -410,6 +414,7 @@ def _parity_evidence(
     current_target_head: str = "",
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
+    acceptable_target_heads: Iterable[str] = (),
 ) -> dict[str, object]:
     if not adopter:
         return {}
@@ -437,6 +442,7 @@ def _parity_evidence(
         current_target_head=current_target_head,
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
+        acceptable_target_heads=acceptable_target_heads,
     )
     return {
         "path": path.relative_to(root).as_posix(),
@@ -453,6 +459,7 @@ def _validate_parity_evidence(
     current_target_head: str = "",
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
+    acceptable_target_heads: Iterable[str] = (),
 ) -> list[str]:
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
@@ -475,6 +482,7 @@ def _validate_parity_evidence(
         current_target_head=current_target_head,
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
+        acceptable_target_heads=acceptable_target_heads,
         required_gaps=required_gaps,
     )
     shadow = payload.get("shadow")
@@ -532,6 +540,7 @@ def _validate_freshness(
     current_target_head: str,
     current_product_head: str,
     acceptable_product_heads: Iterable[str],
+    acceptable_target_heads: Iterable[str],
     required_gaps: list[str],
 ) -> None:
     if not isinstance(freshness, dict):
@@ -550,7 +559,12 @@ def _validate_freshness(
         and product_head not in set(acceptable_product_heads)
     ):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:product_head")
-    if current_target_head and freshness.get("target_head") != current_target_head:
+    target_head = str(freshness.get("target_head") or "")
+    if (
+        current_target_head
+        and target_head != current_target_head
+        and target_head not in set(acceptable_target_heads)
+    ):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")
 
 

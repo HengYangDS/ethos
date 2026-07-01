@@ -19,13 +19,15 @@ Accepted classifications are limited to:
 - `external_product_repository_audit_gap`: product repository audit maturation gaps reported
   by external ETHOS when the embedded adopter command has no corresponding
   required gap.
-- `legacy_changed_route_noop`: legacy changed-scope playbook route gaps when
-  the embedded route confirms `changed_path_count=0`.
+- `changed_route_noop`: changed-scope playbook route gaps when the embedded
+  route confirms `changed_path_count=0`.
+- `report_parity_evidence_refresh_bootstrap`: report freshness gaps caused by
+  the tracked evidence record being refreshed by the current shadow run.
 
-These classifications do not hide command failures, embedded gaps, non-self-
-audit proof gaps, mutation/admission gaps, or changed-scope route gaps with real
-changed paths. Those remain blocking `shadow_diff:*` or command failure
-packages.
+These classifications do not hide command failures, embedded gaps,
+non-product-repository audit proof gaps, mutation/admission gaps, or
+changed-scope route gaps with real changed paths. Those remain blocking
+`shadow_diff:*` or command failure packages.
 
 ## Contract
 
@@ -46,7 +48,8 @@ state: matched
 required_gaps: []
 accepted_difference_kinds:
   - external_product_repository_audit_gap
-  - legacy_changed_route_noop
+  - changed_route_noop
+  - report_parity_evidence_refresh_bootstrap
 ```
 
 Final closeout must refresh the command output and report the actual digest in

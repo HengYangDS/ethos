@@ -157,6 +157,44 @@ def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[s
     return tuple(dict.fromkeys(head for head in accepted if head))
 
 
+def _acceptable_parity_target_heads(
+    root: Path,
+    target: Path | None,
+    adopter: str | None,
+) -> tuple[str, ...]:
+    if target is None:
+        return ()
+    current_head = _current_tracked_head(target)
+    if not current_head:
+        return ()
+    accepted = [current_head]
+    if _same_git_repository(root, target):
+        evidence_path = (
+            Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+        )
+        last_change = _git_stdout(root, "log", "-1", "--format=%H", "--", evidence_path.as_posix())
+        if last_change == current_head:
+            parents_line = _git_stdout(target, "rev-list", "--parents", "-n", "1", current_head)
+            accepted.extend(parents_line.split()[1:])
+    return tuple(dict.fromkeys(head for head in accepted if head))
+
+
+def _same_git_repository(left: Path, right: Path) -> bool:
+    left_common = _git_common_dir(left)
+    right_common = _git_common_dir(right)
+    return bool(left_common and right_common and left_common == right_common)
+
+
+def _git_common_dir(root: Path) -> str:
+    common_dir = _git_stdout(root, "rev-parse", "--git-common-dir")
+    if not common_dir:
+        return ""
+    path = Path(common_dir)
+    if not path.is_absolute():
+        path = root / path
+    return path.resolve().as_posix()
+
+
 def _adoption_mutation_gaps(
     *,
     apply: bool,
@@ -544,6 +582,7 @@ def _campaign_closeout_report(
     current_target_head = _current_tracked_head(target)
     current_product_head = _current_tracked_head(repo)
     acceptable_product_heads = _acceptable_parity_product_heads(repo, adopter)
+    acceptable_target_heads = _acceptable_parity_target_heads(repo, target, adopter)
     parity = parity_gaps_report(
         adopter=adopter,
         root=repo,
@@ -551,6 +590,7 @@ def _campaign_closeout_report(
         current_target_head=current_target_head,
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
+        acceptable_target_heads=acceptable_target_heads,
     )
     shadow = shadow_parity_report(
         target=target,
@@ -559,6 +599,7 @@ def _campaign_closeout_report(
         current_target_head=current_target_head,
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
+        acceptable_target_heads=acceptable_target_heads,
     )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(
@@ -2283,6 +2324,7 @@ def parity_gaps(
         current_target_head=_current_tracked_head(target) if target is not None else "",
         current_product_head=_current_tracked_head(repo),
         acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
+        acceptable_target_heads=_acceptable_parity_target_heads(repo, target, adopter),
     )
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
@@ -2337,6 +2379,7 @@ def parity_shadow(
             current_target_head=_current_tracked_head(target),
             current_product_head=_current_tracked_head(repo),
             acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
+            acceptable_target_heads=_acceptable_parity_target_heads(repo, target, adopter),
         )
     required_gaps = list(report["required_gaps"])
     evidence_path = ""

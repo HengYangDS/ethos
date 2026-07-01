@@ -94,14 +94,17 @@ option. The semantic projection normalizes legacy embedded payloads that omit
 top-level `state` for read-only ready/planned commands.
 
 Executed comparisons also expose `accepted_differences` when a mismatch belongs
-to a known cross-generation projection boundary rather than to adopter command
-semantics. Product repository-audit gaps reported by an external product command are
-classified separately when the embedded command has no corresponding gap, so
-shadow parity does not mistake ETHOS product-repository maturation work for an
-adopter backend mismatch. Legacy changed-scope playbook route gaps are likewise
-classified only when the embedded route confirms `changed_path_count=0`. Any
-non-repository-audit proof gap, mutation/admission gap, embedded gap, command failure,
-or changed-scope route gap with actual changed paths remains a blocking
+to a known projection boundary rather than to adopter command semantics. Product
+repository-audit gaps reported by an external product command are classified
+separately when the embedded command has no corresponding gap, so shadow parity
+does not mistake ETHOS product-repository maturation work for an adopter backend
+mismatch. Changed-scope playbook route gaps, including strict activation-version
+gaps, are classified only when the embedded route confirms
+`changed_path_count=0`. `ethos report` parity freshness gaps are classified only
+for the evidence-refresh bootstrap case, where the current shadow run is the
+operation that can replace stale tracked evidence. Any non-repository-audit
+proof gap, mutation/admission gap, embedded gap, command failure, or
+changed-scope route gap with actual changed paths remains a blocking
 `shadow_diff:*` or command failure package.
 
 Executed reports include `accepted_summary` at report level and per comparison
@@ -119,6 +122,12 @@ stale, target-mismatched, or produced by an old command shape, ETHOS reports a
 blocking `parity_evidence_refresh` package. The package names the adopter,
 product root, explicit target when supplied, required gaps, and the exact
 refresh command:
+
+When the commit that last changed a tracked evidence file is the current product
+or same-repository target commit, the commit parent is also an acceptable
+freshness head. This keeps local evidence commits verifiable without allowing
+stale adopter targets: cross-repository adopters still require exact target HEAD
+matching.
 
 ```bash
 ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --json

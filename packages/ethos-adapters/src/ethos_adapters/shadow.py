@@ -381,6 +381,20 @@ def _normalized_semantic_projections(
                     gaps=route_gaps,
                 )
             )
+        report_gaps = _report_parity_evidence_refresh_bootstrap_gaps(
+            external,
+            embedded,
+            external_projection,
+            embedded_projection,
+        )
+        if report_gaps:
+            accepted.append(
+                _accepted_difference(
+                    "report_parity_evidence_refresh_bootstrap",
+                    command=external_projection.get("command"),
+                    gaps=report_gaps,
+                )
+            )
     external_projection["required_gaps"] = sorted(external_gaps)
     if accepted and not external_gaps and not embedded_gaps:
         external_projection["ok"] = True
@@ -398,6 +412,9 @@ def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict
     elif kind == "changed_route_noop":
         scope = "changed_scope_route"
         reason = "changed-scope route has no changed paths to route"
+    elif kind == "report_parity_evidence_refresh_bootstrap":
+        scope = "parity_evidence_refresh"
+        reason = "report parity freshness is being refreshed by the current shadow run"
     else:
         scope = "unknown"
         reason = "unclassified accepted difference"
@@ -622,10 +639,16 @@ def _without_changed_route_noop_gaps(
 ) -> tuple[list[str], list[str]]:
     if not _is_changed_route_noop(external, embedded, gaps):
         return gaps, []
-    route_gap_codes = {"skill_missing_id", "playbook_route_missing:changed-scope"}
-    filtered = [gap for gap in gaps if gap not in route_gap_codes]
-    removed = [gap for gap in gaps if gap in route_gap_codes]
+    filtered = [gap for gap in gaps if not _is_changed_route_noop_gap(gap)]
+    removed = [gap for gap in gaps if _is_changed_route_noop_gap(gap)]
     return filtered, removed
+
+
+def _is_changed_route_noop_gap(gap: str) -> bool:
+    return gap in {
+        "skill_missing_id",
+        "playbook_route_missing:changed-scope",
+    } or gap.startswith("playbook_activation_unsupported_version:")
 
 
 def _is_changed_route_noop(
@@ -637,15 +660,44 @@ def _is_changed_route_noop(
     embedded_summary = (
         embedded.get("summary") if isinstance(embedded.get("summary"), dict) else {}
     )
-    route_gap_codes = {"skill_missing_id", "playbook_route_missing:changed-scope"}
     return (
         (external.get("command") or external_data.get("command")) == "playbooks route"
         and external_data.get("subject") == "changed-scope"
         and embedded_summary.get("changed_requested") is True
         and embedded_summary.get("changed_path_count") == 0
         and bool(gaps)
-        and set(gaps).issubset(route_gap_codes)
+        and all(_is_changed_route_noop_gap(gap) for gap in gaps)
     )
+
+
+def _report_parity_evidence_refresh_bootstrap_gaps(
+    external: dict[str, Any],
+    embedded: dict[str, Any],
+    external_projection: dict[str, Any],
+    embedded_projection: dict[str, Any],
+) -> list[str]:
+    external_summary = (
+        external.get("summary") if isinstance(external.get("summary"), dict) else {}
+    )
+    parity_pending_count = external_summary.get("parity_pending_count")
+    governance_gap_count = external_summary.get("governance_gap_count")
+    if not isinstance(parity_pending_count, int) or parity_pending_count <= 0:
+        return []
+    if governance_gap_count not in (None, 0):
+        return []
+    if external_projection.get("command") != "report":
+        return []
+    if embedded_projection.get("command") != "report":
+        return []
+    if external_projection.get("required_gaps") or embedded_projection.get("required_gaps"):
+        return []
+    if external_projection.get("ok") is not False or embedded_projection.get("ok") is not True:
+        return []
+    if external_projection.get("state") != "gapped":
+        return []
+    if embedded_projection.get("state") != "ready":
+        return []
+    return [f"parity_pending_count:{parity_pending_count}"]
 
 
 def _list(value: Any) -> list[Any]:

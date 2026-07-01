@@ -909,6 +909,23 @@ def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload
     assert _semantic_diff(external, embedded) == {}
 
 
+def test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload() -> None:
+    external = {
+        "ok": True,
+        "command": "prove",
+        "state": "ready",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": True,
+        "command": "prove",
+        "state": {},
+        "required_gaps": [],
+    }
+
+    assert _semantic_diff(("prove",), external, embedded) == {}
+
+
 @pytest.mark.parametrize(
     ("command", "external_state"),
     [

@@ -80,7 +80,7 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             schemas[path.name] = {"ok": False, "error": str(exc)}
         else:
             schemas[path.name] = {"ok": True, "title": schema.get("title", "")}
-    instances = _instance_validation_report(repo)
+    instances = _instance_validation_report(repo, mode=mode)
     for name, instance in instances.items():
         if not instance["ok"]:
             gaps.extend(f"instance:{name}:{gap}" for gap in instance["required_gaps"])
@@ -132,7 +132,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
     }
 
 
-def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
+def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
     from ethos_repository.coupling import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
@@ -224,7 +224,7 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         _capability_profile_contract_sample(),
         root=root,
     )
-    instances["capability-profiles"] = _capability_profiles_report(root)
+    instances["capability-profiles"] = _capability_profiles_report(root, mode=mode)
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
         coupling_audit_report(root),
@@ -650,9 +650,10 @@ def _capability_profile_contract_sample() -> dict[str, Any]:
     }
 
 
-def _capability_profiles_report(root: Path) -> dict[str, object]:
+def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
     profile_paths = sorted((root / "openspec" / "specs").glob("*/capability.toml"))
     gaps: list[str] = []
+    advisory_gaps: list[str] = []
     for path in profile_paths:
         try:
             payload = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -669,10 +670,14 @@ def _capability_profiles_report(root: Path) -> dict[str, object]:
                 f"{path.relative_to(root).as_posix()}:{gap}"
                 for gap in validation["required_gaps"]
             )
+    if mode == "adopter":
+        advisory_gaps = gaps
+        gaps = []
     return {
         "ok": not gaps,
         "profile_count": len(profile_paths),
         "required_gaps": gaps,
+        "advisory_gaps": advisory_gaps,
     }
 
 

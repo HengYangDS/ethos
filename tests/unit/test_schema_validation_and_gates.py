@@ -124,6 +124,40 @@ def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contra
     assert report["instances"]["docs-registry"]["ok"] is True
 
 
+def test_schema_validation_keeps_adopter_capability_profiles_advisory(
+    tmp_path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    profile_dir = tmp_path / "openspec" / "specs" / "legacy-family"
+    profile_dir.mkdir(parents=True)
+    (profile_dir / "capability.toml").write_text(
+        "\n".join(
+            [
+                'family = "legacy-family"',
+                'owner_object = "legacy-kernel"',
+                'primary_invariant = "legacy repository owns its own capability profile"',
+                'routing_question = "Is this adopter capability in scope?"',
+                'decision_axes = ["adopter_metadata"]',
+                "",
+                "[boundary_rules]",
+                'legacy = "legacy adopter profile shape remains adopter-owned metadata"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = schema_validation_report(tmp_path)
+    profiles = report["instances"]["capability-profiles"]
+
+    assert report["mode"] == "adopter"
+    assert report["ok"] is True
+    assert profiles["ok"] is True
+    assert profiles["required_gaps"] == []
+    assert profiles["advisory_gaps"]
+    assert "openspec/specs/legacy-family/capability.toml" in profiles["advisory_gaps"][0]
+
+
 def test_result_payload_validates_against_schema() -> None:
     result = EthosResult(command="status", ok=True, state="ready").to_dict()
 

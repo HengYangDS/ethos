@@ -471,6 +471,13 @@ def _semantic_state(
 ) -> object:
     state = payload.get("state")
     if isinstance(state, str):
+        if (
+            payload.get("ok") is True
+            and command == "prove"
+            and state == "ready"
+            and not _gap_list(payload.get("required_gaps"))
+        ):
+            return "proven"
         return state
     if payload.get("ok") is not True:
         return state

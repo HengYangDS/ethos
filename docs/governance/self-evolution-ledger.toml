@@ -2,19 +2,37 @@
 id = "schema-validated-command-plane"
 campaign = "ethos-product-maturation"
 state = "active"
+owner = "ethos-maintainers"
 claim = "Every public JSON command can be validated against tracked ETHOS schemas."
 challenge = "A command without schema validation remains a product risk."
+transition = "shape -> canonize"
+proof_refs = ["ethos quality schemas --json"]
+review_refs = ["tests/unit/test_schema_validation_and_gates.py"]
+decision_refs = ["docs/governance/self-evolution-campaign.md"]
+retirement_conditions = ["all public JSON commands declare schema-bound output contracts"]
 
 [[hypothesis]]
 id = "real-gate-runner"
 campaign = "ethos-product-maturation"
 state = "experimenting"
+owner = "ethos-maintainers"
 claim = "ETHOS proof should execute selected gates through the action graph."
 challenge = "A proof wrapper that only summarizes self-audit is not sufficient."
+transition = "experiment -> canonize"
+proof_refs = ["ethos prove --execute --json"]
+review_refs = ["tests/unit/test_runner_and_evidence.py"]
+decision_refs = ["docs/architecture/gate-runner.md"]
+retirement_conditions = ["land and publish consume proven evidence records"]
 
 [[hypothesis]]
 id = "host-profile-release-governance"
 campaign = "ethos-product-maturation"
 state = "active"
+owner = "ethos-maintainers"
 claim = "A release-ready product needs generic repository basics plus explicit host-profile surfaces."
 challenge = "Missing repository basics or hidden hosted-provider assumptions reduce trust even when code tests pass."
+transition = "shape -> canonize"
+proof_refs = ["ethos quality release-policy --json"]
+review_refs = ["tests/unit/test_release_policy_and_attestation.py"]
+decision_refs = ["docs/governance/release-governance.md"]
+retirement_conditions = ["release readiness is backed by local build smoke and attestation checks"]

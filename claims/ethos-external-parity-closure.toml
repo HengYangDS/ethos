@@ -27,3 +27,21 @@ packages = [
   "ethos-assistants",
   "ethos-test",
 ]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Reference adopter parity through tracked evidence and generic profiles"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Use tracked parity evidence and adopter profile reports without promoting adopter internals into product core."
+kill_signal = "ETHOS core requires alphasim-dmgr private terms to prove generic parity."
+
+[promotion]
+targets = [
+  "docs/evidence/external-parity-closure-2026-07-01.md",
+  "docs/evidence/parity/alphasim-dmgr-shadow.json",
+  "docs/governance/capability-parity-ledger.md",
+  "openspec/specs/ethos-repository/spec.md",
+]

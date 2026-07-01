@@ -8,6 +8,14 @@ relations:
 
 # Kernel Model
 
+Status: canonical.
+
+Purpose: define the ETHOS kernel chain that higher-level command and quality
+surfaces project from.
+
+See also: [Package Ontology](../architecture/package-ontology.md) and
+[Glossary](../reference/glossary.md).
+
 ETHOS reduces repository operation to:
 
 ```text

@@ -32,3 +32,21 @@ docs = [
   "docs/governance/product-boundary-convergence.md",
   "docs/governance/capability-parity-ledger.md",
 ]
+
+[boundary]
+owner = "ethos-contracts"
+scope = "Product design contract, package ontology, and product/adopter boundary"
+
+[carriers]
+openspec = "openspec/specs/ethos-contracts/spec.md"
+
+fallback = "Keep adopter migration oracle evidence until product contracts prove equivalent behavior."
+kill_signal = "Product package ontology and adopter boundary are defined only in prose without schema or tests."
+
+[promotion]
+targets = [
+  "docs/evidence/product-design-contract-2026-07-01.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/capability-parity-ledger.md",
+  "openspec/specs/ethos-contracts/spec.md",
+]

@@ -34,3 +34,21 @@ packages = [
 distributions = [
   "distributions/npm",
 ]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Repository platform scaffold, playbooks, fleet inspection, OpenSpec families, and standards adapters"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Keep official OpenSpec validation, local self-audit, and standards adapter checks as proof gates."
+kill_signal = "Repository platform readiness depends on a second command plane or lifecycle store."
+
+[promotion]
+targets = [
+  "docs/evidence/governance-platform-2026-06-30.md",
+  "docs/governance/openspec-self-governance.md",
+  "docs/governance/standards-adoption-policy.md",
+  "openspec/specs/ethos-repository/spec.md",
+]

@@ -31,3 +31,21 @@ schemas = [
   "schemas/ethos/assistant-projection.schema.json",
   "schemas/ethos/mutation-decision.schema.json",
 ]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Framework proof, evidence, docs, assistants, and mutation contracts"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Keep local deterministic proof gates and schema validation as the rollback path."
+kill_signal = "Framework proof depends on untracked host or assistant state."
+
+[promotion]
+targets = [
+  "docs/evidence/hardening-2026-06-30.md",
+  "schemas/ethos/proof-run.schema.json",
+  "schemas/ethos/evidence-set.schema.json",
+  "openspec/specs/ethos-repository/spec.md",
+]

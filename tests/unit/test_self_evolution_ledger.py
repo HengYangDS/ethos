@@ -10,6 +10,12 @@ def test_evolution_ledger_exposes_active_hypotheses() -> None:
 
     assert "ethos-product-maturation" in {item["campaign"] for item in ledger["hypotheses"]}
     assert all(item["id"] for item in ledger["hypotheses"])
+    assert all(item["owner"] for item in ledger["hypotheses"])
+    assert all(item["transition"] for item in ledger["hypotheses"])
+    assert all(item["proof_refs"] for item in ledger["hypotheses"])
+    assert all(item["review_refs"] for item in ledger["hypotheses"])
+    assert all(item["decision_refs"] for item in ledger["hypotheses"])
+    assert all(item["retirement_conditions"] for item in ledger["hypotheses"])
 
 
 def test_evolution_report_scores_hypothesis_states() -> None:
@@ -25,4 +31,8 @@ def test_evolution_candidates_are_derived_from_audit_signals() -> None:
 
     assert candidates["ok"] is True
     candidate_ids = {item["id"] for item in candidates["candidates"]}
-    assert candidate_ids == {"release-readiness-ratchet"}
+    assert {
+        "release-readiness-ratchet",
+        "asset-quality-kernel",
+    } <= candidate_ids
+    assert all(item["challenge"] for item in candidates["candidates"])

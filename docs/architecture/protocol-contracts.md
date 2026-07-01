@@ -29,3 +29,9 @@ kernel schema -> command JSON -> local state -> adapter projection
 If an adapter is unavailable, ETHOS keeps the same command JSON, local SQLite
 state, and repository evidence semantics. This makes external frameworks useful
 without making them mandatory.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

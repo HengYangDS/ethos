@@ -40,12 +40,19 @@ Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane.
 Existing linked worktrees report `worktree_binding = "linked"` as product
-state; host-specific open or checkout labels are adapter projections, not
-workspace semantics.
+state; host-specific navigation labels are adapter projections, not workspace
+semantics. Adapters derive presentation from `worktree_binding`; they do not
+own branch role, lane, or mutation semantics.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
 cannot be created from ambiguous local candidate state.
+The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
+and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
+when needed, `ethos land` advances the configured candidate branch, and
+`ethos lane retire-landed` removes only an explicitly named landed Work Lane.
+Raw Git worktree creation can exist as a repository fact, but it is not standard
+ETHOS workflow state.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release
@@ -72,3 +79,9 @@ packages, but it remains read-only; actual mutation still goes through
 
 This keeps break-glass paths explicit and makes dry-run planning safe by
 default.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

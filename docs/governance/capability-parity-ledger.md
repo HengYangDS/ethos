@@ -49,6 +49,14 @@ ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execut
 The tracked evidence file is
 `docs/evidence/parity/alphasim-dmgr-shadow.json`.
 
+Reference adopters are evidence and profile fixtures, not product ontology.
+Adopter-private terms may appear in parity evidence, profile fixtures, and this
+ledger row when they identify the reference boundary. Product packages and
+canonical contracts stay in the generic vocabulary of subjects, claims,
+capabilities, gates, evidence, promotion, and providers. The
+`reference_adopter_profile_fixture` in `ethos-test` keeps adopter terms inside a
+fixture boundary and leaves `core_product_terms` empty.
+
 Tracked shadow parity evidence must carry shadow parity evidence freshness
 fields before it can close an adopter gap. The freshness identity records the
 product head that produced the evidence, the adopter target `target_head`, and
@@ -142,3 +150,9 @@ accepted classification boundary without treating it as remote publication.
 No adopter backend switch can occur until every row has an explicit target home,
 migration disposition, parity criterion, and rollback impact. New capabilities
 must be added to this ledger before migration work begins.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

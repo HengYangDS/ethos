@@ -1,0 +1,16 @@
+family = "ethos-assistants"
+primary_invariant = "The ethos-assistants family keeps assistant and context projection boundaries cohesive and provider-neutral."
+routing_question = "Does this change alter assistant and context projection boundaries?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "ethos-assistants"
+scope = "assistant and context projection boundaries"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

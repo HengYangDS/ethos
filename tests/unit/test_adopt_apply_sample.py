@@ -37,6 +37,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
+        ".agents/skills/ethos-repository-governance/package.toml",
         "AGENTS.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
@@ -44,6 +45,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "openspec/specs/ethos-core/spec.md",
         "openspec/specs/ethos-contracts/spec.md",
         "openspec/specs/ethos-repository/spec.md",
+        "openspec/specs/ethos-repository/capability.toml",
         "openspec/specs/ethos-adapters/spec.md",
         "openspec/specs/ethos-assistants/spec.md",
         "openspec/specs/ethos-cli/spec.md",
@@ -56,6 +58,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "docs/governance/ethos.md",
         "docs/evidence/.gitkeep",
         "claims/.gitkeep",
+        "schemas/ethos/.gitkeep",
         ".gitlab-ci.yml",
     }
 
@@ -66,12 +69,36 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "sourceOfTruth" not in (tmp_path / ".agents/skills/activation.toml").read_text(
         encoding="utf-8"
     )
+    activation = (tmp_path / ".agents/skills/activation.toml").read_text(encoding="utf-8")
+    package_manifest = (
+        tmp_path / ".agents/skills/ethos-repository-governance/package.toml"
+    ).read_text(encoding="utf-8")
+    skill_text = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "version = 2" in activation
+    assert 'subject = "repository-governance"' in activation
+    assert 'operation = "govern"' in activation
+    assert 'authority = "primary"' in activation
+    assert (
+        'package_manifest = ".agents/skills/ethos-repository-governance/package.toml"' in activation
+    )
+    assert 'expected_digest = "sha256:' not in activation
+    assert 'entrypoint = "SKILL.md"' in package_manifest
+    assert 'expected_digest = "sha256:' in package_manifest
+    assert 'kind = "command_readonly"' in package_manifest
+    assert "## Workflow" in skill_text
+    assert "## Evidence" in skill_text
+    assert "## Trust Boundary" in skill_text
     assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(
         encoding="utf-8"
     )
+    assert "primary_invariant" in (
+        tmp_path / "openspec/specs/ethos-repository/capability.toml"
+    ).read_text(encoding="utf-8")
 
 
 def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
@@ -112,3 +139,13 @@ def test_generated_skill_loop_uses_workflow_plus_scorecard(tmp_path: Path) -> No
         assert command in skill
     assert "ethos report" in skill
     assert "ethos quality" not in skill
+
+
+def test_adopt_rules_use_single_kernel_governance_entrypoints(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+
+    rules = (tmp_path / ".ethos/rules.toml").read_text(encoding="utf-8")
+
+    assert 'governance_audit = "ethos report --json"' in rules
+    assert 'proof = "ethos prove --json"' in rules
+    assert 'self_audit = "ethos self audit --json"' not in rules

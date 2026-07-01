@@ -9,6 +9,10 @@ def test_mcp_manifest_exposes_resources_prompts_and_tools() -> None:
 
     assert {"resources", "prompts", "tools"} <= set(manifest)
     assert "ethos.status" in manifest["tools"]
+    assert manifest["tools"]["ethos.status"]["capability"] == "mcp_tool_readonly"
+    assert manifest["tools"]["ethos.prove"]["capability"] == "mcp_tool_proof"
+    assert manifest["resources"]["ethos://docs/index"]["capability"] == "mcp_resource"
+    assert manifest["prompts"]["ethos.campaign-review"]["capability"] == "mcp_prompt"
     assert "ethos://docs/index" in manifest["resources"]
 
 

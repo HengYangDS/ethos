@@ -24,7 +24,24 @@ def test_docs_health_report_has_no_missing_metadata() -> None:
 
     assert report["ok"] is True
     assert report["missing_metadata"] == []
+    assert report["invalid_state"] == []
+    assert report["duplicate_subjects"] == []
     assert report["document_count"] >= 10
+
+
+def test_docs_quality_report_enforces_taxonomy_and_visible_sections() -> None:
+    from ethos_repository.docs_registry import docs_quality_report
+
+    report = docs_quality_report(Path.cwd())
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert report["style_goals"] == ["faithful", "expressive", "elegant"]
+    assert report["checks"]["taxonomy"]["ok"] is True
+    assert report["checks"]["visible_structure"]["ok"] is True
+    assert report["checks"]["stable_paths"]["ok"] is True
+    assert report["checks"]["link_integrity"]["ok"] is True
+    assert report["checks"]["glossary"]["ok"] is True
 
 
 def test_command_examples_do_not_leak_retired_roots() -> None:
@@ -71,3 +88,83 @@ TERM=xterm-256color codex doctor --json
         "codex --version",
         "TERM=xterm-256color codex doctor --json",
     }
+
+
+def test_command_examples_reject_unknown_nested_ethos_commands(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+ethos quality frobnicate --json
+ethos lane nope --json
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is False
+    assert "unknown_ethos_command_example:README.md:4:ethos quality frobnicate" in report[
+        "required_gaps"
+    ]
+    assert "unknown_ethos_command_example:README.md:5:ethos lane nope" in report[
+        "required_gaps"
+    ]
+
+
+def test_command_examples_validate_wrapped_uv_ethos_commands(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+uv run --package ethos ethos quality frobnicate --json
+npm run ethos -- --version
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is False
+    assert (
+        "unknown_ethos_command_example:README.md:4:ethos quality frobnicate"
+        in report["required_gaps"]
+    )
+    npm_record = next(
+        example
+        for example in report["examples"]
+        if example["command"] == "npm run ethos -- --version"
+    )
+    assert npm_record["root"] == "npm"
+
+
+def test_docs_quality_report_rejects_invalid_taxonomy_state(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "bad.md").write_text(
+        """---
+subject: ethos:bad
+role: reference
+state: current
+relations:
+  see_also: []
+---
+
+# Bad
+
+Status: current
+
+Purpose: demonstrate invalid state.
+
+See also: none.
+""",
+        encoding="utf-8",
+    )
+
+    report = docs_health_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["invalid_state"] == ["invalid_state:docs/bad.md:current"]

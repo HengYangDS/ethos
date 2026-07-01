@@ -106,3 +106,9 @@ The decision must answer:
 - whether an embedded snapshot is retained;
 - which docs become historical material;
 - which domain-specific mechanisms remain adopter-only.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

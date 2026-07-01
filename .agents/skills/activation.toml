@@ -1,10 +1,38 @@
 [meta]
-version = 1
+version = 2
 source_of_truth = "repository"
+expected_registry_digest = "sha256:cecc50405c27d9e6849d82d8414c70ac4d58caf8d04db7acbf2810ea6a106bb0"
+expected_generator_digest = "sha256:4ecddd8dd720b1e42ba65b0f4db3b19da62be733307c70a04e970f9fab266cc0"
 
 [[skill]]
 id = "ethos-repository-governance"
 path = ".agents/skills/ethos-repository-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
 subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
+path_globs = [
+  "AGENTS.md",
+  ".ethos/**",
+  ".agents/skills/**",
+  "distributions/**",
+  "docs/**",
+  "openspec/**",
+  "claims/**",
+  "packages/**",
+  "schemas/**",
+  "tests/**",
+  "uv.lock",
+  "pyproject.toml",
+]
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
+pre_reads = ["AGENTS.md", "docs/governance/playbooks-and-skills.md"]
+during_rules = [
+  "treat skills as projections over repository truth",
+  "use ETHOS command JSON as machine evidence",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
-boundary = "thin-playbook-projection"
+boundary = "workflow-package-projection"

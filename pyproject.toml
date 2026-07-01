@@ -23,6 +23,7 @@ members = [
   "packages/ethos-assistants",
   "packages/ethos-contracts",
   "packages/ethos-core",
+  "packages/ethos-quality",
   "packages/ethos-repository",
   "packages/ethos-test",
 ]
@@ -32,6 +33,7 @@ ethos-adapters = { workspace = true }
 ethos-assistants = { workspace = true }
 ethos-contracts = { workspace = true }
 ethos-core = { workspace = true }
+ethos-quality = { workspace = true }
 ethos-repository = { workspace = true }
 ethos-test = { workspace = true }
 
@@ -44,6 +46,7 @@ pythonpath = [
   "packages/ethos-assistants/src",
   "packages/ethos-contracts/src",
   "packages/ethos-core/src",
+  "packages/ethos-quality/src",
   "packages/ethos-repository/src",
   "packages/ethos-test/src",
 ]

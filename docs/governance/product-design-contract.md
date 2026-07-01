@@ -87,6 +87,26 @@ JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chroni
   was used, which decision was made, what was superseded, and how current truth
   changed.
 
+## Single-Kernel Dual-Posture
+
+ETHOS uses a single-kernel dual-posture model. The same kernel chain, command
+semantics, evidence contracts, mutation discipline, and profile boundaries serve
+both `product_self` and `adopter_repository`.
+
+`product_self` is ETHOS governing this product repository through the
+self-hosting profile. `adopter_repository` is ETHOS governing another repository
+through an adoption profile. These are postures of one product model, not two
+truth stores and not two command planes. In this model, self-governance is not a private command plane;
+it is the highest-intensity use of the same product capability.
+
+Command payloads that audit or summarize repository governance expose
+`governance_context`. That context records the posture, profile, repository
+subject, single-kernel flag, kernel chain, shared commands, repository truth
+boundary, and profile or adapter boundary. The shared command semantics are
+`ethos status`, `ethos plan`, `ethos prove`, `ethos land`, `ethos publish`, and
+`ethos report`; posture-specific commands such as `ethos self audit` refine
+self-hosting proof depth without replacing those shared semantics.
+
 ## Principles
 
 ### Judgment-source first
@@ -108,7 +128,8 @@ governance dependency for promoted spec records and deep proof. Backlog, MCP,
 ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
 similar systems are adapters, providers, profiles, method packs, or
 self-hosting tools; they are not ontology anchors.
-OpenSpec remains mandatory governance, not a product substrate.
+OpenSpec remains mandatory governance, not a product substrate and not a
+second command plane.
 
 ### Git-native repository substrate
 
@@ -119,6 +140,16 @@ they do not replace them.
 Configured branch roles are reported through `role_policy` and ordered as
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane. The
 branch names and prefixes are configurable, but the roles are product semantics.
+The configured role policy is auditable through its configuration source,
+configuration keys, default-policy state, semantic role order, and configured
+patterns; release_root and accepted_root are both protected roles but they are
+not interchangeable.
+Work Lane lifecycle commands are also product semantics: `ethos lane start`,
+`ethos lane bind-claim`, `ethos land`, and `ethos lane retire-landed` define the
+local ownership, evidence binding, candidate closeout, and retirement path.
+Git worktree facts remain observable, but raw worktree creation is not the
+standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
+boundaries.
 
 ### Binding taxonomy
 
@@ -131,7 +162,7 @@ pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology
 `ethos quality coupling-audit --json` exposes these classifications as a
 `binding_registry` so product hard bindings, mandatory dependencies, native
 protocols, self-hosting tools, adapters, legacy evidence, and fixtures are
-auditable without binding ETHOS to a specific editor host or model vendor.
+auditable without binding ETHOS to a specific host or model provider.
 
 ### Capability before surface
 
@@ -164,6 +195,27 @@ editor host surfaces, and assistant context bundles are context providers or
 runtime projections. Agent output is never repository truth until promoted into
 tracked artifacts and evidence.
 
+## Trust Lifecycle
+
+The trust-bearing repository lifecycle is:
+
+```text
+Claim -> Boundary -> Carrier -> Evidence -> Decision -> Promotion
+```
+
+An active claim needs an owner and scope boundary, an OpenSpec carrier, dated
+evidence with a matching digest, fallback and kill-signal text, and promotion
+targets. OpenSpec remains the official specification carrier, but a valid
+OpenSpec change is not trusted without a bound claim and promotion evidence.
+Work Lanes prove local ownership and write admission. Intake providers report
+projection evidence. Neither Work Lane presence nor intake completion promotes
+truth by itself.
+
+Promotion targets are provider-neutral repository paths: source, tests, docs,
+schemas, canonical OpenSpec specs, or dated evidence. Dry-run proof is readiness
+only. Executed proof can support promotion when selected gates record passing
+exit codes and the evidence is bound to a claim.
+
 ## Build And Release Contract
 
 The current build contract is:
@@ -180,3 +232,9 @@ Homebrew/Docker/CI = future distribution or runner adapters, not current scope
 The current phase explicitly does not perform PyPI/TestPyPI publish, npm
 registry publish, Homebrew publish, Docker/OCI push, GitHub Action marketplace
 publish, or GitLab Component publish.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

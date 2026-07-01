@@ -8,6 +8,12 @@ relations:
 
 # Adoption Profiles
 
+Status: canonical.
+
+Purpose: explain how ETHOS projects repository governance into adopters without copying adopter semantics into product core.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
 `ethos adopt` projects ETHOS into another repository without copying adopter
 semantics into ETHOS core.
 
@@ -42,3 +48,9 @@ requirements, `ethos prove` records local evidence, and `ethos report` keeps
 local readiness separate from hosted or domain-specific proof. ETHOS core does
 not hardcode adopter domain names or treat generic command parity as domain
 backend retirement readiness.
+
+An adopted repository runs the `adopter_repository` posture of the same
+single-kernel dual-posture model used by ETHOS self-governance. Generated rules
+use `ethos report --json` for governance audit and `ethos prove --json` for
+proof readiness. `ethos self audit` remains a self-hosting depth command for
+the product repository, not the default adopter governance gate.

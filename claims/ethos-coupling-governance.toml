@@ -2,14 +2,14 @@
 id = "ethos-coupling-governance"
 subject = "ethos:coupling-governance"
 state = "active"
-summary = "Records digest-bound evidence for Git-native product policy, configured branch roles, OpenSpec, native protocols, self-hosting tools, host profiles, assistant protocols, legacy evidence, and fixtures through explicit binding layers."
+summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, self-hosting tools, host profiles, protocol adapters, distribution adapters, legacy evidence, and fixtures through explicit binding layers."
 
 [evidence]
-dated = "docs/evidence/binding-productization-2026-07-01.md"
-sha256 = "2feb6ab4bbc4e56c081d2a87fe13dde450ec9f4678ebae5d20d4eaa29c5aafe8"
+dated = "docs/evidence/coupling-contract-hardening-2026-07-01.md"
+sha256 = "137834ec018347bfed20b4bd07893179134543003c45c8f714c05a91fde2897d"
 evidence_ids = ["evidence:ethos-coupling-governance"]
-binding = "digest-bound evidence binding"
-verifier = "digest_only"
+binding = "semantic coupling governance evidence binding"
+verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
@@ -18,6 +18,12 @@ tests = [
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos quality release-policy --json",
+  "uv run --package ethos ethos lane bind-claim --claim-id ethos-coupling-governance --apply --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
+  "uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
 ]
 
 [scope]
@@ -37,5 +43,23 @@ docs = [
   "docs/architecture/package-ontology.md",
   "docs/reference/command-plane.md",
   "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/ethos-repository/spec.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Git-native repository semantics and provider boundary classification"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Keep provider-specific coupling as evidence or adapter metadata, not product truth."
+kill_signal = "A provider-specific runtime becomes required for local ETHOS proof."
+
+[promotion]
+targets = [
+  "docs/evidence/coupling-governance-2026-07-01.md",
+  "docs/governance/product-design-contract.md",
+  "docs/architecture/gate-runner.md",
   "openspec/specs/ethos-repository/spec.md",
 ]

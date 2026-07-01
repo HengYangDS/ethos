@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import os
 import subprocess
 import tomllib
@@ -9,10 +10,12 @@ from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
+import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.self_audit as self_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.lanes import (
+    bind_work_lane_claim,
     bootstrap_candidate,
     retire_landed_work_lanes,
     start_work_lane,
@@ -25,7 +28,12 @@ from ethos_adapters.mutation import (
 )
 from ethos_adapters.openspec_native import openspec_self_governance_report
 from ethos_adapters.prewrite import prewrite_guard
-from ethos_adapters.runner import ActionRunResult, DryRunRunner, LocalSubprocessRunner
+from ethos_adapters.runner import (
+    ActionRunResult,
+    DryRunRunner,
+    LocalSubprocessRunner,
+    classify_action_result,
+)
 from ethos_adapters.state import initialize_state
 from ethos_adapters.status import workspace_status
 from ethos_assistants.context import context_bundle
@@ -34,12 +42,16 @@ from ethos_assistants.playbooks import playbooks_report, route_playbook
 from ethos_assistants.projections import projection_contract
 from ethos_assistants.server import mcp_server_descriptor
 from ethos_contracts.branch_roles import BranchRolePolicy, load_branch_role_policy
+from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
 )
 from ethos_core.action_graph import ActionGraph, ActionNode
 from ethos_core.result import EthosResult
+from ethos_quality.docs_profile import docs_quality_profile
+from ethos_quality.profiles import product_quality_profile, tool_profiles
+from ethos_quality.proof_policy import proof_lattice
 from ethos_repository.attestation import release_attestation, sbom_projection
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
@@ -48,13 +60,19 @@ from ethos_repository.docs_registry import (
     build_docs_registry,
     command_examples_report,
     docs_health_report,
+    docs_quality_report,
 )
 from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
 from ethos_repository.evolution import evolution_candidates, evolution_ledger, evolution_report
 from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph, gate_registry
 from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
-from ethos_repository.planner import adoption_plan, adoption_scaffold_report, available_profiles
+from ethos_repository.planner import (
+    adoption_plan,
+    adoption_scaffold_report,
+    available_profiles,
+    detect_repo_profile,
+)
 from ethos_repository.release import release_policy_report
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
@@ -155,12 +173,15 @@ def _adoption_mutation_gaps(
 
 
 def _emit(result: EthosResult, json_output: bool) -> None:
-    if json_output:
-        print(result.to_json())
+    try:
+        if json_output:
+            print(result.to_json())
+            return
+        print(f"{result.command}: {result.state}")
+        for action in result.next_actions:
+            print(f"next: {action}")
+    except BrokenPipeError:
         return
-    print(f"{result.command}: {result.state}")
-    for action in result.next_actions:
-        print(f"next: {action}")
 
 
 def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
@@ -202,10 +223,9 @@ def _rules_config(root: Path) -> dict[str, object]:
 
 
 def _is_product_root(root: Path) -> bool:
-    return (
-        (root / "packages" / "ethos" / "README.md").exists()
-        and (root / "schemas" / "ethos").exists()
-    )
+    return (root / "packages" / "ethos" / "README.md").exists() and (
+        root / "schemas" / "ethos"
+    ).exists()
 
 
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
@@ -228,13 +248,15 @@ def _adopter_audit(root: Path) -> dict[str, object]:
     schemas = schema_validation_report(root)
     claims = claims_report(root)
     docs = docs_health_report(root)
-    gaps = (
-        list(adopter["required_gaps"])
-        + [f"schema:{gap}" for gap in schemas["required_gaps"]]
-    )
+    gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
     return {
         "ok": not gaps,
         "mode": "adopter",
+        "governance_context": governance_context(
+            root,
+            posture="adopter_repository",
+            profile=detect_repo_profile(root),
+        ),
         "required_gaps": gaps,
         "adopter": adopter,
         "schemas": {
@@ -258,6 +280,12 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value]
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return f"sha256:{digest.hexdigest()}"
 
 
 def _path_matches(path: str, pattern: str) -> bool:
@@ -327,6 +355,22 @@ def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[st
     return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
 
 
+def _command_data_validation(
+    repo: Path,
+    *,
+    schema_name: str,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    validation = validate_schema_instance(schema_name, payload, root=repo)
+    return {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": schema_name,
+        "ok": bool(validation["ok"]),
+        "required_gaps": list(validation["required_gaps"]),
+    }
+
+
 def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
     return {
         "kind": "submit_branch_plan",
@@ -376,6 +420,111 @@ def _remote_publication_deferred() -> dict[str, object]:
     }
 
 
+def _intake_projection_report(repo: Path) -> dict[str, object]:
+    config_path = repo / ".ethos" / "intake.toml"
+    gaps: list[str] = []
+    provider = "unconfigured"
+    configured = False
+    if config_path.exists():
+        try:
+            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            provider = "invalid"
+            gaps.append("intake_config_invalid:.ethos/intake.toml")
+        else:
+            configured_provider = str(config.get("provider") or "").strip()
+            if configured_provider:
+                provider = configured_provider
+                configured = True
+            else:
+                provider = "invalid"
+                gaps.append("intake_provider_missing:.ethos/intake.toml")
+    state = "configured" if configured else "invalid" if gaps else "unconfigured"
+    return {
+        "kind": "intake_projection",
+        "state": state,
+        "truth_boundary": "projection-evidence",
+        "legacy_truth_boundary": "adopter-ledger",
+        "repository_truth": False,
+        "provider": provider,
+        "configured": configured,
+        "expected_config": ".ethos/intake.toml",
+        "adapters": ["backlog", "github", "gitlab"],
+        "blocking": False,
+        "required_gaps": gaps,
+    }
+
+
+def _trust_closeout_package(
+    *,
+    workspace: dict[str, object],
+    claims: dict[str, object],
+) -> dict[str, object]:
+    closeout_support = workspace.get("closeout_support")
+    closeout = closeout_support if isinstance(closeout_support, dict) else {}
+    trust_claims = [
+        claim
+        for claim in claims.get("claims", {}).values()
+        if isinstance(claim, dict) and claim.get("trust_envelope")
+    ]
+    envelopes = [
+        claim["trust_envelope"]
+        for claim in trust_claims
+        if isinstance(claim.get("trust_envelope"), dict)
+    ]
+    envelope_gaps = [
+        gap
+        for envelope in envelopes
+        for gap in envelope.get("required_gaps", [])
+        if isinstance(envelope, dict)
+    ]
+    promotion_ready = bool(envelopes) and not envelope_gaps and all(
+        isinstance(envelope.get("promotion"), dict)
+        and envelope["promotion"].get("ready") is True
+        for envelope in envelopes
+    )
+    executed_proof_evidence = any(
+        _command_is_executed_proof(command)
+        for envelope in envelopes
+        if isinstance(envelope.get("evidence"), dict)
+        for command in envelope["evidence"].get("commands", [])
+    )
+    gaps: list[str] = []
+    if not claims.get("ok"):
+        gaps.extend(str(gap) for gap in claims.get("required_gaps", []))
+    if not envelopes:
+        gaps.append("trust_claim_missing")
+    if not promotion_ready:
+        gaps.append("promotion_readiness_missing")
+    if not executed_proof_evidence:
+        gaps.append("executed_proof_missing")
+    if (
+        workspace.get("role") == "work_lane"
+        and closeout.get("supported") is True
+        and closeout.get("claim_binding") != "bound"
+    ):
+        gaps.append(f"work_lane_claim_binding_missing:{workspace.get('branch')}")
+    return {
+        "kind": "trust_closeout",
+        "claim_report_ok": bool(claims.get("ok")),
+        "trust_claim_count": len(envelopes),
+        "promotion_ready": promotion_ready,
+        "executed_proof_evidence": executed_proof_evidence,
+        "work_lane": {
+            "branch": str(workspace.get("branch") or ""),
+            "claim_id": str(closeout.get("claim_id") or ""),
+            "claim_binding": str(closeout.get("claim_binding") or "unbound"),
+        },
+        "blocking": bool(gaps),
+        "required_gaps": gaps,
+    }
+
+
+def _command_is_executed_proof(command: object) -> bool:
+    text = str(command)
+    return "prove" in text and "--execute" in text
+
+
 def _campaign_closeout_report(
     *,
     repo: Path,
@@ -383,6 +532,8 @@ def _campaign_closeout_report(
     target: Path,
 ) -> dict[str, object]:
     status_payload = workspace_status(repo)
+    claim_report = claims_report(repo)
+    intake_projection = _intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
@@ -412,6 +563,10 @@ def _campaign_closeout_report(
         policy=load_branch_role_policy(repo),
     )
     remote_publication = _remote_publication_deferred()
+    trust_closeout = _trust_closeout_package(
+        workspace=status_payload,
+        claims=claim_report,
+    )
     provenance = {
         "shadow_parity": shadow.get("provenance", {}),
         "closeout": {
@@ -425,6 +580,8 @@ def _campaign_closeout_report(
 
     packages = {
         "local_closeout": local_closeout,
+        "trust_closeout": trust_closeout,
+        "intake_projection": intake_projection,
         "publication": publication,
         "release": {
             "kind": "release_policy",
@@ -441,10 +598,13 @@ def _campaign_closeout_report(
         },
         "shadow_parity": shadow["execution_packages"][0],
     }
+    ok = local_ready and not trust_closeout["required_gaps"]
     return {
-        "ok": local_ready,
-        "state": "local_ready" if local_ready else "gapped",
+        "ok": ok,
+        "state": "local_ready" if ok else "gapped",
         "workspace": status_payload,
+        "claims": claim_report,
+        "intake_projection": intake_projection,
         "evolution": evolution,
         "release": release,
         "parity": parity,
@@ -580,13 +740,21 @@ def start(
     *,
     path: Annotated[Path, Parameter(name="--path")],
     owner: str,
+    claim_id: Annotated[str | None, Parameter(name="--claim-id")] = None,
     apply: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Start an owned Work Lane and acquire a local lease."""
     repo = _root(root)
-    report = start_work_lane(root=repo, name=name, path=path, owner=owner, apply=apply)
+    report = start_work_lane(
+        root=repo,
+        name=name,
+        path=path,
+        owner=owner,
+        claim_id=claim_id,
+        apply=apply,
+    )
     result = EthosResult(
         command="lane start",
         ok=bool(report["ok"]),
@@ -597,6 +765,38 @@ def start(
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command(name="bind-claim")
+def lane_bind_claim(
+    *,
+    claim_id: Annotated[str, Parameter(name="--claim-id")],
+    branch: Annotated[str | None, Parameter(name="--branch")] = None,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Bind an existing Work Lane lease to a trust-bearing claim."""
+    repo = _root(root)
+    report = bind_work_lane_claim(
+        root=repo,
+        branch=branch,
+        claim_id=claim_id,
+        apply=apply,
+    )
+    result = EthosResult(
+        command="lane bind-claim",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "claim_id": report["claim_id"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
         data=report,
     )
     _emit(result, json_output)
@@ -652,9 +852,7 @@ def lane_retire_landed(
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
-            "landed_lane_count": sum(
-                1 for lane in report["lanes"] if lane["retire_ready"]
-            ),
+            "landed_lane_count": sum(1 for lane in report["lanes"] if lane["retire_ready"]),
             "selected_branch": branch or "",
         },
         required_gaps=tuple(report["required_gaps"]),
@@ -680,19 +878,23 @@ def prove(
     current_head = _current_head(repo)
     audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
+    gates_by_id = gate_registry()
     runner = (
         LocalSubprocessRunner(inprocess_handler=_run_inprocess_cli_gate)
         if execute
         else DryRunRunner()
     )
     proof_runs = tuple(
-        ProofRun(
+        ProofRun.from_adapter_result(
             action_id=run_result.action_id,
             command=run_result.command,
             exit_code=run_result.exit_code,
             stdout=trim_output(run_result.stdout),
             stderr=trim_output(run_result.stderr),
-            state=run_result.state,
+            adapter_state=run_result.state,
+            evidence_class=gates_by_id[run_result.action_id].evidence_class,
+            trust_bearing=gates_by_id[run_result.action_id].trust_bearing,
+            diagnostics=run_result.diagnostics,
         )
         for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
     )
@@ -702,8 +904,22 @@ def prove(
         runs=proof_runs,
         durability="local",
     )
-    runs_ok = all(run.state in {"passed", "planned"} for run in proof_runs)
+    verdicts_ok = all(run.verdict == "passed" for run in proof_runs)
+    trust_bearing_runs = tuple(run for run in proof_runs if run.trust_bearing)
+    trust_bearing_ok = bool(trust_bearing_runs) and all(
+        run.state == "proven" for run in trust_bearing_runs
+    )
+    runs_ok = (
+        verdicts_ok and trust_bearing_ok
+        if execute
+        else all(run.state == "planned" for run in proof_runs)
+    )
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
+    trust_gaps: tuple[str, ...] = (
+        ("trust_bearing_proof_missing",)
+        if execute and verdicts_ok and not trust_bearing_ok
+        else ()
+    )
     head_gaps: tuple[str, ...] = (
         ("expected_head_mismatch",)
         if expect_head is not None and expect_head != current_head
@@ -716,10 +932,18 @@ def prove(
         and not proof_gaps
         and not head_gaps
     )
+    result_state = "proven" if ok and execute else "ready" if ok else "gapped"
+    next_actions = (
+        ("ethos land",)
+        if result_state == "proven"
+        else ("ethos prove --execute",)
+        if result_state == "ready"
+        else ("ethos self audit",)
+    )
     result = EthosResult(
         command="prove",
         ok=ok,
-        state="proven" if ok else "gapped",
+        state=result_state,
         summary={
             "objective": objective,
             "evidence_digest": evidence.digest,
@@ -729,9 +953,10 @@ def prove(
             tuple(audit["required_gaps"])
             + tuple(graph.validate().gaps)
             + proof_gaps
+            + trust_gaps
             + head_gaps
         ),
-        next_actions=("ethos land",) if ok else ("ethos self audit",),
+        next_actions=next_actions,
         data={
             "self_audit": audit,
             "executed": execute,
@@ -769,13 +994,18 @@ def _run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | N
         stderr.write(f"{type(exc).__name__}: {exc}")
     finally:
         os.chdir(previous_cwd)
+    state, diagnostics = classify_action_result(
+        exit_code=exit_code,
+        stdout=stdout.getvalue(),
+    )
     return ActionRunResult(
         action_id=node.id,
         command=node.command,
-        state="passed" if exit_code == 0 else "failed",
+        state=state,
         exit_code=exit_code,
         stdout=stdout.getvalue(),
         stderr=stderr.getvalue(),
+        diagnostics=diagnostics,
     )
 
 
@@ -1006,6 +1236,81 @@ def adopt(
 
 
 @quality_app.command
+def asset_policy(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report repository asset quality policy."""
+    profile = product_quality_profile()
+    result = EthosResult(
+        command="quality asset-policy",
+        ok=True,
+        state="clean",
+        summary={"asset_class_count": len(profile["asset_classes"])},
+        data=profile,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="docs")
+def quality_docs(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report documentation quality profile and registry health."""
+    repo = _root(root)
+    profile = docs_quality_profile()
+    report = docs_quality_report(repo)
+    result = EthosResult(
+        command="quality docs",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data={
+            "profile": profile,
+            "style_goals": profile["style_goals"],
+            "health": report,
+        },
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
+def proof_policy(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report proof-state lattice and trust-bearing rules."""
+    lattice = proof_lattice()
+    result = EthosResult(
+        command="quality proof-policy",
+        ok=True,
+        state="clean",
+        summary={"state_count": len(lattice["states"])},
+        data=lattice,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="tool-profiles")
+def tool_profiles_command(
+    *,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report quality tool adapter profiles."""
+    profiles = tool_profiles()
+    result = EthosResult(
+        command="quality tool-profiles",
+        ok=True,
+        state="clean",
+        summary={"tool_adapter_count": len(profiles["tool_adapters"])},
+        data=profiles,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command
 def command_surface(
     *,
     root: RootOption | None = None,
@@ -1058,17 +1363,66 @@ def format_policy(
 @quality_app.command
 def projection_drift(
     *,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report projection drift readiness."""
+    repo = _root(root)
     contract = projection_contract()
-    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
+    playbooks = playbooks_report(repo, mode="v2-strict")
+    registry_meta = playbooks["registry"]["meta"]
+    registry_digest = str(playbooks["registry"]["digest"])
+    expected_registry_digest = str(registry_meta.get("expected_registry_digest") or "")
+    generator_digest = _sha256_file(Path(playbooks_module.__file__))
+    expected_generator_digest = str(registry_meta.get("expected_generator_digest") or "")
+    activation_digest = _sha256_file(repo / ".agents" / "skills" / "activation.toml")
+    drift = [
+        {"kind": "skill_package", "gap": gap}
+        for gap in playbooks["required_gaps"]
+        if str(gap).startswith("skill_package_")
+    ]
+    if not expected_registry_digest:
+        drift.append({"kind": "skill_registry", "gap": "skill_registry_expected_digest_missing"})
+    elif expected_registry_digest != registry_digest:
+        drift.append({"kind": "skill_registry", "gap": "skill_registry_digest_mismatch"})
+    if not expected_generator_digest:
+        drift.append(
+            {"kind": "projection_generator", "gap": "projection_generator_expected_digest_missing"}
+        )
+    elif expected_generator_digest != generator_digest:
+        drift.append(
+            {"kind": "projection_generator", "gap": "projection_generator_digest_mismatch"}
+        )
+    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY and not drift
     result = EthosResult(
         command="quality projection-drift",
         ok=ok,
         state="clean" if ok else "blocked",
-        required_gaps=() if ok else ("assistant_projection_truth_drift",),
-        data={"contract": contract, "drift": []},
+        required_gaps=tuple(item["gap"] for item in drift)
+        if contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
+        else ("assistant_projection_truth_drift",),
+        data={
+            "contract": contract,
+            "drift": drift,
+            "registry_digest": registry_digest,
+            "registry": {
+                "digest": registry_digest,
+                "expected_digest": expected_registry_digest,
+                "ok": expected_registry_digest == registry_digest,
+            },
+            "generator": {
+                "id": "ethos_assistants.playbooks",
+                "digest": generator_digest,
+                "expected_digest": expected_generator_digest,
+                "ok": expected_generator_digest == generator_digest,
+            },
+            "inputs": [
+                {
+                    "path": ".agents/skills/activation.toml",
+                    "digest": activation_digest,
+                }
+            ],
+        },
     )
     _emit(result, json_output)
 
@@ -1114,16 +1468,11 @@ def package_ontology(
         if not (repo / str(distribution)).exists()
     ]
     workspace_config = workspace_package_config_report(repo)
-    workspace_config_gaps = [
-        str(gap) for gap in workspace_config["required_gaps"]
-    ]
-    migration_complete = (
-        not contract["migration_hosts"]
-        and all(
-            item.get("state") == "migrated"
-            for item in contract["migration_distributions"].values()
-            if isinstance(item, dict)
-        )
+    workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
+    migration_complete = not contract["migration_hosts"] and all(
+        item.get("state") == "migrated"
+        for item in contract["migration_distributions"].values()
+        if isinstance(item, dict)
     )
     physical_missing = target_missing + host_missing + distribution_missing
     data = {
@@ -1193,6 +1542,16 @@ def gates(
                     "policy": gate.policy,
                     "profile": gate.profile,
                     "toolchain": gate.toolchain,
+                    "asset_classes": list(gate.asset_classes),
+                    "dimensions": list(gate.dimensions),
+                    "execution_mode": gate.execution_mode,
+                    "evidence_class": gate.evidence_class,
+                    "trust_bearing": gate.trust_bearing,
+                    "tool_adapter": gate.tool_adapter,
+                    "writes_files": gate.writes_files,
+                    "network_policy": gate.network_policy,
+                    "version_source": gate.version_source,
+                    "depends_on": list(gate.depends_on),
                 }
                 for gate_id, gate in registry.items()
             }
@@ -1210,11 +1569,21 @@ def coupling_audit(
     """Report product, profile, adapter, and self-hosting coupling boundaries."""
     repo = _root(root)
     report = coupling_audit_report(repo)
+    validation = _command_data_validation(
+        repo,
+        schema_name="coupling-audit.schema.json",
+        payload=report,
+    )
+    validation_gaps = tuple(
+        f"coupling_audit_schema:{gap}" for gap in validation["required_gaps"]
+    )
+    ok = bool(report["ok"]) and bool(validation["ok"])
     result = EthosResult(
         command="quality coupling-audit",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        ok=ok,
+        state="clean" if ok else "blocked",
+        diagnostics=(validation,),
+        required_gaps=tuple(report["required_gaps"]) + validation_gaps,
         data=report,
     )
     _emit(result, json_output)
@@ -1406,7 +1775,7 @@ def docs_registry(
         command="quality docs-registry",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["missing_metadata"]),
+        required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos docs",),
         data=report,
     )
@@ -1505,12 +1874,13 @@ def audit(
 def openspec(
     *,
     change: str | None = None,
+    lifecycle: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Audit official OpenSpec self-governance state."""
     repo = _root(root)
-    report = openspec_self_governance_report(repo, change=change)
+    report = openspec_self_governance_report(repo, change=change, lifecycle=lifecycle)
     result = EthosResult(
         command="self openspec",
         ok=bool(report["ok"]),
@@ -1518,6 +1888,7 @@ def openspec(
         summary={
             "change": report["change"],
             "schema_name": report["schema_name"],
+            "lifecycle": lifecycle,
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self audit",),
@@ -1723,41 +2094,30 @@ def intake_status(
 ) -> None:
     """Report adopter intake ledger readiness."""
     repo = _root(root)
-    config_path = repo / ".ethos" / "intake.toml"
-    gaps: tuple[str, ...] = ()
-    provider = "unconfigured"
-    configured = False
-    if config_path.exists():
-        try:
-            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            provider = "invalid"
-            gaps = ("intake_config_invalid:.ethos/intake.toml",)
-        else:
-            configured_provider = str(config.get("provider") or "").strip()
-            if configured_provider:
-                provider = configured_provider
-                configured = True
-            else:
-                provider = "invalid"
-                gaps = ("intake_provider_missing:.ethos/intake.toml",)
+    projection = _intake_projection_report(repo)
+    gaps = tuple(str(gap) for gap in projection["required_gaps"])
     data = {
         "truth_boundary": "adopter-ledger",
-        "provider": provider,
-        "configured": configured,
+        "provider": projection["provider"],
+        "configured": projection["configured"],
         "expected_config": ".ethos/intake.toml",
         "adapters": ["backlog", "github", "gitlab"],
+        "projection": projection,
     }
     result = EthosResult(
         command="intake status",
         ok=not gaps,
-        state="configured" if configured else ("invalid" if gaps else "unconfigured"),
+        state=str(projection["state"]),
         summary={
             "provider": data["provider"],
             "truth_boundary": data["truth_boundary"],
         },
         required_gaps=gaps,
-        next_actions=("ethos adopt --dry-run",) if not configured else ("ethos plan --changed",),
+        next_actions=(
+            ("ethos adopt --dry-run",)
+            if not projection["configured"]
+            else ("ethos plan --changed",)
+        ),
         data=data,
     )
     _emit(result, json_output)
@@ -1848,11 +2208,12 @@ def assistants_context(*, json_output: JsonFlag = False) -> None:
 def playbooks_check(
     *,
     root: RootOption | None = None,
+    mode: str = "legacy-compat",
     json_output: JsonFlag = False,
 ) -> None:
     """Check repo-local ETHOS playbook projection."""
     repo = _root(root)
-    report = playbooks_report(repo)
+    report = playbooks_report(repo, mode=mode)
     result = EthosResult(
         command="playbooks check",
         ok=bool(report["ok"]),
@@ -1870,12 +2231,20 @@ def playbooks_route(
     subject: str = "repository-governance",
     changed: bool = False,
     root: RootOption | None = None,
+    mode: str = "legacy-compat",
     json_output: JsonFlag = False,
 ) -> None:
     """Route a subject to repo-local ETHOS playbooks."""
     repo = _root(root)
     route_subject = "changed-scope" if changed else subject
-    report = route_playbook(repo, route_subject, require_explicit_subject=changed)
+    changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
+    report = route_playbook(
+        repo,
+        route_subject,
+        require_explicit_subject=changed,
+        mode=mode,
+        changed_paths=changed_paths,
+    )
     result = EthosResult(
         command="playbooks route",
         ok=bool(report["ok"]),
@@ -1994,7 +2363,8 @@ def report(
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
-    playbooks = playbooks_report(repo)
+    playbook_mode = "legacy-compat" if audit.get("mode") == "adopter" else "v2-strict"
+    playbooks = playbooks_report(repo, mode=playbook_mode)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
     parity_gaps = parity_gaps_report(
@@ -2053,21 +2423,42 @@ def report(
             "next_action": "ethos prove" if evidence_gap_count == 0 else "resolve evidence gaps",
         }
     gap_layers = {
-        "product_self_audit": {
-            "scope": "product_self_audit",
+        "governance_audit": {
+            "scope": "governance_audit",
             "blocking": True,
             "ok": not result_required_gaps,
             "required_gaps": list(result_required_gaps),
             "gap_count": len(result_required_gaps),
         },
-        "adopter_parity": {
-            "scope": "global_capability_ledger",
+        "capability_parity": {
+            "scope": "capability_parity",
             "blocking": False,
             "ok": bool(parity_gaps["ok"]),
             "required_gaps": list(parity_gaps["required_gaps"]),
             "gap_count": parity_pending_count,
         },
+        "playbook_projection": {
+            "scope": "skills-v2",
+            "blocking": True,
+            "ok": bool(playbooks["ok"]),
+            "required_gaps": list(playbooks["required_gaps"]),
+            "advisory_gaps": list(playbooks["advisory_gaps"]),
+            "gap_count": len(playbooks["required_gaps"]),
+        },
     }
+    scorecards = [
+        {
+            "id": "skills-v2",
+            "scope": "playbook_projection",
+            "mode": playbooks["mode"],
+            "ok": bool(playbooks["ok"]),
+            "score": playbooks["v2_compliance"]["score"],
+            "max_score": playbooks["v2_compliance"]["max_score"],
+            "blocking": True,
+            "required_gaps": list(playbooks["required_gaps"]),
+            "advisory_gaps": list(playbooks["advisory_gaps"]),
+        }
+    ]
     result = EthosResult(
         command="report",
         ok=ok,
@@ -2075,7 +2466,7 @@ def report(
         summary={
             "score": sum(scores.values()),
             "max_score": len(scores),
-            "product_gap_count": len(result_required_gaps),
+            "governance_gap_count": len(result_required_gaps),
             "parity_pending_count": parity_pending_count,
         },
         required_gaps=result_required_gaps,
@@ -2085,8 +2476,10 @@ def report(
             else ("ethos prove --full",)
         ),
         data={
+            "governance_context": audit["governance_context"],
             "scores": scores,
             "first_hour": first_hour,
+            "scorecards": scorecards,
             "self_audit": audit,
             "docs": docs_report,
             "claims": claim_report,

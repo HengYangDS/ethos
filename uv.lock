@@ -10,6 +10,7 @@ members = [
     "ethos-contracts",
     "ethos-core",
     "ethos-product-monorepo",
+    "ethos-quality",
     "ethos-repository",
     "ethos-test",
 ]
@@ -66,6 +67,7 @@ dependencies = [
     { name = "ethos-assistants" },
     { name = "ethos-contracts" },
     { name = "ethos-core" },
+    { name = "ethos-quality" },
     { name = "ethos-repository" },
 ]
 
@@ -76,6 +78,7 @@ requires-dist = [
     { name = "ethos-assistants", editable = "packages/ethos-assistants" },
     { name = "ethos-contracts", editable = "packages/ethos-contracts" },
     { name = "ethos-core", editable = "packages/ethos-core" },
+    { name = "ethos-quality", editable = "packages/ethos-quality" },
     { name = "ethos-repository", editable = "packages/ethos-repository" },
 ]
 
@@ -84,16 +87,26 @@ name = "ethos-adapters"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-adapters" }
 dependencies = [
+    { name = "ethos-contracts" },
     { name = "ethos-core" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "ethos-core", editable = "packages/ethos-core" }]
+requires-dist = [
+    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
+    { name = "ethos-core", editable = "packages/ethos-core" },
+]
 
 [[package]]
 name = "ethos-assistants"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-assistants" }
+dependencies = [
+    { name = "ethos-contracts" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ethos-contracts", editable = "packages/ethos-contracts" }]
 
 [[package]]
 name = "ethos-contracts"
@@ -129,19 +142,28 @@ dev = [
 ]
 
 [[package]]
+name = "ethos-quality"
+version = "0.1.0a1"
+source = { editable = "packages/ethos-quality" }
+
+[[package]]
 name = "ethos-repository"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-repository" }
 dependencies = [
+    { name = "ethos-assistants" },
     { name = "ethos-contracts" },
     { name = "ethos-core" },
+    { name = "ethos-quality" },
     { name = "jsonschema" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ethos-assistants", editable = "packages/ethos-assistants" },
     { name = "ethos-contracts", editable = "packages/ethos-contracts" },
     { name = "ethos-core", editable = "packages/ethos-core" },
+    { name = "ethos-quality", editable = "packages/ethos-quality" },
     { name = "jsonschema", specifier = ">=4.23" },
 ]
 

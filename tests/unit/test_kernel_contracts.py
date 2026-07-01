@@ -257,6 +257,23 @@ def test_action_graph_is_deterministic_and_digest_bound() -> None:
     assert first.cache_key() != second.cache_key()
 
 
+def test_action_node_cache_key_binds_metadata() -> None:
+    base = ActionNode(
+        id="ruff",
+        kind="lint",
+        command=("ruff", "check", "."),
+        metadata={"trust_bearing": False},
+    )
+    changed = ActionNode(
+        id="ruff",
+        kind="lint",
+        command=("ruff", "check", "."),
+        metadata={"trust_bearing": True},
+    )
+
+    assert base.cache_key() != changed.cache_key()
+
+
 def test_result_contract_has_stable_top_level_fields() -> None:
     result = EthosResult(
         command="status",

@@ -5,6 +5,9 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ethos_contracts.skill_activation import normalize_skill_activation, skill_registry_digest
+from ethos_quality.gates import product_gate_plan
+from ethos_quality.profiles import product_quality_profile
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
 
@@ -27,9 +30,7 @@ def _schema_dir_has_contracts(path: Path) -> bool:
 def _schema_dir_has_product_contracts(path: Path) -> bool:
     if not path.exists():
         return False
-    return _product_schema_names().issubset(
-        {schema.name for schema in path.glob("*.schema.json")}
-    )
+    return _product_schema_names().issubset({schema.name for schema in path.glob("*.schema.json")})
 
 
 def _product_schema_dir() -> Path:
@@ -100,7 +101,8 @@ def validate_schema_instance(
     *,
     root: Path | None = None,
 ) -> dict[str, object]:
-    schema = load_schema(schema_name, root=root)
+    schema_root = root or _repo_root()
+    schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
     try:
         validator.validate(payload)
@@ -109,7 +111,30 @@ def validate_schema_instance(
     return {"ok": True, "required_gaps": []}
 
 
+def _bundle_local_refs(schema: dict[str, Any], *, root: Path) -> dict[str, Any]:
+    return _bundle_node(schema, root=root, seen=frozenset())
+
+
+def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
+    if isinstance(value, list):
+        return [_bundle_node(item, root=root, seen=seen) for item in value]
+    if not isinstance(value, dict):
+        return value
+    ref = value.get("$ref")
+    if isinstance(ref, str) and ref.endswith(".schema.json"):
+        if ref in seen:
+            return value
+        referenced = load_schema(ref, root=root)
+        return _bundle_node(referenced, root=root, seen=seen | {ref})
+    return {
+        key: _bundle_node(item, root=root, seen=seen)
+        for key, item in value.items()
+    }
+
+
 def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
+    from ethos_repository.coupling import coupling_audit_report
+
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "docs" / "governance" / "self-evolution-ledger.toml"
     if ledger_path.exists():
@@ -141,6 +166,16 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
                     "policy": gate.policy,
                     "profile": gate.profile,
                     "toolchain": gate.toolchain,
+                    "asset_classes": list(gate.asset_classes),
+                    "dimensions": list(gate.dimensions),
+                    "execution_mode": gate.execution_mode,
+                    "evidence_class": gate.evidence_class,
+                    "trust_bearing": gate.trust_bearing,
+                    "tool_adapter": gate.tool_adapter,
+                    "writes_files": gate.writes_files,
+                    "network_policy": gate.network_policy,
+                    "version_source": gate.version_source,
+                    "depends_on": list(gate.depends_on),
                 },
                 root=root,
             )
@@ -149,6 +184,16 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    instances["quality-profile"] = validate_schema_instance(
+        "quality-profile.schema.json",
+        product_quality_profile(),
+        root=root,
+    )
+    instances["quality-gate-plan"] = validate_schema_instance(
+        "quality-gate-plan.schema.json",
+        product_gate_plan(),
+        root=root,
+    )
     instances["campaign-closeout-contract"] = validate_schema_instance(
         "campaign-closeout.schema.json",
         _campaign_closeout_contract_sample(),
@@ -164,6 +209,99 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         _workspace_status_contract_sample(),
         root=root,
     )
+    instances["trust-envelope-contract"] = validate_schema_instance(
+        "trust-envelope.schema.json",
+        _trust_envelope_contract_sample(),
+        root=root,
+    )
+    instances["promotion-target-contract"] = validate_schema_instance(
+        "promotion-target.schema.json",
+        _promotion_target_contract_sample(),
+        root=root,
+    )
+    instances["capability-profile-contract"] = validate_schema_instance(
+        "capability-profile.schema.json",
+        _capability_profile_contract_sample(),
+        root=root,
+    )
+    instances["capability-profiles"] = _capability_profiles_report(root)
+    instances["coupling-audit-contract"] = validate_schema_instance(
+        "coupling-audit.schema.json",
+        coupling_audit_report(root),
+        root=root,
+    )
+    skill_registry = normalize_skill_activation(
+        _skill_activation_contract_sample(),
+        source=".agents/skills/activation.toml",
+    )
+    skill_registry["digest"] = skill_registry_digest(skill_registry)
+    instances["skill-activation-contract"] = validate_schema_instance(
+        "skill-activation.schema.json",
+        _skill_activation_contract_sample(),
+        root=root,
+    )
+    instances["skill-registry-contract"] = validate_schema_instance(
+        "skill-registry.schema.json",
+        skill_registry,
+        root=root,
+    )
+    instances["skill-package-manifest-contract"] = validate_schema_instance(
+        "skill-package-manifest.schema.json",
+        _skill_package_manifest_contract_sample(),
+        root=root,
+    )
+    instances.update(_live_skill_contract_instances(root))
+    return instances
+
+
+def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
+    instances: dict[str, dict[str, object]] = {}
+    activation_path = root / ".agents" / "skills" / "activation.toml"
+    if not activation_path.exists():
+        return instances
+    try:
+        activation = tomllib.loads(activation_path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        gap = str(exc)
+        return {
+            "live-skill-activation-contract": {"ok": False, "required_gaps": [gap]},
+            "live-skill-registry-contract": {"ok": False, "required_gaps": [gap]},
+            "live-skill-package-manifests": {"ok": False, "required_gaps": [gap]},
+        }
+    instances["live-skill-activation-contract"] = validate_schema_instance(
+        "skill-activation.schema.json",
+        activation,
+        root=root,
+    )
+    live_registry = normalize_skill_activation(
+        activation,
+        source=".agents/skills/activation.toml",
+    )
+    live_registry["digest"] = skill_registry_digest(live_registry)
+    instances["live-skill-registry-contract"] = validate_schema_instance(
+        "skill-registry.schema.json",
+        live_registry,
+        root=root,
+    )
+    package_gaps: list[str] = []
+    for manifest_path in sorted((root / ".agents" / "skills").glob("*/package.toml")):
+        try:
+            manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            package_gaps.append(f"{manifest_path.relative_to(root).as_posix()}:{exc}")
+            continue
+        result = validate_schema_instance(
+            "skill-package-manifest.schema.json",
+            manifest,
+            root=root,
+        )
+        package_gaps.extend(
+            f"{manifest_path.relative_to(root).as_posix()}:{gap}" for gap in result["required_gaps"]
+        )
+    instances["live-skill-package-manifests"] = {
+        "ok": not package_gaps,
+        "required_gaps": package_gaps,
+    }
     return instances
 
 
@@ -223,6 +361,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "release": {},
         "parity": {},
         "shadow_parity": {},
+        "claims": {},
+        "intake_projection": _intake_projection_contract_sample(),
         "publication": publication,
         "remote_publication": {
             "remote_push": "not_performed",
@@ -238,6 +378,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         },
         "packages": {
             "local_closeout": {},
+            "trust_closeout": _trust_closeout_contract_sample(),
+            "intake_projection": _intake_projection_contract_sample(),
             "publication": publication,
             "release": {},
             "parity": {},
@@ -285,8 +427,7 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
                         "commands": ["ethos prove"],
                         "gaps": ["claims_missing"],
                         "reason": (
-                            "external product self-audit gap is not an embedded "
-                            "adopter parity gap"
+                            "external product self-audit gap is not an embedded adopter parity gap"
                         ),
                     }
                 ],
@@ -373,6 +514,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "",
                 "worktree_binding": "unbound",
+                "claim_id": "",
+                "claim_binding": "unbound",
             },
             {
                 "branch": "dev",
@@ -380,6 +523,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "/repo",
                 "worktree_binding": "current",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
             {
                 "branch": "stage/dev",
@@ -387,6 +532,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "/repo-stage-dev",
                 "worktree_binding": "linked",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
         ],
         "foreign_work_lanes": [],
@@ -398,9 +545,187 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "target_path": "/repo-stage-dev",
             "operation": "",
             "owner": "",
+            "claim_id": "",
+            "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
         "required_gaps": [],
+    }
+
+
+def _intake_projection_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "intake_projection",
+        "state": "unconfigured",
+        "truth_boundary": "projection-evidence",
+        "legacy_truth_boundary": "adopter-ledger",
+        "repository_truth": False,
+        "provider": "unconfigured",
+        "configured": False,
+        "expected_config": ".ethos/intake.toml",
+        "adapters": ["backlog", "github", "gitlab"],
+        "blocking": False,
+        "required_gaps": [],
+    }
+
+
+def _trust_closeout_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "trust_closeout",
+        "claim_report_ok": True,
+        "trust_claim_count": 1,
+        "promotion_ready": True,
+        "executed_proof_evidence": True,
+        "work_lane": {
+            "branch": "work/example",
+            "claim_id": "sample-trust",
+            "claim_binding": "bound",
+        },
+        "blocking": False,
+        "required_gaps": [],
+    }
+
+
+def _promotion_target_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "evidence",
+        "path": "docs/evidence/sample.md",
+        "description": "dated evidence promoted into repository truth",
+    }
+
+
+def _trust_envelope_contract_sample() -> dict[str, Any]:
+    return {
+        "claim_id": "sample-trust",
+        "state": "active",
+        "boundary": {
+            "owner": "ethos-repository",
+            "scope": "repository lifecycle governance",
+        },
+        "evidence": {
+            "dated": "docs/evidence/sample.md",
+            "digest_trusted": True,
+            "commands": ["ethos prove --execute --json"],
+        },
+        "carriers": {
+            "openspec": "openspec/changes/sample-change",
+        },
+        "fallback": "stop promotion and keep the previous repository contract",
+        "kill_signal": "required lifecycle carrier missing",
+        "promotion": {
+            "targets": [
+                {
+                    "kind": "source",
+                    "path": "packages/ethos-repository/src/ethos_repository/claims.py",
+                },
+                {
+                    "kind": "openspec",
+                    "path": "openspec/specs/ethos-repository/spec.md",
+                },
+            ],
+            "ready": True,
+        },
+        "required_gaps": [],
+    }
+
+
+def _capability_profile_contract_sample() -> dict[str, Any]:
+    return {
+        "family": "ethos-repository",
+        "owner": {
+            "package": "ethos-repository",
+            "scope": "repository lifecycle governance",
+        },
+        "primary_invariant": "repository truth is promoted through claims and evidence",
+        "routing_question": "Does this change alter repository trust admission?",
+        "boundary_rules": [
+            "OpenSpec records are specification carriers, not truth owners",
+            "adopter-specific terms stay in profiles or evidence",
+        ],
+        "proof_profile": {
+            "default_command": "ethos prove --json",
+            "executed_command": "ethos prove --execute --json",
+            "required_gates": ["claims", "schemas"],
+        },
+    }
+
+
+def _capability_profiles_report(root: Path) -> dict[str, object]:
+    profile_paths = sorted((root / "openspec" / "specs").glob("*/capability.toml"))
+    gaps: list[str] = []
+    for path in profile_paths:
+        try:
+            payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            gaps.append(f"{path.relative_to(root).as_posix()}:{exc}")
+            continue
+        validation = validate_schema_instance(
+            "capability-profile.schema.json",
+            payload,
+            root=root,
+        )
+        if not validation["ok"]:
+            gaps.extend(
+                f"{path.relative_to(root).as_posix()}:{gap}"
+                for gap in validation["required_gaps"]
+            )
+    return {
+        "ok": not gaps,
+        "profile_count": len(profile_paths),
+        "required_gaps": gaps,
+    }
+
+
+def _skill_activation_contract_sample() -> dict[str, Any]:
+    return {
+        "meta": {"version": 2, "owner": "ethos"},
+        "coverage": {"required_roots": [".agents", "docs", "packages"]},
+        "retired": {"skill_names": []},
+        "skill": [
+            {
+                "id": "ethos-repository-governance",
+                "path": ".agents/skills/ethos-repository-governance/SKILL.md",
+                "package_manifest": ".agents/skills/ethos-repository-governance/package.toml",
+                "subject": "repository-governance",
+                "operation": "govern",
+                "authority": "primary",
+                "lifecycle": "active",
+                "subjects": ["repository-governance", "changed-scope"],
+                "path_globs": ["docs/**", "packages/**"],
+                "intent_tokens": ["ethos", "governance"],
+                "pre_reads": ["AGENTS.md"],
+                "during_rules": ["keep repository truth authoritative"],
+                "post_checks": ["ethos report --json"],
+                "may_coactivate": [],
+                "supports": [],
+                "excludes": [],
+                "commands": ["ethos status --json", "ethos report --json"],
+                "boundary": "workflow-package-projection",
+            }
+        ],
+    }
+
+
+def _skill_package_manifest_contract_sample() -> dict[str, Any]:
+    return {
+        "schema_version": 2,
+        "id": "ethos-repository-governance",
+        "entrypoint": "SKILL.md",
+        "boundary": "workflow-package-projection",
+        "truth": "repository-source-and-contracts",
+        "digest_algorithm": "sha256",
+        "include": ["SKILL.md"],
+        "exclude": [".DS_Store"],
+        "expected_digest": "sha256:" + ("0" * 64),
+        "required_sections": ["When to Use", "Workflow", "Evidence", "Trust Boundary"],
+        "quality": {"official_codex_loadable": True, "placeholder_allowed": False},
+        "capability": [
+            {
+                "id": "ethos.report",
+                "kind": "command_readonly",
+                "command": ["ethos", "report", "--json"],
+            }
+        ],
     }
 
 

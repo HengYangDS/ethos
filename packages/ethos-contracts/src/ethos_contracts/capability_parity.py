@@ -17,7 +17,7 @@ class CapabilityParityRecord:
 CAPABILITY_PARITY_LEDGER = (
     CapabilityParityRecord(
         capability="work-lane-lifecycle",
-        source_location="alphasim-dmgr packages/ethos-git worktree lifecycle modules",
+        source_location="embedded repository governance lifecycle modules",
         target_home="ethos-repository + ethos-adapters + ethos-test",
         disposition="migrate-to-product",
         required_tests=(
@@ -30,13 +30,11 @@ CAPABILITY_PARITY_LEDGER = (
         parity_criterion=(
             "same lane role, lease, handoff, candidate, closeout, repair, and cleanup verdicts"
         ),
-        rollback_impact=(
-            "embedded dmgr lifecycle remains frozen fallback until shadow parity passes"
-        ),
+        rollback_impact="embedded lifecycle remains frozen fallback until shadow parity passes",
     ),
     CapabilityParityRecord(
         capability="proof-evidence-chronicle",
-        source_location="alphasim-dmgr ethos-proof and tools/quality proof kernel",
+        source_location="embedded proof and quality evidence modules",
         target_home="ethos-repository + ethos-contracts + ethos-test",
         disposition="migrate-to-product",
         required_tests=(
@@ -52,7 +50,7 @@ CAPABILITY_PARITY_LEDGER = (
     ),
     CapabilityParityRecord(
         capability="campaign-hypothesis-evolution",
-        source_location="alphasim-dmgr ethos-campaign mission and hypothesis modules",
+        source_location="embedded campaign and hypothesis modules",
         target_home="ethos-repository + ethos-core",
         disposition="migrate-to-product",
         required_tests=(
@@ -63,13 +61,11 @@ CAPABILITY_PARITY_LEDGER = (
         parity_criterion=(
             "same opportunity, hypothesis, challenge, proof, and closeout lifecycle states"
         ),
-        rollback_impact="embedded campaign remains reference for long-running dmgr work",
+        rollback_impact="embedded campaign remains reference for long-running work",
     ),
     CapabilityParityRecord(
         capability="assistant-playbooks-skills",
-        source_location=(
-            "alphasim-dmgr .agents/skills and ethos-assistants activation/surface modules"
-        ),
+        source_location="embedded assistant playbook and activation modules",
         target_home="ethos-assistants + ethos-contracts + ethos-adapters",
         disposition="split",
         required_tests=(
@@ -85,8 +81,8 @@ CAPABILITY_PARITY_LEDGER = (
     ),
     CapabilityParityRecord(
         capability="quality-determinism-local-state",
-        source_location="alphasim-dmgr tools/quality gates and local-state config",
-        target_home="ethos-repository + ethos-contracts + ethos-adapters",
+        source_location="embedded quality gates and local-state config",
+        target_home="ethos-quality + ethos-contracts + ethos-adapters",
         disposition="migrate-to-product",
         required_tests=(
             "artifact path catalog",
@@ -99,11 +95,11 @@ CAPABILITY_PARITY_LEDGER = (
             "same deterministic artifact, command surface, local state, "
             "and evidence freshness verdicts"
         ),
-        rollback_impact="dmgr raw/cache/SQL/DQC gates remain adopter profile mappings",
+        rollback_impact="domain gates remain adopter profile mappings",
     ),
     CapabilityParityRecord(
         capability="openspec-claims-trust-review",
-        source_location="alphasim-dmgr ethos-spec admission and OpenSpec modules",
+        source_location="embedded spec admission and OpenSpec modules",
         target_home="ethos-contracts + ethos-repository + ethos-adapters",
         disposition="migrate-to-product",
         required_tests=(
@@ -118,17 +114,17 @@ CAPABILITY_PARITY_LEDGER = (
         rollback_impact="embedded claim/OpenSpec mechanisms remain migration oracle",
     ),
     CapabilityParityRecord(
-        capability="dmgr-domain-contract-profile",
-        source_location="alphasim-dmgr rules/dmgr and profile adapters",
+        capability="reference-adopter-domain-contract-profile",
+        source_location="reference adopter rules and profile adapters",
         target_home="adopter profile only",
         disposition="adopter-domain-only",
         required_tests=(
-            "dmgr profile gate mapping fixtures",
-            "raw/cache/conf/alphasim terms forbidden in product core",
-            "external ETHOS shadow plan against dmgr",
+            "adopter profile gate mapping fixtures",
+            "domain terms forbidden in product core",
+            "external ETHOS shadow plan against reference adopter",
         ),
         parity_criterion=(
-            "generic ETHOS plans dmgr gates through profile without hardcoding domain semantics"
+            "generic ETHOS plans adopter gates through profile without hardcoding domain semantics"
         ),
         rollback_impact=(
             "domain-specific embedded checks remain fallback until external profile proves parity"

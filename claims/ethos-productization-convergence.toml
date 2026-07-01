@@ -35,3 +35,33 @@ docs = [
   "docs/governance/judgment-source.md",
   "docs/_meta/authority_graph.toml",
 ]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Productization convergence across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
+
+[carriers]
+openspec = "openspec/changes/ethos-productization-convergence"
+
+fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, dmgr raw/cache parity, domain backend retirement, and di-effect publish readiness."
+kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete."
+
+[promotion]
+targets = [
+  "docs/evidence/productization-convergence-2026-07-01.md",
+  "claims/ethos-productization-convergence.toml",
+  "README.md",
+  "docs/start/quickstart.md",
+  "docs/governance/product-design-contract.md",
+  "docs/governance/judgment-source.md",
+  "docs/_meta/authority_graph.toml",
+  "openspec/changes/ethos-productization-convergence",
+  "packages/ethos-core/src/ethos_core/models.py",
+  "packages/ethos-repository/src/ethos_repository/planner.py",
+  "packages/ethos-repository/src/ethos_repository/parity.py",
+  "packages/ethos/src/ethos/cli.py",
+  "tests/unit/test_adoption_profiles.py",
+  "tests/unit/test_authority_graph.py",
+  "tests/unit/test_parity_command.py",
+  "tests/architecture/test_product_design_contract.py",
+]

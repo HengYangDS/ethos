@@ -17,6 +17,7 @@ The Python product package ontology is:
 ```text
 packages/ethos-core
 packages/ethos-contracts
+packages/ethos-quality
 packages/ethos-repository
 packages/ethos-assistants
 packages/ethos-adapters
@@ -56,15 +57,25 @@ contracts.
 
 Forbidden: provider-specific execution.
 
+### `ethos-quality`
+
+Quality and determinism semantics. Owns asset quality classes, gate descriptors,
+proof policy lattice, documentation quality profile, format policy, evidence
+freshness semantics, and release artifact quality classification.
+
+It defines what quality evidence means and which mature tools can provide it.
+It does not execute tools, mutate repositories, parse hosted CI state as truth,
+own release lifecycle readiness, or contain adopter-specific domain contracts.
+
 ### `ethos-repository`
 
 Git-native repository operation lifecycle semantics. Owns status, plan, prove,
-land, publish, intake, campaign, quality and determinism semantics, command
-surface semantics, evidence freshness semantics, local state logical model,
-workspace/lane logical model, and branch-role/worktree semantics.
+land, publish, intake, campaign, local state logical model, workspace/lane
+logical model, and branch-role/worktree semantics.
 
 It answers one question: how one human-agent repository change is planned,
-proved, landed, published, remembered, and evolved.
+proved, landed, published, remembered, and evolved. It consumes quality and
+proof verdicts from `ethos-quality`; it does not own quality policy.
 
 It must not shell out to providers directly. Provider work is delegated through
 `ethos-adapters`.
@@ -121,3 +132,9 @@ Historical product family dispositions are retained only as retired-family
 explanations. `ethos-workspace` moved Git-native lifecycle semantics to
 `ethos-repository` and local command execution to `ethos-adapters`; it is not a
 generic VCS abstraction and is no longer an active product migration host.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

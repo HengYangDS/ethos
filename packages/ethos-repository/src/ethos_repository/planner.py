@@ -29,6 +29,7 @@ APPLY_CRITERIA = (
 OPENSPEC_FAMILIES = (
     "ethos-core",
     "ethos-contracts",
+    "ethos-quality",
     "ethos-repository",
     "ethos-adapters",
     "ethos-assistants",
@@ -50,6 +51,7 @@ BASE_ADOPTION_FILES = (
     ".agents/skills/README.md",
     ".agents/skills/activation.toml",
     ".agents/skills/ethos-repository-governance/SKILL.md",
+    ".agents/skills/ethos-repository-governance/package.toml",
     "openspec/config.yaml",
     "openspec/changes/.gitkeep",
     "openspec/changes/archive/.gitkeep",
@@ -58,6 +60,7 @@ BASE_ADOPTION_FILES = (
     "docs/governance/ethos.md",
     "docs/evidence/.gitkeep",
     "claims/.gitkeep",
+    "schemas/ethos/.gitkeep",
 )
 
 STATIC_DEFAULT_FILES = {
@@ -76,7 +79,8 @@ state_tracked_truth = false
 durable_evidence_roots = ["docs/evidence", "claims"]
 
 [gates]
-self_audit = "ethos self audit --json"
+governance_audit = "ethos report --json"
+proof = "ethos prove --json"
 report = "ethos report --json"
 openspec = "openspec validate --all --strict --json"
 """,
@@ -95,6 +99,7 @@ acp = "protocol-projection"
     "openspec/changes/archive/.gitkeep": "",
     "docs/evidence/.gitkeep": "",
     "claims/.gitkeep": "",
+    "schemas/ethos/.gitkeep": "",
 }
 
 
@@ -128,6 +133,7 @@ def _openspec_spec(family: str) -> str:
     titles = {
         "ethos-core": "Pure Kernel",
         "ethos-contracts": "Provider-neutral Contracts",
+        "ethos-quality": "Quality And Determinism",
         "ethos-repository": "Repository Lifecycle Governance",
         "ethos-adapters": "Provider Adapters",
         "ethos-assistants": "Assistant And Context Boundaries",
@@ -155,26 +161,83 @@ The {family} family SHALL describe one bounded product concern.
 """
 
 
+def _capability_profile(family: str) -> str:
+    scopes = {
+        "ethos-core": "pure kernel result and action graph semantics",
+        "ethos-contracts": "provider-neutral repository contracts",
+        "ethos-quality": "quality, determinism, docs profile, and proof policy",
+        "ethos-repository": "repository lifecycle governance",
+        "ethos-adapters": "provider and projection adapters",
+        "ethos-assistants": "assistant and context projection boundaries",
+        "ethos-cli": "public ETHOS command plane",
+        "ethos-distribution": "distribution and host package surfaces",
+        "ethos-test": "conformance, fixture, and parity proof hosts",
+    }
+    scope = scopes[family]
+    return f'''family = "{family}"
+primary_invariant = "The {family} family keeps {scope} cohesive and provider-neutral."
+routing_question = "Does this change alter {scope}?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "{family}"
+scope = "{scope}"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]
+'''
+
+
 def _skills_readme() -> str:
     return """# ETHOS Skills
 
-Repo-local skills are thin playbook projections. They route agents toward
-tracked ETHOS commands, docs, schemas, and evidence; they are not an independent
-source of truth.
+Repo-local skills are workflow package projections over ETHOS repository truth.
+They route agents toward tracked ETHOS commands, docs, schemas, claims, and
+evidence; they are not an independent source of truth.
 """
 
 
-def _skills_activation() -> str:
+def _skills_activation(package_digest: str) -> str:
     return """[meta]
-version = 1
+version = 2
 source_of_truth = "repository"
 
 [[skill]]
 id = "ethos-repository-governance"
 path = ".agents/skills/ethos-repository-governance/SKILL.md"
-subjects = ["repository-governance", "ethos", "self-governance", "adoption"]
+package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
+path_globs = [
+  "AGENTS.md",
+  ".ethos/**",
+  ".agents/skills/**",
+  "docs/**",
+  "openspec/**",
+  "claims/**",
+  "packages/**",
+  "schemas/**",
+  "tests/**",
+  "uv.lock",
+  "pyproject.toml",
+]
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
+pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
+during_rules = [
+  "treat skills as projections over repository truth",
+  "use ETHOS command JSON as machine evidence",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
-boundary = "thin-playbook-projection"
+boundary = "workflow-package-projection"
 """
 
 
@@ -186,19 +249,75 @@ description: Use when governing a repository with ETHOS commands, evidence, and 
 
 # ETHOS Repository Governance
 
-Use the `ethos ...` public command plane first:
+## When to Use
+
+Use this skill when governing an ETHOS-adopted repository, changing repository
+governance files, planning proof, or validating adoption readiness.
+
+## Workflow
+
+1. Read `AGENTS.md` and the current governance docs for the target repository.
+2. Run `ethos status --json` to classify checkout role and required gaps.
+3. Use `ethos plan --changed --json` or `ethos playbooks route --changed --json`
+   to select the focused governance path.
+4. Run the narrow proof command first, then `ethos report --json` before
+   claiming readiness.
+
+## Evidence
+
+Use the `ethos ...` public command plane for machine-readable evidence:
 
 ```bash
-ethos status
-ethos plan --changed
-ethos prove
-ethos land
-ethos publish
-ethos report
+ethos status --json
+ethos plan --changed --json
+ethos prove --json
+ethos land --json
+ethos publish --json
+ethos report --json
 ```
 
-This skill is a thin playbook projection. Repository source, tests, schemas,
-OpenSpec records, claims, evidence, and ETHOS command output remain the source of truth.
+## Trust Boundary
+
+This skill is a workflow package projection. Repository source, tests, schemas,
+OpenSpec records, claims, evidence, and ETHOS command JSON remain the source of truth.
+"""
+
+
+def _governance_skill_package(package_digest: str) -> str:
+    return f"""schema_version = 2
+id = "ethos-repository-governance"
+entrypoint = "SKILL.md"
+boundary = "workflow-package-projection"
+truth = "repository-source-and-contracts"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+expected_digest = "{package_digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[quality]
+official_codex_loadable = true
+placeholder_allowed = false
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed", "--json"]
+
+[[capability]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+
+[[capability]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]
 """
 
 
@@ -211,6 +330,13 @@ relations: canonical_for: navigation
 ---
 
 # {root.name} ETHOS Governance
+
+Status: canonical.
+
+Purpose: provide the adopted repository's ETHOS documentation map.
+
+See also: [Quickstart](start/quickstart.md) and
+[ETHOS Governance](governance/ethos.md).
 
 Start with [Quickstart](start/quickstart.md), then read
 [ETHOS Governance](governance/ethos.md).
@@ -226,6 +352,13 @@ relations: canonical_for: first run
 ---
 
 # Quickstart
+
+Status: active.
+
+Purpose: give the adopted repository a first-run ETHOS command path.
+
+See also: [Documentation Index](../index.md) and
+[ETHOS Governance](../governance/ethos.md).
 
 ## First Hour
 
@@ -263,6 +396,13 @@ relations: canonical_for: repository governance
 ---
 
 # ETHOS Governance
+
+Status: canonical.
+
+Purpose: define the adopted repository's ETHOS governance boundary.
+
+See also: [Documentation Index](../index.md) and
+[Quickstart](../start/quickstart.md).
 
 ETHOS governs this repository through tracked config, official OpenSpec records,
 repo-local skills, claims, evidence, and deterministic command output.
@@ -363,27 +503,30 @@ def _gitlab_ci() -> str:
         "    - uv run --group dev pytest tests/unit tests/architecture -q\n"
         "    - uv run --group dev ruff check .\n"
         "    - openspec validate --all --strict --json\n"
-        "    - uv run --package ethos ethos self audit --json\n"
         "    - uv run --package ethos ethos report --json\n"
+        "    - uv run --package ethos ethos prove --json\n"
         "    - uv run --package ethos ethos quality release-policy --json\n"
     )
 
 
 def _default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
+    governance_skill = _governance_skill()
+    package_digest = _package_digest_from_content({"SKILL.md": governance_skill})
     files = {
         "AGENTS.md": _agents_doc(),
         "CONTRIBUTING.md": _contributing_doc(),
         "CHANGELOG.md": _changelog_doc(),
-        ".ethos/project.toml": (
-            f"[meta]\nname = {project_name}\nproduct = \"ETHOS\"\nversion = 1\n"
-        ),
+        ".ethos/project.toml": (f'[meta]\nname = {project_name}\nproduct = "ETHOS"\nversion = 1\n'),
         ".ethos/workspace.toml": _workspace_toml(root, profile),
         ".ethos/release.toml": _release_toml(profile),
         "openspec/config.yaml": _openspec_config(root),
         ".agents/skills/README.md": _skills_readme(),
-        ".agents/skills/activation.toml": _skills_activation(),
-        ".agents/skills/ethos-repository-governance/SKILL.md": _governance_skill(),
+        ".agents/skills/activation.toml": _skills_activation(package_digest),
+        ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,
+        ".agents/skills/ethos-repository-governance/package.toml": (
+            _governance_skill_package(package_digest)
+        ),
         "docs/index.md": _docs_index(root),
         "docs/start/quickstart.md": _quickstart(),
         "docs/governance/ethos.md": _governance_doc(),
@@ -391,6 +534,7 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
     }
     for family in OPENSPEC_FAMILIES:
         files[f"openspec/specs/{family}/spec.md"] = _openspec_spec(family)
+        files[f"openspec/specs/{family}/capability.toml"] = _capability_profile(family)
     if profile == "gitlab":
         files[".gitlab-ci.yml"] = _gitlab_ci()
     if profile == "github":
@@ -402,6 +546,16 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
             "      - run: uv run --package ethos ethos report --json\n"
         )
     return files
+
+
+def _package_digest_from_content(files: dict[str, str]) -> str:
+    digest = hashlib.sha256()
+    for relative, content in sorted(files.items()):
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(content.encode("utf-8"))
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
 
 
 def detect_repo_profile(root: Path) -> str:
@@ -541,6 +695,7 @@ def adoption_plan(
 def adoption_scaffold_report() -> dict[str, object]:
     required = set(BASE_ADOPTION_FILES)
     required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_FAMILIES)
+    required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_FAMILIES)
     planned = set(_default_files(Path("sample"), "gitlab"))
     missing = sorted(required - planned)
     return {

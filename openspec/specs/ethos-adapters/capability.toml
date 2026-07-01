@@ -1,0 +1,16 @@
+family = "ethos-adapters"
+primary_invariant = "The ethos-adapters family keeps provider and projection adapters cohesive and provider-neutral."
+routing_question = "Does this change alter provider and projection adapters?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "ethos-adapters"
+scope = "provider and projection adapters"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

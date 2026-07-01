@@ -6,6 +6,7 @@ from pathlib import Path
 TARGET_PACKAGES = (
     "ethos-core",
     "ethos-contracts",
+    "ethos-quality",
     "ethos-repository",
     "ethos-assistants",
     "ethos-adapters",

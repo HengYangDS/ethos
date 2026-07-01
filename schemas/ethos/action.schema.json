@@ -23,6 +23,7 @@
           "tool_version": {"type": "string"},
           "env": {"type": "array", "items": {"type": "string"}},
           "depends_on": {"type": "array", "items": {"type": "string"}},
+          "metadata": {"type": "object"},
           "cache_key": {"type": "string"}
         },
         "additionalProperties": false

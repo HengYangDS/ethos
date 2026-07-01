@@ -3,6 +3,31 @@ version = 1
 owner = "ethos-maintainers"
 
 [[stable_path]]
+path = "docs/index.md"
+reason = "documentation navigation"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/start/quickstart.md"
+reason = "first-run workflow"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/reference/command-plane.md"
+reason = "public command plane"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/governance/docs-registry.md"
+reason = "documentation quality contract"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/reference/glossary.md"
+reason = "shared terms"
+freeze_level = "hard"
+
+[[stable_path]]
 path = "AGENTS.md"
 reason = "agent entry point"
 freeze_level = "hard"

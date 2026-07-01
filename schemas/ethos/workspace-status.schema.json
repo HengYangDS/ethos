@@ -127,13 +127,23 @@
     },
     "branchBinding": {
       "type": "object",
-      "required": ["branch", "role", "head", "worktree_path", "worktree_binding"],
+      "required": [
+        "branch",
+        "role",
+        "head",
+        "worktree_path",
+        "worktree_binding",
+        "claim_id",
+        "claim_binding"
+      ],
       "properties": {
         "branch": {"type": "string"},
         "role": {"$ref": "#/$defs/role"},
         "head": {"type": "string"},
         "worktree_path": {"type": "string"},
-        "worktree_binding": {"$ref": "#/$defs/worktreeBinding"}
+        "worktree_binding": {"$ref": "#/$defs/worktreeBinding"},
+        "claim_id": {"type": "string"},
+        "claim_binding": {"enum": ["bound", "missing", "unbound"]}
       },
       "additionalProperties": false
     },
@@ -146,7 +156,9 @@
         "role",
         "worktree_binding",
         "lease_owner",
-        "lease_state"
+        "lease_state",
+        "claim_id",
+        "claim_binding"
       ],
       "properties": {
         "path": {"type": "string"},
@@ -155,7 +167,9 @@
         "role": {"const": "work_lane"},
         "worktree_binding": {"enum": ["current", "linked"]},
         "lease_owner": {"type": "string"},
-        "lease_state": {"enum": ["leased", "missing"]}
+        "lease_state": {"enum": ["leased", "missing"]},
+        "claim_id": {"type": "string"},
+        "claim_binding": {"enum": ["bound", "missing"]}
       },
       "additionalProperties": false
     },
@@ -168,6 +182,8 @@
         "target_path",
         "operation",
         "owner",
+        "claim_id",
+        "claim_binding",
         "required_gaps"
       ],
       "properties": {
@@ -177,6 +193,8 @@
         "target_path": {"type": "string"},
         "operation": {"enum": ["land_to_candidate", ""]},
         "owner": {"type": "string"},
+        "claim_id": {"type": "string"},
+        "claim_binding": {"enum": ["bound", "missing", "unbound"]},
         "required_gaps": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": false

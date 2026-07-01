@@ -34,3 +34,9 @@ ethos report
 The commands above are the current self-hosting toolchain profile for proving
 this repository. They do not make `uv`, pytest, Ruff, npm, or a hosted runner
 product ontology anchors.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

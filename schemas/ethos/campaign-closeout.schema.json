@@ -7,6 +7,8 @@
     "ok",
     "state",
     "workspace",
+    "claims",
+    "intake_projection",
     "evolution",
     "release",
     "parity",
@@ -20,6 +22,8 @@
     "ok": {"type": "boolean"},
     "state": {"type": "string"},
     "workspace": {"type": "object"},
+    "claims": {"type": "object"},
+    "intake_projection": {"$ref": "#/$defs/intakeProjection"},
     "evolution": {"type": "object"},
     "release": {"type": "object"},
     "parity": {"type": "object"},
@@ -29,9 +33,19 @@
     "provenance": {"$ref": "#/$defs/closeoutProvenance"},
     "packages": {
       "type": "object",
-      "required": ["local_closeout", "publication", "release", "parity", "shadow_parity"],
+      "required": [
+        "local_closeout",
+        "trust_closeout",
+        "intake_projection",
+        "publication",
+        "release",
+        "parity",
+        "shadow_parity"
+      ],
       "properties": {
         "local_closeout": {"type": "object"},
+        "trust_closeout": {"$ref": "#/$defs/trustCloseout"},
+        "intake_projection": {"$ref": "#/$defs/intakeProjection"},
         "publication": {"$ref": "#/$defs/publication"},
         "release": {"type": "object"},
         "parity": {"type": "object"},
@@ -71,6 +85,69 @@
         "remote_push": {"const": "not_performed"},
         "state": {"const": "deferred"},
         "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "intakeProjection": {
+      "type": "object",
+      "required": [
+        "kind",
+        "state",
+        "truth_boundary",
+        "legacy_truth_boundary",
+        "repository_truth",
+        "provider",
+        "configured",
+        "expected_config",
+        "adapters",
+        "blocking",
+        "required_gaps"
+      ],
+      "properties": {
+        "kind": {"const": "intake_projection"},
+        "state": {"type": "string"},
+        "truth_boundary": {"const": "projection-evidence"},
+        "legacy_truth_boundary": {"const": "adopter-ledger"},
+        "repository_truth": {"const": false},
+        "provider": {"type": "string"},
+        "configured": {"type": "boolean"},
+        "expected_config": {"type": "string"},
+        "adapters": {"type": "array", "items": {"type": "string"}},
+        "blocking": {"type": "boolean"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "trustCloseout": {
+      "type": "object",
+      "required": [
+        "kind",
+        "claim_report_ok",
+        "trust_claim_count",
+        "promotion_ready",
+        "executed_proof_evidence",
+        "work_lane",
+        "blocking",
+        "required_gaps"
+      ],
+      "properties": {
+        "kind": {"const": "trust_closeout"},
+        "claim_report_ok": {"type": "boolean"},
+        "trust_claim_count": {"type": "integer", "minimum": 0},
+        "promotion_ready": {"type": "boolean"},
+        "executed_proof_evidence": {"type": "boolean"},
+        "work_lane": {
+          "type": "object",
+          "required": ["branch", "claim_id", "claim_binding"],
+          "properties": {
+            "branch": {"type": "string"},
+            "claim_id": {"type": "string"},
+            "claim_binding": {"enum": ["bound", "missing", "unbound"]}
+          },
+          "additionalProperties": false
+        },
+        "blocking": {"type": "boolean"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}}
       },
       "additionalProperties": false
     },

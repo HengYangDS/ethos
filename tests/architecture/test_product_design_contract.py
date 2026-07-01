@@ -98,6 +98,8 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     product = read("docs/governance/product-design-contract.md")
     command_plane = read("docs/reference/command-plane.md")
     schema = read("docs/architecture/schema-validation.md")
+    repository_spec = read("openspec/specs/ethos-repository/spec.md")
+    adapters_spec = read("openspec/specs/ethos-adapters/spec.md")
 
     for text in (product, command_plane, schema):
         assert "release_root -> accepted_root -> candidate -> work_lane -> submit_lane" in text
@@ -106,6 +108,31 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
 
     assert "adapter UI text is not product state" in command_plane
     assert "OpenSpec remains mandatory governance, not a product substrate" in product
+    assert "OpenSpec remains mandatory governance, not a product substrate" in (
+        repository_spec
+    )
+    assert "not a second command plane" in repository_spec
+    assert "adapters derive presentation from `worktree_binding`" in adapters_spec
+    assert "host navigation labels are not product state" in adapters_spec
+
+
+def test_product_design_contract_defines_single_kernel_dual_posture() -> None:
+    product = read("docs/governance/product-design-contract.md")
+    command_plane = read("docs/reference/command-plane.md")
+    repository_spec = read("openspec/specs/ethos-repository/spec.md")
+    contracts_spec = read("openspec/specs/ethos-contracts/spec.md")
+
+    for text in (product, command_plane, repository_spec, contracts_spec):
+        assert "single-kernel dual-posture" in text
+        assert "product_self" in text
+        assert "adopter_repository" in text
+        assert "`governance_context`" in text
+
+    assert "self-governance is not a private command plane" in product
+    assert "governance_audit" in command_plane
+    assert "capability_parity" in command_plane
+    assert "same command semantics" in repository_spec
+    assert "shared governance context contract" in contracts_spec
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:
@@ -230,6 +257,7 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     assert target["target_packages"] == [
         "ethos-core",
         "ethos-contracts",
+        "ethos-quality",
         "ethos-repository",
         "ethos-assistants",
         "ethos-adapters",

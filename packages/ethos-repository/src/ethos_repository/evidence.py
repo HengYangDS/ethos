@@ -5,6 +5,18 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from ethos_quality.proof_policy import run_state_for_adapter_state
+
+PROOF_RUN_STATES = {
+    "planned",
+    "readiness",
+    "executed",
+    "proven",
+    "blocked",
+    "accepted-risk",
+    "waived_nonblocking",
+}
+
 
 def _stable_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -25,6 +37,52 @@ class ProofRun:
     stdout: str
     stderr: str
     state: str
+    evidence_class: str = "proof"
+    verdict: str = "not_run"
+    trust_bearing: bool = False
+    diagnostics: tuple[dict[str, Any], ...] = ()
+    governance_ref: str = ""
+
+    def __post_init__(self) -> None:
+        if self.state not in PROOF_RUN_STATES:
+            raise ValueError(f"invalid proof run state: {self.state}")
+        if self.state == "proven" and not self.trust_bearing:
+            raise ValueError("proven proof run must be trust_bearing")
+        if self.trust_bearing and self.state != "proven":
+            raise ValueError("trust_bearing proof run must be proven")
+        if self.state in {"accepted-risk", "waived_nonblocking"} and not self.governance_ref:
+            raise ValueError(f"{self.state} proof run requires governance_ref")
+
+    @classmethod
+    def from_adapter_result(
+        cls,
+        *,
+        action_id: str,
+        command: tuple[str, ...],
+        exit_code: int | None,
+        stdout: str,
+        stderr: str,
+        adapter_state: str,
+        evidence_class: str = "proof",
+        trust_bearing: bool = False,
+        diagnostics: tuple[dict[str, Any], ...] = (),
+    ) -> ProofRun:
+        classification = run_state_for_adapter_state(
+            adapter_state,
+            trust_bearing_capable=trust_bearing,
+        )
+        return cls(
+            action_id=action_id,
+            command=command,
+            exit_code=exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            state=str(classification["state"]),
+            evidence_class=evidence_class,
+            verdict=str(classification["verdict"]),
+            trust_bearing=bool(classification["trust_bearing"]),
+            diagnostics=diagnostics,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -34,6 +92,11 @@ class ProofRun:
             "stdout": self.stdout,
             "stderr": self.stderr,
             "state": self.state,
+            "evidence_class": self.evidence_class,
+            "verdict": self.verdict,
+            "trust_bearing": self.trust_bearing,
+            "diagnostics": list(self.diagnostics),
+            "governance_ref": self.governance_ref,
         }
 
 

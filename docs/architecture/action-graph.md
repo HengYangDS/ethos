@@ -18,3 +18,9 @@ The graph borrows the hard mechanism from modern build systems: dependency
 tracking, invalidation, cacheability, and affected planning. ETHOS owns the
 governance semantics; runners such as local subprocess, Dagger, or hosted CI are
 replaceable adapters.
+
+Status: see front matter.
+
+Purpose: explain the repository truth represented by this ETHOS document.
+
+See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

@@ -1,0 +1,75 @@
+[claim]
+id = "ethos-role-binding-projection-hardening"
+subject = "ethos:role-binding-projection-hardening"
+state = "active"
+summary = "ETHOS schema-governs configured branch-role provenance, standard Work Lane lifecycle command binding, and host projection vocabulary boundaries without binding the product to a host, model provider, or OpenSpec as product substrate."
+
+[evidence]
+dated = "docs/evidence/role-binding-projection-hardening-2026-07-01.md"
+sha256 = "4fefd58896dba324159fddec67443d313c3265ddb3f08e3cbd9c8ad3642954fa"
+evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
+binding = "semantic role-binding projection hardening evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/test_coupling_governance.py -q",
+  "uv run --group dev pytest tests/unit/test_coupling_governance.py tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
+  "uv run --group dev pytest tests/unit/test_coupling_governance.py tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
+  "uv run --package ethos ethos quality coupling-audit --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --group dev ruff check packages/ethos-repository/src/ethos_repository/coupling.py tests/unit/test_coupling_governance.py tests/architecture/test_product_design_contract.py",
+  "uv run --group dev pytest -q",
+  "uv run --group dev ruff check .",
+  "uv build --all-packages",
+  "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos quality coupling-audit --json",
+  "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos quality release-policy --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
+  "uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+]
+
+[scope]
+packages = [
+  "ethos-repository",
+]
+schemas = [
+  "schemas/ethos/coupling-audit.schema.json",
+]
+tests = [
+  "tests/unit/test_coupling_governance.py",
+  "tests/architecture/test_product_design_contract.py",
+]
+docs = [
+  "docs/evidence/role-binding-projection-hardening-2026-07-01.md",
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/architecture/schema-validation.md",
+  "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/ethos-repository/spec.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Configured branch roles, standard Work Lane lifecycle binding, coupling schema, and host projection vocabulary boundaries"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Keep branch-role names configurable through .ethos/workspace.toml and keep host presentation outside product truth."
+kill_signal = "ETHOS workflow state can be created by host UI labels or raw worktree creation without ETHOS lease, claim, and configured role provenance."
+
+[promotion]
+targets = [
+  "docs/evidence/role-binding-projection-hardening-2026-07-01.md",
+  "packages/ethos-repository/src/ethos_repository/coupling.py",
+  "schemas/ethos/coupling-audit.schema.json",
+  "tests/unit/test_coupling_governance.py",
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/ethos-adapters/spec.md",
+]

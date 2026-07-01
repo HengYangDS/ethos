@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/quality-asset.schema.json",
+  "title": "ETHOS Quality Asset",
+  "type": "object",
+  "required": ["class", "role", "dimensions", "default_adapters"],
+  "properties": {
+    "class": {"type": "string", "minLength": 1},
+    "role": {"type": "string", "minLength": 1},
+    "dimensions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "default_adapters": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  },
+  "additionalProperties": false
+}

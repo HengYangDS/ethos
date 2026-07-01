@@ -1,0 +1,16 @@
+family = "ethos-core"
+primary_invariant = "The ethos-core family keeps pure kernel result and action graph semantics cohesive and provider-neutral."
+routing_question = "Does this change alter pure kernel result and action graph semantics?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "ethos-core"
+scope = "pure kernel result and action graph semantics"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

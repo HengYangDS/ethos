@@ -122,6 +122,42 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
     assert report["host_profile"]["provider"] == "gitlab"
 
 
+def test_release_policy_does_not_accept_retired_provider_section(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md"):
+        (root / path).write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        "\n".join(
+            [
+                "[protected_refs]",
+                'branches = ["main", "dev"]',
+                'tags = ["v*"]',
+                "",
+                "[gitlab]",
+                'ci = ".gitlab-ci.yml"',
+                "",
+                "[attestation]",
+                'formats = ["in-toto", "slsa", "spdx-lite"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert report["host_profile"] == {
+        "provider": "",
+        "layer": "profile_config",
+        "surfaces": {},
+    }
+
+
 def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
     tmp_path: Path,
 ) -> None:

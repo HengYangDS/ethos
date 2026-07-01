@@ -60,13 +60,6 @@ def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
                 for key, value in (surfaces if isinstance(surfaces, dict) else {}).items()
             },
         }
-    legacy_gitlab = config.get("gitlab", {})
-    if isinstance(legacy_gitlab, dict) and legacy_gitlab:
-        return {
-            "provider": "gitlab",
-            "layer": "profile_config",
-            "surfaces": {str(key): str(value) for key, value in legacy_gitlab.items()},
-        }
     return {"provider": "", "layer": "profile_config", "surfaces": {}}
 
 

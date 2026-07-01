@@ -111,7 +111,6 @@ Playbook routing:
 
 ```bash
 ethos playbooks check
-ethos playbooks check --mode legacy-compat
 ethos playbooks check --mode v2-strict
 ethos playbooks route
 ethos playbooks route --changed
@@ -249,7 +248,7 @@ execution is intentionally `gapped` with `full_proof_requires_execute`.
 
 `ethos quality coupling-audit --json` reports product-semantic hard bindings,
 mandatory governance dependencies, native protocol bindings, product-toolchain
-toolchain bindings, profile or adapter bindings, legacy evidence, and
+toolchain bindings, profile or adapter bindings, historical evidence, and
 test-fixture coupling boundaries through `data.binding_registry`. The
 `binding_registry` field is the machine-readable binding classification
 contract. It treats Git, worktrees, refs, branch roles, and the Work Lane
@@ -263,17 +262,17 @@ release_root, accepted_root, candidate, work_lane, and submit_lane remain
 distinct configured roles rather than hard-coded branch names.
 The registry also names the official OpenSpec CLI, uv workspace orchestration,
 Hatchling build backend, pytest, Ruff, the configured GitLab release profile,
-MCP/ACP protocol adapters, the npm launcher distribution adapter, legacy
+MCP/ACP protocol adapters, the npm launcher distribution adapter, historical
 evidence, and provider fixtures under their explicit binding layers.
 
-Skills V2 command payloads keep legacy playbook fields while adding normalized
-registry and package evidence. `ethos playbooks check --json` defaults to
-`legacy-compat`, which keeps external v1 adopters readable and reports V2 gaps
-as advisory. `ethos playbooks check --mode v2-strict --json` is the product
-proof mode; it requires activation ownership metadata, path coverage, proof
-obligations, package manifests, digest agreement, and official-quality
-`SKILL.md` content. `ethos playbooks route --changed --json` selects records via
-the explicit `changed-scope` route and path-glob metadata.
+Skills V2 command payloads expose normalized registry and package evidence.
+`ethos playbooks check --json` runs the current product proof mode; the explicit
+`ethos playbooks check --mode v2-strict --json` spelling is equivalent. The
+proof requires activation ownership metadata, path coverage, proof obligations,
+package manifests, digest agreement, and official-quality `SKILL.md` content.
+Historical playbook payloads remain archive or adopter evidence, not current
+route contract. `ethos playbooks route --changed --json` selects records via the
+explicit `changed-scope` route and path-glob metadata.
 
 `ethos report --json` includes `data.scorecards[]` with the `skills-v2`
 scorecard and `data.gap_layers.playbook_projection` for blocking Skills V2

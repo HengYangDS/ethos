@@ -72,7 +72,7 @@ def test_event_append_is_transactional(tmp_path: Path) -> None:
     assert events[0]["payload"] == {"ok": True}
 
 
-def test_active_leases_tolerates_legacy_lease_table_shape(tmp_path: Path) -> None:
+def test_active_leases_ignores_retired_lease_table_shape(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
     with sqlite3.connect(db_path) as connection:
@@ -92,7 +92,9 @@ def test_active_leases_tolerates_legacy_lease_table_shape(tmp_path: Path) -> Non
     assert active_leases(db_path) == []
 
 
-def test_active_leases_skips_legacy_rows_with_malformed_expiry(tmp_path: Path) -> None:
+def test_active_leases_rejects_retired_lease_rows_with_resource_column(
+    tmp_path: Path,
+) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
     with sqlite3.connect(db_path) as connection:
@@ -110,7 +112,8 @@ def test_active_leases_skips_legacy_rows_with_malformed_expiry(tmp_path: Path) -
         connection.execute(
             """
             insert into leases(id, owner, resource, expires_at, created_at)
-            values ('lease:bad', 'agent', 'repo', '', '2026-07-01T00:00:00+00:00')
+            values ('lease:old', 'agent', 'repo', '2099-07-01T00:00:00+00:00',
+                    '2026-07-01T00:00:00+00:00')
             """
         )
         connection.commit()

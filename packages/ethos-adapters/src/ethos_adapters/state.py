@@ -104,7 +104,6 @@ def initialize_state(db_path: Path) -> None:
         connection.execute("pragma foreign_keys = on")
         for statement in SCHEMA:
             connection.execute(statement)
-        _migrate_legacy_leases(connection)
         connection.execute(
             "insert or ignore into schema_migrations(version, applied_at) values (?, ?)",
             (SCHEMA_VERSION, _now()),
@@ -217,17 +216,15 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
     now = datetime.now(UTC)
     with sqlite3.connect(db_path) as connection:
         columns = _table_columns(connection, "leases")
-        if not {"id", "owner", "expires_at"}.issubset(columns):
+        if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(
+            columns
+        ):
             return []
-        subject_column = "subject" if "subject" in columns else "resource"
-        if subject_column not in columns:
-            return []
-        payload_expr = "payload_json" if "payload_json" in columns else "'{}'"
         rows = connection.execute(
-            f"""
-            select id, {subject_column}, owner, expires_at, {payload_expr}
+            """
+            select id, subject, owner, expires_at, payload_json
             from leases
-            order by {subject_column}, id
+            order by subject, id
             """,
         ).fetchall()
     leases: list[dict[str, Any]] = []
@@ -248,22 +245,6 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
             }
         )
     return leases
-
-
-def _migrate_legacy_leases(connection: sqlite3.Connection) -> None:
-    columns = _table_columns(connection, "leases")
-    if not columns:
-        return
-    if "subject" not in columns:
-        connection.execute("alter table leases add column subject text not null default ''")
-        columns.add("subject")
-    if "payload_json" not in columns:
-        connection.execute(
-            "alter table leases add column payload_json text not null default '{}'"
-        )
-        columns.add("payload_json")
-    if "resource" in columns:
-        connection.execute("update leases set subject = resource where subject = ''")
 
 
 def _table_columns(connection: sqlite3.Connection, table: str) -> set[str]:

@@ -31,12 +31,15 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
             "git",
             "worktree",
             "branch",
-            "candidate/dev",
-            "work/*",
-            "submit/*",
+            "refs",
+            "HEAD",
+            "role_policy",
         ],
         "not_a_generic_vcs_abstraction": True,
     }
+    assert "candidate/dev" not in report["git_native"]["allowed_terms"]
+    assert "work/*" not in report["git_native"]["allowed_terms"]
+    assert "submit/*" not in report["git_native"]["allowed_terms"]
     assert report["openspec_governance"] == {
         "required": True,
         "layer": "mandatory_governance_dependency",

@@ -40,7 +40,7 @@ the raw workspace-status payload so existing consumers can continue to read
 Coupling audit output is governed by
 `schemas/ethos/coupling-audit.schema.json`. It exposes `binding_registry` as
 the product classification vocabulary for hard bindings, mandatory
-dependencies, native protocols, product-toolchain tools, adapters, legacy evidence,
+dependencies, native protocols, product-toolchain tools, adapters, historical evidence,
 and fixtures. The branch role entry carries its configuration source, config
 keys, default-policy state, semantic role order, and configured patterns. The
 Work Lane lifecycle entry carries the standard ETHOS lifecycle commands and
@@ -54,7 +54,7 @@ Skills V2 adds three provider-neutral schemas:
   subjects, path globs, operation metadata, lifecycle, package manifest paths,
   proof obligations, commands, and boundary fields.
 - `skill-registry.schema.json` validates the normalized Skills V2 registry,
-  including legacy-preserving records and the stable registry digest.
+  including historical projection records and the stable registry digest.
 - `skill-package-manifest.schema.json` validates package manifests for
   loadable `SKILL.md` packages, included files, digest algorithm, expected
   digest, required sections, quality flags, and capability classes.

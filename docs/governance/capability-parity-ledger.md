@@ -90,7 +90,7 @@ Targets without either profile report `embedded_backend_missing` and a
 `backend.kind = "missing"` result instead of silently selecting a fallback.
 Product commands use `--root` when the command supports it and use
 `cwd=<target>` for projection commands that intentionally do not accept a root
-option. The semantic projection normalizes legacy embedded payloads that omit
+option. The semantic projection normalizes historical embedded payloads that omit
 top-level `state` for read-only ready/planned commands.
 
 Executed comparisons also expose `accepted_differences` when a mismatch belongs

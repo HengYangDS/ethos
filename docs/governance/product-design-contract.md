@@ -164,7 +164,7 @@ SQLite local state are native protocols. The current Python, uv, Hatchling,
 pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology.
 `ethos quality coupling-audit --json` exposes these classifications as a
 `binding_registry` so product hard bindings, mandatory dependencies, native
-protocols, product-toolchain tools, adapters, legacy evidence, and fixtures are
+protocols, product-toolchain tools, adapters, historical evidence, and fixtures are
 auditable without binding ETHOS to a specific host or model provider.
 
 ### Capability before surface

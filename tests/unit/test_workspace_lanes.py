@@ -492,7 +492,7 @@ def test_workspace_status_reports_closeout_owner_from_lane_lease(tmp_path: Path)
     assert status["closeout_support"]["owner"] == "agent:test"
 
 
-def test_workspace_status_tolerates_legacy_state_lease_schema(tmp_path: Path) -> None:
+def test_workspace_status_ignores_retired_state_lease_schema(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     state_db = repo / ".ethos" / "state" / "state.sqlite"
@@ -515,9 +515,9 @@ def test_workspace_status_tolerates_legacy_state_lease_schema(tmp_path: Path) ->
             values (?, ?, ?, ?, ?)
             """,
             (
-                "lease:legacy",
-                "agent:legacy",
-                "work/legacy",
+                "lease:retired",
+                "agent:retired",
+                "work/retired",
                 expires_at.isoformat(),
                 datetime.now(UTC).isoformat(),
             ),
@@ -527,15 +527,7 @@ def test_workspace_status_tolerates_legacy_state_lease_schema(tmp_path: Path) ->
     leases = active_leases(state_db)
 
     assert status["role"] == "accepted_root"
-    assert leases == [
-        {
-            "id": "lease:legacy",
-            "subject": "work/legacy",
-            "owner": "agent:legacy",
-            "expires_at": expires_at.isoformat(),
-            "payload": {},
-        }
-    ]
+    assert leases == []
 
 
 def test_workspace_status_output_validates_against_workspace_status_schema(

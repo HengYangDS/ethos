@@ -296,7 +296,7 @@ PRODUCT_VENDOR_TERMS = (
     "Windsurf",
 )
 PRODUCT_HOST_PROJECTION_TERMS = ("Open Worktree", "Checkout")
-GIT_NATIVE_TERMS = ("Git", "git", "worktree", "branch", "candidate/dev", "work/*", "submit/*")
+GIT_NATIVE_TERMS = ("Git", "git", "worktree", "branch", "refs", "HEAD", "role_policy")
 NATIVE_PROTOCOL_FORMATS = (
     "JSON Schema",
     "command JSON",

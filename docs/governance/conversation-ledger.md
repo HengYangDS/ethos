@@ -48,7 +48,7 @@ areas must remain visible until implemented, tested, documented, and proven.
 - backlog-md is an intake-ledger adapter opportunity, not a proof or contract
   source of truth.
 - Product behavior must not be moved into tools directories.
-- tools/agent in an adopter repository should be classified as adopter legacy,
+- tools/agent in an adopter repository should be classified as adopter historical residue,
   reusable adapter candidate, or retired residue through explicit adoption
   rules.
 - .mailmap must not be reintroduced in this product repository.
@@ -94,7 +94,7 @@ not normal user workflow vocabulary.
 | CL-019 | Redesign docs information architecture for clarity, fidelity, and elegance. | Docs can be complete but hard to navigate. | Docs registry, taxonomy, stable paths, and UX review. |
 | CL-020 | Make init scaffolding create the full governance skeleton. | New projects can start with incomplete ETHOS structure. | Scaffold tests covering docs, schemas, OpenSpec, skills, rules, state ignore. |
 | CL-021 | Harden npm distribution adapter and registry publication path. | Node wrapper can exist but break in real use. | Package smoke, bin smoke, and publication checklist. |
-| CL-022 | Preserve one public command plane. | Legacy public vocabulary can leak back into current docs. | Command registry scan and docs command-example tests. |
+| CL-022 | Preserve one public command plane. | Retired public vocabulary can leak back into current docs. | Command registry scan and docs command-example tests. |
 | CL-023 | Feed hosted CI parity back into evidence, not a separate truth store. | Hosted checks can diverge from local proof semantics. | CI adapter report and evidence envelope. |
 | CL-024 | Make standards adoption executable and lifecycle-managed. | Standards can stay aspirational. | Standards registry, adapters, and exit strategies. |
 | CL-025 | Keep conversation-derived requirements auditable. | The agent can forget or narrow scope again. | This ledger linked from docs index and repository-audit. |

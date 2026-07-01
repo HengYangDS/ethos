@@ -149,6 +149,30 @@ def test_canonical_product_docs_are_provider_neutral() -> None:
             assert term not in text, (doc, term)
 
 
+def test_current_product_docs_do_not_expose_legacy_compatibility_language() -> None:
+    current_docs = (
+        "docs/governance",
+        "docs/architecture",
+        "docs/reference",
+    )
+    forbidden = (
+        "legacy-compat",
+        "legacy evidence",
+        "legacy playbook",
+        "legacy-preserving",
+        "legacy embedded",
+        "legacy public",
+        "adopter legacy",
+    )
+
+    for directory in current_docs:
+        for path in sorted((ROOT / directory).glob("*.md")):
+            text = path.read_text(encoding="utf-8").lower()
+            assert "legacy" not in text, path.relative_to(ROOT)
+            for phrase in forbidden:
+                assert phrase not in text, path.relative_to(ROOT)
+
+
 def test_package_ontology_declares_target_mece_packages_and_migration_hosts() -> None:
     text = read("docs/architecture/package-ontology.md")
 

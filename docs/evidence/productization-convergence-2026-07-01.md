@@ -199,8 +199,9 @@ workflow state, not a product audit gap.
 
 This addendum supersedes the transient dirty-worktree note above for closeout
 readiness. It records the code and contract state at
-`49c78fdb895e5d53f887c8be9911888cd80eac8e`; the later evidence/claim digest
-commit only refreshes this reader evidence and the bound claim SHA.
+`49c78fdb895e5d53f887c8be9911888cd80eac8e`; the later metadata-only commits
+refresh reader evidence, claim SHA, and tracked parity freshness without
+changing runtime code.
 
 Commands rerun from `/Users/yheng/projects/ethos-work-productization-convergence`
 on branch `work/productization-convergence`:

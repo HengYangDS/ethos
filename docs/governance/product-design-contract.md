@@ -148,8 +148,9 @@ configuration keys, default-policy state, semantic role order, and configured
 patterns; release_root and accepted_root are both protected roles but they are
 not interchangeable.
 Work Lane lifecycle commands are also product semantics: `ethos lane start`,
-`ethos lane bind-claim`, `ethos land`, and `ethos lane retire-landed` define the
-local ownership, evidence binding, candidate closeout, and retirement path.
+`ethos lane bind-claim`, `ethos lane refresh-base`, `ethos land`, and
+`ethos lane retire-landed` define the local ownership, evidence binding, stale
+base replay, candidate closeout, and retirement path.
 Git worktree facts remain observable, but raw worktree creation is not the
 standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
 boundaries.

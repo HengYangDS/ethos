@@ -5,7 +5,12 @@ import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ethos_adapters.lanes import bind_work_lane_claim, retire_landed_work_lanes, start_work_lane
+from ethos_adapters.lanes import (
+    bind_work_lane_claim,
+    refresh_work_lane_base,
+    retire_landed_work_lanes,
+    start_work_lane,
+)
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.state import active_leases
 from ethos_adapters.status import workspace_status
@@ -787,6 +792,138 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     assert report["ok"] is True
     assert git(worktree, "rev-parse", "HEAD") == candidate_head
     assert git(repo, "rev-parse", "dev") != candidate_head
+
+
+def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    report = refresh_work_lane_base(
+        root=worktree,
+        apply=False,
+        authorized=False,
+        expect_head=None,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "ready_to_refresh_base"
+    assert report["branch"] == "work/feature"
+    assert report["head"] == work_head
+    assert report["candidate_head"] == candidate_head
+    assert report["required_gaps"] == []
+
+
+def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    report = refresh_work_lane_base(
+        root=worktree,
+        apply=True,
+        authorized=True,
+        expect_head=previous_head,
+    )
+
+    refreshed_head = git(worktree, "rev-parse", "HEAD")
+    assert report["ok"] is True
+    assert report["state"] == "base_refreshed"
+    assert report["branch"] == "work/feature"
+    assert report["previous_head"] == previous_head
+    assert report["head"] == refreshed_head
+    assert report["candidate_head"] == candidate_head
+    assert report["required_gaps"] == []
+    assert refreshed_head != previous_head
+    assert git(repo, "merge-base", "--is-ancestor", candidate_head, refreshed_head) == ""
+    assert (worktree / "CANDIDATE.md").exists()
+    assert (worktree / "FEATURE.md").exists()
+
+
+def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+
+    report = refresh_work_lane_base(
+        root=worktree,
+        apply=True,
+        authorized=False,
+        expect_head=None,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["authorization_required", "expect_head_required"]
 
 
 def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path) -> None:

@@ -35,7 +35,10 @@ linked worktree. `ethos lane candidate --apply` bootstraps that worktree from a
 clean accepted root with an expected HEAD. New Work Lanes start from the
 candidate branch instead of the accepted root, and `ethos land --apply` from an
 admitted Work Lane fast-forwards the candidate worktree without advancing the
-accepted root.
+accepted root. `ethos land --json` checks the same ancestry before mutation; if
+the candidate train has advanced since the Work Lane started, it reports
+`candidate_base_stale` and points to `ethos lane refresh-base` instead of
+waiting for apply mode to discover the stale base.
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane.
@@ -53,7 +56,8 @@ dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
 cannot be created from ambiguous local candidate state.
 The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
 and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
-when needed, `ethos land` advances the configured candidate branch, and
+when needed, `ethos lane refresh-base` replays a stale lane onto the configured
+candidate branch, `ethos land` advances the configured candidate branch, and
 `ethos lane retire-landed` removes only an explicitly named landed Work Lane.
 Raw Git worktree creation can exist as a repository fact, but it is not standard
 ETHOS workflow state.

@@ -109,45 +109,10 @@ def apply_land_to_candidate(
             "head": current_head,
             "required_gaps": list(decision.gaps),
         }
-    status = workspace_status(root)
-    if not status["candidate"]["exists"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "required_gaps": ["candidate_branch_missing"],
-        }
-    if not status["candidate"]["worktree_exists"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "required_gaps": ["candidate_worktree_missing"],
-        }
-    candidate_path = Path(str(status["candidate"]["worktree_path"]))
-    candidate_status = workspace_status(candidate_path)
-    if candidate_status["dirty"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": candidate_path.as_posix(),
-            "required_gaps": ["candidate_worktree_dirty"],
-        }
-    candidate_head = str(status["candidate"]["head"])
-    if not _is_ancestor(root, candidate_head, current_head):
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "candidate_head": candidate_head,
-            "path": candidate_path.as_posix(),
-            "required_gaps": ["candidate_base_stale"],
-        }
+    base_report = candidate_base_report(root=root)
+    if not base_report["ok"]:
+        return base_report
+    candidate_path = Path(str(base_report["path"]))
     completed = _git(candidate_path, "merge", "--ff-only", current_head, check=False)
     if completed.returncode != 0:
         return {
@@ -218,6 +183,59 @@ def apply_candidate_to_accepted(
         "source_branch": policy.candidate_branch,
         "head": candidate_head,
         "previous_head": current_head,
+        "required_gaps": [],
+    }
+
+
+def candidate_base_report(*, root: Path) -> dict[str, object]:
+    policy = load_branch_role_policy(root)
+    current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    status = workspace_status(root)
+    if not status["candidate"]["exists"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "required_gaps": ["candidate_branch_missing"],
+        }
+    if not status["candidate"]["worktree_exists"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "required_gaps": ["candidate_worktree_missing"],
+        }
+    candidate_path = Path(str(status["candidate"]["worktree_path"]))
+    candidate_status = workspace_status(candidate_path)
+    if candidate_status["dirty"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "path": candidate_path.as_posix(),
+            "required_gaps": ["candidate_worktree_dirty"],
+        }
+    candidate_head = str(status["candidate"]["head"])
+    if not _is_ancestor(root, candidate_head, current_head):
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "candidate_head": candidate_head,
+            "path": candidate_path.as_posix(),
+            "required_gaps": ["candidate_base_stale"],
+        }
+    return {
+        "ok": True,
+        "state": "candidate_base_current",
+        "branch": policy.candidate_branch,
+        "head": current_head,
+        "candidate_head": candidate_head,
+        "path": candidate_path.as_posix(),
         "required_gaps": [],
     }
 

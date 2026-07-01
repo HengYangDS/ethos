@@ -288,6 +288,99 @@ def bootstrap_candidate(
     }
 
 
+def refresh_work_lane_base(
+    *,
+    root: Path,
+    apply: bool = False,
+    authorized: bool = False,
+    expect_head: str | None = None,
+) -> dict[str, object]:
+    policy = load_branch_role_policy(root)
+    status = workspace_status(root)
+    current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    branch = str(status.get("branch") or "")
+    candidate = status["candidate"]
+    candidate_head = str(candidate.get("head") or "")
+    candidate_path = str(candidate.get("worktree_path") or "")
+    gaps: list[str] = []
+    if status["role"] != ROLE_WORK_LANE:
+        gaps.append("protected_root_mutation")
+    elif status["dirty"]:
+        gaps.append("work_lane_dirty")
+    if not candidate["exists"]:
+        gaps.append("candidate_branch_missing")
+    elif not candidate["worktree_exists"]:
+        gaps.append("candidate_worktree_missing")
+    elif changed_paths(Path(candidate_path)):
+        gaps.append("candidate_worktree_dirty")
+    if apply:
+        if not authorized:
+            gaps.append("authorization_required")
+        if expect_head is None:
+            gaps.append("expect_head_required")
+        elif expect_head != current_head:
+            gaps.append("expect_head_mismatch")
+    if gaps:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": policy.candidate_branch,
+            "candidate_head": candidate_head,
+            "candidate_path": candidate_path,
+            "required_gaps": gaps,
+        }
+    if _is_ancestor(root, candidate_head, current_head):
+        return {
+            "ok": True,
+            "state": "base_current",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": policy.candidate_branch,
+            "candidate_head": candidate_head,
+            "candidate_path": candidate_path,
+            "required_gaps": [],
+        }
+    if not apply:
+        return {
+            "ok": True,
+            "state": "ready_to_refresh_base",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": policy.candidate_branch,
+            "candidate_head": candidate_head,
+            "candidate_path": candidate_path,
+            "required_gaps": [],
+        }
+    completed = _git(root, "rebase", policy.candidate_branch, check=False)
+    if completed.returncode != 0:
+        _git(root, "rebase", "--abort", check=False)
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": policy.candidate_branch,
+            "candidate_head": candidate_head,
+            "candidate_path": candidate_path,
+            "required_gaps": ["refresh_base_failed"],
+            "stderr": completed.stderr.strip(),
+        }
+    refreshed_head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    return {
+        "ok": True,
+        "state": "base_refreshed",
+        "branch": branch,
+        "previous_head": current_head,
+        "head": refreshed_head,
+        "candidate_branch": policy.candidate_branch,
+        "candidate_head": candidate_head,
+        "candidate_path": candidate_path,
+        "required_gaps": [],
+    }
+
+
 def retire_landed_work_lanes(
     *,
     root: Path,

@@ -93,6 +93,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane candidate",
     "ethos lane start",
     "ethos lane prewrite",
+    "ethos lane refresh-base",
     "ethos lane bind-claim",
     "ethos lane hydrate",
     "ethos lane retire-landed",

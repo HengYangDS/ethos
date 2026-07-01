@@ -1810,6 +1810,144 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
     assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["sample-change"]
 
 
+def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["candidate_base_stale"]
+    assert payload["next_actions"] == [
+        f"ethos lane refresh-base --apply --authorize --expect-head {work_head} --json"
+    ]
+    assert payload["data"]["candidate_update"] == {
+        "ok": False,
+        "state": "blocked",
+        "branch": "candidate/dev",
+        "head": work_head,
+        "candidate_head": candidate_head,
+        "path": candidate.as_posix(),
+        "required_gaps": ["candidate_base_stale"],
+    }
+
+
+def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        previous_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    refreshed_head = git(worktree, "rev-parse", "HEAD")
+    assert payload["ok"] is True
+    assert payload["state"] == "base_refreshed"
+    assert payload["required_gaps"] == []
+    assert payload["next_actions"] == ["ethos land --json"]
+    assert payload["data"]["branch"] == "work/feature"
+    assert payload["data"]["previous_head"] == previous_head
+    assert payload["data"]["head"] == refreshed_head
+    assert payload["data"]["candidate_head"] == candidate_head
+    assert refreshed_head != previous_head
+
+
 def test_land_apply_requires_authorization_and_expected_head() -> None:
     payload = run_ethos("land", "--apply", "--json")
 

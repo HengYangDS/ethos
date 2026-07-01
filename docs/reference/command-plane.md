@@ -123,6 +123,7 @@ Work Lane admission:
 ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim> --apply
+ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --apply
@@ -167,13 +168,21 @@ a Work Lane.
 Work Lane lease with a trust-bearing claim id. It is the handoff path for lanes
 started before a claim id was known; it does not create a lease for raw
 worktrees and does not promote lane presence into repository truth.
+`ethos lane refresh-base --json` checks whether the current clean Work Lane is
+based on the configured candidate branch. If the candidate train has advanced,
+dry-run output reports `state = "ready_to_refresh_base"` and apply mode requires
+`--authorize` plus `--expect-head` before replaying the current lane onto the
+candidate branch. `ethos land --json` uses the same check before apply: a stale
+lane returns `candidate_base_stale` and the exact `ethos lane refresh-base`
+command instead of waiting for `land --apply` to fail.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
-evidence with `ethos lane bind-claim` when needed, land only through
-`ethos land`, and retire only through `ethos lane retire-landed`. Raw Git
+evidence with `ethos lane bind-claim` when needed, refresh the lane base only
+through `ethos lane refresh-base`, land only through `ethos land`, and retire
+only through `ethos lane retire-landed`. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary.

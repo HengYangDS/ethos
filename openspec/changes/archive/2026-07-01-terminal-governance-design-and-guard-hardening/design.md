@@ -73,8 +73,8 @@ or whether a live spec edit was in scope for the archived delta.
 Capability-local `capability.toml` files are the stable routing metadata for
 families, owner boundary, primary invariant, routing question, decision axes,
 recommended facets, boundary rules, and proof profile. Proposal entries must
-name live capabilities directly and record subject, reuse posture, change
-posture, and lifecycle/surface/authority facets.
+name live capabilities directly and record subject, reuse stance, change
+stance, and lifecycle/surface/authority facets.
 
 This absorbs the useful `di-effect` practice of capability-local profiles,
 family taxonomy, direct routing, reuse metadata, and dynamic facets. ETHOS keeps
@@ -110,7 +110,7 @@ config, README files, change templates, capability templates,
 directory is not a complete governance substrate because it gives agents no
 local routing grammar and no reviewable template for capability metadata.
 
-This absorbs the useful productization posture from both reference
+This absorbs the useful productization stance from both reference
 repositories: `di-effect` makes the OpenSpec workspace self-describing, while
 `alphasim-dmgr` keeps public operation behind one `ethos ...` command plane.
 ETHOS keeps both: scaffolded OpenSpec files are rich enough to guide work, but

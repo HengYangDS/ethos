@@ -194,3 +194,51 @@ The Work Lane remains dirty until this batch is committed and landed through the
 ETHOS lane mechanism. `ethos status --json` therefore reports closeout support
 blocked by `work_lane_dirty` during this evidence-writing stage. That is a
 workflow state, not a product audit gap.
+
+## Post-Commit Closeout Addendum
+
+This addendum supersedes the transient dirty-worktree note above for closeout
+readiness. It records the code and contract state at
+`49c78fdb895e5d53f887c8be9911888cd80eac8e`; the later evidence/claim digest
+commit only refreshes this reader evidence and the bound claim SHA.
+
+Commands rerun from `/Users/yheng/projects/ethos-work-productization-convergence`
+on branch `work/productization-convergence`:
+
+```bash
+git status --short --branch
+uv run --package ethos ethos prove --expect-head 49c78fdb895e5d53f887c8be9911888cd80eac8e --json
+uv run --group dev pytest -q
+uv run --package ethos ethos prove --full --execute --json
+uv run --package ethos ethos parity gaps --json
+uv run --package ethos ethos report --json
+uv run --package ethos ethos quality claims --json
+uv run openspec validate --all --strict --json
+uv run --package ethos ethos status --json
+```
+
+Observed results:
+
+- Worktree status returned clean on `work/productization-convergence`.
+- HEAD-bound proof returned `ok=true`, `state=proven`, expected and current HEAD
+  `49c78fdb895e5d53f887c8be9911888cd80eac8e`, no required gaps, and evidence
+  digest `329e80634fef76fd8aafa25d29a56128b852a455bde9b558006ed3581e7b226d`.
+- Full pytest returned `302 passed in 77.03s`.
+- Executed full proof returned `ok=true`, `state=proven`, no required gaps,
+  evidence digest `e6ca90f8933604d655636433eb7d32f0e86a7119c8a6ae253d2cb38245f988f2`,
+  and 8 passed gate runs: claims, docs-registry, ruff, schemas, self-audit,
+  unit-architecture, build, and openspec. The unit-architecture gate returned
+  `302 passed in 60.47s`.
+- Generic parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- Product report returned `ok=true`, `state=ready`, score `15 / 15`,
+  `product_gap_count=0`, and `parity_pending_count=0`.
+- Claim quality returned `ok=true`, `state=clean`, and no required gaps.
+- OpenSpec strict validation returned 9 items passed and 0 failed.
+- ETHOS status returned `ok=true`, `state=ready`, `dirty=false`,
+  `changed_path_count=0`, and closeout support for `candidate/dev` with no
+  required gaps.
+
+Six independent committee reviewers returned `STATUS: APPROVED`. Their common
+boundary condition remains unchanged: generic ETHOS command parity is not a
+claim of hosted CI, remote publication, alphasim-dmgr raw/cache or domain
+backend retirement parity, or di-effect publish readiness.

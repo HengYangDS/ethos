@@ -5,7 +5,7 @@
   "generated_on": "2026-07-01",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "af980388f47481062a67613da1d403609639648e",
+    "product_head": "9edb4ec853122872ff06fe50fe78d203f658ee3b",
     "target_head": "42416d6f2dbf93cf268f5bc0e32cfd54a644a159",
     "command_sha256": "493c4519fb3ba16ee8f9aec7eb23c7065ddb672358e717ab7ad78b43188527a0"
   },

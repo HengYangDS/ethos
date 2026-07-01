@@ -741,7 +741,7 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
 
 def test_publish_reports_local_readiness_without_remote_push() -> None:
     payload = run_ethos("publish", "--json")
-    branch = git(Path.cwd(), "branch", "--show-current")
+    branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     submit_branch = (
         f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
     )
@@ -849,6 +849,65 @@ boundary = "thin-playbook-projection"
     assert "playbook_route_missing:changed-scope" in payload["required_gaps"]
 
 
+def test_playbooks_route_accepts_legacy_name_activation_entries(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "changed-scope-router" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# Changed Scope Router\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "changed-scope-router"
+path = ".agents/skills/changed-scope-router/SKILL.md"
+subjects = ["changed-scope"]
+commands = ["ethos playbooks route --changed"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert len(payload["data"]["selected"]) == 1
+    selected = payload["data"]["selected"][0]
+    assert selected["id"] == "changed-scope-router"
+    assert selected["path"] == ".agents/skills/changed-scope-router/SKILL.md"
+    assert selected["subjects"] == ["changed-scope"]
+    assert selected["commands"] == ["ethos playbooks route --changed"]
+    assert selected["boundary"] == "thin-playbook-projection"
+
+
+def test_playbooks_report_infers_legacy_name_skill_path(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    skill_path = skills_root / "legacy-router" / "SKILL.md"
+    skill_path.parent.mkdir()
+    skill_path.write_text("# Legacy Router\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        """
+[[skill]]
+name = "legacy-router"
+subjects = ["repository-governance"]
+commands = ["ethos status"]
+boundary = "thin-playbook-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("playbooks", "check", "--root", str(root), "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["records"][0]["path"] == ".agents/skills/legacy-router/SKILL.md"
+
+
 def test_campaign_hypotheses_are_visible() -> None:
     payload = run_ethos("campaign", "hypotheses", "--json")
 
@@ -857,7 +916,7 @@ def test_campaign_hypotheses_are_visible() -> None:
 
 
 def test_campaign_closeout_reports_local_campaign_packages() -> None:
-    branch = git(Path.cwd(), "branch", "--show-current")
+    branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     expected_submit = (
         f"submit/{branch.removeprefix('work/')}" if branch.startswith("work/") else ""
     )
@@ -956,7 +1015,30 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["gaps"]["pending_packages"]
     )
+    assert payload["summary"]["product_gap_count"] == 0
+    assert payload["data"]["gap_layers"]["product_self_audit"] == {
+        "ok": True,
+        "required_gaps": [],
+        "gap_count": 0,
+    }
+    assert payload["data"]["gap_layers"]["adopter_parity"] == {
+        "ok": False,
+        "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
+        "gap_count": payload["summary"]["parity_pending_count"],
+    }
     assert "ethos parity gaps --adopter <adopter>" in payload["next_actions"]
+
+
+def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
+    path = Path("docs/evidence/shadow-parity-accepted-classification-2026-07-01.md")
+
+    text = path.read_text(encoding="utf-8")
+
+    assert "subject: ethos:evidence:shadow-parity-accepted-classification" in text
+    assert "accepted_differences" in text
+    assert "external_product_self_audit_gap" in text
+    assert "legacy_changed_route_noop" in text
+    assert "shadow_parity_digest" in text
 
 
 def test_self_evolution_loop_commands_are_available() -> None:

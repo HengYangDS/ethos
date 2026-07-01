@@ -1779,6 +1779,18 @@ def report(
     result_required_gaps = tuple(audit["required_gaps"])
     if audit.get("mode") != "adopter":
         result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
+    gap_layers = {
+        "product_self_audit": {
+            "ok": not result_required_gaps,
+            "required_gaps": list(result_required_gaps),
+            "gap_count": len(result_required_gaps),
+        },
+        "adopter_parity": {
+            "ok": bool(parity_gaps["ok"]),
+            "required_gaps": list(parity_gaps["required_gaps"]),
+            "gap_count": parity_pending_count,
+        },
+    }
     result = EthosResult(
         command="report",
         ok=ok,
@@ -1786,6 +1798,7 @@ def report(
         summary={
             "score": sum(scores.values()),
             "max_score": len(scores),
+            "product_gap_count": len(result_required_gaps),
             "parity_pending_count": parity_pending_count,
         },
         required_gaps=result_required_gaps,
@@ -1805,6 +1818,7 @@ def report(
             "signature_policy": signature,
             "playbooks": playbooks,
             "adoption_scaffold": adoption_scaffold,
+            "gap_layers": gap_layers,
             "parity": {
                 "ledger": parity_ledger,
                 "gaps": parity_gaps,

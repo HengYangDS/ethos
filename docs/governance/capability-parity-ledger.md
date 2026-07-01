@@ -75,6 +75,13 @@ non-self-audit proof gap, mutation/admission gap, embedded gap, command failure,
 or changed-scope route gap with actual changed paths remains a blocking
 `shadow_diff:*` or command failure package.
 
+Executed reports include `accepted_summary` at report level and per comparison
+so closeout can see accepted counts, affected command count, and counts by kind
+without scanning every raw payload. The `shadow-parity.schema.json` contract
+validates the accepted-difference record shape, allowed kinds, command context,
+and summary counters. Dated evidence under `docs/evidence/` records the current
+accepted classification boundary without treating it as remote publication.
+
 ## Classification Vocabulary
 
 - already-in-product: the product repository already owns the generic

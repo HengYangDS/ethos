@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pytest
 from ethos_adapters import shadow
-from ethos_adapters.shadow import _run_embedded, _run_external, _semantic_diff
+from ethos_adapters.shadow import (
+    _accepted_semantic_differences,
+    _run_embedded,
+    _run_external,
+    _semantic_diff,
+    run_shadow_parity,
+)
+from ethos_governance.schema_validation import validate_schema_instance
 
 from tests.support.ethos_cli_runner import run_ethos
 
@@ -718,3 +725,173 @@ def test_shadow_semantic_diff_preserves_changed_route_gap_when_paths_changed() -
         "external": ["playbook_route_missing:changed-scope"],
         "embedded": [],
     }
+
+
+def test_shadow_accepted_difference_exposes_counts_and_command_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_external(
+        target: Path,
+        command: tuple[str, ...],
+        *,
+        timeout_seconds: int,
+    ) -> dict[str, object]:
+        command_name = command[0] if command[0] != "assistants" else "assistants doctor"
+        if command[:2] == ("quality", "command-surface"):
+            command_name = "quality command-surface"
+        if command[0] == "playbooks":
+            command_name = "playbooks route"
+        if command == ("prove",):
+            payload = {
+                "ok": False,
+                "command": "prove",
+                "state": "gapped",
+                "required_gaps": ["claims_missing"],
+                "data": {"self_audit": {"required_gaps": ["claims_missing"]}},
+            }
+        else:
+            state_by_command = {
+                "status": "ready",
+                "plan": "planned",
+                "report": "ready",
+                "quality command-surface": "clean",
+                "assistants doctor": "ready",
+                "playbooks route": "routed",
+                "land": "ready_to_land",
+                "publish": "ready_to_publish",
+            }
+            payload = {
+                "ok": True,
+                "command": command_name,
+                "state": state_by_command[command_name],
+                "required_gaps": [],
+            }
+        return {"exit_code": 0, "stdout": "", "stderr": "", "json": payload}
+
+    def fake_embedded(
+        target: Path,
+        command: tuple[str, ...],
+        *,
+        timeout_seconds: int,
+    ) -> dict[str, object]:
+        command_name = command[0] if command[0] != "assistants" else "assistants doctor"
+        if command[:2] == ("quality", "command-surface"):
+            command_name = "quality command-surface"
+        if command[0] == "playbooks":
+            command_name = "playbooks route"
+        state_by_command = {
+            "status": "ready",
+            "plan": "planned",
+            "prove": "proven",
+            "report": "ready",
+            "quality command-surface": "clean",
+            "assistants doctor": "ready",
+            "playbooks route": "routed",
+            "land": "ready_to_land",
+            "publish": "ready_to_publish",
+        }
+        return {
+            "exit_code": 0,
+            "stdout": "",
+            "stderr": "",
+            "json": {
+                "ok": True,
+                "command": command_name,
+                "state": state_by_command[command_name],
+                "required_gaps": [],
+            },
+        }
+
+    monkeypatch.setattr("ethos_adapters.shadow._run_external", fake_external)
+    monkeypatch.setattr("ethos_adapters.shadow._run_embedded", fake_embedded)
+
+    payload = run_shadow_parity(tmp_path, timeout_seconds=5)
+
+    assert payload["ok"] is True
+    assert payload["accepted_summary"] == {
+        "total_count": 1,
+        "command_count": 1,
+        "kind_counts": {"external_product_self_audit_gap": 1},
+    }
+    comparison = next(item for item in payload["comparisons"] if item["command"] == "ethos prove")
+    assert comparison["accepted_summary"] == {
+        "total_count": 1,
+        "kind_counts": {"external_product_self_audit_gap": 1},
+    }
+    assert comparison["accepted_differences"] == [
+        {
+            "kind": "external_product_self_audit_gap",
+            "classification": "accepted",
+            "scope": "external_product_self_audit",
+            "commands": ["ethos prove"],
+            "gaps": ["claims_missing"],
+            "reason": "external product self-audit gap is not an embedded adopter parity gap",
+        }
+    ]
+
+    validation = validate_schema_instance("shadow-parity.schema.json", payload)
+    assert validation["ok"] is True
+
+
+def test_shadow_accepted_difference_schema_rejects_unknown_kind() -> None:
+    payload = {
+        "ok": True,
+        "state": "matched",
+        "target": "/repo",
+        "required_gaps": [],
+        "accepted_summary": {
+            "total_count": 1,
+            "command_count": 1,
+            "kind_counts": {"unknown": 1},
+        },
+        "comparisons": [
+            {
+                "command": "ethos prove",
+                "external": {"exit_code": 0, "stdout": "", "stderr": "", "json": {}},
+                "embedded": {"exit_code": 0, "stdout": "", "stderr": "", "json": {}},
+                "semantic_diff": {},
+                "accepted_summary": {"total_count": 1, "kind_counts": {"unknown": 1}},
+                "accepted_differences": [
+                    {
+                        "kind": "unknown",
+                        "classification": "accepted",
+                        "scope": "external_product_self_audit",
+                        "commands": ["ethos prove"],
+                        "gaps": ["claims_missing"],
+                        "reason": "invalid",
+                    }
+                ],
+            }
+        ],
+        "execution_packages": [],
+    }
+
+    validation = validate_schema_instance("shadow-parity.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_shadow_accepted_difference_has_stable_shape() -> None:
+    external = {
+        "ok": False,
+        "command": "prove",
+        "state": "gapped",
+        "required_gaps": ["claims_missing"],
+        "data": {"self_audit": {"required_gaps": ["claims_missing"]}},
+    }
+    embedded = {"ok": True, "command": "prove", "required_gaps": []}
+
+    accepted = _accepted_semantic_differences(external, embedded)
+
+    assert accepted == [
+        {
+            "kind": "external_product_self_audit_gap",
+            "classification": "accepted",
+            "scope": "external_product_self_audit",
+            "commands": ["ethos prove"],
+            "gaps": ["claims_missing"],
+            "reason": "external product self-audit gap is not an embedded adopter parity gap",
+        }
+    ]

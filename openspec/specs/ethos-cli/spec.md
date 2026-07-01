@@ -6,13 +6,16 @@ ETHOS SHALL expose the public command plane without owning repository lifecycle
 semantics.
 ## Requirements
 ### Requirement: Public Command Plane
-ETHOS SHALL keep the normal user workflow under `ethos ...` commands and keep
-retired root commands out of current user-facing docs.
+ETHOS SHALL keep the normal user workflow under five transition commands:
+`ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
+`ethos publish`.
 
-#### Scenario: Command examples are checked
-- **WHEN** `ethos quality command-examples --json` scans current docs
-- **THEN** examples use the ETHOS command plane or explicitly allowed
-  non-ETHOS tooling roots
+#### Scenario: Command surface is classified
+- **WHEN** `ethos quality command-registry --json` runs
+- **THEN** it reports five public workflow commands
+- **AND** it reports `ethos report` as a scorecard command
+- **AND** maintainer/reference commands are not counted as advanced public
+  workflow commands
 
 ### Requirement: CLI Surface Delegation
 The CLI SHALL compose output and UX while delegating semantics to core,
@@ -52,3 +55,23 @@ command plane.
 - **WHEN** `ethos openspec --lifecycle --json` runs
 - **THEN** the CLI reports official OpenSpec validation and ETHOS lifecycle
   carrier readiness in one result envelope
+
+### Requirement: ETHOS OpenSpec adapter remains under one command plane
+ETHOS SHALL expose OpenSpec governance health through `ethos openspec --json`
+and `ethos openspec --lifecycle --json` while keeping the public workflow
+centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
+`ethos publish`.
+
+#### Scenario: OpenSpec adapter composes official and ETHOS checks
+- **WHEN** `ethos openspec --lifecycle --json` runs
+- **THEN** the payload includes official OpenSpec doctor, status, and strict
+  validation results
+- **AND** it includes ETHOS lifecycle carrier review for proposal, design,
+  tasks, delta specs, capability profiles, claim bindings, evidence refs, and
+  live-spec diff guards
+
+#### Scenario: OpenSpec adapter does not become a second public command plane
+- **WHEN** ETHOS reports OpenSpec governance gaps
+- **THEN** the next action enters through an `ethos ...` command
+- **AND** raw OpenSpec CLI commands remain adapter implementation detail or
+  maintainer reference rather than the adopter first-hour workflow

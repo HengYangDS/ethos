@@ -96,13 +96,24 @@ without treating an adopter provider as product truth.
   claiming intake is configured
 
 ### Requirement: Changed Scope Playbook Routing
+
 ETHOS SHALL route changed-scope playbook requests through explicit playbook
-metadata rather than an implicit fallback.
+metadata and changed-path evidence rather than subject or identifier substring
+matches.
 
 #### Scenario: Changed scope route is explicit
-- **WHEN** `ethos playbooks route --changed --json` runs
-- **THEN** the selected playbook declares `changed-scope` in its subject
-  metadata
+
+- **WHEN** `ethos playbooks route --changed --mode v2-strict --json` runs
+- **THEN** every selected playbook has matched changed paths, V2 routing
+  evidence, operation metadata, and runnable closure obligations
+- **AND** unmatched changed paths are reported as required gaps
+
+#### Scenario: presence-only playbooks do not close report scoring
+
+- **GIVEN** a repository only has a placeholder playbook projection
+- **WHEN** `ethos report --json` runs
+- **THEN** ETHOS does not give the playbook capability full score from file
+  presence alone
 
 ### Requirement: Executable Capability Parity Ledger
 ETHOS SHALL expose product migration parity as machine-readable command output.
@@ -159,14 +170,16 @@ ETHOS SHALL govern repositories through one governed repository semantic model.
   plane
 
 ### Requirement: Adoption Scaffold
+
 ETHOS SHALL generate repository governance surfaces for `.ethos`, official
 OpenSpec records, repo-local skills, docs, claims, evidence placeholders, and
 hosted CI projections.
 
 #### Scenario: A repository is adopted
+
 - **WHEN** `ethos adopt --profile gitlab --apply` runs on an empty repository
-- **THEN** the planned and written files include ETHOS config, OpenSpec specs,
-  `.agents/skills`, docs, claims, evidence, and GitLab CI
+- **THEN** the planned and written files include V2 skill activation metadata,
+  official-quality skill package content, and package manifest records
 
 ### Requirement: Fleet Inspection
 ETHOS SHALL inspect an external repository as an adopter through repository
@@ -304,3 +317,114 @@ evidence mechanisms rather than product-core adopter terms.
 - **WHEN** ETHOS reports parity gaps for that adopter
 - **THEN** no covered capability gap is emitted for that adopter
 - **AND** product-core packages remain free of adopter-private terminology
+
+### Requirement: Authority Graph Read Model
+ETHOS SHALL expose a DocOS authority graph read model for current product
+truth relations.
+
+#### Scenario: Authority graph is audited
+- **WHEN** `ethos audit --mode shape --json` runs
+- **THEN** the result includes an authority graph report
+- **AND** every graph entry has an owner, relation type, stable path, and
+  typed derivation or supersession relations
+- **AND** the graph reports drift gaps without becoming a lifecycle owner
+
+### Requirement: Adopter First-Hour Contract
+ETHOS SHALL provide a first-hour adopter path that starts read-only and
+explains profile choice before mutation.
+
+#### Scenario: Adoption dry-run is inspected
+- **WHEN** `ethos adopt --profile python --dry-run --json` runs
+- **THEN** the result reports read files, planned files, apply criteria, and
+  rollback instructions
+- **AND** unsupported historical profile names are rejected instead of normalized
+
+### Requirement: OpenSpec-first governance mutation
+ETHOS SHALL require a dedicated OpenSpec change, or an explicit active
+non-complete OpenSpec change attachment, before non-trivial tracked mutations
+to repository governance semantics.
+
+#### Scenario: Governance design starts with OpenSpec
+- **WHEN** an agent plans to change rules, skills, hook policy, product shape,
+  architecture design, or governance workflow semantics
+- **THEN** the agent verifies the relevant OpenSpec change with
+  `openspec status --change <change> --json` before tracked mutation
+
+#### Scenario: Complete changes are not reused silently
+- **WHEN** all existing relevant OpenSpec changes are complete
+- **THEN** ETHOS treats them as insufficient carriers for new semantic work
+- **AND** the agent creates or selects a new non-complete change before editing
+
+### Requirement: Context-bound mutation admission
+ETHOS SHALL bind tracked mutation admission to explicit repository root,
+checkout role, editor root, and target paths before a write-capable tool can
+mutate tracked files.
+
+#### Scenario: Implicit-root mutation is blocked
+- **WHEN** a write-capable tool does not carry an explicit target root matching
+  the current Work Lane
+- **THEN** ETHOS blocks the tracked write before filesystem mutation
+- **AND** reports the expected root, actual root, checkout role, and target
+  paths
+
+#### Scenario: Manual prewrite is degraded mode
+- **WHEN** a host cannot install a pre-tool mutation hook
+- **THEN** the agent MUST run `ethos lane prewrite <paths> --editor-root <root>
+  --require-editor-root --json` before tracked writes
+- **AND** the terminal design still treats manual prewrite as weaker than a
+  bound mutation hook
+
+### Requirement: Failure blocking moves upstream
+ETHOS SHALL promote repeated late failures to earlier controls until the normal
+workflow prevents the invalid state before mutation when practical.
+
+#### Scenario: Late failure is promoted
+- **WHEN** a repeated violation is detected after write, commit, CI, land, or
+  publish
+- **THEN** ETHOS records the diagnosis and promotes the control toward rule,
+  hook, scaffold/template, or schema/default placement
+
+#### Scenario: Bypassable guidance is incomplete
+- **WHEN** a normal mutation path can bypass a documented guard
+- **THEN** ETHOS treats the guard design as incomplete until the guard is bound
+  to the mutation capability or an explicit degraded mode is declared
+
+### Requirement: Productized OpenSpec carrier governance
+ETHOS SHALL treat OpenSpec as the repository case and specification carrier,
+with accepted specs, active changes, archived changes, capability profiles,
+claims, and evidence refs serving distinct product duties.
+
+#### Scenario: Capability routing uses live capability profiles
+- **WHEN** an active OpenSpec proposal routes a governance semantic change
+- **THEN** the primary capability name resolves directly to a live
+  `openspec/specs/<capability>/spec.md`
+- **AND** the sibling `capability.toml` records family, owner boundary, primary
+  invariant, routing question, boundary rules, and proof profile metadata
+
+#### Scenario: Proposal metadata explains ownership and stance
+- **WHEN** an active OpenSpec proposal lists a capability impact
+- **THEN** the proposal records the stable subject, reuse stance, change
+  direction, lifecycle facet, surface facet, and authority facet for that impact
+- **AND** secondary impacts do not create duplicate normative owners
+
+#### Scenario: New or extracted capability topology requires design
+- **WHEN** an OpenSpec change introduces a new capability or extracts behavior
+  from an existing capability
+- **THEN** the change includes `design.md`
+- **AND** the design explains why reuse or extension is insufficient, the
+  official-vs-ETHOS validation boundary, proof impact, and rollback strategy
+
+#### Scenario: Archive closeout protects live specs and evidence refs
+- **WHEN** ETHOS closes out an OpenSpec change through the archive path
+- **THEN** it verifies live spec edits are scoped to the archived deltas
+- **AND** archived task state, archive directory identity, Markdown links, claim
+  refs, and evidence refs remain valid after the archive move
+
+#### Scenario: Adoption scaffold includes usable OpenSpec substrate
+- **WHEN** `ethos init` or `ethos adopt` creates a governed repository substrate
+- **THEN** the scaffold includes OpenSpec config, README files, change
+  templates, capability templates, `specs/families.toml`, and
+  profile-appropriate first capability profiles when the profile knows the
+  governed domain
+- **AND** an empty `openspec/` directory is not reported as a complete
+  governance scaffold

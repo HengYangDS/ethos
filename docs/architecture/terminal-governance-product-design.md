@@ -180,7 +180,7 @@ The protocol boundary is:
 | `openspec/specs/<capability>/spec.md` | Accepted current capability behavior. | Truth after promotion and proof. |
 | `openspec/specs/<capability>/capability.toml` | Capability owner metadata and routing hints. | Routing contract; not behavior by itself. |
 | `openspec/specs/families.toml` | Capability family vocabulary. | Taxonomy contract. |
-| `openspec/changes/<id>/proposal.md` | Intent, scope, capability routing, reuse posture, and out-of-scope lines. | Planning carrier only. |
+| `openspec/changes/<id>/proposal.md` | Intent, scope, capability routing, reuse stance, and out-of-scope lines. | Planning carrier only. |
 | `openspec/changes/<id>/design.md` | Cross-surface design, official/local boundary, trade-offs, rollback, and proof impact. | Required for new, extract, topology, or product-shape work. |
 | `openspec/changes/<id>/tasks.md` | Review-sized implementation tasks and lifecycle status. | Execution checklist, not proof. |
 | `openspec/changes/<id>/specs/**/spec.md` | Deltas against accepted capability specs. | Merged into live specs only at archive/promotion. |
@@ -235,7 +235,7 @@ path, then run repo-local guards that the official tool does not own:
 1. Existing scenarios, Markdown links, claim refs, and evidence refs survive.
 
 This absorbs the useful parts of `di-effect`: capability-local profiles,
-families, direct routing, reuse posture, dynamic facets, live-spec diff guards,
+families, direct routing, reuse stance, dynamic facets, live-spec diff guards,
 and archive normalization. It also absorbs `alphasim-dmgr` patterns: a single
 command plane, Work Lane aware lifecycle state,
 claim/proof binding, topic-scoped closeout evidence, and explicit boundaries
@@ -511,7 +511,7 @@ openspec/
 ```
 
 The scaffolded templates should enforce the product protocol: proposal
-metadata, direct capability names, reuse posture, out-of-scope lines, design
+metadata, direct capability names, reuse stance, out-of-scope lines, design
 evidence for new or extracted capability topology, task status/progress, and
 delta sections. The template is guidance; validation must come from schemas and
 `ethos openspec --lifecycle --json`.

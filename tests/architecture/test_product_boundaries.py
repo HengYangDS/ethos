@@ -31,15 +31,10 @@ CURRENT_PRODUCT_SURFACES = (
     ROOT / "docs" / "governance",
     ROOT / "docs" / "reference",
     ROOT / "openspec" / "specs",
-    ROOT / "openspec" / "changes" / "ethos-productization-convergence",
-    ROOT / "openspec" / "changes" / "ethos-skills-v2-quality-governance",
     ROOT / "claims",
     ROOT / ".agents",
 )
-ACTIVE_OPENSPEC_CHANGES = (
-    ROOT / "openspec" / "changes" / "ethos-productization-convergence",
-    ROOT / "openspec" / "changes" / "ethos-skills-v2-quality-governance",
-)
+ACTIVE_OPENSPEC_CHANGES: tuple[Path, ...] = ()
 RETIRED_SELF_TERMS = (
     "ethos self",
     "self_audit",

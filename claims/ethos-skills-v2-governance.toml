@@ -52,7 +52,7 @@ owner = "ethos-assistants"
 scope = "Skills V2 activation normalization, package projections, changed-scope routing, and strict proof gates"
 
 [carriers]
-openspec = "openspec/changes/ethos-skills-v2-quality-governance"
+openspec = "openspec/changes/archive/2026-07-01-ethos-skills-v2-quality-governance"
 
 fallback = "Keep external adopter migration evidence as historical replay fixtures and block product strict proof on Skills V2 package or registry gaps."
 kill_signal = "Provider-visible skill package metadata can diverge from activation routing or product proof can pass without strict Skills V2 validation."
@@ -64,7 +64,7 @@ targets = [
   "docs/architecture/agent-projections.md",
   "docs/architecture/schema-validation.md",
   "docs/reference/command-plane.md",
-  "openspec/changes/ethos-skills-v2-quality-governance",
+  "openspec/changes/archive/2026-07-01-ethos-skills-v2-quality-governance",
   "packages/ethos-contracts/src/ethos_contracts/skill_activation.py",
   "packages/ethos-assistants/src/ethos_assistants/skill_packages.py",
   "packages/ethos-assistants/src/ethos_assistants/playbooks.py",

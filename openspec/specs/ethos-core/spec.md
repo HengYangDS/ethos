@@ -14,6 +14,8 @@ JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 - **THEN** the operation is expressible through kernel objects without
   depending on repository, assistant, adapter, adopter, or hosted-runner
   packages
+- **AND** Claim binds evidence rather than owning lifecycle state
+- **AND** semantic claims require a semantic verifier
 
 ### Requirement: Kernel Result Contract
 ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,

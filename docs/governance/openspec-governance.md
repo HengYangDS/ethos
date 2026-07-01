@@ -61,7 +61,7 @@ names. ETHOS should reject or flag proposal metadata that cannot answer:
 
 1. Which capability owns the primary behavior?
 1. Which stable subject is changing?
-1. Is the posture `reuse`, `extend`, `extract`, or `new`?
+1. Is the reuse stance `reuse`, `extend`, `extract`, or `new`?
 1. Which lifecycle, surface, and authority facets explain the change?
 1. What is deliberately out of scope?
 

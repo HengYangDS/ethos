@@ -1750,6 +1750,66 @@ def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
     assert "work_lane_dirty" in payload["required_gaps"]
 
 
+def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from ethos import cli
+
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+        return {"ok": True, "required_gaps": [], "root": root.as_posix()}
+
+    def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "root": root.as_posix(),
+            "completed_changes": ["sample-change"],
+            "required_gaps": ["openspec_completed_change_unarchived:sample-change"],
+        }
+
+    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+    monkeypatch.setattr(
+        cli,
+        "openspec_completed_active_changes_report",
+        fake_openspec_lifecycle,
+        raising=False,
+    )
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]
+    assert payload["data"]["openspec_lifecycle"]["completed_changes"] == ["sample-change"]
+
+
 def test_land_apply_requires_authorization_and_expected_head() -> None:
     payload = run_ethos("land", "--apply", "--json")
 
@@ -1922,6 +1982,65 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
         ),
         "next_action": "run closeout with a current ETHOS runner against accepted_root",
     }
+
+
+def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from ethos import cli
+
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+
+    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+        return {"ok": True, "required_gaps": [], "root": root.as_posix()}
+
+    def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
+        if root.resolve() == candidate.resolve():
+            return {
+                "ok": False,
+                "state": "blocked",
+                "root": root.as_posix(),
+                "completed_changes": ["sample-change"],
+                "required_gaps": ["openspec_completed_change_unarchived:sample-change"],
+            }
+        return {
+            "ok": True,
+            "state": "clean",
+            "root": root.as_posix(),
+            "completed_changes": [],
+            "required_gaps": [],
+        }
+
+    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+    monkeypatch.setattr(
+        cli,
+        "openspec_completed_active_changes_report",
+        fake_openspec_lifecycle,
+        raising=False,
+    )
+
+    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "openspec_completed_change_unarchived:sample-change" in payload["required_gaps"]
+    assert payload["data"]["openspec_lifecycle"]["root"] == candidate.as_posix()
 
 
 def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) -> None:

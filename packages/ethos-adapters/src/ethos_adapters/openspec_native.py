@@ -117,6 +117,77 @@ def openspec_governance_report(
     )
 
 
+def completed_active_changes_report(root: Path) -> dict[str, Any]:
+    if not (root / "openspec").exists():
+        return _completed_active_changes_payload(
+            root,
+            completed_changes=[],
+            required_gaps=[],
+            list_result={},
+        )
+    base_command = _openspec_base_command()
+    if base_command is None:
+        return _completed_active_changes_payload(
+            root,
+            completed_changes=[],
+            required_gaps=["openspec_official_cli_missing"],
+            list_result={},
+        )
+
+    list_result = _run_json(root, base_command, ("list", "--json"))
+    required_gaps: list[str] = []
+    if list_result["exit_code"] != 0:
+        required_gaps.append("openspec_list_failed")
+    if list_result["parse_error"]:
+        required_gaps.append("openspec_list_json_parse_failed")
+    completed_changes = (
+        []
+        if required_gaps
+        else _completed_active_change_names(list_result["json"])
+    )
+    required_gaps.extend(
+        f"openspec_completed_change_unarchived:{name}" for name in completed_changes
+    )
+    return _completed_active_changes_payload(
+        root,
+        completed_changes=completed_changes,
+        required_gaps=required_gaps,
+        list_result=list_result,
+    )
+
+
+def _completed_active_change_names(list_payload: dict[str, Any]) -> list[str]:
+    changes = list_payload.get("changes", [])
+    if not isinstance(changes, list):
+        return []
+    completed = []
+    for item in changes:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or item.get("state") or "")
+        name = str(item.get("name") or item.get("id") or "")
+        if name and status in {"complete", "completed", "done"}:
+            completed.append(name)
+    return completed
+
+
+def _completed_active_changes_payload(
+    root: Path,
+    *,
+    completed_changes: list[str],
+    required_gaps: list[str],
+    list_result: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "ok": not required_gaps,
+        "state": "blocked" if required_gaps else "clean",
+        "root": root.as_posix(),
+        "completed_changes": completed_changes,
+        "required_gaps": required_gaps,
+        "commands": {"list": list_result} if list_result else {},
+    }
+
+
 def _openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...]:
     openspec_root = root / "openspec"
     if not openspec_root.exists():

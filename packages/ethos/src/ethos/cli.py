@@ -28,7 +28,12 @@ from ethos_adapters.mutation import (
     evaluate_closeout_mutation,
     evaluate_mutation,
 )
-from ethos_adapters.openspec_native import openspec_governance_report
+from ethos_adapters.openspec_native import (
+    completed_active_changes_report as openspec_completed_active_changes_report,
+)
+from ethos_adapters.openspec_native import (
+    openspec_governance_report,
+)
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.runner import (
     ActionRunResult,
@@ -1079,13 +1084,15 @@ def land(
         )
         audit_root = _closeout_audit_root(repo, decision)
         audit = _repository_audit_after_admission(audit_root, decision)
-        gaps = tuple(audit["required_gaps"]) + decision.gaps
+        openspec_lifecycle = openspec_completed_active_changes_report(audit_root)
+        openspec_gaps = tuple(str(gap) for gap in openspec_lifecycle["required_gaps"])
+        gaps = tuple(audit["required_gaps"]) + decision.gaps + openspec_gaps
         closeout_bootstrap = _closeout_bootstrap_package(
             repo=repo,
             audit_root=audit_root,
             required_gaps=gaps,
         )
-        ok = bool(audit["ok"]) and decision.ok
+        ok = bool(audit["ok"]) and decision.ok and bool(openspec_lifecycle["ok"])
         accepted_update: dict[str, object] = {}
         if ok and apply:
             accepted_update = apply_candidate_to_accepted(
@@ -1097,6 +1104,8 @@ def land(
             ok = bool(accepted_update["ok"])
         if ok and not apply:
             land_state = "ready_to_closeout"
+        elif gaps:
+            land_state = "blocked"
         else:
             land_state = str(accepted_update.get("state") or decision.state)
         result = EthosResult(
@@ -1111,6 +1120,7 @@ def land(
             ),
             data={
                 "repository_audit": audit,
+                "openspec_lifecycle": openspec_lifecycle,
                 "accepted_update": accepted_update,
                 "closeout_bootstrap": closeout_bootstrap,
                 "mutation": {
@@ -1141,8 +1151,10 @@ def land(
         current_head=_current_head(repo),
     )
     audit = _repository_audit_after_admission(repo, decision)
-    gaps = tuple(audit["required_gaps"]) + decision.gaps + closeout_gaps
-    ok = bool(audit["ok"]) and decision.ok
+    openspec_lifecycle = openspec_completed_active_changes_report(repo)
+    openspec_gaps = tuple(str(gap) for gap in openspec_lifecycle["required_gaps"])
+    gaps = tuple(audit["required_gaps"]) + decision.gaps + closeout_gaps + openspec_gaps
+    ok = bool(audit["ok"]) and decision.ok and bool(openspec_lifecycle["ok"])
     if closeout_gaps:
         ok = False
     candidate_update: dict[str, object] = {}
@@ -1156,7 +1168,7 @@ def land(
         ok = bool(candidate_update["ok"])
     if ok and not apply:
         land_state = "ready_to_land"
-    elif closeout_gaps:
+    elif gaps:
         land_state = "blocked"
     else:
         land_state = str(candidate_update.get("state") or decision.state)
@@ -1168,6 +1180,7 @@ def land(
         next_actions=("ethos publish",) if ok else ("ethos prove --json",),
         data={
             "repository_audit": audit,
+            "openspec_lifecycle": openspec_lifecycle,
             "candidate_update": candidate_update,
             "closeout_support": closeout_support,
             "mutation": {

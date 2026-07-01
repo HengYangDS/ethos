@@ -43,7 +43,7 @@ owner = "ethos-repository"
 scope = "Productization convergence across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
 
 [carriers]
-openspec = "openspec/changes/ethos-productization-convergence"
+openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence"
 
 fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, dmgr raw/cache parity, domain backend retirement, and di-effect publish readiness."
 kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete."
@@ -59,7 +59,7 @@ targets = [
   "docs/reference/command-plane.md",
   "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",
-  "openspec/changes/ethos-productization-convergence",
+  "openspec/changes/archive/2026-07-01-ethos-productization-convergence",
   "openspec/specs/ethos-contracts/spec.md",
   "openspec/specs/ethos-repository/spec.md",
   "packages/ethos-core/src/ethos_core/models.py",

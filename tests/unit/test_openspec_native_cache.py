@@ -70,6 +70,51 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
     }
 
 
+def test_completed_active_changes_report_blocks_complete_openspec_items(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "repo"
+    (root / "openspec" / "changes" / "done-change").mkdir(parents=True)
+    (root / "openspec" / "changes" / "active-change").mkdir(parents=True)
+
+    calls: list[tuple[str, ...]] = []
+
+    def fake_base_command() -> tuple[str, ...]:
+        return ("openspec",)
+
+    def fake_run_json(
+        _root: Path,
+        _base: tuple[str, ...],
+        args: tuple[str, ...],
+    ) -> dict[str, object]:
+        calls.append(args)
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 0,
+            "stdout": "{}",
+            "stderr": "",
+            "json": {
+                "changes": [
+                    {"name": "done-change", "status": "complete"},
+                    {"name": "active-change", "status": "in-progress"},
+                ]
+            },
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+
+    report = openspec_native.completed_active_changes_report(root)
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["completed_changes"] == ["done-change"]
+    assert report["required_gaps"] == ["openspec_completed_change_unarchived:done-change"]
+    assert calls == [("list", "--json")]
+
+
 def test_openspec_report_reuses_result_for_unchanged_workspace(
     tmp_path: Path,
     monkeypatch,

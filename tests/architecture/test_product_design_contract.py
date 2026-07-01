@@ -13,7 +13,20 @@ PROVIDER_NEUTRAL_CANONICAL_DOCS = (
     "docs/reference/command-plane.md",
     "docs/architecture/runner-and-mutation.md",
 )
-PRODUCT_VENDOR_TERMS = ("PyCharm", "Claude", "Codex", "OpenAI", "GPT", "IDE")
+PRODUCT_VENDOR_TERMS = (
+    "PyCharm",
+    "Claude",
+    "Codex",
+    "OpenAI",
+    "GPT",
+    "IDE",
+    "JetBrains",
+    "Anthropic",
+    "Gemini",
+    "Copilot",
+    "Cursor",
+    "Windsurf",
+)
 
 
 def read(relative: str) -> str:
@@ -48,6 +61,20 @@ def test_product_design_contract_keeps_git_native_not_generic_vcs() -> None:
     assert "ETHOS is Git-native" in text
     assert "not a generic VCS abstraction" in text
     assert "Git, OpenSpec, Backlog" not in text
+
+
+def test_product_design_contract_defines_configured_role_and_binding_contracts() -> None:
+    product = read("docs/governance/product-design-contract.md")
+    command_plane = read("docs/reference/command-plane.md")
+    schema = read("docs/architecture/schema-validation.md")
+
+    for text in (product, command_plane, schema):
+        assert "release_root -> accepted_root -> candidate -> work_lane -> submit_lane" in text
+        assert "`role_policy`" in text
+        assert "`binding_registry`" in text
+
+    assert "adapter UI text is not product state" in command_plane
+    assert "OpenSpec remains mandatory governance, not a product substrate" in product
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:

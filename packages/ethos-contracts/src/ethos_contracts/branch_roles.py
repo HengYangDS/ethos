@@ -9,7 +9,7 @@ ROLE_RELEASE_ROOT = "release_root"
 ROLE_ACCEPTED_ROOT = "accepted_root"
 ROLE_CANDIDATE = "candidate"
 ROLE_WORK_LANE = "work_lane"
-ROLE_SUBMIT = "submit"
+ROLE_SUBMIT_LANE = "submit_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
 
@@ -18,7 +18,7 @@ PROTECTED_WRITE_ROLES = frozenset(
         ROLE_RELEASE_ROOT,
         ROLE_ACCEPTED_ROOT,
         ROLE_CANDIDATE,
-        ROLE_SUBMIT,
+        ROLE_SUBMIT_LANE,
         ROLE_DETACHED,
         ROLE_OTHER,
     }
@@ -45,7 +45,7 @@ class BranchRolePolicy:
         if self.work_branch_prefix and branch.startswith(self.work_branch_prefix):
             return ROLE_WORK_LANE
         if self.submit_branch_prefix and branch.startswith(self.submit_branch_prefix):
-            return ROLE_SUBMIT
+            return ROLE_SUBMIT_LANE
         return ROLE_OTHER
 
     def work_branch(self, slug: str) -> str:
@@ -64,6 +64,50 @@ class BranchRolePolicy:
             for index, branch in enumerate(branches)
             if branch and branch not in branches[:index]
         )
+
+    def semantic_order(self) -> tuple[dict[str, str], ...]:
+        return (
+            {
+                "role": ROLE_RELEASE_ROOT,
+                "kind": "exact_branch",
+                "config_key": "release_branch",
+                "pattern": self.release_branch,
+            },
+            {
+                "role": ROLE_ACCEPTED_ROOT,
+                "kind": "exact_branch",
+                "config_key": "accepted_branch",
+                "pattern": self.accepted_branch,
+            },
+            {
+                "role": ROLE_CANDIDATE,
+                "kind": "exact_branch",
+                "config_key": "candidate_branch",
+                "pattern": self.candidate_branch,
+            },
+            {
+                "role": ROLE_WORK_LANE,
+                "kind": "branch_prefix",
+                "config_key": "work_branch_prefix",
+                "pattern": f"{self.work_branch_prefix}*",
+            },
+            {
+                "role": ROLE_SUBMIT_LANE,
+                "kind": "branch_prefix",
+                "config_key": "submit_branch_prefix",
+                "pattern": f"{self.submit_branch_prefix}*",
+            },
+        )
+
+    def as_status_policy(self) -> dict[str, object]:
+        return {
+            "release_branch": self.release_branch,
+            "accepted_branch": self.accepted_branch,
+            "candidate_branch": self.candidate_branch,
+            "work_branch_prefix": self.work_branch_prefix,
+            "submit_branch_prefix": self.submit_branch_prefix,
+            "semantic_order": [dict(record) for record in self.semantic_order()],
+        }
 
 
 def load_branch_role_policy(root: Path) -> BranchRolePolicy:

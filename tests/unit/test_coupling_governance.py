@@ -46,6 +46,52 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "formats": ["JSON Schema", "command JSON", "TOML", "JSONL", "SQLite local state"],
         "provider_optional": False,
     }
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+    assert list(registry) == [
+        "git_repository_substrate",
+        "branch_role_policy",
+        "openspec_workspace",
+        "command_json_schema_protocol",
+        "claims_evidence_protocol",
+        "local_state_protocol",
+        "self_hosting_python_toolchain",
+        "release_host_profile",
+        "assistant_protocol_adapters",
+        "legacy_evidence_records",
+        "provider_test_fixtures",
+    ]
+    assert registry["git_repository_substrate"] == {
+        "id": "git_repository_substrate",
+        "layer": "product_semantic_hard_binding",
+        "required": True,
+        "owns_product_semantics": True,
+        "adapter_replaceable": False,
+        "surfaces": ["commits", "refs", "branches", "worktrees", "HEAD"],
+    }
+    assert registry["branch_role_policy"] == {
+        "id": "branch_role_policy",
+        "layer": "product_semantic_hard_binding",
+        "required": True,
+        "owns_product_semantics": True,
+        "adapter_replaceable": False,
+        "role_order": [
+            "release_root",
+            "accepted_root",
+            "candidate",
+            "work_lane",
+            "submit_lane",
+        ],
+        "configured_patterns": ["main", "dev", "candidate/dev", "work/*", "submit/*"],
+    }
+    assert registry["openspec_workspace"] == {
+        "id": "openspec_workspace",
+        "layer": "mandatory_governance_dependency",
+        "required": True,
+        "owns_product_semantics": False,
+        "adapter_replaceable": False,
+        "not_a_second_command_plane": True,
+    }
+    assert registry["release_host_profile"]["layer"] == "profile_or_adapter_binding"
     assert report["release_product_files"] == [
         "README.md",
         "LICENSE",
@@ -89,4 +135,43 @@ def test_coupling_audit_flags_model_and_editor_terms_in_product_docs(tmp_path: P
     )
     assert not any(
         "product_vendor_term" in gap and ":Git" in gap for gap in report["required_gaps"]
+    )
+
+
+def test_coupling_audit_flags_additional_model_editor_and_host_vendor_names(
+    tmp_path: Path,
+) -> None:
+    doc = tmp_path / "docs" / "governance" / "product-design-contract.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text(
+        "---\n"
+        "subject: ethos:product-design-contract\n"
+        "role: policy\n"
+        "state: canonical\n"
+        "relations: canonical_for: test\n"
+        "---\n\n"
+        "# Product Design Contract\n\n"
+        "JetBrains, Anthropic, Gemini, Copilot, Cursor, and Windsurf are examples.\n",
+        encoding="utf-8",
+    )
+
+    report = coupling_audit_report(tmp_path)
+
+    assert "product_vendor_term:docs/governance/product-design-contract.md:JetBrains" in (
+        report["required_gaps"]
+    )
+    assert "product_vendor_term:docs/governance/product-design-contract.md:Anthropic" in (
+        report["required_gaps"]
+    )
+    assert "product_vendor_term:docs/governance/product-design-contract.md:Gemini" in (
+        report["required_gaps"]
+    )
+    assert "product_vendor_term:docs/governance/product-design-contract.md:Copilot" in (
+        report["required_gaps"]
+    )
+    assert "product_vendor_term:docs/governance/product-design-contract.md:Cursor" in (
+        report["required_gaps"]
+    )
+    assert "product_vendor_term:docs/governance/product-design-contract.md:Windsurf" in (
+        report["required_gaps"]
     )

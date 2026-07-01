@@ -302,6 +302,45 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
         "dirty": False,
         "changed_paths": [],
         "role": "accepted_root",
+        "role_policy": {
+            "release_branch": "main",
+            "accepted_branch": "dev",
+            "candidate_branch": "stage/dev",
+            "work_branch_prefix": "lane/",
+            "submit_branch_prefix": "review/",
+            "semantic_order": [
+                {
+                    "role": "release_root",
+                    "kind": "exact_branch",
+                    "config_key": "release_branch",
+                    "pattern": "main",
+                },
+                {
+                    "role": "accepted_root",
+                    "kind": "exact_branch",
+                    "config_key": "accepted_branch",
+                    "pattern": "dev",
+                },
+                {
+                    "role": "candidate",
+                    "kind": "exact_branch",
+                    "config_key": "candidate_branch",
+                    "pattern": "stage/dev",
+                },
+                {
+                    "role": "work_lane",
+                    "kind": "branch_prefix",
+                    "config_key": "work_branch_prefix",
+                    "pattern": "lane/*",
+                },
+                {
+                    "role": "submit_lane",
+                    "kind": "branch_prefix",
+                    "config_key": "submit_branch_prefix",
+                    "pattern": "review/*",
+                },
+            ],
+        },
         "candidate": {
             "branch": "stage/dev",
             "exists": True,

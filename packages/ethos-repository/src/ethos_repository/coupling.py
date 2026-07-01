@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ethos_contracts.branch_roles import load_branch_role_policy
+
 from ethos_repository.gates import gate_registry
 from ethos_repository.release import REQUIRED_RELEASE_FILES, release_policy_report
 
@@ -42,7 +44,20 @@ PRODUCT_SEMANTIC_DOCS = (
     "docs/governance/release-governance.md",
     "docs/architecture/gate-runner.md",
 )
-PRODUCT_VENDOR_TERMS = ("PyCharm", "Claude", "Codex", "OpenAI", "GPT", "IDE")
+PRODUCT_VENDOR_TERMS = (
+    "PyCharm",
+    "Claude",
+    "Codex",
+    "OpenAI",
+    "GPT",
+    "IDE",
+    "JetBrains",
+    "Anthropic",
+    "Gemini",
+    "Copilot",
+    "Cursor",
+    "Windsurf",
+)
 GIT_NATIVE_TERMS = ("Git", "git", "worktree", "branch", "candidate/dev", "work/*", "submit/*")
 NATIVE_PROTOCOL_FORMATS = (
     "JSON Schema",
@@ -129,6 +144,108 @@ def _native_protocols() -> dict[str, object]:
     }
 
 
+def _binding_registry(root: Path) -> list[dict[str, object]]:
+    policy = load_branch_role_policy(root)
+    release_profile = _release_host_profile(root)
+    return [
+        {
+            "id": "git_repository_substrate",
+            "layer": "product_semantic_hard_binding",
+            "required": True,
+            "owns_product_semantics": True,
+            "adapter_replaceable": False,
+            "surfaces": ["commits", "refs", "branches", "worktrees", "HEAD"],
+        },
+        {
+            "id": "branch_role_policy",
+            "layer": "product_semantic_hard_binding",
+            "required": True,
+            "owns_product_semantics": True,
+            "adapter_replaceable": False,
+            "role_order": [
+                str(record["role"]) for record in policy.semantic_order()
+            ],
+            "configured_patterns": [
+                str(record["pattern"]) for record in policy.semantic_order()
+            ],
+        },
+        {
+            "id": "openspec_workspace",
+            "layer": "mandatory_governance_dependency",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": False,
+            "not_a_second_command_plane": True,
+        },
+        {
+            "id": "command_json_schema_protocol",
+            "layer": "native_protocol_binding",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": False,
+            "formats": ["command JSON", "JSON Schema"],
+        },
+        {
+            "id": "claims_evidence_protocol",
+            "layer": "native_protocol_binding",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": False,
+            "formats": ["TOML", "Markdown evidence", "SHA-256 digest"],
+        },
+        {
+            "id": "local_state_protocol",
+            "layer": "native_protocol_binding",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": False,
+            "formats": ["ignored SQLite local state"],
+        },
+        {
+            "id": "self_hosting_python_toolchain",
+            "layer": "self_hosting_toolchain_binding",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": True,
+            "toolchains": _self_hosting_toolchain()["toolchains"],
+            "gates": _self_hosting_toolchain()["gates"],
+        },
+        {
+            "id": "release_host_profile",
+            "layer": "profile_or_adapter_binding",
+            "required": True,
+            "owns_product_semantics": False,
+            "adapter_replaceable": True,
+            "provider": release_profile.get("provider", ""),
+            "surfaces": release_profile.get("surfaces", {}),
+        },
+        {
+            "id": "assistant_protocol_adapters",
+            "layer": "profile_or_adapter_binding",
+            "required": False,
+            "owns_product_semantics": False,
+            "adapter_replaceable": True,
+            "surfaces": ["MCP", "ACP", "assistant context projections"],
+        },
+        {
+            "id": "legacy_evidence_records",
+            "layer": "legacy_evidence",
+            "required": False,
+            "owns_product_semantics": False,
+            "adapter_replaceable": True,
+            "surfaces": ["archived evidence", "migration oracle records"],
+        },
+        {
+            "id": "provider_test_fixtures",
+            "layer": "test_fixture",
+            "required": False,
+            "owns_product_semantics": False,
+            "adapter_replaceable": True,
+            "surfaces": ["hosted provider fixtures", "adopter fixtures"],
+        },
+    ]
+
+
 def coupling_audit_report(root: Path) -> dict[str, Any]:
     release = _release_report(root)
     gaps = _vendor_term_gaps(root) + _gate_profile_gaps()
@@ -144,6 +261,7 @@ def coupling_audit_report(root: Path) -> dict[str, Any]:
         },
         "openspec_governance": _openspec_governance(),
         "native_protocols": _native_protocols(),
+        "binding_registry": _binding_registry(root),
         "release_product_files": list(release["required_files"]),
         "release_host_profile": _release_host_profile(root),
         "self_hosting_toolchain": _self_hosting_toolchain(),

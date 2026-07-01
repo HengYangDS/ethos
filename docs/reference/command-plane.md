@@ -90,14 +90,18 @@ ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --apply
 ```
 
-`ethos status --json` and `ethos lane status --json` expose role-policy branch
-bindings under `data.branch_bindings`. The bindings are ordered by semantic
-role: configured release root first, accepted root second, then candidate, then
-additional bound branches such as Work Lanes. Each binding reports
+`ethos status --json` and `ethos lane status --json` expose the configured role
+contract under `data.role_policy` and role-policy branch bindings under
+`data.branch_bindings`. The `role_policy` field is the configured product
+contract for branch names, prefixes, and semantic role order. The role order is
+release_root -> accepted_root -> candidate -> work_lane -> submit_lane. Exact
+branches and prefixes are configurable, but the role vocabulary is product
+state. Bindings are ordered by this semantic role order before branch name. Each
+binding reports
 `worktree_binding` as product state: `current`, `linked`, `unbound`, or
 `absent`. Host adapters may project linked worktrees as host-specific open
 commands, but the product payload does not expose host labels or checkout
-actions as truth.
+actions as truth; adapter UI text is not product state.
 Both commands include a `schema_validation` diagnostic for the live
 workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
@@ -143,8 +147,10 @@ official OpenSpec CLI validation and is required for release or archive proof.
 `ethos quality coupling-audit --json` reports product-semantic hard bindings,
 mandatory governance dependencies, native protocol bindings, self-hosting
 toolchain bindings, profile or adapter bindings, legacy evidence, and
-test-fixture coupling boundaries. It treats Git, worktrees, refs, and branch
-roles as product semantics; OpenSpec as mandatory governance; command JSON,
-schemas, TOML, JSONL, and ignored SQLite state as native protocols; and hosted
-forge, editor, model, and current proof toolchain terms as non-product-semantic
-bindings.
+test-fixture coupling boundaries through `data.binding_registry`. The
+`binding_registry` field is the machine-readable binding classification
+contract. It treats Git,
+worktrees, refs, and branch roles as product semantics; OpenSpec as mandatory
+governance; command JSON, schemas, TOML, JSONL, and ignored SQLite state as
+native protocols; and hosted forge, editor, model, and current proof toolchain
+terms as non-product-semantic bindings.

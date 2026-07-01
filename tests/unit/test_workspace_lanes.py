@@ -139,10 +139,51 @@ def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    submit = tmp_path / "repo-submit-feature"
+    git(repo, "worktree", "add", "-b", "submit/feature", submit.as_posix(), "dev")
 
     status = workspace_status(repo)
 
     assert "branch_actions" not in status
+    assert status["role_policy"] == {
+        "release_branch": "main",
+        "accepted_branch": "dev",
+        "candidate_branch": "candidate/dev",
+        "work_branch_prefix": "work/",
+        "submit_branch_prefix": "submit/",
+        "semantic_order": [
+            {
+                "role": "release_root",
+                "kind": "exact_branch",
+                "config_key": "release_branch",
+                "pattern": "main",
+            },
+            {
+                "role": "accepted_root",
+                "kind": "exact_branch",
+                "config_key": "accepted_branch",
+                "pattern": "dev",
+            },
+            {
+                "role": "candidate",
+                "kind": "exact_branch",
+                "config_key": "candidate_branch",
+                "pattern": "candidate/dev",
+            },
+            {
+                "role": "work_lane",
+                "kind": "branch_prefix",
+                "config_key": "work_branch_prefix",
+                "pattern": "work/*",
+            },
+            {
+                "role": "submit_lane",
+                "kind": "branch_prefix",
+                "config_key": "submit_branch_prefix",
+                "pattern": "submit/*",
+            },
+        ],
+    }
     assert status["candidate"]["worktree_binding"] == "linked"
     assert status["candidate"]["worktree_path"] == candidate.as_posix()
     assert [binding["branch"] for binding in status["branch_bindings"]] == [
@@ -150,6 +191,7 @@ def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
         "dev",
         "candidate/dev",
         "work/feature",
+        "submit/feature",
     ]
     bindings = {
         binding["branch"]: binding
@@ -163,6 +205,9 @@ def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
     assert bindings["candidate/dev"]["worktree_path"] == candidate.as_posix()
     assert bindings["work/feature"]["worktree_binding"] == "linked"
     assert bindings["work/feature"]["worktree_path"] == worktree.as_posix()
+    assert bindings["submit/feature"]["role"] == "submit_lane"
+    assert bindings["submit/feature"]["worktree_binding"] == "linked"
+    assert bindings["submit/feature"]["worktree_path"] == submit.as_posix()
     assert_no_ui_projection(status)
 
 
@@ -172,7 +217,7 @@ def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> 
     git(repo, "branch", "stage/dev", "dev")
 
     git(repo, "checkout", "-b", "review/ready")
-    assert workspace_status(repo)["role"] == "submit"
+    assert workspace_status(repo)["role"] == "submit_lane"
 
     git(repo, "checkout", "dev")
     git(repo, "checkout", "-b", "lane/feature")
@@ -450,7 +495,7 @@ def test_prewrite_rejects_protected_lane_roles(tmp_path: Path) -> None:
     cases = {
         "release_root": ("main",),
         "candidate": ("candidate/dev",),
-        "submit": ("submit/review",),
+        "submit_lane": ("submit/review",),
         "other": ("feature/unknown",),
     }
     for role, checkout_args in cases.items():

@@ -2,16 +2,17 @@
 id = "ethos-coupling-governance"
 subject = "ethos:coupling-governance"
 state = "active"
-summary = "ETHOS preserves Git-native product semantics while classifying OpenSpec, native protocols, self-hosting tools, hosted providers, editor/model vendors, and projections into explicit binding layers."
+summary = "ETHOS preserves Git-native product semantics while exposing configured branch role policy and classifying OpenSpec, native protocols, self-hosting tools, host profiles, assistant protocols, legacy evidence, and fixtures through explicit binding layers."
 
 [evidence]
-dated = "docs/evidence/binding-taxonomy-2026-07-01.md"
-sha256 = "fd9069d6d0005bdfddef155db475e05db3b1c481b327429b1b7e2585de91fece"
+dated = "docs/evidence/binding-productization-2026-07-01.md"
+sha256 = "2feb6ab4bbc4e56c081d2a87fe13dde450ec9f4678ebae5d20d4eaa29c5aafe8"
 tests = [
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv build --all-packages",
   "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos self audit --mode shape --json",
 ]
@@ -27,7 +28,11 @@ docs = [
   "docs/governance/product-design-contract.md",
   "docs/governance/openspec-self-governance.md",
   "docs/governance/release-governance.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/architecture/schema-validation.md",
   "docs/architecture/gate-runner.md",
   "docs/architecture/package-ontology.md",
   "docs/reference/command-plane.md",
+  "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/ethos-repository/spec.md",
 ]

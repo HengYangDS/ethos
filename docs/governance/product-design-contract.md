@@ -89,6 +89,7 @@ governance dependency for promoted spec records and deep proof. Backlog, MCP,
 ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
 similar systems are adapters, providers, profiles, method packs, or
 self-hosting tools; they are not ontology anchors.
+OpenSpec remains mandatory governance, not a product substrate.
 
 ### Git-native repository substrate
 
@@ -96,6 +97,9 @@ ETHOS is Git-native. Commits, refs, branches, worktrees, HEAD binding, and
 configured branch roles are product semantics, not a generic VCS abstraction.
 Hosted forges, review systems, and CI surfaces may project those Git facts, but
 they do not replace them.
+Configured branch roles are reported through `role_policy` and ordered as
+release_root -> accepted_root -> candidate -> work_lane -> submit_lane. The
+branch names and prefixes are configurable, but the roles are product semantics.
 
 ### Binding taxonomy
 
@@ -105,6 +109,10 @@ profile or adapter bindings. Git belongs to product semantics. OpenSpec belongs
 to mandatory governance. JSON Schema, command JSON, TOML, JSONL, and ignored
 SQLite local state are native protocols. The current Python, uv, Hatchling,
 pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology.
+`ethos quality coupling-audit --json` exposes these classifications as a
+`binding_registry` so product hard bindings, mandatory dependencies, native
+protocols, self-hosting tools, adapters, legacy evidence, and fixtures are
+auditable without binding ETHOS to a specific editor host or model vendor.
 
 ### Capability before surface
 

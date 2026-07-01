@@ -80,6 +80,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "dirty": bool(paths),
         "changed_paths": list(paths),
         "role": role,
+        "role_policy": policy.as_status_policy(),
         "candidate": candidate,
         "worktrees": worktrees,
         "branch_bindings": branch_bindings,
@@ -106,6 +107,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "dirty": False,
         "changed_paths": [],
         "role": "other",
+        "role_policy": policy.as_status_policy(),
         "candidate": candidate,
         "worktrees": [],
         "branch_bindings": _branch_bindings(root, [], candidate, policy=policy),
@@ -264,7 +266,18 @@ def _branch_bindings(
         bindings.append(binding)
         seen.add(branch)
 
-    for worktree in worktrees:
+    role_order = {
+        str(record["role"]): index
+        for index, record in enumerate(policy.semantic_order())
+    }
+    remaining_worktrees = sorted(
+        worktrees,
+        key=lambda worktree: (
+            role_order.get(str(worktree["role"]), len(role_order)),
+            str(worktree["branch"]),
+        ),
+    )
+    for worktree in remaining_worktrees:
         branch = str(worktree["branch"])
         if branch == "detached" or branch in seen:
             continue

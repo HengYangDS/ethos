@@ -36,10 +36,12 @@ clean accepted root with an expected HEAD. New Work Lanes start from the
 candidate branch instead of the accepted root, and `ethos land --apply` from an
 admitted Work Lane fast-forwards the candidate worktree without advancing the
 accepted root.
-Status output reports role-policy `branch_bindings` in semantic order: release
-root, accepted root, candidate, then additional bound branches. Existing linked
-worktrees report `worktree_binding = "linked"` as product state; host-specific
-open or checkout labels are adapter projections, not workspace semantics.
+Status output reports configured `role_policy` and role-policy
+`branch_bindings` in semantic order:
+release_root -> accepted_root -> candidate -> work_lane -> submit_lane.
+Existing linked worktrees report `worktree_binding = "linked"` as product
+state; host-specific open or checkout labels are adapter projections, not
+workspace semantics.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
@@ -47,7 +49,7 @@ cannot be created from ambiguous local candidate state.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release
-roots, accepted roots, candidate branches, submit branches, detached heads, and
+roots, accepted roots, candidate branches, submit lanes, detached heads, and
 foreign Work Lanes remain observe-only and report blocking gaps such as
 `protected_root_mutation`, `work_lane_dirty`, `candidate_worktree_missing`, or
 `candidate_worktree_dirty`.

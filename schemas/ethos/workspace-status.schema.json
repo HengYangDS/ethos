@@ -9,6 +9,7 @@
     "dirty",
     "changed_paths",
     "role",
+    "role_policy",
     "candidate",
     "worktrees",
     "branch_bindings",
@@ -23,6 +24,7 @@
     "dirty": {"type": "boolean"},
     "changed_paths": {"type": "array", "items": {"type": "string"}},
     "role": {"$ref": "#/$defs/role"},
+    "role_policy": {"$ref": "#/$defs/rolePolicy"},
     "candidate": {"$ref": "#/$defs/candidate"},
     "worktrees": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
     "branch_bindings": {"type": "array", "items": {"$ref": "#/$defs/branchBinding"}},
@@ -40,10 +42,52 @@
         "accepted_root",
         "candidate",
         "work_lane",
-        "submit",
+        "submit_lane",
         "detached",
         "other"
       ]
+    },
+    "rolePolicy": {
+      "type": "object",
+      "required": [
+        "release_branch",
+        "accepted_branch",
+        "candidate_branch",
+        "work_branch_prefix",
+        "submit_branch_prefix",
+        "semantic_order"
+      ],
+      "properties": {
+        "release_branch": {"type": "string"},
+        "accepted_branch": {"type": "string"},
+        "candidate_branch": {"type": "string"},
+        "work_branch_prefix": {"type": "string"},
+        "submit_branch_prefix": {"type": "string"},
+        "semantic_order": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/rolePolicyBinding"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "rolePolicyBinding": {
+      "type": "object",
+      "required": ["role", "kind", "config_key", "pattern"],
+      "properties": {
+        "role": {"$ref": "#/$defs/role"},
+        "kind": {"enum": ["exact_branch", "branch_prefix"]},
+        "config_key": {
+          "enum": [
+            "release_branch",
+            "accepted_branch",
+            "candidate_branch",
+            "work_branch_prefix",
+            "submit_branch_prefix"
+          ]
+        },
+        "pattern": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "worktreeBinding": {
       "type": "string",

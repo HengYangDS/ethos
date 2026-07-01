@@ -28,10 +28,29 @@ ETHOS SHALL keep `openspec/` as an official self-governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
 
+OpenSpec remains mandatory governance, not a product substrate.
+
 #### Scenario: OpenSpec validation is used
 - **WHEN** ETHOS audits OpenSpec self-governance
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
+
+### Requirement: Coupling Binding Registry
+ETHOS SHALL classify product-semantic hard bindings, mandatory governance
+dependencies, native protocols, self-hosting toolchains, profile or adapter
+bindings, legacy evidence, and test fixtures through a machine-readable
+coupling registry.
+
+#### Scenario: Binding registry is audited
+- **WHEN** `ethos quality coupling-audit --json` runs
+- **THEN** the output includes `binding_registry`
+- **AND** Git repository substrate and configured branch roles are classified as
+  product-semantic hard bindings
+- **AND** OpenSpec is classified as a mandatory governance dependency
+- **AND** command JSON, JSON Schema, claims, evidence, and ignored local state
+  are classified as native protocols
+- **AND** self-hosting proof tools and host projections do not own product
+  semantics
 
 ### Requirement: Standards Adapter Lifecycle
 ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,

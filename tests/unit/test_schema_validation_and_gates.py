@@ -10,6 +10,46 @@ from ethos_repository.schema_validation import (
     validate_schema_instance,
 )
 
+ROLE_POLICY_SAMPLE = {
+    "release_branch": "main",
+    "accepted_branch": "dev",
+    "candidate_branch": "candidate/dev",
+    "work_branch_prefix": "work/",
+    "submit_branch_prefix": "submit/",
+    "semantic_order": [
+        {
+            "role": "release_root",
+            "kind": "exact_branch",
+            "config_key": "release_branch",
+            "pattern": "main",
+        },
+        {
+            "role": "accepted_root",
+            "kind": "exact_branch",
+            "config_key": "accepted_branch",
+            "pattern": "dev",
+        },
+        {
+            "role": "candidate",
+            "kind": "exact_branch",
+            "config_key": "candidate_branch",
+            "pattern": "candidate/dev",
+        },
+        {
+            "role": "work_lane",
+            "kind": "branch_prefix",
+            "config_key": "work_branch_prefix",
+            "pattern": "work/*",
+        },
+        {
+            "role": "submit_lane",
+            "kind": "branch_prefix",
+            "config_key": "submit_branch_prefix",
+            "pattern": "submit/*",
+        },
+    ],
+}
+
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     report = schema_validation_report()
@@ -74,6 +114,7 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
         "dirty": False,
         "changed_paths": [],
         "role": "accepted_root",
+        "role_policy": ROLE_POLICY_SAMPLE,
         "candidate": {
             "branch": "candidate/dev",
             "exists": True,
@@ -148,6 +189,7 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
         "dirty": False,
         "changed_paths": [],
         "role": "accepted_root",
+        "role_policy": ROLE_POLICY_SAMPLE,
         "candidate": {
             "branch": "candidate/dev",
             "exists": True,

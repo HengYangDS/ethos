@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ethos_contracts.package_ontology import package_ontology_report
+
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
     "wt",
@@ -45,14 +47,7 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
 
 
 def test_target_product_packages_exist_with_build_metadata() -> None:
-    for package in (
-        "ethos-core",
-        "ethos-contracts",
-        "ethos-repository",
-        "ethos-assistants",
-        "ethos-adapters",
-        "ethos-test",
-    ):
+    for package in package_ontology_report()["target_packages"]:
         root = ROOT / "packages" / package
         assert (root / "README.md").exists(), package
         pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
@@ -81,6 +76,23 @@ def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
         text = path.read_text(encoding="utf-8")
         assert "alphasim" not in text.lower(), path
         assert "dmgr" not in text.lower(), path
+
+
+def test_target_packages_do_not_import_migration_hosts_except_cli_bridge() -> None:
+    contract = package_ontology_report()
+    migration_imports = {
+        package.replace("-", "_") for package in contract["migration_hosts"]
+    }
+    bridge_exceptions = {
+        ROOT / "packages" / "ethos" / "src" / "ethos" / "cli.py",
+    }
+
+    for package in contract["target_packages"]:
+        source = ROOT / "packages" / package / "src"
+        for path in source.rglob("*.py"):
+            if path in bridge_exceptions:
+                continue
+            assert imported_modules(path).isdisjoint(migration_imports), path
 
 
 def test_cli_uses_cyclopts_not_argparse() -> None:

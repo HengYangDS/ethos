@@ -34,7 +34,10 @@ def changed_paths(root: Path) -> tuple[str, ...]:
 
 
 def workspace_status(root: Path) -> dict[str, object]:
-    repo = Path(_run_git(root, "rev-parse", "--show-toplevel")).resolve()
+    try:
+        repo = Path(_run_git(root, "rev-parse", "--show-toplevel")).resolve()
+    except subprocess.CalledProcessError:
+        return _non_git_status(root)
     current_path = repo
     paths = changed_paths(root)
     branch = current_branch(root)
@@ -81,6 +84,49 @@ def workspace_status(root: Path) -> dict[str, object]:
         "foreign_work_lanes": foreign,
         "closeout_support": closeout_support,
         "required_gaps": required_gaps,
+    }
+
+
+def _non_git_status(root: Path) -> dict[str, object]:
+    candidate = {
+        "branch": CANDIDATE_BRANCH,
+        "exists": False,
+        "head": "",
+        "worktree_exists": False,
+        "worktree_path": "",
+        "open_action": "bootstrap_worktree",
+        "open_label": "Bootstrap Worktree",
+    }
+    return {
+        "root": str(root),
+        "branch": "untracked",
+        "dirty": False,
+        "changed_paths": [],
+        "role": "other",
+        "candidate": candidate,
+        "worktrees": [],
+        "branch_actions": [
+            {
+                "branch": CANDIDATE_BRANCH,
+                "role": "candidate",
+                "head": "",
+                "path": "",
+                "action": "bootstrap_worktree",
+                "label": "Bootstrap Worktree",
+            }
+        ],
+        "foreign_work_lanes": [],
+        "closeout_support": {
+            "supported": False,
+            "branch": "",
+            "target_branch": CANDIDATE_BRANCH,
+            "target_path": "",
+            "action": "not_supported",
+            "label": "Not Supported",
+            "owner": "",
+            "required_gaps": ["protected_root_mutation", "git_repository_missing"],
+        },
+        "required_gaps": ["git_repository_missing", "candidate_branch_missing"],
     }
 
 

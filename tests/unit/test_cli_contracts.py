@@ -68,6 +68,20 @@ def test_init_apply_flag_applies_scaffold(tmp_path: Path) -> None:
     assert payload["state"] == "applied"
     assert (target / ".ethos" / "project.toml").exists()
 
+    status = run_ethos("status", "--root", target.as_posix(), "--json")
+    docs = run_ethos("quality", "docs-registry", "--root", target.as_posix(), "--json")
+    examples = run_ethos(
+        "quality",
+        "command-examples",
+        "--root",
+        target.as_posix(),
+        "--json",
+    )
+
+    assert status["ok"] is True
+    assert docs["ok"] is True
+    assert examples["ok"] is True
+
 
 def test_quality_package_ontology_reports_migration_state() -> None:
     payload = run_ethos("quality", "package-ontology", "--json")

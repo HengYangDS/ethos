@@ -205,6 +205,8 @@ relations: canonical_for: first run
 ethos status
 ethos plan --changed
 ethos prove
+ethos prove --execute
+ethos quality command-examples
 ethos land
 ethos publish
 ```
@@ -264,6 +266,8 @@ Use the ETHOS command plane for local repository changes:
 ethos status
 ethos plan --changed
 ethos prove
+ethos prove --execute
+ethos quality command-examples
 ```
 
 Mutating operations such as `ethos land` and `ethos publish` require explicit

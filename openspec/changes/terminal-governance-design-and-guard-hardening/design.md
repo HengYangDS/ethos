@@ -50,6 +50,76 @@ new work.
 Alternative considered: keep design in docs only. That fails because the
 planning carrier, spec delta, tasks, and later archive path become implicit.
 
+### Decision: OpenSpec Is A Product Protocol, Not Just A Folder Gate
+
+Terminal ETHOS treats OpenSpec as the case and specification carrier:
+`openspec/specs/` is accepted capability behavior, `openspec/changes/` is
+planned delta state, and `openspec/changes/archive/` is historical context.
+Each layer has different authority and cannot substitute for the others.
+
+The ETHOS product additions are capability profiles, families, proposal
+metadata, direct capability routing, task lifecycle checks, claim/evidence
+binding, and closeout guards. These additions stay around the official OpenSpec
+model; they do not fork the OpenSpec CLI or create a separate public command
+plane.
+
+Alternative considered: only require `openspec validate --all --strict`. That
+proves syntax, but it does not prove ETHOS product duties such as Work Lane
+attachment, claim binding, archived task state, adopter scaffold completeness,
+or whether a live spec edit was in scope for the archived delta.
+
+### Decision: Capability Profiles Carry Routing Ontology
+
+Capability-local `capability.toml` files are the stable routing metadata for
+families, owner boundary, primary invariant, routing question, decision axes,
+recommended facets, boundary rules, and proof profile. Proposal entries must
+name live capabilities directly and record subject, reuse posture, change
+posture, and lifecycle/surface/authority facets.
+
+This absorbs the useful `di-effect` practice of capability-local profiles,
+family taxonomy, direct routing, reuse metadata, and dynamic facets. ETHOS keeps
+the taxonomy smaller and product-neutral: facets help routing and review but do
+not create ownership, and no adopter-specific domain terms become product
+capabilities.
+
+Alternative considered: keep capability metadata only in narrative docs. That
+would make routing, validation, and adopter scaffold generation hand-maintained
+and drift-prone.
+
+### Decision: Archive Closeout Adds ETHOS Guards Around Official Archive
+
+ETHOS should call the official archive path, then run repo-local guards for live
+spec scope, archived task state, archive directory identity, retained evidence
+refs, and archived Markdown links. The archive wrapper also protects existing
+scenarios from accidental deletion unless the delta explicitly removes or
+renames them.
+
+This absorbs the useful `di-effect` archive-normalization and live-spec-diff
+guard pattern. ETHOS adapts it to the terminal product by keeping the next
+action under `ethos openspec --lifecycle --json` and by tying lifecycle health
+to claims and evidence.
+
+Alternative considered: trust official archive output alone. That leaves
+repository-local product invariants unproved.
+
+### Decision: Adopter Scaffolds Must Include OpenSpec Guidance
+
+`ethos init` and `ethos adopt` must create an inspectable OpenSpec workspace:
+config, README files, change templates, capability templates,
+`specs/families.toml`, and profile-appropriate first capabilities. A bare
+directory is not a complete governance substrate because it gives agents no
+local routing grammar and no reviewable template for capability metadata.
+
+This absorbs the useful productization posture from both reference
+repositories: `di-effect` makes the OpenSpec workspace self-describing, while
+`alphasim-dmgr` keeps public operation behind one `ethos ...` command plane.
+ETHOS keeps both: scaffolded OpenSpec files are rich enough to guide work, but
+the workflow still enters through ETHOS commands.
+
+Alternative considered: generate only `openspec/config.yaml` and empty
+directories. That optimizes first write speed while pushing the real product
+friction into every future change.
+
 ### Decision: Context-Bound Mutation Is The Control Point
 
 Every tracked write path must carry an explicit target root, expected checkout
@@ -92,6 +162,12 @@ work into one unreviewable change.
 - Adding `rules/` and `skills/` before full runtime support can look complete
   prematurely. Mitigation: OpenSpec tasks and design docs explicitly mark this
   as a planning substrate.
+- Productized OpenSpec validation can become ceremony. Mitigation: validation
+  focuses on ownership, lifecycle, claim/evidence binding, and archive
+  correctness; narrative-only detail stays in docs.
+- Capability facets can become a second taxonomy. Mitigation: facets are
+  routing and review hints; exact live capability names remain the owner
+  contract.
 - Hook design without runtime enforcement still leaves a temporary bypass.
   Mitigation: name the bypass as a required later implementation task and use
   explicit `prewrite` plus explicit working directory in this lane.
@@ -105,5 +181,8 @@ work into one unreviewable change.
    context/pre-tool/pre-run/post-write hooks.
 1. Use a later implementation lane to make OpenSpec preflight part of the lane
    admission or governance mutation command path.
+1. Use a later implementation lane to implement capability-profile/family
+   validation, proposal metadata validation, live-spec diff guards, archive
+   closeout guards, and scaffold templates.
 1. Only after enforcement exists, migrate terminal runtime topology and
    projections.

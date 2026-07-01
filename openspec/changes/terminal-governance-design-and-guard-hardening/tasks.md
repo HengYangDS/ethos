@@ -17,8 +17,16 @@
 - [x] 3.2 Record that OpenSpec preflight enforcement is deferred to a later implementation lane.
 - [x] 3.3 Record that projection generation, digest validation, scaffold bootstrap, and terminal package collapse are deferred to later lanes.
 
-## 4. Proof
+## 4. Productized OpenSpec Design
 
-- [x] 4.1 Run focused formatting and OpenSpec checks for this planning change.
-- [x] 4.2 Run existing docs quality checks that cover the changed docs and command examples.
-- [x] 4.3 Report any unimplemented runtime enforcement as residual risk, not as completed functionality.
+- [x] 4.1 Define OpenSpec as the ETHOS case and specification carrier, not a second public command plane.
+- [x] 4.2 Define capability profile, family, direct routing, reuse posture, and facet metadata duties.
+- [x] 4.3 Define archive closeout guards for live-spec scope, archived task state, directory identity, links, and evidence refs.
+- [x] 4.4 Define adopter scaffold requirements for inspectable OpenSpec config, templates, families, and first capabilities.
+- [x] 4.5 Record which `di-effect` and `alphasim-dmgr` patterns are absorbed and which project-specific terms stay out of ETHOS core.
+
+## 5. Proof
+
+- [x] 5.1 Run focused formatting and OpenSpec checks for this planning change.
+- [x] 5.2 Run existing docs quality checks that cover the changed docs and command examples.
+- [x] 5.3 Report any unimplemented runtime enforcement as residual risk, not as completed functionality.

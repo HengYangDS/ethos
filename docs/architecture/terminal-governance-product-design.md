@@ -166,6 +166,80 @@ Valid carriers:
 Complete changes are not default containers for new work. They are historical
 records unless reopened through an explicit governance decision.
 
+## OpenSpec Product Protocol
+
+OpenSpec is the ETHOS case and specification carrier. It is not a second public
+command plane and it is not repository truth by itself. ETHOS uses the official
+OpenSpec workspace model, then adds product guardrails around ownership,
+lifecycle, evidence, and adopter ergonomics.
+
+The protocol boundary is:
+
+| Carrier | Product meaning | Promotion rule |
+| --- | --- | --- |
+| `openspec/specs/<capability>/spec.md` | Accepted current capability behavior. | Truth after promotion and proof. |
+| `openspec/specs/<capability>/capability.toml` | Capability owner metadata and routing hints. | Routing contract; not behavior by itself. |
+| `openspec/specs/families.toml` | Capability family vocabulary. | Taxonomy contract. |
+| `openspec/changes/<id>/proposal.md` | Intent, scope, capability routing, reuse posture, and out-of-scope lines. | Planning carrier only. |
+| `openspec/changes/<id>/design.md` | Cross-surface design, official/local boundary, trade-offs, rollback, and proof impact. | Required for new, extract, topology, or product-shape work. |
+| `openspec/changes/<id>/tasks.md` | Review-sized implementation tasks and lifecycle status. | Execution checklist, not proof. |
+| `openspec/changes/<id>/specs/**/spec.md` | Deltas against accepted capability specs. | Merged into live specs only at archive/promotion. |
+| `openspec/changes/archive/<date-id>/` | Historical change context. | History after closeout; not a new active carrier. |
+
+Proposal capability bullets must be machine-auditable:
+
+```text
+capability=<live-capability>
+subject=<stable subject>
+reuse=<reuse|extend|extract|new>
+change=<add|modify|remove|rename|retire>
+facet:lifecycle=<authoring|validation|runtime|archive|release>
+facet:surface=<cli|docs|schema|mcp|skill|scaffold|ci|package>
+facet:authority=<source|test|schema|docs|openspec|evidence|claim>
+```
+
+Only one live capability owns the primary behavior. Secondary impacts are
+recorded as impacts, not duplicate normative requirements. Exact live
+capability names are the routing contract; aliases and historical labels remain
+diagnostics until explicitly migrated.
+
+Capability profiles must evolve from the current minimal metadata into a stable
+ontology:
+
+| Field | Duty |
+| --- | --- |
+| `family` | Human-scale capability family from `families.toml`. |
+| `owner.package` / `owner.scope` | Product owner boundary. |
+| `primary_invariant` | The one behavior this capability protects. |
+| `routing_question` | The question that chooses this capability over peers. |
+| `decision_axes` | Facets useful for routing, proof, and review. |
+| `recommended_facets` | Valid local hints for proposal metadata. |
+| `boundary_rules` | What this capability must not absorb. |
+| `proof_profile` | Default and executed proof commands plus required gates. |
+
+`ethos openspec --json` is the product adapter over OpenSpec. Terminal ETHOS
+should make it report:
+
+1. Official doctor, status, and strict validation.
+1. ETHOS lifecycle review for proposal, design, tasks, deltas, claims, and evidence.
+1. Capability profile, family, proposal metadata, and direct-routing health.
+1. Live spec topology and live-spec diff guard results.
+1. A compact next action that enters through `ethos ...`.
+
+Archive is a product closeout operation. ETHOS should call the official archive
+path, then run repo-local guards that the official tool does not own:
+
+1. Active and archived directory state is canonical.
+1. Archived `tasks.md` state and progress are complete.
+1. Live spec edits are scoped to the archived deltas.
+1. Existing scenarios, Markdown links, claim refs, and evidence refs survive.
+
+This absorbs the useful parts of `di-effect`: capability-local profiles,
+families, direct routing, reuse posture, dynamic facets, live-spec diff guards,
+and archive normalization. It also absorbs `alphasim-dmgr` patterns: a single
+command plane, Work Lane aware lifecycle state,
+claim/proof binding, topic-scoped closeout evidence, and explicit boundaries
+that keep local proof from pretending to be hosted CI or publication.
 ## Product Surfaces
 
 ETHOS must ship more than a CLI:
@@ -409,6 +483,39 @@ An OpenSpec change is not truth by itself. It becomes repository truth only
 after proof and promotion update source, tests, schemas, docs, accepted specs,
 or evidence.
 
+Terminal `openspec/` should be born with enough product guidance that adopters
+do not need to reverse-engineer ETHOS itself:
+
+```text
+openspec/
+|-- README.md
+|-- config.yaml
+|-- schemas/
+|-- specs/
+|   |-- README.md
+|   |-- families.toml
+|   |-- capability.template.toml
+|   `-- <capability>/
+|       |-- capability.toml
+|       `-- spec.md
+`-- changes/
+    |-- README.md
+    |-- template.md
+    |-- archive/
+    `-- <change-id>/
+        |-- proposal.md
+        |-- design.md
+        |-- tasks.md
+        |-- .openspec.yaml
+        `-- specs/
+```
+
+The scaffolded templates should enforce the product protocol: proposal
+metadata, direct capability names, reuse posture, out-of-scope lines, design
+evidence for new or extracted capability topology, task status/progress, and
+delta sections. The template is guidance; validation must come from schemas and
+`ethos openspec --lifecycle --json`.
+
 ### `evidence/`
 
 `evidence/` is tracked proof. It owns claim records, release manifests,
@@ -557,6 +664,11 @@ openspec/
 evidence/
 .ethos/ ignored runtime root
 ```
+
+The `openspec/` substrate must include config, README files, change and
+capability templates, `specs/families.toml`, and a first capability profile
+when the selected profile knows the governed domain. An empty directory is not a
+complete product scaffold.
 
 ### `packages/`
 

@@ -51,8 +51,10 @@ uv run --package ethos ethos quality coupling-audit --json
 uv run --package ethos ethos self audit --mode shape --json
 uv run --package ethos ethos report --json
 uv run --package ethos ethos quality release-policy --json
+uv run --package ethos ethos lane bind-claim --claim-id ethos-coupling-governance --apply --json
 uv run --package ethos ethos quality claims --json
 uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --expect-head "$(git rev-parse HEAD)" --json
+uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json
 ```
 
 Observed results:
@@ -62,12 +64,12 @@ Observed results:
   coupling-audit CLI schema diagnostic, and missing OpenSpec/adapters contract
   wording.
 - Focused RED/GREEN target set: `11 passed`.
-- Related coupling, schema, CLI, and product-contract set: `95 passed`.
-- Full pytest: `271 passed in 67.58s`.
+- Related coupling, schema, CLI, and product-contract set: `102 passed in 29.83s`.
+- Full pytest: `285 passed in 59.02s`.
 - Ruff: all checks passed.
 - Package build: all workspace packages built as sdist and wheel.
 - OpenSpec strict validation: `8` specs passed, `0` failed.
-- Schema quality: `ok=true`, `schema_count=22`, `required_gaps=[]`, with
+- Schema quality: `ok=true`, `schema_count=25`, `required_gaps=[]`, with
   `coupling-audit.schema.json` valid and `coupling-audit-contract` instance
   validation passing.
 - Coupling audit: `ok=true`, `required_gaps=[]`, with `schema_validation`
@@ -80,3 +82,5 @@ Observed results:
   `ethos-coupling-governance` pointed to this evidence record.
 - Proof kernel after claim binding: `ok=true`, `state=proven`, `gate_count=3`,
   and `required_gaps=[]`.
+- Campaign closeout after claim binding: `ok=true`, `state=local_ready`,
+  `remote_state=deferred`, `claim_binding=bound`, and `required_gaps=[]`.

@@ -6,7 +6,7 @@ summary = "ETHOS preserves Git-native product semantics while schema-governing c
 
 [evidence]
 dated = "docs/evidence/coupling-contract-hardening-2026-07-01.md"
-sha256 = "2d0818be2163de9aca82932a4147028fe304385a7d87b9da14e6cedf5e14458d"
+sha256 = "137834ec018347bfed20b4bd07893179134543003c45c8f714c05a91fde2897d"
 tests = [
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
@@ -15,6 +15,12 @@ tests = [
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos quality release-policy --json",
+  "uv run --package ethos ethos lane bind-claim --claim-id ethos-coupling-governance --apply --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
+  "uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
 ]
 
 [scope]

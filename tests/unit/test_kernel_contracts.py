@@ -98,22 +98,34 @@ def test_semantic_claims_require_semantic_verifier() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    "binding",
-    [
-        "dmgr raw/cache parity passed",
-        "hosted CI verified",
-        "remote publication completed",
-        "external backend retirement is safe",
-    ],
-)
-def test_digest_only_claims_reject_operational_overclaims(binding: str) -> None:
+def test_core_claim_model_does_not_embed_profile_or_host_policy_terms() -> None:
+    policy_terms = "\n".join(getattr(models, "CLAIM_OVERCLAIM_PHRASES", ())).lower()
+
+    assert "raw/cache" not in policy_terms
+    assert "hosted ci" not in policy_terms
+    assert "remote publication" not in policy_terms
+    assert "backend retirement" not in policy_terms
+
+
+def test_core_claim_model_allows_policy_specific_digest_phrasing() -> None:
+    claim = models.EvidenceClaim(
+        id="claim:policy-specific",
+        change_id="change:example",
+        evidence_ids=("evidence:example",),
+        binding="hosted CI verified and adopter raw/cache parity passed",
+        verifier="digest_only",
+    )
+
+    assert claim.binding == "hosted CI verified and adopter raw/cache parity passed"
+
+
+def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
     with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
         models.EvidenceClaim(
             id="claim:overreach",
             change_id="change:example",
             evidence_ids=("evidence:example",),
-            binding=binding,
+            binding="semantic truth is proven",
             verifier="digest_only",
         )
 

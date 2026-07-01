@@ -2495,8 +2495,8 @@ def report(
                     "generic_gap_count": parity_pending_count,
                     "domain_profile_parity_closed": False,
                     "note": (
-                        "Generic command parity does not claim adopter raw/cache or "
-                        "domain backend retirement readiness."
+                        "Generic command parity does not claim domain profile parity "
+                        "or adopter-specific retirement readiness."
                     ),
                 },
                 "ledger": parity_ledger,

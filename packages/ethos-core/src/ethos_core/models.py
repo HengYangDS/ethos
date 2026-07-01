@@ -20,22 +20,6 @@ SEMANTIC_VERIFIERS = {"semantic"}
 DIGEST_ONLY_VERIFIERS = {"digest_only"}
 CLAIM_OVERCLAIM_PHRASES = (
     "semantic",
-    "raw/cache",
-    "parity passed",
-    "hosted ci",
-    "remote publication",
-    "published",
-    "verified",
-    "validates",
-    "enforces",
-    "guarantees",
-    "guaranteed",
-    " are retired",
-    " is retired",
-    " are closed",
-    " is closed",
-    "retirement is safe",
-    "backend retirement",
 )
 CHRONICLE_EVENT_TYPES = ("decision", "evidence", "state_change", "supersession")
 

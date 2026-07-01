@@ -2348,6 +2348,10 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
         "gap_count": payload["summary"]["parity_pending_count"],
     }
+    parity_note = payload["data"]["parity"]["scope"]["note"].lower()
+    assert "raw/cache" not in parity_note
+    assert "backend retirement" not in parity_note
+    assert "domain profile parity" in parity_note
     assert payload["next_actions"] == ["ethos prove --full"]
 
 

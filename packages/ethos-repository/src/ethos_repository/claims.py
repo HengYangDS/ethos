@@ -8,6 +8,25 @@ from typing import Any
 from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 
+REPOSITORY_OVERCLAIM_PHRASES = (
+    "raw/cache",
+    "parity passed",
+    "hosted ci",
+    "remote publication",
+    "published",
+    "verified",
+    "validates",
+    "enforces",
+    "guarantees",
+    "guaranteed",
+    " are retired",
+    " is retired",
+    " are closed",
+    " is closed",
+    "retirement is safe",
+    "backend retirement",
+)
+
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -58,6 +77,13 @@ def _promotion_targets(payload: dict[str, Any]) -> list[dict[str, str]]:
         if path:
             targets.append({"kind": kind, "path": path})
     return targets
+
+
+def _has_repository_overclaim(text: str, verifier: str) -> bool:
+    if verifier == "semantic":
+        return False
+    lowered = text.lower()
+    return any(phrase in lowered for phrase in REPOSITORY_OVERCLAIM_PHRASES)
 
 
 def _trust_envelope(
@@ -167,15 +193,18 @@ def claims_report(root: Path) -> dict[str, object]:
             if not isinstance(verifier, str) or not verifier:
                 gaps.append(f"{claim_id}:verifier_missing")
             if isinstance(evidence_ids, list) and binding and verifier:
+                claim_text = "\n".join((summary, str(binding)))
                 try:
                     EvidenceClaim(
                         id=claim_id,
                         change_id=str(claim.get("subject", claim_id)),
                         evidence_ids=tuple(str(item) for item in evidence_ids),
-                        binding="\n".join((summary, str(binding))),
+                        binding=claim_text,
                         verifier=str(verifier),
                     )
                 except ValueError:
+                    gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
+                if _has_repository_overclaim(claim_text, str(verifier)):
                     gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
         evidence_path = root / str(dated)
         if not evidence_path.exists():

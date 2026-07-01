@@ -49,6 +49,23 @@ ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execut
 The tracked evidence file is
 `docs/evidence/parity/alphasim-dmgr-shadow.json`.
 
+Tracked shadow parity evidence must carry shadow parity evidence freshness
+fields before it can close an adopter gap. The freshness identity records the
+product head that produced the evidence, the adopter target `target_head`, and
+the `command_sha256` of the recorded shadow command. ETHOS uses these fields to
+distinguish a reviewed local evidence artifact from a path-only or date-only
+claim. When a target repository is available, campaign closeout compares the
+tracked `target_head` with the target's current HEAD before treating the
+evidence as matched.
+
+Campaign closeout reports the source of the shadow verdict through provenance
+modes rather than through vendor-specific workflow state. `tracked_evidence`
+means the verdict came from `docs/evidence/parity/`; `planned_shadow_run` means
+no matching evidence has been consumed and the report is only planning a local
+run; `live_shadow_run` is reserved for a closeout package that embeds a fresh
+in-process shadow run. Remote publication remains a separate deferred package
+and does not make local evidence fresher.
+
 `ethos parity shadow --json` projects planned or executed comparison work into
 `data.execution_packages`. Planned runs expose a
 `shadow_parity_not_executed:<target>` package with the command list and semantic

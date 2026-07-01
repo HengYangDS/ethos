@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/campaign-closeout.schema.json",
+  "title": "ETHOS Campaign Closeout",
+  "type": "object",
+  "required": [
+    "ok",
+    "state",
+    "workspace",
+    "evolution",
+    "release",
+    "parity",
+    "shadow_parity",
+    "publication",
+    "remote_publication",
+    "provenance",
+    "packages"
+  ],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "state": {"type": "string"},
+    "workspace": {"type": "object"},
+    "evolution": {"type": "object"},
+    "release": {"type": "object"},
+    "parity": {"type": "object"},
+    "shadow_parity": {"type": "object"},
+    "publication": {"$ref": "#/$defs/publication"},
+    "remote_publication": {"$ref": "#/$defs/remotePublication"},
+    "provenance": {"$ref": "#/$defs/closeoutProvenance"},
+    "packages": {
+      "type": "object",
+      "required": ["local_closeout", "publication", "release", "parity", "shadow_parity"],
+      "properties": {
+        "local_closeout": {"type": "object"},
+        "publication": {"$ref": "#/$defs/publication"},
+        "release": {"type": "object"},
+        "parity": {"type": "object"},
+        "shadow_parity": {"$ref": "#/$defs/shadowParityPackage"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "publication": {
+      "type": "object",
+      "required": [
+        "mode",
+        "remote_push",
+        "remote_state",
+        "submit_branch",
+        "local_submit_package",
+        "required_gaps",
+        "next_actions"
+      ],
+      "properties": {
+        "mode": {"const": "local_readiness"},
+        "remote_push": {"const": "not_performed"},
+        "remote_state": {"const": "deferred"},
+        "submit_branch": {"type": "string"},
+        "local_submit_package": {"type": "object"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}},
+        "next_actions": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "remotePublication": {
+      "type": "object",
+      "required": ["remote_push", "state", "reason"],
+      "properties": {
+        "remote_push": {"const": "not_performed"},
+        "state": {"const": "deferred"},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "closeoutProvenance": {
+      "type": "object",
+      "required": ["shadow_parity", "closeout"],
+      "properties": {
+        "shadow_parity": {"$ref": "#/$defs/shadowProvenance"},
+        "closeout": {
+          "type": "object",
+          "required": ["mode", "remote_state"],
+          "properties": {
+            "mode": {"const": "local_only"},
+            "remote_state": {"const": "deferred"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "shadowParityPackage": {
+      "type": "object",
+      "required": [
+        "state",
+        "target",
+        "commands",
+        "semantic_dimensions",
+        "blocking",
+        "provenance",
+        "next_action"
+      ],
+      "properties": {
+        "kind": {"type": "string"},
+        "gap": {"type": "string"},
+        "state": {"type": "string"},
+        "target": {"type": "string"},
+        "evidence_path": {"type": "string"},
+        "comparison_count": {"type": "integer", "minimum": 0},
+        "commands": {"type": "array", "items": {"type": "string"}},
+        "semantic_dimensions": {"type": "array", "items": {"type": "string"}},
+        "blocking": {"type": "boolean"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}},
+        "provenance": {"$ref": "#/$defs/shadowProvenance"},
+        "next_action": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "shadowProvenance": {
+      "type": "object",
+      "required": ["mode", "evidence_path", "freshness"],
+      "properties": {
+        "mode": {"enum": ["tracked_evidence", "live_shadow_run", "planned_shadow_run"]},
+        "evidence_path": {"type": "string"},
+        "freshness": {
+          "type": "object",
+          "required": [
+            "ok",
+            "required_gaps",
+            "product_head",
+            "target_head",
+            "current_target_head",
+            "command_sha256"
+          ],
+          "properties": {
+            "ok": {"type": "boolean"},
+            "required_gaps": {"type": "array", "items": {"type": "string"}},
+            "product_head": {"type": "string"},
+            "target_head": {"type": "string"},
+            "current_target_head": {"type": "string"},
+            "command_sha256": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

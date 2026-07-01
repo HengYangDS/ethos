@@ -93,6 +93,11 @@ def _current_head(root: Path) -> str:
     return completed.stdout.strip()
 
 
+def _current_tracked_head(root: Path) -> str:
+    head = _current_head(root)
+    return "" if head == "untracked" else head
+
+
 def _emit(result: EthosResult, json_output: bool) -> None:
     if json_output:
         print(result.to_json())
@@ -311,10 +316,29 @@ def _campaign_closeout_report(
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
-    parity = parity_gaps_report(adopter=adopter, root=repo)
-    shadow = shadow_parity_report(target=target, root=repo, adopter=adopter)
+    current_target_head = _current_tracked_head(target)
+    parity = parity_gaps_report(
+        adopter=adopter,
+        root=repo,
+        target=target,
+        current_target_head=current_target_head,
+    )
+    shadow = shadow_parity_report(
+        target=target,
+        root=repo,
+        adopter=adopter,
+        current_target_head=current_target_head,
+    )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(branch=branch, local_ok=local_ready)
+    remote_publication = _remote_publication_deferred()
+    provenance = {
+        "shadow_parity": shadow.get("provenance", {}),
+        "closeout": {
+            "mode": "local_only",
+            "remote_state": remote_publication["state"],
+        },
+    }
     local_closeout = dict(status_payload["closeout_support"])
     local_closeout["kind"] = "local_closeout_plan"
     local_closeout["blocking"] = bool(local_closeout["required_gaps"])
@@ -346,7 +370,8 @@ def _campaign_closeout_report(
         "parity": parity,
         "shadow_parity": shadow,
         "publication": publication,
-        "remote_publication": _remote_publication_deferred(),
+        "remote_publication": remote_publication,
+        "provenance": provenance,
         "packages": packages,
     }
 
@@ -1709,7 +1734,10 @@ def parity_shadow(
 
         report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
     else:
-        report = shadow_parity_report(target=target)
+        report = shadow_parity_report(
+            target=target,
+            current_target_head=_current_tracked_head(target),
+        )
     result = EthosResult(
         command="parity shadow",
         ok=bool(report["ok"]),

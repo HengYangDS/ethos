@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -40,12 +41,26 @@ SHADOW_COMMANDS = [
 ]
 
 
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
 def _complete_parity_evidence(adopter: str) -> dict[str, object]:
+    command = (
+        f"uv run --package ethos ethos parity shadow --target /tmp/{adopter} "
+        "--execute --timeout-seconds 30 --json"
+    )
     return {
         "schema_version": 1,
         "adopter": adopter,
         "target": f"/tmp/{adopter}",
         "generated_on": "2026-07-01",
+        "command": command,
+        "freshness": {
+            "product_head": "product-head",
+            "target_head": "target-head",
+            "command_sha256": _sha256_text(command),
+        },
         "shadow": {
             "ok": True,
             "required_gaps": [],
@@ -103,6 +118,7 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     assert payload["data"]["evidence"]["path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
+    assert payload["data"]["evidence"]["freshness"]["command_sha256"]
 
 
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
@@ -166,9 +182,100 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
             "semantic_dimensions": evidence["semantic_dimensions"],
             "blocking": False,
             "required_gaps": [],
+            "provenance": {
+                "mode": "tracked_evidence",
+                "evidence_path": "docs/evidence/parity/sample-adopter-shadow.json",
+                "freshness": {
+                    "ok": True,
+                    "required_gaps": [],
+                    "product_head": "product-head",
+                    "target_head": "target-head",
+                    "current_target_head": "",
+                    "command_sha256": evidence["freshness"]["command_sha256"],
+                },
+            },
             "next_action": "use tracked shadow parity evidence for local closeout",
         }
     ]
+    assert payload["provenance"] == payload["execution_packages"][0]["provenance"]
+
+
+def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    stale = _complete_parity_evidence("sample-adopter")
+    stale.pop("freshness")
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(stale),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter:freshness" in payload["required_gaps"]
+
+
+def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> None:
+    target = tmp_path / "sample-adopter"
+    target.mkdir()
+    subprocess.run(["git", "init", "-b", "dev"], cwd=target, check=True, capture_output=True)
+    (target / "README.md").write_text("# sample\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=target, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "init",
+        ],
+        cwd=target,
+        check=True,
+        capture_output=True,
+    )
+    current_target_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=target,
+        text=True,
+        check=True,
+        capture_output=True,
+    ).stdout.strip()
+    evidence = _complete_parity_evidence("sample-adopter")
+    evidence["target"] = target.resolve().as_posix()
+    evidence["freshness"]["target_head"] = "stale-target-head"
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = shadow_parity_report(
+        target=target,
+        root=tmp_path,
+        adopter="sample-adopter",
+        current_target_head=current_target_head,
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter:target_head" in payload["required_gaps"]
+    assert payload["provenance"]["mode"] == "tracked_evidence"
+    assert payload["provenance"]["freshness"]["ok"] is False
+    assert payload["provenance"]["freshness"]["current_target_head"] == current_target_head
 
 
 def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
@@ -267,6 +374,20 @@ def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
             "commands": payload["data"]["comparisons"],
             "semantic_dimensions": payload["data"]["semantic_dimensions"],
             "blocking": True,
+            "provenance": {
+                "mode": "planned_shadow_run",
+                "evidence_path": "",
+                "freshness": {
+                    "ok": False,
+                    "required_gaps": [
+                        f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}"
+                    ],
+                    "product_head": "",
+                    "target_head": "",
+                    "current_target_head": "",
+                    "command_sha256": "",
+                },
+            },
             "next_action": (
                 f"ethos parity shadow --target {tmp_path.resolve().as_posix()} --execute"
             ),

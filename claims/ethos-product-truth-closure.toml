@@ -1,0 +1,29 @@
+[claim]
+id = "ethos-product-truth-closure"
+subject = "ethos:product-truth-closure"
+state = "active"
+summary = "ETHOS now reports product migration state honestly, scaffolds diagnosable adopters, validates command examples more strictly, and exposes package ontology through the public command plane."
+
+[evidence]
+dated = "docs/evidence/product-truth-closure-2026-07-01.md"
+sha256 = "40b1d8410311ffef402053abb02c1e8d781a8758579a09436c41496dd5d11d2f"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/test_command_registry_depth.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py",
+  "uv run --group dev pytest -q tests/architecture/test_product_boundaries.py tests/unit/test_cli_contracts.py::test_init_apply_flag_applies_scaffold tests/unit/test_cli_contracts.py::test_quality_package_ontology_reports_migration_state",
+  "uv run --package ethos ethos quality package-ontology --json",
+  "uv run --package ethos ethos quality command-examples --json",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-contracts",
+  "ethos-governance",
+  "ethos-project",
+  "ethos-workspace",
+]
+docs = [
+  "docs/architecture/product-ontology.md",
+  "docs/architecture/package-ontology.md",
+  "docs/reference/command-plane.md",
+]

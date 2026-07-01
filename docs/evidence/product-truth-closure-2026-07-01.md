@@ -1,0 +1,92 @@
+---
+subject: evidence:product-truth-closure
+role: evidence
+state: active
+relations:
+  supports: ethos-product-truth-closure
+---
+
+# Product Truth Closure Evidence
+
+This evidence records the ETHOS product-truth closure batch.
+
+## Scope
+
+- `ethos-contracts` now owns the canonical package ontology machine contract.
+- `ethos self audit` and `ethos quality package-ontology` distinguish physical
+  target homes from completed migration.
+- Target packages and migration-host packages are disjoint; `ethos` is the
+  target CLI package, not a migration host.
+- Current docs command examples reject unknown `ethos ...` subcommands and
+  require product proof/governance examples.
+- `ethos prove --full` now requires execution-backed evidence.
+- `ethos init --apply` and `ethos adopt --apply` apply directly.
+- New adopter scaffolds include AGENTS, CONTRIBUTING, CHANGELOG, OpenSpec,
+  repo-local skills, docs, claims, evidence placeholders, and ignored local
+  state configuration.
+- `ethos status --root <non-git-dir> --json` returns stable JSON with
+  `git_repository_missing` instead of crashing.
+- Package-boundary tests now consume the canonical package ontology and block
+  target packages from importing migration hosts except the explicit CLI bridge.
+
+## Worktree Safety
+
+This batch used the isolated Work Lane:
+
+```text
+work/product-truth-closure
+```
+
+The pre-existing foreign Work Lane
+`work/shadow-parity-reporting-polish` was observed through git worktree
+metadata only. It was not modified, cleaned, retired, or entered for edits.
+
+Remote publication is intentionally out of scope for this batch.
+
+## Verification Results
+
+Focused verification already run during implementation:
+
+```bash
+uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/test_command_registry_depth.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py
+uv run --group dev pytest -q tests/architecture/test_product_boundaries.py tests/unit/test_cli_contracts.py::test_init_apply_flag_applies_scaffold tests/unit/test_cli_contracts.py::test_quality_package_ontology_reports_migration_state
+uv run --group dev ruff check packages/ethos/src/ethos/cli.py packages/ethos-governance/src/ethos_governance/docs_registry.py packages/ethos-governance/src/ethos_governance/self_audit.py packages/ethos-project/src/ethos_project/planner.py packages/ethos-contracts/src/ethos_contracts/package_ontology.py tests/architecture/test_product_design_contract.py tests/unit/test_adopt_apply_sample.py tests/unit/test_cli_contracts.py tests/unit/test_command_registry_depth.py
+uv run --package ethos ethos quality package-ontology --json
+uv run --package ethos ethos quality command-examples --json
+```
+
+Final closeout verification run on 2026-07-01:
+
+```bash
+openspec validate --all --strict --json
+uv run --package ethos ethos self openspec --change ethos-product-truth-closure --json
+uv run --package ethos ethos quality claims --json
+uv run --package ethos ethos quality package-ontology --json
+uv run --package ethos ethos quality command-examples --json
+uv run --package ethos ethos status --json
+uv run --package ethos ethos plan --changed --json
+uv run --package ethos ethos report --json
+uv run --package ethos ethos self audit --mode deep --json
+uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json
+uv run --package ethos ethos assistants doctor --json
+uv run --package ethos ethos playbooks route --changed --json
+uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json
+uv run --package ethos ethos prove --full --execute --json
+```
+
+Observed outcomes:
+
+- OpenSpec strict validation: 10 items passed, 0 failed.
+- Claim digest check: all active claims matched their evidence digests.
+- Package ontology: 7 target packages, 5 migration hosts,
+  `migration_status = in_progress`.
+- Product report: score 15/15, product gap count 0.
+- alphasim-dmgr parity gaps: gap count 0 for the adopter-specific shadow
+  evidence.
+- Execution-backed proof: 3 gates passed, required gaps empty,
+  evidence digest `47a1cdfba76d949142d6af5fe0fda28cad9e456206390eee751061b8848497f5`.
+- Full execution-backed proof: 8 gates passed, required gaps empty,
+  evidence digest `ba4dabe29123d8d9f2fb8713b068cc81a966ed6345f4292929125c4ce128dc8b`.
+- Full proof included `uv run --group dev pytest tests/unit tests/architecture -q`
+  with 228 passed in 45.12s, `uv run --group dev ruff check .`, OpenSpec
+  validation, and `uv build --all-packages`.

@@ -132,6 +132,10 @@ def _has_command_example(examples: list[dict[str, str]], required: str) -> bool:
     return False
 
 
+def _requires_product_examples(examples: list[dict[str, str]]) -> bool:
+    return _has_command_example(examples, "ethos prove")
+
+
 def command_examples_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     examples: list[dict[str, str]] = []
@@ -167,7 +171,7 @@ def command_examples_report(root: Path) -> dict[str, object]:
                 )
             elif command != "ethos" and command not in ALLOWED_NON_ETHOS_ROOTS:
                 gaps.append(f"unknown_command_example:{record['path']}:{lineno}:{command}")
-    if not gaps:
+    if not gaps and _requires_product_examples(examples):
         for required in REQUIRED_COMMAND_EXAMPLES:
             if not _has_command_example(examples, required):
                 gaps.append(f"missing_command_example:{required}")

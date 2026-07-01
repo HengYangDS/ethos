@@ -27,7 +27,6 @@ ethos-test
 Migration-host packages are not the final product ontology:
 
 ```text
-ethos
 ethos-kernel
 ethos-project
 ethos-governance
@@ -38,7 +37,6 @@ ethos-node
 
 Current migration-host packages are:
 
-- `ethos`: public command plane and UX composition.
 - `ethos-kernel`: pure models, result envelope, and action graph algebra.
 - `ethos-project`: init, adopt, scaffold, profile, and fleet inspection.
 - `ethos-governance`: commitments, schemas, claims, evidence, standards,
@@ -52,8 +50,13 @@ Current migration-host packages are:
 - `ethos-node`: npm launcher adapter for the public command plane. Its target
   home is `distributions/npm`.
 
-Target packages are the semantic destination for new product work. Migration
-hosts remain available until capability parity, shadow parity, and retirement
+`ethos` is the target public CLI package. During migration it may temporarily
+bridge to migration-host modules, but it is not itself a migration host.
+
+Target packages are the semantic destination for new product work. The current
+state is `in_progress`: physical target homes exist, but migration is not
+complete while migration hosts still carry active behavior. Migration hosts
+remain available until capability parity, shadow parity, and retirement
 decisions prove that their contents can be moved or frozen safely.
 
 Adopter-specific semantics stay in adopter profiles and repositories. Product

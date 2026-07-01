@@ -50,6 +50,39 @@ def test_status_json_contract() -> None:
     assert payload["next_actions"]
 
 
+def test_full_proof_requires_executed_evidence() -> None:
+    payload = run_ethos("prove", "--full", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert "full_proof_requires_execute" in payload["required_gaps"]
+
+
+def test_init_apply_flag_applies_scaffold(tmp_path: Path) -> None:
+    target = tmp_path / "sample"
+    target.mkdir()
+
+    payload = run_ethos("init", "--root", target.as_posix(), "--apply", "--json")
+
+    assert payload["ok"] is True
+    assert payload["state"] == "applied"
+    assert (target / ".ethos" / "project.toml").exists()
+
+
+def test_quality_package_ontology_reports_migration_state() -> None:
+    payload = run_ethos("quality", "package-ontology", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality package-ontology"
+    assert payload["data"]["migration_complete"] is False
+    assert payload["data"]["migration_status"] == "in_progress"
+    assert "ethos" in payload["data"]["target_packages"]
+    assert "ethos" not in payload["data"]["migration_hosts"]
+    assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == (
+        "planned_not_migrated"
+    )
+
+
 def test_status_json_reports_live_workspace_schema_validation() -> None:
     payload = run_ethos("status", "--json")
 

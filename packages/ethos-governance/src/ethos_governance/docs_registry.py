@@ -4,11 +4,15 @@ import re
 import shlex
 from pathlib import Path
 
-from ethos_governance.command_registry import RETIRED_PUBLIC_ROOTS
+from ethos_governance.command_registry import RETIRED_PUBLIC_ROOTS, public_commands
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
 OBSERVATIONAL_DOC_PREFIXES = ("docs/evidence/", "docs/archive/")
+REQUIRED_COMMAND_EXAMPLES = (
+    "ethos quality command-examples",
+    "ethos prove --execute",
+)
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
@@ -97,6 +101,37 @@ def _command_scope(path: str) -> str:
     return "current"
 
 
+def _tokens(command: str) -> list[str]:
+    try:
+        return shlex.split(command, comments=False, posix=True)
+    except ValueError:
+        return command.split()
+
+
+def _ethos_command_key(command: str) -> str:
+    tokens = _tokens(command)
+    if tokens[:1] != ["ethos"]:
+        return ""
+    if len(tokens) == 1:
+        return "ethos"
+    return " ".join(tokens[:2])
+
+
+def _known_ethos_command(command: str) -> bool:
+    key = _ethos_command_key(command)
+    return bool(key) and key in public_commands()
+
+
+def _has_command_example(examples: list[dict[str, str]], required: str) -> bool:
+    required_tokens = _tokens(required)
+    for example in examples:
+        if example["scope"] != "current":
+            continue
+        if _tokens(example["command"])[: len(required_tokens)] == required_tokens:
+            return True
+    return False
+
+
 def command_examples_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     examples: list[dict[str, str]] = []
@@ -125,6 +160,15 @@ def command_examples_report(root: Path) -> dict[str, object]:
                 continue
             if command in RETIRED_PUBLIC_ROOTS:
                 gaps.append(f"retired_command_example:{record['path']}:{lineno}:{command}")
+            elif command == "ethos" and not _known_ethos_command(stripped):
+                gaps.append(
+                    f"unknown_ethos_command_example:{record['path']}:{lineno}:"
+                    f"{_ethos_command_key(stripped) or 'ethos'}"
+                )
             elif command != "ethos" and command not in ALLOWED_NON_ETHOS_ROOTS:
                 gaps.append(f"unknown_command_example:{record['path']}:{lineno}:{command}")
+    if not gaps:
+        for required in REQUIRED_COMMAND_EXAMPLES:
+            if not _has_command_example(examples, required):
+                gaps.append(f"missing_command_example:{required}")
     return {"ok": not gaps, "required_gaps": gaps, "examples": examples}

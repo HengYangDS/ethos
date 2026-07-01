@@ -35,6 +35,9 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
         "openspec/config.yaml",
         "openspec/specs/ethos-kernel/spec.md",
         "openspec/specs/ethos-project/spec.md",
@@ -57,6 +60,9 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "sourceOfTruth" not in (tmp_path / ".agents/skills/activation.toml").read_text(
         encoding="utf-8"
     )
+    assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(
         encoding="utf-8"
     )

@@ -33,6 +33,7 @@ Quality and governance:
 ethos quality command-registry
 ethos quality command-surface
 ethos quality command-examples
+ethos quality package-ontology
 ethos quality claims
 ethos quality docs-registry
 ethos quality gates
@@ -44,6 +45,7 @@ ethos quality standards
 ethos self audit
 ethos self audit --mode shape
 ethos self audit --mode deep
+ethos prove --execute
 ethos self hypothesize
 ethos self prove --mode shape
 ethos self prove --mode deep

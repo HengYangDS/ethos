@@ -13,6 +13,7 @@ from ethos_agent.mcp import mcp_manifest
 from ethos_agent.playbooks import playbooks_report, route_playbook
 from ethos_agent.projections import projection_contract
 from ethos_agent.server import mcp_server_descriptor
+from ethos_contracts.package_ontology import package_ontology_report
 from ethos_governance.attestation import release_attestation, sbom_projection
 from ethos_governance.claims import claims_report
 from ethos_governance.command_registry import command_registry_report
@@ -591,7 +592,8 @@ def prove(
         durability="local",
     )
     runs_ok = all(run.state in {"passed", "planned"} for run in proof_runs)
-    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok
+    proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
+    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok and not proof_gaps
     result = EthosResult(
         command="prove",
         ok=ok,
@@ -601,7 +603,9 @@ def prove(
             "evidence_digest": evidence.digest,
             "gate_count": len(proof_runs),
         },
-        required_gaps=tuple(audit["required_gaps"]) + tuple(graph.validate().gaps),
+        required_gaps=(
+            tuple(audit["required_gaps"]) + tuple(graph.validate().gaps) + proof_gaps
+        ),
         next_actions=("ethos land",) if ok else ("ethos self audit",),
         data={
             "self_audit": audit,
@@ -753,7 +757,7 @@ def init(
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
     target = _root(root)
-    do_apply = apply and not dry_run
+    do_apply = apply
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     result = EthosResult(
         command="init",
@@ -777,7 +781,7 @@ def adopt(
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
     target = _root(root)
-    do_apply = apply and not dry_run
+    do_apply = apply
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     result = EthosResult(
         command="adopt",
@@ -870,6 +874,54 @@ def standards(
         ok=True,
         state="clean",
         data={"adapters": registry},
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="package-ontology")
+def package_ontology(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report target package ontology and migration-host state."""
+    repo = _root(root)
+    contract = package_ontology_report()
+    target_missing = [
+        f"packages/{package}"
+        for package in contract["target_packages"]
+        if not (repo / "packages" / str(package)).exists()
+    ]
+    host_missing = [
+        f"packages/{package}"
+        for package in contract["migration_hosts"]
+        if not (repo / "packages" / str(package)).exists()
+    ]
+    distribution_missing = [
+        distribution
+        for distribution in contract["target_distributions"]
+        if not (repo / str(distribution)).exists()
+    ]
+    data = {
+        **contract,
+        "physical_target_homes_present": not target_missing and not distribution_missing,
+        "migration_complete": False,
+        "migration_status": "in_progress",
+        "missing": target_missing + host_missing + distribution_missing,
+        "distribution_status": contract["migration_distributions"],
+    }
+    result = EthosResult(
+        command="quality package-ontology",
+        ok=not data["missing"],
+        state="tracked" if not data["missing"] else "gapped",
+        summary={
+            "target_package_count": len(contract["target_packages"]),
+            "migration_host_count": len(contract["migration_hosts"]),
+            "migration_status": data["migration_status"],
+        },
+        required_gaps=tuple(f"package_ontology_missing:{item}" for item in data["missing"]),
+        next_actions=("ethos self audit",),
+        data=data,
     )
     _emit(result, json_output)
 

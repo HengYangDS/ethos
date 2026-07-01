@@ -91,6 +91,8 @@ Public CLI surface. Owns cyclopts command tree, UX composition, human-readable
 rendering, and JSON output routing.
 
 The CLI must remain a thin shell and must not become the semantic center.
+Temporary imports from migration hosts are bridge debt and must be visible in
+the parity ledger before they are removed or frozen.
 
 ### `ethos-test`
 
@@ -100,9 +102,9 @@ tests, migration replay fixtures, and shadow parity harnesses.
 
 ## Migration Hosts
 
-Current packages such as `ethos-governance`, `ethos-workspace`, `ethos-agent`,
-and `ethos-project` are migration host packages. They are not the final package
-ontology.
+Current packages such as `ethos-kernel`, `ethos-governance`,
+`ethos-workspace`, `ethos-agent`, and `ethos-project` are migration host
+packages. They are not the final package ontology.
 
 Their contents migrate as follows:
 
@@ -118,3 +120,7 @@ Their contents migrate as follows:
 
 The npm launcher currently represented by `ethos-node` migrates to
 `distributions/npm` and remains launcher-only.
+
+The distribution adapter state is `planned_not_migrated` until
+`distributions/npm` owns its launcher manifest and smoke tests. Until then,
+`packages/ethos-node` remains the distribution migration host.

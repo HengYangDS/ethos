@@ -13,6 +13,9 @@ OPENSPEC_FAMILIES = (
     "ethos-distribution",
 )
 BASE_ADOPTION_FILES = (
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
     ".ethos/project.toml",
     ".ethos/workspace.toml",
     ".ethos/rules.toml",
@@ -229,6 +232,54 @@ credentials, and runtime state are not repository truth.
 """
 
 
+def _agents_doc() -> str:
+    return """# Agent Entry Point
+
+ETHOS governs this repository through source, tests, schemas, docs, evidence,
+OpenSpec records, and the `ethos ...` command plane.
+
+## Authority
+
+1. User instruction.
+1. Repository source code, tests, schemas, and package metadata.
+1. Canonical docs under `docs/`.
+1. Evidence under `docs/evidence/`.
+1. Repo-local skills under `.agents/skills/`.
+
+## Operating Rules
+
+- Use `ethos ...` as the public command vocabulary.
+- Treat assistant, MCP, ACP, and hosted CI files as projections or adapters.
+- Do not treat `.ethos/state/` as tracked truth.
+- Write tests for behavior changes.
+"""
+
+
+def _contributing_doc() -> str:
+    return """# Contributing
+
+Use the ETHOS command plane for local repository changes:
+
+```bash
+ethos status
+ethos plan --changed
+ethos prove
+```
+
+Mutating operations such as `ethos land` and `ethos publish` require explicit
+authorization and expected HEAD binding.
+"""
+
+
+def _changelog_doc() -> str:
+    return """# Changelog
+
+## Unreleased
+
+- Adopted ETHOS governance scaffold.
+"""
+
+
 def _gitlab_ci() -> str:
     return (
         "stages:\n"
@@ -251,6 +302,9 @@ def _gitlab_ci() -> str:
 def _default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
     files = {
+        "AGENTS.md": _agents_doc(),
+        "CONTRIBUTING.md": _contributing_doc(),
+        "CHANGELOG.md": _changelog_doc(),
         ".ethos/project.toml": (
             f"[meta]\nname = {project_name}\nproduct = \"ETHOS\"\nversion = 1\n"
         ),

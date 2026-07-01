@@ -127,7 +127,9 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
 
     assert target["ok"] is True
     assert target["contract_ok"] is True
-    assert target["migration_complete"] is True
+    assert target["physical_target_homes_present"] is True
+    assert target["migration_complete"] is False
+    assert target["migration_status"] == "in_progress"
     assert target["target_packages"] == [
         "ethos-core",
         "ethos-contracts",
@@ -146,3 +148,40 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     ]
     assert target["target_distribution_adapters"] == ["distributions/npm"]
     assert target["distribution_migration_hosts"] == ["packages/ethos-node"]
+
+
+def test_self_audit_uses_canonical_package_ontology_contract() -> None:
+    from ethos_contracts.package_ontology import package_ontology_report
+
+    contract = package_ontology_report()
+    audit = self_audit(ROOT, openspec_mode="shape")
+
+    assert audit["package_ontology"]["target_package_contract"] == contract["target_packages"]
+    assert audit["package_ontology"]["migration_host_packages"] == contract["migration_hosts"]
+    assert audit["target_package_ontology"]["target_packages"] == contract["target_packages"]
+    assert audit["target_package_ontology"]["migration_hosts"] == contract["migration_hosts"]
+    assert audit["target_package_ontology"]["distribution_status"] == {
+        "distributions/npm": {
+            "state": "planned_not_migrated",
+            "migration_host": "packages/ethos-node",
+        }
+    }
+
+
+def test_product_package_and_migration_host_sets_are_disjoint() -> None:
+    report = self_audit(ROOT, openspec_mode="shape")
+    ontology = report["package_ontology"]
+
+    target_packages = set(ontology["target_package_contract"])
+    migration_hosts = set(ontology["migration_host_packages"])
+
+    assert target_packages.isdisjoint(migration_hosts)
+    assert "ethos" in target_packages
+    assert "ethos" not in migration_hosts
+    assert ontology["migration_host_lifecycle"] == {
+        "ethos-kernel": "migration-host",
+        "ethos-governance": "migration-host",
+        "ethos-workspace": "migration-host",
+        "ethos-agent": "migration-host",
+        "ethos-project": "migration-host",
+    }

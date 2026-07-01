@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos_governance.command_registry import command_registry_report
+from ethos_governance.docs_registry import command_examples_report
 
 
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
@@ -50,3 +51,32 @@ historical_exempt_roots = ["docs/evidence"]
     assert report["retired_public_root_mentions"] == [
         "docs/current/bad.md:1:proof",
     ]
+
+
+def test_command_examples_reject_unknown_ethos_subcommands(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        "```bash\nethos frobnicate --json\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        "unknown_ethos_command_example:README.md:2:ethos frobnicate"
+    ]
+
+
+def test_command_examples_require_key_product_examples(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        "```bash\nethos status\nethos plan\nethos prove\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is False
+    assert "missing_command_example:ethos quality command-examples" in report["required_gaps"]
+    assert "missing_command_example:ethos prove --execute" in report["required_gaps"]

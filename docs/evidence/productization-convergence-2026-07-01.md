@@ -303,3 +303,65 @@ The boundary condition remains unchanged: this addendum fixes local product
 contract semantics and candidate landing readiness. It does not claim hosted CI,
 remote publication, alphasim-dmgr raw/cache or domain backend retirement parity,
 or di-effect publish readiness.
+
+## Committee Follow-Up Addendum: Adopter Schema Parity
+
+The subsequent committee check found that external ETHOS applied the product
+`capability-profile.schema.json` as a blocking live-instance contract to legacy
+adopter `openspec/specs/*/capability.toml` files. That was too broad: product
+capability profiles remain strict product contracts, but adopter-owned
+capability profile metadata is advisory unless promoted into an ETHOS product
+contract.
+
+The fix records adopter live capability profile schema failures under
+`advisory_gaps` instead of `required_gaps` while keeping product mode strict.
+The same pass also normalized shadow parity projection for successful dry-run
+`ethos prove --json`: external `state=ready` and legacy embedded proof-ready
+state now compare as the same no-gap proof-readiness condition without changing
+the public CLI payload.
+
+Commands rerun from `/Users/yheng/projects/ethos-work-productization-convergence`
+after the schema/parity fix at code HEAD
+`5c8fed87ed47e311691752998f4aaec10246e514`:
+
+```bash
+uv run --group dev pytest -q tests/unit/test_schema_validation_and_gates.py::test_schema_validation_keeps_adopter_capability_profiles_advisory
+uv run --group dev pytest -q tests/unit/test_parity_command.py::test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload
+uv run --group dev pytest -q tests/unit/test_schema_validation_and_gates.py tests/unit/test_parity_command.py::test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload tests/unit/test_parity_command.py::test_shadow_semantic_diff_derives_state_for_legacy_status_payload tests/unit/test_parity_command.py::test_shadow_semantic_diff_derives_state_for_legacy_plan_payload tests/unit/test_parity_command.py::test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload tests/unit/test_parity_command.py::test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_payload tests/unit/test_parity_command.py::test_shadow_semantic_diff_preserves_external_non_self_audit_gaps tests/unit/test_cli_contracts.py::test_default_proof_reports_readiness_not_proven tests/unit/test_cli_contracts.py::test_prove_uses_adopter_audit_for_non_product_repo tests/unit/test_cli_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo
+uv run --group dev ruff check packages/ethos-repository/src/ethos_repository/schema_validation.py packages/ethos-adapters/src/ethos_adapters/shadow.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_parity_command.py
+uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json
+uv run --package ethos ethos parity gaps --json
+uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json
+uv run --group dev pytest -q tests/unit/test_parity_command.py
+uv run --package ethos ethos quality claims --json
+uv run --package ethos ethos quality schemas --json
+uv run --package ethos ethos quality docs --json
+```
+
+Observed results:
+
+- The adopter capability profile test failed before the implementation and
+  passed after the mode-aware advisory split.
+- The shadow prove-state normalization test failed before the adapter change
+  and passed after projection normalization.
+- Focused schema, parity projection, and adopter CLI regression set returned
+  `35 passed`.
+- Ruff on the changed implementation and test files returned
+  `All checks passed!`.
+- Fresh alphasim-dmgr shadow parity returned `ok=true`, `state=matched`, and no
+  required gaps.
+- Generic parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- alphasim-dmgr parity gaps returned `ok=true`, `state=clean`, `gap_count=0`.
+- Full parity command tests returned `43 passed`.
+- Claim, schema, and docs quality gates all returned `ok=true` with no required
+  gaps.
+
+Tracked parity freshness now binds both parity records to product code HEAD
+`5c8fed87ed47e311691752998f4aaec10246e514`. The alphasim-dmgr record is backed
+by the fresh matched shadow run above. The generic record remains the product
+parity-gaps freshness record used by product report and closeout; it is not a
+new embedded-shadow execution claim.
+
+The boundary condition remains unchanged: this addendum does not claim hosted
+CI, remote publication, alphasim-dmgr raw/cache parity, alphasim-dmgr domain
+backend retirement parity, or di-effect publish readiness.

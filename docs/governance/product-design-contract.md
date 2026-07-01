@@ -145,6 +145,27 @@ editor host surfaces, and assistant context bundles are context providers or
 runtime projections. Agent output is never repository truth until promoted into
 tracked artifacts and evidence.
 
+## Trust Lifecycle
+
+The trust-bearing repository lifecycle is:
+
+```text
+Claim -> Boundary -> Carrier -> Evidence -> Decision -> Promotion
+```
+
+An active claim needs an owner and scope boundary, an OpenSpec carrier, dated
+evidence with a matching digest, fallback and kill-signal text, and promotion
+targets. OpenSpec remains the official specification carrier, but a valid
+OpenSpec change is not trusted without a bound claim and promotion evidence.
+Work Lanes prove local ownership and write admission. Intake providers report
+projection evidence. Neither Work Lane presence nor intake completion promotes
+truth by itself.
+
+Promotion targets are provider-neutral repository paths: source, tests, docs,
+schemas, canonical OpenSpec specs, or dated evidence. Dry-run proof is readiness
+only. Executed proof can support promotion when selected gates record passing
+exit codes and the evidence is bound to a claim.
+
 ## Build And Release Contract
 
 The current build contract is:

@@ -26,7 +26,105 @@
       },
       "additionalProperties": false
     },
-    "scope": {"type": "object"}
+    "scope": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string"}
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "required": ["owner", "scope"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "scope": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "carriers": {
+      "type": "object",
+      "properties": {
+        "openspec": {"type": "string", "minLength": 1},
+        "fallback": {"type": "string", "minLength": 1},
+        "kill_signal": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "fallback": {"type": "string", "minLength": 1},
+    "kill_signal": {"type": "string", "minLength": 1},
+    "promotion": {
+      "type": "object",
+      "required": ["targets"],
+      "properties": {
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+              },
+              {
+                "type": "object",
+                "required": ["kind", "path"],
+                "properties": {
+                  "kind": {
+                    "enum": ["source", "tests", "docs", "schema", "openspec", "evidence"]
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "claim": {
+            "properties": {"state": {"const": "active"}},
+            "required": ["state"]
+          }
+        },
+        "required": ["claim"]
+      },
+      "then": {
+        "required": ["boundary", "carriers", "promotion"],
+        "properties": {
+          "carriers": {"required": ["openspec"]}
+        },
+        "anyOf": [
+          {"required": ["fallback"]},
+          {
+            "properties": {
+              "carriers": {"required": ["fallback"]}
+            },
+            "required": ["carriers"]
+          }
+        ],
+        "oneOf": [
+          {"required": ["kill_signal"]},
+          {
+            "properties": {
+              "carriers": {"required": ["kill_signal"]}
+            },
+            "required": ["carriers"]
+          }
+        ]
+      }
+    }
+  ]
 }

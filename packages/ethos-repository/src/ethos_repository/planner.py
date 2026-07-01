@@ -36,6 +36,7 @@ BASE_ADOPTION_FILES = (
     "docs/governance/ethos.md",
     "docs/evidence/.gitkeep",
     "claims/.gitkeep",
+    "schemas/ethos/.gitkeep",
 )
 
 STATIC_DEFAULT_FILES = {
@@ -73,6 +74,7 @@ acp = "protocol-projection"
     "openspec/changes/archive/.gitkeep": "",
     "docs/evidence/.gitkeep": "",
     "claims/.gitkeep": "",
+    "schemas/ethos/.gitkeep": "",
 }
 
 
@@ -127,6 +129,37 @@ The {family} family SHALL describe one bounded product concern.
 - **THEN** {family} requirements are checked without introducing private
   adopter semantics into the product core
 """
+
+
+def _capability_profile(family: str) -> str:
+    scopes = {
+        "ethos-core": "pure kernel result and action graph semantics",
+        "ethos-contracts": "provider-neutral repository contracts",
+        "ethos-repository": "repository lifecycle governance",
+        "ethos-adapters": "provider and projection adapters",
+        "ethos-assistants": "assistant and context projection boundaries",
+        "ethos-cli": "public ETHOS command plane",
+        "ethos-distribution": "distribution and host package surfaces",
+        "ethos-test": "conformance, fixture, and parity proof hosts",
+    }
+    scope = scopes[family]
+    return f'''family = "{family}"
+primary_invariant = "The {family} family keeps {scope} cohesive and provider-neutral."
+routing_question = "Does this change alter {scope}?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "{family}"
+scope = "{scope}"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]
+'''
 
 
 def _skills_readme() -> str:
@@ -350,6 +383,7 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
     }
     for family in OPENSPEC_FAMILIES:
         files[f"openspec/specs/{family}/spec.md"] = _openspec_spec(family)
+        files[f"openspec/specs/{family}/capability.toml"] = _capability_profile(family)
     if profile == "gitlab":
         files[".gitlab-ci.yml"] = _gitlab_ci()
     if profile == "github":
@@ -408,6 +442,7 @@ def adoption_plan(
 def adoption_scaffold_report() -> dict[str, object]:
     required = set(BASE_ADOPTION_FILES)
     required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_FAMILIES)
+    required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_FAMILIES)
     planned = set(_default_files(Path("sample"), "gitlab"))
     missing = sorted(required - planned)
     return {

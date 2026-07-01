@@ -96,12 +96,22 @@ def test_full_proof_requires_executed_evidence() -> None:
     assert "full_proof_requires_execute" in payload["required_gaps"]
 
 
+def test_default_proof_reports_readiness_not_proven() -> None:
+    payload = run_ethos("prove", "--json")
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready"
+    assert payload["data"]["executed"] is False
+    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"planned"}
+
+
 def test_prove_accepts_matching_expected_head() -> None:
     head = git(Path.cwd(), "rev-parse", "HEAD")
 
     payload = run_ethos("prove", "--expect-head", head, "--json")
 
     assert payload["ok"] is True
+    assert payload["state"] == "ready"
     assert payload["required_gaps"] == []
     assert payload["data"]["expected_head"] == {
         "expected": head,
@@ -308,6 +318,93 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     assert git(worktree, "branch", "--show-current") == "work/feature"
 
 
+def test_lane_start_accepts_claim_binding(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-feature"
+
+    payload = run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--claim-id",
+        "sample-trust",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    status = run_ethos("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is True
+    assert payload["data"]["claim_id"] == "sample-trust"
+    assert status["data"]["closeout_support"]["claim_id"] == "sample-trust"
+    assert status["data"]["closeout_support"]["claim_binding"] == "bound"
+
+
+def test_lane_bind_claim_applies_to_existing_work_lane(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    payload = run_ethos(
+        "lane",
+        "bind-claim",
+        "--claim-id",
+        "sample-trust",
+        "--apply",
+        "--root",
+        worktree.as_posix(),
+        "--json",
+        cwd=worktree,
+    )
+    status = run_ethos("lane", "status", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is True
+    assert payload["command"] == "lane bind-claim"
+    assert payload["state"] == "bound"
+    assert payload["data"]["branch"] == "work/feature"
+    assert payload["data"]["claim_id"] == "sample-trust"
+    assert status["data"]["closeout_support"]["claim_id"] == "sample-trust"
+    assert status["data"]["closeout_support"]["claim_binding"] == "bound"
+
+
 def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
@@ -349,6 +446,8 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
             "worktree_binding": "linked",
             "lease_owner": "agent:test",
             "lease_state": "leased",
+            "claim_id": "",
+            "claim_binding": "missing",
         }
     ]
 
@@ -728,6 +827,39 @@ def test_self_openspec_uses_official_native_cli(monkeypatch) -> None:
     assert payload["data"]["commands"]["validate"]["json"]["summary"]["totals"]["failed"] == 0
 
 
+def test_self_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
+    def fake_report(root: Path, *, change: str | None = None, lifecycle: bool = False):
+        return {
+            "ok": True,
+            "official_cli": {
+                "package": "@fission-ai/openspec",
+                "available": True,
+                "base_command": ["openspec"],
+            },
+            "change": change,
+            "schema_name": "spec-driven",
+            "summary": {"change_count": 1, "validation": {}},
+            "required_gaps": [],
+            "commands": {},
+            "lifecycle": {"enabled": lifecycle, "changes": []},
+        }
+
+    monkeypatch.setattr("ethos.cli.openspec_self_governance_report", fake_report)
+
+    payload = run_ethos(
+        "self",
+        "openspec",
+        "--change",
+        "ethos-release-hardening",
+        "--lifecycle",
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["summary"]["lifecycle"] is True
+    assert payload["data"]["lifecycle"] == {"enabled": True, "changes": []}
+
+
 def test_full_gate_registry_includes_official_openspec_validation() -> None:
     payload = run_ethos("quality", "gates", "--json")
 
@@ -762,6 +894,8 @@ def test_prove_execute_can_select_real_gates() -> None:
     )
 
     assert payload["ok"] is True
+    assert payload["state"] == "proven"
+    assert payload["data"]["executed"] is True
     assert payload["summary"]["gate_count"] == 2
     assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
 
@@ -1206,6 +1340,8 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     packages = payload["data"]["packages"]
     assert set(packages) == {
         "local_closeout",
+        "trust_closeout",
+        "intake_projection",
         "publication",
         "release",
         "parity",
@@ -1226,6 +1362,12 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
     assert packages["shadow_parity"]["blocking"] is False
+    assert packages["intake_projection"]["kind"] == "intake_projection"
+    assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
+    assert packages["trust_closeout"]["kind"] == "trust_closeout"
+    assert packages["trust_closeout"]["claim_report_ok"] is True
+    assert packages["trust_closeout"]["promotion_ready"] is True
+    assert packages["trust_closeout"]["executed_proof_evidence"] is True
     assert packages["shadow_parity"]["provenance"]["mode"] == "tracked_evidence"
     assert payload["data"]["provenance"]["shadow_parity"] == (
         packages["shadow_parity"]["provenance"]
@@ -1244,6 +1386,8 @@ def test_intake_status_is_public_read_only_surface() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "intake status"
     assert payload["data"]["truth_boundary"] == "adopter-ledger"
+    assert payload["data"]["projection"]["truth_boundary"] == "projection-evidence"
+    assert payload["data"]["projection"]["repository_truth"] is False
     assert payload["data"]["provider"] == "unconfigured"
 
 

@@ -164,6 +164,22 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         _workspace_status_contract_sample(),
         root=root,
     )
+    instances["trust-envelope-contract"] = validate_schema_instance(
+        "trust-envelope.schema.json",
+        _trust_envelope_contract_sample(),
+        root=root,
+    )
+    instances["promotion-target-contract"] = validate_schema_instance(
+        "promotion-target.schema.json",
+        _promotion_target_contract_sample(),
+        root=root,
+    )
+    instances["capability-profile-contract"] = validate_schema_instance(
+        "capability-profile.schema.json",
+        _capability_profile_contract_sample(),
+        root=root,
+    )
+    instances["capability-profiles"] = _capability_profiles_report(root)
     return instances
 
 
@@ -222,6 +238,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "release": {},
         "parity": {},
         "shadow_parity": {},
+        "claims": {},
+        "intake_projection": _intake_projection_contract_sample(),
         "publication": publication,
         "remote_publication": {
             "remote_push": "not_performed",
@@ -237,6 +255,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         },
         "packages": {
             "local_closeout": {},
+            "trust_closeout": _trust_closeout_contract_sample(),
+            "intake_projection": _intake_projection_contract_sample(),
             "publication": publication,
             "release": {},
             "parity": {},
@@ -372,6 +392,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "",
                 "worktree_binding": "unbound",
+                "claim_id": "",
+                "claim_binding": "unbound",
             },
             {
                 "branch": "dev",
@@ -379,6 +401,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "/repo",
                 "worktree_binding": "current",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
             {
                 "branch": "stage/dev",
@@ -386,6 +410,8 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
                 "head": "abc123",
                 "worktree_path": "/repo-stage-dev",
                 "worktree_binding": "linked",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
         ],
         "foreign_work_lanes": [],
@@ -397,9 +423,134 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "target_path": "/repo-stage-dev",
             "operation": "",
             "owner": "",
+            "claim_id": "",
+            "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
         "required_gaps": [],
+    }
+
+
+def _intake_projection_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "intake_projection",
+        "state": "unconfigured",
+        "truth_boundary": "projection-evidence",
+        "legacy_truth_boundary": "adopter-ledger",
+        "repository_truth": False,
+        "provider": "unconfigured",
+        "configured": False,
+        "expected_config": ".ethos/intake.toml",
+        "adapters": ["backlog", "github", "gitlab"],
+        "blocking": False,
+        "required_gaps": [],
+    }
+
+
+def _trust_closeout_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "trust_closeout",
+        "claim_report_ok": True,
+        "trust_claim_count": 1,
+        "promotion_ready": True,
+        "executed_proof_evidence": True,
+        "work_lane": {
+            "branch": "work/example",
+            "claim_id": "sample-trust",
+            "claim_binding": "bound",
+        },
+        "blocking": False,
+        "required_gaps": [],
+    }
+
+
+def _promotion_target_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "evidence",
+        "path": "docs/evidence/sample.md",
+        "description": "dated evidence promoted into repository truth",
+    }
+
+
+def _trust_envelope_contract_sample() -> dict[str, Any]:
+    return {
+        "claim_id": "sample-trust",
+        "state": "active",
+        "boundary": {
+            "owner": "ethos-repository",
+            "scope": "repository lifecycle governance",
+        },
+        "evidence": {
+            "dated": "docs/evidence/sample.md",
+            "digest_trusted": True,
+            "commands": ["ethos prove --execute --json"],
+        },
+        "carriers": {
+            "openspec": "openspec/changes/sample-change",
+        },
+        "fallback": "stop promotion and keep the previous repository contract",
+        "kill_signal": "required lifecycle carrier missing",
+        "promotion": {
+            "targets": [
+                {
+                    "kind": "source",
+                    "path": "packages/ethos-repository/src/ethos_repository/claims.py",
+                },
+                {
+                    "kind": "openspec",
+                    "path": "openspec/specs/ethos-repository/spec.md",
+                },
+            ],
+            "ready": True,
+        },
+        "required_gaps": [],
+    }
+
+
+def _capability_profile_contract_sample() -> dict[str, Any]:
+    return {
+        "family": "ethos-repository",
+        "owner": {
+            "package": "ethos-repository",
+            "scope": "repository lifecycle governance",
+        },
+        "primary_invariant": "repository truth is promoted through claims and evidence",
+        "routing_question": "Does this change alter repository trust admission?",
+        "boundary_rules": [
+            "OpenSpec records are specification carriers, not truth owners",
+            "adopter-specific terms stay in profiles or evidence",
+        ],
+        "proof_profile": {
+            "default_command": "ethos prove --json",
+            "executed_command": "ethos prove --execute --json",
+            "required_gates": ["claims", "schemas"],
+        },
+    }
+
+
+def _capability_profiles_report(root: Path) -> dict[str, object]:
+    profile_paths = sorted((root / "openspec" / "specs").glob("*/capability.toml"))
+    gaps: list[str] = []
+    for path in profile_paths:
+        try:
+            payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            gaps.append(f"{path.relative_to(root).as_posix()}:{exc}")
+            continue
+        validation = validate_schema_instance(
+            "capability-profile.schema.json",
+            payload,
+            root=root,
+        )
+        if not validation["ok"]:
+            gaps.extend(
+                f"{path.relative_to(root).as_posix()}:{gap}"
+                for gap in validation["required_gaps"]
+            )
+    return {
+        "ok": not gaps,
+        "profile_count": len(profile_paths),
+        "required_gaps": gaps,
     }
 
 

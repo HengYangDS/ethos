@@ -56,10 +56,17 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
 
     assert report["ok"] is True
     assert report["mode"] == "product"
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 24
     assert report["required_gaps"] == []
     assert report["schemas"]["campaign-closeout.schema.json"]["ok"] is True
+    assert report["schemas"]["trust-envelope.schema.json"]["ok"] is True
+    assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
+    assert report["schemas"]["capability-profile.schema.json"]["ok"] is True
     assert report["instances"]["campaign-closeout-contract"]["ok"] is True
+    assert report["instances"]["trust-envelope-contract"]["ok"] is True
+    assert report["instances"]["promotion-target-contract"]["ok"] is True
+    assert report["instances"]["capability-profile-contract"]["ok"] is True
+    assert report["instances"]["capability-profiles"]["ok"] is True
     assert report["instances"]["evolution-ledger"]["ok"] is True
     assert report["instances"]["docs-registry"]["ok"] is True
     assert report["instances"]["gate-registry"]["ok"] is True
@@ -74,7 +81,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path
 
     assert report["mode"] == "adopter"
     assert report["ok"] is True
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 24
     assert report["required_gaps"] == []
     assert report["instances"]["docs-registry"]["ok"] is True
 
@@ -94,7 +101,7 @@ def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contra
 
     assert report["mode"] == "adopter"
     assert report["ok"] is True
-    assert report["schema_count"] >= 21
+    assert report["schema_count"] >= 24
     assert report["instances"]["docs-registry"]["ok"] is True
 
 
@@ -146,6 +153,8 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
                 "head": "abc123",
                 "worktree_path": "",
                 "worktree_binding": "unbound",
+                "claim_id": "",
+                "claim_binding": "unbound",
             },
             {
                 "branch": "dev",
@@ -153,6 +162,8 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
                 "head": "abc123",
                 "worktree_path": "/repo",
                 "worktree_binding": "current",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
             {
                 "branch": "candidate/dev",
@@ -160,6 +171,8 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
                 "head": "abc123",
                 "worktree_path": "/repo-candidate-dev",
                 "worktree_binding": "linked",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
         ],
         "foreign_work_lanes": [],
@@ -171,6 +184,8 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
             "target_path": "/repo-candidate-dev",
             "operation": "",
             "owner": "",
+            "claim_id": "",
+            "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
         "required_gaps": [],
@@ -207,6 +222,8 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
                 "head": "abc123",
                 "worktree_path": "",
                 "worktree_binding": "unbound",
+                "claim_id": "",
+                "claim_binding": "unbound",
             },
             {
                 "branch": "dev",
@@ -214,6 +231,8 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
                 "head": "abc123",
                 "worktree_path": "/repo",
                 "worktree_binding": "current",
+                "claim_id": "",
+                "claim_binding": "missing",
             },
             {
                 "branch": "candidate/dev",
@@ -221,6 +240,8 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
                 "head": "abc123",
                 "worktree_path": "/repo-candidate-dev",
                 "worktree_binding": "linked",
+                "claim_id": "",
+                "claim_binding": "missing",
             }
         ],
         "foreign_work_lanes": [],
@@ -232,12 +253,115 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
             "target_path": "/repo-candidate-dev",
             "operation": "",
             "owner": "",
+            "claim_id": "",
+            "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
         "required_gaps": [],
     }
 
     validation = validate_schema_instance("workspace-status.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_trust_envelope_contract_requires_complete_carriers() -> None:
+    valid = {
+        "claim_id": "sample-trust",
+        "state": "active",
+        "boundary": {"owner": "repository", "scope": "governance"},
+        "evidence": {
+            "dated": "docs/evidence/sample.md",
+            "digest_trusted": True,
+        },
+        "carriers": {
+            "openspec": "openspec/changes/sample-change",
+        },
+        "fallback": "stop promotion and keep prior contract",
+        "kill_signal": "required lifecycle carrier missing",
+        "promotion": {
+            "targets": [
+                {
+                    "kind": "source",
+                    "path": "packages/ethos-repository/src/ethos_repository/claims.py",
+                },
+                {
+                    "kind": "openspec",
+                    "path": "openspec/specs/ethos-repository/spec.md",
+                },
+            ],
+            "ready": True,
+        },
+        "required_gaps": [],
+    }
+
+    assert validate_schema_instance("trust-envelope.schema.json", valid)["ok"] is True
+
+    malformed = {
+        "claim_id": "sample-trust",
+        "state": "active",
+        "boundary": {"owner": "repository"},
+        "evidence": {"dated": "docs/evidence/sample.md"},
+        "carriers": {},
+        "promotion": {"targets": []},
+        "required_gaps": ["sample-trust:carriers.openspec_missing"],
+    }
+
+    validation = validate_schema_instance("trust-envelope.schema.json", malformed)
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_promotion_target_contract_rejects_provider_paths() -> None:
+    valid = {
+        "kind": "evidence",
+        "path": "docs/evidence/sample.md",
+        "description": "dated evidence promoted into repository truth",
+    }
+
+    assert validate_schema_instance("promotion-target.schema.json", valid)["ok"] is True
+
+    validation = validate_schema_instance(
+        "promotion-target.schema.json",
+        {"kind": "gitlab", "path": "https://example.invalid/merge_requests/1"},
+    )
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_capability_profile_contract_validates_boundary_and_proof_metadata() -> None:
+    valid = {
+        "family": "ethos-repository",
+        "owner": {
+            "package": "ethos-repository",
+            "scope": "repository lifecycle governance",
+        },
+        "primary_invariant": "repository truth is promoted through claims and evidence",
+        "routing_question": "Does this change alter repository trust admission?",
+        "boundary_rules": [
+            "OpenSpec records are specification carriers, not truth owners",
+            "adopter-specific terms stay in profiles or evidence",
+        ],
+        "proof_profile": {
+            "default_command": "ethos prove --json",
+            "executed_command": "ethos prove --execute --json",
+            "required_gates": ["claims", "schemas"],
+        },
+    }
+
+    assert validate_schema_instance("capability-profile.schema.json", valid)["ok"] is True
+
+    validation = validate_schema_instance(
+        "capability-profile.schema.json",
+        {
+            "family": "ethos-repository",
+            "owner": {"package": "ethos-repository"},
+            "proof_profile": {"default_command": "ethos prove --json"},
+        },
+    )
 
     assert validation["ok"] is False
     assert validation["required_gaps"]

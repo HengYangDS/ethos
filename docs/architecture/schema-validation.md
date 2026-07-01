@@ -21,7 +21,8 @@ and role-policy `branch_bindings`. Release root and accepted root are separate
 semantic roles. The role order is
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane. Bindings
 are ordered by that semantic order, then by branch name for additional bound
-branches.
+branches. Work Lane bindings include `claim_id` and `claim_binding` so closeout
+can distinguish local write ownership from trust-bearing claim evidence.
 
 `ethos status --json` and `ethos lane status --json` validate the live
 workspace-status payload before emitting it. The validation verdict is reported
@@ -37,8 +38,23 @@ self-hosting tools, adapters, legacy evidence, and fixtures.
 `data.closeout_support` is part of the workspace-status schema. It exposes
 whether the current checkout can be locally closed out to the configured
 candidate branch, the target worktree path, the planned operation, the lease
-owner when one is known, and the same required-gap vocabulary used by mutation
-admission.
+owner when one is known, the bound claim when one is known, and the same
+required-gap vocabulary used by mutation admission.
+
+Trust and promotion contracts are explicit:
+
+- `claim.schema.json` accepts enriched active claim TOML with boundary,
+  carrier, fallback, kill signal, and promotion fields.
+- `trust-envelope.schema.json` governs the active claim envelope emitted by
+  claim governance.
+- `promotion-target.schema.json` restricts promoted authority references to
+  repository-relative source, test, docs, schema, OpenSpec, or evidence paths.
+- `capability-profile.schema.json` governs `openspec/specs/*/capability.toml`
+  records that map each capability family to owner, invariant, routing, boundary,
+  and proof metadata.
+
+`ethos quality schemas --json` validates the schemas, sample contract instances,
+and any canonical capability profiles present under `openspec/specs/`.
 
 Schema validation is product governance. A command that returns JSON without a
 tracked schema is not mature enough for automation.

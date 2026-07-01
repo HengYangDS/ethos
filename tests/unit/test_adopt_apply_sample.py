@@ -42,6 +42,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "openspec/specs/ethos-core/spec.md",
         "openspec/specs/ethos-contracts/spec.md",
         "openspec/specs/ethos-repository/spec.md",
+        "openspec/specs/ethos-repository/capability.toml",
         "openspec/specs/ethos-adapters/spec.md",
         "openspec/specs/ethos-assistants/spec.md",
         "openspec/specs/ethos-cli/spec.md",
@@ -54,6 +55,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "docs/governance/ethos.md",
         "docs/evidence/.gitkeep",
         "claims/.gitkeep",
+        "schemas/ethos/.gitkeep",
         ".gitlab-ci.yml",
     }
 
@@ -69,3 +71,6 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(
         encoding="utf-8"
     )
+    assert "primary_invariant" in (
+        tmp_path / "openspec/specs/ethos-repository/capability.toml"
+    ).read_text(encoding="utf-8")

@@ -1,0 +1,16 @@
+family = "ethos-repository"
+primary_invariant = "The ethos-repository family keeps repository lifecycle governance cohesive and provider-neutral."
+routing_question = "Does this change alter repository lifecycle governance?"
+boundary_rules = [
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+]
+
+[owner]
+package = "ethos-repository"
+scope = "repository lifecycle governance"
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

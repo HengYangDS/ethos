@@ -49,7 +49,9 @@ ethos quality standards
 ethos self audit
 ethos self audit --mode shape
 ethos self audit --mode deep
+ethos self openspec --lifecycle
 ethos prove --execute
+ethos prove --full --execute
 ethos prove --expect-head <git-head>
 ethos self hypothesize
 ethos self prove --mode shape
@@ -85,7 +87,8 @@ Work Lane admission:
 ```bash
 ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
-ethos lane start <name> --path <worktree-path> --owner <owner> --apply
+ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim> --apply
+ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --apply
 ```
@@ -99,7 +102,10 @@ branches and prefixes are configurable, but the role vocabulary is product
 state. Bindings are ordered by this semantic role order before branch name. Each
 binding reports
 `worktree_binding` as product state: `current`, `linked`, `unbound`, or
-`absent`. Host adapters may project linked worktrees as host-specific open
+`absent`. Work Lane bindings also report `claim_id` and `claim_binding` as
+boundary evidence. Missing claim binding does not block ordinary local work, but
+trust-bearing closeout reports it as a governance gap when a lane is otherwise
+ready to land. Host adapters may project linked worktrees as host-specific open
 commands, but the product payload does not expose host labels or checkout
 actions as truth; adapter UI text is not product state.
 Both commands include a `schema_validation` diagnostic for the live
@@ -108,13 +114,18 @@ workspace-status payload. The diagnostic validates `data` against
 so the workspace-status object remains schema-valid.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
-the lease when known, and which mutation gap blocks closeout.
+the lease when known, which claim is bound when known, and which mutation gap
+blocks closeout.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.
 Start admission requires both the accepted root and the candidate worktree to be
 clean. A dirty candidate returns `candidate_worktree_dirty` and does not create
 a Work Lane.
+`ethos lane bind-claim --claim-id <claim> --apply --json` updates an existing
+Work Lane lease with a trust-bearing claim id. It is the handoff path for lanes
+started before a claim id was known; it does not create a lease for raw
+worktrees and does not promote lane presence into repository truth.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree.
@@ -135,14 +146,28 @@ branch; it does not advance the accepted root.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. The output aggregates workspace
-`closeout_support`, self-evolution state, release policy, parity backlog,
-planned shadow parity execution, and publish readiness under `data.packages`.
+`closeout_support`, trust closeout, intake projection state, self-evolution
+state, release policy, parity backlog, planned shadow parity execution, and
+publish readiness under `data.packages`. The `trust_closeout` package composes
+claim envelopes, promotion readiness, executed proof evidence, and Work Lane
+claim binding. The `intake_projection` package records provider state as
+projection evidence with `repository_truth=false`; it does not promote intake
+state into repository truth.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 
 Self-governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
 official OpenSpec CLI validation and is required for release or archive proof.
+`ethos self openspec --lifecycle --json` adds ETHOS lifecycle carrier review:
+active changes need proposal, design, tasks, delta specs, and an active claim
+binding in addition to official OpenSpec validation.
+
+Proof states are execution-depth states. `ethos prove --json` is readiness and
+reports `state=ready` with `executed=false` when planning and static admission
+pass. `ethos prove --execute --json` can report `state=proven` because every
+selected gate records an exit code. `ethos prove --full --json` without
+execution is intentionally `gapped` with `full_proof_requires_execute`.
 
 `ethos quality coupling-audit --json` reports product-semantic hard bindings,
 mandatory governance dependencies, native protocol bindings, self-hosting

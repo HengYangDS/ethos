@@ -13,6 +13,7 @@ import ethos_repository.self_audit as self_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.lanes import (
+    bind_work_lane_claim,
     bootstrap_candidate,
     retire_landed_work_lanes,
     start_work_lane,
@@ -329,6 +330,111 @@ def _remote_publication_deferred() -> dict[str, object]:
     }
 
 
+def _intake_projection_report(repo: Path) -> dict[str, object]:
+    config_path = repo / ".ethos" / "intake.toml"
+    gaps: list[str] = []
+    provider = "unconfigured"
+    configured = False
+    if config_path.exists():
+        try:
+            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            provider = "invalid"
+            gaps.append("intake_config_invalid:.ethos/intake.toml")
+        else:
+            configured_provider = str(config.get("provider") or "").strip()
+            if configured_provider:
+                provider = configured_provider
+                configured = True
+            else:
+                provider = "invalid"
+                gaps.append("intake_provider_missing:.ethos/intake.toml")
+    state = "configured" if configured else "invalid" if gaps else "unconfigured"
+    return {
+        "kind": "intake_projection",
+        "state": state,
+        "truth_boundary": "projection-evidence",
+        "legacy_truth_boundary": "adopter-ledger",
+        "repository_truth": False,
+        "provider": provider,
+        "configured": configured,
+        "expected_config": ".ethos/intake.toml",
+        "adapters": ["backlog", "github", "gitlab"],
+        "blocking": False,
+        "required_gaps": gaps,
+    }
+
+
+def _trust_closeout_package(
+    *,
+    workspace: dict[str, object],
+    claims: dict[str, object],
+) -> dict[str, object]:
+    closeout_support = workspace.get("closeout_support")
+    closeout = closeout_support if isinstance(closeout_support, dict) else {}
+    trust_claims = [
+        claim
+        for claim in claims.get("claims", {}).values()
+        if isinstance(claim, dict) and claim.get("trust_envelope")
+    ]
+    envelopes = [
+        claim["trust_envelope"]
+        for claim in trust_claims
+        if isinstance(claim.get("trust_envelope"), dict)
+    ]
+    envelope_gaps = [
+        gap
+        for envelope in envelopes
+        for gap in envelope.get("required_gaps", [])
+        if isinstance(envelope, dict)
+    ]
+    promotion_ready = bool(envelopes) and not envelope_gaps and all(
+        isinstance(envelope.get("promotion"), dict)
+        and envelope["promotion"].get("ready") is True
+        for envelope in envelopes
+    )
+    executed_proof_evidence = any(
+        _command_is_executed_proof(command)
+        for envelope in envelopes
+        if isinstance(envelope.get("evidence"), dict)
+        for command in envelope["evidence"].get("commands", [])
+    )
+    gaps: list[str] = []
+    if not claims.get("ok"):
+        gaps.extend(str(gap) for gap in claims.get("required_gaps", []))
+    if not envelopes:
+        gaps.append("trust_claim_missing")
+    if not promotion_ready:
+        gaps.append("promotion_readiness_missing")
+    if not executed_proof_evidence:
+        gaps.append("executed_proof_missing")
+    if (
+        workspace.get("role") == "work_lane"
+        and closeout.get("supported") is True
+        and closeout.get("claim_binding") != "bound"
+    ):
+        gaps.append(f"work_lane_claim_binding_missing:{workspace.get('branch')}")
+    return {
+        "kind": "trust_closeout",
+        "claim_report_ok": bool(claims.get("ok")),
+        "trust_claim_count": len(envelopes),
+        "promotion_ready": promotion_ready,
+        "executed_proof_evidence": executed_proof_evidence,
+        "work_lane": {
+            "branch": str(workspace.get("branch") or ""),
+            "claim_id": str(closeout.get("claim_id") or ""),
+            "claim_binding": str(closeout.get("claim_binding") or "unbound"),
+        },
+        "blocking": bool(gaps),
+        "required_gaps": gaps,
+    }
+
+
+def _command_is_executed_proof(command: object) -> bool:
+    text = str(command)
+    return "prove" in text and "--execute" in text
+
+
 def _campaign_closeout_report(
     *,
     repo: Path,
@@ -336,6 +442,8 @@ def _campaign_closeout_report(
     target: Path,
 ) -> dict[str, object]:
     status_payload = workspace_status(repo)
+    claim_report = claims_report(repo)
+    intake_projection = _intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
@@ -359,6 +467,10 @@ def _campaign_closeout_report(
         policy=load_branch_role_policy(repo),
     )
     remote_publication = _remote_publication_deferred()
+    trust_closeout = _trust_closeout_package(
+        workspace=status_payload,
+        claims=claim_report,
+    )
     provenance = {
         "shadow_parity": shadow.get("provenance", {}),
         "closeout": {
@@ -372,6 +484,8 @@ def _campaign_closeout_report(
 
     packages = {
         "local_closeout": local_closeout,
+        "trust_closeout": trust_closeout,
+        "intake_projection": intake_projection,
         "publication": publication,
         "release": {
             "kind": "release_policy",
@@ -388,10 +502,13 @@ def _campaign_closeout_report(
         },
         "shadow_parity": shadow["execution_packages"][0],
     }
+    ok = local_ready and not trust_closeout["required_gaps"]
     return {
-        "ok": local_ready,
-        "state": "local_ready" if local_ready else "gapped",
+        "ok": ok,
+        "state": "local_ready" if ok else "gapped",
         "workspace": status_payload,
+        "claims": claim_report,
+        "intake_projection": intake_projection,
         "evolution": evolution,
         "release": release,
         "parity": parity,
@@ -527,13 +644,21 @@ def start(
     *,
     path: Annotated[Path, Parameter(name="--path")],
     owner: str,
+    claim_id: Annotated[str | None, Parameter(name="--claim-id")] = None,
     apply: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Start an owned Work Lane and acquire a local lease."""
     repo = _root(root)
-    report = start_work_lane(root=repo, name=name, path=path, owner=owner, apply=apply)
+    report = start_work_lane(
+        root=repo,
+        name=name,
+        path=path,
+        owner=owner,
+        claim_id=claim_id,
+        apply=apply,
+    )
     result = EthosResult(
         command="lane start",
         ok=bool(report["ok"]),
@@ -544,6 +669,38 @@ def start(
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@lane_app.command(name="bind-claim")
+def lane_bind_claim(
+    *,
+    claim_id: Annotated[str, Parameter(name="--claim-id")],
+    branch: Annotated[str | None, Parameter(name="--branch")] = None,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Bind an existing Work Lane lease to a trust-bearing claim."""
+    repo = _root(root)
+    report = bind_work_lane_claim(
+        root=repo,
+        branch=branch,
+        claim_id=claim_id,
+        apply=apply,
+    )
+    result = EthosResult(
+        command="lane bind-claim",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "claim_id": report["claim_id"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
         data=report,
     )
     _emit(result, json_output)
@@ -649,7 +806,11 @@ def prove(
         runs=proof_runs,
         durability="local",
     )
-    runs_ok = all(run.state in {"passed", "planned"} for run in proof_runs)
+    runs_ok = (
+        all(run.state == "passed" for run in proof_runs)
+        if execute
+        else all(run.state == "planned" for run in proof_runs)
+    )
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
     head_gaps: tuple[str, ...] = (
         ("expected_head_mismatch",)
@@ -663,10 +824,18 @@ def prove(
         and not proof_gaps
         and not head_gaps
     )
+    result_state = "proven" if ok and execute else "ready" if ok else "gapped"
+    next_actions = (
+        ("ethos land",)
+        if result_state == "proven"
+        else ("ethos prove --execute",)
+        if result_state == "ready"
+        else ("ethos self audit",)
+    )
     result = EthosResult(
         command="prove",
         ok=ok,
-        state="proven" if ok else "gapped",
+        state=result_state,
         summary={
             "objective": objective,
             "evidence_digest": evidence.digest,
@@ -678,7 +847,7 @@ def prove(
             + proof_gaps
             + head_gaps
         ),
-        next_actions=("ethos land",) if ok else ("ethos self audit",),
+        next_actions=next_actions,
         data={
             "self_audit": audit,
             "executed": execute,
@@ -1406,12 +1575,13 @@ def audit(
 def openspec(
     *,
     change: str | None = None,
+    lifecycle: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Audit official OpenSpec self-governance state."""
     repo = _root(root)
-    report = openspec_self_governance_report(repo, change=change)
+    report = openspec_self_governance_report(repo, change=change, lifecycle=lifecycle)
     result = EthosResult(
         command="self openspec",
         ok=bool(report["ok"]),
@@ -1419,6 +1589,7 @@ def openspec(
         summary={
             "change": report["change"],
             "schema_name": report["schema_name"],
+            "lifecycle": lifecycle,
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos self audit",),
@@ -1624,41 +1795,30 @@ def intake_status(
 ) -> None:
     """Report adopter intake ledger readiness."""
     repo = _root(root)
-    config_path = repo / ".ethos" / "intake.toml"
-    gaps: tuple[str, ...] = ()
-    provider = "unconfigured"
-    configured = False
-    if config_path.exists():
-        try:
-            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            provider = "invalid"
-            gaps = ("intake_config_invalid:.ethos/intake.toml",)
-        else:
-            configured_provider = str(config.get("provider") or "").strip()
-            if configured_provider:
-                provider = configured_provider
-                configured = True
-            else:
-                provider = "invalid"
-                gaps = ("intake_provider_missing:.ethos/intake.toml",)
+    projection = _intake_projection_report(repo)
+    gaps = tuple(str(gap) for gap in projection["required_gaps"])
     data = {
         "truth_boundary": "adopter-ledger",
-        "provider": provider,
-        "configured": configured,
+        "provider": projection["provider"],
+        "configured": projection["configured"],
         "expected_config": ".ethos/intake.toml",
         "adapters": ["backlog", "github", "gitlab"],
+        "projection": projection,
     }
     result = EthosResult(
         command="intake status",
         ok=not gaps,
-        state="configured" if configured else ("invalid" if gaps else "unconfigured"),
+        state=str(projection["state"]),
         summary={
             "provider": data["provider"],
             "truth_boundary": data["truth_boundary"],
         },
         required_gaps=gaps,
-        next_actions=("ethos adopt --dry-run",) if not configured else ("ethos plan --changed",),
+        next_actions=(
+            ("ethos adopt --dry-run",)
+            if not projection["configured"]
+            else ("ethos plan --changed",)
+        ),
         data=data,
     )
     _emit(result, json_output)

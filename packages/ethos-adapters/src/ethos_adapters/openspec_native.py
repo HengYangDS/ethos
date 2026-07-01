@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import tomllib
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
@@ -90,15 +91,26 @@ def _validation_failures(validate_payload: dict[str, Any]) -> list[str]:
     return failures
 
 
-def openspec_self_governance_report(root: Path, *, change: str | None = None) -> dict[str, Any]:
+def openspec_self_governance_report(
+    root: Path,
+    *,
+    change: str | None = None,
+    lifecycle: bool = False,
+) -> dict[str, Any]:
     base_command = _openspec_base_command()
     if base_command is None:
-        return _openspec_self_governance_report(root, change=change, base_command=None)
+        return _openspec_self_governance_report(
+            root,
+            change=change,
+            lifecycle=lifecycle,
+            base_command=None,
+        )
     signature = _openspec_workspace_signature(root)
     return deepcopy(
         _cached_openspec_self_governance_report(
             root.resolve().as_posix(),
             change,
+            lifecycle,
             base_command,
             signature,
         )
@@ -120,12 +132,14 @@ def _openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...
 def _cached_openspec_self_governance_report(
     root_posix: str,
     change: str | None,
+    lifecycle: bool,
     base_command: tuple[str, ...],
     _signature: tuple[tuple[str, int, int], ...],
 ) -> dict[str, Any]:
     return _openspec_self_governance_report(
         Path(root_posix),
         change=change,
+        lifecycle=lifecycle,
         base_command=base_command,
     )
 
@@ -134,6 +148,7 @@ def _openspec_self_governance_report(
     root: Path,
     *,
     change: str | None,
+    lifecycle: bool,
     base_command: tuple[str, ...] | None,
 ) -> dict[str, Any]:
     openspec_root = root / "openspec"
@@ -159,6 +174,7 @@ def _openspec_self_governance_report(
             "summary": {},
             "required_gaps": required_gaps,
             "commands": {},
+            "lifecycle": {"enabled": lifecycle, "changes": []},
         }
 
     doctor = _run_json(root, base_command, ("doctor", "--json"))
@@ -186,6 +202,13 @@ def _openspec_self_governance_report(
             required_gaps.append(f"openspec_{name}_json_parse_failed")
     if status and status.get("parse_error"):
         required_gaps.append("openspec_status_json_parse_failed")
+    lifecycle_report = _lifecycle_report(
+        root,
+        selected_change=selected_change,
+        list_payload=list_result["json"],
+        enabled=lifecycle,
+    )
+    required_gaps.extend(lifecycle_report["required_gaps"])
 
     return {
         "ok": not required_gaps,
@@ -201,6 +224,10 @@ def _openspec_self_governance_report(
             "validation": validate["json"].get("summary", {}),
         },
         "required_gaps": required_gaps,
+        "lifecycle": {
+            "enabled": lifecycle,
+            "changes": lifecycle_report["changes"],
+        },
         "commands": {
             "doctor": doctor,
             "list": list_result,
@@ -208,3 +235,79 @@ def _openspec_self_governance_report(
             "validate": validate,
         },
     }
+
+
+def _active_claim_openspec_carriers(root: Path) -> set[str]:
+    claims_dir = root / "claims"
+    carriers: set[str] = set()
+    for path in sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []:
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        claim = payload.get("claim", {})
+        if claim.get("state") != "active":
+            continue
+        carrier = payload.get("carriers", {}).get("openspec", "")
+        if carrier:
+            carriers.add(str(carrier))
+    return carriers
+
+
+def _claim_binds_change(carriers: set[str], change_name: str) -> bool:
+    accepted = {
+        change_name,
+        f"openspec/changes/{change_name}",
+        f"openspec/changes/{change_name}/proposal.md",
+    }
+    return bool(carriers & accepted)
+
+
+def _lifecycle_report(
+    root: Path,
+    *,
+    selected_change: str | None,
+    list_payload: dict[str, Any],
+    enabled: bool,
+) -> dict[str, Any]:
+    if not enabled:
+        return {"required_gaps": [], "changes": []}
+    changes_payload = list_payload.get("changes", [])
+    if selected_change:
+        change_names = [selected_change]
+    elif isinstance(changes_payload, list):
+        change_names = [
+            str(item.get("name"))
+            for item in changes_payload
+            if isinstance(item, dict) and item.get("name")
+        ]
+    else:
+        change_names = []
+
+    active_claim_carriers = _active_claim_openspec_carriers(root)
+    required_gaps: list[str] = []
+    changes: list[dict[str, Any]] = []
+    for change_name in change_names:
+        change_root = root / "openspec" / "changes" / change_name
+        carriers = {
+            "proposal": (change_root / "proposal.md").exists(),
+            "design": (change_root / "design.md").exists(),
+            "tasks": (change_root / "tasks.md").exists(),
+            "delta_specs": any((change_root / "specs").glob("**/*.md"))
+            if (change_root / "specs").exists()
+            else False,
+            "claim_binding": _claim_binds_change(active_claim_carriers, change_name),
+        }
+        for artifact in ("proposal", "design", "tasks", "delta_specs"):
+            if not carriers[artifact]:
+                required_gaps.append(f"openspec_{artifact}_missing:{change_name}")
+        if not carriers["claim_binding"]:
+            required_gaps.append(f"openspec_claim_binding_missing:{change_name}")
+        changes.append(
+            {
+                "name": change_name,
+                "path": change_root.relative_to(root).as_posix(),
+                "carriers": carriers,
+                "required_gaps": [
+                    gap for gap in required_gaps if gap.endswith(f":{change_name}")
+                ],
+            }
+        )
+    return {"required_gaps": required_gaps, "changes": changes}

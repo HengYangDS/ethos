@@ -178,6 +178,39 @@ def acquire_lease(
     }
 
 
+def update_lease_payload(
+    db_path: Path,
+    *,
+    subject: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    initialize_state(db_path)
+    matching = [
+        lease
+        for lease in active_leases(db_path)
+        if lease["subject"] == subject
+    ]
+    if not matching:
+        return {}
+    lease = matching[-1]
+    merged_payload = dict(lease["payload"])
+    merged_payload.update(payload)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute(
+            """
+            update leases
+            set payload_json = ?
+            where id = ?
+            """,
+            (json.dumps(merged_payload, sort_keys=True), lease["id"]),
+        )
+        connection.commit()
+    updated = dict(lease)
+    updated["payload"] = merged_payload
+    return updated
+
+
 def active_leases(db_path: Path) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []

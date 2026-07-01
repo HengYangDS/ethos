@@ -51,19 +51,25 @@ def workspace_status(root: Path) -> dict[str, object]:
     role = policy.role_for_branch(branch)
     worktrees = _worktrees(root, current_path=current_path, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
-    branch_bindings = _branch_bindings(repo, worktrees, candidate, policy=policy)
-    owner_by_branch = _lease_owners(worktrees, current_path=current_path)
+    lease_by_branch = _leases_by_branch(worktrees, current_path=current_path)
+    branch_bindings = _branch_bindings(
+        repo,
+        worktrees,
+        candidate,
+        policy=policy,
+        lease_by_branch=lease_by_branch,
+    )
     closeout_support = _closeout_support(
         branch=branch,
         role=role,
         dirty=bool(paths),
         candidate=candidate,
-        owner_by_branch=owner_by_branch,
+        lease_by_branch=lease_by_branch,
     )
     foreign = _foreign_work_lanes(
         worktrees,
         current_path=current_path,
-        owner_by_branch=owner_by_branch,
+        lease_by_branch=lease_by_branch,
     )
     coordination_gaps = _coordination_gaps(foreign)
     required_gaps = []
@@ -110,7 +116,13 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "role_policy": policy.as_status_policy(),
         "candidate": candidate,
         "worktrees": [],
-        "branch_bindings": _branch_bindings(root, [], candidate, policy=policy),
+        "branch_bindings": _branch_bindings(
+            root,
+            [],
+            candidate,
+            policy=policy,
+            lease_by_branch={},
+        ),
         "foreign_work_lanes": [],
         "coordination_gaps": [],
         "closeout_support": {
@@ -120,6 +132,8 @@ def _non_git_status(root: Path) -> dict[str, object]:
             "target_path": "",
             "operation": "",
             "owner": "",
+            "claim_id": "",
+            "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation", "git_repository_missing"],
         },
         "required_gaps": ["git_repository_missing", "candidate_branch_missing"],
@@ -173,7 +187,7 @@ def _foreign_work_lanes(
     worktrees: list[dict[str, str]],
     *,
     current_path: Path,
-    owner_by_branch: dict[str, str],
+    lease_by_branch: dict[str, dict[str, object]],
 ) -> list[dict[str, str]]:
     foreign: list[dict[str, str]] = []
     for worktree in worktrees:
@@ -182,7 +196,9 @@ def _foreign_work_lanes(
         if Path(str(worktree["path"])).resolve() == current_path:
             continue
         branch = str(worktree["branch"])
-        owner = owner_by_branch.get(branch, "")
+        lease = lease_by_branch.get(branch, {})
+        owner = str(lease.get("owner") or "")
+        claim_id = _lease_claim_id(lease)
         foreign.append(
             {
                 "path": worktree["path"],
@@ -192,6 +208,8 @@ def _foreign_work_lanes(
                 "worktree_binding": worktree["worktree_binding"],
                 "lease_owner": owner,
                 "lease_state": "leased" if owner else "missing",
+                "claim_id": claim_id,
+                "claim_binding": "bound" if claim_id else "missing",
             }
         )
     return foreign
@@ -239,6 +257,7 @@ def _branch_bindings(
     candidate: dict[str, object],
     *,
     policy: BranchRolePolicy,
+    lease_by_branch: dict[str, dict[str, object]],
 ) -> list[dict[str, str]]:
     bindings: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -262,6 +281,7 @@ def _branch_bindings(
             role=role,
             worktree=worktree_by_branch.get(branch),
             candidate=candidate if branch == policy.candidate_branch else None,
+            lease=lease_by_branch.get(branch, {}),
         )
         bindings.append(binding)
         seen.add(branch)
@@ -281,7 +301,7 @@ def _branch_bindings(
         branch = str(worktree["branch"])
         if branch == "detached" or branch in seen:
             continue
-        bindings.append(_worktree_branch_binding(worktree))
+        bindings.append(_worktree_branch_binding(worktree, lease=lease_by_branch.get(branch, {})))
         seen.add(branch)
     return bindings
 
@@ -293,9 +313,10 @@ def _configured_branch_binding(
     role: str,
     worktree: dict[str, str] | None,
     candidate: dict[str, object] | None,
+    lease: dict[str, object],
 ) -> dict[str, str]:
     if worktree is not None:
-        return _worktree_branch_binding(worktree)
+        return _worktree_branch_binding(worktree, lease=lease)
     if candidate is not None:
         return {
             "branch": branch,
@@ -303,6 +324,8 @@ def _configured_branch_binding(
             "head": str(candidate["head"]),
             "worktree_path": str(candidate["worktree_path"]),
             "worktree_binding": str(candidate["worktree_binding"]),
+            "claim_id": "",
+            "claim_binding": "unbound",
         }
     head = _ref_head(root, branch)
     return {
@@ -311,16 +334,25 @@ def _configured_branch_binding(
         "head": head,
         "worktree_path": "",
         "worktree_binding": "unbound" if head else "absent",
+        "claim_id": "",
+        "claim_binding": "unbound",
     }
 
 
-def _worktree_branch_binding(worktree: dict[str, str]) -> dict[str, str]:
+def _worktree_branch_binding(
+    worktree: dict[str, str],
+    *,
+    lease: dict[str, object],
+) -> dict[str, str]:
+    claim_id = _lease_claim_id(lease)
     return {
         "branch": str(worktree["branch"]),
         "role": str(worktree["role"]),
         "head": str(worktree["head"]),
         "worktree_path": str(worktree["path"]),
         "worktree_binding": str(worktree["worktree_binding"]),
+        "claim_id": claim_id,
+        "claim_binding": "bound" if claim_id else "missing",
     }
 
 
@@ -330,18 +362,25 @@ def _worktree_binding(path: str, *, current_path: Path) -> str:
     return "linked"
 
 
-def _lease_owners(
+def _leases_by_branch(
     worktrees: list[dict[str, str]],
     *,
     current_path: Path,
-) -> dict[str, str]:
+) -> dict[str, dict[str, object]]:
     control_root = current_path
     for worktree in worktrees:
         if worktree["role"] == ROLE_ACCEPTED_ROOT and worktree["path"]:
             control_root = Path(worktree["path"])
             break
     leases = active_leases(control_root / ".ethos" / "state" / "state.sqlite")
-    return {str(lease["subject"]): str(lease["owner"]) for lease in leases}
+    return {str(lease["subject"]): lease for lease in leases}
+
+
+def _lease_claim_id(lease: dict[str, object]) -> str:
+    payload = lease.get("payload") if isinstance(lease, dict) else {}
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("claim_id") or "")
 
 
 def _closeout_support(
@@ -350,14 +389,14 @@ def _closeout_support(
     role: str,
     dirty: bool,
     candidate: dict[str, object],
-    owner_by_branch: dict[str, str],
+    lease_by_branch: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     gaps: list[str] = []
     if role != ROLE_WORK_LANE:
         gaps.append("protected_root_mutation")
     elif dirty:
         gaps.append("work_lane_dirty")
-    elif not owner_by_branch.get(branch):
+    elif not lease_by_branch.get(branch, {}).get("owner"):
         gaps.append(f"work_lane_missing_lease:{branch}")
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
@@ -369,13 +408,17 @@ def _closeout_support(
             gaps.append("candidate_worktree_dirty")
 
     is_work_lane = role == ROLE_WORK_LANE
+    lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
+    claim_id = _lease_claim_id(lease)
     return {
         "supported": not gaps,
         "branch": branch if is_work_lane else "",
         "target_branch": str(candidate["branch"]),
         "target_path": str(candidate["worktree_path"]),
         "operation": "land_to_candidate" if is_work_lane else "",
-        "owner": owner_by_branch.get(branch, "") if is_work_lane else "",
+        "owner": str(lease.get("owner") or "") if is_work_lane else "",
+        "claim_id": claim_id,
+        "claim_binding": "bound" if claim_id else "missing" if is_work_lane else "unbound",
         "required_gaps": gaps,
     }
 

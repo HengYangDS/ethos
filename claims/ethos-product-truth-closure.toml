@@ -32,3 +32,21 @@ docs = [
   "docs/architecture/package-ontology.md",
   "docs/reference/command-plane.md",
 ]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Product truth reporting, scaffold diagnostics, command examples, and package ontology"
+
+[carriers]
+openspec = "openspec/specs/ethos-repository/spec.md"
+
+fallback = "Use product self-audit and command-registry checks as local truth gates."
+kill_signal = "Command or package truth can pass through docs-only declarations without source or tests."
+
+[promotion]
+targets = [
+  "docs/evidence/product-truth-closure-2026-07-01.md",
+  "docs/reference/command-plane.md",
+  "docs/architecture/product-ontology.md",
+  "openspec/specs/ethos-repository/spec.md",
+]

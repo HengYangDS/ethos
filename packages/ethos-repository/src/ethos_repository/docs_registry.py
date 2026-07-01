@@ -442,32 +442,25 @@ def command_examples_report(root: Path) -> dict[str, object]:
         relative_path = path.relative_to(root).as_posix()
         scope = _command_scope(relative_path)
         enforce_public_plane = not relative_path.startswith(OBSERVATIONAL_DOC_PREFIXES)
-        in_bash = False
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            stripped = line.strip()
-            if stripped.startswith("```"):
-                in_bash = stripped in {"```bash", "```sh"} if not in_bash else False
-                continue
-            if not in_bash or not stripped or stripped.startswith("#"):
-                continue
-            command = _command_root(stripped)
+        for lineno, logical_command in _bash_logical_commands(path):
+            command = _command_root(logical_command)
             record = {
                 "path": relative_path,
                 "line": str(lineno),
-                "command": stripped,
+                "command": logical_command,
                 "root": command,
                 "scope": scope,
-                "normalized_command": " ".join(_normalized_command_tokens(stripped)),
+                "normalized_command": " ".join(_normalized_command_tokens(logical_command)),
             }
             examples.append(record)
             if not enforce_public_plane:
                 continue
             if command in RETIRED_PUBLIC_ROOTS:
                 gaps.append(f"retired_command_example:{record['path']}:{lineno}:{command}")
-            elif command == "ethos" and not _known_ethos_command(stripped):
+            elif command == "ethos" and not _known_ethos_command(logical_command):
                 gaps.append(
                     f"unknown_ethos_command_example:{record['path']}:{lineno}:"
-                    f"{_best_ethos_command_key(stripped) or 'ethos'}"
+                    f"{_best_ethos_command_key(logical_command) or 'ethos'}"
                 )
             elif command != "ethos" and command not in ALLOWED_NON_ETHOS_ROOTS:
                 gaps.append(f"unknown_command_example:{record['path']}:{lineno}:{command}")
@@ -476,6 +469,37 @@ def command_examples_report(root: Path) -> dict[str, object]:
             if not _has_command_example(examples, required):
                 gaps.append(f"missing_command_example:{required}")
     return {"ok": not gaps, "required_gaps": gaps, "examples": examples}
+
+
+def _bash_logical_commands(path: Path) -> list[tuple[int, str]]:
+    commands: list[tuple[int, str]] = []
+    in_bash = False
+    buffer: list[str] = []
+    start_lineno = 0
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            if in_bash and buffer:
+                commands.append((start_lineno, " ".join(buffer).strip()))
+                buffer = []
+                start_lineno = 0
+            in_bash = stripped in {"```bash", "```sh"} if not in_bash else False
+            continue
+        if not in_bash or not stripped or stripped.startswith("#"):
+            continue
+        continued = stripped.endswith("\\")
+        part = stripped[:-1].rstrip() if continued else stripped
+        if not buffer:
+            start_lineno = lineno
+        buffer.append(part)
+        if continued:
+            continue
+        commands.append((start_lineno, " ".join(buffer).strip()))
+        buffer = []
+        start_lineno = 0
+    if in_bash and buffer:
+        commands.append((start_lineno, " ".join(buffer).strip()))
+    return commands
 
 
 def _best_ethos_command_key(command: str) -> str:

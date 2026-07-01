@@ -68,72 +68,59 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "legacy_evidence_records",
         "provider_test_fixtures",
     ]
-    assert registry["git_repository_substrate"] == {
-        "id": "git_repository_substrate",
-        "layer": "product_semantic_hard_binding",
-        "required": True,
-        "owns_product_semantics": True,
-        "adapter_replaceable": False,
-        "surfaces": ["commits", "refs", "branches", "worktrees", "HEAD"],
-    }
-    assert registry["branch_role_policy"] == {
-        "id": "branch_role_policy",
-        "layer": "product_semantic_hard_binding",
-        "required": True,
-        "owns_product_semantics": True,
-        "adapter_replaceable": False,
-        "config_source": ".ethos/workspace.toml",
-        "config_keys": [
-            "release_branch",
-            "accepted_branch",
-            "candidate_branch",
-            "work_branch_prefix",
-            "submit_branch_prefix",
-        ],
-        "default_policy": False,
-        "role_order": [
-            "release_root",
-            "accepted_root",
-            "candidate",
-            "work_lane",
-            "submit_lane",
-        ],
-        "configured_patterns": ["main", "dev", "candidate/dev", "work/*", "submit/*"],
-    }
-    assert registry["work_lane_lifecycle_command_contract"] == {
-        "id": "work_lane_lifecycle_command_contract",
-        "layer": "product_semantic_hard_binding",
-        "required": True,
-        "owns_product_semantics": True,
-        "adapter_replaceable": False,
-        "commands": [
-            "ethos lane start",
-            "ethos lane prewrite",
-            "ethos lane bind-claim",
-            "ethos land",
-            "ethos lane retire-landed",
-        ],
-        "forbidden_workflow_state": ["raw_git_worktree_add"],
-    }
-    assert registry["openspec_workspace"] == {
-        "id": "openspec_workspace",
-        "layer": "mandatory_governance_dependency",
-        "required": True,
-        "owns_product_semantics": False,
-        "adapter_replaceable": False,
-        "not_a_second_command_plane": True,
-        "not_product_substrate": True,
-    }
-    assert registry["openspec_cli"] == {
-        "id": "openspec_cli",
-        "layer": "mandatory_governance_dependency",
-        "required": True,
-        "owns_product_semantics": False,
-        "adapter_replaceable": False,
-        "surfaces": ["official OpenSpec status", "official OpenSpec strict validation"],
-        "not_a_second_command_plane": True,
-        "not_product_substrate": True,
-    }
+    assert registry["git_repository_substrate"]["layer"] == "product_semantic_hard_binding"
+    assert registry["git_repository_substrate"]["required"] is True
+    assert registry["git_repository_substrate"]["owns_product_semantics"] is True
+    assert registry["git_repository_substrate"]["adapter_replaceable"] is False
+    assert registry["git_repository_substrate"]["surfaces"] == [
+        "commits",
+        "refs",
+        "branches",
+        "worktrees",
+        "HEAD",
+    ]
+    assert registry["branch_role_policy"]["config_source"] == ".ethos/workspace.toml"
+    assert registry["branch_role_policy"]["config_keys"] == [
+        "release_branch",
+        "accepted_branch",
+        "candidate_branch",
+        "work_branch_prefix",
+        "submit_branch_prefix",
+    ]
+    assert registry["branch_role_policy"]["default_policy"] is False
+    assert registry["branch_role_policy"]["role_order"] == [
+        "release_root",
+        "accepted_root",
+        "candidate",
+        "work_lane",
+        "submit_lane",
+    ]
+    assert registry["branch_role_policy"]["configured_patterns"] == [
+        "main",
+        "dev",
+        "candidate/dev",
+        "work/*",
+        "submit/*",
+    ]
+    assert registry["work_lane_lifecycle_command_contract"]["commands"] == [
+        "ethos lane start",
+        "ethos lane prewrite",
+        "ethos lane bind-claim",
+        "ethos land",
+        "ethos land --closeout",
+        "ethos lane retire-landed",
+    ]
+    assert registry["work_lane_lifecycle_command_contract"]["forbidden_workflow_state"] == [
+        "raw_git_worktree_add"
+    ]
+    assert registry["openspec_workspace"]["not_a_second_command_plane"] is True
+    assert registry["openspec_workspace"]["not_product_substrate"] is True
+    assert registry["openspec_cli"]["surfaces"] == [
+        "official OpenSpec status",
+        "official OpenSpec strict validation",
+    ]
+    assert registry["openspec_cli"]["not_a_second_command_plane"] is True
+    assert registry["openspec_cli"]["not_product_substrate"] is True
     assert registry["uv_workspace_toolchain"]["layer"] == "product_toolchain_binding"
     assert registry["hatchling_build_backend"]["layer"] == "product_toolchain_binding"
     assert registry["pytest_test_runner"]["layer"] == "product_toolchain_binding"
@@ -171,6 +158,7 @@ def test_work_lane_lifecycle_binding_excludes_raw_git_worktree_entrypoint() -> N
         "ethos lane prewrite",
         "ethos lane bind-claim",
         "ethos land",
+        "ethos land --closeout",
         "ethos lane retire-landed",
     ]
     assert lifecycle["forbidden_workflow_state"] == ["raw_git_worktree_add"]
@@ -210,6 +198,37 @@ def test_binding_registry_keeps_each_binding_in_its_mechanism_layer() -> None:
         assert registry[binding_id]["owns_product_semantics"] is False
     assert registry["legacy_evidence_records"]["layer"] == "legacy_evidence"
     assert registry["provider_test_fixtures"]["layer"] == "test_fixture"
+
+
+def test_binding_registry_exposes_substantive_binding_contract_metadata() -> None:
+    report = coupling_audit_report(Path.cwd())
+
+    for entry in report["binding_registry"]:
+        assert entry["required_for"]
+        assert entry["replaceability"] in {
+            "hard-bound",
+            "mandatory",
+            "replaceable-adapter",
+            "historical",
+            "fixture-only",
+        }
+        assert entry["degradation_state"]
+        assert entry["proof_gate"]
+
+    registry = {entry["id"]: entry for entry in report["binding_registry"]}
+    assert registry["git_repository_substrate"]["replaceability"] == "hard-bound"
+    assert registry["git_repository_substrate"]["required_for"] == [
+        "repository identity",
+        "branch roles",
+        "HEAD-bound evidence",
+        "worktree lifecycle",
+    ]
+    assert registry["openspec_workspace"]["replaceability"] == "mandatory"
+    assert registry["openspec_workspace"]["required_for"] == [
+        "official governance records",
+        "strict specification validation",
+    ]
+    assert registry["gitlab_release_profile"]["replaceability"] == "replaceable-adapter"
 
 
 def test_coupling_audit_branch_role_policy_reports_config_source(tmp_path: Path) -> None:

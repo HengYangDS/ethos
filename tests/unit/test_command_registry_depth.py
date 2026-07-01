@@ -61,6 +61,28 @@ def test_openspec_is_governance_dependency_not_second_public_command_plane() -> 
     ]
 
 
+def test_local_closeout_and_evidence_refresh_are_mechanism_commands_not_public_roots() -> None:
+    report = command_registry_report()
+
+    assert report["public_workflow_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert report["local_closeout_commands"] == [
+        "ethos land --closeout --apply --authorize --expect-head <HEAD>",
+    ]
+    assert report["evidence_refresh_commands"] == [
+        "ethos parity shadow --target <repo> --execute --write-evidence",
+    ]
+    assert "ethos land --closeout" not in report["public_workflow_commands"]
+    assert "ethos parity shadow --target <repo> --execute --write-evidence" not in report[
+        "public_workflow_commands"
+    ]
+
+
 def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "bad.md").write_text(

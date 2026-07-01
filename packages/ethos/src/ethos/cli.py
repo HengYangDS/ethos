@@ -23,7 +23,9 @@ from ethos_adapters.lanes import (
 from ethos_adapters.mutation import (
     MutationDecision,
     MutationRequest,
+    apply_candidate_to_accepted,
     apply_land_to_candidate,
+    evaluate_closeout_mutation,
     evaluate_mutation,
 )
 from ethos_adapters.openspec_native import openspec_governance_report
@@ -66,7 +68,13 @@ from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope
 from ethos_repository.evolution import evolution_ledger, evolution_report
 from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph, gate_registry
-from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
+from ethos_repository.parity import (
+    build_tracked_parity_evidence,
+    parity_gaps_report,
+    parity_ledger_report,
+    shadow_parity_report,
+    write_tracked_parity_evidence,
+)
 from ethos_repository.planner import (
     adoption_plan,
     adoption_scaffold_report,
@@ -935,7 +943,7 @@ def prove(
         if result_state == "proven"
         else ("ethos prove --execute",)
         if result_state == "ready"
-        else ("ethos repository audit",)
+        else ("ethos audit --mode deep",)
     )
     result = EthosResult(
         command="prove",
@@ -1012,11 +1020,64 @@ def land(
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
+    closeout: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report land readiness."""
     repo = _root(root)
+    if closeout:
+        decision = evaluate_closeout_mutation(
+            MutationRequest(
+                command="closeout",
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+            ),
+            root=repo,
+            current_head=_current_head(repo),
+        )
+        audit = _repository_audit_after_admission(repo, decision)
+        gaps = tuple(audit["required_gaps"]) + decision.gaps
+        ok = bool(audit["ok"]) and decision.ok
+        accepted_update: dict[str, object] = {}
+        if ok and apply:
+            accepted_update = apply_candidate_to_accepted(
+                root=repo,
+                authorized=authorize,
+                expect_head=expect_head,
+            )
+            gaps = gaps + tuple(accepted_update["required_gaps"])
+            ok = bool(accepted_update["ok"])
+        if ok and not apply:
+            land_state = "ready_to_closeout"
+        else:
+            land_state = str(accepted_update.get("state") or decision.state)
+        result = EthosResult(
+            command="land",
+            ok=ok,
+            state=land_state,
+            required_gaps=gaps,
+            next_actions=(
+                ("ethos lane retire-landed --branch <work-branch>",)
+                if ok
+                else ("ethos prove --json",)
+            ),
+            data={
+                "repository_audit": audit,
+                "accepted_update": accepted_update,
+                "mutation": {
+                    "apply": apply,
+                    "authorized": authorize,
+                    "expect_head": expect_head,
+                    "current_head": _current_head(repo),
+                    "decision": decision.state,
+                    "closeout": True,
+                },
+            },
+        )
+        _emit(result, json_output)
+        return
     status_payload = workspace_status(repo)
     closeout_support = dict(status_payload.get("closeout_support", {}))
     closeout_gaps: tuple[str, ...] = ()
@@ -2179,7 +2240,11 @@ def parity_gaps(
         state="clean" if report["ok"] else "gapped",
         summary={"adopter": report["adopter"], "gap_count": len(report["required_gaps"])},
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos parity shadow --target <repo>",),
+        next_actions=(
+            ("ethos parity shadow --target <repo> --execute --write-evidence",)
+            if report["required_gaps"]
+            else ("ethos prove --full",)
+        ),
         data=report,
     )
     _emit(result, json_output)
@@ -2189,29 +2254,58 @@ def parity_gaps(
 def parity_shadow(
     *,
     target: Path,
+    adopter: str | None = None,
     execute: bool = False,
+    write_evidence: bool = False,
     timeout_seconds: int = 30,
+    root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan an external shadow parity comparison for an adopter."""
+    repo = _root(root)
+    adopter_name = adopter or "generic"
     if execute:
         from ethos_adapters.shadow import run_shadow_parity
 
         report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
     else:
-        repo = _root(None)
         report = shadow_parity_report(
             target=target,
+            root=repo,
+            adopter=adopter,
             current_target_head=_current_tracked_head(target),
             current_product_head=_current_tracked_head(repo),
-            acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
+            acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
         )
+    required_gaps = list(report["required_gaps"])
+    evidence_path = ""
+    if write_evidence:
+        if not execute:
+            required_gaps.append("parity_evidence_write_requires_execute")
+        elif report.get("ok") is not True:
+            required_gaps.append(f"parity_evidence_write_blocked:{adopter_name}")
+        else:
+            evidence = build_tracked_parity_evidence(
+                adopter=adopter_name,
+                target=target,
+                shadow=report,
+                current_product_head=_current_tracked_head(repo),
+                current_target_head=_current_tracked_head(target),
+                timeout_seconds=timeout_seconds,
+            )
+            written = write_tracked_parity_evidence(
+                root=repo,
+                adopter=adopter_name,
+                evidence=evidence,
+            )
+            evidence_path = written.relative_to(repo).as_posix()
+            report = {**report, "evidence_written": evidence_path}
     result = EthosResult(
         command="parity shadow",
-        ok=bool(report["ok"]),
+        ok=bool(report["ok"]) and not required_gaps,
         state=str(report["state"]),
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos prove --full",),
+        required_gaps=tuple(required_gaps),
+        next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
         data=report,
     )
     _emit(result, json_output)

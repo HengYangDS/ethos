@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import ethos_adapters.mutation as mutation
 from ethos_adapters.mutation import MutationRequest, apply_land_to_candidate, evaluate_mutation
 
 
@@ -146,3 +147,62 @@ def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
     assert git(repo, "rev-parse", "candidate/dev") == work_head
     assert git(candidate, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "dev") == dev_head
+
+
+def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir()
+    (repo / ".ethos" / "workspace.toml").write_text(
+        "[branch_roles]\n"
+        'release_branch = "release"\n'
+        'accepted_branch = "integration"\n'
+        'candidate_branch = "stage/integration"\n'
+        'work_branch_prefix = "lane/"\n'
+        'submit_branch_prefix = "review/"\n',
+        encoding="utf-8",
+    )
+    git(repo, "add", ".ethos/workspace.toml")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configure branch roles",
+    )
+    git(repo, "branch", "-m", "integration")
+    candidate = tmp_path / "repo-stage-integration"
+    git(repo, "worktree", "add", "-b", "stage/integration", candidate.as_posix(), "integration")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    report = mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "accepted_validated"
+    assert report["branch"] == "integration"
+    assert report["source_branch"] == "stage/integration"
+    assert report["head"] == candidate_head
+    assert report["previous_head"] == accepted_head
+    assert git(repo, "rev-parse", "integration") == candidate_head
+    assert git(repo, "rev-parse", "HEAD") == candidate_head

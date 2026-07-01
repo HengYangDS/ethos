@@ -131,6 +131,22 @@
         "required": {"type": "boolean"},
         "owns_product_semantics": {"type": "boolean"},
         "adapter_replaceable": {"type": "boolean"},
+        "required_for": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "replaceability": {
+          "enum": [
+            "hard-bound",
+            "mandatory",
+            "replaceable-adapter",
+            "historical",
+            "fixture-only"
+          ]
+        },
+        "degradation_state": {"type": "string", "minLength": 1},
+        "proof_gate": {"type": "string", "minLength": 1},
         "surfaces": {
           "oneOf": [
             {"type": "array", "items": {"type": "string"}},

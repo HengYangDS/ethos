@@ -142,6 +142,41 @@ npm run ethos -- --version
     assert npm_record["root"] == "npm"
 
 
+def test_command_examples_join_shell_continuation_lines_before_classification(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+uv run --package ethos ethos lane prewrite \\
+  docs/superpowers/plans/example.md \\
+  packages/ethos/src/ethos/cli.py \\
+  --require-editor-root \\
+  --editor-root /tmp/ethos-work \\
+  --json
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert [example["command"] for example in report["examples"]] == [
+        (
+            "uv run --package ethos ethos lane prewrite "
+            "docs/superpowers/plans/example.md "
+            "packages/ethos/src/ethos/cli.py "
+            "--require-editor-root "
+            "--editor-root /tmp/ethos-work "
+            "--json"
+        )
+    ]
+
+
 def test_docs_quality_report_rejects_invalid_taxonomy_state(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "bad.md").write_text(

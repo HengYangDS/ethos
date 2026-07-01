@@ -36,6 +36,12 @@ MAINTAINER_REFERENCE_COMMANDS = (
 GOVERNANCE_GATE_COMMANDS = (
     "openspec validate --all --strict --json",
 )
+LOCAL_CLOSEOUT_COMMANDS = (
+    "ethos land --closeout --apply --authorize --expect-head <HEAD>",
+)
+EVIDENCE_REFRESH_COMMANDS = (
+    "ethos parity shadow --target <repo> --execute --write-evidence",
+)
 PUBLIC_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
 )
@@ -215,6 +221,8 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "setup_commands": list(SETUP_COMMANDS),
         "maintainer_reference_commands": list(MAINTAINER_REFERENCE_COMMANDS),
         "governance_gate_commands": list(GOVERNANCE_GATE_COMMANDS),
+        "local_closeout_commands": list(LOCAL_CLOSEOUT_COMMANDS),
+        "evidence_refresh_commands": list(EVIDENCE_REFRESH_COMMANDS),
         "advanced_public_commands": advanced_public_commands,
         "public_workflow_count": len(PUBLIC_WORKFLOW_COMMANDS),
         "scorecard_count": len(SCORECARD_COMMANDS),

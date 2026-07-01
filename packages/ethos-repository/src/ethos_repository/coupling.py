@@ -70,6 +70,7 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
             "ethos lane prewrite",
             "ethos lane bind-claim",
             "ethos land",
+            "ethos land --closeout",
             "ethos lane retire-landed",
         ],
         "forbidden_workflow_state": ["raw_git_worktree_add"],
@@ -159,6 +160,116 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
         "required": False,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
+    },
+}
+
+BINDING_METADATA: dict[str, dict[str, object]] = {
+    "git_repository_substrate": {
+        "required_for": [
+            "repository identity",
+            "branch roles",
+            "HEAD-bound evidence",
+            "worktree lifecycle",
+        ],
+        "replaceability": "hard-bound",
+        "degradation_state": "blocked:git_repository_missing",
+        "proof_gate": "ethos status --json",
+    },
+    "branch_role_policy": {
+        "required_for": ["semantic role classification", "mutation admission"],
+        "replaceability": "hard-bound",
+        "degradation_state": "default policy only",
+        "proof_gate": "ethos status --json",
+    },
+    "work_lane_lifecycle_command_contract": {
+        "required_for": ["tracked mutation isolation", "local closeout"],
+        "replaceability": "hard-bound",
+        "degradation_state": "blocked:protected_root_mutation",
+        "proof_gate": "ethos prove --full --execute --json",
+    },
+    "openspec_workspace": {
+        "required_for": ["official governance records", "strict specification validation"],
+        "replaceability": "mandatory",
+        "degradation_state": "blocked:openspec_shape_gap",
+        "proof_gate": "openspec validate --all --strict --json",
+    },
+    "openspec_cli": {
+        "required_for": ["official governance validation"],
+        "replaceability": "mandatory",
+        "degradation_state": "blocked:openspec_cli_unavailable",
+        "proof_gate": "openspec validate --all --strict --json",
+    },
+    "command_json_schema_protocol": {
+        "required_for": ["command JSON contracts"],
+        "replaceability": "mandatory",
+        "degradation_state": "blocked:schema_validation_gap",
+        "proof_gate": "ethos quality schemas --json",
+    },
+    "claims_evidence_digest_protocol": {
+        "required_for": ["claim trust envelopes"],
+        "replaceability": "mandatory",
+        "degradation_state": "blocked:claim_digest_mismatch",
+        "proof_gate": "ethos quality claims --json",
+    },
+    "sqlite_local_state_protocol": {
+        "required_for": ["lease and local state coordination"],
+        "replaceability": "mandatory",
+        "degradation_state": "blocked:state_unavailable",
+        "proof_gate": "ethos doctor --json",
+    },
+    "uv_workspace_toolchain": {
+        "required_for": ["product repository proof execution"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "gapped:toolchain_unavailable",
+        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
+    },
+    "hatchling_build_backend": {
+        "required_for": ["Python package build"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "gapped:build_backend_unavailable",
+        "proof_gate": "uv build --all-packages",
+    },
+    "pytest_test_runner": {
+        "required_for": ["unit and architecture proof"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "gapped:test_runner_unavailable",
+        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
+    },
+    "ruff_lint_runner": {
+        "required_for": ["lint diagnostics"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "gapped:lint_runner_unavailable",
+        "proof_gate": "uv run --group dev ruff check .",
+    },
+    "gitlab_release_profile": {
+        "required_for": ["hosted release profile"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "deferred:remote_publication_adapter_unavailable",
+        "proof_gate": "ethos quality release-policy --json",
+    },
+    "mcp_acp_protocol_adapters": {
+        "required_for": ["assistant projection adapters"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "deferred:assistant_adapter_unavailable",
+        "proof_gate": "ethos assistants doctor --json",
+    },
+    "npm_launcher_distribution_adapter": {
+        "required_for": ["npm launcher distribution"],
+        "replaceability": "replaceable-adapter",
+        "degradation_state": "deferred:npm_distribution_unavailable",
+        "proof_gate": "uv build --all-packages",
+    },
+    "legacy_evidence_records": {
+        "required_for": ["historical auditability"],
+        "replaceability": "historical",
+        "degradation_state": "nonblocking:legacy_evidence_absent",
+        "proof_gate": "ethos report --json",
+    },
+    "provider_test_fixtures": {
+        "required_for": ["provider boundary regression tests"],
+        "replaceability": "fixture-only",
+        "degradation_state": "nonblocking:test_fixture_absent",
+        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
     },
 }
 
@@ -305,7 +416,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
     branch_role_metadata = _branch_role_policy_metadata(root)
     release_profile = _release_host_profile(root)
     product_toolchain = _product_toolchain()
-    return [
+    entries = [
         {
             "id": "git_repository_substrate",
             "layer": "product_semantic_hard_binding",
@@ -339,6 +450,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
                 "ethos lane prewrite",
                 "ethos lane bind-claim",
                 "ethos land",
+                "ethos land --closeout",
                 "ethos lane retire-landed",
             ],
             "forbidden_workflow_state": ["raw_git_worktree_add"],
@@ -466,6 +578,9 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
             "surfaces": ["hosted provider fixtures", "adopter fixtures"],
         },
     ]
+    for entry in entries:
+        entry.update(BINDING_METADATA[str(entry["id"])])
+    return entries
 
 
 def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:

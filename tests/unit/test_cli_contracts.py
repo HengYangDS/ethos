@@ -49,6 +49,8 @@ def init_git_repo(path: Path) -> Path:
 def write_role_policy(
     repo: Path,
     *,
+    release_branch: str = "main",
+    accepted_branch: str = "dev",
     candidate_branch: str = "stage/dev",
     work_branch_prefix: str = "lane/",
     submit_branch_prefix: str = "review/",
@@ -57,8 +59,8 @@ def write_role_policy(
         "\n".join(
             [
                 "[branch_roles]",
-                'release_branch = "main"',
-                'accepted_branch = "dev"',
+                f'release_branch = "{release_branch}"',
+                f'accepted_branch = "{accepted_branch}"',
                 f'candidate_branch = "{candidate_branch}"',
                 f'work_branch_prefix = "{work_branch_prefix}"',
                 f'submit_branch_prefix = "{submit_branch_prefix}"',
@@ -80,6 +82,22 @@ def write_role_policy(
     )
 
 
+def adopt_and_commit(repo: Path) -> None:
+    plan = adoption_plan(repo, profile="generic", apply=True)
+    assert plan["applied"] is True
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "adopt ethos governance",
+    )
+
+
 def test_status_json_contract() -> None:
     payload = run_ethos("status", "--json")
 
@@ -95,6 +113,39 @@ def test_full_proof_requires_executed_evidence() -> None:
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
     assert "full_proof_requires_execute" in payload["required_gaps"]
+
+
+def test_prove_gapped_audit_points_to_real_audit_command(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "bad.md").write_text(
+        """---
+subject: sample:bad
+role: reference
+state: active
+relations:
+  see_also: []
+---
+
+# Bad
+
+Status: active.
+
+Purpose: trigger a docs gap.
+
+See also: none.
+
+```bash
+proof legacy objective
+```
+""",
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert payload["next_actions"] == ["ethos audit --mode deep"]
 
 
 def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
@@ -1699,6 +1750,203 @@ def test_land_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
+
+
+def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "accepted_validated"
+    assert payload["required_gaps"] == []
+    assert payload["next_actions"] == ["ethos lane retire-landed --branch <work-branch>"]
+    assert payload["data"]["accepted_update"] == {
+        "ok": True,
+        "state": "accepted_validated",
+        "branch": "dev",
+        "source_branch": "candidate/dev",
+        "head": candidate_head,
+        "previous_head": accepted_head,
+        "required_gaps": [],
+    }
+    assert git(repo, "rev-parse", "dev") == candidate_head
+    assert git(repo, "rev-parse", "HEAD") == candidate_head
+
+
+def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    git(repo, "branch", "integration", "dev")
+    git(repo, "checkout", "integration")
+    write_role_policy(
+        repo,
+        release_branch="release",
+        accepted_branch="integration",
+        candidate_branch="stage/integration",
+        work_branch_prefix="lane/",
+        submit_branch_prefix="review/",
+    )
+    git(repo, "branch", "release", "integration")
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_path = tmp_path / "repo-stage-integration"
+
+    candidate_payload = run_ethos(
+        "lane",
+        "candidate",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        candidate_path.as_posix(),
+        "--expect-head",
+        accepted_head,
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert candidate_payload["ok"] is True
+    assert candidate_payload["data"]["branch"] == "stage/integration"
+    assert candidate_payload["data"]["path"] == candidate_path.as_posix()
+
+    worktree = tmp_path / "repo-lane-configured"
+    start_payload = run_ethos(
+        "lane",
+        "start",
+        "configured",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+
+    assert start_payload["ok"] is True
+    assert start_payload["data"]["branch"] == "lane/configured"
+    assert start_payload["data"]["base"] == "stage/integration"
+    assert start_payload["summary"] == {
+        "branch": "lane/configured",
+        "path": worktree.resolve().as_posix(),
+    }
+
+    (worktree / "README.md").write_text("# configured lane\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configured lane change",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+
+    publish_payload = run_ethos("publish", "--json", cwd=worktree)
+
+    assert publish_payload["ok"] is True
+    assert publish_payload["data"]["publication"]["submit_branch"] == "review/configured"
+    assert publish_payload["data"]["publication"]["local_submit_package"] == {
+        "kind": "submit_branch_plan",
+        "source_branch": "lane/configured",
+        "submit_branch": "review/configured",
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "blocking": False,
+        "required_steps": [
+            "land work lane to candidate role",
+            "fast-forward accepted root from candidate role",
+            "create configured submit branch when remote publication is available",
+        ],
+    }
+
+    land_payload = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        work_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert land_payload["ok"] is True
+    assert land_payload["data"]["candidate_update"]["branch"] == "stage/integration"
+    assert git(candidate_path, "rev-parse", "HEAD") == work_head
+    assert git(repo, "rev-parse", "integration") == accepted_head
+
+    closeout_payload = run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert closeout_payload["ok"] is True
+    assert closeout_payload["data"]["accepted_update"] == {
+        "ok": True,
+        "state": "accepted_validated",
+        "branch": "integration",
+        "source_branch": "stage/integration",
+        "head": work_head,
+        "previous_head": accepted_head,
+        "required_gaps": [],
+    }
+
+    retire_payload = run_ethos(
+        "lane",
+        "retire-landed",
+        "--branch",
+        "lane/configured",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert retire_payload["ok"] is True
+    assert retire_payload["summary"] == {
+        "landed_lane_count": 1,
+        "selected_branch": "lane/configured",
+    }
 
 
 def test_publish_apply_requires_authorization_and_expected_head() -> None:

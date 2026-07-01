@@ -45,6 +45,39 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _init_git_repo(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-b", "dev"], cwd=path, check=True, capture_output=True)
+    (path / "README.md").write_text("# sample\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "init",
+        ],
+        cwd=path,
+        check=True,
+        capture_output=True,
+    )
+    return path
+
+
+def _git_head(path: Path) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=path,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+
+
 def _complete_parity_evidence(adopter: str) -> dict[str, object]:
     command = (
         f"uv run --package ethos ethos parity shadow --target /tmp/{adopter} "
@@ -109,6 +142,35 @@ def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path)
     assert len(payload["data"]["pending_packages"]) == len(payload["required_gaps"])
 
 
+def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
+    tmp_path: Path,
+) -> None:
+    _init_git_repo(tmp_path)
+    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    stale = _complete_parity_evidence("sample-adopter")
+    stale["freshness"]["product_head"] = "old-product-head"
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(stale),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert payload["next_actions"] == [
+        "ethos parity shadow --target <repo> --execute --write-evidence"
+    ]
+
+
 def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     payload = run_ethos("parity", "gaps", "--adopter", "alphasim-dmgr", "--json")
 
@@ -128,6 +190,110 @@ def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/generic-shadow.json"
+
+
+def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    product = _init_git_repo(tmp_path / "product")
+    target = _init_git_repo(tmp_path / "sample-adopter")
+
+    def fake_shadow(*, target: Path, timeout_seconds: int) -> dict[str, object]:
+        return {
+            "ok": True,
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "required_gaps": [],
+            "comparisons": SHADOW_COMMANDS,
+            "semantic_dimensions": ["branch role", "publish readiness"],
+            "execution_packages": [],
+        }
+
+    monkeypatch.setattr(shadow, "run_shadow_parity", fake_shadow)
+
+    payload = run_ethos(
+        "parity",
+        "shadow",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--execute",
+        "--timeout-seconds",
+        "60",
+        "--write-evidence",
+        "--json",
+        cwd=product,
+    )
+
+    evidence_path = product / "docs" / "evidence" / "parity" / "sample-adopter-shadow.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    expected_command = (
+        f"uv run --package ethos ethos parity shadow --target {target.resolve().as_posix()} "
+        "--execute --timeout-seconds 60 --json"
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "matched"
+    assert payload["data"]["evidence_written"] == evidence_path.relative_to(product).as_posix()
+    assert evidence["adopter"] == "sample-adopter"
+    assert evidence["target"] == target.resolve().as_posix()
+    assert evidence["command"] == expected_command
+    assert evidence["freshness"] == {
+        "product_head": _git_head(product),
+        "target_head": _git_head(target),
+        "command_sha256": _sha256_text(expected_command),
+    }
+    assert evidence["shadow"]["ok"] is True
+    assert evidence["shadow"]["state"] == "matched"
+    assert evidence["shadow"]["comparison_count"] == len(SHADOW_COMMANDS)
+    assert evidence["shadow"]["commands"] == SHADOW_COMMANDS
+    assert evidence["verified_capabilities"] == MIGRATED_CAPABILITIES
+    assert set(evidence["capability_basis"]) == set(MIGRATED_CAPABILITIES)
+
+
+def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    product = _init_git_repo(tmp_path / "product")
+
+    def fake_shadow(*, target: Path, timeout_seconds: int) -> dict[str, object]:
+        return {
+            "ok": True,
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "required_gaps": [],
+            "comparisons": SHADOW_COMMANDS,
+            "semantic_dimensions": ["product command parity"],
+            "execution_packages": [],
+        }
+
+    monkeypatch.setattr(shadow, "run_shadow_parity", fake_shadow)
+
+    payload = run_ethos(
+        "parity",
+        "shadow",
+        "--root",
+        product.as_posix(),
+        "--target",
+        product.as_posix(),
+        "--execute",
+        "--write-evidence",
+        "--json",
+        cwd=product,
+    )
+
+    evidence_path = product / "docs" / "evidence" / "parity" / "generic-shadow.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert payload["ok"] is True
+    assert evidence["adopter"] == "generic"
+    assert evidence["freshness"]["product_head"] == _git_head(product)
+    assert evidence["freshness"]["target_head"] == _git_head(product)
 
 
 def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:

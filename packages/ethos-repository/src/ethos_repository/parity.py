@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ethos_contracts.capability_parity import capability_parity_records
@@ -61,6 +62,69 @@ def parity_gaps_report(
         "records": records,
         "evidence": evidence,
     }
+
+
+def build_tracked_parity_evidence(
+    *,
+    adopter: str,
+    target: Path,
+    shadow: dict[str, object],
+    current_product_head: str,
+    current_target_head: str,
+    timeout_seconds: int,
+) -> dict[str, object]:
+    target = target.resolve()
+    command = _shadow_evidence_command(target=target, timeout_seconds=timeout_seconds)
+    return {
+        "schema_version": 1,
+        "adopter": adopter,
+        "target": target.as_posix(),
+        "generated_on": datetime.now(tz=UTC).date().isoformat(),
+        "command": command,
+        "freshness": {
+            "product_head": current_product_head,
+            "target_head": current_target_head,
+            "command_sha256": _sha256_text(command),
+        },
+        "shadow": {
+            "ok": bool(shadow.get("ok")),
+            "state": str(shadow.get("state") or "matched"),
+            "required_gaps": list(shadow.get("required_gaps", []))
+            if isinstance(shadow.get("required_gaps"), list)
+            else [],
+            "comparison_count": len(SHADOW_PARITY_COMMANDS),
+            "commands": list(SHADOW_PARITY_COMMANDS),
+        },
+        "verified_capabilities": _migratable_capability_list(),
+        "semantic_dimensions": _string_list(shadow.get("semantic_dimensions"))
+        or list(SHADOW_PARITY_DIMENSIONS),
+        "capability_basis": {
+            capability: [f"{capability} shadow parity matched"]
+            for capability in _migratable_capability_list()
+        },
+    }
+
+
+def write_tracked_parity_evidence(
+    *,
+    root: Path,
+    adopter: str,
+    evidence: dict[str, object],
+) -> Path:
+    path = root / "docs" / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(evidence, indent=2, sort_keys=False) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _shadow_evidence_command(*, target: Path, timeout_seconds: int) -> str:
+    return (
+        f"uv run --package ethos ethos parity shadow --target {target.as_posix()} "
+        f"--execute --timeout-seconds {timeout_seconds} --json"
+    )
 
 
 def _pending_package(record: dict[str, object]) -> dict[str, object]:
@@ -424,3 +488,11 @@ def _migratable_capabilities() -> set[str]:
         for record in capability_parity_records()
         if record["disposition"] in {"migrate-to-product", "split"}
     }
+
+
+def _migratable_capability_list() -> list[str]:
+    return [
+        str(record["capability"])
+        for record in capability_parity_records()
+        if record["disposition"] in {"migrate-to-product", "split"}
+    ]

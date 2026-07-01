@@ -3,11 +3,11 @@
   "adopter": "alphasim-dmgr",
   "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "d66721a674ec9268a7da5f370ba595157e06ac8a",
+    "product_head": "ef9a90d1d5da8277ae9e3c546d244d2c76d1bb3f",
     "target_head": "8b8bf19ef8df92b3096c0e651433cac74c15f7f1",
-    "command_sha256": "14a66573de609c5b17b47252222dd8b41bf81f98ed685b04014931afeb08483f"
+    "command_sha256": "33a16898e78f282bdf2b6bf2763290980a1f684c846aa02d96c842dc4bca2cba"
   },
   "shadow": {
     "ok": true,
@@ -24,7 +24,15 @@
       "ethos playbooks route --changed --json",
       "ethos land --json",
       "ethos publish --json"
-    ]
+    ],
+    "accepted_summary": {
+      "total_count": 2,
+      "kind_counts": {
+        "changed_route_noop": 1,
+        "report_parity_evidence_refresh_bootstrap": 1
+      },
+      "command_count": 2
+    }
   },
   "verified_capabilities": [
     "work-lane-lifecycle",

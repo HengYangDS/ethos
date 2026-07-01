@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-closeout-evidence-seal",
+  "target": "/Users/yheng/projects/ethos",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/ethos-work-closeout-evidence-seal --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "d66721a674ec9268a7da5f370ba595157e06ac8a",
-    "target_head": "d66721a674ec9268a7da5f370ba595157e06ac8a",
-    "command_sha256": "9c9f75f4f3e63a85a9c35cecf94a5664947c3be64b828edec0431b793c0b44cb"
+    "product_head": "ef9a90d1d5da8277ae9e3c546d244d2c76d1bb3f",
+    "target_head": "6b085067c8bf52f09a45af21d6276c8ca0cb6bb3",
+    "command_sha256": "493c4519fb3ba16ee8f9aec7eb23c7065ddb672358e717ab7ad78b43188527a0"
   },
   "shadow": {
     "ok": true,
@@ -24,7 +24,12 @@
       "ethos playbooks route --changed --json",
       "ethos land --json",
       "ethos publish --json"
-    ]
+    ],
+    "accepted_summary": {
+      "total_count": 0,
+      "kind_counts": {},
+      "command_count": 0
+    }
   },
   "verified_capabilities": [
     "work-lane-lifecycle",

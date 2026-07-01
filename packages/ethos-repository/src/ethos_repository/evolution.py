@@ -9,6 +9,10 @@ def _ledger_path(root: Path) -> Path:
     return root / "docs" / "governance" / "evolution-ledger.toml"
 
 
+def _campaigns_root(root: Path) -> Path:
+    return root / "evolution" / "campaigns"
+
+
 def evolution_ledger(root: Path) -> dict[str, Any]:
     path = _ledger_path(root)
     if not path.exists():
@@ -47,6 +51,132 @@ def evolution_report(root: Path) -> dict[str, object]:
         "required_gaps": gaps,
         "ledger": ledger,
     }
+
+
+def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, object]:
+    campaigns, gaps = _campaign_manifests(root, campaign_id=campaign_id)
+    active = [item for item in campaigns if item["state"] in {"active", "experimenting"}]
+    return {
+        "ok": not gaps,
+        "campaign_count": len(campaigns),
+        "active_count": len(active),
+        "required_gaps": gaps,
+        "campaigns": campaigns,
+    }
+
+
+def _campaign_manifests(
+    root: Path,
+    *,
+    campaign_id: str | None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    campaigns_root = _campaigns_root(root)
+    if not campaigns_root.exists():
+        return [], []
+    manifests = sorted(campaigns_root.glob("*/campaign.toml"))
+    campaigns: list[dict[str, Any]] = []
+    gaps: list[str] = []
+    for path in manifests:
+        try:
+            payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            gaps.append(f"campaign_manifest_invalid_toml:{path.parent.name}")
+            campaigns.append(
+                {
+                    "id": path.parent.name,
+                    "state": "invalid",
+                    "owner": "",
+                    "objective": "",
+                    "claim_id": "",
+                    "path": path.relative_to(root).as_posix(),
+                    "steps": [],
+                    "step_summary": _step_summary([]),
+                    "required_gaps": [str(exc)],
+                }
+            )
+            continue
+        campaign = _campaign_payload(root, path, payload)
+        if campaign_id and campaign["id"] != campaign_id:
+            continue
+        campaign_gaps = _campaign_required_gaps(root, campaign)
+        campaign["required_gaps"] = campaign_gaps
+        gaps.extend(campaign_gaps)
+        campaigns.append(campaign)
+    if campaign_id and not campaigns:
+        gaps.append(f"campaign_missing:{campaign_id}")
+    return campaigns, gaps
+
+
+def _campaign_payload(
+    root: Path,
+    path: Path,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    steps = [_step_payload(item) for item in payload.get("step", [])]
+    campaign = {
+        "id": str(payload.get("id") or path.parent.name),
+        "state": str(payload.get("state") or "active"),
+        "owner": str(payload.get("owner") or ""),
+        "objective": str(payload.get("objective") or ""),
+        "claim_id": str(payload.get("claim_id") or ""),
+        "path": path.relative_to(root).as_posix(),
+        "steps": steps,
+        "step_summary": _step_summary(steps),
+    }
+    return campaign
+
+
+def _step_payload(item: dict[str, Any]) -> dict[str, Any]:
+    closeout = dict(item.get("closeout") or {})
+    return {
+        "id": str(item.get("id") or ""),
+        "title": str(item.get("title") or ""),
+        "state": str(item.get("state") or "planned"),
+        "openspec_change": str(item.get("openspec_change") or ""),
+        "work_lane": str(item.get("work_lane") or ""),
+        "claim_id": str(item.get("claim_id") or ""),
+        "closeout": {
+            "state": str(closeout.get("state") or "planned"),
+            "accepted_head": str(closeout.get("accepted_head") or ""),
+            "candidate_head": str(closeout.get("candidate_head") or ""),
+            "evidence": [str(value) for value in closeout.get("evidence", [])],
+        },
+    }
+
+
+def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
+    closed_states = {"closed", "retired"}
+    return {
+        "total": len(steps),
+        "planned": sum(1 for item in steps if item["state"] == "planned"),
+        "active": sum(1 for item in steps if item["state"] in {"active", "in_progress"}),
+        "closed": sum(
+            1
+            for item in steps
+            if item["state"] in closed_states or item["closeout"]["state"] in closed_states
+        ),
+    }
+
+
+def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
+    gaps: list[str] = []
+    for field in ("id", "state", "owner", "objective", "claim_id"):
+        if not campaign[field]:
+            gaps.append(f"campaign_{field}_missing:{campaign['id']}")
+    for step in campaign["steps"]:
+        step_id = step["id"] or "unnamed"
+        for field in ("id", "title", "openspec_change", "work_lane", "claim_id"):
+            if not step[field]:
+                gaps.append(f"campaign_step_{field}_missing:{campaign['id']}:{step_id}")
+        change = step["openspec_change"]
+        needs_existing_carrier = (
+            step["state"] != "planned" or step["closeout"]["state"] != "planned"
+        )
+        if needs_existing_carrier and change and not (
+            root / "openspec" / "changes" / change
+        ).exists() and not any((root / "openspec" / "changes" / "archive").glob(f"*-{change}")):
+            gaps.append(f"campaign_step_openspec_missing:{campaign['id']}:{step_id}")
+    return gaps
 
 
 def evolution_candidates(root: Path) -> dict[str, object]:

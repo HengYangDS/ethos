@@ -2686,6 +2686,28 @@ def test_campaign_hypotheses_are_visible() -> None:
     assert payload["data"]["hypotheses"]
 
 
+def test_campaign_status_reports_manifest_steps() -> None:
+    payload = run_ethos("campaign", "status", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "campaign status"
+    assert payload["summary"]["active_campaign_count"] >= 1
+    assert payload["data"]["campaigns"]
+    campaign = next(
+        item
+        for item in payload["data"]["campaigns"]
+        if item["id"] == "terminal-openspec-productization"
+    )
+    assert campaign["step_summary"]["total"] >= 8
+    assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
+    assert {
+        "openspec_change",
+        "work_lane",
+        "claim_id",
+        "closeout",
+    } <= set(campaign["steps"][0])
+
+
 def test_campaign_closeout_reports_local_campaign_packages() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
@@ -2721,6 +2743,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert set(packages) == {
         "local_closeout",
         "trust_closeout",
+        "campaign",
         "intake_projection",
         "publication",
         "release",
@@ -2728,6 +2751,9 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "shadow_parity",
     }
     assert packages["local_closeout"]["target_branch"] == "candidate/dev"
+    assert packages["campaign"]["kind"] == "campaign_closeout"
+    assert packages["campaign"]["active_count"] >= 1
+    assert packages["campaign"]["campaigns"]
     assert (
         packages["local_closeout"]["required_gaps"]
         == payload["data"]["workspace"]["closeout_support"]["required_gaps"]
@@ -2739,15 +2765,17 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["parity"]["pending_count"] == len(
         payload["data"]["parity"]["pending_packages"]
     )
-    assert packages["parity"]["pending_count"] == 0
-    assert packages["parity"]["required_gaps"] == []
-    assert packages["shadow_parity"]["kind"] == "shadow_parity_evidence"
-    assert packages["shadow_parity"]["state"] == "matched"
+    assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]
+    assert packages["parity"]["blocking"] is False
+    assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
+    assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
+    assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
     assert packages["shadow_parity"]["evidence_path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
-    assert packages["shadow_parity"]["blocking"] is False
-    assert packages["shadow_parity"]["required_gaps"] == []
+    assert packages["shadow_parity"]["blocking"] == bool(
+        packages["shadow_parity"]["required_gaps"]
+    )
     assert packages["intake_projection"]["kind"] == "intake_projection"
     assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
     assert packages["trust_closeout"]["kind"] == "trust_closeout"

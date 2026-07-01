@@ -10,6 +10,7 @@
     "claims",
     "intake_projection",
     "evolution",
+    "campaigns",
     "release",
     "parity",
     "shadow_parity",
@@ -25,6 +26,7 @@
     "claims": {"type": "object"},
     "intake_projection": {"$ref": "#/$defs/intakeProjection"},
     "evolution": {"type": "object"},
+    "campaigns": {"$ref": "#/$defs/campaignPackage"},
     "release": {"type": "object"},
     "parity": {"type": "object"},
     "shadow_parity": {"type": "object"},
@@ -36,6 +38,7 @@
       "required": [
         "local_closeout",
         "trust_closeout",
+        "campaign",
         "intake_projection",
         "publication",
         "release",
@@ -45,6 +48,7 @@
       "properties": {
         "local_closeout": {"type": "object"},
         "trust_closeout": {"$ref": "#/$defs/trustCloseout"},
+        "campaign": {"$ref": "#/$defs/campaignPackage"},
         "intake_projection": {"$ref": "#/$defs/intakeProjection"},
         "publication": {"$ref": "#/$defs/publication"},
         "release": {"type": "object"},
@@ -56,6 +60,25 @@
   },
   "additionalProperties": false,
   "$defs": {
+    "campaignPackage": {
+      "type": "object",
+      "required": [
+        "ok",
+        "active_count",
+        "campaign_count",
+        "required_gaps",
+        "campaigns"
+      ],
+      "properties": {
+        "kind": {"type": "string"},
+        "ok": {"type": "boolean"},
+        "active_count": {"type": "integer", "minimum": 0},
+        "campaign_count": {"type": "integer", "minimum": 0},
+        "required_gaps": {"type": "array", "items": {"type": "string"}},
+        "campaigns": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    },
     "publication": {
       "type": "object",
       "required": [
@@ -189,6 +212,31 @@
         "blocking": {"type": "boolean"},
         "required_gaps": {"type": "array", "items": {"type": "string"}},
         "provenance": {"$ref": "#/$defs/shadowProvenance"},
+        "refresh_package": {"$ref": "#/$defs/shadowRefreshPackage"},
+        "next_action": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "shadowRefreshPackage": {
+      "type": "object",
+      "required": [
+        "kind",
+        "adopter",
+        "root",
+        "target",
+        "blocking",
+        "required_gaps",
+        "command",
+        "next_action"
+      ],
+      "properties": {
+        "kind": {"const": "parity_evidence_refresh"},
+        "adopter": {"type": "string"},
+        "root": {"type": "string"},
+        "target": {"type": "string"},
+        "blocking": {"type": "boolean"},
+        "required_gaps": {"type": "array", "items": {"type": "string"}},
+        "command": {"type": "string"},
         "next_action": {"type": "string"}
       },
       "additionalProperties": false

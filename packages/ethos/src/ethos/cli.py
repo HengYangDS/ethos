@@ -70,7 +70,7 @@ from ethos_repository.docs_registry import (
     docs_quality_report,
 )
 from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
-from ethos_repository.evolution import evolution_ledger, evolution_report
+from ethos_repository.evolution import campaign_report, evolution_ledger, evolution_report
 from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph, gate_registry
 from ethos_repository.parity import (
@@ -583,6 +583,7 @@ def _campaign_closeout_report(
     intake_projection = _intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
+    campaign = campaign_report(repo)
     release = release_policy_report(repo)
     current_target_head = _current_tracked_head(target)
     current_product_head = _current_tracked_head(repo)
@@ -647,8 +648,16 @@ def _campaign_closeout_report(
             "blocking": False,
         },
         "shadow_parity": shadow["execution_packages"][0],
+        "campaign": {
+            "kind": "campaign_closeout",
+            "ok": bool(campaign["ok"]),
+            "active_count": int(campaign["active_count"]),
+            "campaign_count": int(campaign["campaign_count"]),
+            "required_gaps": list(campaign["required_gaps"]),
+            "campaigns": campaign["campaigns"],
+        },
     }
-    ok = local_ready and not trust_closeout["required_gaps"]
+    ok = local_ready and bool(campaign["ok"]) and not trust_closeout["required_gaps"]
     return {
         "ok": ok,
         "state": "local_ready" if ok else "gapped",
@@ -656,6 +665,7 @@ def _campaign_closeout_report(
         "claims": claim_report,
         "intake_projection": intake_projection,
         "evolution": evolution,
+        "campaigns": campaign,
         "release": release,
         "parity": parity,
         "shadow_parity": shadow,
@@ -2055,16 +2065,25 @@ def openspec(
 
 
 @campaign_app.command(name="status")
-def campaign_status(*, json_output: JsonFlag = False) -> None:
+def campaign_status(
+    *,
+    campaign: str | None = None,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """Report canonical campaign model."""
-    report = evolution_report(Path.cwd())
+    repo = _root(root)
+    report = campaign_report(repo, campaign_id=campaign)
     result = EthosResult(
         command="campaign status",
         ok=bool(report["ok"]),
         state="active",
-        summary={"campaign": "ethos-product-maturation"},
+        summary={
+            "active_campaign_count": report["active_count"],
+            "campaign_count": report["campaign_count"],
+        },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos repository audit",),
+        next_actions=("ethos campaign closeout --json",),
         data=report,
     )
     _emit(result, json_output)

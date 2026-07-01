@@ -192,6 +192,36 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     assert validation["ok"] is True
 
 
+def test_campaign_schema_accepts_lane_closeout_steps() -> None:
+    payload = {
+        "id": "terminal-openspec-productization",
+        "state": "active",
+        "owner": "ethos-maintainers",
+        "objective": "Complete terminal OpenSpec productization through closeout-ready lanes.",
+        "claim_id": "ethos-terminal-openspec-productization",
+        "steps": [
+            {
+                "id": "campaign-orchestration",
+                "title": "Campaign orchestration",
+                "state": "closed",
+                "openspec_change": "ethos-campaign-orchestration",
+                "work_lane": "work/campaign-orchestration",
+                "claim_id": "ethos-campaign-orchestration",
+                "closeout": {
+                    "state": "retired",
+                    "accepted_head": "a" * 40,
+                    "candidate_head": "a" * 40,
+                    "evidence": ["docs/evidence/campaign-orchestration-2026-07-02.md"],
+                },
+            }
+        ],
+    }
+
+    validation = validate_schema_instance("campaign.schema.json", payload)
+
+    assert validation["ok"] is True
+
+
 def test_proof_run_schema_uses_trust_bearing_lattice() -> None:
     payload = {
         "action_id": "proof-policy",

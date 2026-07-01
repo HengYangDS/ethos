@@ -28,12 +28,25 @@ not create a private command plane or a second product lifecycle.
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.
 
+`evolution/campaigns/<campaign-id>/campaign.toml` records long-running product
+work as an ordered campaign manifest. A campaign is not a giant Work Lane. It
+is an orchestration record whose steps name the OpenSpec change, Work Lane
+branch, claim, evidence refs, and closeout state that must be completed before
+later steps depend on them. Each step lands through normal Work Lane semantics:
+prove, land to candidate, closeout-apply to the accepted root, then retire the
+lane.
+
+`ethos campaign status --json` exposes those manifests as the canonical campaign
+read model. Planned future steps may name their intended OpenSpec changes before
+the carriers exist. Active, landed, closed, or retired steps must have an active
+or archived OpenSpec carrier so the campaign cannot hide ownerless work.
+
 `ethos campaign closeout --json` exposes the local campaign closeout package. It
 is a read-only aggregation of Work Lane closeout support, publication readiness,
-release policy, unresolved parity packages, and shadow parity execution plans.
-Remote publication remains deferred until an adapter is available; local
-campaign closeout still proceeds through the configured candidate branch and a
-local fast-forward of the accepted root.
+release policy, campaign manifests, unresolved parity packages, and shadow
+parity execution plans. Remote publication remains deferred until an adapter is
+available; local campaign closeout still proceeds through the configured
+candidate branch and a local fast-forward of the accepted root.
 
 Status: see front matter.
 

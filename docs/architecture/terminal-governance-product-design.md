@@ -240,6 +240,7 @@ and archive normalization. It also absorbs `alphasim-dmgr` patterns: a single
 command plane, Work Lane aware lifecycle state,
 claim/proof binding, topic-scoped closeout evidence, and explicit boundaries
 that keep local proof from pretending to be hosted CI or publication.
+
 ## Product Surfaces
 
 ETHOS must ship more than a CLI:
@@ -550,6 +551,13 @@ feedback -> review -> challenge -> hypothesis -> experiment -> evaluation -> ret
 | evaluation | Measured result and decision recommendation. |
 | retrospective | Human-readable learning after a campaign or repeated pattern. |
 | campaign | Long-running goal container that coordinates entries and changes. |
+
+Campaigns are not Work Lanes. A campaign is the batch-level orchestration
+record for a long-running objective. Its `campaign.toml` manifest orders
+OpenSpec-backed Work Lane steps and records each step's OpenSpec change, branch,
+claim, evidence refs, and closeout state. The executable closeout unit remains
+the Work Lane: each step must prove, land to candidate, closeout-apply to the
+accepted root, and retire before downstream steps treat it as closed.
 
 Superpowers can support brainstorming, review, challenge, planning, TDD,
 verification, and subagent execution. It is a method pack, not repository

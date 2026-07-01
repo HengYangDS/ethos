@@ -3,11 +3,11 @@
   "adopter": "alphasim-dmgr",
   "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4580b76f7966373d3c4233410b4bce72f414a9e0",
+    "product_head": "72e5b93f152febf5a242d7589c8b575c86865963",
     "target_head": "8b8bf19ef8df92b3096c0e651433cac74c15f7f1",
-    "command_sha256": "33a16898e78f282bdf2b6bf2763290980a1f684c846aa02d96c842dc4bca2cba"
+    "command_sha256": "b7d63ebea418624259cfaed375c0fbf1996c36fa288f7b5b766400f0b86fe5ae"
   },
   "shadow": {
     "ok": true,

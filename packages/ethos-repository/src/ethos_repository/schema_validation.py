@@ -199,6 +199,11 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
         _campaign_closeout_contract_sample(),
         root=root,
     )
+    instances["campaign-contract"] = validate_schema_instance(
+        "campaign.schema.json",
+        _campaign_contract_sample(),
+        root=root,
+    )
     instances["shadow-parity-contract"] = validate_schema_instance(
         "shadow-parity.schema.json",
         _shadow_parity_contract_sample(),
@@ -358,6 +363,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "state": "local_ready",
         "workspace": {},
         "evolution": {},
+        "campaigns": _campaign_package_contract_sample(),
         "release": {},
         "parity": {},
         "shadow_parity": {},
@@ -379,12 +385,61 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "packages": {
             "local_closeout": {},
             "trust_closeout": _trust_closeout_contract_sample(),
+            "campaign": _campaign_package_contract_sample(),
             "intake_projection": _intake_projection_contract_sample(),
             "publication": publication,
             "release": {},
             "parity": {},
             "shadow_parity": shadow_package,
         },
+    }
+
+
+def _campaign_contract_sample() -> dict[str, Any]:
+    return {
+        "id": "terminal-openspec-productization",
+        "state": "active",
+        "owner": "ethos-maintainers",
+        "objective": "Complete terminal OpenSpec productization through closeout-ready lanes.",
+        "claim_id": "ethos-terminal-openspec-productization",
+        "steps": [
+            {
+                "id": "campaign-orchestration",
+                "title": "Campaign orchestration",
+                "state": "closed",
+                "openspec_change": "ethos-campaign-orchestration",
+                "work_lane": "work/campaign-orchestration",
+                "claim_id": "ethos-campaign-orchestration",
+                "closeout": {
+                    "state": "retired",
+                    "accepted_head": "a" * 40,
+                    "candidate_head": "a" * 40,
+                    "evidence": ["docs/evidence/campaign-orchestration-2026-07-02.md"],
+                },
+            }
+        ],
+    }
+
+
+def _campaign_package_contract_sample() -> dict[str, Any]:
+    return {
+        "kind": "campaign_closeout",
+        "ok": True,
+        "active_count": 1,
+        "campaign_count": 1,
+        "required_gaps": [],
+        "campaigns": [
+            {
+                "id": "terminal-openspec-productization",
+                "state": "active",
+                "owner": "ethos-maintainers",
+                "objective": "Complete terminal OpenSpec productization.",
+                "claim_id": "ethos-terminal-openspec-productization",
+                "steps": [],
+                "step_summary": {"total": 0, "planned": 0, "active": 0, "closed": 0},
+                "required_gaps": [],
+            }
+        ],
     }
 
 

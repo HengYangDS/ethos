@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos",
+  "target": "/Users/yheng/projects/ethos-work-campaign-orchestration",
   "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-campaign-orchestration --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4580b76f7966373d3c4233410b4bce72f414a9e0",
-    "target_head": "42416d6f2dbf93cf268f5bc0e32cfd54a644a159",
-    "command_sha256": "493c4519fb3ba16ee8f9aec7eb23c7065ddb672358e717ab7ad78b43188527a0"
+    "product_head": "72e5b93f152febf5a242d7589c8b575c86865963",
+    "target_head": "72e5b93f152febf5a242d7589c8b575c86865963",
+    "command_sha256": "678afb73e46ec719d359e3fe94125c922a9f7af48103c13c049bf05432119db0"
   },
   "shadow": {
     "ok": true,

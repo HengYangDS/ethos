@@ -14,7 +14,7 @@ def context_bundle() -> dict[str, object]:
                 "ethos publish",
             ],
             "governance": [
-                "ethos self audit",
+                "ethos audit",
                 "ethos campaign hypotheses",
                 "ethos quality release-policy",
                 "ethos quality commits",
@@ -24,7 +24,7 @@ def context_bundle() -> dict[str, object]:
             "ethos://docs/index": "docs/index.md",
             "ethos://docs/command-plane": "docs/reference/command-plane.md",
             "ethos://schemas/result": "schemas/ethos/result.schema.json",
-            "ethos://governance/self-evolution": "docs/governance/self-evolution-ledger.toml",
+            "ethos://governance/evolution": "docs/governance/evolution-ledger.toml",
         },
         "rules": [
             "agent hosts consume ETHOS context without becoming truth stores",

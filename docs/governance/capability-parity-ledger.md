@@ -91,12 +91,12 @@ payloads that omit top-level `state` for read-only ready/planned commands.
 
 Executed comparisons also expose `accepted_differences` when a mismatch belongs
 to a known cross-generation projection boundary rather than to adopter command
-semantics. Product self-audit gaps reported by an external product command are
+semantics. Product repository-audit gaps reported by an external product command are
 classified separately when the embedded command has no corresponding gap, so
 shadow parity does not mistake ETHOS product-repository maturation work for an
 adopter backend mismatch. Legacy changed-scope playbook route gaps are likewise
 classified only when the embedded route confirms `changed_path_count=0`. Any
-non-self-audit proof gap, mutation/admission gap, embedded gap, command failure,
+non-repository-audit proof gap, mutation/admission gap, embedded gap, command failure,
 or changed-scope route gap with actual changed paths remains a blocking
 `shadow_diff:*` or command failure package.
 

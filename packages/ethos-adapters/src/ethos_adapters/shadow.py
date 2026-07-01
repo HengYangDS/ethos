@@ -295,16 +295,16 @@ def _normalized_semantic_projections(
     embedded_gaps = _gap_list(embedded_projection.get("required_gaps"))
     external_gaps = _gap_list(external_projection.get("required_gaps"))
     if not embedded_gaps:
-        external_gaps, self_audit_gaps = _without_product_self_audit_gaps(
+        external_gaps, repository_audit_gaps = _without_product_repository_audit_gaps(
             external,
             external_gaps,
         )
-        if self_audit_gaps:
+        if repository_audit_gaps:
             accepted.append(
                 _accepted_difference(
-                    "external_product_self_audit_gap",
+                    "external_product_repository_audit_gap",
                     command=external_projection.get("command"),
-                    gaps=self_audit_gaps,
+                    gaps=repository_audit_gaps,
                 )
             )
         external_gaps, route_gaps = _without_legacy_changed_route_noop_gaps(
@@ -331,9 +331,9 @@ def _normalized_semantic_projections(
 
 
 def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict[str, Any]:
-    if kind == "external_product_self_audit_gap":
-        scope = "external_product_self_audit"
-        reason = "external product self-audit gap is not an embedded adopter parity gap"
+    if kind == "external_product_repository_audit_gap":
+        scope = "external_product_repository_audit"
+        reason = "external product repository audit gap is not an embedded adopter parity gap"
     elif kind == "legacy_changed_route_noop":
         scope = "legacy_changed_scope_route"
         reason = "legacy changed-scope route has no changed paths to route"
@@ -516,16 +516,20 @@ def _gap_list(value: object) -> list[str]:
     return [str(item) for item in value]
 
 
-def _without_product_self_audit_gaps(
+def _without_product_repository_audit_gaps(
     payload: dict[str, Any],
     gaps: list[str],
 ) -> tuple[list[str], list[str]]:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-    self_audit = data.get("self_audit") if isinstance(data.get("self_audit"), dict) else {}
+    repository_audit = (
+        data.get("repository_audit")
+        if isinstance(data.get("repository_audit"), dict)
+        else {}
+    )
     audit_gaps = {
         gap
-        for gap in _gap_list(self_audit.get("required_gaps"))
-        if _is_product_self_audit_gap(gap)
+        for gap in _gap_list(repository_audit.get("required_gaps"))
+        if _is_product_repository_audit_gap(gap)
     }
     if not audit_gaps:
         return gaps, []
@@ -534,7 +538,7 @@ def _without_product_self_audit_gaps(
     return filtered, removed
 
 
-def _is_product_self_audit_gap(gap: str) -> bool:
+def _is_product_repository_audit_gap(gap: str) -> bool:
     return (
         gap.startswith("docs/")
         or gap.startswith("schemas/")

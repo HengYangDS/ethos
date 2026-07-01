@@ -51,15 +51,15 @@ class Gate:
 def gate_registry() -> dict[str, Gate]:
     python = sys.executable
     registry = {
-        "self-audit": Gate(
-            id="self-audit",
+        "repository-audit": Gate(
+            id="repository-audit",
             kind="governance",
-            command=(python, "-m", "ethos.cli", "self", "audit", "--mode", "shape", "--json"),
+            command=(python, "-m", "ethos.cli", "audit", "--mode", "shape", "--json"),
             asset_classes=("evidence",),
             dimensions=("governance", "determinism"),
             evidence_class="contract",
             trust_bearing=True,
-            tool_adapter="ethos-self-audit",
+            tool_adapter="ethos-repository-audit",
         ),
         "claims": Gate(
             id="claims",
@@ -126,7 +126,7 @@ def gate_registry() -> dict[str, Gate]:
         "unit-architecture": Gate(
             id="unit-architecture",
             kind="test",
-            profile="self-hosting",
+            profile="product-toolchain",
             toolchain="uv-python",
             command=(
                 "uv",
@@ -149,7 +149,7 @@ def gate_registry() -> dict[str, Gate]:
         "ruff": Gate(
             id="ruff",
             kind="lint",
-            profile="self-hosting",
+            profile="product-toolchain",
             toolchain="uv-python",
             command=("uv", "run", "--group", "dev", "ruff", "check", "."),
             asset_classes=("python-code",),
@@ -163,7 +163,7 @@ def gate_registry() -> dict[str, Gate]:
         "build": Gate(
             id="build",
             kind="package",
-            profile="self-hosting",
+            profile="product-toolchain",
             toolchain="uv-python",
             command=("uv", "build", "--all-packages"),
             depends_on=("unit-architecture", "ruff"),
@@ -203,7 +203,7 @@ def gate_registry() -> dict[str, Gate]:
 def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
     if full:
         return (
-            "self-audit",
+            "repository-audit",
             "claims",
             "docs-registry",
             "schemas",
@@ -218,7 +218,7 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "schema-contracts",
             "proof-policy",
         )
-    return ("self-audit", "claims", "docs-registry", "schemas", "playbooks-v2")
+    return ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2")
 
 
 def gate_graph(gate_ids: tuple[str, ...] = (), *, full: bool = False) -> ActionGraph:

@@ -25,14 +25,12 @@ SCORECARD_COMMANDS = (
 )
 
 
-def governance_context(root: Path, *, posture: str, profile: str) -> dict[str, object]:
+def governance_context(root: Path, *, profile: str) -> dict[str, object]:
     return {
-        "contract": "single_kernel_dual_posture",
-        "posture": posture,
+        "contract": "governed_repository",
         "profile": profile,
         "subject": {
             "kind": "repository",
-            "role": posture,
             "root": str(root.resolve()),
         },
         "single_kernel": True,

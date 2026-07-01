@@ -5,7 +5,7 @@ ETHOS SHALL expose a DocOS authority graph read model for current product
 truth relations.
 
 #### Scenario: Authority graph is audited
-- **WHEN** `ethos self audit --mode shape --json` runs
+- **WHEN** `ethos audit --mode shape --json` runs
 - **THEN** the result includes an authority graph report
 - **AND** every graph entry has an owner, relation type, stable path, and
   typed derivation or supersession relations

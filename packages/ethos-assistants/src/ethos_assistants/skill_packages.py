@@ -32,10 +32,12 @@ _MUTATING_ETHOS_COMMANDS = {"adopt", "land", "publish"}
 _MUTATING_FLAGS = {"--apply", "--authorized", "--authorize", "--execute"}
 _READONLY_ETHOS_COMMANDS = {
     "assistants",
+    "audit",
     "campaign",
     "docs",
     "explain",
     "fleet",
+    "openspec",
     "parity",
     "plan",
     "playbooks",
@@ -43,10 +45,6 @@ _READONLY_ETHOS_COMMANDS = {
     "report",
     "status",
 }
-_READONLY_ETHOS_SELF_COMMANDS = {"audit", "openspec"}
-_PROOF_ETHOS_SELF_COMMANDS = {"audit", "prove"}
-
-
 def compute_skill_package_digest(package_dir: Path, include: list[str]) -> str:
     digest = hashlib.sha256()
     for relative in sorted(include):
@@ -298,22 +296,11 @@ def _is_mutating_command(command: list[str]) -> bool:
 def _is_trusted_readonly_command(command: list[str]) -> bool:
     if len(command) < 2 or command[0] != "ethos":
         return False
-    if command[1] in _READONLY_ETHOS_COMMANDS:
-        return True
-    return (
-        command[1] == "self" and len(command) >= 3 and command[2] in _READONLY_ETHOS_SELF_COMMANDS
-    )
+    return command[1] in _READONLY_ETHOS_COMMANDS
 
 
 def _is_proof_command(command: list[str]) -> bool:
-    if len(command) >= 2 and command[0] == "ethos" and command[1] == "prove":
-        return True
-    return (
-        len(command) >= 3
-        and command[0] == "ethos"
-        and command[1] == "self"
-        and command[2] in _PROOF_ETHOS_SELF_COMMANDS
-    )
+    return len(command) >= 2 and command[0] == "ethos" and command[1] == "prove"
 
 
 def _contained_root_path(root: Path, relative: Path) -> bool:

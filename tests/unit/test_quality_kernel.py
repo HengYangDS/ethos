@@ -106,4 +106,10 @@ def test_proof_policy_has_trust_bearing_lattice() -> None:
     assert states["readiness"]["trust_bearing"] is False
     assert states["executed"]["trust_bearing"] is False
     assert states["proven"]["trust_bearing"] is True
-    assert lattice["trust_consumers"] == ["claim", "land", "publish", "release", "self-governance"]
+    assert lattice["trust_consumers"] == [
+        "claim",
+        "land",
+        "publish",
+        "release",
+        "repository-governance",
+    ]

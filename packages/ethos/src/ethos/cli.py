@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Annotated
 
 import ethos_assistants.playbooks as playbooks_module
-import ethos_repository.self_audit as self_audit_module
+import ethos_repository.repository_audit as repository_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.lanes import (
@@ -26,7 +26,7 @@ from ethos_adapters.mutation import (
     apply_land_to_candidate,
     evaluate_mutation,
 )
-from ethos_adapters.openspec_native import openspec_self_governance_report
+from ethos_adapters.openspec_native import openspec_governance_report
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.runner import (
     ActionRunResult,
@@ -63,7 +63,7 @@ from ethos_repository.docs_registry import (
     docs_quality_report,
 )
 from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
-from ethos_repository.evolution import evolution_candidates, evolution_ledger, evolution_report
+from ethos_repository.evolution import evolution_ledger, evolution_report
 from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph, gate_registry
 from ethos_repository.parity import parity_gaps_report, parity_ledger_report, shadow_parity_report
@@ -79,7 +79,6 @@ from ethos_repository.standards import standard_adapter_registry
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
-self_app = App(name="self", help="Self-governance commands.", show=False)
 campaign_app = App(name="campaign", help="Evolution campaign commands.", show=False)
 intake_app = App(name="intake", help="Intake ledger commands.", show=False)
 assistants_app = App(name="assistants", help="Assistant and protocol projections.", show=False)
@@ -88,7 +87,6 @@ fleet_app = App(name="fleet", help="External adopter and fleet inspection.", sho
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
 parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
 app.command(quality_app)
-app.command(self_app)
 app.command(campaign_app)
 app.command(intake_app)
 app.command(assistants_app)
@@ -204,9 +202,9 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
             policy="required",
         ),
         ActionNode(
-            id="self-audit",
+            id="repository-audit",
             kind="governance",
-            command=("ethos", "self", "audit", "--json"),
+            command=("ethos", "audit", "--json"),
             inputs=inputs,
             outputs=(),
             policy="required",
@@ -230,13 +228,13 @@ def _is_product_root(root: Path) -> bool:
 
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
     if _is_product_root(root):
-        return _product_self_audit(root, openspec_mode=openspec_mode)
+        return _product_repository_audit(root, openspec_mode=openspec_mode)
     return _adopter_audit(root)
 
 
-def _product_self_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
-    reporter = openspec_self_governance_report if openspec_mode == "deep" else None
-    return self_audit_module.self_audit(
+def _product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
+    reporter = openspec_governance_report if openspec_mode == "deep" else None
+    return repository_audit_module.repository_audit(
         root,
         openspec_mode=openspec_mode,
         openspec_reporter=reporter,
@@ -251,10 +249,9 @@ def _adopter_audit(root: Path) -> dict[str, object]:
     gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
     return {
         "ok": not gaps,
-        "mode": "adopter",
+        "mode": "repository",
         "governance_context": governance_context(
             root,
-            posture="adopter_repository",
             profile=detect_repo_profile(root),
         ),
         "required_gaps": gaps,
@@ -938,7 +935,7 @@ def prove(
         if result_state == "proven"
         else ("ethos prove --execute",)
         if result_state == "ready"
-        else ("ethos self audit",)
+        else ("ethos repository audit",)
     )
     result = EthosResult(
         command="prove",
@@ -958,7 +955,7 @@ def prove(
         ),
         next_actions=next_actions,
         data={
-            "self_audit": audit,
+            "repository_audit": audit,
             "executed": execute,
             "action_graph": graph.to_dict(),
             "evidence": evidence.to_dict(),
@@ -1035,7 +1032,7 @@ def land(
         root=repo,
         current_head=_current_head(repo),
     )
-    audit = _self_audit_after_admission(repo, decision)
+    audit = _repository_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps + closeout_gaps
     ok = bool(audit["ok"]) and decision.ok
     if closeout_gaps:
@@ -1062,7 +1059,7 @@ def land(
         required_gaps=gaps,
         next_actions=("ethos publish",) if ok else ("ethos prove --json",),
         data={
-            "self_audit": audit,
+            "repository_audit": audit,
             "candidate_update": candidate_update,
             "closeout_support": closeout_support,
             "mutation": {
@@ -1098,7 +1095,7 @@ def publish(
         root=repo,
         current_head=_current_head(repo),
     )
-    audit = _self_audit_after_admission(repo, decision)
+    audit = _repository_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
     branch = workspace_status(repo)["branch"]
@@ -1109,7 +1106,7 @@ def publish(
         required_gaps=gaps,
         next_actions=("ethos report",) if ok else ("ethos land --json",),
         data={
-            "self_audit": audit,
+            "repository_audit": audit,
             "remote_push": "not_performed",
             "publication": _publication_readiness(
                 branch=str(branch),
@@ -1497,7 +1494,7 @@ def package_ontology(
             [f"package_ontology_missing:{item}" for item in physical_missing]
             + workspace_config_gaps
         ),
-        next_actions=("ethos self audit",),
+        next_actions=("ethos repository audit",),
         data=data,
     )
     _emit(result, json_output)
@@ -1566,7 +1563,7 @@ def coupling_audit(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Report product, profile, adapter, and self-hosting coupling boundaries."""
+    """Report product, profile, adapter, and product-toolchain coupling boundaries."""
     repo = _root(root)
     report = coupling_audit_report(repo)
     validation = _command_data_validation(
@@ -1622,7 +1619,7 @@ def release(
 ) -> None:
     """Report product release surface and host-profile readiness."""
     repo = _root(root)
-    release_files = self_audit_module.release_files_report(repo)
+    release_files = repository_audit_module.release_files_report(repo)
     policy = release_policy_report(repo)
     result = EthosResult(
         command="quality release",
@@ -1715,7 +1712,7 @@ def command_registry(
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos self audit",),
+        next_actions=("ethos repository audit",),
         data=report,
     )
     _emit(result, json_output)
@@ -1835,42 +1832,40 @@ def provenance(
     _emit(result, json_output)
 
 
-@self_app.command
+@app.command(show=False)
 def audit(
     *,
     mode: str = "deep",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Audit ETHOS against its own product ontology."""
+    """Audit repository governance against the active profile."""
     repo = _root(root)
     if mode not in {"shape", "deep"}:
         result = EthosResult(
-            command="self audit",
+            command="audit",
             ok=False,
             state="invalid",
             required_gaps=(f"invalid_audit_mode:{mode}",),
-            next_actions=("ethos self audit --mode shape", "ethos self audit --mode deep"),
+            next_actions=("ethos audit --mode shape", "ethos audit --mode deep"),
             data={"mode": mode, "allowed_modes": ["shape", "deep"]},
         )
         _emit(result, json_output)
         return
-    audit_payload = _product_self_audit(repo, openspec_mode=mode)
+    audit_payload = _audit_for_root(repo, openspec_mode=mode)
     result = EthosResult(
-        command="self audit",
+        command="audit",
         ok=bool(audit_payload["ok"]),
         state="clean" if audit_payload["ok"] else "gapped",
         summary={"openspec_mode": mode},
         required_gaps=tuple(audit_payload["required_gaps"]),
-        next_actions=("ethos self hypothesize",)
-        if audit_payload["ok"]
-        else ("ethos self audit --mode deep",),
+        next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )
     _emit(result, json_output)
 
 
-@self_app.command
+@app.command(show=False)
 def openspec(
     *,
     change: str | None = None,
@@ -1878,11 +1873,11 @@ def openspec(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Audit official OpenSpec self-governance state."""
+    """Audit official OpenSpec governance state."""
     repo = _root(root)
-    report = openspec_self_governance_report(repo, change=change, lifecycle=lifecycle)
+    report = openspec_governance_report(repo, change=change, lifecycle=lifecycle)
     result = EthosResult(
-        command="self openspec",
+        command="openspec",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "gapped",
         summary={
@@ -1891,133 +1886,8 @@ def openspec(
             "lifecycle": lifecycle,
         },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos self audit",),
+        next_actions=("ethos audit",),
         data=report,
-    )
-    _emit(result, json_output)
-
-
-@self_app.command
-def observe(*, json_output: JsonFlag = False) -> None:
-    """Observe ETHOS product shape."""
-    result = EthosResult(
-        command="self observe",
-        ok=True,
-        state="observed",
-        summary={"observed": ["command-plane", "package-ontology", "docs", "schemas"]},
-        next_actions=("ethos self hypothesize",),
-    )
-    _emit(result, json_output)
-
-
-@self_app.command
-def hypothesize(*, json_output: JsonFlag = False) -> None:
-    """Record the next self-evolution hypothesis shape."""
-    report = evolution_report(Path.cwd())
-    result = EthosResult(
-        command="self hypothesize",
-        ok=bool(report["ok"]),
-        state="ready" if report["ok"] else "gapped",
-        summary={
-            "loop": "observe -> hypothesize -> experiment -> prove -> canonize -> retire",
-            "active_count": report["active_count"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos self experiment",),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@self_app.command
-def candidates(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Derive self-evolution candidates from current audit signals."""
-    repo = _root(root)
-    report = evolution_candidates(repo)
-    result = EthosResult(
-        command="self candidates",
-        ok=bool(report["ok"]),
-        state="ready",
-        summary={"candidate_count": len(report["candidates"])},
-        next_actions=("ethos campaign hypotheses",),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@self_app.command
-def experiment(*, json_output: JsonFlag = False) -> None:
-    """Describe a self-evolution experiment."""
-    result = EthosResult(
-        command="self experiment",
-        ok=True,
-        state="ready",
-        summary={"experiment": "run self audit and focused proof"},
-        next_actions=("ethos self prove",),
-    )
-    _emit(result, json_output)
-
-
-@self_app.command(name="prove")
-def prove_self(
-    *,
-    mode: str = "deep",
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Prove the active self-evolution hypothesis."""
-    repo = _root(root)
-    if mode not in {"shape", "deep"}:
-        result = EthosResult(
-            command="self prove",
-            ok=False,
-            state="invalid",
-            required_gaps=(f"invalid_audit_mode:{mode}",),
-            next_actions=("ethos self prove --mode shape", "ethos self prove --mode deep"),
-            data={"mode": mode, "allowed_modes": ["shape", "deep"]},
-        )
-        _emit(result, json_output)
-        return
-    audit_payload = _product_self_audit(repo, openspec_mode=mode)
-    ok = bool(audit_payload["ok"])
-    result = EthosResult(
-        command="self prove",
-        ok=ok,
-        state="proven" if ok else "gapped",
-        summary={"proof": "self-audit", "openspec_mode": mode},
-        required_gaps=tuple(audit_payload["required_gaps"]),
-        next_actions=("ethos self canonize",) if ok else ("ethos self audit --mode deep",),
-        data={"self_audit": audit_payload},
-    )
-    _emit(result, json_output)
-
-
-@self_app.command(name="canonize")
-def canonize_self(*, json_output: JsonFlag = False) -> None:
-    """Canonize a proven self-evolution result."""
-    result = EthosResult(
-        command="self canonize",
-        ok=True,
-        state="ready",
-        summary={"canonization": "write decision, schema, docs, and tests"},
-        next_actions=("ethos self retire",),
-    )
-    _emit(result, json_output)
-
-
-@self_app.command
-def retire(*, json_output: JsonFlag = False) -> None:
-    """Retire obsolete product residue."""
-    result = EthosResult(
-        command="self retire",
-        ok=True,
-        state="ready",
-        summary={"retirement": "archive or delete obsolete projections"},
-        next_actions=("ethos self audit",),
     )
     _emit(result, json_output)
 
@@ -2032,7 +1902,7 @@ def campaign_status(*, json_output: JsonFlag = False) -> None:
         state="active",
         summary={"campaign": "ethos-product-maturation"},
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos self audit",),
+        next_actions=("ethos repository audit",),
         data=report,
     )
     _emit(result, json_output)
@@ -2040,14 +1910,14 @@ def campaign_status(*, json_output: JsonFlag = False) -> None:
 
 @campaign_app.command
 def hypotheses(*, json_output: JsonFlag = False) -> None:
-    """List active ETHOS self-evolution hypotheses."""
+    """List active ETHOS evolution hypotheses."""
     ledger = evolution_ledger(Path.cwd())
     result = EthosResult(
         command="campaign hypotheses",
         ok=True,
         state="active",
         summary={"campaign": "ethos-product-maturation"},
-        next_actions=("ethos self experiment",),
+        next_actions=("ethos audit --mode shape",),
         data=ledger,
     )
     _emit(result, json_output)
@@ -2363,7 +2233,9 @@ def report(
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
-    playbook_mode = "legacy-compat" if audit.get("mode") == "adopter" else "v2-strict"
+    audit_profile = str(audit["governance_context"]["profile"])
+    product_profile = audit_profile == "product"
+    playbook_mode = "v2-strict" if product_profile else "legacy-compat"
     playbooks = playbooks_report(repo, mode=playbook_mode)
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
@@ -2372,7 +2244,7 @@ def report(
         current_product_head=_current_tracked_head(repo),
         acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
     )
-    if audit.get("mode") == "adopter":
+    if not product_profile:
         scores = {
             "adopter_governance": int(bool(audit["ok"])),
             "schemas": int(bool(audit["schemas"]["ok"])),
@@ -2408,10 +2280,10 @@ def report(
     ok = all(value == 1 for value in scores.values())
     parity_pending_count = len(parity_gaps["required_gaps"])
     result_required_gaps = tuple(audit["required_gaps"])
-    if audit.get("mode") != "adopter":
+    if product_profile:
         result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
     first_hour = {}
-    if audit.get("mode") == "adopter":
+    if not product_profile:
         evidence_gap_count = len(result_required_gaps)
         readiness = "local_readiness" if evidence_gap_count == 0 else "blocked"
         first_hour = {
@@ -2480,7 +2352,7 @@ def report(
             "scores": scores,
             "first_hour": first_hour,
             "scorecards": scorecards,
-            "self_audit": audit,
+            "repository_audit": audit,
             "docs": docs_report,
             "claims": claim_report,
             "assistant_projection": projection,
@@ -2553,7 +2425,7 @@ def docs(
     _emit(result, json_output)
 
 
-def _self_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
+def _repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
     if not decision.ok:
         return {
             "ok": False,

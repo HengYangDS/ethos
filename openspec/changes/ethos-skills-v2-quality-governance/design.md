@@ -95,7 +95,7 @@ lifecycle semantics.
 3. Normalize v1 and di-effect inputs into the IR.
 4. Add strict/compat playbook check and route modes.
 5. Add skill package manifest validation and capability classification.
-6. Add scaffold, projection drift, report, self-audit, and proof integration.
+6. Add scaffold, projection drift, report, repository-audit, and proof integration.
 7. Migrate the ETHOS product root skill package.
 8. Preserve dmgr v1 parity, refresh evidence only after verification.
 9. Write dated evidence and claims, then archive the OpenSpec change.

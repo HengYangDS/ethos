@@ -2,7 +2,7 @@
 id = "ethos-coupling-governance"
 subject = "ethos:coupling-governance"
 state = "active"
-summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, self-hosting tools, host profiles, protocol adapters, distribution adapters, legacy evidence, and fixtures through explicit binding layers."
+summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, legacy evidence, and fixtures through explicit binding layers."
 
 [evidence]
 dated = "docs/evidence/coupling-contract-hardening-2026-07-01.md"
@@ -17,12 +17,12 @@ tests = [
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos quality coupling-audit --json",
-  "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos audit --mode shape --json",
   "uv run --package ethos ethos report --json",
   "uv run --package ethos ethos quality release-policy --json",
   "uv run --package ethos ethos lane bind-claim --claim-id ethos-coupling-governance --apply --json",
   "uv run --package ethos ethos quality claims --json",
-  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
+  "uv run --package ethos ethos prove --execute --gate repository-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
   "uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
 ]
 
@@ -35,7 +35,7 @@ packages = [
 ]
 docs = [
   "docs/governance/product-design-contract.md",
-  "docs/governance/openspec-self-governance.md",
+  "docs/governance/openspec-governance.md",
   "docs/governance/release-governance.md",
   "docs/architecture/runner-and-mutation.md",
   "docs/architecture/schema-validation.md",

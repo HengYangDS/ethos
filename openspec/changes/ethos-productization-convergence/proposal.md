@@ -9,7 +9,7 @@ and a DocOS authority graph read model.
 ## Motivation
 
 ETHOS had strong repository governance mechanics, but its product entry still
-mixed ontology, maintainer commands, campaign material, and self-audit success.
+mixed ontology, maintainer commands, campaign material, and repository-audit success.
 That made it harder for adopters to understand what ETHOS solves, what it does
 not own, and how closeout should be proved.
 
@@ -35,4 +35,4 @@ not own, and how closeout should be proved.
 - Do not turn DocOS authority graph data into a lifecycle owner.
 - Do not hardcode dmgr raw/cache semantics in ETHOS core.
 - Do not claim hosted CI, remote publication, or dmgr raw/cache parity from
-  local product self-audit.
+  local repository-audit.

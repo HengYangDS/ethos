@@ -27,11 +27,11 @@ uv build --all-packages
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm
-ethos self audit --mode deep
+ethos audit --mode deep
 ethos report
 ```
 
-The commands above are the current self-hosting toolchain profile for proving
+The commands above are the current product-toolchain toolchain profile for proving
 this repository. They do not make `uv`, pytest, Ruff, npm, or a hosted runner
 product ontology anchors.
 

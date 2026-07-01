@@ -49,6 +49,6 @@ ETHOS CLI SHALL expose OpenSpec lifecycle review through the public ETHOS
 command plane.
 
 #### Scenario: OpenSpec lifecycle is audited
-- **WHEN** `ethos self openspec --lifecycle --json` runs
+- **WHEN** `ethos openspec --lifecycle --json` runs
 - **THEN** the CLI reports official OpenSpec validation and ETHOS lifecycle
   carrier readiness in one result envelope

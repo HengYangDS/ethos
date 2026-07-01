@@ -4,7 +4,7 @@
 
 ETHOS SHALL govern repository operation lifecycles: status, plan, prove, land,
 publish, intake, campaign, quality, evidence, release readiness, and
-self-evolution.
+evolution.
 ## Requirements
 ### Requirement: Evidence-backed Claims
 ETHOS SHALL treat missing claims, missing evidence, and digest mismatches as
@@ -17,27 +17,27 @@ required gaps.
 
 ### Requirement: Self Evolution
 ETHOS SHALL expose hypotheses as challengeable objects and shall not mark
-self-evolution proven from static declarations alone.
+evolution proven from static declarations alone.
 
 #### Scenario: Hypotheses are inspected
 - **WHEN** `ethos campaign hypotheses --json` runs
 - **THEN** hypotheses include campaign, state, claim, and challenge fields
 
 ### Requirement: Official OpenSpec Self-Governance
-ETHOS SHALL keep `openspec/` as an official self-governance capability for
+ETHOS SHALL keep `openspec/` as an official repository governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
 
 OpenSpec remains mandatory governance, not a product substrate and not a second command plane.
 
 #### Scenario: OpenSpec validation is used
-- **WHEN** ETHOS audits OpenSpec self-governance
+- **WHEN** ETHOS audits OpenSpec repository governance
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
 
 ### Requirement: Coupling Binding Registry
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
-dependencies, native protocols, self-hosting toolchains, profile or adapter
+dependencies, native protocols, product toolchains, profile or adapter
 bindings, legacy evidence, and test fixtures through a machine-readable
 coupling registry.
 
@@ -56,7 +56,7 @@ coupling registry.
   dependency rather than a product substrate
 - **AND** command JSON, JSON Schema, claims, evidence, and ignored local state
   are classified as native protocols
-- **AND** self-hosting proof tools and host projections do not own product
+- **AND** product proof tools and host projections do not own product
   semantics
 - **AND** host navigation labels in product semantic docs are reported as
   required gaps
@@ -142,20 +142,19 @@ deep OpenSpec validation.
 
 #### Scenario: Daily proof avoids deep OpenSpec
 - **WHEN** `ethos prove --json` runs without `--full`
-- **THEN** self-audit uses OpenSpec shape mode
+- **THEN** repository-audit uses OpenSpec shape mode
 - **AND** official OpenSpec validation remains available through deep commands
 
-### Requirement: Single-Kernel Dual-Posture Governance
-ETHOS SHALL govern `product_self` and `adopter_repository` through
-single-kernel dual-posture repository semantics.
+### Requirement: Governed Repository Governance
+ETHOS SHALL govern repositories through one governed repository semantic model.
 
 #### Scenario: Governance context is shared
-- **WHEN** ETHOS emits audit, proof, or report payloads for either posture
+- **WHEN** ETHOS emits audit, proof, or report payloads for any governed repository
 - **THEN** the payload includes `governance_context`
-- **AND** the context identifies `product_self` or `adopter_repository`
-- **AND** both postures use the same transition command semantics for status,
+- **AND** the context identifies the subject as a repository
+- **AND** every profile uses the same transition command semantics for status,
   plan, prove, land, and publish
-- **AND** both postures classify report as a separate read-only scorecard command
+- **AND** every profile classifies report as a separate read-only scorecard command
 - **AND** profile or adapter differences do not create a second product command
   plane
 
@@ -211,14 +210,14 @@ metadata.
 ETHOS repository lifecycle semantics SHALL accept provider reports through
 explicit composition rather than importing provider execution packages.
 
-#### Scenario: Deep self-audit is requested inside repository semantics
-- **WHEN** repository self-audit runs in deep mode without an injected provider
+#### Scenario: Deep repository-audit is requested inside repository semantics
+- **WHEN** repository repository-audit runs in deep mode without an injected provider
 - **THEN** it reports `openspec_reporter_not_configured`
 - **AND** it does not import or execute provider-specific OpenSpec adapters
 
-#### Scenario: Deep self-audit is composed by the command plane
-- **WHEN** `ethos self audit --mode deep --json` runs in the product repository
-- **THEN** the CLI composes repository self-audit with the official OpenSpec
+#### Scenario: Deep repository-audit is composed by the command plane
+- **WHEN** `ethos audit --mode deep --json` runs in the product repository
+- **THEN** the CLI composes repository repository-audit with the official OpenSpec
   adapter and reports no provider-configuration gap
 
 ### Requirement: Trust-bearing Claim Admission
@@ -268,13 +267,13 @@ OpenSpec CLI validation.
 - **GIVEN** an active OpenSpec change has proposal, design, tasks, and delta
   specs
 - **AND** a trust-bearing active claim references that change
-- **WHEN** ETHOS audits OpenSpec self-governance in lifecycle mode
+- **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
 - **THEN** ETHOS reports the change as lifecycle-ready
 
 #### Scenario: Active OpenSpec change lacks claim binding
 - **GIVEN** an active OpenSpec change has valid official OpenSpec syntax
 - **AND** no active trust-bearing claim references that change
-- **WHEN** ETHOS audits OpenSpec self-governance in lifecycle mode
+- **WHEN** ETHOS audits OpenSpec repository governance in lifecycle mode
 - **THEN** ETHOS reports `openspec_claim_binding_missing:<change>`
 
 ### Requirement: Promotion Target Readiness

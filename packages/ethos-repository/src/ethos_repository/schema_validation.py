@@ -136,7 +136,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     from ethos_repository.coupling import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
-    ledger_path = root / "docs" / "governance" / "self-evolution-ledger.toml"
+    ledger_path = root / "docs" / "governance" / "evolution-ledger.toml"
     if ledger_path.exists():
         try:
             ledger = tomllib.loads(ledger_path.read_text(encoding="utf-8"))
@@ -397,7 +397,7 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
         "accepted_summary": {
             "total_count": 1,
             "command_count": 1,
-            "kind_counts": {"external_product_self_audit_gap": 1},
+            "kind_counts": {"external_product_repository_audit_gap": 1},
         },
         "comparisons": [
             {
@@ -417,17 +417,18 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
                 "semantic_diff": {},
                 "accepted_summary": {
                     "total_count": 1,
-                    "kind_counts": {"external_product_self_audit_gap": 1},
+                    "kind_counts": {"external_product_repository_audit_gap": 1},
                 },
                 "accepted_differences": [
                     {
-                        "kind": "external_product_self_audit_gap",
+                        "kind": "external_product_repository_audit_gap",
                         "classification": "accepted",
-                        "scope": "external_product_self_audit",
+                        "scope": "external_product_repository_audit",
                         "commands": ["ethos prove"],
                         "gaps": ["claims_missing"],
                         "reason": (
-                            "external product self-audit gap is not an embedded adopter parity gap"
+                            "external product repository audit gap is not an embedded "
+                            "adopter parity gap"
                         ),
                     }
                 ],

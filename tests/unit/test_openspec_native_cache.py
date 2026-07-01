@@ -53,7 +53,7 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
     monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
     monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
 
-    report = openspec_native.openspec_self_governance_report(
+    report = openspec_native.openspec_governance_report(
         root,
         change="sample-change",
         lifecycle=True,
@@ -113,8 +113,8 @@ def test_openspec_report_reuses_result_for_unchanged_workspace(
     monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
     monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
 
-    first = openspec_native.openspec_self_governance_report(root)
-    second = openspec_native.openspec_self_governance_report(root)
+    first = openspec_native.openspec_governance_report(root)
+    second = openspec_native.openspec_governance_report(root)
 
     assert first == second
     assert calls == [

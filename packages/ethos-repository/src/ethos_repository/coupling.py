@@ -22,7 +22,7 @@ COUPLING_LAYERS: dict[str, str] = {
         "Repository-local data protocols that keep command, config, state, event, "
         "and schema contracts stable across adapters."
     ),
-    "self_hosting_toolchain_binding": (
+    "product_toolchain_binding": (
         "Current product-repository implementation and proof tools required to "
         "validate ETHOS itself, without becoming adopter ontology."
     ),
@@ -106,25 +106,25 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
         "adapter_replaceable": False,
     },
     "uv_workspace_toolchain": {
-        "layer": "self_hosting_toolchain_binding",
+        "layer": "product_toolchain_binding",
         "required": True,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
     },
     "hatchling_build_backend": {
-        "layer": "self_hosting_toolchain_binding",
+        "layer": "product_toolchain_binding",
         "required": True,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
     },
     "pytest_test_runner": {
-        "layer": "self_hosting_toolchain_binding",
+        "layer": "product_toolchain_binding",
         "required": True,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
     },
     "ruff_lint_runner": {
-        "layer": "self_hosting_toolchain_binding",
+        "layer": "product_toolchain_binding",
         "required": True,
         "owns_product_semantics": False,
         "adapter_replaceable": True,
@@ -240,19 +240,19 @@ def _gate_profile_gaps() -> list[str]:
     gaps = []
     for gate_id in SELF_HOSTING_GATES:
         gate = registry[gate_id]
-        if gate.profile != "self-hosting":
+        if gate.profile != "product-toolchain":
             gaps.append(f"gate_profile_mismatch:{gate_id}:{gate.profile}")
         if gate.toolchain != "uv-python":
             gaps.append(f"gate_toolchain_mismatch:{gate_id}:{gate.toolchain}")
     return gaps
 
 
-def _self_hosting_toolchain() -> dict[str, object]:
+def _product_toolchain() -> dict[str, object]:
     registry = gate_registry()
     toolchains = sorted({registry[gate_id].toolchain for gate_id in SELF_HOSTING_GATES})
     return {
-        "profile": "self-hosting",
-        "layer": "self_hosting_toolchain_binding",
+        "profile": "product-toolchain",
+        "layer": "product_toolchain_binding",
         "gates": list(SELF_HOSTING_GATES),
         "toolchains": toolchains,
         "product_ontology_anchor": False,
@@ -303,7 +303,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
     policy = load_branch_role_policy(root)
     branch_role_metadata = _branch_role_policy_metadata(root)
     release_profile = _release_host_profile(root)
-    self_hosting = _self_hosting_toolchain()
+    product_toolchain = _product_toolchain()
     return [
         {
             "id": "git_repository_substrate",
@@ -389,16 +389,16 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
         },
         {
             "id": "uv_workspace_toolchain",
-            "layer": "self_hosting_toolchain_binding",
+            "layer": "product_toolchain_binding",
             "required": True,
             "owns_product_semantics": False,
             "adapter_replaceable": True,
             "toolchains": ["uv workspace", "uv lock", "uv run", "uv build"],
-            "gates": self_hosting["gates"],
+            "gates": product_toolchain["gates"],
         },
         {
             "id": "hatchling_build_backend",
-            "layer": "self_hosting_toolchain_binding",
+            "layer": "product_toolchain_binding",
             "required": True,
             "owns_product_semantics": False,
             "adapter_replaceable": True,
@@ -406,7 +406,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
         },
         {
             "id": "pytest_test_runner",
-            "layer": "self_hosting_toolchain_binding",
+            "layer": "product_toolchain_binding",
             "required": True,
             "owns_product_semantics": False,
             "adapter_replaceable": True,
@@ -415,7 +415,7 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
         },
         {
             "id": "ruff_lint_runner",
-            "layer": "self_hosting_toolchain_binding",
+            "layer": "product_toolchain_binding",
             "required": True,
             "owns_product_semantics": False,
             "adapter_replaceable": True,
@@ -540,7 +540,7 @@ def coupling_audit_report(root: Path) -> dict[str, Any]:
         "binding_registry": registry,
         "release_product_files": list(release["required_files"]),
         "release_host_profile": _release_host_profile(root),
-        "self_hosting_toolchain": _self_hosting_toolchain(),
+        "product_toolchain": _product_toolchain(),
         "scanned_product_docs": [
             relative for relative in PRODUCT_SEMANTIC_DOCS if (root / relative).exists()
         ],

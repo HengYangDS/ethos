@@ -18,7 +18,7 @@ tests = [
   "npm ci --ignore-scripts",
   "npm run ethos -- --version",
   "npm run test:npm",
-  "uv run --package ethos ethos self audit --mode deep --json",
+  "uv run --package ethos ethos audit --mode deep --json",
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos report --json",
   "uv run --package ethos ethos prove --full --execute --json",

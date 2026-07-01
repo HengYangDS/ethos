@@ -25,7 +25,7 @@ def mcp_manifest() -> dict[str, object]:
         "prompts": {
             "ethos.campaign-review": {
                 "capability": "mcp_prompt",
-                "text": "Review a campaign against ETHOS self-evolution criteria.",
+                "text": "Review a campaign against ETHOS evolution criteria.",
             },
             "ethos.hypothesis-challenge": {
                 "capability": "mcp_prompt",

@@ -23,12 +23,12 @@
 ## 4. Authority Graph
 
 - [x] 4.1 Add authority graph metadata.
-- [x] 4.2 Add authority graph report and self-audit integration.
+- [x] 4.2 Add authority graph report and repository-audit integration.
 - [x] 4.3 Add authority graph schema.
 
 ## 5. Verification
 
 - [x] 5.1 Add focused unit and architecture tests.
-- [x] 5.2 Run full pytest, Ruff, OpenSpec validation, self-audit, report,
+- [x] 5.2 Run full pytest, Ruff, OpenSpec validation, repository-audit, report,
       shadow parity, and proof.
 - [x] 5.3 Record dated evidence and bind the claim digest.

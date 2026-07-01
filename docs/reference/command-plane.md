@@ -78,16 +78,13 @@ ethos quality release-attestation
 ethos quality sbom
 ethos quality standards
 ethos quality projection-drift
-ethos self audit
-ethos self audit --mode shape
-ethos self audit --mode deep
-ethos self openspec --lifecycle
+ethos audit
+ethos audit --mode shape
+ethos audit --mode deep
+ethos openspec --lifecycle
 ethos prove --execute
 ethos prove --full --execute
 ethos prove --expect-head <git-head>
-ethos self hypothesize
-ethos self prove --mode shape
-ethos self prove --mode deep
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
@@ -190,7 +187,7 @@ branch; it does not advance the accepted root.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. The output aggregates workspace
-`closeout_support`, trust closeout, intake projection state, self-evolution
+`closeout_support`, trust closeout, intake projection state, evolution
 state, release policy, parity backlog, planned shadow parity execution, and
 publish readiness under `data.packages`. The `trust_closeout` package composes
 claim envelopes, promotion readiness, executed proof evidence, and Work Lane
@@ -200,26 +197,26 @@ state into repository truth.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 
-ETHOS report and audit payloads use a single-kernel dual-posture contract.
-`product_self` and `adopter_repository` both expose `governance_context` so
-consumers can read the same command semantics without inferring product truth
-from a special self-governance branch. The context records the posture, profile,
-repository subject, kernel chain, shared transition commands, scorecard
-commands, repository truth boundary, and profile or adapter boundary.
+ETHOS report and audit payloads use a governed repository contract. Every
+governed repository exposes `governance_context` so consumers can read the same
+command semantics without inferring product truth from a special branch or
+private command plane. The context records the profile, repository subject,
+kernel chain, shared transition commands, scorecard commands, repository truth
+boundary, and profile or adapter boundary.
 `shared_commands` and `transition_commands` list the five-command transition
 loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`. `scorecard_commands` lists the read-only payoff view:
 `ethos report`. `ethos report --json` projects required gaps through
-posture-neutral layers: `governance_audit` for the active repository governance
+repository-neutral layers: `governance_audit` for the active repository governance
 verdict, `capability_parity` for migration or adopter parity, and
 `playbook_projection` for assistant-facing projection proof. Its summary uses
 `governance_gap_count` for active repository governance gaps and
 `parity_pending_count` for capability parity backlog.
 
-Self-governance modes are explicit. `shape` is the daily fast path for product
+Repository governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
 official OpenSpec CLI validation and is required for release or archive proof.
-`ethos self openspec --lifecycle --json` adds ETHOS lifecycle carrier review:
+`ethos openspec --lifecycle --json` adds ETHOS lifecycle carrier review:
 active changes need proposal, design, tasks, delta specs, and an active claim
 binding in addition to official OpenSpec validation.
 
@@ -230,7 +227,7 @@ selected gate records an exit code. `ethos prove --full --json` without
 execution is intentionally `gapped` with `full_proof_requires_execute`.
 
 `ethos quality coupling-audit --json` reports product-semantic hard bindings,
-mandatory governance dependencies, native protocol bindings, self-hosting
+mandatory governance dependencies, native protocol bindings, product-toolchain
 toolchain bindings, profile or adapter bindings, legacy evidence, and
 test-fixture coupling boundaries through `data.binding_registry`. The
 `binding_registry` field is the machine-readable binding classification

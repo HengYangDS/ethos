@@ -39,7 +39,7 @@ accepted-risk, and waived-nonblocking proof states.
 
 - **WHEN** `ethos quality proof-policy --json` runs
 - **THEN** only `proven` is marked trust-bearing for claim, land, publish,
-  release, and self-governance consumers
+  release, and repository governance consumers
 
 ### Requirement: Documentation Quality Profile
 

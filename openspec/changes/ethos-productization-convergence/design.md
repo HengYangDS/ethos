@@ -26,7 +26,7 @@ routes remain available without polluting the adopter first-hour path.
 
 `docs/_meta/authority_graph.toml` is a typed read model. It records owner,
 canonical target, derivation, supersession, evidence refs, and stable path, then
-`ethos self audit` reports drift gaps. The graph does not promote new truth by
+`ethos audit` reports drift gaps. The graph does not promote new truth by
 itself; source, tests, schemas, docs, OpenSpec records, claims, and evidence do.
 
 ## Adoption Profiles

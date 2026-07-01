@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.self_audit import self_audit
+from ethos_repository.repository_audit import repository_audit
 
 
 def write(path: Path, text: str = "x\n") -> None:
@@ -10,7 +10,7 @@ def write(path: Path, text: str = "x\n") -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def write_minimal_self_audit_repo(tmp_path: Path) -> None:
+def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
     for package in (
         "ethos",
         "ethos-core",
@@ -45,10 +45,10 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         "docs/governance/product-design-contract.md",
         "docs/governance/product-boundary-convergence.md",
         "docs/governance/capability-parity-ledger.md",
-        "docs/governance/openspec-self-governance.md",
+        "docs/governance/openspec-governance.md",
         "docs/governance/playbooks-and-skills.md",
         "docs/governance/release-governance.md",
-        "docs/governance/self-evolution-campaign.md",
+        "docs/governance/evolution-campaign.md",
     ):
         write(
             tmp_path / doc,
@@ -86,17 +86,17 @@ def write_minimal_self_audit_repo(tmp_path: Path) -> None:
         ".gitlab-ci.yml",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",
-        "docs/governance/self-evolution-ledger.toml",
+        "docs/governance/evolution-ledger.toml",
         "openspec/config.yaml",
         "openspec/specs/ethos-core/spec.md",
     ):
         write(tmp_path / path)
 
 
-def test_self_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None:
-    write_minimal_self_audit_repo(tmp_path)
+def test_repository_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None:
+    write_minimal_repository_audit_repo(tmp_path)
 
-    report = self_audit(tmp_path, openspec_mode="shape")
+    report = repository_audit(tmp_path, openspec_mode="shape")
 
     assert report["ok"] is False
     assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
@@ -104,8 +104,8 @@ def test_self_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None:
     assert "adoption_scaffold_missing:.agents/skills/activation.toml" in report["required_gaps"]
 
 
-def test_self_audit_includes_authority_graph() -> None:
-    report = self_audit(Path.cwd(), openspec_mode="shape")
+def test_repository_audit_includes_authority_graph() -> None:
+    report = repository_audit(Path.cwd(), openspec_mode="shape")
 
     assert report["authority_graph"]["ok"] is True
     assert report["authority_graph"]["required_gaps"] == []
@@ -114,10 +114,10 @@ def test_self_audit_includes_authority_graph() -> None:
     assert "ethos:product-design-contract" in ids
 
 
-def test_self_audit_surfaces_retired_command_mentions_as_required_gaps(
+def test_repository_audit_surfaces_retired_command_mentions_as_required_gaps(
     tmp_path: Path,
 ) -> None:
-    write_minimal_self_audit_repo(tmp_path)
+    write_minimal_repository_audit_repo(tmp_path)
     for path in (
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
@@ -137,7 +137,7 @@ def test_self_audit_surfaces_retired_command_mentions_as_required_gaps(
         "Do not promote `proof` here.\n",
     )
 
-    report = self_audit(tmp_path, openspec_mode="shape")
+    report = repository_audit(tmp_path, openspec_mode="shape")
 
     assert report["ok"] is False
     assert report["command_registry"]["required_gaps"] == [

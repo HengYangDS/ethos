@@ -78,7 +78,7 @@ public lane command plane.
 
 ### Requirement: Admission Before Product Audit
 ETHOS SHALL evaluate apply-mode mutation admission before running product
-self-audit checks.
+repository-audit checks.
 
 #### Scenario: Apply mode is blocked by lane admission
 - **WHEN** `ethos land --apply` or `ethos publish --apply` is invoked from a
@@ -86,7 +86,7 @@ self-audit checks.
 - **THEN** ETHOS returns structured `blocked` JSON with
   `protected_root_mutation`
 - **AND** ETHOS does not require the target repository to contain ETHOS product
-  self-governance schemas before reporting the admission failure
+  repository governance schemas before reporting the admission failure
 
 ### Requirement: Evidence Locality
 ETHOS SHALL keep local runtime state separate from durable evidence.
@@ -109,7 +109,7 @@ ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
 checks without replacing official OpenSpec validation.
 
 #### Scenario: OpenSpec adapter reports lifecycle carriers
-- **WHEN** ETHOS audits OpenSpec self-governance
+- **WHEN** ETHOS audits OpenSpec repository governance
 - **THEN** the report includes official CLI command results
 - **AND** the report includes active change carrier facts for proposal, design,
   tasks, delta specs, claim binding, and archive readiness

@@ -20,9 +20,10 @@ SETUP_COMMANDS = (
     "ethos doctor",
 )
 MAINTAINER_REFERENCE_COMMANDS = (
+    "ethos audit",
+    "ethos openspec",
     "ethos campaign",
     "ethos intake",
-    "ethos self",
     "ethos quality",
     "ethos assistants",
     "ethos playbooks",

@@ -23,7 +23,7 @@ PROOF_STATES = (
         "state": "proven",
         "meaning": "required executed evidence passed for the current proof scope",
         "trust_bearing": True,
-        "allowed_consumers": ["claim", "land", "publish", "release", "self-governance"],
+        "allowed_consumers": ["claim", "land", "publish", "release", "repository-governance"],
     },
     {
         "state": "blocked",
@@ -50,11 +50,18 @@ def proof_lattice() -> dict[str, object]:
     return {
         "schema_version": 1,
         "states": list(PROOF_STATES),
-        "trust_consumers": ["claim", "land", "publish", "release", "self-governance"],
+        "trust_consumers": [
+            "claim",
+            "land",
+            "publish",
+            "release",
+            "repository-governance",
+        ],
         "rules": [
             "planned and readiness states never satisfy trust-bearing consumers",
             "executed evidence must still be classified before promotion",
-            "only proven evidence may satisfy claim, land, publish, release, or self-governance",
+            "only proven evidence may satisfy claim, land, publish, release, "
+            "or repository-governance",
             "waived_nonblocking and accepted-risk require explicit governance records",
         ],
     }

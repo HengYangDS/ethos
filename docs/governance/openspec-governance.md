@@ -1,14 +1,14 @@
 ---
-subject: ethos:openspec-self-governance
+subject: ethos:openspec-repository governance
 role: policy
 state: canonical
 relations:
-  canonical_for: spec-driven self governance
+  canonical_for: spec-driven repository governance
 ---
 
-# OpenSpec Self Governance
+# OpenSpec Governance
 
-ETHOS keeps `openspec/` as an official self-governance capability for
+ETHOS keeps `openspec/` as an official repository governance capability for
 spec-driven planning, change deltas, and canonical capability records.
 In the current product state, this is a mandatory official governance
 dependency: records that do not satisfy the OpenSpec workspace and validation
@@ -22,8 +22,8 @@ surface even though the governance dependency is mandatory.
 The required invariant is stricter than directory presence:
 
 ```bash
-ethos self openspec --json
-ethos self openspec --lifecycle --json
+ethos openspec --json
+ethos openspec --lifecycle --json
 ```
 
 That command reports official OpenSpec `doctor`, `status`, and strict

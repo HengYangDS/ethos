@@ -35,12 +35,12 @@
 - [x] 4.4 Report projection drift for package, registry, generator, and host
       metadata changes.
 
-## 5. Scaffold, Report, Self-Audit, And Proof
+## 5. Scaffold, Report, Repository-Audit, And Proof
 
 - [x] 5.1 Update adoption scaffold to emit V2 skill activation metadata,
       package manifests, and official-quality skill content.
 - [x] 5.2 Add Skills V2 scorecard data to `ethos report`.
-- [x] 5.3 Add Skills V2 gaps to self-audit and proof gate output.
+- [x] 5.3 Add Skills V2 gaps to repository-audit and proof gate output.
 - [x] 5.4 Keep external adopter inspection in legacy-compatible mode during
       migration.
 

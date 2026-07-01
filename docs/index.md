@@ -24,7 +24,7 @@ Start with [Start](start/quickstart.md), then read
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Distribution](architecture/distribution.md),
 [Action Graph](architecture/action-graph.md), and
-[Self Evolution](governance/self-evolution-campaign.md). Product gaps captured
+[Evolution](governance/evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
 [Conversation Ledger](governance/conversation-ledger.md).
 Executable migration parity is exposed by `ethos parity ledger` and governed by
@@ -60,7 +60,7 @@ truth.
 - Adapter lifecycle: [Adapter Lifecycle](governance/adapter-lifecycle.md)
 - Evidence and provenance: [Provenance And Attestation](governance/provenance-and-attestation.md)
 - Docs registry: [Docs Registry](governance/docs-registry.md)
-- OpenSpec self-governance: [OpenSpec Self Governance](governance/openspec-self-governance.md)
+- OpenSpec governance: [OpenSpec Governance](governance/openspec-governance.md)
 - Playbooks and skills: [Playbooks And Skills](governance/playbooks-and-skills.md)
 - Release governance: [Release Governance](governance/release-governance.md)
 - Standards adoption: [Standards Adoption Policy](governance/standards-adoption-policy.md)

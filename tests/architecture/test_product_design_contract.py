@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.self_audit import REQUIRED_DOCS, self_audit
+from ethos_repository.repository_audit import REQUIRED_DOCS, repository_audit
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (
@@ -116,19 +116,20 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     assert "host navigation labels are not product state" in adapters_spec
 
 
-def test_product_design_contract_defines_single_kernel_dual_posture() -> None:
+def test_product_design_contract_defines_governed_repository() -> None:
     product = read("docs/governance/product-design-contract.md")
     command_plane = read("docs/reference/command-plane.md")
     repository_spec = read("openspec/specs/ethos-repository/spec.md")
     contracts_spec = read("openspec/specs/ethos-contracts/spec.md")
 
     for text in (product, command_plane, repository_spec, contracts_spec):
-        assert "single-kernel dual-posture" in text
-        assert "product_self" in text
-        assert "adopter_repository" in text
+        assert "governed repository" in text
         assert "`governance_context`" in text
+        assert "product_self" not in text
+        assert "adopter_repository" not in text
+        assert "dual-posture" not in text
 
-    assert "self-governance is not a private command plane" in product
+    assert "do not create separate command planes" in product
     assert "`transition_commands`" in product
     assert "`scorecard_commands`" in product
     assert "`transition_commands`" in command_plane
@@ -262,7 +263,7 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
     assert "shadow-parity.schema.json" in text
 
 
-def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
+def test_product_design_contract_is_repository_audited_with_target_ontology() -> None:
     for doc in (
         "docs/governance/product-design-contract.md",
         "docs/architecture/package-ontology.md",
@@ -271,7 +272,7 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     ):
         assert doc in REQUIRED_DOCS
 
-    report = self_audit(ROOT, openspec_mode="shape")
+    report = repository_audit(ROOT, openspec_mode="shape")
     target = report["target_package_ontology"]
 
     assert target["ok"] is True
@@ -294,11 +295,11 @@ def test_product_design_contract_is_self_audited_with_target_ontology() -> None:
     assert target["distribution_migration_hosts"] == []
 
 
-def test_self_audit_uses_canonical_package_ontology_contract() -> None:
+def test_repository_audit_uses_canonical_package_ontology_contract() -> None:
     from ethos_contracts.package_ontology import package_ontology_report
 
     contract = package_ontology_report()
-    audit = self_audit(ROOT, openspec_mode="shape")
+    audit = repository_audit(ROOT, openspec_mode="shape")
 
     assert audit["package_ontology"]["target_package_contract"] == contract["target_packages"]
     assert audit["package_ontology"]["migration_host_packages"] == contract["migration_hosts"]
@@ -313,7 +314,7 @@ def test_self_audit_uses_canonical_package_ontology_contract() -> None:
 
 
 def test_product_package_and_migration_host_sets_are_disjoint() -> None:
-    report = self_audit(ROOT, openspec_mode="shape")
+    report = repository_audit(ROOT, openspec_mode="shape")
     ontology = report["package_ontology"]
 
     target_packages = set(ontology["target_package_contract"])

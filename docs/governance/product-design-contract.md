@@ -3,7 +3,7 @@ subject: ethos:product-design-contract
 role: decision
 state: canonical
 relations:
-  canonical_for: product truth, migration boundary, and self-governance design
+  canonical_for: product truth, migration boundary, and repository governance design
 ---
 
 # Product Design Contract
@@ -87,28 +87,28 @@ JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chroni
   was used, which decision was made, what was superseded, and how current truth
   changed.
 
-## Single-Kernel Dual-Posture
+## Governed Repository
 
-ETHOS uses a single-kernel dual-posture model. The same kernel chain, command
-semantics, evidence contracts, mutation discipline, and profile boundaries serve
-both `product_self` and `adopter_repository`.
+ETHOS uses one governed repository model. The governed subject is always a Git
+repository. Product repositories, adopted repositories, and reference
+repositories differ by profile, capability set, and proof depth; they are not
+separate ontology roles and do not create separate command planes.
 
-`product_self` is ETHOS governing this product repository through the
-self-hosting profile. `adopter_repository` is ETHOS governing another repository
-through an adoption profile. These are postures of one product model, not two
-truth stores and not two command planes. In this model, self-governance is not a private command plane;
-it is the highest-intensity use of the same product capability.
+The ETHOS product repository is governed with the `product` profile. Other
+repositories are governed with their selected adoption or domain profile. The
+profile changes required checks, adapters, and proof depth; it does not change
+the subject kind or the command semantics.
 
 Command payloads that audit or summarize repository governance expose
-`governance_context`. That context records the posture, profile, repository
-subject, single-kernel flag, kernel chain, shared transition commands,
-scorecard commands, repository truth boundary, and profile or adapter boundary.
+`governance_context`. That context records the profile, repository subject,
+single-kernel flag, kernel chain, shared transition commands, scorecard
+commands, repository truth boundary, and profile or adapter boundary.
 The shared transition semantics are exposed as `shared_commands` and
 `transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
 `ethos land`, and `ethos publish`. Read-only scorecard semantics are exposed as
-`scorecard_commands`: `ethos report`. Posture-specific commands such as
-`ethos self audit` refine self-hosting proof depth without replacing those
-shared transition or scorecard semantics.
+`scorecard_commands`: `ethos report`. `ethos audit --mode shape` and
+`ethos audit --mode deep` select proof depth for the same governed repository
+contract.
 
 ## Principles
 
@@ -130,7 +130,7 @@ toolchain implementations. OpenSpec is the current mandatory official
 governance dependency for promoted spec records and deep proof. Backlog, MCP,
 ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
 similar systems are adapters, providers, profiles, method packs, or
-self-hosting tools; they are not ontology anchors.
+product-toolchain tools; they are not ontology anchors.
 OpenSpec remains mandatory governance, not a product substrate and not a
 second command plane.
 
@@ -157,14 +157,14 @@ boundaries.
 ### Binding taxonomy
 
 ETHOS distinguishes product-semantic hard bindings, mandatory governance
-dependencies, native protocol bindings, self-hosting toolchain bindings, and
+dependencies, native protocol bindings, product toolchain bindings, and
 profile or adapter bindings. Git belongs to product semantics. OpenSpec belongs
 to mandatory governance. JSON Schema, command JSON, TOML, JSONL, and ignored
 SQLite local state are native protocols. The current Python, uv, Hatchling,
 pytest, Ruff, and build workflow proves ETHOS itself but is not adopter ontology.
 `ethos quality coupling-audit --json` exposes these classifications as a
 `binding_registry` so product hard bindings, mandatory dependencies, native
-protocols, self-hosting tools, adapters, legacy evidence, and fixtures are
+protocols, product-toolchain tools, adapters, legacy evidence, and fixtures are
 auditable without binding ETHOS to a specific host or model provider.
 
 ### Capability before surface

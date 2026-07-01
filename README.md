@@ -81,7 +81,7 @@ npm run ethos -- --version
 ETHOS can inspect and evolve itself through maintainer/reference commands:
 
 ```bash
-ethos self audit
+ethos audit
 ethos campaign hypotheses
 ethos quality docs-registry
 ethos quality provenance

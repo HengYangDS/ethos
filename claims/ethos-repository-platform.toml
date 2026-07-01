@@ -2,7 +2,7 @@
 id = "ethos-repository-platform"
 subject = "ethos:repository-platform"
 state = "active"
-summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, npm distribution policy, deeper self-audit, schema instance validation, and stronger standards adapters."
+summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, npm distribution policy, deeper repository-audit, schema instance validation, and stronger standards adapters."
 
 [evidence]
 dated = "docs/evidence/governance-platform-2026-06-30.md"
@@ -18,7 +18,7 @@ tests = [
   "npm ci --ignore-scripts",
   "npm run ethos -- --version",
   "npm run test:npm -- --json",
-  "uv run --package ethos ethos prove --execute --gate self-audit --gate claims --gate schemas --json",
+  "uv run --package ethos ethos prove --execute --gate repository-audit --gate claims --gate schemas --json",
 ]
 
 [scope]
@@ -42,13 +42,13 @@ scope = "Repository platform scaffold, playbooks, fleet inspection, OpenSpec fam
 [carriers]
 openspec = "openspec/specs/ethos-repository/spec.md"
 
-fallback = "Keep official OpenSpec validation, local self-audit, and standards adapter checks as proof gates."
+fallback = "Keep official OpenSpec validation, local repository-audit, and standards adapter checks as proof gates."
 kill_signal = "Repository platform readiness depends on a second command plane or lifecycle store."
 
 [promotion]
 targets = [
   "docs/evidence/governance-platform-2026-06-30.md",
-  "docs/governance/openspec-self-governance.md",
+  "docs/governance/openspec-governance.md",
   "docs/governance/standards-adoption-policy.md",
   "openspec/specs/ethos-repository/spec.md",
 ]

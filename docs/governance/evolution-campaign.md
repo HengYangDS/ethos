@@ -1,27 +1,27 @@
 ---
-subject: ethos:self-evolution
+subject: ethos:evolution
 role: workflow
 state: canonical
 relations:
-  canonical_for: self governance
+  canonical_for: repository governance
 ---
 
-# Self Evolution Campaign
+# Evolution Campaign
 
-ETHOS governs itself through:
+ETHOS governs repository evolution through:
 
 ```text
 observe -> hypothesize -> experiment -> prove -> canonize -> retire
 ```
 
-Self-audit checks command-plane growth, package ontology drift, docs metadata,
-schema coverage, profile leakage, and adapter boundaries. Self-evolution records
+Repository audit checks command-plane growth, package ontology drift, docs metadata,
+schema coverage, profile leakage, and adapter boundaries. Evolution records
 must either canonize a proven improvement or retire it.
 
-Self-evolution is the `product_self` posture of the single-kernel
-dual-posture model. It reuses the same governance context, command semantics,
-evidence contracts, and mutation discipline that `adopter_repository` uses.
-`ethos self audit` changes proof depth for the self-hosting profile; it does
+Evolution uses the governed repository model. It reuses the same governance
+context, command semantics, evidence contracts, and mutation discipline for
+every profile.
+`ethos audit` changes proof depth for the product-toolchain profile; it does
 not create a private command plane or a second product lifecycle.
 
 `ethos campaign hypotheses --json` exposes active hypotheses as first-class

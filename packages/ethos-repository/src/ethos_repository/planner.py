@@ -215,7 +215,7 @@ subject = "repository-governance"
 operation = "govern"
 authority = "primary"
 lifecycle = "active"
-subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
+subjects = ["repository-governance", "ethos", "repository governance", "adoption", "changed-scope"]
 path_globs = [
   "AGENTS.md",
   ".ethos/**",

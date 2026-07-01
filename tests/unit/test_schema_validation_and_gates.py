@@ -578,8 +578,10 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
 def test_gate_registry_has_real_default_gates() -> None:
     registry = gate_registry()
 
-    assert {"self-audit", "claims", "docs-registry", "schemas", "playbooks-v2"} <= set(registry)
-    assert registry["self-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
+    assert {"repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2"} <= set(
+        registry
+    )
+    assert registry["repository-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
     assert registry["playbooks-v2"].command[-3:] == (
         "--mode",
         "v2-strict",
@@ -591,19 +593,19 @@ def test_gate_registry_has_real_default_gates() -> None:
 def test_gate_registry_classifies_self_hosting_toolchain_profile() -> None:
     registry = gate_registry()
 
-    for gate_id in ("self-audit", "claims", "docs-registry", "schemas", "playbooks-v2"):
+    for gate_id in ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2"):
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 
     for gate_id in ("unit-architecture", "ruff", "build"):
-        assert registry[gate_id].profile == "self-hosting"
+        assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
 
 def test_gate_graph_can_select_requested_gates() -> None:
-    graph = gate_graph(("self-audit", "claims"))
+    graph = gate_graph(("repository-audit", "claims"))
 
-    assert [node.id for node in graph.nodes] == ["self-audit", "claims"]
+    assert [node.id for node in graph.nodes] == ["repository-audit", "claims"]
     assert graph.validate().ok is True
 
 

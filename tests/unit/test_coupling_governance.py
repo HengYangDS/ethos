@@ -16,7 +16,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "product_semantic_hard_binding",
         "mandatory_governance_dependency",
         "native_protocol_binding",
-        "self_hosting_toolchain_binding",
+        "product_toolchain_binding",
         "profile_or_adapter_binding",
         "default_policy",
         "legacy_evidence",
@@ -133,10 +133,10 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "not_a_second_command_plane": True,
         "not_product_substrate": True,
     }
-    assert registry["uv_workspace_toolchain"]["layer"] == "self_hosting_toolchain_binding"
-    assert registry["hatchling_build_backend"]["layer"] == "self_hosting_toolchain_binding"
-    assert registry["pytest_test_runner"]["layer"] == "self_hosting_toolchain_binding"
-    assert registry["ruff_lint_runner"]["layer"] == "self_hosting_toolchain_binding"
+    assert registry["uv_workspace_toolchain"]["layer"] == "product_toolchain_binding"
+    assert registry["hatchling_build_backend"]["layer"] == "product_toolchain_binding"
+    assert registry["pytest_test_runner"]["layer"] == "product_toolchain_binding"
+    assert registry["ruff_lint_runner"]["layer"] == "product_toolchain_binding"
     assert registry["gitlab_release_profile"]["layer"] == "profile_or_adapter_binding"
     assert registry["mcp_acp_protocol_adapters"]["layer"] == "profile_or_adapter_binding"
     assert registry["npm_launcher_distribution_adapter"]["layer"] == (
@@ -151,9 +151,9 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     ]
     assert report["release_host_profile"]["provider"] == "gitlab"
     assert report["release_host_profile"]["layer"] == "profile_or_adapter_binding"
-    assert report["self_hosting_toolchain"] == {
-        "profile": "self-hosting",
-        "layer": "self_hosting_toolchain_binding",
+    assert report["product_toolchain"] == {
+        "profile": "product-toolchain",
+        "layer": "product_toolchain_binding",
         "gates": ["unit-architecture", "ruff", "build"],
         "toolchains": ["uv-python"],
         "product_ontology_anchor": False,

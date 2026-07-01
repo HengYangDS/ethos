@@ -8,7 +8,7 @@ challenge = "A command without schema validation remains a product risk."
 transition = "shape -> canonize"
 proof_refs = ["ethos quality schemas --json"]
 review_refs = ["tests/unit/test_schema_validation_and_gates.py"]
-decision_refs = ["docs/governance/self-evolution-campaign.md"]
+decision_refs = ["docs/governance/evolution-campaign.md"]
 retirement_conditions = ["all public JSON commands declare schema-bound output contracts"]
 
 [[hypothesis]]
@@ -17,7 +17,7 @@ campaign = "ethos-product-maturation"
 state = "experimenting"
 owner = "ethos-maintainers"
 claim = "ETHOS proof should execute selected gates through the action graph."
-challenge = "A proof wrapper that only summarizes self-audit is not sufficient."
+challenge = "A proof wrapper that only summarizes repository-audit is not sufficient."
 transition = "experiment -> canonize"
 proof_refs = ["ethos prove --execute --json"]
 review_refs = ["tests/unit/test_runner_and_evidence.py"]

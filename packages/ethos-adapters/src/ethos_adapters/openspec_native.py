@@ -91,7 +91,7 @@ def _validation_failures(validate_payload: dict[str, Any]) -> list[str]:
     return failures
 
 
-def openspec_self_governance_report(
+def openspec_governance_report(
     root: Path,
     *,
     change: str | None = None,
@@ -99,7 +99,7 @@ def openspec_self_governance_report(
 ) -> dict[str, Any]:
     base_command = _openspec_base_command()
     if base_command is None:
-        return _openspec_self_governance_report(
+        return _openspec_governance_report(
             root,
             change=change,
             lifecycle=lifecycle,
@@ -107,7 +107,7 @@ def openspec_self_governance_report(
         )
     signature = _openspec_workspace_signature(root)
     return deepcopy(
-        _cached_openspec_self_governance_report(
+        _cached_openspec_governance_report(
             root.resolve().as_posix(),
             change,
             lifecycle,
@@ -129,14 +129,14 @@ def _openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...
 
 
 @lru_cache(maxsize=32)
-def _cached_openspec_self_governance_report(
+def _cached_openspec_governance_report(
     root_posix: str,
     change: str | None,
     lifecycle: bool,
     base_command: tuple[str, ...],
     _signature: tuple[tuple[str, int, int], ...],
 ) -> dict[str, Any]:
-    return _openspec_self_governance_report(
+    return _openspec_governance_report(
         Path(root_posix),
         change=change,
         lifecycle=lifecycle,
@@ -144,7 +144,7 @@ def _cached_openspec_self_governance_report(
     )
 
 
-def _openspec_self_governance_report(
+def _openspec_governance_report(
     root: Path,
     *,
     change: str | None,

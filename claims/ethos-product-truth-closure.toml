@@ -43,7 +43,7 @@ scope = "Product truth reporting, scaffold diagnostics, command examples, and pa
 [carriers]
 openspec = "openspec/specs/ethos-repository/spec.md"
 
-fallback = "Use product self-audit and command-registry checks as local truth gates."
+fallback = "Use product repository-audit and command-registry checks as local truth gates."
 kill_signal = "Command or package truth can pass through docs-only declarations without source or tests."
 
 [promotion]

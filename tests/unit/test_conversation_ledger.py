@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.self_audit import REQUIRED_DOCS
+from ethos_repository.repository_audit import REQUIRED_DOCS
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "docs" / "governance" / "conversation-ledger.md"
@@ -44,7 +44,7 @@ def test_conversation_ledger_preserves_critical_chat_requirements() -> None:
         assert phrase in text
 
 
-def test_conversation_ledger_is_discoverable_and_self_audited() -> None:
+def test_conversation_ledger_is_discoverable_and_repository_audited() -> None:
     index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
 
     assert "docs/governance/conversation-ledger.md" in REQUIRED_DOCS

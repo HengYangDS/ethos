@@ -31,7 +31,7 @@ def test_contributing_declares_commit_and_signature_policy() -> None:
 def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
-    assert "ethos self audit" in text
+    assert "ethos audit" in text
     assert "ethos report" in text
     assert "image: node:24" in text
     assert "npm config set engine-strict true" in text

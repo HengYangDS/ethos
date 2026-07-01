@@ -57,10 +57,10 @@ REQUIRED_DOCS = (
     "docs/governance/capability-parity-ledger.md",
     "docs/governance/provenance-and-attestation.md",
     "docs/governance/docs-registry.md",
-    "docs/governance/openspec-self-governance.md",
+    "docs/governance/openspec-governance.md",
     "docs/governance/playbooks-and-skills.md",
     "docs/governance/release-governance.md",
-    "docs/governance/self-evolution-campaign.md",
+    "docs/governance/evolution-campaign.md",
 )
 
 REQUIRED_SCHEMAS = (
@@ -98,7 +98,7 @@ REQUIRED_SCHEMAS = (
 
 REQUIRED_RELEASE_FILES = (
     *PRODUCT_RELEASE_FILES,
-    "docs/governance/self-evolution-ledger.toml",
+    "docs/governance/evolution-ledger.toml",
 )
 
 REQUIRED_PLAYBOOK_FILES = (
@@ -164,7 +164,7 @@ def _openspec_provider_missing_report(root: Path) -> dict[str, object]:
     }
 
 
-def self_audit(
+def repository_audit(
     root: Path,
     *,
     openspec_mode: str = "deep",
@@ -252,10 +252,10 @@ def self_audit(
     )
     return {
         "ok": not gaps,
+        "mode": "repository",
         "governance_context": governance_context(
             root,
-            posture="product_self",
-            profile="self-hosting",
+            profile="product",
         ),
         "package_ontology": {
             "ok": not package_missing and not distribution_missing,

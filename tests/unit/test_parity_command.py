@@ -935,7 +935,7 @@ def test_shadow_semantic_diff_normalizes_ready_prove_against_legacy_payload() ->
         ("publish", "dry_run"),
     ],
 )
-def test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_payload(
+def test_shadow_semantic_diff_classifies_external_repository_audit_gaps_for_legacy_payload(
     command: str,
     external_state: str,
 ) -> None:
@@ -948,7 +948,7 @@ def test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_pay
             "claims_missing",
         ],
         "data": {
-            "self_audit": {
+            "repository_audit": {
                 "required_gaps": [
                     "docs/architecture/product-ontology.md",
                     "claims_missing",
@@ -966,7 +966,7 @@ def test_shadow_semantic_diff_classifies_external_self_audit_gaps_for_legacy_pay
     assert _semantic_diff(external, embedded) == {}
 
 
-def test_shadow_semantic_diff_preserves_external_non_self_audit_gaps() -> None:
+def test_shadow_semantic_diff_preserves_external_non_repository_audit_gaps() -> None:
     external = {
         "ok": False,
         "command": "prove",
@@ -976,7 +976,7 @@ def test_shadow_semantic_diff_preserves_external_non_self_audit_gaps() -> None:
             "action_graph_invalid",
         ],
         "data": {
-            "self_audit": {
+            "repository_audit": {
                 "required_gaps": ["docs/architecture/product-ontology.md"],
             },
         },
@@ -1075,7 +1075,7 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
                 "command": "prove",
                 "state": "gapped",
                 "required_gaps": ["claims_missing"],
-                "data": {"self_audit": {"required_gaps": ["claims_missing"]}},
+                "data": {"repository_audit": {"required_gaps": ["claims_missing"]}},
             }
         else:
             state_by_command = {
@@ -1139,21 +1139,21 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
     assert payload["accepted_summary"] == {
         "total_count": 1,
         "command_count": 1,
-        "kind_counts": {"external_product_self_audit_gap": 1},
+        "kind_counts": {"external_product_repository_audit_gap": 1},
     }
     comparison = next(item for item in payload["comparisons"] if item["command"] == "ethos prove")
     assert comparison["accepted_summary"] == {
         "total_count": 1,
-        "kind_counts": {"external_product_self_audit_gap": 1},
+        "kind_counts": {"external_product_repository_audit_gap": 1},
     }
     assert comparison["accepted_differences"] == [
         {
-            "kind": "external_product_self_audit_gap",
+            "kind": "external_product_repository_audit_gap",
             "classification": "accepted",
-            "scope": "external_product_self_audit",
+            "scope": "external_product_repository_audit",
             "commands": ["ethos prove"],
             "gaps": ["claims_missing"],
-            "reason": "external product self-audit gap is not an embedded adopter parity gap",
+            "reason": "external product repository audit gap is not an embedded adopter parity gap",
         }
     ]
 
@@ -1183,7 +1183,7 @@ def test_shadow_accepted_difference_schema_rejects_unknown_kind() -> None:
                     {
                         "kind": "unknown",
                         "classification": "accepted",
-                        "scope": "external_product_self_audit",
+                        "scope": "external_product_repository_audit",
                         "commands": ["ethos prove"],
                         "gaps": ["claims_missing"],
                         "reason": "invalid",
@@ -1206,7 +1206,7 @@ def test_shadow_accepted_difference_has_stable_shape() -> None:
         "command": "prove",
         "state": "gapped",
         "required_gaps": ["claims_missing"],
-        "data": {"self_audit": {"required_gaps": ["claims_missing"]}},
+        "data": {"repository_audit": {"required_gaps": ["claims_missing"]}},
     }
     embedded = {"ok": True, "command": "prove", "required_gaps": []}
 
@@ -1214,11 +1214,11 @@ def test_shadow_accepted_difference_has_stable_shape() -> None:
 
     assert accepted == [
         {
-            "kind": "external_product_self_audit_gap",
+            "kind": "external_product_repository_audit_gap",
             "classification": "accepted",
-            "scope": "external_product_self_audit",
+            "scope": "external_product_repository_audit",
             "commands": ["ethos prove"],
             "gaps": ["claims_missing"],
-            "reason": "external product self-audit gap is not an embedded adopter parity gap",
+            "reason": "external product repository audit gap is not an embedded adopter parity gap",
         }
     ]

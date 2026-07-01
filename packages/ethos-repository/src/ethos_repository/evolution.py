@@ -6,7 +6,7 @@ from typing import Any
 
 
 def _ledger_path(root: Path) -> Path:
-    return root / "docs" / "governance" / "self-evolution-ledger.toml"
+    return root / "docs" / "governance" / "evolution-ledger.toml"
 
 
 def evolution_ledger(root: Path) -> dict[str, Any]:

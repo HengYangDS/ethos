@@ -16,7 +16,7 @@ differences explicit in `accepted_differences`.
 
 Accepted classifications are limited to:
 
-- `external_product_self_audit_gap`: product self-audit maturation gaps reported
+- `external_product_repository_audit_gap`: product repository audit maturation gaps reported
   by external ETHOS when the embedded adopter command has no corresponding
   required gap.
 - `legacy_changed_route_noop`: legacy changed-scope playbook route gaps when
@@ -45,7 +45,7 @@ shadow_parity_digest: refreshed during final local closeout gate
 state: matched
 required_gaps: []
 accepted_difference_kinds:
-  - external_product_self_audit_gap
+  - external_product_repository_audit_gap
   - legacy_changed_route_noop
 ```
 

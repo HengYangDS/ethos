@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:cecc50405c27d9e6849d82d8414c70ac4d58caf8d04db7acbf2810ea6a106bb0"
+expected_registry_digest = "sha256:17679c4a491d15710ee1d2f05c2600faf6e9baa55219df0bedd3ce1a58687215"
 expected_generator_digest = "sha256:4ecddd8dd720b1e42ba65b0f4db3b19da62be733307c70a04e970f9fab266cc0"
 
 [[skill]]
@@ -12,9 +12,12 @@ subject = "repository-governance"
 operation = "govern"
 authority = "primary"
 lifecycle = "active"
-subjects = ["repository-governance", "ethos", "self-governance", "adoption", "changed-scope"]
+subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
 path_globs = [
   "AGENTS.md",
+  "CONTRIBUTING.md",
+  "README.md",
+  ".gitlab-ci.yml",
   ".ethos/**",
   ".agents/skills/**",
   "distributions/**",

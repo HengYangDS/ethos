@@ -34,7 +34,7 @@ with provider-native skill metadata.
   activation, package-quality, projection, and routing governance.
 - `ethos-contracts`: Add provider-neutral schemas and IR for skill activation
   contracts and package manifests.
-- `ethos-repository`: Surface Skills V2 gaps in scaffold, self-audit, proof,
+- `ethos-repository`: Surface Skills V2 gaps in scaffold, repository-audit, proof,
   schema validation, and report scoring.
 - `ethos-test`: Add conformance, migration replay, and parity fixtures for
   Skills V2 adoption.
@@ -43,6 +43,6 @@ with provider-native skill metadata.
 
 Affected areas include `ethos-assistants` playbook parsing and projection
 checks, `ethos-contracts` schemas and IR, adopter scaffold generation,
-repository self-audit and proof gates, shadow parity normalization, current
+repository-audit and proof gates, shadow parity normalization, current
 skill files, OpenSpec records, docs, evidence, and focused unit/architecture
 tests.

@@ -13,7 +13,7 @@
     "binding_registry",
     "release_product_files",
     "release_host_profile",
-    "self_hosting_toolchain",
+    "product_toolchain",
     "scanned_product_docs"
   ],
   "properties": {
@@ -82,7 +82,7 @@
       },
       "additionalProperties": true
     },
-    "self_hosting_toolchain": {
+    "product_toolchain": {
       "type": "object",
       "required": [
         "profile",
@@ -92,8 +92,8 @@
         "product_ontology_anchor"
       ],
       "properties": {
-        "profile": {"const": "self-hosting"},
-        "layer": {"const": "self_hosting_toolchain_binding"},
+        "profile": {"const": "product-toolchain"},
+        "layer": {"const": "product_toolchain_binding"},
         "gates": {"type": "array", "items": {"type": "string"}},
         "toolchains": {"type": "array", "items": {"type": "string"}},
         "product_ontology_anchor": {"const": false}
@@ -109,7 +109,7 @@
         "product_semantic_hard_binding",
         "mandatory_governance_dependency",
         "native_protocol_binding",
-        "self_hosting_toolchain_binding",
+        "product_toolchain_binding",
         "profile_or_adapter_binding",
         "default_policy",
         "legacy_evidence",

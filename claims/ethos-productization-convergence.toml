@@ -17,7 +17,7 @@ tests = [
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos quality claims --json",
-  "uv run --package ethos ethos self audit --mode shape --json",
+  "uv run --package ethos ethos audit --mode shape --json",
   "uv run --package ethos ethos report --json",
   "uv build --all-packages",
   "uv run --package ethos ethos prove --expect-head \"$(git rev-parse HEAD)\" --json",

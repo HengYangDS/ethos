@@ -5,7 +5,7 @@ state: active
 relations:
   canonical_for: conversation-derived product gaps
   informs:
-    - ethos:self-evolution
+    - ethos:evolution
     - ethos:product-ontology
     - ethos:adoption
 ---
@@ -16,7 +16,7 @@ This ledger records product requirements and corrections that came from the
 long ETHOS design conversation. It is not a substitute for specs, code, tests,
 or release evidence. Its job is narrower: preserve the requirements that were
 easy to lose during implementation, make gaps reviewable, and feed the
-self-evolution campaign.
+evolution campaign.
 
 ## Situation
 
@@ -80,9 +80,9 @@ not normal user workflow vocabulary.
 | CL-005 | Model assistant host memory, fast mode, goals, subagents, and doctor as host capability inputs. | Host affordances can be forgotten or treated as truth. | Host capability check and report output. |
 | CL-006 | Productize backlog-md as an intake-ledger adapter where appropriate. | Intake may stay adopter-private. | Intake adapter spec, scaffold, and sample validation. |
 | CL-007 | Classify adopter tools/agent surfaces explicitly during adoption. | Reusable agent utilities can be lost or incorrectly productized. | Adoption report with retire, project, or profile decisions. |
-| CL-008 | Implement official OpenSpec lifecycle including proposal, delta validation, delta-to-canonical sync, archive, and self-audit. | OpenSpec may be present but not deeply governed. | OpenSpec strict validation plus lifecycle tests. |
+| CL-008 | Implement official OpenSpec lifecycle including proposal, delta validation, delta-to-canonical sync, archive, and repository-audit. | OpenSpec may be present but not deeply governed. | OpenSpec strict validation plus lifecycle tests. |
 | CL-009 | Maintain MECE spec families aligned with product package families. | Specs can drift into duplicate or missing capabilities. | Spec family test and product ontology cross-check. |
-| CL-010 | Build real self-evolution, including opportunities, hypotheses, exhaustion challenge, closeout, and retirement. | Self-evolution can become a static document. | Evolution ledger state machine and CLI/report tests. |
+| CL-010 | Build real evolution, including opportunities, hypotheses, exhaustion challenge, closeout, and retirement. | Evolution can become a static document. | Evolution ledger state machine and CLI/report tests. |
 | CL-011 | Build a real gate runner that plans, executes, records, and explains gates. | Proof can remain a summary wrapper. | Gate schema, action graph execution tests, evidence output. |
 | CL-012 | Enforce format, artifact, and evidence governance. | Generated state and durable truth can blur. | Format policy, artifact policy, and location checks. |
 | CL-013 | Keep dmgr as a reference adopter, the dmgr reference adopter, with its own profile and evidence. | Core can accidentally hardcode dmgr or alphasim. | Reference adoption fixture and boundary tests. |
@@ -97,7 +97,7 @@ not normal user workflow vocabulary.
 | CL-022 | Preserve one public command plane. | Legacy public vocabulary can leak back into current docs. | Command registry scan and docs command-example tests. |
 | CL-023 | Feed hosted CI parity back into evidence, not a separate truth store. | Hosted checks can diverge from local proof semantics. | CI adapter report and evidence envelope. |
 | CL-024 | Make standards adoption executable and lifecycle-managed. | Standards can stay aspirational. | Standards registry, adapters, and exit strategies. |
-| CL-025 | Keep conversation-derived requirements auditable. | The agent can forget or narrow scope again. | This ledger linked from docs index and self-audit. |
+| CL-025 | Keep conversation-derived requirements auditable. | The agent can forget or narrow scope again. | This ledger linked from docs index and repository-audit. |
 
 ## Nonclaims
 

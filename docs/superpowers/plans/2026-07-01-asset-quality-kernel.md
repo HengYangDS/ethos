@@ -19,7 +19,7 @@ See also: [Documentation Index](../../index.md),
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Make quality, determinism, proof classification, and self-evolution first-class ETHOS product capabilities instead of incidental repository lifecycle checks.
+**Goal:** Make quality, determinism, proof classification, and evolution first-class ETHOS product capabilities instead of incidental repository lifecycle checks.
 
 **Architecture:** Add `ethos-quality` as a focused semantic package for asset policy, gate descriptors, proof lattice, documentation quality profile, and adopter-profile boundaries. Keep `ethos-repository` responsible for repository lifecycle orchestration only, keep `ethos-contracts` provider-neutral, and expose the new capability through thin `ethos quality ...` CLI reports.
 
@@ -169,19 +169,19 @@ Expected: PASS.
 - Create: `docs/governance/reference-adopter-parity-ledger.md`
 - Modify: `docs/governance/capability-parity-ledger.md`
 - Modify: `schemas/ethos/evolution-ledger.schema.json`
-- Modify: `docs/governance/self-evolution-ledger.toml`
+- Modify: `docs/governance/evolution-ledger.toml`
 - Modify: `packages/ethos-repository/src/ethos_repository/evolution.py`
 - Test: `tests/unit/test_parity_command.py`
-- Test: `tests/unit/test_self_evolution_ledger.py`
+- Test: `tests/unit/test_evolution_ledger.py`
 - Test: `tests/architecture/test_product_boundaries.py`
 
 - [x] **Step 1: Write failing boundary/evolution tests**
 
-Test that product Python code does not hardcode `alphasim` or `dmgr`, including contracts; adopter parity instances live in docs/profile evidence. Test self-evolution hypotheses include owner, transition, proof refs, review refs, decision refs, and retirement conditions.
+Test that product Python code does not hardcode `alphasim` or `dmgr`, including contracts; adopter parity instances live in docs/profile evidence. Test evolution hypotheses include owner, transition, proof refs, review refs, decision refs, and retirement conditions.
 
 - [x] **Step 2: Run RED**
 
-Run: `uv run --group dev pytest tests/unit/test_parity_command.py tests/unit/test_self_evolution_ledger.py tests/architecture/test_product_boundaries.py -q`
+Run: `uv run --group dev pytest tests/unit/test_parity_command.py tests/unit/test_evolution_ledger.py tests/architecture/test_product_boundaries.py -q`
 
 Expected: FAIL because contracts still contain reference-adopter instance data and the evolution ledger is too thin.
 
@@ -191,7 +191,7 @@ Keep generic dataclass/schema in `ethos-contracts`; move dmgr/adopter examples t
 
 - [x] **Step 4: Run GREEN**
 
-Run: `uv run --group dev pytest tests/unit/test_parity_command.py tests/unit/test_self_evolution_ledger.py tests/architecture/test_product_boundaries.py -q`
+Run: `uv run --group dev pytest tests/unit/test_parity_command.py tests/unit/test_evolution_ledger.py tests/architecture/test_product_boundaries.py -q`
 
 Expected: PASS.
 
@@ -211,10 +211,10 @@ Record scope, touched contracts, validation commands, and SHA-256 digest binding
 Run:
 
 ```bash
-uv run --group dev pytest tests/unit/test_quality_kernel.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_cli_contracts.py tests/unit/test_docs_registry.py tests/unit/test_self_evolution_ledger.py tests/unit/test_parity_command.py tests/architecture/test_product_boundaries.py -q
+uv run --group dev pytest tests/unit/test_quality_kernel.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_cli_contracts.py tests/unit/test_docs_registry.py tests/unit/test_evolution_ledger.py tests/unit/test_parity_command.py tests/architecture/test_product_boundaries.py -q
 uv run --package ethos ethos quality schemas --json
 uv run --package ethos ethos quality package-ontology --json
-uv run --package ethos ethos self audit --mode deep --json
+uv run --package ethos ethos audit --mode deep --json
 uv run --package ethos ethos report --json
 uv run openspec validate --all --strict
 uv run --group dev ruff check .

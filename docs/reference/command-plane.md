@@ -49,6 +49,7 @@ ethos self audit
 ethos self audit --mode shape
 ethos self audit --mode deep
 ethos prove --execute
+ethos prove --expect-head <git-head>
 ethos self hypothesize
 ethos self prove --mode shape
 ethos self prove --mode deep
@@ -102,6 +103,13 @@ so the workspace-status object remains schema-valid.
 The `data.closeout_support` object reports whether the current checkout can land
 to `candidate/dev`, which target path would be updated, who owns the lease when
 known, and which mutation gap blocks closeout.
+`ethos lane start --json` returns `data.worktree` in apply mode. That object
+uses the same `open_action = "open_worktree"` and `open_label = "Open Worktree"`
+vocabulary as status output, so hosts can open the new Work Lane without
+treating it as an ordinary checkout target.
+Start admission requires both the accepted root and the candidate worktree to be
+clean. A dirty candidate returns `candidate_worktree_dirty` and does not create
+a Work Lane.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires `--branch work/<name>` so cleanup cannot accidentally remove
 another active agent's worktree.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -22,10 +23,17 @@ def parity_gaps_report(
     *,
     adopter: str | None = None,
     root: Path | None = None,
+    target: Path | None = None,
+    current_target_head: str = "",
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
-    evidence = _parity_evidence(root or Path.cwd(), adopter_name)
+    evidence = _parity_evidence(
+        root or Path.cwd(),
+        adopter_name,
+        target=target,
+        current_target_head=current_target_head,
+    )
     evidence_valid = not evidence.get("required_gaps")
     verified = set(evidence.get("verified_capabilities", []))
     pending_packages = [
@@ -116,15 +124,26 @@ def shadow_parity_report(
     target: Path,
     root: Path | None = None,
     adopter: str | None = None,
+    current_target_head: str = "",
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
-        evidence = _parity_evidence(root or Path.cwd(), adopter)
+        evidence = _parity_evidence(
+            root or Path.cwd(),
+            adopter,
+            target=target,
+            current_target_head=current_target_head,
+        )
         if evidence:
             evidence_gaps = list(evidence.get("required_gaps", []))
             if evidence.get("target") != target.as_posix():
                 evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
             shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
+            provenance = _tracked_evidence_provenance(
+                evidence,
+                required_gaps=evidence_gaps,
+                current_target_head=current_target_head,
+            )
             if not evidence_gaps and shadow.get("ok") is True:
                 commands = _string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)
                 dimensions = _string_list(evidence.get("semantic_dimensions")) or list(
@@ -140,6 +159,7 @@ def shadow_parity_report(
                     "semantic_dimensions": dimensions,
                     "blocking": False,
                     "required_gaps": [],
+                    "provenance": provenance,
                     "next_action": "use tracked shadow parity evidence for local closeout",
                 }
                 return {
@@ -150,6 +170,7 @@ def shadow_parity_report(
                     "comparisons": commands,
                     "semantic_dimensions": dimensions,
                     "evidence_path": evidence.get("path"),
+                    "provenance": provenance,
                     "execution_packages": [package],
                 }
             gap = f"shadow_parity_evidence_invalid:{adopter}"
@@ -161,6 +182,7 @@ def shadow_parity_report(
                 "comparisons": list(SHADOW_PARITY_COMMANDS),
                 "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
                 "evidence_path": evidence.get("path"),
+                "provenance": provenance,
                 "execution_packages": [
                     {
                         "gap": gap,
@@ -171,6 +193,7 @@ def shadow_parity_report(
                         "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
                         "blocking": True,
                         "required_gaps": evidence_gaps,
+                        "provenance": provenance,
                         "next_action": (
                             f"ethos parity shadow --target {target.as_posix()} --execute"
                         ),
@@ -178,6 +201,18 @@ def shadow_parity_report(
                 ],
             }
     gap = f"shadow_parity_not_executed:{target.as_posix()}"
+    provenance = {
+        "mode": "planned_shadow_run",
+        "evidence_path": "",
+        "freshness": {
+            "ok": False,
+            "required_gaps": [gap],
+            "product_head": "",
+            "target_head": "",
+            "current_target_head": current_target_head,
+            "command_sha256": "",
+        },
+    }
     return {
         "ok": False,
         "state": "planned",
@@ -185,6 +220,7 @@ def shadow_parity_report(
         "required_gaps": [gap],
         "comparisons": list(SHADOW_PARITY_COMMANDS),
         "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
+        "provenance": provenance,
         "execution_packages": [
             {
                 "gap": gap,
@@ -193,6 +229,7 @@ def shadow_parity_report(
                 "commands": list(SHADOW_PARITY_COMMANDS),
                 "semantic_dimensions": list(SHADOW_PARITY_DIMENSIONS),
                 "blocking": True,
+                "provenance": provenance,
                 "next_action": f"ethos parity shadow --target {target.as_posix()} --execute",
             }
         ],
@@ -203,7 +240,34 @@ def _string_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
-def _parity_evidence(root: Path, adopter: str | None) -> dict[str, object]:
+def _tracked_evidence_provenance(
+    evidence: dict[str, object],
+    *,
+    required_gaps: list[str],
+    current_target_head: str,
+) -> dict[str, object]:
+    freshness = evidence.get("freshness") if isinstance(evidence.get("freshness"), dict) else {}
+    return {
+        "mode": "tracked_evidence",
+        "evidence_path": str(evidence.get("path") or ""),
+        "freshness": {
+            "ok": not required_gaps,
+            "required_gaps": list(required_gaps),
+            "product_head": str(freshness.get("product_head") or ""),
+            "target_head": str(freshness.get("target_head") or ""),
+            "current_target_head": current_target_head,
+            "command_sha256": str(freshness.get("command_sha256") or ""),
+        },
+    }
+
+
+def _parity_evidence(
+    root: Path,
+    adopter: str | None,
+    *,
+    target: Path | None = None,
+    current_target_head: str = "",
+) -> dict[str, object]:
     if not adopter:
         return {}
     path = root / "docs" / "evidence" / "parity" / f"{adopter}-shadow.json"
@@ -223,7 +287,12 @@ def _parity_evidence(root: Path, adopter: str | None) -> dict[str, object]:
             "required_gaps": ["parity_evidence_not_object"],
             "verified_capabilities": [],
         }
-    required_gaps = _validate_parity_evidence(payload, adopter)
+    required_gaps = _validate_parity_evidence(
+        payload,
+        adopter,
+        target=target,
+        current_target_head=current_target_head,
+    )
     return {
         "path": path.relative_to(root).as_posix(),
         **payload,
@@ -231,7 +300,13 @@ def _parity_evidence(root: Path, adopter: str | None) -> dict[str, object]:
     }
 
 
-def _validate_parity_evidence(payload: dict[str, object], adopter: str) -> list[str]:
+def _validate_parity_evidence(
+    payload: dict[str, object],
+    adopter: str,
+    *,
+    target: Path | None = None,
+    current_target_head: str = "",
+) -> list[str]:
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:schema_version")
@@ -241,6 +316,16 @@ def _validate_parity_evidence(payload: dict[str, object], adopter: str) -> list[
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target")
     if not isinstance(payload.get("generated_on"), str) or not payload.get("generated_on"):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:generated_on")
+    command = payload.get("command")
+    if not isinstance(command, str) or not command:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:command")
+    _validate_freshness(
+        payload.get("freshness"),
+        adopter=adopter,
+        command=command if isinstance(command, str) else "",
+        current_target_head=current_target_head,
+        required_gaps=required_gaps,
+    )
     shadow = payload.get("shadow")
     if not isinstance(shadow, dict):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:shadow")
@@ -276,6 +361,31 @@ def _validate_parity_evidence(payload: dict[str, object], adopter: str) -> list[
     if required_gaps:
         return [f"parity_evidence_invalid:{adopter}", *required_gaps]
     return []
+
+
+def _validate_freshness(
+    freshness: object,
+    *,
+    adopter: str,
+    command: str,
+    current_target_head: str,
+    required_gaps: list[str],
+) -> None:
+    if not isinstance(freshness, dict):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:freshness")
+        return
+    for field in ("product_head", "target_head", "command_sha256"):
+        if not isinstance(freshness.get(field), str) or not freshness.get(field):
+            required_gaps.append(f"parity_evidence_invalid:{adopter}:{field}")
+    expected_digest = _sha256_text(command)
+    if command and freshness.get("command_sha256") != expected_digest:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:command_sha256")
+    if current_target_head and freshness.get("target_head") != current_target_head:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")
+
+
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _migratable_capabilities() -> set[str]:

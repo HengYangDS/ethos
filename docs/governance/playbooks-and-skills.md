@@ -25,6 +25,6 @@ The canonical local layout is:
 --subject <subject> --json` selects matching playbooks from
 `.agents/skills/activation.toml`.
 
-Assistant host memory, local sessions, MCP servers, and vendor prompts remain
-context providers or adapters. Durable guidance must be promoted into source,
-tests, schemas, docs, OpenSpec records, claims, or evidence.
+Assistant host memory, local sessions, MCP servers, and provider-specific
+prompts remain context providers or adapters. Durable guidance must be promoted
+into source, tests, schemas, docs, OpenSpec records, claims, or evidence.

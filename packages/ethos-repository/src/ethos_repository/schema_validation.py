@@ -147,6 +147,11 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
+    instances["campaign-closeout-contract"] = validate_schema_instance(
+        "campaign-closeout.schema.json",
+        _campaign_closeout_contract_sample(),
+        root=root,
+    )
     instances["shadow-parity-contract"] = validate_schema_instance(
         "shadow-parity.schema.json",
         _shadow_parity_contract_sample(),
@@ -158,6 +163,84 @@ def _instance_validation_report(root: Path) -> dict[str, dict[str, object]]:
         root=root,
     )
     return instances
+
+
+def _campaign_closeout_contract_sample() -> dict[str, Any]:
+    publication = {
+        "mode": "local_readiness",
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "submit_branch": "submit/example",
+        "local_submit_package": {
+            "kind": "submit_branch_plan",
+            "source_branch": "work/example",
+            "submit_branch": "submit/example",
+            "remote_push": "not_performed",
+            "remote_state": "deferred",
+            "blocking": False,
+            "required_steps": [
+                "land work lane to candidate/dev",
+                "fast-forward local dev from candidate/dev",
+                "create submit/* and push when remote publication is available",
+            ],
+        },
+        "required_gaps": [],
+        "next_actions": ["create submit/* and push when remote publication is available"],
+    }
+    shadow_provenance = {
+        "mode": "tracked_evidence",
+        "evidence_path": "docs/evidence/parity/example-shadow.json",
+        "freshness": {
+            "ok": True,
+            "required_gaps": [],
+            "product_head": "product-head",
+            "target_head": "target-head",
+            "current_target_head": "target-head",
+            "command_sha256": "0" * 64,
+        },
+    }
+    shadow_package = {
+        "kind": "shadow_parity_evidence",
+        "state": "matched",
+        "target": "/repo",
+        "evidence_path": "docs/evidence/parity/example-shadow.json",
+        "comparison_count": 9,
+        "commands": ["ethos status --json"],
+        "semantic_dimensions": ["branch role"],
+        "blocking": False,
+        "required_gaps": [],
+        "provenance": shadow_provenance,
+        "next_action": "use tracked shadow parity evidence for local closeout",
+    }
+    return {
+        "ok": True,
+        "state": "local_ready",
+        "workspace": {},
+        "evolution": {},
+        "release": {},
+        "parity": {},
+        "shadow_parity": {},
+        "publication": publication,
+        "remote_publication": {
+            "remote_push": "not_performed",
+            "state": "deferred",
+            "reason": "remote publication adapter unavailable",
+        },
+        "provenance": {
+            "shadow_parity": shadow_provenance,
+            "closeout": {
+                "mode": "local_only",
+                "remote_state": "deferred",
+            },
+        },
+        "packages": {
+            "local_closeout": {},
+            "publication": publication,
+            "release": {},
+            "parity": {},
+            "shadow_parity": shadow_package,
+        },
+    }
 
 
 def _shadow_parity_contract_sample() -> dict[str, Any]:

@@ -38,6 +38,10 @@ candidate worktree without advancing `dev`.
 Status output marks `candidate/dev` and `work/*` branches that already have
 linked worktrees with `action = "open_worktree"` and label `Open Worktree`, not
 as plain checkout actions.
+`ethos lane start --apply --json` returns the newly created Work Lane under
+`data.worktree` with that same Open Worktree vocabulary. Start admission also
+rejects a dirty candidate worktree with `candidate_worktree_dirty`, so a new
+Work Lane cannot be created from ambiguous local candidate state.
 
 Status output also carries `closeout_support`. Only the current clean
 `work/*` checkout can advertise `action = "land_to_candidate"`. Accepted roots,

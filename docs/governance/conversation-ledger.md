@@ -40,8 +40,9 @@ areas must remain visible until implemented, tested, documented, and proven.
   truth.
 - OpenSpec must be an official-native governance workspace under openspec.
 - Repository-local .agents/skills files are thin playbook projections, while
-  generated skills must still meet official-quality Codex Skills expectations.
-- Codex memory, fast mode, goals, subagents, and doctor output are host
+  generated skills must still meet official-quality assistant skills
+  expectations.
+- Assistant host memory, fast mode, goals, subagents, and doctor output are host
   capability signals. ETHOS should model and verify their use without treating
   host-local state as durable truth.
 - backlog-md is an intake-ledger adapter opportunity, not a proof or contract
@@ -73,10 +74,10 @@ not normal user workflow vocabulary.
 | ID | Requirement | Current Risk | Required Landing Evidence |
 | --- | --- | --- | --- |
 | CL-001 | Split governance into bounded packages such as evidence, quality, policy, spec, and evolution; keep governance orchestration thin. | ethos-repository can become a governance junk drawer. | Product ontology, package README, tests proving MECE ownership. |
-| CL-002 | Generate or maintain official-quality Codex Skills, not minimal hand-written placeholders. | Skills may exist but fail provider expectations. | Skill quality tests, templates, and lifecycle docs. |
+| CL-002 | Generate or maintain official-quality assistant skills, not minimal hand-written placeholders. | Skills may exist but fail provider expectations. | Skill quality tests, templates, and lifecycle docs. |
 | CL-003 | Treat activation.toml as an ETHOS registry, not official skill metadata. | Registry and provider metadata can be conflated. | Schema and docs that separate registry from projection. |
 | CL-004 | Keep Superpowers external and observable through method-pack adapters. | Vendoring or silent non-use can break trust. | Adapter docs, report fields, and execution evidence. |
-| CL-005 | Model Codex memory, fast mode, goals, subagents, and doctor as host capability inputs. | Host affordances can be forgotten or treated as truth. | Host capability check and report output. |
+| CL-005 | Model assistant host memory, fast mode, goals, subagents, and doctor as host capability inputs. | Host affordances can be forgotten or treated as truth. | Host capability check and report output. |
 | CL-006 | Productize backlog-md as an intake-ledger adapter where appropriate. | Intake may stay adopter-private. | Intake adapter spec, scaffold, and sample validation. |
 | CL-007 | Classify adopter tools/agent surfaces explicitly during adoption. | Reusable agent utilities can be lost or incorrectly productized. | Adoption report with retire, project, or profile decisions. |
 | CL-008 | Implement official OpenSpec lifecycle including proposal, delta validation, delta-to-canonical sync, archive, and self-audit. | OpenSpec may be present but not deeply governed. | OpenSpec strict validation plus lifecycle tests. |

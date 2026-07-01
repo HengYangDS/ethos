@@ -44,6 +44,11 @@ Implemented changes:
   `verified_capabilities`) before it can close adopter gaps.
 - The tracked alphasim-dmgr parity evidence is
   `docs/evidence/parity/alphasim-dmgr-shadow.json`.
+- Tracked shadow parity evidence now records freshness identity:
+  product head, target head, and the SHA-256 digest of the recorded shadow
+  command. Campaign closeout projects that identity through a provenance layer
+  with `tracked_evidence`, `planned_shadow_run`, or `live_shadow_run` mode,
+  while remote publication remains explicitly deferred.
 - External ETHOS tolerates legacy adopter SQLite lease schemas that use
   `resource` instead of `subject`, so read-only status, plan, and publish
   commands do not crash on existing `.ethos/state/state.sqlite` files.

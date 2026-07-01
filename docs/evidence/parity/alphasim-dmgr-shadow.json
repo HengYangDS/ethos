@@ -4,6 +4,11 @@
   "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3",
   "generated_on": "2026-07-01",
   "command": "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
+  "freshness": {
+    "product_head": "f788553d95fe65dd6f6709084016dbcaa83da4c4",
+    "target_head": "8b8bf19ef8df92b3096c0e651433cac74c15f7f1",
+    "command_sha256": "9a1c0eabe723e4a295bcba0a228a3de856d9b562bece0eb24404a1b4584b21b4"
+  },
   "shadow": {
     "ok": true,
     "state": "matched",

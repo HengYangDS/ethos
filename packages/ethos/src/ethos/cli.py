@@ -100,6 +100,11 @@ def _current_head(root: Path) -> str:
     return completed.stdout.strip()
 
 
+def _current_tracked_head(root: Path) -> str:
+    head = _current_head(root)
+    return "" if head == "untracked" else head
+
+
 def _emit(result: EthosResult, json_output: bool) -> None:
     if json_output:
         print(result.to_json())
@@ -327,10 +332,29 @@ def _campaign_closeout_report(
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     release = release_policy_report(repo)
-    parity = parity_gaps_report(adopter=adopter, root=repo)
-    shadow = shadow_parity_report(target=target, root=repo, adopter=adopter)
+    current_target_head = _current_tracked_head(target)
+    parity = parity_gaps_report(
+        adopter=adopter,
+        root=repo,
+        target=target,
+        current_target_head=current_target_head,
+    )
+    shadow = shadow_parity_report(
+        target=target,
+        root=repo,
+        adopter=adopter,
+        current_target_head=current_target_head,
+    )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
     publication = _publication_readiness(branch=branch, local_ok=local_ready)
+    remote_publication = _remote_publication_deferred()
+    provenance = {
+        "shadow_parity": shadow.get("provenance", {}),
+        "closeout": {
+            "mode": "local_only",
+            "remote_state": remote_publication["state"],
+        },
+    }
     local_closeout = dict(status_payload["closeout_support"])
     local_closeout["kind"] = "local_closeout_plan"
     local_closeout["blocking"] = bool(local_closeout["required_gaps"])
@@ -362,7 +386,8 @@ def _campaign_closeout_report(
         "parity": parity,
         "shadow_parity": shadow,
         "publication": publication,
-        "remote_publication": _remote_publication_deferred(),
+        "remote_publication": remote_publication,
+        "provenance": provenance,
         "packages": packages,
     }
 
@@ -582,11 +607,13 @@ def prove(
     execute: bool = False,
     gate: tuple[str, ...] = (),
     full: bool = False,
+    expect_head: str | None = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Produce a local proof-readiness summary."""
     repo = _root(root)
+    current_head = _current_head(repo)
     audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
     graph = gate_graph(gate, full=full)
     runner = (
@@ -607,13 +634,24 @@ def prove(
     )
     evidence = EvidenceSet.from_runs(
         id=f"ethos:{objective}",
-        head=_current_head(repo),
+        head=current_head,
         runs=proof_runs,
         durability="local",
     )
     runs_ok = all(run.state in {"passed", "planned"} for run in proof_runs)
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
-    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok and not proof_gaps
+    head_gaps: tuple[str, ...] = (
+        ("expected_head_mismatch",)
+        if expect_head is not None and expect_head != current_head
+        else ()
+    )
+    ok = (
+        bool(audit["ok"])
+        and runs_ok
+        and graph.validate().ok
+        and not proof_gaps
+        and not head_gaps
+    )
     result = EthosResult(
         command="prove",
         ok=ok,
@@ -624,7 +662,10 @@ def prove(
             "gate_count": len(proof_runs),
         },
         required_gaps=(
-            tuple(audit["required_gaps"]) + tuple(graph.validate().gaps) + proof_gaps
+            tuple(audit["required_gaps"])
+            + tuple(graph.validate().gaps)
+            + proof_gaps
+            + head_gaps
         ),
         next_actions=("ethos land",) if ok else ("ethos self audit",),
         data={
@@ -633,6 +674,11 @@ def prove(
             "action_graph": graph.to_dict(),
             "evidence": evidence.to_dict(),
             "provenance": provenance_envelope(evidence),
+            "expected_head": {
+                "expected": expect_head or "",
+                "current": current_head,
+                "ok": expect_head is None or expect_head == current_head,
+            },
         },
     )
     _emit(result, json_output)
@@ -1777,7 +1823,10 @@ def parity_shadow(
 
         report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
     else:
-        report = shadow_parity_report(target=target)
+        report = shadow_parity_report(
+            target=target,
+            current_target_head=_current_tracked_head(target),
+        )
     result = EthosResult(
         command="parity shadow",
         ok=bool(report["ok"]),

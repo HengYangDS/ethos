@@ -112,11 +112,11 @@ records after promotion, claims, and durable evidence. Repo-authored projections
 such as skills, assistant files, MCP descriptors, ACP descriptors, hosted CI
 templates, and npm launchers are not truth by themselves.
 
-Superpowers is an external method pack. Codex memory, fast mode, goals,
+Superpowers is an external method pack. Assistant host memory, fast mode, goals,
 subagents, and doctor signals are host-local or session capabilities. MCP, ACP,
-IDE surfaces, and assistant context bundles are context providers or runtime
-projections. Agent output is never repository truth until promoted into tracked
-artifacts and evidence.
+editor host surfaces, and assistant context bundles are context providers or
+runtime projections. Agent output is never repository truth until promoted into
+tracked artifacts and evidence.
 
 ## Build And Release Contract
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_repository.planner import adoption_plan
+from ethos_repository.schema_validation import validate_schema_instance
 
 from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
 
@@ -58,6 +59,30 @@ def test_full_proof_requires_executed_evidence() -> None:
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
     assert "full_proof_requires_execute" in payload["required_gaps"]
+
+
+def test_prove_accepts_matching_expected_head() -> None:
+    head = git(Path.cwd(), "rev-parse", "HEAD")
+
+    payload = run_ethos("prove", "--expect-head", head, "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["expected_head"] == {
+        "expected": head,
+        "current": head,
+        "ok": True,
+    }
+
+
+def test_prove_rejects_mismatched_expected_head() -> None:
+    payload = run_ethos("prove", "--expect-head", "not-the-current-head", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert "expected_head_mismatch" in payload["required_gaps"]
+    assert payload["data"]["expected_head"]["expected"] == "not-the-current-head"
+    assert payload["data"]["expected_head"]["ok"] is False
 
 
 def test_init_apply_flag_applies_scaffold(tmp_path: Path) -> None:
@@ -238,6 +263,14 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     assert payload["ok"] is True
     assert payload["command"] == "lane start"
     assert payload["data"]["branch"] == "work/feature"
+    assert payload["data"]["worktree"] == {
+        "branch": "work/feature",
+        "path": worktree.resolve().as_posix(),
+        "head": git(worktree, "rev-parse", "HEAD"),
+        "role": "work_lane",
+        "open_action": "open_worktree",
+        "open_label": "Open Worktree",
+    }
     assert git(worktree, "branch", "--show-current") == "work/feature"
 
 
@@ -1101,6 +1134,16 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
     assert packages["shadow_parity"]["blocking"] is False
+    assert packages["shadow_parity"]["provenance"]["mode"] == "tracked_evidence"
+    assert payload["data"]["provenance"]["shadow_parity"] == (
+        packages["shadow_parity"]["provenance"]
+    )
+    assert payload["data"]["provenance"]["closeout"] == {
+        "mode": "local_only",
+        "remote_state": "deferred",
+    }
+    validation = validate_schema_instance("campaign-closeout.schema.json", payload["data"])
+    assert validation["ok"] is True
 
 
 def test_intake_status_is_public_read_only_surface() -> None:
@@ -1181,6 +1224,16 @@ def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
     assert "external_product_self_audit_gap" in text
     assert "legacy_changed_route_noop" in text
     assert "shadow_parity_digest" in text
+
+
+def test_capability_parity_ledger_documents_shadow_evidence_provenance() -> None:
+    text = Path("docs/governance/capability-parity-ledger.md").read_text(encoding="utf-8")
+
+    assert "shadow parity evidence freshness" in text
+    assert "target_head" in text
+    assert "command_sha256" in text
+    assert "tracked_evidence" in text
+    assert "planned_shadow_run" in text
 
 
 def test_self_evolution_loop_commands_are_available() -> None:

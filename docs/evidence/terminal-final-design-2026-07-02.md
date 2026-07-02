@@ -1,0 +1,49 @@
+---
+subject: evidence:ethos-terminal-final-design
+role: evidence
+state: active
+relations:
+  supports: ethos-terminal-final-design
+---
+
+# Terminal Final Design Evidence
+
+Status: active Work Lane evidence summary.
+
+Scope:
+
+- OpenSpec product substrate READMEs and templates.
+- Capability profile contract extension.
+- Terminal final-design documentation updates.
+- Lifecycle review behavior for multiple active OpenSpec changes.
+- Official OpenSpec archive closeout for `ethos-terminal-final-design`.
+
+Proof executed in `/Users/yheng/projects/ethos-work-terminal-final-design` on
+2026-07-02:
+
+| Command | Result |
+| --- | --- |
+| `uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/openspec_native.py packages/ethos-repository/src/ethos_repository/planner.py packages/ethos-repository/src/ethos_repository/schema_validation.py tests/unit/test_openspec_product_substrate.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_adopt_apply_sample.py` | All checks passed after shortening two generated default-profile description literals in `planner.py`. |
+| `uv run --group dev pytest -q tests/unit/test_openspec_product_substrate.py tests/unit/test_openspec_native_cache.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_adopt_apply_sample.py` | 38 passed. |
+| `npm run ethos -- openspec --lifecycle --json` | `ok=true`, `state=clean`, official OpenSpec strict validation passed 11/11 items, ETHOS lifecycle gaps empty. |
+| `openspec archive ethos-terminal-final-design --yes --json` | Archived as `2026-07-02-ethos-terminal-final-design` and updated live specs with 5 additions. |
+| `npm run ethos -- openspec --lifecycle --json` | `ok=true`, `state=clean`, official OpenSpec strict validation passed 10/10 remaining active items after archive. |
+| `npm run ethos -- quality schemas --json` | `ok=true`, `state=clean`, required gaps empty. |
+| `npm run ethos -- quality claims --json` | `ok=true`, `state=clean`, required gaps empty after binding this evidence file's SHA-256 in the claim record. |
+| `npm run ethos -- plan --changed --json` | `ok=true`, `state=planned`, action graph valid, required gaps empty. |
+| `node distributions/npm/bin/ethos.mjs prove --json` | `ok=true`, `state=ready`, `evidence_digest=664ff5541fc24893e20f72d53bd34fd68aaeffd99b49e3d366318ced0b84fc31`, required gaps empty. |
+| `node distributions/npm/bin/ethos.mjs report --json` | `ok=true`, `state=ready`, score 15/15, governance gaps 0, parity pending 0. |
+| `node distributions/npm/bin/ethos.mjs land --json` | After archive metadata and claim-carrier repair, blocked only on `work_lane_dirty` before commit. |
+
+Judgment:
+
+- OpenSpec is strengthened as a productized case/specification carrier without
+  becoming a second public command plane.
+- `di-effect` mechanisms were absorbed as ETHOS-owned family/facet/profile
+  routing metadata.
+- `alphasim-dmgr-fix-b3` mechanisms were absorbed as invocation admission,
+  projection-boundary, worktree-first, and topic-scoped evidence design patterns.
+- This lane intentionally lands design, OpenSpec substrate, schemas, tests, and
+  evidence. It does not claim that terminal runtime hooks, package collapse,
+  projection generation, scaffold execution, release automation, or extension
+  runtime are fully implemented.

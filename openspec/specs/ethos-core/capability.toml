@@ -1,14 +1,21 @@
-family = "ethos-core"
-primary_invariant = "The ethos-core family keeps pure kernel result and action graph semantics cohesive and provider-neutral."
+family = "kernel"
+primary_invariant = "The ethos-core capability keeps pure kernel result and action graph semantics cohesive and provider-neutral."
 routing_question = "Does this change alter pure kernel result and action graph semantics?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-core"
 scope = "pure kernel result and action graph semantics"
+
+[recommended_facets]
+lifecycle = ["runtime", "validation"]
+surface = ["schema", "package"]
+authority = ["source", "test", "schema"]
 
 [proof_profile]
 default_command = "ethos prove --json"

@@ -52,6 +52,12 @@ BASE_ADOPTION_FILES = (
     ".agents/skills/ethos-repository-governance/SKILL.md",
     ".agents/skills/ethos-repository-governance/package.toml",
     "openspec/config.yaml",
+    "openspec/README.md",
+    "openspec/specs/README.md",
+    "openspec/specs/families.toml",
+    "openspec/specs/capability.template.toml",
+    "openspec/changes/README.md",
+    "openspec/changes/template.md",
     "openspec/changes/.gitkeep",
     "openspec/changes/archive/.gitkeep",
     "docs/index.md",
@@ -128,6 +134,108 @@ def _openspec_config(root: Path) -> str:
     return f"project: {root.name}\nversion: 1\n"
 
 
+def _openspec_readme() -> str:
+    return """# OpenSpec Workspace
+
+This workspace is the ETHOS case and specification carrier. Use `ethos ...` as
+the public workflow and let ETHOS call the official OpenSpec CLI for strict
+validation when specification health must be proved.
+
+Cases are active changes under `openspec/changes/<change-id>/` with proposal,
+design, tasks, spec deltas, claim binding, and evidence refs. Accepted behavior
+lives under `openspec/specs/<capability>/spec.md` after promotion.
+"""
+
+
+def _openspec_specs_readme() -> str:
+    return """# OpenSpec Capability Specs
+
+Each capability directory contains accepted behavior in `spec.md` and ETHOS
+routing metadata in `capability.toml`. Proposal capability entries must name
+live capability directories exactly; aliases are diagnostic only.
+"""
+
+
+def _openspec_changes_readme() -> str:
+    return """# OpenSpec Changes
+
+Active changes are ETHOS case carriers. They record intended change and review
+state; they do not supersede source, tests, schemas, docs, accepted specs,
+claims, or evidence until closeout promotes those surfaces.
+
+Use `template.md` when authoring non-trivial governance changes and validate
+with `ethos openspec --lifecycle --json`.
+"""
+
+
+def _openspec_families() -> str:
+    return """[families.kernel]
+description = "Pure ETHOS kernel contracts, result envelopes, and provider-neutral semantics."
+
+[families.contracts]
+description = "Schemas, TOML contracts, evidence envelopes, and command JSON contracts."
+
+[families.repository-governance]
+description = "Repository lifecycle, Work Lanes, claims, evidence, campaigns, and OpenSpec cases."
+
+[families.adapters]
+description = "Provider adapters for Git, process, OpenSpec, hosted CI, and protocols."
+
+[families.surfaces]
+description = "CLI, MCP, SDK, skill, assistant, host, and distribution surfaces."
+
+[families.quality]
+description = "Quality policy, deterministic proof, docs consistency, gates, and assets."
+
+[families.proof]
+description = "Conformance, fixtures, parity, closeout evidence, and proof-host behavior."
+"""
+
+
+def _openspec_capability_template() -> str:
+    return """family = "repository-governance"
+primary_invariant = "State the one behavior this capability protects."
+routing_question = "Ask the question that selects this capability over peers."
+decision_axes = ["lifecycle", "surface", "authority"]
+boundary_rules = ["Name what this capability must not absorb."]
+aliases = []
+
+[owner]
+package = "ethos-repository"
+scope = "repository lifecycle governance"
+
+[recommended_facets]
+lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
+surface = ["cli", "docs", "schema", "openspec", "evidence"]
+authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]
+"""
+
+
+def _openspec_change_template() -> str:
+    return """# Change Template
+
+Create `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md`
+under `openspec/changes/<change-id>/`.
+
+Proposal capability entries must include:
+
+```text
+capability=<live-capability>
+subject=<stable-subject>
+reuse=<reuse|extend|extract|new>
+change=<add|modify|remove|rename|retire>
+facet:lifecycle=<authoring|validation|runtime|archive|release>
+facet:surface=<cli|docs|schema|openspec|evidence|skill|mcp|scaffold|ci|package>
+facet:authority=<source|test|schema|docs|openspec|claim|evidence>
+```
+"""
+
+
 def _openspec_spec(family: str) -> str:
     titles = {
         "ethos-core": "Pure Kernel",
@@ -172,18 +280,36 @@ def _capability_profile(family: str) -> str:
         "ethos-distribution": "distribution and host package surfaces",
         "ethos-test": "conformance, fixture, and parity proof hosts",
     }
+    profile_families = {
+        "ethos-core": "kernel",
+        "ethos-contracts": "contracts",
+        "ethos-quality": "quality",
+        "ethos-repository": "repository-governance",
+        "ethos-adapters": "adapters",
+        "ethos-assistants": "surfaces",
+        "ethos-cli": "surfaces",
+        "ethos-distribution": "surfaces",
+        "ethos-test": "proof",
+    }
     scope = scopes[family]
-    return f'''family = "{family}"
+    return f'''family = "{profile_families[family]}"
 primary_invariant = "The {family} family keeps {scope} cohesive and provider-neutral."
 routing_question = "Does this change alter {scope}?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "{family}"
 scope = "{scope}"
+
+[recommended_facets]
+lifecycle = ["authoring", "validation", "runtime"]
+surface = ["cli", "docs", "schema", "openspec", "evidence"]
+authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
 
 [proof_profile]
 default_command = "ethos prove --json"
@@ -521,6 +647,12 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         ".ethos/workspace.toml": _workspace_toml(root, profile),
         ".ethos/release.toml": _release_toml(profile),
         "openspec/config.yaml": _openspec_config(root),
+        "openspec/README.md": _openspec_readme(),
+        "openspec/specs/README.md": _openspec_specs_readme(),
+        "openspec/specs/families.toml": _openspec_families(),
+        "openspec/specs/capability.template.toml": _openspec_capability_template(),
+        "openspec/changes/README.md": _openspec_changes_readme(),
+        "openspec/changes/template.md": _openspec_change_template(),
         ".agents/skills/README.md": _skills_readme(),
         ".agents/skills/activation.toml": _skills_activation(package_digest),
         ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,

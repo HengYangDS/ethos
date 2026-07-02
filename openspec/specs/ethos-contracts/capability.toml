@@ -1,14 +1,21 @@
-family = "ethos-contracts"
-primary_invariant = "The ethos-contracts family keeps provider-neutral repository contracts cohesive and provider-neutral."
+family = "contracts"
+primary_invariant = "The ethos-contracts capability keeps provider-neutral repository contracts cohesive and provider-neutral."
 routing_question = "Does this change alter provider-neutral repository contracts?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-contracts"
 scope = "provider-neutral repository contracts"
+
+[recommended_facets]
+lifecycle = ["authoring", "validation"]
+surface = ["schema", "openspec", "docs"]
+authority = ["schema", "docs", "openspec"]
 
 [proof_profile]
 default_command = "ethos prove --json"

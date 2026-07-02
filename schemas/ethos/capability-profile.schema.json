@@ -9,39 +9,105 @@
     "primary_invariant",
     "routing_question",
     "boundary_rules",
-    "proof_profile"
+    "proof_profile",
+    "decision_axes",
+    "recommended_facets"
   ],
   "properties": {
-    "family": {"type": "string", "minLength": 1},
+    "family": {
+      "type": "string",
+      "minLength": 1
+    },
     "owner": {
       "type": "object",
-      "required": ["package", "scope"],
+      "required": [
+        "package",
+        "scope"
+      ],
       "properties": {
-        "package": {"type": "string", "minLength": 1},
-        "scope": {"type": "string", "minLength": 1}
-      },
-      "additionalProperties": false
-    },
-    "primary_invariant": {"type": "string", "minLength": 1},
-    "routing_question": {"type": "string", "minLength": 1},
-    "boundary_rules": {
-      "type": "array",
-      "minItems": 1,
-      "items": {"type": "string", "minLength": 1}
-    },
-    "proof_profile": {
-      "type": "object",
-      "required": ["default_command", "executed_command", "required_gates"],
-      "properties": {
-        "default_command": {"type": "string", "minLength": 1},
-        "executed_command": {"type": "string", "minLength": 1},
-        "required_gates": {
-          "type": "array",
-          "minItems": 1,
-          "items": {"type": "string", "minLength": 1}
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
+    },
+    "primary_invariant": {
+      "type": "string",
+      "minLength": 1
+    },
+    "routing_question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "boundary_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "proof_profile": {
+      "type": "object",
+      "required": [
+        "default_command",
+        "executed_command",
+        "required_gates"
+      ],
+      "properties": {
+        "default_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executed_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision_axes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "recommended_facets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      }
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
     }
   },
   "additionalProperties": false

@@ -1,14 +1,21 @@
-family = "ethos-distribution"
-primary_invariant = "The ethos-distribution family keeps distribution and host package surfaces cohesive and provider-neutral."
+family = "surfaces"
+primary_invariant = "The ethos-distribution capability keeps distribution and host package surfaces cohesive and provider-neutral."
 routing_question = "Does this change alter distribution and host package surfaces?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-distribution"
 scope = "distribution and host package surfaces"
+
+[recommended_facets]
+lifecycle = ["release", "runtime", "validation"]
+surface = ["package", "ci", "docs"]
+authority = ["source", "schema", "evidence"]
 
 [proof_profile]
 default_command = "ethos prove --json"

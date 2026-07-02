@@ -1,10 +1,10 @@
+# Copy into openspec/specs/<capability>/capability.toml and replace examples.
 family = "repository-governance"
-primary_invariant = "The ethos-repository capability keeps repository lifecycle governance cohesive and provider-neutral."
-routing_question = "Does this change alter repository lifecycle governance?"
+primary_invariant = "State the one behavior this capability protects."
+routing_question = "Ask the question that selects this capability over peers."
 decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
-  "OpenSpec records are specification carriers, not truth owners.",
-  "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
+  "Name what this capability must not absorb.",
 ]
 aliases = []
 
@@ -14,7 +14,7 @@ scope = "repository lifecycle governance"
 
 [recommended_facets]
 lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
-surface = ["cli", "docs", "schema", "openspec", "evidence", "skill", "scaffold"]
+surface = ["cli", "docs", "schema", "openspec", "evidence"]
 authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
 
 [proof_profile]

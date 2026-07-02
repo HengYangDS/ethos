@@ -241,6 +241,55 @@ command plane, Work Lane aware lifecycle state,
 claim/proof binding, topic-scoped closeout evidence, and explicit boundaries
 that keep local proof from pretending to be hosted CI or publication.
 
+## Final Design Productization Addendum
+
+The terminal design absorbs external repository lessons as mechanisms, not as
+foreign domain vocabulary. From `di-effect`, ETHOS keeps capability-local
+profiles, family vocabulary, dynamic routing facets, and direct capability
+routing. From `alphasim-dmgr-fix-b3`, ETHOS keeps explicit agent invocation
+admission, worktree-first coordination, claim/projection separation, and
+topic-scoped closeout evidence. These mechanisms are subordinate to ETHOS
+repository truth, Work Lane admission, and the public `ethos ...` command plane.
+
+### Agent Invocation Envelope
+
+Mutation-capable agent work is admitted through an invocation envelope:
+
+```text
+intent + owner + target_root + editor_root + write_paths
++ evidence_class + promotion_route + admission_result
+```
+
+The envelope is a product contract for host, MCP, and assistant integrations. It
+may include optional host-readiness evidence, but host evidence never satisfies
+repository proof. Repository mutation remains governed by Work Lane role,
+prewrite admission, active claim binding, OpenSpec carrier readiness, and proof
+evidence.
+
+### Topic-scoped Evidence
+
+Terminal closeout evidence should be topic-scoped:
+
+```text
+evidence/chronicle/<topic>/
+evidence/manifests/<topic>.toml
+evidence/attestations/<topic>/
+```
+
+Each topic records lane, proof class, commands, return codes, retained artifacts,
+HEAD binding, digest, and proof boundary. Transitional dated summaries under
+`docs/evidence/` remain valid until the terminal `evidence/` root migration
+lands, but generated raw streams stay ignored unless summarized into tracked
+evidence.
+
+### OpenSpec Product Substrate
+
+A productized OpenSpec workspace includes README guidance, capability family
+vocabulary, capability profile templates, active change templates, strict
+validation, ETHOS lifecycle review, claim binding, and archive closeout. A bare
+`openspec/` directory or syntax-only valid change is incomplete product
+governance.
+
 ## Product Surfaces
 
 ETHOS must ship more than a CLI:

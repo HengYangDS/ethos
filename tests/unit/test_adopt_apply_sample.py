@@ -42,6 +42,12 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "CONTRIBUTING.md",
         "CHANGELOG.md",
         "openspec/config.yaml",
+        "openspec/README.md",
+        "openspec/specs/README.md",
+        "openspec/specs/families.toml",
+        "openspec/specs/capability.template.toml",
+        "openspec/changes/README.md",
+        "openspec/changes/template.md",
         "openspec/specs/ethos-core/spec.md",
         "openspec/specs/ethos-contracts/spec.md",
         "openspec/specs/ethos-repository/spec.md",
@@ -100,6 +106,17 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "primary_invariant" in (
         tmp_path / "openspec/specs/ethos-repository/capability.toml"
     ).read_text(encoding="utf-8")
+    repository_profile = (tmp_path / "openspec/specs/ethos-repository/capability.toml").read_text(
+        encoding="utf-8"
+    )
+    assert "decision_axes" in repository_profile
+    assert "[recommended_facets]" in repository_profile
+    assert "OpenSpec Workspace" in (tmp_path / "openspec/README.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Change Template" in (tmp_path / "openspec/changes/template.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(

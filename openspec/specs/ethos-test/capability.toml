@@ -1,14 +1,21 @@
-family = "ethos-test"
-primary_invariant = "The ethos-test family keeps conformance, fixture, and parity proof hosts cohesive and provider-neutral."
+family = "proof"
+primary_invariant = "The ethos-test capability keeps conformance, fixture, and parity proof hosts cohesive and provider-neutral."
 routing_question = "Does this change alter conformance, fixture, and parity proof hosts?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-test"
 scope = "conformance, fixture, and parity proof hosts"
+
+[recommended_facets]
+lifecycle = ["validation", "runtime"]
+surface = ["test", "fixture", "evidence"]
+authority = ["test", "evidence", "schema"]
 
 [proof_profile]
 default_command = "ethos prove --json"

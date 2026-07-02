@@ -1,15 +1,22 @@
-family = "ethos-quality"
-primary_invariant = "Quality and determinism semantics are provider-neutral and separated from repository lifecycle orchestration."
-routing_question = "Does this change alter quality policy, proof-state semantics, docs quality, or gate descriptors?"
+family = "quality"
+primary_invariant = "The ethos-quality capability keeps quality, determinism, docs profile, and proof policy cohesive and provider-neutral."
+routing_question = "Does this change alter quality, determinism, docs profile, and proof policy?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "Quality owns verdict semantics; adapters execute tools.",
   "Repository lifecycle consumes quality verdicts but does not own quality policy.",
   "Adopter-specific quality mappings stay in adopter profiles or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-quality"
 scope = "quality, determinism, docs profile, and proof policy"
+
+[recommended_facets]
+lifecycle = ["validation", "runtime"]
+surface = ["cli", "docs", "schema"]
+authority = ["source", "test", "schema", "evidence"]
 
 [proof_profile]
 default_command = "ethos quality asset-policy --json"

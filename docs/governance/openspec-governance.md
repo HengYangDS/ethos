@@ -80,6 +80,27 @@ README files, change templates, capability templates, `specs/families.toml`,
 and profile-appropriate first capabilities. A bare `openspec/` directory is an
 incomplete scaffold.
 
+## Productized Workspace Substrate
+
+A complete ETHOS OpenSpec workspace is inspectable by humans and machines. It
+contains workspace guidance, change guidance, accepted capability guidance,
+`specs/families.toml`, `specs/capability.template.toml`, and
+`changes/template.md`. The scaffold is intentionally more than directory
+presence: new adopters should understand official OpenSpec duties, ETHOS
+repo-local lifecycle checks, direct capability names, proposal facets, claim
+binding, evidence refs, archive closeout, and rollback before writing a change.
+
+Capability profiles expose `decision_axes` and `recommended_facets` as routing
+metadata. These fields are inspired by external OpenSpec governance practice,
+but the values are ETHOS-owned vocabulary. Aliases are diagnostic only and do
+not replace live capability directory names as routing truth.
+
+Agent invocation and closeout evidence are part of the product protocol. An
+agent or host may provide an invocation envelope or host-readiness evidence, but
+repository mutation still requires Work Lane admission and repository proof.
+Closeout evidence should be topic-scoped and digest-bound so it remains
+reviewable rather than becoming unstructured transcript truth.
+
 Status: see front matter.
 
 Purpose: explain the repository truth represented by this ETHOS document.

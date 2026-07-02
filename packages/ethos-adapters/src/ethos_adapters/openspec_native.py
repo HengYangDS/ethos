@@ -526,7 +526,7 @@ def _openspec_governance_report(
         required_gaps.append("openspec_status_json_parse_failed")
     lifecycle_report = _lifecycle_report(
         root,
-        selected_change=selected_change,
+        selected_change=change,
         list_payload=list_result["json"],
         enabled=lifecycle,
     )
@@ -724,6 +724,9 @@ def _capability_profile_gaps(root: Path, change_name: str, capability: str) -> l
         return [f"openspec_capability_profile_invalid:{change_name}:{capability}"]
     gaps: list[str] = []
     for field in ("family", "primary_invariant", "routing_question"):
+        if not payload.get(field):
+            gaps.append(f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}")
+    for field in ("decision_axes", "recommended_facets"):
         if not payload.get(field):
             gaps.append(f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}")
     if not payload.get("boundary_rules"):

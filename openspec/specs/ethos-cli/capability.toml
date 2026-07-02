@@ -1,14 +1,21 @@
-family = "ethos-cli"
-primary_invariant = "The ethos-cli family keeps public ETHOS command plane cohesive and provider-neutral."
+family = "surfaces"
+primary_invariant = "The ethos-cli capability keeps public ETHOS command plane cohesive and provider-neutral."
 routing_question = "Does this change alter public ETHOS command plane?"
+decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
+aliases = []
 
 [owner]
 package = "ethos-cli"
 scope = "public ETHOS command plane"
+
+[recommended_facets]
+lifecycle = ["runtime", "validation", "release"]
+surface = ["cli", "docs", "package"]
+authority = ["source", "test", "docs"]
 
 [proof_profile]
 default_command = "ethos prove --json"

@@ -1,0 +1,53 @@
+# system/workflows.toml
+# Declarative lifecycle graph and guards. The implementation is a generic
+# reducer and guard evaluator over declared facts — NOT a private state machine.
+#
+# State is DERIVED (principle 5): OpenSpec change + Git facts + evidence
+# manifests + this file + ethos.toml profile = derived state and allowed transitions.
+
+schema = "system/schemas/workflows.schema.json"
+
+[lifecycle]
+states = ["planned", "admitted", "authored", "proven", "landed", "closed", "retired"]
+initial = "planned"
+
+[[transition]]
+from = "planned"
+to = "admitted"
+guard = "lane_prewrite_ok"
+required_facts = ["target_root", "branch_role", "editor_root", "target_paths"]
+
+[[transition]]
+from = "admitted"
+to = "authored"
+guard = "tracked_write_in_owned_work_lane"
+
+[[transition]]
+from = "authored"
+to = "proven"
+guard = "proof_evidence_bound_and_passing"
+required_facts = ["evidence_digest", "gate_results"]
+
+[[transition]]
+from = "proven"
+to = "landed"
+guard = "land_to_candidate_ok"
+
+[[transition]]
+from = "landed"
+to = "closed"
+guard = "accepted_root_closeout_audited"
+
+[[transition]]
+from = "closed"
+to = "retired"
+guard = "work_lane_retired_after_merge"
+
+# Guards are named; the generic evaluator resolves them against declared facts.
+[guards]
+lane_prewrite_ok = "ethos lane prewrite returns ok=true"
+tracked_write_in_owned_work_lane = "branch_role == work_lane AND editor_root bound"
+proof_evidence_bound_and_passing = "evidence HEAD+command+digest match AND gate exit codes pass"
+land_to_candidate_ok = "no required_gaps AND candidate base not stale"
+accepted_root_closeout_audited = "audited fast-forward through ethos land --closeout"
+work_lane_retired_after_merge = "lane content fully contained in accepted root"

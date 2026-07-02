@@ -1,0 +1,51 @@
+# system/routing.toml
+# Subject resolver, stage map, and proof-set routing.
+# The machine kernel's map from "what am I touching" to "which stage and proof applies".
+# Derived from .ethos/workspace.toml branch roles and the terminal design loop.
+
+schema = "system/schemas/routing.schema.json"
+
+# The one product loop.
+[loop]
+stages = ["status", "plan", "prove", "land", "publish"]
+read_only = ["status", "report"]
+
+# Branch roles are product semantics (names configurable, roles are not).
+[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+submit_branch_prefix = "submit/"
+
+[[role_order]]
+role = "release_root"
+kind = "exact_branch"
+config_key = "release_branch"
+
+[[role_order]]
+role = "accepted_root"
+kind = "exact_branch"
+config_key = "accepted_branch"
+
+[[role_order]]
+role = "candidate"
+kind = "exact_branch"
+config_key = "candidate_branch"
+
+[[role_order]]
+role = "work_lane"
+kind = "branch_prefix"
+config_key = "work_branch_prefix"
+
+[[role_order]]
+role = "submit_lane"
+kind = "branch_prefix"
+config_key = "submit_branch_prefix"
+
+# Subject resolution: map tracked paths to their governing package/domain.
+# Mirrors .ethos/workspace.toml [[package]] until the 8->2 collapse (Phase F),
+# after which this resolves to ethos-core / ethos.
+[subject_resolution]
+strategy = "path_prefix_to_package_domain"
+source = ".ethos/workspace.toml"

@@ -1,0 +1,27 @@
+# evolution/ledger.toml
+# Evolution is a typed record system, not many independent roots.
+# Records typed entries: feedback -> review -> challenge -> hypothesis ->
+# experiment -> evaluation -> retrospective, plus campaign containers.
+# Authority: docs/architecture/terminal-governance-product-design.md (§`evolution/`).
+
+schema = "system/schemas/evolution-ledger.schema.json"
+
+[types]
+feedback = "Raw signal from users, agents, tools, incidents, or drift."
+review = "Assessment of a change, design, result, or proof."
+challenge = "Adversarial critique that tries to falsify assumptions."
+hypothesis = "Falsifiable improvement claim."
+experiment = "Bounded test of one or more hypotheses."
+evaluation = "Measured result and decision recommendation."
+retrospective = "Human-readable learning after a campaign or repeated pattern."
+campaign = "Long-running goal container that coordinates entries and changes."
+
+# Entries are appended below as the terminal migration proceeds.
+# The terminal-substrate campaign itself is recorded as the first entry.
+
+[[entry]]
+id = "terminal-substrate-groundwork"
+type = "campaign"
+state = "active"
+summary = "Phase A: establish terminal semantic substrate (system/, evidence/, evolution/) and relocate legacy roots toward the terminal layout."
+work_lane = "work/terminal-substrate"

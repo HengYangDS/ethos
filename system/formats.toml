@@ -1,0 +1,49 @@
+# system/formats.toml
+# Carrier policy — use formats by author and lifecycle, not by habit.
+# Derived from the terminal design "Carrier Policy" table and .ethos/rules.toml [formats].
+
+schema = "system/schemas/formats.schema.json"
+
+[carriers.markdown]
+use = "Human judgment, Tao, design, reviews, retrospectives, docs."
+not_for = "Machine-only state or large append-only event streams."
+
+[carriers.toml]
+use = "Durable repository config, routing, workflows, manifests, tool catalog, extension manifests."
+not_for = "Public API output or high-volume events."
+
+[carriers.json]
+use = "Command output, MCP payloads, external standards, JSON Schema instances, SPDX, SLSA, in-toto."
+not_for = "Hand-authored repository truth when TOML is clearer."
+
+[carriers.yaml]
+use = "Ecosystem-native files only: CI, Kubernetes, OpenAPI, action metadata."
+not_for = "ETHOS-owned semantics."
+
+[carriers.jsonl]
+use = "Generated runtime streams and exports under ignored paths."
+not_for = "Tracked source of truth."
+
+[carriers.sqlite]
+use = "Ignored local indexes, recall cache, diagnostic state."
+not_for = "Durable repository memory or policy."
+
+[carriers.cue]
+use = "Optional schema and config composition adapter."
+not_for = "Core dependency."
+
+[carriers.cel]
+use = "Optional guard expression adapter when plain TOML predicates are insufficient."
+not_for = "Universal policy language."
+
+[carriers.rego]
+use = "Optional organization policy gate through subprocess or extension."
+not_for = "In-process core engine."
+
+# Format-by-lifecycle assignment (from .ethos/rules.toml [formats]).
+[assignment]
+user_config = "TOML"
+machine_output = "JSON"
+append_only_events = "JSONL"
+local_state = "SQLite"
+advanced_compiler = "CUE adapter"

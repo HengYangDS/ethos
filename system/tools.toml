@@ -1,0 +1,144 @@
+# system/tools.toml
+# Tool catalog: tool identity, maturity, profiles, gate mapping, config path,
+# install strategy, evidence output. Decides WHY a tool runs; .config/ decides HOW.
+#
+# Profiles decide which gates run by default. Presence in the catalog does NOT
+# make a tool mandatory for every repository.
+# Derived from the terminal design "Tool Catalog" table. This is the target
+# catalog; gate implementations converge here in Phase E2 (quality-proof-ratchet).
+
+schema = "system/schemas/tools.schema.json"
+
+[[tool]]
+concern = "python_format_lint"
+tool = "ruff"
+config = ".config/checks/ruff/"
+profile = "minimal"
+
+[[tool]]
+concern = "python_typing"
+tool = "ty"
+optional = "mypy"
+config = ".config/checks/ty/"
+profile = "product"
+
+[[tool]]
+concern = "tests"
+tool = "pytest"
+config = "pyproject.toml"
+profile = "minimal"
+
+[[tool]]
+concern = "coverage"
+tool = "coverage.py"
+config = ".config/checks/coverage/"
+profile = "product"
+
+[[tool]]
+concern = "import_boundaries"
+tool = "import-linter"
+config = ".config/boundaries/"
+profile = "product"
+
+[[tool]]
+concern = "dependency_hygiene"
+tool = "deptry"
+config = ".config/checks/deptry/"
+profile = "product"
+
+[[tool]]
+concern = "toml"
+tool = "taplo"
+config = ".config/checks/taplo/"
+profile = "minimal"
+
+[[tool]]
+concern = "markdown_style"
+tool = "markdownlint-cli2,mdformat"
+config = ".config/checks/markdown/"
+profile = "minimal"
+
+[[tool]]
+concern = "links"
+tool = "lychee"
+config = ".config/docs/lychee.toml"
+profile = "product"
+
+[[tool]]
+concern = "prose"
+tool = "vale,codespell"
+config = ".config/checks/prose/"
+profile = "product"
+
+[[tool]]
+concern = "yaml"
+tool = "yamllint,spectral"
+config = ".config/checks/yaml/"
+profile = "ecosystem"
+
+[[tool]]
+concern = "json_schema"
+tool = "check-jsonschema,jq"
+config = "system/schemas/"
+profile = "minimal"
+
+[[tool]]
+concern = "shell"
+tool = "shellcheck,shfmt"
+config = ".config/checks/shell/"
+profile = "product"
+
+[[tool]]
+concern = "docker"
+tool = "hadolint"
+config = ".config/checks/docker/"
+profile = "distribution"
+
+[[tool]]
+concern = "sql"
+tool = "sqlfluff"
+config = ".config/checks/sqlfluff/"
+profile = "extension"
+
+[[tool]]
+concern = "secrets"
+tool = "gitleaks"
+optional = "trufflehog"
+config = ".gitleaks.toml"
+profile = "minimal"
+
+[[tool]]
+concern = "python_vuln"
+tool = "pip-audit"
+config = ".config/security/"
+profile = "security"
+
+[[tool]]
+concern = "osv_vuln"
+tool = "osv-scanner"
+config = ".config/security/"
+profile = "security"
+
+[[tool]]
+concern = "sbom"
+tool = "syft"
+config = ".config/release/"
+profile = "release"
+
+[[tool]]
+concern = "image_package_scan"
+tool = "grype"
+config = ".config/security/"
+profile = "release"
+
+[[tool]]
+concern = "signing"
+tool = "sigstore,cosign"
+config = ".config/release/"
+profile = "release"
+
+[[tool]]
+concern = "attestation"
+tool = "in-toto,slsa"
+config = "evidence/attestations/"
+profile = "release"

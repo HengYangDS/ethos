@@ -13,6 +13,7 @@ from jsonschema.exceptions import SchemaError, ValidationError
 
 from ethos_repository.docs_registry import docs_health_report
 from ethos_repository.gates import gate_registry
+from ethos_repository.governance_profiles import governance_profile_report
 
 
 def _repo_root() -> Path:
@@ -227,6 +228,11 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     instances["capability-profile-contract"] = validate_schema_instance(
         "capability-profile.schema.json",
         _capability_profile_contract_sample(),
+        root=root,
+    )
+    instances["governance-profile-contract"] = validate_schema_instance(
+        "governance-profile.schema.json",
+        governance_profile_report(),
         root=root,
     )
     instances["capability-profiles"] = _capability_profiles_report(root, mode=mode)

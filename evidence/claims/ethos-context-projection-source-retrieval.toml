@@ -1,0 +1,38 @@
+[claim]
+id = "ethos-context-projection-source-retrieval"
+subject = "ethos:context-projection"
+state = "active"
+summary = "ETHOS exposes source-verified assistant context projection as an advisory retrieval aid over repository truth, backed by ignored local SQLite/FTS state and guarded by path, HEAD, digest, dirty-source, and secret-quarantine checks."
+
+[evidence]
+dated = "docs/evidence/context-projection-2026-07-01.md"
+sha256 = "deedf0fc854e3ca34f099580638c9b02a49dc1815bad1561613a93b2e1fb19be"
+tests = [
+  "uv run --group dev pytest tests/unit/test_context_contracts.py tests/unit/test_context_schemas.py tests/unit/test_context_index_state.py tests/unit/test_context_retrieval.py tests/unit/test_context_selection.py tests/unit/test_context_cli_contracts.py -q",
+  "uv run --group dev pytest tests/unit/test_agent_context_provider.py tests/unit/test_mcp_server.py tests/unit/test_schema_validation_and_gates.py -q",
+  "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/context_index.py packages/ethos-assistants/src/ethos_assistants/context.py packages/ethos-assistants/src/ethos_assistants/context_selection.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-test/src/ethos_test/fixtures.py packages/ethos/src/ethos/cli.py tests/unit/test_context_*.py -q",
+  "uv run --group dev pytest tests/unit tests/architecture -q",
+  "uv run --group dev ruff check .",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos self audit --json",
+  "uv run --package ethos ethos report --json",
+  "uv run openspec validate --type change land-context-projection-source-retrieval --strict",
+]
+
+[scope]
+packages = [
+  "ethos",
+  "ethos-contracts",
+  "ethos-adapters",
+  "ethos-assistants",
+  "ethos-repository",
+  "ethos-test",
+]
+docs = [
+  "docs/architecture/context-projection.md",
+  "docs/architecture/local-state.md",
+  "docs/architecture/agent-projections.md",
+  "docs/architecture/mcp-server.md",
+  "docs/architecture/schema-validation.md",
+  "docs/reference/command-plane.md",
+]

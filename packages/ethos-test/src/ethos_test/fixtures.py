@@ -131,3 +131,159 @@ def reference_adopter_profile_fixture() -> dict[str, object]:
             "capabilities": ["openspec-claims-trust-review", "work-lane-lifecycle"],
         },
     }
+
+
+def _rules_toml(*profiles: str) -> str:
+    active = ", ".join(f'"{profile}"' for profile in profiles)
+    return f"""[profiles]
+active = [{active}]
+"""
+
+
+RULES_CONFORMANCE_PROFILES = {
+    "generic": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["README.md"],
+        "files": {".ethos/rules.toml": _rules_toml("generic")},
+    },
+    "python": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["packages/app/app.py"],
+        "files": {
+            ".ethos/rules.toml": _rules_toml("generic", "python")
+            + """
+[[rule]]
+id = "adopter.python"
+owner = "python-team"
+authority_ref = "pyproject.toml"
+contract_ref = "pyproject.toml"
+subject = "source"
+path_globs = ["**/*.py"]
+severity = "advisory"
+required_gates = []
+stop_condition = "python_source_gap"
+""".lstrip()
+        },
+    },
+    "monorepo": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["packages/a/a.py"],
+        "files": {".ethos/rules.toml": _rules_toml("generic", "python")},
+    },
+    "github": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": True,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": [".github/workflows/ethos.yml"],
+        "files": {".ethos/rules.toml": _rules_toml("generic")},
+    },
+    "gitlab": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": True,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": [".gitlab-ci.yml"],
+        "files": {".ethos/rules.toml": _rules_toml("generic")},
+    },
+    "legacy-v1": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": [".ethos/rules.toml"],
+        "files": {".ethos/rules.toml": "[formats]\nuser_config = \"TOML\"\n"},
+    },
+    "custom": {
+        "strict": False,
+        "requires_openspec": False,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["rules/custom/rules.toml"],
+        "files": {".ethos/rules.toml": _rules_toml("generic")},
+    },
+    "reference-strict": {
+        "strict": True,
+        "requires_openspec": True,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["rules/adopter/contracts.toml"],
+        "files": {".ethos/rules.toml": _rules_toml("generic", "strict")},
+    },
+    "strict": {
+        "strict": True,
+        "requires_openspec": True,
+        "requires_hosted_ci": False,
+        "requires_backlog": False,
+        "requires_product_openspec_family": False,
+        "paths": ["rules/adopter/contracts.toml"],
+        "files": {".ethos/rules.toml": _rules_toml("generic", "strict")},
+    },
+}
+
+RULE_SHADOW_REPORT_FIXTURES = {
+    "ethos": {
+        "report": {
+            "ok": True,
+            "profile_stack": ["generic", "python"],
+            "coverage_tier": "starter",
+            "required_gap_kinds": [],
+        },
+        "stages": {
+            "contracts-evaluator": "matched",
+            "pep-no-side-effect": "matched",
+            "strict-coverage": "starter-advisory",
+        },
+    },
+    "reference-legacy": {
+        "report": {
+            "ok": False,
+            "profile_stack": ["generic"],
+            "coverage_tier": "starter",
+            "required_gap_kinds": ["rule_schema_invalid"],
+        },
+        "stages": {
+            "contracts-evaluator": "schema-migration-required",
+            "pep-no-side-effect": "matched",
+            "strict-coverage": "profile-opt-in-required",
+        },
+    },
+    "sample-effect": {
+        "report": {
+            "ok": True,
+            "profile_stack": ["generic"],
+            "coverage_tier": "starter",
+            "required_gap_kinds": [],
+        },
+        "stages": {
+            "contracts-evaluator": "matched",
+            "pep-no-side-effect": "matched",
+            "strict-coverage": "starter-advisory",
+        },
+    },
+}
+
+
+def rules_conformance_profiles() -> dict[str, dict[str, object]]:
+    return {name: dict(profile) for name, profile in RULES_CONFORMANCE_PROFILES.items()}
+
+
+def normalized_rule_shadow_fixtures() -> dict[str, dict[str, object]]:
+    return {name: dict(fixture) for name, fixture in RULE_SHADOW_REPORT_FIXTURES.items()}

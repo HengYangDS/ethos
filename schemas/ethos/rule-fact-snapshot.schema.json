@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/rule-fact-snapshot.schema.json",
+  "title": "ETHOS Rule Fact Snapshot",
+  "type": "object",
+  "required": ["schema_version", "phase", "head", "facts", "source_refs", "digest"],
+  "properties": {
+    "schema_version": {"type": "integer"},
+    "phase": {"type": "string", "minLength": 1},
+    "head": {"type": "string", "minLength": 1},
+    "facts": {
+      "type": "object",
+      "required": [
+        "changed_paths",
+        "mutation",
+        "authorization",
+        "actor",
+        "scope",
+        "worktree",
+        "prewrite",
+        "openspec_state",
+        "claim_state",
+        "evidence_freshness",
+        "host_readiness",
+        "command_registry",
+        "projection_drift"
+      ],
+      "additionalProperties": {"$ref": "#/$defs/fact"}
+    },
+    "source_refs": {"type": "array", "items": {"type": "string"}},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "required": ["owner", "fresh", "available", "value"],
+      "properties": {
+        "owner": {"type": "string", "minLength": 1},
+        "fresh": {"type": "boolean"},
+        "available": {"type": "boolean"},
+        "value": {},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

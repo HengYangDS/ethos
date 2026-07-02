@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/surface-coverage.schema.json",
+  "title": "ETHOS Surface Coverage",
+  "type": "object",
+  "required": [
+    "ok",
+    "coverage_tier",
+    "covered_paths",
+    "uncovered_paths",
+    "matched_rules",
+    "required_gaps"
+  ],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "coverage_tier": {"enum": ["starter", "standard", "strict"]},
+    "covered_paths": {"type": "array", "items": {"type": "string"}},
+    "uncovered_paths": {"type": "array", "items": {"type": "string"}},
+    "matched_rules": {"type": "array", "items": {"type": "object"}},
+    "required_gaps": {"type": "array", "items": {"type": "string"}},
+    "next_action_contract": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

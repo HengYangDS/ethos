@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from ethos_contracts.context_projection import (
+    context_retrieval_smoke_queries as _context_retrieval_smoke_queries,
+)
+
 SAMPLE_REPOSITORIES = (
     "sample-basic-git",
     "sample-python",
@@ -8,6 +12,10 @@ SAMPLE_REPOSITORIES = (
     "sample-agentic",
     "sample-reference-adopter-profile",
 )
+
+
+def context_retrieval_smoke_queries() -> tuple[dict[str, object], ...]:
+    return _context_retrieval_smoke_queries()
 
 
 def sample_repository_names() -> tuple[str, ...]:

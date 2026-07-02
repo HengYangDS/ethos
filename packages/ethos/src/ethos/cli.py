@@ -14,6 +14,12 @@ import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
 from cyclopts import App, Parameter
 from ethos_adapters.commit_policy import signature_policy_report
+from ethos_adapters.context_index import (
+    context_eval_report,
+    purge_context_index,
+    rebuild_context_index,
+    search_context_index,
+)
 from ethos_adapters.hook_admission import hook_admission_report
 from ethos_adapters.lanes import (
     bind_work_lane_claim,
@@ -52,6 +58,10 @@ from ethos_assistants.playbooks import playbooks_report, route_playbook
 from ethos_assistants.projections import projection_contract
 from ethos_assistants.server import mcp_server_descriptor
 from ethos_contracts.branch_roles import BranchRolePolicy, load_branch_role_policy
+from ethos_contracts.context_projection import (
+    context_projection_contract,
+    context_retrieval_smoke_queries,
+)
 from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import (
     package_ontology_report,
@@ -2342,15 +2352,119 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
 
 
 @assistants_app.command(name="context")
-def assistants_context(*, json_output: JsonFlag = False) -> None:
+def assistants_context(
+    *,
+    root: RootOption | None = None,
+    scope: str = "repo",
+    query: str | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """Emit the ETHOS agentic context bundle."""
-    bundle = context_bundle()
+    repo = _root(root)
+    retrieval = search_context_index(repo, query) if query else None
+    selection = retrieval["selection"] if retrieval else None
+    bundle = context_bundle(query=query, selection=selection, scope=scope)
     result = EthosResult(
         command="assistants context",
-        ok=True,
-        state="ready",
-        summary={"protocol_count": len(bundle["protocols"])},
+        ok=bool(retrieval["ok"]) if retrieval else True,
+        state=str(retrieval["state"]) if retrieval else "ready",
+        summary={
+            "protocol_count": len(bundle["protocols"]),
+            "verified_count": retrieval["summary"]["verified_count"] if retrieval else 0,
+        },
+        required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
         data={"context": bundle},
+    )
+    _emit(result, json_output)
+
+
+@assistants_app.command(name="search")
+def assistants_search(
+    query: str,
+    *,
+    root: RootOption | None = None,
+    limit: int = 10,
+    json_output: JsonFlag = False,
+) -> None:
+    """Search the local source-verified context projection."""
+    repo = _root(root)
+    report = search_context_index(repo, query, limit=limit)
+    result = EthosResult(
+        command="assistants search",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(report["summary"]),
+        required_gaps=tuple(report["required_gaps"]),
+        data={"selection": report["selection"]},
+    )
+    _emit(result, json_output)
+
+
+@assistants_app.command(name="context-index")
+def assistants_context_index(
+    *,
+    root: RootOption | None = None,
+    apply: bool = False,
+    authorize: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Build the local context projection index."""
+    repo = _root(root)
+    report = rebuild_context_index(repo, apply=apply, authorized=authorize)
+    result = EthosResult(
+        command="assistants context-index",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(report["summary"]),
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos assistants search <query> --json",)
+        if report["ok"] and report["state"] == "indexed"
+        else (),
+        data=dict(report.get("data", {})),
+    )
+    _emit(result, json_output)
+
+
+@assistants_app.command(name="context-purge")
+def assistants_context_purge(
+    *,
+    root: RootOption | None = None,
+    apply: bool = False,
+    authorize: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Purge the local context projection index."""
+    repo = _root(root)
+    report = purge_context_index(repo, apply=apply, authorized=authorize)
+    result = EthosResult(
+        command="assistants context-purge",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(report["summary"]),
+        required_gaps=tuple(report["required_gaps"]),
+        data=dict(report.get("data", {})),
+    )
+    _emit(result, json_output)
+
+
+@assistants_app.command(name="context-eval")
+def assistants_context_eval(
+    *,
+    root: RootOption | None = None,
+    suite: str = "smoke",
+    json_output: JsonFlag = False,
+) -> None:
+    """Evaluate the local context projection index."""
+    repo = _root(root)
+    fixtures = context_retrieval_smoke_queries() if suite == "smoke" else ()
+    report = context_eval_report(repo, suite=suite, fixtures=fixtures)
+    result = EthosResult(
+        command="assistants context-eval",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(report["summary"]),
+        required_gaps=tuple(report["required_gaps"]),
+        data=dict(report.get("data", {})),
     )
     _emit(result, json_output)
 
@@ -2573,6 +2687,12 @@ def report(
         current_product_head=_current_tracked_head(repo),
         acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
     )
+    context_projection = context_projection_contract()
+    context_projection_score = int(
+        context_projection["authority"] == "projection"
+        and not context_projection["can_close_required_gaps"]
+        and not context_projection["can_satisfy_proof"]
+    )
     if not product_profile:
         scores = {
             "adopter_governance": int(bool(audit["ok"])),
@@ -2580,6 +2700,7 @@ def report(
             "claims": int(bool(audit["adopter"]["adopter"]["governance"]["claims"])),
             "docs": int(bool(audit["adopter"]["adopter"]["governance"]["docs"])),
             "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
+            "context_projection": context_projection_score,
             "playbooks": int(bool(playbooks["ok"])),
             "parity_ledger": int(bool(parity_ledger["ok"])),
         }
@@ -2599,6 +2720,7 @@ def report(
                 )
             ),
             "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
+            "context_projection": context_projection_score,
             "evolution": int(bool(evolution["ok"])),
             "signature_policy": int(bool(signature["ok"])),
             "openspec": int(bool(audit["openspec"]["ok"])),
@@ -2685,6 +2807,7 @@ def report(
             "docs": docs_report,
             "claims": claim_report,
             "assistant_projection": projection,
+            "context_projection": context_projection,
             "schema_validation": schemas_report,
             "evolution": evolution,
             "signature_policy": signature,

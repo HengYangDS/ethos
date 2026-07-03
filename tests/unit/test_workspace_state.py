@@ -118,3 +118,21 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
         connection.commit()
 
     assert active_leases(db_path) == []
+
+
+def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
+    tmp_path: Path,
+) -> None:
+    from ethos_adapters.state import acquire_lease
+    from ethos_adapters.state import delete_lease
+
+    db_path = tmp_path / "state.sqlite"
+    acquire_lease(db_path, subject="work/feature", owner="agent-a")
+    assert any(lease["subject"] == "work/feature" for lease in active_leases(db_path))
+
+    removed = delete_lease(db_path, subject="work/feature")
+
+    assert removed == 1
+    assert all(lease["subject"] != "work/feature" for lease in active_leases(db_path))
+    # A recreated same-named subject starts with no inherited lease.
+    assert delete_lease(db_path, subject="work/feature") == 0

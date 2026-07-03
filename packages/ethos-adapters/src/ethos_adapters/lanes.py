@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ethos_adapters.state import acquire_lease
 from ethos_adapters.state import active_leases
+from ethos_adapters.state import delete_lease
 from ethos_adapters.state import update_lease_payload
 from ethos_adapters.status import changed_paths
 from ethos_adapters.status import workspace_status
@@ -436,6 +437,9 @@ def retire_landed_work_lanes(
             "required_gaps": ["branch_delete_failed"],
             "stderr": delete.stderr.strip(),
         }
+    # Release the lane's lease so it cannot outlive the lane — a recreated
+    # same-named branch must re-acquire, not inherit a stale lease.
+    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
     return {
         "ok": True,
         "state": "retired",

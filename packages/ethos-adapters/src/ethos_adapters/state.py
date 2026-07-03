@@ -223,6 +223,25 @@ def update_lease_payload(
     return updated
 
 
+def delete_lease(db_path: Path, *, subject: str) -> int:
+    """Delete all leases for a subject (work-lane branch). Returns the count removed.
+
+    Called on lane retirement so a lease cannot outlive its lane — a destroyed and
+    later recreated same-named branch must not present a resolvable stale lease
+    (tao First Principle #3: a truth store that cannot be proved is not one).
+    """
+    if not db_path.exists():
+        return 0
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("pragma foreign_keys = on")
+        cursor = connection.execute(
+            "delete from leases where subject = ?",  # nosec B608 - fixed query, param bound
+            (subject,),
+        )
+        connection.commit()
+        return cursor.rowcount
+
+
 def active_leases(db_path: Path) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []

@@ -62,12 +62,13 @@
 - **我的错误**:flat「每文件 ≤400」把命令聚合器和逻辑模块同等对待。命令聚合器本应是「大而薄的接线表」,真正该小的是**逻辑模块**,真正的触发器是**公开表面积**不是裸行数。
 - **落地(决策:role-based 分级 + 全局 hard 上限兜底)**:
   - `.ethos/rules.toml [quality.code_size]` 从单一 `default 400` 升级为分角色:
-    - `surface`(命令面/aggregator):soft 800 / hard 1400(ETHOS 比 di-effect 小,取更紧)
+    - `surface`(命令面/aggregator):soft 800(单文件命令组目标)
     - `logic`(domain/adapters/kernel 逻辑):soft 400 / hard 600
     - `test`:soft 800 / hard 1200
-    - **全局 hard 兜底 1400**:任何文件不得超,防止 aggregator 借口无限膨胀。
+    - **全局 hard 兜底 1200**(用户定,非 1400):任何文件不得超,防止 aggregator 借口无限膨胀;已有 ratchet 例外(tracked shrinking debt)可暂超,只降不升直到消解。
+  - 有效行 = 纯代码行,AST 排除空行/整行与行内注释/docstring/裸字符串语句(kernel SSOT `ethos_core.measure`,已验证)。
   - 新增 split 触发器:单模块公开函数 >10 或公开类 >2 → 需拆(ETHOS 放宽 di-effect 的 8,因命令组);目录平铺 ≥8 → 子包。
-  - **cli.py 重判**:它是 surface aggregator,目标不是 400,而是「命令体全下沉 domain 后自然收敛 + 公开命令函数按组拆到 surface/cli/<group>.py 各 ≤ soft」。当前 2985 → 分组后每文件自然 <800。
+  - **cli.py 重判**:它是 surface aggregator,目标不是 400,而是「命令体全下沉 domain 后自然收敛 + 公开命令函数按组拆到 surface/cli/<group>.py 各 ≤ soft 800」。当前 2985(tracked 例外)→ 分组后每文件自然 <800 < 1200 ceiling。
 
 ### 3.2 强制 section 顺序(# ==== 分区)+ AST 检查器 — ⏸️ 暂缓
 - **五关**:C1✅ C2⚠️(可读性通用,但顺序细节 di-effect 特异)C3❌(需移植 ~70 文件的 bespoke AST 检查器,违净维护)C4✅ C5✅。

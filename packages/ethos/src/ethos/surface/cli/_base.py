@@ -67,14 +67,20 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def emit(result: EthosResult, json_output: bool, *, enforce: bool = False) -> None:
-    """Print an EthosResult as JSON or a short human line.
+def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> None:
+    """Print an EthosResult as JSON or a short human line, then enforce the verdict.
 
-    When enforce=True, a blocked verdict (result.ok is False) exits the process with
-    a non-zero status AFTER printing — so an admission verdict is consumable by any
-    caller (git hook, CI, MCP host) via exit status, not just readable as JSON. This
-    is the edge that turns "reports a verdict" into "a process that refuses" (tao
-    First Principle #2: failure-blocking moves upstream).
+    Fail-CLOSED by default: a blocked verdict (result.ok is False) exits the process
+    with a non-zero status AFTER printing — so every verdict is consumable by any
+    caller (git hook, CI, MCP host, `&& deploy` chains) via exit status, not just
+    readable as JSON. This is the edge that turns "reports a verdict" into "a process
+    that refuses" (tao First Principle #2: failure-blocking moves upstream).
+
+    Read-only / report commands that legitimately return a non-ok scorecard WITHOUT
+    refusing (status, plan, report, rules listing) must pass enforce=False EXPLICITLY
+    — fail-open is the thing you opt into, in the open, per command. A new command
+    inherits fail-closed by default, so a future verdict command cannot silently
+    exit 0 on a block.
     """
     try:
         if json_output:
@@ -87,4 +93,3 @@ def emit(result: EthosResult, json_output: bool, *, enforce: bool = False) -> No
         return
     if enforce and not result.ok:
         raise SystemExit(1)
-        return

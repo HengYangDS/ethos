@@ -31,4 +31,4 @@ def fleet_inspect(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output, enforce=False)

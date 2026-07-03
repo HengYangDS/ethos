@@ -64,7 +64,7 @@ def asset_policy(
         summary={"asset_class_count": len(profile["asset_classes"])},
         data=profile,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="docs")
@@ -88,7 +88,7 @@ def quality_docs(
             "health": report,
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -105,7 +105,7 @@ def proof_policy(
         summary={"state_count": len(lattice["states"])},
         data=lattice,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="tool-profiles")
@@ -122,7 +122,7 @@ def tool_profiles_command(
         summary={"tool_adapter_count": len(profiles["tool_adapters"])},
         data=profiles,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="markdown-links")
@@ -158,7 +158,7 @@ def markdown_links(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="shell")
@@ -184,7 +184,7 @@ def shell_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="toml")
@@ -210,7 +210,7 @@ def toml_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="yaml")
@@ -236,7 +236,7 @@ def yaml_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="code-size")
@@ -255,7 +255,7 @@ def code_size(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="npm")
@@ -281,7 +281,7 @@ def npm_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -300,7 +300,7 @@ def command_surface(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -331,7 +331,7 @@ def format_policy(
             "standards": policy.get("standards", {}),
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -398,7 +398,7 @@ def projection_drift(
             ],
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -414,7 +414,7 @@ def standards(
         state="clean",
         data={"adapters": registry},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="package-ontology")
@@ -474,7 +474,7 @@ def package_ontology(
         next_actions=("ethos repository audit",),
         data=data,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -493,7 +493,7 @@ def schemas(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -531,7 +531,7 @@ def gates(
             }
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="coupling-audit")
@@ -558,7 +558,7 @@ def coupling_audit(
         required_gaps=tuple(report["required_gaps"]) + validation_gaps,
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -583,7 +583,7 @@ def commits(
         required_gaps=tuple(gaps),
         data={**report, "enforce_head": enforce_head},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -607,7 +607,7 @@ def release(
             "host_profile": policy["host_profile"],
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -627,7 +627,7 @@ def release_policy(
         next_actions=("ethos quality release-attestation",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -646,7 +646,7 @@ def sbom(
         summary={"package_count": len(projection["packages"])},
         data={"sbom": projection},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="release-attestation")
@@ -670,7 +670,7 @@ def release_attestation_command(
         summary={"tag": attestation["predicate"]["tag"]},
         data={"attestation": attestation},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -690,7 +690,7 @@ def command_registry(
         next_actions=("ethos repository audit",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -711,7 +711,7 @@ def evidence_freshness(
         next_actions=("ethos prove --json",),
         data={"stale": [], "claims": claim_report},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -731,7 +731,7 @@ def claims(
         next_actions=("ethos prove --json",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -751,7 +751,7 @@ def docs_registry(
         next_actions=("ethos docs",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -770,7 +770,7 @@ def command_examples(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -804,5 +804,5 @@ def provenance(
         next_actions=("ethos prove --json",),
         data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 

@@ -294,7 +294,7 @@ def status(
         next_actions=("ethos plan --changed",),
         data=status_payload,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @lane_app.command(name="status")
@@ -323,7 +323,7 @@ def lane_status(
         next_actions=("ethos lane prewrite <path>",),
         data=status_payload,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @lane_app.command
@@ -351,7 +351,7 @@ def candidate(
         next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=apply)
 
 
 @lane_app.command
@@ -595,7 +595,7 @@ def plan(
             "action_graph": graph.to_dict(),
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @lane_app.command(name="retire-landed")
@@ -724,7 +724,7 @@ def prove(
             },
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 def _run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
@@ -837,7 +837,7 @@ def land(
                 },
             },
         )
-        _emit(result, json_output)
+        _emit(result, json_output, enforce=apply)
         return
     status_payload = workspace_status(repo)
     closeout_support = dict(status_payload.get("closeout_support", {}))
@@ -901,7 +901,7 @@ def land(
             },
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=apply)
 
 
 def _land_next_actions(
@@ -978,7 +978,7 @@ def publish(
             },
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=apply)
 
 
 @app.command(show=False)
@@ -1001,7 +1001,7 @@ def doctor(
         next_actions=("ethos status",),
         data={"state_db": str(db_path), "initialized": init_state},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -1043,7 +1043,7 @@ def init(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=apply)
 
 
 @app.command
@@ -1085,7 +1085,7 @@ def adopt(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=apply)
 
 
 @rules_app.command(name="check")
@@ -1109,7 +1109,7 @@ def rules_check(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="eval")
@@ -1188,7 +1188,7 @@ def rules_coverage(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="compile")
@@ -1207,7 +1207,7 @@ def rules_compile(
         summary={"rule_count": len(report["rules"])},
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="explain")
@@ -1228,7 +1228,7 @@ def rules_explain(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="exceptions")
@@ -1246,7 +1246,7 @@ def rules_exceptions(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @campaign_app.command(name="status")
@@ -1271,7 +1271,7 @@ def campaign_status(
         next_actions=("ethos campaign closeout --json",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @campaign_app.command
@@ -1286,7 +1286,7 @@ def hypotheses(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos audit --mode shape",),
         data=ledger,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @campaign_app.command(name="closeout")
@@ -1319,7 +1319,7 @@ def campaign_closeout(
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="doctor")
@@ -1339,7 +1339,7 @@ def assistants_doctor(
         next_actions=("ethos assistants mcp-manifest",),
         data={"contract": contract},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command
@@ -1353,7 +1353,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos quality projection-drift",),
         data={"contract": contract},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-manifest")
@@ -1371,7 +1371,7 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants check-projections",),
         data={"manifest": manifest},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-server")
@@ -1386,7 +1386,7 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants mcp-manifest",),
         data={"server": descriptor},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context")
@@ -1413,7 +1413,7 @@ def assistants_context(
         required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
         data={"context": bundle},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="search")
@@ -1435,7 +1435,7 @@ def assistants_search(
         required_gaps=tuple(report["required_gaps"]),
         data={"selection": report["selection"]},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-index")
@@ -1460,7 +1460,7 @@ def assistants_context_index(
         else (),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-purge")
@@ -1482,7 +1482,7 @@ def assistants_context_purge(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-eval")
@@ -1504,7 +1504,7 @@ def assistants_context_eval(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @playbooks_app.command(name="check")
@@ -1525,7 +1525,7 @@ def playbooks_check(
         next_actions=("ethos playbooks route",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @playbooks_app.command(name="route")
@@ -1555,7 +1555,7 @@ def playbooks_route(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @parity_app.command(name="ledger")
@@ -1570,7 +1570,7 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos parity gaps --adopter <adopter>",),
         data={"records": report["records"]},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @parity_app.command(name="gaps")
@@ -1616,7 +1616,7 @@ def parity_gaps(
         ),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @parity_app.command(name="shadow")
@@ -1678,7 +1678,7 @@ def parity_shadow(
         next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -1849,7 +1849,7 @@ def report(
             "profiles": list(available_profiles()),
         },
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -1862,7 +1862,7 @@ def explain(gap: str, *, json_output: JsonFlag = False) -> None:
         summary={"gap": gap},
         data={"meaning": "A required gap names missing evidence, policy, schema, or action."},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -1894,7 +1894,7 @@ def docs(
         required_gaps=() if path else (f"docs_topic_missing:{topic}",),
         data={"path": path, "matches": matches},
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 def _repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
@@ -1928,7 +1928,7 @@ def audit(
             next_actions=("ethos audit --mode shape", "ethos audit --mode deep"),
             data={"mode": mode, "allowed_modes": ["shape", "deep"]},
         )
-        _emit(result, json_output)
+        _emit(result, json_output, enforce=False)
         return
     audit_payload = _status.audit_for_root(repo, openspec_mode=mode)
     result = EthosResult(
@@ -1940,7 +1940,7 @@ def audit(
         next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -1967,7 +1967,7 @@ def openspec(
         next_actions=("ethos audit",),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=False)
 
 def main() -> None:
     app()

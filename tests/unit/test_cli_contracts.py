@@ -220,7 +220,7 @@ def test_init_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     target = tmp_path / "sample"
     target.mkdir()
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "init",
         "--root",
         target.as_posix(),
@@ -248,7 +248,7 @@ def test_adopt_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     target = tmp_path / "sample"
     target.mkdir()
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "adopt",
         "--root",
         target.as_posix(),
@@ -888,7 +888,7 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "lane",
         "retire-landed",
         "--apply",
@@ -1074,7 +1074,7 @@ def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
 def test_adopt_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
-    payload = run_ethos("adopt", "--root", str(repo), "--apply", "--json", cwd=repo)
+    payload = run_ethos_blocked("adopt", "--root", str(repo), "--apply", "--json", cwd=repo)
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
@@ -2022,7 +2022,7 @@ def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None
 
 
 def test_land_apply_requires_authorization_and_expected_head() -> None:
-    payload = run_ethos("land", "--apply", "--json")
+    payload = run_ethos_blocked("land", "--apply", "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
@@ -2034,7 +2034,7 @@ def test_land_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "land",
         "--apply",
         "--authorize",
@@ -2402,7 +2402,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
 
 
 def test_publish_apply_requires_authorization_and_expected_head() -> None:
-    payload = run_ethos("publish", "--apply", "--json")
+    payload = run_ethos_blocked("publish", "--apply", "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
@@ -2414,7 +2414,7 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "publish",
         "--apply",
         "--authorize",

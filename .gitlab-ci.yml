@@ -53,7 +53,7 @@ ethos:docs-links:
   stage: quality
   script:
     - apt-get update && apt-get install -y curl
-    - curl -sSL https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin lychee || true
+    - curl -sSL https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin lychee
     - pip install uv
     - uv run --package ethos ethos quality markdown-links --json
 

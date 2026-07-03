@@ -50,4 +50,4 @@ def intake_status(
         ),
         data=data,
     )
-    emit(result, json_output)
+    emit(result, json_output, enforce=False)

@@ -243,3 +243,24 @@
 
 后续批次(需多轮 ratchet):5.1 ruff 扩族、5.2 复杂度、7.1 docstring 三元组、9.4 inventory。
 需授权的破坏性:4.1 __init__ 规整、Phase F 包合并 + tests 规整。
+
+---
+
+## 12. 实体压缩 + 性能优化(2026-07-03,已 profile,基于道)
+
+用户问:能否进一步压缩实体 + 性能优化。两者被同一个动作统一。
+
+### 实体压缩(FP#6 新实体需独立义务)
+- **Decision 合同已存在** = `EthosResult`(ok/state/diagnostics/next_actions/required_gaps)。专家委员会建议的 {verdict,why,next,required_gaps} 与之同构 → **合并不新增**;verdict 语义由 system/evidence_boundaries.toml 定义。
+- **kernel Change/Commitment dataclass "定义未构造"** → 要么 binding(真构造),要么它们只是 spec 不该占 models 实体位。待判。
+- **cli.py 薄 wrapper** → 命令体直调 _gitio/_status/_land,消中间层(进行中)。
+- **8→2 包合并** = 最大实体压缩(8 部署单元→2),破坏性,独立 lane。
+
+### 性能优化(FP#7 只在降总维护时做;已测量非臆测)
+实测:`import ethos.cli` 383ms 累计,`ethos status` 端到端 53ms。热点:
+- eager import 100+ 符号:跑任何命令都加载 audit(187ms)+schema(190ms)+jsonschema(125ms),即使 status 用不到。
+- status 最小依赖仅 22ms,却被拖入 46ms+ 无关加载。
+**结论:lazy import 是真实可测的 ~2x 常用路径提速。** 但正确形式 = 命令组拆到 surface/cli/<group>.py(每组只 import 自己依赖),而非在 75 个命令体里散插 import(那是残渣 FP#8)。
+
+### 统一洞察
+**命令组拆分同时兑现:实体压缩(surface 分文件)+ 性能(per-group lazy import)+ cli.py 收敛(→ 薄路由)。** 这是 surface 拆分的三重收益,是收敛的下一主线(多会话工程,单会话可逐组推进)。

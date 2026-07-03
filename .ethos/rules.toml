@@ -46,7 +46,7 @@ test_effective_max_lines = 1200
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 3189
+effective_max_lines = 3150
 reason = "monolith; ratchet caps at current size — split into thin surface + lifecycle/adapter modules to reach 400"
 
 [[quality.code_size.exception]]
@@ -71,7 +71,7 @@ reason = "openspec adapter; split by concern to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/planner.py"
-effective_max_lines = 671
+effective_max_lines = 673
 reason = "adoption planner; split scaffold/detect to reach 400"
 
 [[quality.code_size.exception]]

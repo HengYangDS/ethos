@@ -118,7 +118,9 @@ from ethos_repository.rules import (
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
 
+from ethos.adapters import config as _cfg
 from ethos.adapters import git as _gitio
+from ethos.domain import prove as _prove
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
@@ -272,10 +274,7 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
 
 
 def _rules_config(root: Path) -> dict[str, object]:
-    path = root / ".ethos" / "rules.toml"
-    if not path.exists():
-        return {}
-    return tomllib.loads(path.read_text(encoding="utf-8"))
+    return _cfg.rules_config(root)
 
 
 def _is_product_root(root: Path) -> bool:
@@ -401,49 +400,11 @@ def _effective_code_lines(path: Path) -> int:
 
 
 def _code_size_policy(root: Path) -> dict[str, object]:
-    rules = _rules_config(root)
-    quality = rules.get("quality") if isinstance(rules.get("quality"), dict) else {}
-    code_size = quality.get("code_size") if isinstance(quality.get("code_size"), dict) else {}
-    return code_size if isinstance(code_size, dict) else {}
+    return _cfg.code_size_policy(root)
 
 
 def _code_size_report(root: Path) -> dict[str, object]:
-    policy = _code_size_policy(root)
-    default_limit = int(policy.get("default_effective_max_lines") or 400)
-    test_limit = int(policy.get("test_effective_max_lines") or default_limit)
-    exception_limits = {
-        str(item.get("path")): int(item.get("effective_max_lines") or default_limit)
-        for item in policy.get("exception", [])
-        if isinstance(item, dict) and item.get("path")
-    }
-    records: list[dict[str, object]] = []
-    gaps: list[str] = []
-    for relative in _git_files(root, "*.py"):
-        path = root / relative
-        effective = _effective_code_lines(path)
-        is_test = relative.startswith("tests/") or "/tests/" in relative
-        category_limit = test_limit if is_test else default_limit
-        limit = exception_limits.get(relative, category_limit)
-        ok = effective <= limit
-        records.append(
-            {
-                "path": relative,
-                "effective_lines": effective,
-                "limit": limit,
-                "category": "test" if is_test else "product",
-                "exception": relative in exception_limits,
-                "ok": ok,
-            }
-        )
-        if not ok:
-            gaps.append(f"code_size_exceeded:{relative}:{effective}>{limit}")
-    return {
-        "ok": not gaps,
-        "default_effective_max_lines": default_limit,
-        "test_effective_max_lines": test_limit,
-        "required_gaps": gaps,
-        "files": records,
-    }
+    return _prove.code_size_report(root)
 
 
 def _path_matches(path: str, pattern: str) -> bool:

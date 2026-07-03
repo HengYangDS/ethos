@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import fnmatch
 import hashlib
 import os
@@ -75,6 +74,7 @@ from ethos_contracts.rules import (
     stable_digest,
 )
 from ethos_core.action_graph import ActionGraph, ActionNode
+from ethos_core.measure import effective_code_lines
 from ethos_core.result import EthosResult
 from ethos_quality.docs_profile import docs_quality_profile
 from ethos_quality.profiles import product_quality_profile, tool_profiles
@@ -431,46 +431,8 @@ def _quality_tool_report(
 
 
 def _effective_code_lines(path: Path) -> int:
-    """Count effective code lines: exclude blank lines, comments, and docstrings.
-
-    Docstrings are excluded via AST (module/class/function docstring spans), so the
-    count reflects real logic surface — the hard-rule metric the code-size gate enforces.
-    """
-    source = path.read_text(encoding="utf-8")
-    docstring_lines: set[int] = set()
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        tree = None
-    if tree is not None:
-        for node in ast.walk(tree):
-            if not isinstance(
-                node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
-            ):
-                continue
-            body = getattr(node, "body", None)
-            if not body:
-                continue
-            first = body[0]
-            if (
-                isinstance(first, ast.Expr)
-                and isinstance(first.value, ast.Constant)
-                and isinstance(first.value.value, str)
-            ):
-                end = first.value.end_lineno or first.value.lineno
-                for lineno in range(first.value.lineno, end + 1):
-                    docstring_lines.add(lineno)
-    count = 0
-    for index, line in enumerate(source.splitlines(), start=1):
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("#"):
-            continue
-        if index in docstring_lines:
-            continue
-        count += 1
-    return count
+    """Delegate to the kernel SSOT metric (ethos_core.measure.effective_code_lines)."""
+    return effective_code_lines(path)
 
 
 def _code_size_policy(root: Path) -> dict[str, object]:

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# ETHOS write-admission pre-commit hook.
+#
+# Installed by `ethos hook install` (sets core.hooksPath to .githooks). Runs the
+# write-admission gate over the staged tracked files and refuses the commit when
+# the verdict is "block" (a protected-root tracked write from a non-authorized
+# role). This is the local commit entrance that consumes the admission verdict's
+# non-zero exit code — failure-blocking moved upstream from CI to the commit
+# (tao First Principle #2).
+#
+# Work-lane commits pass (editor-root declared = this repo). Only protected
+# accepted-root tracked writes are refused here.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# Staged files added/copied/modified/renamed (not deletions).
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+if [ "${#staged[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+# Prefer an installed `ethos` binary; fall back to module invocation.
+if command -v ethos >/dev/null 2>&1; then
+  ethos hook admit pre-tool "${staged[@]}" \
+    --root "$repo_root" --editor-root "$repo_root" --json
+else
+  python -m ethos.cli hook admit pre-tool "${staged[@]}" \
+    --root "$repo_root" --editor-root "$repo_root" --json
+fi

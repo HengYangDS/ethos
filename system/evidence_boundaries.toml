@@ -1,0 +1,91 @@
+# system/evidence_boundaries.toml
+# The evidence and decision boundaries — the machine governance kernel's contract
+# for what evidence proves, what a decision means, and what may become repository
+# truth. Derived from system/tao.md (First Principles, esp. #2 failure-blocking
+# upstream, #3 provable truth store, #5 derive don't store) and the terminal design
+# "Authority And Truth" + red-team convergence review.
+#
+# These boundaries are enforced (not merely documented): a decision or evidence
+# claim that crosses a boundary must carry the required qualifier or be blocked.
+
+schema = "system/schemas/evidence-boundaries.schema.json"
+
+# ---- Decision verdict contract -------------------------------------------------
+# Every command's decision output uses ONE of these top-level verdicts. Safety
+# extension states are reasons/actions, never new top-level verdicts — they must
+# not pollute the three-way verdict (per red-team convergence review).
+[decision]
+verdicts = ["allow", "block", "defer"]
+required_fields = ["verdict", "why", "next", "required_gaps"]
+# Carried in reason/action, NOT as a verdict:
+extension_states = [
+  "accepted_risk",
+  "waived_nonblocking",
+  "quarantine",
+  "revoke",
+  "supersede",
+  "fuse",
+]
+
+# ---- Repository-admitted truth -------------------------------------------------
+# "Truth" is always repository-ADMITTED truth. It never implies absolute
+# correctness. Promotion means a bounded claim was admitted by the repository,
+# not that the change is semantically correct.
+[truth]
+term = "repository-admitted truth"
+implies_absolute_correctness = false
+promotion_means = "a bounded claim was admitted into the repository, not proven absolutely correct"
+
+# ---- Evidence boundaries (enforced, not advisory) ------------------------------
+# Each boundary names a claim that MUST NOT be conflated with a stronger claim.
+# The left side never implies the right side.
+
+[[boundary]]
+id = "dry_run_not_executed_proof"
+weaker = "dry-run readiness"
+stronger = "executed proof"
+rule = "dry-run readiness is not executed proof; an executed-proof claim requires prove --execute"
+
+[[boundary]]
+id = "digest_not_semantic"
+weaker = "digest-bound evidence"
+stronger = "semantic correctness"
+rule = "a matching digest proves identity, not that the content is semantically correct"
+
+[[boundary]]
+id = "local_not_hosted"
+weaker = "local evidence"
+stronger = "hosted verification"
+rule = "local evidence is not hosted verification; hosted lanes must run for a hosted claim"
+
+[[boundary]]
+id = "attestation_not_fact"
+weaker = "attestation"
+stronger = "fact"
+rule = "an attestation is a verifiable statement, not the fact itself"
+
+[[boundary]]
+id = "openspec_active_not_promoted"
+weaker = "OpenSpec active change"
+stronger = "promoted spec"
+rule = "an OpenSpec active change is a carrier, not a promoted spec"
+
+[[boundary]]
+id = "lane_admission_not_correctness"
+weaker = "Work Lane admission"
+stronger = "semantic correctness"
+rule = "Work Lane admission gates who may write, not whether the change is correct"
+
+[[boundary]]
+id = "promotion_not_absolute"
+weaker = "promotion"
+stronger = "absolute correctness"
+rule = "promotion records that a bounded, evidence-backed claim was admitted, not absolute correctness"
+
+# ---- Evidence validity requirements -------------------------------------------
+# Evidence that binds a claim must satisfy all four properties to be trust-bearing.
+[evidence.validity]
+scoped = "evidence names the exact subject/capability it covers"
+head_bound = "evidence records the product/target HEAD it was produced against"
+verifier_bound = "evidence names the verifier that produced it"
+provenance_aware = "evidence carries a provenance envelope (command, digest, generated_on)"

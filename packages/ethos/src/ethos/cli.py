@@ -424,6 +424,39 @@ def admit(
     _emit(result, json_output, enforce=True)
 
 
+@hook_app.command
+def install(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
+    repo = _root(root)
+    hook_path = repo / ".githooks" / "pre-commit"
+    gaps: list[str] = []
+    if not hook_path.exists():
+        gaps.append("hook_script_missing:.githooks/pre-commit")
+    wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
+    if not gaps and not wired:
+        gaps.append("hooks_path_wire_failed")
+    result = EthosResult(
+        command="hook install",
+        ok=not gaps,
+        state="installed" if not gaps else "blocked",
+        summary={"hooks_path": ".githooks", "wired": wired},
+        required_gaps=tuple(gaps),
+        next_actions=(
+            ("git commit — the pre-commit admission gate is now active",) if not gaps else ()
+        ),
+        data={
+            "hooks_path": ".githooks",
+            "hook_script": ".githooks/pre-commit",
+            "wired": wired,
+        },
+    )
+    _emit(result, json_output, enforce=True)
+
+
 @lane_app.command
 def start(
     name: str,

@@ -567,6 +567,45 @@ def test_hook_admit_pre_run_blocks_mutation_risk_without_paths(tmp_path: Path) -
     assert "hook_prerun_paths_required" in payload["required_gaps"]
 
 
+def test_hook_install_wires_hooks_path(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    hooks_dir = repo / ".githooks"
+    hooks_dir.mkdir()
+    (hooks_dir / "pre-commit").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+
+    payload = run_ethos(
+        "hook",
+        "install",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["command"] == "hook install"
+    assert payload["state"] == "installed"
+    assert payload["data"]["hooks_path"] == ".githooks"
+    configured = git(repo, "config", "core.hooksPath")
+    assert configured == ".githooks"
+
+
+def test_hook_install_blocks_when_hook_script_missing(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos_blocked(
+        "hook",
+        "install",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert "hook_script_missing:.githooks/pre-commit" in payload["required_gaps"]
+
+
 def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(

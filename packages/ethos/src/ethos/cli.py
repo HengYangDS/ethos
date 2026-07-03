@@ -72,7 +72,6 @@ from ethos_contracts.rules import (
     RuleFactSnapshot,
     stable_digest,
 )
-from ethos_core.measure import effective_code_lines
 from ethos_core.result import EthosResult
 from ethos_quality.docs_profile import docs_quality_profile
 from ethos_quality.profiles import product_quality_profile, tool_profiles
@@ -116,7 +115,6 @@ from ethos_repository.rules import (
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
 
-from ethos.adapters import config as _cfg
 from ethos.adapters import git as _gitio
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
@@ -200,10 +198,6 @@ def _same_git_repository(left: Path, right: Path) -> bool:
     return _gitio.same_git_repository(left, right)
 
 
-def _git_common_dir(root: Path) -> str:
-    return _gitio.git_common_dir(root)
-
-
 def _adoption_mutation_gaps(
     *,
     apply: bool,
@@ -221,10 +215,6 @@ def _adoption_mutation_gaps(
 
 def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
     return _plan.graph_for_paths(paths)
-
-
-def _rules_config(root: Path) -> dict[str, object]:
-    return _cfg.rules_config(root)
 
 
 def _is_product_root(root: Path) -> bool:
@@ -278,10 +268,6 @@ def _adopter_audit(root: Path) -> dict[str, object]:
             else ["adopter_missing:openspec"],
         },
     }
-
-
-def _string_list(value: object) -> list[str]:
-    return _status.string_list(value)
 
 
 def _sha256_file(path: Path) -> str:
@@ -342,21 +328,8 @@ def _quality_tool_report(
     }
 
 
-def _effective_code_lines(path: Path) -> int:
-    """Delegate to the kernel SSOT metric (ethos_core.measure.effective_code_lines)."""
-    return effective_code_lines(path)
-
-
-def _code_size_policy(root: Path) -> dict[str, object]:
-    return _cfg.code_size_policy(root)
-
-
 def _code_size_report(root: Path) -> dict[str, object]:
     return _prove.code_size_report(root)
-
-
-def _path_matches(path: str, pattern: str) -> bool:
-    return _plan.path_matches(path, pattern)
 
 
 def _matching_rule_gates(
@@ -2075,7 +2048,6 @@ def rules_exceptions(
         data=report,
     )
     _emit(result, json_output)
-
 
 
 @quality_app.command

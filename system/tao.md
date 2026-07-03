@@ -1,10 +1,11 @@
-# system/tao.md
-# Human source for value judgment and compression — the Tao layer of the
-# five-layer kernel (Tao / Contract / Method / Instrumentation / Proof).
-#
-# This file holds aesthetic and value judgment: what is worth preserving,
-# simplifying, or rejecting. It is human-authored Markdown, not machine state.
-# Long design belongs in docs/; durable machine contracts belong in system/*.toml.
+# ETHOS Tao
+
+> Human source for value judgment and compression — the Tao layer of the five-layer
+> kernel (Tao / Contract / Method / Instrumentation / Proof).
+>
+> This file holds aesthetic and value judgment: what is worth preserving,
+> simplifying, or rejecting. It is human-authored Markdown, not machine state.
+> Long design belongs in `docs/`; durable machine contracts belong in `system/*.toml`.
 
 ## Product Thesis
 

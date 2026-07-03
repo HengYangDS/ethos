@@ -378,7 +378,7 @@ def prewrite(
         next_actions=("ethos lane start <name>",) if not report["ok"] else (),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=True)
 
 
 @hook_app.command
@@ -421,7 +421,7 @@ def admit(
         next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
         data=report,
     )
-    _emit(result, json_output)
+    _emit(result, json_output, enforce=True)
 
 
 @lane_app.command

@@ -33,6 +33,20 @@ def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, Any]:
     return json.loads(completed.stdout)
 
 
+def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:
+    """Run an admission command expected to BLOCK: assert non-zero exit, return JSON.
+
+    Admission commands (hook admit, lane prewrite) enforce their verdict via a
+    non-zero process exit on a blocked verdict, so a git hook / CI / MCP host can
+    refuse the write. This helper proves that contract: exit code must be 1.
+    """
+    completed = run_ethos_raw(*args, cwd=cwd)
+    if completed.returncode == 0:
+        msg = f"expected a blocked (non-zero exit) verdict, got exit 0: {completed.stdout}"
+        raise AssertionError(msg)
+    return json.loads(completed.stdout)
+
+
 def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     if "--help" in args or "--version" in args:
         return _run_subprocess(*args, cwd=cwd)

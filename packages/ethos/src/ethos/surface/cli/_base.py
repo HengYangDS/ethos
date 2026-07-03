@@ -59,14 +59,24 @@ def resolve_root(root: Path | None) -> Path:
     return (root or Path.cwd()).resolve()
 
 
-def emit(result: EthosResult, json_output: bool) -> None:
-    """Print an EthosResult as JSON or a short human line."""
+def emit(result: EthosResult, json_output: bool, *, enforce: bool = False) -> None:
+    """Print an EthosResult as JSON or a short human line.
+
+    When enforce=True, a blocked verdict (result.ok is False) exits the process with
+    a non-zero status AFTER printing — so an admission verdict is consumable by any
+    caller (git hook, CI, MCP host) via exit status, not just readable as JSON. This
+    is the edge that turns "reports a verdict" into "a process that refuses" (tao
+    First Principle #2: failure-blocking moves upstream).
+    """
     try:
         if json_output:
             print(result.to_json())
-            return
-        print(f"{result.command}: {result.state}")
-        for action in result.next_actions:
-            print(f"next: {action}")
+        else:
+            print(f"{result.command}: {result.state}")
+            for action in result.next_actions:
+                print(f"next: {action}")
     except BrokenPipeError:
+        return
+    if enforce and not result.ok:
+        raise SystemExit(1)
         return

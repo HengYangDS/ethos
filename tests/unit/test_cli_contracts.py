@@ -12,6 +12,7 @@ from ethos_contracts.package_ontology import package_ontology_report
 from ethos_repository.planner import adoption_plan
 from ethos_repository.schema_validation import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
 
 
@@ -471,7 +472,7 @@ def test_lane_status_reports_live_workspace_schema_validation() -> None:
 def test_lane_prewrite_command_rejects_accepted_root(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "lane",
         "prewrite",
         "README.md",
@@ -494,7 +495,7 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "lane",
         "prewrite",
         "README.md",
@@ -512,7 +513,7 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path
 def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "hook",
         "admit",
         "pre-tool",
@@ -544,7 +545,7 @@ def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:
 def test_hook_admit_pre_run_blocks_mutation_risk_without_paths(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "hook",
         "admit",
         "pre-run",

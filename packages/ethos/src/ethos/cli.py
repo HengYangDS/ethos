@@ -113,6 +113,7 @@ if TYPE_CHECKING:
 # imports only its own domain deps, so a group's heavy dependencies load only when
 # that group is imported (lazy path for the common commands).
 from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
+from ethos.surface.cli import intake as _intake_group  # noqa: F401
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -121,7 +122,6 @@ from ethos.surface.cli._base import assistants_app
 from ethos.surface.cli._base import campaign_app
 from ethos.surface.cli._base import emit as _emit
 from ethos.surface.cli._base import hook_app
-from ethos.surface.cli._base import intake_app
 from ethos.surface.cli._base import lane_app
 from ethos.surface.cli._base import parity_app
 from ethos.surface.cli._base import playbooks_app
@@ -2189,43 +2189,6 @@ def campaign_closeout(
         + tuple(report["release"]["required_gaps"]),
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
-    )
-    _emit(result, json_output)
-
-
-@intake_app.command(name="status")
-def intake_status(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report adopter intake ledger readiness."""
-    repo = _root(root)
-    projection = _intake_projection_report(repo)
-    gaps = tuple(str(gap) for gap in projection["required_gaps"])
-    data = {
-        "truth_boundary": "adopter-ledger",
-        "provider": projection["provider"],
-        "configured": projection["configured"],
-        "expected_config": ".ethos/intake.toml",
-        "adapters": ["backlog", "github", "gitlab"],
-        "projection": projection,
-    }
-    result = EthosResult(
-        command="intake status",
-        ok=not gaps,
-        state=str(projection["state"]),
-        summary={
-            "provider": data["provider"],
-            "truth_boundary": data["truth_boundary"],
-        },
-        required_gaps=gaps,
-        next_actions=(
-            ("ethos adopt --dry-run",)
-            if not projection["configured"]
-            else ("ethos plan --changed",)
-        ),
-        data=data,
     )
     _emit(result, json_output)
 

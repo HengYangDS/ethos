@@ -60,7 +60,7 @@ test_effective_max_lines = 1200
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 2528
+effective_max_lines = 2494
 reason = "surface aggregator mid-split; ratchet caps at current — sink command bodies to domain + split into surface/cli/<group>.py each under surface soft (800)"
 
 [[quality.code_size.exception]]

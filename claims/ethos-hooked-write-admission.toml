@@ -42,7 +42,7 @@ owner = "ethos-adapters"
 scope = "Hook admission runtime, hook CLI decision surface, command registry classification, and terminal OpenSpec productization campaign step state"
 
 [carriers]
-openspec = "openspec/changes/ethos-hooked-write-admission"
+openspec = "openspec/changes/archive/2026-07-03-ethos-hooked-write-admission"
 fallback = "Use explicit ethos lane prewrite as degraded mode when a host cannot call hook admission."
 kill_signal = "A normal tracked write path can mutate an accepted root without pre-tool or pre-run admission."
 
@@ -52,7 +52,7 @@ targets = [
   "docs/evidence/hooked-write-admission-2026-07-02.md",
   "docs/reference/command-plane.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
-  "openspec/changes/ethos-hooked-write-admission",
+  "openspec/changes/archive/2026-07-03-ethos-hooked-write-admission",
   ".agents/skills/activation.toml",
   "skills/activation.toml",
   "packages/ethos-repository/src/ethos_repository/planner.py",

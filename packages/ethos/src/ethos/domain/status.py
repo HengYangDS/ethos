@@ -1,10 +1,26 @@
-"""Status-stage domain reducers — pure functions over primitive facts.
+"""Status-stage domain reducers and audit orchestration.
 
-No IO: these take already-resolved primitives (heads, flags, arbitrary values)
-and derive gap tuples / normalized shapes. Fed by the surface/adapters layer.
+Pure reducers (string_list, adoption_mutation_gaps, status_worktree_gaps) plus the
+repository/adopter audit composition (audit_for_root and friends), which orchestrate
+lower-layer reports. Imports flow downward only (ethos_repository/ethos_adapters/
+ethos_contracts), keeping the surface→domain→... layering acyclic.
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from ethos_adapters.openspec_native import openspec_governance_report
+from ethos_contracts.governance_context import governance_context
+from ethos_repository import repository_audit as repository_audit_module
+from ethos_repository.claims import claims_report
+from ethos_repository.docs_registry import docs_health_report
+from ethos_repository.fleet import inspect_adopter
+from ethos_repository.planner import detect_repo_profile
+from ethos_repository.schema_validation import schema_validation_report
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def string_list(value: object) -> list[str]:
@@ -34,3 +50,77 @@ def adoption_mutation_gaps(
     elif expect_head != current_head:
         gaps.append("expected_head_mismatch")
     return tuple(gaps)
+
+
+def is_product_root(root: Path) -> bool:
+    """True when root is the ETHOS product repository (has packages/ethos + schemas)."""
+    return (root / "packages" / "ethos" / "README.md").exists() and (
+        root / "schemas" / "ethos"
+    ).exists()
+
+
+def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+    """Dispatch to the product-repository or adopter audit for the given root."""
+    if is_product_root(root):
+        return product_repository_audit(root, openspec_mode=openspec_mode)
+    return adopter_audit(root)
+
+
+def product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
+    """Run the product repository audit (deep openspec validation when requested)."""
+    reporter = openspec_governance_report if openspec_mode == "deep" else None
+    return repository_audit_module.repository_audit(
+        root,
+        openspec_mode=openspec_mode,
+        openspec_reporter=reporter,
+    )
+
+
+def adopter_audit(root: Path) -> dict[str, object]:
+    """Compose the adopter-repository audit (adopter + schema + claims + docs)."""
+    adopter = inspect_adopter(root)
+    schemas = schema_validation_report(root)
+    claims = claims_report(root)
+    docs = docs_health_report(root)
+    gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
+    return {
+        "ok": not gaps,
+        "mode": "repository",
+        "governance_context": governance_context(
+            root,
+            profile=detect_repo_profile(root),
+        ),
+        "required_gaps": gaps,
+        "adopter": adopter,
+        "schemas": {
+            "ok": bool(schemas["ok"]),
+            "validation": schemas,
+            "missing": [],
+        },
+        "claims": claims,
+        "docs": docs,
+        "openspec": {
+            "ok": bool(adopter["adopter"]["governance"]["openspec"]),
+            "mode": "adopter-shape",
+            "required_gaps": []
+            if adopter["adopter"]["governance"]["openspec"]
+            else ["adopter_missing:openspec"],
+        },
+    }
+
+
+def status_worktree_gaps(status: dict[str, object]) -> list[str]:
+    """Collect blocking gaps from a workspace-status payload (drop lease-only noise)."""
+    gaps = [
+        str(gap)
+        for gap in status.get("required_gaps", [])
+        if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
+    ]
+    closeout = status.get("closeout_support")
+    if isinstance(closeout, dict):
+        gaps.extend(
+            str(gap)
+            for gap in closeout.get("required_gaps", [])
+            if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
+        )
+    return list(dict.fromkeys(gaps))

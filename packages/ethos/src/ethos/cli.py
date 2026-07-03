@@ -62,7 +62,6 @@ from ethos_contracts.context_projection import (
     context_projection_contract,
     context_retrieval_smoke_queries,
 )
-from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
@@ -100,7 +99,6 @@ from ethos_repository.planner import (
     adoption_plan,
     adoption_scaffold_report,
     available_profiles,
-    detect_repo_profile,
 )
 from ethos_repository.release import release_policy_report
 from ethos_repository.rules import (
@@ -217,56 +215,19 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
 
 
 def _is_product_root(root: Path) -> bool:
-    return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "schemas" / "ethos"
-    ).exists()
+    return _status.is_product_root(root)
 
 
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
-    if _is_product_root(root):
-        return _product_repository_audit(root, openspec_mode=openspec_mode)
-    return _adopter_audit(root)
+    return _status.audit_for_root(root, openspec_mode=openspec_mode)
 
 
 def _product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
-    reporter = openspec_governance_report if openspec_mode == "deep" else None
-    return repository_audit_module.repository_audit(
-        root,
-        openspec_mode=openspec_mode,
-        openspec_reporter=reporter,
-    )
+    return _status.product_repository_audit(root, openspec_mode=openspec_mode)
 
 
 def _adopter_audit(root: Path) -> dict[str, object]:
-    adopter = inspect_adopter(root)
-    schemas = schema_validation_report(root)
-    claims = claims_report(root)
-    docs = docs_health_report(root)
-    gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
-    return {
-        "ok": not gaps,
-        "mode": "repository",
-        "governance_context": governance_context(
-            root,
-            profile=detect_repo_profile(root),
-        ),
-        "required_gaps": gaps,
-        "adopter": adopter,
-        "schemas": {
-            "ok": bool(schemas["ok"]),
-            "validation": schemas,
-            "missing": [],
-        },
-        "claims": claims,
-        "docs": docs,
-        "openspec": {
-            "ok": bool(adopter["adopter"]["governance"]["openspec"]),
-            "mode": "adopter-shape",
-            "required_gaps": []
-            if adopter["adopter"]["governance"]["openspec"]
-            else ["adopter_missing:openspec"],
-        },
-    }
+    return _status.adopter_audit(root)
 
 
 def _sha256_file(path: Path) -> str:
@@ -1837,19 +1798,7 @@ def _unavailable_rule_fact(owner: str, exc: BaseException) -> dict[str, object]:
 
 
 def _status_worktree_gaps(status: dict[str, object]) -> list[str]:
-    gaps = [
-        str(gap)
-        for gap in status.get("required_gaps", [])
-        if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
-    ]
-    closeout = status.get("closeout_support")
-    if isinstance(closeout, dict):
-        gaps.extend(
-            str(gap)
-            for gap in closeout.get("required_gaps", [])
-            if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
-        )
-    return list(dict.fromkeys(gaps))
+    return _status.status_worktree_gaps(status)
 
 
 def _rule_attestation_for_evaluation(

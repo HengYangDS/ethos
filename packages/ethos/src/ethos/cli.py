@@ -135,10 +135,6 @@ def _current_tracked_head(root: Path) -> str:
     return _gitio.current_tracked_head(root)
 
 
-def _git_stdout(root: Path, *args: str) -> str:
-    return _gitio.git_stdout(root, *args)
-
-
 def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
     return _land.acceptable_parity_product_heads(root, adopter)
 
@@ -149,10 +145,6 @@ def _acceptable_parity_target_heads(
     adopter: str | None,
 ) -> tuple[str, ...]:
     return _land.acceptable_parity_target_heads(root, target, adopter)
-
-
-def _same_git_repository(left: Path, right: Path) -> bool:
-    return _gitio.same_git_repository(left, right)
 
 
 def _adoption_mutation_gaps(
@@ -174,20 +166,8 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
     return _plan.graph_for_paths(paths)
 
 
-def _is_product_root(root: Path) -> bool:
-    return _status.is_product_root(root)
-
-
 def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
     return _status.audit_for_root(root, openspec_mode=openspec_mode)
-
-
-def _product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
-    return _status.product_repository_audit(root, openspec_mode=openspec_mode)
-
-
-def _adopter_audit(root: Path) -> dict[str, object]:
-    return _status.adopter_audit(root)
 
 
 def _sha256_file(path: Path) -> str:
@@ -1331,10 +1311,6 @@ def _rule_fact_snapshot(
         prewrite_report=prewrite_report,
         audit_payload=audit_payload,
     )
-
-
-def _status_worktree_gaps(status: dict[str, object]) -> list[str]:
-    return _status.status_worktree_gaps(status)
 
 
 def _rule_attestation_for_evaluation(

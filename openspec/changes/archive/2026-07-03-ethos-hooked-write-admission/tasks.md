@@ -20,5 +20,5 @@
 - [x] 3.1 Add claim and dated evidence for hooked write admission.
 - [x] 3.2 Run focused tests, full tests, Ruff, schema validation, OpenSpec
   strict validation, lifecycle review, report, proof, and build.
-- [ ] 3.3 Land, accepted-root closeout, and retire this Work Lane before
+- [x] 3.3 Land, accepted-root closeout, and retire this Work Lane before
   starting the next campaign step.

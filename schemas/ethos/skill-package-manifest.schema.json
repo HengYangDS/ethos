@@ -28,6 +28,7 @@
       "minItems": 1
     },
     "quality": {"type": "object", "additionalProperties": true},
+    "provider_metadata": {"type": "array", "items": {"type": "string"}},
     "capability": {
       "type": "array",
       "items": {

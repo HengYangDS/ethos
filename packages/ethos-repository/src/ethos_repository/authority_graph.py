@@ -101,8 +101,8 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
                 gaps.append(f"{entry_id}:supersedes_missing:{superseded}")
                 continue
             superseded_by = by_id[superseded]["superseded_by"]
-            assert isinstance(superseded_by, list)
-            superseded_by.append(entry_id)
+            if isinstance(superseded_by, list):
+                superseded_by.append(entry_id)
         if entry["relation_type"] == "derived_view":
             derived_from = {str(source) for source in entry["derived_from"]}
             authority_sources = {
@@ -115,8 +115,8 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
 
     for entry in entries:
         superseded_by = entry["superseded_by"]
-        assert isinstance(superseded_by, list)
-        superseded_by.sort()
+        if isinstance(superseded_by, list):
+            superseded_by.sort()
 
     return {
         "ok": not gaps,

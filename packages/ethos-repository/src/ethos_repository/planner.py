@@ -36,7 +36,9 @@ OPENSPEC_FAMILIES = (
     "ethos-distribution",
     "ethos-test",
 )
-assert len(OPENSPEC_FAMILIES) == len(set(OPENSPEC_FAMILIES))
+if len(OPENSPEC_FAMILIES) != len(set(OPENSPEC_FAMILIES)):
+    msg = "OPENSPEC_FAMILIES contains duplicate entries"
+    raise ValueError(msg)
 BASE_ADOPTION_FILES = (
     "AGENTS.md",
     "CONTRIBUTING.md",

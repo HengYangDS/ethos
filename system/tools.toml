@@ -108,6 +108,12 @@ config = ".gitleaks.toml"
 profile = "minimal"
 
 [[tool]]
+concern = "python_sast"
+tool = "bandit"
+config = ".config/checks/bandit/"
+profile = "product"
+
+[[tool]]
 concern = "python_vuln"
 tool = "pip-audit"
 config = ".config/security/"

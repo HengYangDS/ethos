@@ -11,10 +11,13 @@ import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters import git as _gitio
 from ethos_adapters.status import workspace_status
+from ethos_contracts.branch_roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from ethos_adapters.mutation import MutationDecision
+    from ethos_contracts.branch_roles import BranchRolePolicy
 
 
 def command_is_executed_proof(command: object) -> bool:
@@ -105,5 +108,129 @@ def intake_projection_report(repo: Path) -> dict[str, object]:
         "expected_config": ".ethos/intake.toml",
         "adapters": ["backlog", "github", "gitlab"],
         "blocking": False,
+        "required_gaps": gaps,
+    }
+
+
+def publication_readiness(
+    *,
+    branch: str,
+    local_ok: bool,
+    policy: BranchRolePolicy,
+) -> dict[str, object]:
+    """Assemble the local publication-readiness package (remote push deferred)."""
+    submit_branch = policy.submit_branch_for_source(branch)
+    return {
+        "mode": "local_readiness",
+        "remote_push": "not_performed",
+        "remote_state": "deferred",
+        "submit_branch": submit_branch,
+        "local_submit_package": local_submit_package(
+            branch=branch,
+            submit_branch=submit_branch,
+        ),
+        "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
+        "next_actions": (
+            ["create configured submit branch when remote publication is available"]
+            if local_ok
+            else ["resolve local publish readiness gaps"]
+        ),
+    }
+
+
+def closeout_bootstrap_package(
+    *,
+    repo: Path,
+    audit_root: Path,
+    required_gaps: tuple[str, ...],
+) -> dict[str, object]:
+    """Build the closeout bootstrap package (command to run against accepted_root)."""
+    policy = load_branch_role_policy(repo)
+    status = workspace_status(repo)
+    candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
+    accepted_head = _gitio.current_tracked_head(repo)
+    expect_head = accepted_head or "<HEAD>"
+    command = (
+        "ethos land --closeout --apply --authorize "
+        f"--expect-head {expect_head} --root {repo.resolve().as_posix()} --json"
+    )
+    return {
+        "kind": "closeout_bootstrap",
+        "state": "blocked" if required_gaps else "ready",
+        "accepted_root": repo.resolve().as_posix(),
+        "audit_root": audit_root.resolve().as_posix(),
+        "accepted_branch": policy.accepted_branch,
+        "candidate_branch": policy.candidate_branch,
+        "accepted_head": accepted_head,
+        "candidate_head": str(candidate.get("head") or ""),
+        "blocking": bool(required_gaps),
+        "required_gaps": list(required_gaps),
+        "command": command,
+        "next_action": "run closeout with a current ETHOS runner against accepted_root",
+    }
+
+
+def trust_closeout_package(
+    *,
+    workspace: dict[str, object],
+    claims: dict[str, object],
+) -> dict[str, object]:
+    """Assess trust-claim closeout readiness (promotion + executed-proof evidence)."""
+    closeout_support = workspace.get("closeout_support")
+    closeout = closeout_support if isinstance(closeout_support, dict) else {}
+    trust_claims = [
+        claim
+        for claim in claims.get("claims", {}).values()
+        if isinstance(claim, dict) and claim.get("trust_envelope")
+    ]
+    envelopes = [
+        claim["trust_envelope"]
+        for claim in trust_claims
+        if isinstance(claim.get("trust_envelope"), dict)
+    ]
+    envelope_gaps = [
+        gap
+        for envelope in envelopes
+        for gap in envelope.get("required_gaps", [])
+        if isinstance(envelope, dict)
+    ]
+    promotion_ready = bool(envelopes) and not envelope_gaps and all(
+        isinstance(envelope.get("promotion"), dict)
+        and envelope["promotion"].get("ready") is True
+        for envelope in envelopes
+    )
+    executed_proof_evidence = any(
+        command_is_executed_proof(command)
+        for envelope in envelopes
+        if isinstance(envelope.get("evidence"), dict)
+        for command in envelope["evidence"].get("commands", [])
+    )
+    gaps: list[str] = []
+    if not claims.get("ok"):
+        gaps.extend(str(gap) for gap in claims.get("required_gaps", []))
+    if not envelopes:
+        gaps.append("trust_claim_missing")
+    if not promotion_ready:
+        gaps.append("promotion_readiness_missing")
+    if not executed_proof_evidence:
+        gaps.append("executed_proof_missing")
+    if (
+        workspace.get("role") == "work_lane"
+        and closeout.get("supported") is True
+        and closeout.get("claim_binding") != "bound"
+    ):
+        gaps.append(f"work_lane_claim_binding_missing:{workspace.get('branch')}")
+    return {
+        "kind": "trust_closeout",
+        "claim_report_ok": bool(claims.get("ok")),
+        "trust_claim_count": len(envelopes),
+        "promotion_ready": promotion_ready,
+        "executed_proof_evidence": executed_proof_evidence,
+        "work_lane": {
+            "branch": str(workspace.get("branch") or ""),
+            "claim_id": str(closeout.get("claim_id") or ""),
+            "claim_binding": str(closeout.get("claim_binding") or "unbound"),
+        },
+        "blocking": bool(gaps),
         "required_gaps": gaps,
     }

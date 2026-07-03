@@ -9,6 +9,7 @@ surface acyclic.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
@@ -57,6 +58,13 @@ ASSISTANT_TRUTH_BOUNDARY = "repository-source-and-contracts"
 def resolve_root(root: Path | None) -> Path:
     """Resolve the target repository root (cwd when unspecified)."""
     return (root or Path.cwd()).resolve()
+
+
+def sha256_file(path: Path) -> str:
+    """Return the sha256:<hex> digest of a file (drift/attestation helper)."""
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return f"sha256:{digest.hexdigest()}"
 
 
 def emit(result: EthosResult, json_output: bool, *, enforce: bool = False) -> None:

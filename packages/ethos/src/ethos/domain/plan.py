@@ -18,6 +18,7 @@ from ethos.domain.status import string_list
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos_adapters.status import workspace_status
 from ethos_assistants.projections import projection_contract
+from ethos_contracts.rules import RuleAttestation
 from ethos_contracts.rules import RuleFactSnapshot
 from ethos_contracts.rules import stable_digest
 from ethos_core.action_graph import ActionGraph
@@ -282,3 +283,29 @@ def rule_fact_snapshot(
         facts=facts,
         source_refs=tuple(source_refs),
     )
+
+
+def rule_attestation_for_evaluation(
+    evaluation: dict[str, object],
+    *,
+    actor: str,
+    scope: str,
+) -> dict[str, object]:
+    """Build the rule-attestation envelope from a rules evaluation (digest-bound)."""
+    attestation = RuleAttestation(
+        head=str(evaluation["head"]),
+        evaluation_digest=str(evaluation["digest"]),
+        rule_set_digest=str(evaluation["rule_set_digest"]),
+        compiled_policy_digest=str(evaluation["compiled_policy_digest"]),
+        fact_snapshot_digest=str(evaluation["fact_snapshot_digest"]),
+        actor=actor,
+        scope=scope,
+        runner_identity="ethos-cli",
+        input=dict(evaluation["input_snapshot"]),
+        output={
+            "state": evaluation["state"],
+            "required_gaps": list(evaluation["required_gaps"]),
+            "required_gates": list(evaluation["required_gates"]),
+        },
+    )
+    return attestation.to_dict()

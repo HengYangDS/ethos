@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_adapters import openspec_native
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkeypatch) -> None:
@@ -84,16 +87,7 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
         encoding="utf-8",
     )
     (change / "proposal.md").write_text(
-        "\n".join(
-            [
-                "## Why",
-                "Test product protocol validation.",
-                "",
-                "## Capabilities",
-                "- `unknown-capability`: subject=sample; reuse=borrow; change=modify",
-                "",
-            ]
-        ),
+        "## Why\nTest product protocol validation.\n\n## Capabilities\n- `unknown-capability`: subject=sample; reuse=borrow; change=modify\n",
         encoding="utf-8",
     )
     for artifact in ("design.md", "tasks.md"):
@@ -257,15 +251,7 @@ def test_completed_active_changes_report_blocks_invalid_archives(
     )
     (archive / "tasks.md").write_text("- [ ] Finish archive closeout.\n", encoding="utf-8")
     (archive / "specs" / "ethos-repository" / "spec.md").write_text(
-        "\n".join(
-            [
-                "## ADDED Requirements",
-                "### Requirement: Archive Closeout",
-                "#### Scenario: Archive is checked",
-                "- **WHEN** closeout runs",
-                "- **THEN** archive state is checked",
-            ]
-        ),
+        "## ADDED Requirements\n### Requirement: Archive Closeout\n#### Scenario: Archive is checked\n- **WHEN** closeout runs\n- **THEN** archive state is checked",
         encoding="utf-8",
     )
 

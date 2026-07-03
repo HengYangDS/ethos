@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _ledger_path(root: Path) -> Path:
@@ -116,7 +118,7 @@ def _campaign_payload(
         _step_payload(item, default_ordinal=index)
         for index, item in enumerate(payload.get("step", []), start=1)
     ]
-    campaign = {
+    return {
         "id": str(payload.get("id") or path.parent.name),
         "state": str(payload.get("state") or "active"),
         "owner": str(payload.get("owner") or ""),
@@ -127,7 +129,6 @@ def _campaign_payload(
         "step_summary": _step_summary(steps),
         "lane_topology": _lane_topology(steps),
     }
-    return campaign
 
 
 def _step_payload(item: dict[str, Any], *, default_ordinal: int) -> dict[str, Any]:

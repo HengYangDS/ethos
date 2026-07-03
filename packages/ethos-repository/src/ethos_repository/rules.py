@@ -3,8 +3,7 @@ from __future__ import annotations
 import fnmatch
 import tomllib
 from datetime import date
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ethos_contracts.rules import (
     PolicyException,
@@ -17,6 +16,9 @@ from ethos_contracts.rules import (
 
 from ethos_repository.gates import gate_registry
 from ethos_repository.schema_validation import validate_schema_instance
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 VALID_PHASES = {"plan", "prewrite", "prove", "land", "publish"}
 STRICT_PROFILE = "strict"
@@ -1025,10 +1027,10 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
             )
         scope_value = str(record["scope"])
         if (
-            scope_value != "repository"
-            and not scope_value.startswith("path:")
-            or scope_value.startswith("path:")
-            and not scope_value.removeprefix("path:").strip("/")
+            (scope_value != "repository"
+            and not scope_value.startswith("path:"))
+            or (scope_value.startswith("path:")
+            and not scope_value.removeprefix("path:").strip("/"))
         ):
             gaps.append(f"policy_exception_scope_invalid:{record['id']}")
         evidence_ref = str(record["evidence_ref"])

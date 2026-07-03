@@ -131,19 +131,7 @@ def test_schema_validation_keeps_adopter_capability_profiles_advisory(
     profile_dir = tmp_path / "openspec" / "specs" / "legacy-family"
     profile_dir.mkdir(parents=True)
     (profile_dir / "capability.toml").write_text(
-        "\n".join(
-            [
-                'family = "legacy-family"',
-                'owner_object = "legacy-kernel"',
-                'primary_invariant = "legacy repository owns its own capability profile"',
-                'routing_question = "Is this adopter capability in scope?"',
-                'decision_axes = ["adopter_metadata"]',
-                "",
-                "[boundary_rules]",
-                'legacy = "legacy adopter profile shape remains adopter-owned metadata"',
-                "",
-            ]
-        ),
+        'family = "legacy-family"\nowner_object = "legacy-kernel"\nprimary_invariant = "legacy repository owns its own capability profile"\nrouting_question = "Is this adopter capability in scope?"\ndecision_axes = ["adopter_metadata"]\n\n[boundary_rules]\nlegacy = "legacy adopter profile shape remains adopter-owned metadata"\n',
         encoding="utf-8",
     )
 

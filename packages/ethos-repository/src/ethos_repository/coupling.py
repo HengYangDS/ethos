@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ethos_contracts.branch_roles import load_branch_role_policy
 
 from ethos_repository.gates import gate_registry
 from ethos_repository.release import REQUIRED_RELEASE_FILES, release_policy_report
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 COUPLING_LAYERS: dict[str, str] = {
     "product_semantic_hard_binding": (

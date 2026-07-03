@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import tomllib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 REPOSITORY_OVERCLAIM_PHRASES = (
     "raw/cache",

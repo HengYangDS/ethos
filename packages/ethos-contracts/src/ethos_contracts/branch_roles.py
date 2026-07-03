@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ROLE_RELEASE_ROOT = "release_root"
 ROLE_ACCEPTED_ROOT = "accepted_root"

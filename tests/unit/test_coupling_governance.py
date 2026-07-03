@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos_repository.coupling as coupling
-import pytest
 from ethos_repository.coupling import coupling_audit_report
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> None:

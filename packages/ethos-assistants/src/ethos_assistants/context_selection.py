@@ -26,8 +26,7 @@ def default_context_policy() -> dict[str, Any]:
 
 
 def sanitize_selection_result(result: dict[str, Any]) -> dict[str, Any]:
-    sanitized = {key: value for key, value in result.items() if key not in FORBIDDEN_RESULT_FIELDS}
-    return sanitized
+    return {key: value for key, value in result.items() if key not in FORBIDDEN_RESULT_FIELDS}
 
 
 def query_digest(query: str) -> str:

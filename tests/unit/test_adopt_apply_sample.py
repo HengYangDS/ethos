@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_repository.planner import adoption_plan, detect_repo_profile
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:

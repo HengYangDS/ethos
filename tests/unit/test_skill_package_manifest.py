@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_assistants.skill_packages import (
     compute_skill_package_digest,
     validate_skill_package_manifest,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 OFFICIAL_SKILL = """---
 name: sample-skill

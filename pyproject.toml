@@ -56,4 +56,26 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+# Tightened rule set — correctness + determinism + elegance (道: raise the quality floor,
+# make low-quality unrepresentable). E/F/I/UP/B/SIM are the base; the rest add:
+# comprehension clarity (C4), return hygiene (RET), pathlib (PTH), pytest style (PT),
+# naming (N), builtin-shadowing (A), implicit-str-concat (ISC), flake8-flynt (FLY),
+# perf (PERF), typing-only imports (TC), tidy imports (TID), unnecessary code (PIE),
+# and ruff's own checks (RUF).
+select = [
+    "E", "F", "I", "UP", "B", "SIM",
+    "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF",
+]
+# Ratchet: correctness rules enforced everywhere, zero tolerance. A small set of pre-existing
+# STYLE debt is frozen (not permanent — dissolves during the package-split migration that
+# rewrites these modules). New code gets the full strict set.
+ignore = [
+    "PERF401",  # manual list-comprehension: 38 in junk-drawer modules to be dissolved
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test data lines are legitimately long (assertion payloads/fixtures); logic still wraps.
+"tests/**" = ["E501"]
+# `id` on a widely-called classmethod — rename deferred to the package-split migration.
+"packages/ethos-repository/src/ethos_repository/evidence.py" = ["A002"]
+

@@ -3,10 +3,13 @@ from __future__ import annotations
 import re
 import shlex
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
 
 from ethos_repository.command_registry import RETIRED_PUBLIC_ROOTS, known_commands, public_commands
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")

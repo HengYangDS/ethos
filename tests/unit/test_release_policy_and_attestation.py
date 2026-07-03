@@ -73,45 +73,11 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
         encoding="utf-8",
     )
     (root / ".ethos" / "workspace.toml").write_text(
-        "\n".join(
-            [
-                "[branch_roles]",
-                'release_branch = "release"',
-                'accepted_branch = "integration"',
-                'candidate_branch = "stage/integration"',
-                'work_branch_prefix = "lane/"',
-                'submit_branch_prefix = "review/"',
-                "",
-            ]
-        ),
+        '[branch_roles]\nrelease_branch = "release"\naccepted_branch = "integration"\ncandidate_branch = "stage/integration"\nwork_branch_prefix = "lane/"\nsubmit_branch_prefix = "review/"\n',
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        "\n".join(
-            [
-                "[release]",
-                'version_source = "pyproject.toml"',
-                'tag_pattern = "v{version}"',
-                'artifact_glob = "dist/*"',
-                "",
-                "[protected_refs]",
-                'branches = ["release", "integration"]',
-                'tags = ["v*"]',
-                "",
-                "[host_profile]",
-                'provider = "gitlab"',
-                "",
-                "[host_profile.surfaces]",
-                'ci = ".gitlab-ci.yml"',
-                'merge_request_template = ".gitlab/merge_request_templates/default.md"',
-                'issue_template = ".gitlab/issue_templates/task.md"',
-                "",
-                "[attestation]",
-                'formats = ["in-toto", "slsa", "spdx-lite"]',
-                'signing = "git-ssh"',
-                "",
-            ]
-        ),
+        '[release]\nversion_source = "pyproject.toml"\ntag_pattern = "v{version}"\nartifact_glob = "dist/*"\n\n[protected_refs]\nbranches = ["release", "integration"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\nmerge_request_template = ".gitlab/merge_request_templates/default.md"\nissue_template = ".gitlab/issue_templates/task.md"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\nsigning = "git-ssh"\n',
         encoding="utf-8",
     )
 
@@ -132,20 +98,7 @@ def test_release_policy_does_not_accept_retired_provider_section(tmp_path: Path)
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        "\n".join(
-            [
-                "[protected_refs]",
-                'branches = ["main", "dev"]',
-                'tags = ["v*"]',
-                "",
-                "[gitlab]",
-                'ci = ".gitlab-ci.yml"',
-                "",
-                "[attestation]",
-                'formats = ["in-toto", "slsa", "spdx-lite"]',
-                "",
-            ]
-        ),
+        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[gitlab]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\n',
         encoding="utf-8",
     )
 
@@ -170,23 +123,7 @@ def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        "\n".join(
-            [
-                "[protected_refs]",
-                'branches = ["main", "dev"]',
-                'tags = ["v*"]',
-                "",
-                "[host_profile]",
-                'provider = "gitlab"',
-                "",
-                "[host_profile.surfaces]",
-                'ci = ".gitlab-ci.yml"',
-                "",
-                "[attestation]",
-                'formats = ["in-toto", "slsa", "spdx-lite"]',
-                "",
-            ]
-        ),
+        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\n',
         encoding="utf-8",
     )
 

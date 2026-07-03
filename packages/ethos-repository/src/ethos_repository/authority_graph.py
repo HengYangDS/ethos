@@ -41,7 +41,7 @@ def _list_field_gaps(node: dict[str, Any], entry_id: str) -> list[str]:
 
 
 def _is_evidence_ref(relative: str) -> bool:
-    return relative.startswith("docs/evidence/") or relative.startswith("claims/")
+    return relative.startswith(("docs/evidence/", "claims/"))
 
 
 def authority_graph_report(root: Path | None = None) -> dict[str, object]:
@@ -104,7 +104,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
             assert isinstance(superseded_by, list)
             superseded_by.append(entry_id)
         if entry["relation_type"] == "derived_view":
-            derived_from = set(str(source) for source in entry["derived_from"])
+            derived_from = {str(source) for source in entry["derived_from"]}
             authority_sources = {
                 str(source_id)
                 for source_id, source in by_id.items()

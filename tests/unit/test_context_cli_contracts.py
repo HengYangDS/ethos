@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.test_context_retrieval import init_repo
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_assistants_context_index_is_dry_run_by_default(tmp_path: Path) -> None:

@@ -1112,7 +1112,7 @@ def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
 
 
 def test_rule_attestation_verifier_detects_tampering() -> None:
-    evaluation = rules_evaluation_report(Path("."), phase="plan", head="abc123")
+    evaluation = rules_evaluation_report(Path(), phase="plan", head="abc123")
     attestation = RuleAttestation(
         head=str(evaluation["head"]),
         evaluation_digest=str(evaluation["digest"]),

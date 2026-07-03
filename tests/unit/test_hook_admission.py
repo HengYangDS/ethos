@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_adapters.hook_admission import hook_admission_report
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def git(root: Path, *args: str) -> str:

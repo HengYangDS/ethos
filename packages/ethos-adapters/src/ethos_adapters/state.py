@@ -4,8 +4,10 @@ import json
 import sqlite3
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 SCHEMA_VERSION = 1
 

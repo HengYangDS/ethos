@@ -4,7 +4,7 @@ import hashlib
 import json
 import sqlite3
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_adapters.context_index import (
     context_eval_report,
@@ -14,6 +14,9 @@ from ethos_adapters.context_index import (
 )
 from ethos_repository.schema_validation import validate_schema_instance
 from ethos_test.fixtures import context_retrieval_smoke_queries
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def git(root: Path, *args: str) -> str:
@@ -349,13 +352,7 @@ def test_context_index_quarantines_common_provider_secret_formats(tmp_path: Path
     secret_doc = repo / "docs" / "provider-secrets.md"
     secret_doc.parent.mkdir()
     secret_doc.write_text(
-        "\n".join(
-            [
-                "openai = sk-proj-1234567890abcdef1234567890abcdef",
-                "github = ghp_1234567890abcdef1234567890abcdef123456",
-                "aws = AKIA1234567890ABCDEF",
-            ]
-        ),
+        "openai = sk-proj-1234567890abcdef1234567890abcdef\ngithub = ghp_1234567890abcdef1234567890abcdef123456\naws = AKIA1234567890ABCDEF",
         encoding="utf-8",
     )
     git(repo, "add", "docs/provider-secrets.md")

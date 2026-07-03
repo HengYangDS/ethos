@@ -385,7 +385,7 @@ def _git_files(root: Path, *patterns: str) -> list[str]:
 def _quality_tool_report(
     *,
     root: Path,
-    id: str,
+    gate_id: str,
     tool: str,
     command: list[str],
     files: list[str],
@@ -393,7 +393,7 @@ def _quality_tool_report(
     if not files:
         return {
             "ok": True,
-            "id": id,
+            "id": gate_id,
             "tool": tool,
             "state": "skipped",
             "file_count": 0,
@@ -402,7 +402,7 @@ def _quality_tool_report(
     if shutil.which(tool) is None:
         return {
             "ok": False,
-            "id": id,
+            "id": gate_id,
             "tool": tool,
             "state": "missing_tool",
             "file_count": len(files),
@@ -418,7 +418,7 @@ def _quality_tool_report(
     )
     return {
         "ok": completed.returncode == 0,
-        "id": id,
+        "id": gate_id,
         "tool": tool,
         "state": "passed" if completed.returncode == 0 else "failed",
         "file_count": len(files),
@@ -426,7 +426,7 @@ def _quality_tool_report(
         "exit_code": completed.returncode,
         "stdout": trim_output(completed.stdout),
         "stderr": trim_output(completed.stderr),
-        "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{id}"],
+        "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"],
     }
 
 
@@ -1734,7 +1734,7 @@ def markdown_links(
     ]
     report = _quality_tool_report(
         root=repo,
-        id="markdown-links",
+        gate_id="markdown-links",
         tool="lychee",
         command=["lychee", "--offline", "--no-progress", *files],
         files=files,
@@ -1760,7 +1760,7 @@ def shell_quality(
     files = _git_files(repo, "*.sh")
     report = _quality_tool_report(
         root=repo,
-        id="shell-lint",
+        gate_id="shell-lint",
         tool="shellcheck",
         command=["shellcheck", *files],
         files=files,
@@ -1786,7 +1786,7 @@ def toml_quality(
     files = _git_files(repo, "*.toml")
     report = _quality_tool_report(
         root=repo,
-        id="toml-config",
+        gate_id="toml-config",
         tool="taplo",
         command=["taplo", "check", *files],
         files=files,
@@ -1812,7 +1812,7 @@ def yaml_quality(
     files = _git_files(repo, "*.yml", "*.yaml")
     report = _quality_tool_report(
         root=repo,
-        id="yaml-config",
+        gate_id="yaml-config",
         tool="yamllint",
         command=["yamllint", "-d", "{extends: relaxed, rules: {line-length: disable}}", *files],
         files=files,
@@ -1857,7 +1857,7 @@ def npm_quality(
     files = ["package.json"] if (repo / "package.json").exists() else []
     report = _quality_tool_report(
         root=repo,
-        id="npm-pack",
+        gate_id="npm-pack",
         tool="npm",
         command=["npm", "run", "test:npm"],
         files=files,

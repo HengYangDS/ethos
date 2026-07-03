@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_adapters.state import (
     active_leases,
@@ -11,6 +11,9 @@ from ethos_adapters.state import (
     list_chronicle_events,
     list_events,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:

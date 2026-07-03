@@ -14,7 +14,10 @@ Effective LOC = physical lines, minus:
 from __future__ import annotations
 
 import ast
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _string_expr_line_spans(tree: ast.AST) -> set[int]:

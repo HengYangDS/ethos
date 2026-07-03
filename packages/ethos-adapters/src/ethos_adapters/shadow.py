@@ -616,20 +616,23 @@ def _without_product_repository_audit_gaps(
     return filtered, removed
 
 
+_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = (
+    "docs/",
+    "schemas/",
+    "packages/",
+    "distribution_adapter_missing:",
+    "adoption_scaffold_missing:",
+    "openspec_family_missing:",
+    "claims_",
+    "claim_",
+    "schema_",
+    "openspec_",
+    "command_",
+)
+
+
 def _is_product_repository_audit_gap(gap: str) -> bool:
-    return (
-        gap.startswith("docs/")
-        or gap.startswith("schemas/")
-        or gap.startswith("packages/")
-        or gap.startswith("distribution_adapter_missing:")
-        or gap.startswith("adoption_scaffold_missing:")
-        or gap.startswith("openspec_family_missing:")
-        or gap.startswith("claims_")
-        or gap.startswith("claim_")
-        or gap.startswith("schema_")
-        or gap.startswith("openspec_")
-        or gap.startswith("command_")
-    )
+    return gap.startswith(_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES)
 
 
 def _without_changed_route_noop_gaps(

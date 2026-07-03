@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from ethos_repository.planner import adoption_plan, available_profiles
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_available_profiles_are_explicit() -> None:

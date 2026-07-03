@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import subprocess
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos_adapters.lanes import (
     bind_work_lane_claim,
@@ -16,6 +16,9 @@ from ethos_adapters.state import active_leases
 from ethos_adapters.status import workspace_status
 from ethos_contracts.branch_roles import BranchRolePolicy
 from ethos_repository.schema_validation import validate_schema_instance
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def git(root: Path, *args: str) -> str:

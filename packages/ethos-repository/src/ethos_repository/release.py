@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ethos_contracts.branch_roles import load_branch_role_policy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 REQUIRED_RELEASE_FILES = (
     "README.md",

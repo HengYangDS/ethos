@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ethos_repository.release import version_manifest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _stable_digest(payload: dict[str, Any]) -> str:

@@ -71,3 +71,39 @@ rules.py→core/method;schema_validation→core/contract;parity/shadow/coupling�
 - 每步 stash-diff 证明零回归才提交;精确字符串 Edit(非 fuzzy);退休/大改前 tag 备份。
 - pytest 用 lane pythonpath(测 lane 代码);不用 ethos CLI 二进制验证(指向主仓库)。
 - parity treadmill 的 4-6 红是 pre-existing(evidence 绑会话初 HEAD 25b5be2),非回归。
+
+---
+
+## 执行进展(2026-07,work/terminal-substrate,21 commit)
+
+### 已落地门禁体系(6 道内生门,全 ratchet 制,配置分层 .config/checks/)
+- ruff 19 规则集 + C90 圈复杂度≤12(新代码零容忍,9 函数 ratchet)
+- ty 类型检查(core/quality/contracts 三纯净包零容忍;adapters/repository/ethos ratchet 基线)
+- import-linter 架构门(3 契约 KEPT:core/contracts 纯叶子 + 全分层无环)
+- bandit 安全门(High/Med=0,SQL 白名单加固,src assert 债务已消除)
+- LOC 硬规则 400(AST 精确排 docstring,forcing function)+ measure SSOT 提升到 ethos_core
+- pytest(507 绿,5 pre-existing 是 parity treadmill)
+- 全部注册为 ethos_quality QualityGateDescriptor(内生于 prove 路径)
+
+### cli.py 拆分进展(建立了 surface→domain→adapters→kernel 分层)
+- ethos/adapters/git.py(git IO 原语)、config.py(rules.toml loader)
+- ethos/domain/prove.py(code_size_report reducer)、status.py(纯 reducer)
+- cli.py 3224 → 3143 eff-LOC(git/config/status 组已抽)
+
+## 真实收敛路径(关键洞察 — cli.py 大头是命令体不是 helper)
+
+cli.py 3143→400 需移出 ~2743 行。**大头是 75 个命令体,不是 44 个 helper。**
+真正的"薄命令面"收敛 = 命令体业务逻辑下沉到 domain,命令只留 `bind-args → 一次 domain 调用 → _emit(json)`。
+
+**剩余最大块(批量抽取目标,按 workflow 施工图):**
+- _rule_attestation_for_evaluation(近千行,→ domain/land 规则证明)
+- _campaign_closeout_report 538 + _closeout_bootstrap_package 417(→ domain/land 闭环)
+- _run_inprocess_cli_gate 177 + _rule_fact_snapshot 145(→ domain/prove、domain/plan)
+- audit 组(_product_repository_audit/_adopter_audit → domain/status + adapters)
+
+**方法纪律(每步):** 逻辑移 domain/adapters,删 cli.py wrapper 并改调用点(不留委托壳,才真瘦身),每步 AST 达标 + import-linter KEPT + 零回归才提交,ratchet 逐步下调。
+
+## 收敛机制(让门禁驱动,不依赖单会话手工)
+
+LOC 硬规则的 ratchet 是收敛的 forcing function:cli.py 例外只能下调,永不上调。
+每次抽取后 ratchet 下调锁定进展。这保证收敛单调、不回退,可跨会话持续。

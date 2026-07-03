@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import fnmatch
 import hashlib
 import os
 import shutil
@@ -9,7 +8,7 @@ import tomllib
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
@@ -73,7 +72,6 @@ from ethos_contracts.rules import (
     RuleFactSnapshot,
     stable_digest,
 )
-from ethos_core.action_graph import ActionGraph, ActionNode
 from ethos_core.measure import effective_code_lines
 from ethos_core.result import EthosResult
 from ethos_quality.docs_profile import docs_quality_profile
@@ -120,8 +118,12 @@ from ethos_repository.standards import standard_adapter_registry
 
 from ethos.adapters import config as _cfg
 from ethos.adapters import git as _gitio
+from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
+
+if TYPE_CHECKING:
+    from ethos_core.action_graph import ActionGraph, ActionNode
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
@@ -238,34 +240,7 @@ def _emit(result: EthosResult, json_output: bool) -> None:
 
 
 def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
-    inputs = tuple(sorted(paths)) or ("pyproject.toml",)
-    nodes = (
-        ActionNode(
-            id="status",
-            kind="inspection",
-            command=("ethos", "status", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
-        ActionNode(
-            id="prove",
-            kind="proof",
-            command=("ethos", "prove", "--json"),
-            inputs=inputs,
-            outputs=("docs/evidence/latest-proof.json",),
-            policy="required",
-        ),
-        ActionNode(
-            id="repository-audit",
-            kind="governance",
-            command=("ethos", "audit", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
-    )
-    return ActionGraph(nodes=nodes)
+    return _plan.graph_for_paths(paths)
 
 
 def _rules_config(root: Path) -> dict[str, object]:
@@ -401,55 +376,14 @@ def _code_size_report(root: Path) -> dict[str, object]:
 
 
 def _path_matches(path: str, pattern: str) -> bool:
-    if pattern.endswith("/**"):
-        prefix = pattern[:-3]
-        return path == prefix or path.startswith(f"{prefix}/")
-    return fnmatch.fnmatchcase(path, pattern)
+    return _plan.path_matches(path, pattern)
 
 
 def _matching_rule_gates(
     root: Path,
     paths: tuple[str, ...],
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    config = _rules_config(root)
-    gates = config.get("gates") if isinstance(config.get("gates"), dict) else {}
-    matched_rules: list[dict[str, object]] = []
-    required_gates: list[dict[str, object]] = []
-    rules = config.get("rule") if isinstance(config.get("rule"), list) else []
-    for raw_rule in rules:
-        if not isinstance(raw_rule, dict):
-            continue
-        matched_paths = [
-            path
-            for path in paths
-            if any(_path_matches(path, pattern) for pattern in _string_list(raw_rule.get("paths")))
-        ]
-        if not matched_paths:
-            continue
-        rule_gates: list[dict[str, object]] = []
-        for gate_id in _string_list(raw_rule.get("requires")):
-            gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
-            gate = {
-                "id": gate_id,
-                "command": (
-                    str(gate_config.get("command", "")) if isinstance(gate_config, dict) else ""
-                ),
-                "blocking": gate_config.get("blocking", True) is not False
-                if isinstance(gate_config, dict)
-                else True,
-            }
-            rule_gates.append(gate)
-            required_gates.append(gate)
-        matched_rules.append(
-            {
-                "id": str(raw_rule.get("id", "")),
-                "risk": str(raw_rule.get("risk", "")),
-                "matched_paths": matched_paths,
-                "required_gates": rule_gates,
-                "evidence": _string_list(raw_rule.get("evidence")),
-            }
-        )
-    return matched_rules, required_gates
+    return _plan.matching_rule_gates(root, paths)
 
 
 def _workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:

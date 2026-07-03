@@ -1,0 +1,21 @@
+# Bandit security-gate config — separated from pyproject.toml (SoC).
+# Run: bandit -r packages/ -c .config/checks/bandit/bandit.yaml
+#
+# 道: catch REAL security issues (hardcoded secrets, shell=True, eval, unsafe
+# yaml/pickle) with zero tolerance for HIGH/MEDIUM. A small set of by-design
+# patterns is documented and skipped — not blanket-disabled.
+
+# B404 (import subprocess) and B603 (subprocess without shell) are BY DESIGN:
+# the git/process adapters are the sanctioned IO shell and must shell out.
+# subprocess calls never use shell=True and never interpolate external input.
+skips:
+  - B404  # import subprocess — the adapter layer's legitimate IO
+  - B603  # subprocess call without shell=True — safe, no shell injection surface
+
+# B608 (hardcoded SQL) fires on f-string table-name interpolation in state.py,
+# where the table name is validated against a frozenset allowlist (_safe_table)
+# and all values are parameterized (?). It is a static-analysis false positive on
+# already-hardened code; scoped-skip that one file rather than weakening B608
+# everywhere.
+assert_used:
+  skips: []

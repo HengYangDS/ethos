@@ -11,6 +11,18 @@ if TYPE_CHECKING:
 
 SCHEMA_VERSION = 1
 
+# Whitelist of event tables. SQL below interpolates the table name (an internal
+# constant, never external input); this allowlist makes that guarantee explicit
+# and defensive — any other value raises before a query is built.
+_EVENT_TABLES = frozenset({"chronicle_events", "events"})
+
+
+def _safe_table(table: str) -> str:
+    if table not in _EVENT_TABLES:
+        msg = f"unknown event table: {table!r}"
+        raise ValueError(msg)
+    return table
+
 
 SCHEMA = (
     """
@@ -250,7 +262,7 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
 
 
 def _table_columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    rows = connection.execute(f"pragma table_info({table})").fetchall()
+    rows = connection.execute(f"pragma table_info({table})").fetchall()  # nosec B608 - table is an internal constant
     return {str(row[1]) for row in rows}
 
 
@@ -274,9 +286,9 @@ def _append_event_row(
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             f"""
-            insert into {table}(created_at, event_type, subject, payload_json)
+            insert into {_safe_table(table)}(created_at, event_type, subject, payload_json)
             values (?, ?, ?, ?)
-            """,
+            """,  # nosec B608 - table via _safe_table allowlist; values parameterized
             (_now(), event_type, subject, json.dumps(payload, sort_keys=True)),
         )
         connection.commit()
@@ -297,9 +309,9 @@ def _list_event_rows(db_path: Path, *, table: str) -> list[dict[str, Any]]:
         rows = connection.execute(
             f"""
             select id, created_at, event_type, subject, payload_json
-            from {table}
+            from {_safe_table(table)}
             order by id
-            """
+            """  # nosec B608 - table via _safe_table allowlist; no external input
         ).fetchall()
     return [
         {

@@ -86,14 +86,14 @@ def workspace_package_config_report(root: Path) -> dict[str, object]:
             "ok": False,
             "path": path.relative_to(root).as_posix(),
             "packages": [],
-            "required_gaps": [f"workspace_config_invalid_toml:{exc.lineno}"],
+            "required_gaps": [f"workspace_config_invalid_toml:{exc}"],
         }
 
     packages = [item for item in payload.get("package", []) if isinstance(item, dict)]
     names = {str(item.get("name", "")) for item in packages if item.get("name")}
     package_paths = {str(item.get("path", "")) for item in packages if item.get("path")}
     identity = "\n".join(sorted(names | package_paths))
-    gaps = [
+    gaps: list[str] = [
         f"workspace_config_retired_product_family:{retired}"
         for retired in RETIRED_PRODUCT_FAMILY_TOKENS
         if retired in identity

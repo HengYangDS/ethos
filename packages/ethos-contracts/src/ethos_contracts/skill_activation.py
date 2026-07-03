@@ -144,7 +144,9 @@ def _without_digest(value: Any) -> Any:
         return {
             key: _without_digest(item)
             for key, item in sorted(value.items())
-            if key not in {"digest", "computed_digest"} and not key.startswith("expected_")
+            if isinstance(key, str)
+            and key not in {"digest", "computed_digest"}
+            and not key.startswith("expected_")
         }
     if isinstance(value, list):
         return [_without_digest(item) for item in value]

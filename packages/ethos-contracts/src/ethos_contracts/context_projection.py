@@ -7,7 +7,7 @@ UNTRUSTED_CONTEXT_LABEL = "UNTRUSTED CONTEXT"
 CONTEXT_PROJECTION_AUTHORITY = "projection"
 CONTEXT_PRIVACY_CEILING = "repo_local"
 FORBIDDEN_CONTEXT_USES = ("proof", "required_gap_closure", "workflow_ruling")
-CONTEXT_RETRIEVAL_SMOKE_QUERIES = (
+CONTEXT_RETRIEVAL_SMOKE_QUERIES: tuple[dict[str, object], ...] = (
     {
         "id": "context-projection-label",
         "query": "UNTRUSTED CONTEXT source verified retrieval",

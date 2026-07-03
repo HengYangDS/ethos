@@ -7,6 +7,7 @@ from ethos_assistants.playbooks import playbooks_report
 from ethos_contracts.governance_context import governance_context
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_contracts.package_ontology import workspace_package_config_report
+from ethos_contracts.system_contracts import system_contracts_report
 from ethos_repository.authority_graph import authority_graph_report
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
@@ -228,6 +229,8 @@ def repository_audit(
     workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
     playbook_report = playbooks_report(root, mode="v2-strict")
     playbook_gaps = [str(gap) for gap in playbook_report["required_gaps"]]
+    system_contracts = system_contracts_report(root)
+    system_contract_gaps = [str(gap) for gap in system_contracts["required_gaps"]]
     gaps = (
         package_missing
         + [f"distribution_adapter_missing:{adapter}" for adapter in distribution_missing]
@@ -246,6 +249,7 @@ def repository_audit(
         + authority_graph_gaps
         + workspace_config_gaps
         + playbook_gaps
+        + system_contract_gaps
     )
     return {
         "ok": not gaps,
@@ -312,5 +316,6 @@ def repository_audit(
         "evolution": evolution,
         "coupling": coupling,
         "openspec": openspec,
+        "system_contracts": system_contracts,
         "required_gaps": gaps,
     }

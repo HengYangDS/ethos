@@ -224,10 +224,6 @@ def _command_data_validation(
     return _prove.command_data_validation(repo, schema_name=schema_name, payload=payload)
 
 
-def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
-    return _land.local_submit_package(branch=branch, submit_branch=submit_branch)
-
-
 def _publication_readiness(
     *,
     branch: str,
@@ -235,26 +231,6 @@ def _publication_readiness(
     policy: BranchRolePolicy,
 ) -> dict[str, object]:
     return _land.publication_readiness(branch=branch, local_ok=local_ok, policy=policy)
-
-
-def _remote_publication_deferred() -> dict[str, object]:
-    return _land.remote_publication_deferred()
-
-
-def _intake_projection_report(repo: Path) -> dict[str, object]:
-    return _land.intake_projection_report(repo)
-
-
-def _trust_closeout_package(
-    *,
-    workspace: dict[str, object],
-    claims: dict[str, object],
-) -> dict[str, object]:
-    return _land.trust_closeout_package(workspace=workspace, claims=claims)
-
-
-def _command_is_executed_proof(command: object) -> bool:
-    return _land.command_is_executed_proof(command)
 
 
 def _campaign_closeout_report(

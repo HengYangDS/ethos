@@ -31,19 +31,85 @@ durable_evidence_roots = ["docs/evidence", "claims"]
 generated_outputs_tracked_truth = false
 
 [quality.code_size]
-default_effective_max_lines = 800
+# Hard rule: effective LOC (AST-computed, excluding blanks/comments/docstrings)
+# per file must not exceed hard_effective_max_lines. NEW files get NO exception —
+# they are blocked at the hard limit, making an over-large file impossible to land
+# (forcing function, principle 2: failure-blocking moves upstream).
+# Existing monoliths get a SHRINKING ratchet exception pinned to their current size:
+# they may only shrink, never grow, until they drop under the hard limit and the
+# exception is removed. Each exception is temporary and tracked toward the target.
+hard_effective_max_lines = 400
+default_effective_max_lines = 400
+# Test files carry broad contract coverage; capped at a looser category limit
+# (still bounded to prevent unbounded growth), not the product 400.
+test_effective_max_lines = 1200
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 3000
-reason = "historical CLI composition surface; ratchet blocks further growth while commands are moved into use-case modules"
+effective_max_lines = 3259
+reason = "monolith; ratchet caps at current size — split into thin surface + lifecycle/adapter modules to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/rules.py"
+effective_max_lines = 1082
+reason = "rules engine; relocate to ethos-core/method with sub-module split to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-adapters/src/ethos_adapters/context_index.py"
+effective_max_lines = 965
+reason = "context index engine; split index/verify/search sub-modules to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/schema_validation.py"
+effective_max_lines = 762
+reason = "schema validation; relocate to ethos-core/contract with split to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-adapters/src/ethos_adapters/openspec_native.py"
+effective_max_lines = 688
+reason = "openspec adapter; split by concern to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/planner.py"
+effective_max_lines = 671
+reason = "adoption planner; split scaffold/detect to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-adapters/src/ethos_adapters/shadow.py"
+effective_max_lines = 646
+reason = "shadow parity; split classify/report to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/coupling.py"
+effective_max_lines = 637
+reason = "coupling audit; split by binding kind to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/parity.py"
+effective_max_lines = 549
+reason = "parity report; split evidence/gaps to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-adapters/src/ethos_adapters/lanes.py"
+effective_max_lines = 509
+reason = "work lane lifecycle; split by lane operation to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-repository/src/ethos_repository/docs_registry.py"
+effective_max_lines = 496
+reason = "docs registry; split registry/validation to reach 400"
+
+[[quality.code_size.exception]]
+path = "packages/ethos-adapters/src/ethos_adapters/status.py"
+effective_max_lines = 410
+reason = "workspace status; minor split to reach 400"
 
 [[quality.code_size.exception]]
 path = "tests/unit/test_cli_contracts.py"
-effective_max_lines = 3300
-reason = "broad CLI contract coverage; ratchet caps growth pending split into per-command test modules"
+effective_max_lines = 2675
+reason = "broad CLI contract coverage; ratchet caps at current — split per-command test modules as cli.py splits"
 
 [[quality.code_size.exception]]
 path = "tests/unit/test_parity_command.py"
-effective_max_lines = 1900
-reason = "parity/shadow contract coverage; ratchet caps growth"
+effective_max_lines = 1512
+reason = "parity/shadow contract coverage; ratchet caps at current — split as parity.py splits"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import fnmatch
 import hashlib
 import os
@@ -430,11 +431,45 @@ def _quality_tool_report(
 
 
 def _effective_code_lines(path: Path) -> int:
+    """Count effective code lines: exclude blank lines, comments, and docstrings.
+
+    Docstrings are excluded via AST (module/class/function docstring spans), so the
+    count reflects real logic surface — the hard-rule metric the code-size gate enforces.
+    """
+    source = path.read_text(encoding="utf-8")
+    docstring_lines: set[int] = set()
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        tree = None
+    if tree is not None:
+        for node in ast.walk(tree):
+            if not isinstance(
+                node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+            ):
+                continue
+            body = getattr(node, "body", None)
+            if not body:
+                continue
+            first = body[0]
+            if (
+                isinstance(first, ast.Expr)
+                and isinstance(first.value, ast.Constant)
+                and isinstance(first.value.value, str)
+            ):
+                end = first.value.end_lineno or first.value.lineno
+                for lineno in range(first.value.lineno, end + 1):
+                    docstring_lines.add(lineno)
     count = 0
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for index, line in enumerate(source.splitlines(), start=1):
         stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            count += 1
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            continue
+        if index in docstring_lines:
+            continue
+        count += 1
     return count
 
 
@@ -447,7 +482,8 @@ def _code_size_policy(root: Path) -> dict[str, object]:
 
 def _code_size_report(root: Path) -> dict[str, object]:
     policy = _code_size_policy(root)
-    default_limit = int(policy.get("default_effective_max_lines") or 800)
+    default_limit = int(policy.get("default_effective_max_lines") or 400)
+    test_limit = int(policy.get("test_effective_max_lines") or default_limit)
     exception_limits = {
         str(item.get("path")): int(item.get("effective_max_lines") or default_limit)
         for item in policy.get("exception", [])
@@ -458,13 +494,16 @@ def _code_size_report(root: Path) -> dict[str, object]:
     for relative in _git_files(root, "*.py"):
         path = root / relative
         effective = _effective_code_lines(path)
-        limit = exception_limits.get(relative, default_limit)
+        is_test = relative.startswith("tests/") or "/tests/" in relative
+        category_limit = test_limit if is_test else default_limit
+        limit = exception_limits.get(relative, category_limit)
         ok = effective <= limit
         records.append(
             {
                 "path": relative,
                 "effective_lines": effective,
                 "limit": limit,
+                "category": "test" if is_test else "product",
                 "exception": relative in exception_limits,
                 "ok": ok,
             }
@@ -474,6 +513,7 @@ def _code_size_report(root: Path) -> dict[str, object]:
     return {
         "ok": not gaps,
         "default_effective_max_lines": default_limit,
+        "test_effective_max_lines": test_limit,
         "required_gaps": gaps,
         "files": records,
     }

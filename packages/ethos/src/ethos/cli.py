@@ -84,7 +84,6 @@ from ethos_repository.evidence import trim_output
 from ethos_repository.evolution import campaign_report
 from ethos_repository.evolution import evolution_ledger
 from ethos_repository.evolution import evolution_report
-from ethos_repository.fleet import inspect_adopter
 from ethos_repository.gates import gate_graph
 from ethos_repository.gates import gate_registry
 from ethos_repository.parity import build_tracked_parity_evidence
@@ -109,6 +108,11 @@ if TYPE_CHECKING:
     from ethos_core.action_graph import ActionGraph
     from ethos_core.action_graph import ActionNode
 
+# Command-group modules register their commands onto the shared *_app objects at
+# import time; importing them here wires those groups into the CLI. Each group
+# imports only its own domain deps, so a group's heavy dependencies load only when
+# that group is imported (lazy path for the common commands).
+from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -116,7 +120,6 @@ from ethos.surface.cli._base import app
 from ethos.surface.cli._base import assistants_app
 from ethos.surface.cli._base import campaign_app
 from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import fleet_app
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import intake_app
 from ethos.surface.cli._base import lane_app
@@ -2457,24 +2460,6 @@ def playbooks_route(
         command="playbooks route",
         ok=bool(report["ok"]),
         state="routed" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@fleet_app.command(name="inspect")
-def fleet_inspect(
-    *,
-    target: Path,
-    json_output: JsonFlag = False,
-) -> None:
-    """Inspect an external repository as an ETHOS adopter."""
-    report = inspect_adopter(target)
-    result = EthosResult(
-        command="fleet inspect",
-        ok=bool(report["ok"]),
-        state="ready" if report["ok"] else "gapped",
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )

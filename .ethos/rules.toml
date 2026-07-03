@@ -37,8 +37,8 @@ generated_outputs_tracked_truth = false
 # — it forces a command aggregator and a logic module to the same bar. Instead:
 #
 #   role=logic   (domain/adapters/kernel reducers): soft 400 / hard 600
-#   role=surface (CLI command groups / aggregators):  soft 800 / hard 1400
-#   role=test    (broad contract coverage):           soft 800 / hard 1200
+#   role=surface (CLI command groups / aggregators):  soft 800
+#   role=test    (broad contract coverage):           soft/hard 1200
 #
 # A GLOBAL hard ceiling (global_hard_effective_max_lines) caps every file so a
 # "surface" label cannot be an excuse for unbounded growth (forcing function,

@@ -1038,11 +1038,20 @@ def init(
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
     ok = not required_gaps
+    hooks_armed = False
+    if do_apply and ok:
+        # Arm write-admission by construction: wire core.hooksPath so the pre-commit
+        # gate is active without a manual `ethos hook install` (tao FP#2 — the gate
+        # must not depend on being remembered).
+        hooks_armed = _gitio.set_hooks_path(target, ".githooks")
     result = EthosResult(
         command="init",
         ok=ok,
         state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
-        summary={"planned_file_count": len(plan_payload["planned_files"])},
+        summary={
+            "planned_file_count": len(plan_payload["planned_files"]),
+            "hooks_armed": hooks_armed,
+        },
         next_actions=("ethos status",),
         required_gaps=required_gaps,
         data=plan_payload,
@@ -1080,11 +1089,18 @@ def adopt(
     plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
     required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
     ok = not required_gaps
+    hooks_armed = False
+    if do_apply and ok:
+        # Arm write-admission by construction (tao FP#2 — not dependent on a manual step).
+        hooks_armed = _gitio.set_hooks_path(target, ".githooks")
     result = EthosResult(
         command="adopt",
         ok=ok,
         state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
-        summary={"planned_file_count": len(plan_payload["planned_files"])},
+        summary={
+            "planned_file_count": len(plan_payload["planned_files"]),
+            "hooks_armed": hooks_armed,
+        },
         next_actions=("ethos status",),
         required_gaps=required_gaps,
         data=plan_payload,

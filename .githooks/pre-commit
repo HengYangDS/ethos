@@ -14,8 +14,9 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 
-# Staged files added/copied/modified/renamed (not deletions).
-mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+# Staged files added/copied/modified/renamed AND deleted — deleting a tracked
+# protected-root file is a mutation the gate must see (ACMRD, not ACMR).
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMRD)
 if [ "${#staged[@]}" -eq 0 ]; then
   exit 0
 fi

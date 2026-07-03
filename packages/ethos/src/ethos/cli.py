@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
-from cyclopts import App, Parameter
+from cyclopts import Parameter
 from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.context_index import (
     context_eval_report,
@@ -125,36 +125,28 @@ from ethos.domain import status as _status
 if TYPE_CHECKING:
     from ethos_core.action_graph import ActionGraph, ActionNode
 
-app = App(name="ethos", help="ETHOS command plane.")
-quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
-campaign_app = App(name="campaign", help="Evolution campaign commands.", show=False)
-intake_app = App(name="intake", help="Intake ledger commands.", show=False)
-assistants_app = App(name="assistants", help="Assistant and protocol projections.", show=False)
-playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.", show=False)
-fleet_app = App(name="fleet", help="External adopter and fleet inspection.", show=False)
-lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
-hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
-parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
-rules_app = App(name="rules", help="Rules Product Kernel operations.", show=False)
-app.command(quality_app)
-app.command(campaign_app)
-app.command(intake_app)
-app.command(assistants_app)
-app.command(playbooks_app)
-app.command(fleet_app)
-app.command(lane_app)
-app.command(hook_app)
-app.command(parity_app)
-app.command(rules_app)
-
-
-JsonFlag = Annotated[bool, Parameter(name="--json")]
-RootOption = Annotated[Path, Parameter(name="--root")]
-ASSISTANT_TRUTH_BOUNDARY = "repository-source-and-contracts"
-
-
-def _root(root: Path | None) -> Path:
-    return (root or Path.cwd()).resolve()
+from ethos.surface.cli._base import (
+    ASSISTANT_TRUTH_BOUNDARY,
+    JsonFlag,
+    RootOption,
+    app,
+    assistants_app,
+    campaign_app,
+    fleet_app,
+    hook_app,
+    intake_app,
+    lane_app,
+    parity_app,
+    playbooks_app,
+    quality_app,
+    rules_app,
+)
+from ethos.surface.cli._base import (
+    emit as _emit,
+)
+from ethos.surface.cli._base import (
+    resolve_root as _root,
+)
 
 
 def _current_head(root: Path) -> str:
@@ -225,18 +217,6 @@ def _adoption_mutation_gaps(
         expect_head=expect_head,
         current_head=current_head,
     )
-
-
-def _emit(result: EthosResult, json_output: bool) -> None:
-    try:
-        if json_output:
-            print(result.to_json())
-            return
-        print(f"{result.command}: {result.state}")
-        for action in result.next_actions:
-            print(f"next: {action}")
-    except BrokenPipeError:
-        return
 
 
 def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:

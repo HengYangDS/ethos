@@ -6,28 +6,44 @@ line-length = 100
 target-version = "py312"
 
 [lint]
-# Tightened rule set — correctness + determinism + elegance (道: raise the quality
-# floor, make low-quality unrepresentable). Base E/F/I/UP/B/SIM plus:
-# comprehension clarity (C4), return hygiene (RET), pathlib (PTH), pytest style (PT),
-# naming (N), builtin-shadowing (A), implicit-str-concat (ISC), flake8-flynt (FLY),
-# perf (PERF), typing-only imports (TC), tidy imports (TID), unnecessary code (PIE),
-# ruff's own checks (RUF), and mccabe cyclomatic complexity (C90).
+# Maximalist rule set toward di-effect's 57-family posture (道: raise the quality
+# floor, make low-quality unrepresentable). Correctness + determinism + elegance +
+# security + exception hygiene + boolean-trap + private-access + logging.
 select = [
-    "E", "F", "I", "UP", "B", "SIM",
+    "E", "W", "F", "I", "UP", "B", "SIM",
     "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF",
     "C90",
+    "PL", "TRY", "FBT", "SLF", "ARG", "PGH", "FURB", "G", "DTZ", "EM", "LOG",
+    "BLE", "RSE", "SLOT", "PIE", "INP", "T20", "YTT", "ASYNC",
 ]
 # Ratchet: correctness rules enforced everywhere, zero tolerance. A small set of
-# pre-existing STYLE debt is frozen (not permanent — dissolves during the
-# package-split migration that rewrites these modules). New code gets the full set.
+# pre-existing STYLE/idiom debt is frozen (not permanent — dissolves as modules are
+# rewritten during the surface split). New code gets the full set.
 ignore = [
-    "PERF401",  # manual list-comprehension: 38 in junk-drawer modules to be dissolved
+    "PERF401",  # manual list-comprehension: junk-drawer modules to be dissolved
+    "TRY003",   # long exception messages: pervasive, low-value to reflow now
+    "EM101",    # string-literal in exception: idiom churn, dissolves on rewrite
+    "EM102",    # f-string in exception: same
+    "PLR0913",  # too-many-arguments: some command handlers legitimately wide
+    "PLC0415",  # import-not-at-top: lazy imports are the perf design (surface split)
+    "PLR2004",  # magic-value-comparison: pervasive in report reducers; ratchet debt
+    "PLR0911",  # too-many-return-statements: report reducers branch by verdict
+    "PLR0912",  # too-many-branches: existing report reducers; dissolves on split
+    "PLR0915",  # too-many-statements: same; C90 complexity already caps the worst
+    "BLE001",   # blind-except: DELIBERATE defensive adapter boundaries (see plan.py
+                # rule_fact_snapshot — every source is isolated so one failure can't
+                # sink the snapshot; each is marked pragma: no cover)
+    "ARG001",   # unused-function-argument: cyclopts/adapter signatures need the arg
+    "ARG002",   # unused-method-argument: same (protocol conformance)
+    "FBT001",   # bool positional arg: the CLI flag idiom (emit(result, json_output),
+                # called 78x); FBT002/FBT003 stay armed for the worse cases
+    "DTZ011",   # date.today(): a calendar date (not a timestamp) needs no tz
 ]
 
 [lint.mccabe]
 # Cyclomatic complexity cap — no function may branch beyond this (borrowed from
 # di-effect's max-complexity=10). Forces decomposition of tangled logic.
-max-complexity = 12
+max-complexity = 10
 
 [lint.isort]
 # Decision §4.3 (see .ethos/quality-regime-decision.md): one import per line, so

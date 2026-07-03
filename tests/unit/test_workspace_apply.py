@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import ethos_adapters.mutation as mutation
+from ethos_adapters import mutation
 from ethos_adapters.mutation import MutationRequest
 from ethos_adapters.mutation import apply_land_to_candidate
 from ethos_adapters.mutation import evaluate_mutation

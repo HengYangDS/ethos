@@ -121,6 +121,7 @@ from ethos_repository.standards import standard_adapter_registry
 from ethos.adapters import config as _cfg
 from ethos.adapters import git as _gitio
 from ethos.domain import prove as _prove
+from ethos.domain import status as _status
 
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
@@ -216,18 +217,12 @@ def _adoption_mutation_gaps(
     expect_head: str | None,
     current_head: str,
 ) -> tuple[str, ...]:
-    if not apply:
-        return ()
-    gaps: list[str] = []
-    if not authorize:
-        gaps.append("authorization_required")
-    if current_head == "untracked":
-        gaps.append("git_repository_missing")
-    if not expect_head:
-        gaps.append("expect_head_required")
-    elif expect_head != current_head:
-        gaps.append("expected_head_mismatch")
-    return tuple(gaps)
+    return _status.adoption_mutation_gaps(
+        apply=apply,
+        authorize=authorize,
+        expect_head=expect_head,
+        current_head=current_head,
+    )
 
 
 def _emit(result: EthosResult, json_output: bool) -> None:
@@ -331,9 +326,7 @@ def _adopter_audit(root: Path) -> dict[str, object]:
 
 
 def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
+    return _status.string_list(value)
 
 
 def _sha256_file(path: Path) -> str:

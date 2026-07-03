@@ -4,18 +4,14 @@ import re
 import subprocess
 from pathlib import Path
 
-from ethos_contracts.branch_roles import (
-    ROLE_ACCEPTED_ROOT,
-    ROLE_WORK_LANE,
-    load_branch_role_policy,
-)
-
-from ethos_adapters.state import (
-    acquire_lease,
-    active_leases,
-    update_lease_payload,
-)
-from ethos_adapters.status import changed_paths, workspace_status
+from ethos_adapters.state import acquire_lease
+from ethos_adapters.state import active_leases
+from ethos_adapters.state import update_lease_payload
+from ethos_adapters.status import changed_paths
+from ethos_adapters.status import workspace_status
+from ethos_contracts.branch_roles import ROLE_ACCEPTED_ROOT
+from ethos_contracts.branch_roles import ROLE_WORK_LANE
+from ethos_contracts.branch_roles import load_branch_role_policy
 
 _SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 

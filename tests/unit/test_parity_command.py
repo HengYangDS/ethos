@@ -6,17 +6,16 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from ethos_adapters import shadow
-from ethos_adapters.shadow import (
-    _accepted_semantic_differences,
-    _run_embedded,
-    _run_external,
-    _semantic_diff,
-    run_shadow_parity,
-)
-from ethos_repository.parity import parity_gaps_report, shadow_parity_report
-from ethos_repository.schema_validation import validate_schema_instance
 
+from ethos_adapters import shadow
+from ethos_adapters.shadow import _accepted_semantic_differences
+from ethos_adapters.shadow import _run_embedded
+from ethos_adapters.shadow import _run_external
+from ethos_adapters.shadow import _semantic_diff
+from ethos_adapters.shadow import run_shadow_parity
+from ethos_repository.parity import parity_gaps_report
+from ethos_repository.parity import shadow_parity_report
+from ethos_repository.schema_validation import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 
 MIGRATED_CAPABILITIES = [

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import tomllib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim

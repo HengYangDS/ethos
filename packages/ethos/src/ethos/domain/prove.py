@@ -12,10 +12,9 @@ from __future__ import annotations
 import fnmatch
 from typing import TYPE_CHECKING
 
-from ethos_core.measure import effective_code_lines
-
 from ethos.adapters import git as _git
 from ethos.adapters.config import code_size_policy
+from ethos_core.measure import effective_code_lines
 
 if TYPE_CHECKING:
     from pathlib import Path

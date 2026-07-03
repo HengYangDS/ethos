@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.docs_registry import (
-    build_docs_registry,
-    command_examples_report,
-    docs_health_report,
-)
+from ethos_repository.docs_registry import build_docs_registry
+from ethos_repository.docs_registry import command_examples_report
+from ethos_repository.docs_registry import docs_health_report
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:

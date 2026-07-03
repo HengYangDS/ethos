@@ -29,6 +29,22 @@ ignore = [
 # di-effect's max-complexity=10). Forces decomposition of tangled logic.
 max-complexity = 12
 
+[lint.isort]
+# Decision §4.3 (see .ethos/quality-regime-decision.md): one import per line, so
+# diffs and grep stay clean and import-churn is line-addressable. Absolute imports
+# only (TID enforces the ban on relative). All ethos packages are first-party.
+force-single-line = true
+known-first-party = [
+    "ethos",
+    "ethos_adapters",
+    "ethos_assistants",
+    "ethos_contracts",
+    "ethos_core",
+    "ethos_quality",
+    "ethos_repository",
+    "ethos_test",
+]
+
 # NOTE: per-file-ignores stay in pyproject.toml — ruff resolves their glob paths
 # relative to the config file's own directory, so root-relative patterns
 # (tests/**, packages/...) only match correctly from the project-root pyproject.

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos_assistants.skill_packages import (
-    compute_skill_package_digest,
-    validate_skill_package_manifest,
-)
+from ethos_assistants.skill_packages import compute_skill_package_digest
+from ethos_assistants.skill_packages import validate_skill_package_manifest
 
 if TYPE_CHECKING:
     from pathlib import Path

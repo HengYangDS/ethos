@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from ethos_quality.models import QualityAssetClass, ToolAdapterProfile
+from ethos_quality.models import QualityAssetClass
+from ethos_quality.models import ToolAdapterProfile
 
 ASSET_CLASSES = (
     QualityAssetClass(

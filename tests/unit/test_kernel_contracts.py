@@ -3,11 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import ethos_core.models as models
 import pytest
-from ethos_core.action_graph import ActionGraph, ActionNode
+
+import ethos_core.models as models
+from ethos_core.action_graph import ActionGraph
+from ethos_core.action_graph import ActionNode
 from ethos_core.kernel import kernel_chain
-from ethos_core.models import Change, Commitment, Evidence, Subject
+from ethos_core.models import Change
+from ethos_core.models import Commitment
+from ethos_core.models import Evidence
+from ethos_core.models import Subject
 from ethos_core.result import EthosResult
 from ethos_repository.schema_validation import validate_schema_instance
 

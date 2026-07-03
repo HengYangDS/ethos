@@ -2,7 +2,7 @@
 version = 2
 source_of_truth = "repository"
 expected_registry_digest = "sha256:0ef442034f1663278bc8eedc082d42f4eabd9ad65cd0b0c72122fd395170a421"
-expected_generator_digest = "sha256:20e2c447726aba2d0aa2e65ffd6830889f2a5a59c276c44331937c301c45301c"
+expected_generator_digest = "sha256:409765023d13152bec47852d1e0b217f06f936c3402f639f7cd155bc1035c4b8"
 
 [[skill]]
 id = "ethos-repository-governance"

@@ -8,11 +8,9 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos_contracts.package_ontology import (
-    RETIRED_PRODUCT_FAMILIES,
-    RETIRED_PRODUCT_FAMILY_TOKENS,
-    package_ontology_report,
-)
+from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
+from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_contracts.package_ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {

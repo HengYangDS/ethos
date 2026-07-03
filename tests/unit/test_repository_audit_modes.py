@@ -56,7 +56,6 @@ def test_quality_release_avoids_full_repository_audit(monkeypatch) -> None:
 
 def test_default_prove_uses_shallow_repository_audit(monkeypatch) -> None:
     import ethos.cli as cli_module
-
     from tests.support import ethos_cli_runner
 
     def forbidden_openspec(*_args: object, **_kwargs: object) -> dict[str, object]:
@@ -76,7 +75,6 @@ def test_default_prove_uses_shallow_repository_audit(monkeypatch) -> None:
 
 def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
     import ethos.cli as cli_module
-
     from tests.support import ethos_cli_runner
 
     def forbidden_openspec(*_args: object, **_kwargs: object) -> dict[str, object]:

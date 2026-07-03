@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from ethos_repository.schema_validation import validate_schema_instance
-from ethos_test.fixtures import (
-    complete_governance_lifecycle,
-    malformed_governance_lifecycle,
-    reference_adopter_profile_fixture,
-)
+from ethos_test.fixtures import complete_governance_lifecycle
+from ethos_test.fixtures import malformed_governance_lifecycle
+from ethos_test.fixtures import reference_adopter_profile_fixture
 
 
 def test_complete_governance_lifecycle_fixture_validates_contracts() -> None:

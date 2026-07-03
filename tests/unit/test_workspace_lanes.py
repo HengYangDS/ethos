@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos_adapters.lanes import (
-    bind_work_lane_claim,
-    refresh_work_lane_base,
-    retire_landed_work_lanes,
-    start_work_lane,
-)
+from ethos_adapters.lanes import bind_work_lane_claim
+from ethos_adapters.lanes import refresh_work_lane_base
+from ethos_adapters.lanes import retire_landed_work_lanes
+from ethos_adapters.lanes import start_work_lane
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.state import active_leases
 from ethos_adapters.status import workspace_status

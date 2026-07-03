@@ -5,143 +5,127 @@ import os
 import shutil
 import subprocess
 import tomllib
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr
+from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
+from typing import Annotated
+
+from cyclopts import Parameter
 
 import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
-from cyclopts import Parameter
-from ethos_adapters.commit_policy import signature_policy_report
-from ethos_adapters.context_index import (
-    context_eval_report,
-    purge_context_index,
-    rebuild_context_index,
-    search_context_index,
-)
-from ethos_adapters.hook_admission import hook_admission_report
-from ethos_adapters.lanes import (
-    bind_work_lane_claim,
-    bootstrap_candidate,
-    refresh_work_lane_base,
-    retire_landed_work_lanes,
-    start_work_lane,
-)
-from ethos_adapters.mutation import (
-    MutationDecision,
-    MutationRequest,
-    apply_candidate_to_accepted,
-    apply_land_to_candidate,
-    candidate_base_report,
-    evaluate_closeout_mutation,
-    evaluate_mutation,
-)
-from ethos_adapters.openspec_native import (
-    completed_active_changes_report as openspec_completed_active_changes_report,
-)
-from ethos_adapters.openspec_native import (
-    openspec_governance_report,
-)
-from ethos_adapters.prewrite import prewrite_guard
-from ethos_adapters.runner import (
-    ActionRunResult,
-    DryRunRunner,
-    LocalSubprocessRunner,
-    classify_action_result,
-)
-from ethos_adapters.state import initialize_state
-from ethos_adapters.status import workspace_status
-from ethos_assistants.context import context_bundle
-from ethos_assistants.mcp import mcp_manifest
-from ethos_assistants.playbooks import playbooks_report, route_playbook
-from ethos_assistants.projections import projection_contract
-from ethos_assistants.server import mcp_server_descriptor
-from ethos_contracts.branch_roles import BranchRolePolicy, load_branch_role_policy
-from ethos_contracts.context_projection import (
-    context_projection_contract,
-    context_retrieval_smoke_queries,
-)
-from ethos_contracts.package_ontology import (
-    package_ontology_report,
-    workspace_package_config_report,
-)
-from ethos_contracts.rules import (
-    RuleAttestation,
-    RuleFactSnapshot,
-)
-from ethos_core.result import EthosResult
-from ethos_quality.docs_profile import docs_quality_profile
-from ethos_quality.profiles import product_quality_profile, tool_profiles
-from ethos_quality.proof_policy import proof_lattice
-from ethos_repository.attestation import release_attestation, sbom_projection
-from ethos_repository.claims import claims_report
-from ethos_repository.command_registry import command_registry_report
-from ethos_repository.coupling import coupling_audit_report
-from ethos_repository.docs_registry import (
-    build_docs_registry,
-    command_examples_report,
-    docs_health_report,
-    docs_quality_report,
-)
-from ethos_repository.evidence import EvidenceSet, ProofRun, provenance_envelope, trim_output
-from ethos_repository.evolution import campaign_report, evolution_ledger, evolution_report
-from ethos_repository.fleet import inspect_adopter
-from ethos_repository.gates import gate_graph, gate_registry
-from ethos_repository.parity import (
-    build_tracked_parity_evidence,
-    parity_gaps_report,
-    parity_ledger_report,
-    shadow_parity_report,
-    write_tracked_parity_evidence,
-)
-from ethos_repository.planner import (
-    adoption_plan,
-    adoption_scaffold_report,
-    available_profiles,
-)
-from ethos_repository.release import release_policy_report
-from ethos_repository.rules import (
-    compile_rules,
-    coverage_report,
-    explain_rules_target,
-    policy_exceptions_report,
-    rules_check_report,
-    rules_evaluation_report,
-)
-from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
-from ethos_repository.standards import standard_adapter_registry
-
 from ethos.adapters import git as _gitio
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
+from ethos_adapters.commit_policy import signature_policy_report
+from ethos_adapters.context_index import context_eval_report
+from ethos_adapters.context_index import purge_context_index
+from ethos_adapters.context_index import rebuild_context_index
+from ethos_adapters.context_index import search_context_index
+from ethos_adapters.hook_admission import hook_admission_report
+from ethos_adapters.lanes import bind_work_lane_claim
+from ethos_adapters.lanes import bootstrap_candidate
+from ethos_adapters.lanes import refresh_work_lane_base
+from ethos_adapters.lanes import retire_landed_work_lanes
+from ethos_adapters.lanes import start_work_lane
+from ethos_adapters.mutation import MutationDecision
+from ethos_adapters.mutation import MutationRequest
+from ethos_adapters.mutation import apply_candidate_to_accepted
+from ethos_adapters.mutation import apply_land_to_candidate
+from ethos_adapters.mutation import candidate_base_report
+from ethos_adapters.mutation import evaluate_closeout_mutation
+from ethos_adapters.mutation import evaluate_mutation
+from ethos_adapters.openspec_native import (
+    completed_active_changes_report as openspec_completed_active_changes_report,
+)
+from ethos_adapters.openspec_native import openspec_governance_report
+from ethos_adapters.prewrite import prewrite_guard
+from ethos_adapters.runner import ActionRunResult
+from ethos_adapters.runner import DryRunRunner
+from ethos_adapters.runner import LocalSubprocessRunner
+from ethos_adapters.runner import classify_action_result
+from ethos_adapters.state import initialize_state
+from ethos_adapters.status import workspace_status
+from ethos_assistants.context import context_bundle
+from ethos_assistants.mcp import mcp_manifest
+from ethos_assistants.playbooks import playbooks_report
+from ethos_assistants.playbooks import route_playbook
+from ethos_assistants.projections import projection_contract
+from ethos_assistants.server import mcp_server_descriptor
+from ethos_contracts.branch_roles import BranchRolePolicy
+from ethos_contracts.branch_roles import load_branch_role_policy
+from ethos_contracts.context_projection import context_projection_contract
+from ethos_contracts.context_projection import context_retrieval_smoke_queries
+from ethos_contracts.package_ontology import package_ontology_report
+from ethos_contracts.package_ontology import workspace_package_config_report
+from ethos_contracts.rules import RuleAttestation
+from ethos_contracts.rules import RuleFactSnapshot
+from ethos_core.result import EthosResult
+from ethos_quality.docs_profile import docs_quality_profile
+from ethos_quality.profiles import product_quality_profile
+from ethos_quality.profiles import tool_profiles
+from ethos_quality.proof_policy import proof_lattice
+from ethos_repository.attestation import release_attestation
+from ethos_repository.attestation import sbom_projection
+from ethos_repository.claims import claims_report
+from ethos_repository.command_registry import command_registry_report
+from ethos_repository.coupling import coupling_audit_report
+from ethos_repository.docs_registry import build_docs_registry
+from ethos_repository.docs_registry import command_examples_report
+from ethos_repository.docs_registry import docs_health_report
+from ethos_repository.docs_registry import docs_quality_report
+from ethos_repository.evidence import EvidenceSet
+from ethos_repository.evidence import ProofRun
+from ethos_repository.evidence import provenance_envelope
+from ethos_repository.evidence import trim_output
+from ethos_repository.evolution import campaign_report
+from ethos_repository.evolution import evolution_ledger
+from ethos_repository.evolution import evolution_report
+from ethos_repository.fleet import inspect_adopter
+from ethos_repository.gates import gate_graph
+from ethos_repository.gates import gate_registry
+from ethos_repository.parity import build_tracked_parity_evidence
+from ethos_repository.parity import parity_gaps_report
+from ethos_repository.parity import parity_ledger_report
+from ethos_repository.parity import shadow_parity_report
+from ethos_repository.parity import write_tracked_parity_evidence
+from ethos_repository.planner import adoption_plan
+from ethos_repository.planner import adoption_scaffold_report
+from ethos_repository.planner import available_profiles
+from ethos_repository.release import release_policy_report
+from ethos_repository.rules import compile_rules
+from ethos_repository.rules import coverage_report
+from ethos_repository.rules import explain_rules_target
+from ethos_repository.rules import policy_exceptions_report
+from ethos_repository.rules import rules_check_report
+from ethos_repository.rules import rules_evaluation_report
+from ethos_repository.schema_validation import schema_validation_report
+from ethos_repository.schema_validation import validate_schema_instance
+from ethos_repository.standards import standard_adapter_registry
 
 if TYPE_CHECKING:
-    from ethos_core.action_graph import ActionGraph, ActionNode
+    from ethos_core.action_graph import ActionGraph
+    from ethos_core.action_graph import ActionNode
 
-from ethos.surface.cli._base import (
-    ASSISTANT_TRUTH_BOUNDARY,
-    JsonFlag,
-    RootOption,
-    app,
-    assistants_app,
-    campaign_app,
-    fleet_app,
-    hook_app,
-    intake_app,
-    lane_app,
-    parity_app,
-    playbooks_app,
-    quality_app,
-    rules_app,
-)
-from ethos.surface.cli._base import (
-    emit as _emit,
-)
-from ethos.surface.cli._base import (
-    resolve_root as _root,
-)
+from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
+from ethos.surface.cli._base import JsonFlag
+from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
+from ethos.surface.cli._base import assistants_app
+from ethos.surface.cli._base import campaign_app
+from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import fleet_app
+from ethos.surface.cli._base import hook_app
+from ethos.surface.cli._base import intake_app
+from ethos.surface.cli._base import lane_app
+from ethos.surface.cli._base import parity_app
+from ethos.surface.cli._base import playbooks_app
+from ethos.surface.cli._base import quality_app
+from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import rules_app
 
 
 def _current_head(root: Path) -> str:

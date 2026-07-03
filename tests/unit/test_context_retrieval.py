@@ -6,12 +6,10 @@ import sqlite3
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos_adapters.context_index import (
-    context_eval_report,
-    default_retrieval_db_path,
-    rebuild_context_index,
-    search_context_index,
-)
+from ethos_adapters.context_index import context_eval_report
+from ethos_adapters.context_index import default_retrieval_db_path
+from ethos_adapters.context_index import rebuild_context_index
+from ethos_adapters.context_index import search_context_index
 from ethos_repository.schema_validation import validate_schema_instance
 from ethos_test.fixtures import context_retrieval_smoke_queries
 

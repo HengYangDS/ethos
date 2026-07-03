@@ -2,27 +2,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_contracts.rules import (
-    PolicyException,
-    Rule,
-    RuleAttestation,
-    RuleEvalRequest,
-    RuleFactSnapshot,
-    RuleSet,
-    rule_attestation_gaps,
-)
-from ethos_repository.rules import (
-    compile_rules,
-    coverage_report,
-    migrate_legacy_rules,
-    policy_exceptions_report,
-    rules_check_report,
-    rules_docs_manifest_report,
-    rules_evaluation_report,
-    rules_layer_report,
-)
+from ethos_contracts.rules import PolicyException
+from ethos_contracts.rules import Rule
+from ethos_contracts.rules import RuleAttestation
+from ethos_contracts.rules import RuleEvalRequest
+from ethos_contracts.rules import RuleFactSnapshot
+from ethos_contracts.rules import RuleSet
+from ethos_contracts.rules import rule_attestation_gaps
+from ethos_repository.rules import compile_rules
+from ethos_repository.rules import coverage_report
+from ethos_repository.rules import migrate_legacy_rules
+from ethos_repository.rules import policy_exceptions_report
+from ethos_repository.rules import rules_check_report
+from ethos_repository.rules import rules_docs_manifest_report
+from ethos_repository.rules import rules_evaluation_report
+from ethos_repository.rules import rules_layer_report
 from ethos_repository.schema_validation import validate_schema_instance
-from ethos_test.fixtures import normalized_rule_shadow_fixtures, rules_conformance_profiles
+from ethos_test.fixtures import normalized_rule_shadow_fixtures
+from ethos_test.fixtures import rules_conformance_profiles
 
 
 def _complete_snapshot(

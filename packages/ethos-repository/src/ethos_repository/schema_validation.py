@@ -5,12 +5,14 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from ethos_contracts.skill_activation import normalize_skill_activation, skill_registry_digest
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
+from jsonschema.exceptions import ValidationError
+
+from ethos_contracts.skill_activation import normalize_skill_activation
+from ethos_contracts.skill_activation import skill_registry_digest
 from ethos_quality.gates import product_gate_plan
 from ethos_quality.profiles import product_quality_profile
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import SchemaError, ValidationError
-
 from ethos_repository.docs_registry import docs_health_report
 from ethos_repository.gates import gate_registry
 from ethos_repository.governance_profiles import governance_profile_report

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.command_registry import command_registry_report, public_commands
+from ethos_repository.command_registry import command_registry_report
+from ethos_repository.command_registry import public_commands
 from ethos_repository.docs_registry import command_examples_report
 
 

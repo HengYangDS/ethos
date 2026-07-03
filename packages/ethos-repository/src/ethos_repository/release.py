@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import tomllib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from ethos_contracts.branch_roles import load_branch_role_policy
 

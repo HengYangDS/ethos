@@ -3,7 +3,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from ethos_core.action_graph import ActionGraph, ActionNode
+from ethos_core.action_graph import ActionGraph
+from ethos_core.action_graph import ActionNode
 from ethos_quality.gates import quality_gate_registry
 
 

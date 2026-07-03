@@ -11,8 +11,8 @@ from ethos_contracts.branch_roles import load_branch_role_policy
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_repository.planner import adoption_plan
 from ethos_repository.schema_validation import validate_schema_instance
-
-from tests.support.ethos_cli_runner import run_ethos, run_ethos_raw
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def git(root: Path, *args: str) -> str:

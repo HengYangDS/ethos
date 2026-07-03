@@ -6,7 +6,9 @@ import tomllib
 from typing import TYPE_CHECKING
 from urllib.parse import unquote
 
-from ethos_repository.command_registry import RETIRED_PUBLIC_ROOTS, known_commands, public_commands
+from ethos_repository.command_registry import RETIRED_PUBLIC_ROOTS
+from ethos_repository.command_registry import known_commands
+from ethos_repository.command_registry import public_commands
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -5,12 +5,11 @@ from pathlib import Path
 
 from ethos_core.result import EthosResult
 from ethos_repository.coupling import coupling_audit_report
-from ethos_repository.gates import gate_graph, gate_registry
-from ethos_repository.schema_validation import (
-    schema_validation_report,
-    validate_ethos_result,
-    validate_schema_instance,
-)
+from ethos_repository.gates import gate_graph
+from ethos_repository.gates import gate_registry
+from ethos_repository.schema_validation import schema_validation_report
+from ethos_repository.schema_validation import validate_ethos_result
+from ethos_repository.schema_validation import validate_schema_instance
 
 ROLE_POLICY_SAMPLE = {
     "release_branch": "main",

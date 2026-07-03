@@ -8,11 +8,11 @@ from __future__ import annotations
 import fnmatch
 from typing import TYPE_CHECKING
 
-from ethos_contracts.rules import stable_digest
-from ethos_core.action_graph import ActionGraph, ActionNode
-
 from ethos.adapters.config import rules_config
 from ethos.domain.status import string_list
+from ethos_contracts.rules import stable_digest
+from ethos_core.action_graph import ActionGraph
+from ethos_core.action_graph import ActionNode
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -3,17 +3,15 @@ from __future__ import annotations
 import fnmatch
 import tomllib
 from datetime import date
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
-from ethos_contracts.rules import (
-    PolicyException,
-    Rule,
-    RuleEvalRequest,
-    RuleFactSnapshot,
-    RuleSet,
-    stable_digest,
-)
-
+from ethos_contracts.rules import PolicyException
+from ethos_contracts.rules import Rule
+from ethos_contracts.rules import RuleEvalRequest
+from ethos_contracts.rules import RuleFactSnapshot
+from ethos_contracts.rules import RuleSet
+from ethos_contracts.rules import stable_digest
 from ethos_repository.gates import gate_registry
 from ethos_repository.schema_validation import validate_schema_instance
 

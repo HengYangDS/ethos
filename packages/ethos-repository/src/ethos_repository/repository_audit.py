@@ -5,11 +5,8 @@ from pathlib import Path
 
 from ethos_assistants.playbooks import playbooks_report
 from ethos_contracts.governance_context import governance_context
-from ethos_contracts.package_ontology import (
-    package_ontology_report,
-    workspace_package_config_report,
-)
-
+from ethos_contracts.package_ontology import package_ontology_report
+from ethos_contracts.package_ontology import workspace_package_config_report
 from ethos_repository.authority_graph import authority_graph_report
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report

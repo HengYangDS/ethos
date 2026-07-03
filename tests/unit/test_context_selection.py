@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from ethos_assistants.context import context_bundle
-from ethos_assistants.context_selection import default_context_policy, selection_report
+from ethos_assistants.context_selection import default_context_policy
+from ethos_assistants.context_selection import selection_report
 
 
 def test_default_context_policy_forbids_proof_and_gap_closure() -> None:

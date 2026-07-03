@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ethos_contracts.context_projection import (
-    CONTEXT_PROJECTION_AUTHORITY,
-    UNTRUSTED_CONTEXT_LABEL,
-)
-
 from ethos_assistants.context_selection import selection_report
+from ethos_contracts.context_projection import CONTEXT_PROJECTION_AUTHORITY
+from ethos_contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
 
 
 def context_bundle(

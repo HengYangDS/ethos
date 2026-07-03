@@ -3,14 +3,12 @@ from __future__ import annotations
 import sqlite3
 from typing import TYPE_CHECKING
 
-from ethos_adapters.state import (
-    active_leases,
-    append_chronicle_event,
-    append_event,
-    initialize_state,
-    list_chronicle_events,
-    list_events,
-)
+from ethos_adapters.state import active_leases
+from ethos_adapters.state import append_chronicle_event
+from ethos_adapters.state import append_event
+from ethos_adapters.state import initialize_state
+from ethos_adapters.state import list_chronicle_events
+from ethos_adapters.state import list_events
 
 if TYPE_CHECKING:
     from pathlib import Path

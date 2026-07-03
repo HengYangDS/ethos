@@ -10,9 +10,11 @@ surface acyclic.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
+from typing import Annotated
 
-from cyclopts import App, Parameter
+from cyclopts import App
+from cyclopts import Parameter
 
 if TYPE_CHECKING:
     from ethos_core.result import EthosResult

@@ -1176,6 +1176,7 @@ def test_quality_help_lists_canonical_commands() -> None:
     assert commands == {
         "asset-policy",
         "claims",
+        "code-size",
         "command-examples",
         "command-registry",
         "command-surface",
@@ -1186,6 +1187,8 @@ def test_quality_help_lists_canonical_commands() -> None:
         "evidence-freshness",
         "format-policy",
         "gates",
+        "markdown-links",
+        "npm",
         "package-ontology",
         "projection-drift",
         "proof-policy",
@@ -1195,8 +1198,11 @@ def test_quality_help_lists_canonical_commands() -> None:
         "release-policy",
         "sbom",
         "schemas",
+        "shell",
         "standards",
         "tool-profiles",
+        "toml",
+        "yaml",
     }
 
 

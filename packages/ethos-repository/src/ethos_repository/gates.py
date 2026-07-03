@@ -212,11 +212,17 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "unit-architecture",
             "ruff",
             "build",
+            "markdown-links",
+            "shell-lint",
+            "toml-config",
+            "yaml-config",
             "markdown-structure",
             "format-policy",
             "asset-determinism",
             "schema-contracts",
             "proof-policy",
+            "python-size",
+            "npm-pack",
         )
     return ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2")
 

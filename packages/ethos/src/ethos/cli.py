@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import os
+import shutil
 import subprocess
 import tomllib
 from contextlib import redirect_stderr, redirect_stdout
@@ -349,6 +350,118 @@ def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return f"sha256:{digest.hexdigest()}"
+
+
+def _git_files(root: Path, *patterns: str) -> list[str]:
+    command = ["git", "ls-files", *patterns]
+    completed = subprocess.run(
+        command,
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return []
+    return [line for line in completed.stdout.splitlines() if line]
+
+
+def _quality_tool_report(
+    *,
+    root: Path,
+    id: str,
+    tool: str,
+    command: list[str],
+    files: list[str],
+) -> dict[str, object]:
+    if not files:
+        return {
+            "ok": True,
+            "id": id,
+            "tool": tool,
+            "state": "skipped",
+            "file_count": 0,
+            "required_gaps": [],
+        }
+    if shutil.which(tool) is None:
+        return {
+            "ok": False,
+            "id": id,
+            "tool": tool,
+            "state": "missing_tool",
+            "file_count": len(files),
+            "command": command,
+            "required_gaps": [f"quality_tool_missing:{tool}"],
+        }
+    completed = subprocess.run(
+        command,
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return {
+        "ok": completed.returncode == 0,
+        "id": id,
+        "tool": tool,
+        "state": "passed" if completed.returncode == 0 else "failed",
+        "file_count": len(files),
+        "command": command,
+        "exit_code": completed.returncode,
+        "stdout": trim_output(completed.stdout),
+        "stderr": trim_output(completed.stderr),
+        "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{id}"],
+    }
+
+
+def _effective_code_lines(path: Path) -> int:
+    count = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            count += 1
+    return count
+
+
+def _code_size_policy(root: Path) -> dict[str, object]:
+    rules = _rules_config(root)
+    quality = rules.get("quality") if isinstance(rules.get("quality"), dict) else {}
+    code_size = quality.get("code_size") if isinstance(quality.get("code_size"), dict) else {}
+    return code_size if isinstance(code_size, dict) else {}
+
+
+def _code_size_report(root: Path) -> dict[str, object]:
+    policy = _code_size_policy(root)
+    default_limit = int(policy.get("default_effective_max_lines") or 800)
+    exception_limits = {
+        str(item.get("path")): int(item.get("effective_max_lines") or default_limit)
+        for item in policy.get("exception", [])
+        if isinstance(item, dict) and item.get("path")
+    }
+    records: list[dict[str, object]] = []
+    gaps: list[str] = []
+    for relative in _git_files(root, "*.py"):
+        path = root / relative
+        effective = _effective_code_lines(path)
+        limit = exception_limits.get(relative, default_limit)
+        ok = effective <= limit
+        records.append(
+            {
+                "path": relative,
+                "effective_lines": effective,
+                "limit": limit,
+                "exception": relative in exception_limits,
+                "ok": ok,
+            }
+        )
+        if not ok:
+            gaps.append(f"code_size_exceeded:{relative}:{effective}>{limit}")
+    return {
+        "ok": not gaps,
+        "default_effective_max_lines": default_limit,
+        "required_gaps": gaps,
+        "files": records,
+    }
 
 
 def _path_matches(path: str, pattern: str) -> bool:
@@ -1585,6 +1698,159 @@ def tool_profiles_command(
         state="clean",
         summary={"tool_adapter_count": len(profiles["tool_adapters"])},
         data=profiles,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="markdown-links")
+def markdown_links(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Run markdown link checks through the configured adapter."""
+    repo = _root(root)
+    files = [
+        path
+        for path in _git_files(repo, "*.md")
+        if not path.startswith(("docs/evidence/", "docs/archive/"))
+    ]
+    report = _quality_tool_report(
+        root=repo,
+        id="markdown-links",
+        tool="lychee",
+        command=["lychee", "--offline", "--no-progress", *files],
+        files=files,
+    )
+    result = EthosResult(
+        command="quality markdown-links",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="shell")
+def shell_quality(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Run shell script lint checks through ShellCheck."""
+    repo = _root(root)
+    files = _git_files(repo, "*.sh")
+    report = _quality_tool_report(
+        root=repo,
+        id="shell-lint",
+        tool="shellcheck",
+        command=["shellcheck", *files],
+        files=files,
+    )
+    result = EthosResult(
+        command="quality shell",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="toml")
+def toml_quality(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Run TOML syntax and format checks through Taplo."""
+    repo = _root(root)
+    files = _git_files(repo, "*.toml")
+    report = _quality_tool_report(
+        root=repo,
+        id="toml-config",
+        tool="taplo",
+        command=["taplo", "check", *files],
+        files=files,
+    )
+    result = EthosResult(
+        command="quality toml",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="yaml")
+def yaml_quality(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Run YAML projection checks through yamllint."""
+    repo = _root(root)
+    files = _git_files(repo, "*.yml", "*.yaml")
+    report = _quality_tool_report(
+        root=repo,
+        id="yaml-config",
+        tool="yamllint",
+        command=["yamllint", "-d", "{extends: relaxed, rules: {line-length: disable}}", *files],
+        files=files,
+    )
+    result = EthosResult(
+        command="quality yaml",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="code-size")
+def code_size(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Check effective source-file size against ratchet limits."""
+    repo = _root(root)
+    report = _code_size_report(repo)
+    result = EthosResult(
+        command="quality code-size",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@quality_app.command(name="npm")
+def npm_quality(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Run npm distribution pack smoke checks without publishing."""
+    repo = _root(root)
+    files = ["package.json"] if (repo / "package.json").exists() else []
+    report = _quality_tool_report(
+        root=repo,
+        id="npm-pack",
+        tool="npm",
+        command=["npm", "run", "test:npm"],
+        files=files,
+    )
+    result = EthosResult(
+        command="quality npm",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
     )
     _emit(result, json_output)
 

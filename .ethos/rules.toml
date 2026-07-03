@@ -29,3 +29,21 @@ state_path = ".ethos/state/state.sqlite"
 state_tracked_truth = false
 durable_evidence_roots = ["docs/evidence", "claims"]
 generated_outputs_tracked_truth = false
+
+[quality.code_size]
+default_effective_max_lines = 800
+
+[[quality.code_size.exception]]
+path = "packages/ethos/src/ethos/cli.py"
+effective_max_lines = 3000
+reason = "historical CLI composition surface; ratchet blocks further growth while commands are moved into use-case modules"
+
+[[quality.code_size.exception]]
+path = "tests/unit/test_cli_contracts.py"
+effective_max_lines = 3300
+reason = "broad CLI contract coverage; ratchet caps growth pending split into per-command test modules"
+
+[[quality.code_size.exception]]
+path = "tests/unit/test_parity_command.py"
+effective_max_lines = 1900
+reason = "parity/shadow contract coverage; ratchet caps growth"

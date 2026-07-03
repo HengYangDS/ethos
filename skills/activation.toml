@@ -47,3 +47,35 @@ commands = [
   "ethos prove --json",
   "ethos report --json",
 ]
+
+[[skill]]
+id = "ethos-change-lifecycle"
+path = "skills/ethos-change-lifecycle/SKILL.md"
+package_manifest = "skills/ethos-change-lifecycle/package.toml"
+subjects = ["ethos", "change-lifecycle", "status", "plan", "prove", "land", "publish", "evidence"]
+intent_tokens = ["status", "plan", "prove", "land", "publish", "readiness", "evidence", "change", "loop"]
+path_globs = [
+  "packages/**",
+  "docs/**",
+  "system/**",
+  "openspec/**",
+  "evidence/**",
+  "claims/**",
+]
+pre_reads = [
+  "AGENTS.md",
+  "rules/mutation.md",
+  "system/tao.md",
+]
+post_checks = [
+  "ethos status --json",
+  "ethos report --json",
+]
+commands = [
+  "ethos status --json",
+  "ethos plan --changed --json",
+  "ethos prove --execute --expect-head <head> --json",
+  "ethos land --json",
+  "ethos publish --json",
+]
+

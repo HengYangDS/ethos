@@ -1,0 +1,46 @@
+schema_version = 2
+id = "ethos-change-lifecycle"
+entrypoint = "SKILL.md"
+boundary = "repository-skill-source"
+truth = "repository-source-docs-rules-and-evidence"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+required_sections = ["Required Pre-Reads", "Workflow", "Evidence Boundaries", "Decision Contract", "Trust Boundary"]
+expected_digest = "sha256:f4429c0f33b8e787bf6f47c3ab3f5b7ccc1b843d9ccd6260414d5cd85896ab8c"
+
+[quality]
+placeholder_allowed = false
+host_projection = false
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed", "--json"]
+
+[[capability]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]
+
+[[capability]]
+id = "ethos.land"
+kind = "command_mutation_guarded"
+command = ["ethos", "land", "--json"]
+guard = "ethos lane prewrite before land; land verdict gates the candidate fast-forward"
+
+[[capability]]
+id = "ethos.publish"
+kind = "command_mutation_guarded"
+command = ["ethos", "publish", "--json"]
+guard = "local publication readiness only; remote push is a deferred human-authorized step"
+
+[[capability]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]

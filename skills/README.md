@@ -22,6 +22,7 @@ not replace those surfaces as authority.
 | Skill | Use when |
 | --- | --- |
 | [ethos-repository-governance](ethos-repository-governance/SKILL.md) | Governing ETHOS repository changes, proof, Work Lanes, rules, skills, docs, or adoption. |
+| [ethos-change-lifecycle](ethos-change-lifecycle/SKILL.md) | Driving a change through the main loop: status, plan, prove, land, publish. |
 
 ## Projection Boundary
 

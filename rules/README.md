@@ -26,6 +26,7 @@ Delete, demote, or move rules that cannot fill this record.
 | --- | --- |
 | Agents | [Agent Rules](agents.md) |
 | Mutating tools | [Mutation Rules](mutation.md) and [Hook Rules](hooks.md) |
+| Module layout, visibility, imports | [Module Layout Rules](module_layout.md) |
 | Proof and claims | [Evidence Rules](evidence.md) |
 | Release work | [Release Rules](release.md) |
 | Skills | [Skill Rules](skills.md) and [Skills](../skills/README.md) |

@@ -1636,149 +1636,19 @@ def _rule_fact_snapshot(
     prewrite_report: dict[str, object] | None = None,
     audit_payload: dict[str, object] | None = None,
 ) -> RuleFactSnapshot:
-    facts: dict[str, dict[str, object]] = {
-        "changed_paths": _rule_fact(
-            owner="ethos-adapters.status",
-            value=list(changed_paths),
-        ),
-        "mutation": _rule_fact(owner="ethos-cli", value=mutation),
-        "authorization": _rule_fact(owner="ethos-cli", value=authorized),
-        "actor": _rule_fact(owner="ethos-cli", value=actor),
-        "scope": _rule_fact(owner="ethos-cli", value=scope),
-    }
-    source_refs = [
-        "ethos-adapters.status",
-        "ethos-repository.self-audit",
-        "ethos-repository.claims",
-        "ethos-repository.command-registry",
-        "ethos-assistants.projections",
-    ]
-    audit_mode = "product"
-    try:
-        status = status_payload if status_payload is not None else workspace_status(repo)
-        facts["worktree"] = _rule_fact(
-            owner="ethos-adapters.status",
-            value={
-                "branch": status.get("branch", ""),
-                "role": status.get("role", ""),
-                "changed_paths": status.get("changed_paths", []),
-                "required_gaps": _status_worktree_gaps(status),
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["worktree"] = _unavailable_rule_fact("ethos-adapters.status", exc)
-    if prewrite_report is not None:
-        source_refs.append("ethos-adapters.prewrite")
-        facts["prewrite"] = _rule_fact(
-            owner="ethos-adapters.prewrite",
-            value={
-                "ok": prewrite_report.get("ok", False),
-                "role": prewrite_report.get("role", ""),
-                "required_gaps": prewrite_report.get("required_gaps", []),
-                "paths": prewrite_report.get("paths", []),
-            },
-        )
-    elif phase == "prewrite":
-        source_refs.append("ethos-adapters.prewrite")
-        facts["prewrite"] = _rule_fact(
-            owner="ethos-adapters.prewrite",
-            value={"required_gaps": ["prewrite_guard_not_supplied"]},
-            fresh=False,
-            available=False,
-        )
-    else:
-        facts["prewrite"] = _rule_fact(
-            owner="ethos-adapters.prewrite",
-            value={"ok": True, "required_gaps": [], "not_applicable": True},
-        )
-    try:
-        audit = audit_payload if audit_payload is not None else _audit_for_root(repo)
-        audit_mode = str(audit.get("mode", "product"))
-        facts["openspec_state"] = _rule_fact(
-            owner="ethos-repository.self-audit",
-            value=audit.get("openspec", {}),
-        )
-        facts["host_readiness"] = _rule_fact(
-            owner="ethos-repository.self-audit",
-            value={
-                "mode": audit.get("mode", "product"),
-                "ok": audit.get("ok", False),
-                "required_gaps": audit.get("required_gaps", []),
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["openspec_state"] = _unavailable_rule_fact("ethos-repository.self-audit", exc)
-        facts["host_readiness"] = _unavailable_rule_fact("ethos-repository.self-audit", exc)
-    try:
-        claims = claims_report(repo)
-        claim_gaps = [str(gap) for gap in claims.get("required_gaps", [])]
-        if audit_mode == "adopter":
-            claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]
-        claims_ok = bool(claims.get("ok", False)) or not claim_gaps
-        facts["claim_state"] = _rule_fact(
-            owner="ethos-repository.claims",
-            value={
-                "ok": claims_ok,
-                "required_gaps": claim_gaps,
-            },
-        )
-        facts["evidence_freshness"] = _rule_fact(
-            owner="ethos-repository.claims",
-            value={
-                "ok": claims_ok,
-                "stale": [gap for gap in claim_gaps if "digest" in str(gap)],
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["claim_state"] = _unavailable_rule_fact("ethos-repository.claims", exc)
-        facts["evidence_freshness"] = _unavailable_rule_fact("ethos-repository.claims", exc)
-    try:
-        command_report = command_registry_report(repo)
-        facts["command_registry"] = _rule_fact(
-            owner="ethos-repository.command-registry",
-            value={
-                "ok": command_report.get("ok", False),
-                "required_gaps": command_report.get("required_gaps", []),
-                "public_commands": command_report.get("public_commands", []),
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["command_registry"] = _unavailable_rule_fact(
-            "ethos-repository.command-registry", exc
-        )
-    try:
-        projection = projection_contract()
-        facts["projection_drift"] = _rule_fact(
-            owner="ethos-assistants.projections",
-            value={
-                "truth": projection.get("truth", ""),
-                "ok": projection.get("truth", "") == ASSISTANT_TRUTH_BOUNDARY,
-            },
-        )
-    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["projection_drift"] = _unavailable_rule_fact(
-            "ethos-assistants.projections", exc
-        )
-    return RuleFactSnapshot(
+    return _plan.rule_fact_snapshot(
+        repo,
         phase=phase,
         head=head,
-        facts=facts,
-        source_refs=tuple(source_refs),
+        changed_paths=changed_paths,
+        mutation=mutation,
+        authorized=authorized,
+        actor=actor,
+        scope=scope,
+        status_payload=status_payload,
+        prewrite_report=prewrite_report,
+        audit_payload=audit_payload,
     )
-
-
-def _rule_fact(
-    *,
-    owner: str,
-    value: object,
-    fresh: bool = True,
-    available: bool = True,
-) -> dict[str, object]:
-    return _plan.rule_fact(owner=owner, value=value, fresh=fresh, available=available)
-
-
-def _unavailable_rule_fact(owner: str, exc: BaseException) -> dict[str, object]:
-    return _plan.unavailable_rule_fact(owner, exc)
 
 
 def _status_worktree_gaps(status: dict[str, object]) -> list[str]:

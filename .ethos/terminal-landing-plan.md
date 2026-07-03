@@ -107,3 +107,39 @@ cli.py 3143→400 需移出 ~2743 行。**大头是 75 个命令体,不是 44 �
 
 LOC 硬规则的 ratchet 是收敛的 forcing function:cli.py 例外只能下调,永不上调。
 每次抽取后 ratchet 下调锁定进展。这保证收敛单调、不回退,可跨会话持续。
+
+---
+
+## cli.py 收敛剧本(可无思考续跑 — 2026-07 更新,cli.py=3048)
+
+**已完成的分层地基:** surface/cli/_base.py(app对象+resolve_root+emit+类型别名共享面)、
+domain/{status,plan,prove}、adapters/{git,config}。25 commit,cli.py 3224→3048。
+
+**关键认知:cli.py 的 helper 是密集耦合簇**(rule-fact→audit→status→git),必须**成簇下沉**,
+不能单个搬(单搬会 NameError 或循环 import)。剩余最大簇:
+- **rule-fact 簇**(~195行):_rule_fact_snapshot(145,依赖 _audit_for_root/_status_worktree_gaps/
+  _rule_fact/_unavailable_rule_fact)+ _rule_attestation_for_evaluation(25)→ domain/plan
+- **audit-status 簇**(~53行):_audit_for_root/_product_repository_audit/_adopter_audit/
+  _is_product_root/_status_worktree_gaps → domain/status(注意 _adopter_audit 32行做IO,拆 adapters)
+- **closeout 簇**:_campaign_closeout_report(104)+_trust_closeout_package(65)+
+  _closeout_bootstrap_package(31)+_local_submit_package/_publication_readiness → domain/land
+- **命令组搬 surface/cli/<group>.py**(依赖簇下沉后才干净):quality(29命令/964行,最大)、
+  lane(7)、rules(6)、assistants(9)、campaign/parity(各3)... 各从 _base import app+helper。
+
+**每簇/每组的机械步骤(严格照做,每步全绿才提交):**
+1. 读簇内所有函数完整代码 + 它们的外部依赖(domain/adapters/kernel 符号)
+2. 建/追加目标 domain 模块,函数改用 adapters/kernel 的公开名(非 cli 的 _wrapper)
+3. cli.py 删原函数,调用点改指向新模块(或留最小委托,但优先删+改调用点)
+4. `python -c import ethos.cli` (lane PYTHONPATH) 验证无 NameError/循环
+5. `ruff check --fix packages/` — 修 TC002/I001/unused(每次搬完必触发,是常态不是错误)
+6. 重算 cli.py eff-LOC,**下调** .ethos/rules.toml 的 cli.py ratchet 到新值
+7. `pytest tests -q` 必须是 5 pre-existing(parity treadmill),`lint-imports --config
+   .config/checks/import-linter/contracts.ini` 必须 3 kept,才 commit
+8. 每簇一个 commit,ratchet 单调下降保证收敛不可逆
+
+**终点判据:** cli.py ≤ 400 eff-LOC(纯 surface:每命令=bind-args→一次domain调用→emit);
+或按需拆成 surface/cli/<group>.py 多文件各≤400。届时删除 cli.py 的 code_size ratchet 例外。
+
+**pre-existing 5 红(非回归,勿追):** parity treadmill(evidence绑会话初HEAD 25b5be2)+
+report_scorecard/campaign_closeout/governance_lifecycle(同源)+ rules test_valid_policy_exception
+(order-dependent)。用 `--deselect` 这5个 = 507/0 全绿。

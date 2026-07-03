@@ -8,6 +8,7 @@ from __future__ import annotations
 import fnmatch
 from typing import TYPE_CHECKING
 
+from ethos_contracts.rules import stable_digest
 from ethos_core.action_graph import ActionGraph, ActionNode
 
 from ethos.adapters.config import rules_config
@@ -101,3 +102,30 @@ def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
         ),
     )
     return ActionGraph(nodes=nodes)
+
+
+def rule_fact(
+    *,
+    owner: str,
+    value: object,
+    fresh: bool = True,
+    available: bool = True,
+) -> dict[str, object]:
+    """Build a rule-evaluation fact envelope (owner, freshness, availability, digest)."""
+    return {
+        "owner": owner,
+        "fresh": fresh,
+        "available": available,
+        "value": value,
+        "digest": stable_digest(value),
+    }
+
+
+def unavailable_rule_fact(owner: str, exc: BaseException) -> dict[str, object]:
+    """Build a fact marking a source unavailable due to an exception."""
+    return rule_fact(
+        owner=owner,
+        fresh=False,
+        available=False,
+        value={"error": type(exc).__name__, "message": str(exc)},
+    )

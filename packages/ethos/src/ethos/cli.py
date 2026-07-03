@@ -70,7 +70,6 @@ from ethos_contracts.package_ontology import (
 from ethos_contracts.rules import (
     RuleAttestation,
     RuleFactSnapshot,
-    stable_digest,
 )
 from ethos_core.result import EthosResult
 from ethos_quality.docs_profile import docs_quality_profile
@@ -1830,22 +1829,11 @@ def _rule_fact(
     fresh: bool = True,
     available: bool = True,
 ) -> dict[str, object]:
-    return {
-        "owner": owner,
-        "fresh": fresh,
-        "available": available,
-        "value": value,
-        "digest": stable_digest(value),
-    }
+    return _plan.rule_fact(owner=owner, value=value, fresh=fresh, available=available)
 
 
 def _unavailable_rule_fact(owner: str, exc: BaseException) -> dict[str, object]:
-    return _rule_fact(
-        owner=owner,
-        fresh=False,
-        available=False,
-        value={"error": type(exc).__name__, "message": str(exc)},
-    )
+    return _plan.unavailable_rule_fact(owner, exc)
 
 
 def _status_worktree_gaps(status: dict[str, object]) -> list[str]:

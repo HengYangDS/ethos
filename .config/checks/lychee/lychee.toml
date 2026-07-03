@@ -1,0 +1,24 @@
+# Lychee link-check config — separated from pyproject.toml (SoC).
+# Run: lychee --config .config/checks/lychee/lychee.toml <paths>
+# Tool-native TOML so the installed lychee binary reads it directly.
+#
+# 道: a documentation cross-reference is a claim about where truth lives; a broken
+# link is an unprovable claim. This gate keeps doc jump-links honest (First
+# Principle #4: a generated/linked surface is a liability unless drift is checkable).
+
+# Offline by default — validate local relative links and anchors deterministically
+# without network flakiness. Hosted CI may drop --offline to also check external URLs.
+offline = true
+no_progress = true
+
+# Only Markdown docs carry governed cross-references.
+include_verbatim = false
+
+# Accept these as non-errors: mail links and localhost examples in docs.
+exclude = [
+  "^mailto:",
+  "^https?://(localhost|127\\.0\\.0\\.1)",
+]
+
+# Example/placeholder hosts that appear in documentation snippets, not real links.
+exclude_loopback = true

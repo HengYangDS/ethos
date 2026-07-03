@@ -1160,7 +1160,13 @@ def markdown_links(
         root=repo,
         gate_id="markdown-links",
         tool="lychee",
-        command=["lychee", "--offline", "--no-progress", *files],
+        command=[
+            "lychee",
+            "--config",
+            ".config/checks/lychee/lychee.toml",
+            "--no-progress",
+            *files,
+        ],
         files=files,
     )
     result = EthosResult(

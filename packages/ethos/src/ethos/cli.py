@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
-import subprocess
 import tomllib
 from contextlib import redirect_stderr
 from contextlib import redirect_stdout
@@ -17,6 +15,7 @@ from cyclopts import Parameter
 import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
 from ethos.adapters import git as _gitio
+from ethos.adapters import quality_tool as _qtool
 from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
@@ -104,7 +103,6 @@ from ethos_repository.rules import policy_exceptions_report
 from ethos_repository.rules import rules_check_report
 from ethos_repository.rules import rules_evaluation_report
 from ethos_repository.schema_validation import schema_validation_report
-from ethos_repository.schema_validation import validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
 
 if TYPE_CHECKING:
@@ -210,44 +208,9 @@ def _quality_tool_report(
     command: list[str],
     files: list[str],
 ) -> dict[str, object]:
-    if not files:
-        return {
-            "ok": True,
-            "id": gate_id,
-            "tool": tool,
-            "state": "skipped",
-            "file_count": 0,
-            "required_gaps": [],
-        }
-    if shutil.which(tool) is None:
-        return {
-            "ok": False,
-            "id": gate_id,
-            "tool": tool,
-            "state": "missing_tool",
-            "file_count": len(files),
-            "command": command,
-            "required_gaps": [f"quality_tool_missing:{tool}"],
-        }
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
+    return _qtool.quality_tool_report(
+        root=root, gate_id=gate_id, tool=tool, command=command, files=files,
     )
-    return {
-        "ok": completed.returncode == 0,
-        "id": gate_id,
-        "tool": tool,
-        "state": "passed" if completed.returncode == 0 else "failed",
-        "file_count": len(files),
-        "command": command,
-        "exit_code": completed.returncode,
-        "stdout": trim_output(completed.stdout),
-        "stderr": trim_output(completed.stderr),
-        "required_gaps": [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"],
-    }
 
 
 def _code_size_report(root: Path) -> dict[str, object]:
@@ -262,18 +225,11 @@ def _matching_rule_gates(
 
 
 def _workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
-    validation = validate_schema_instance("workspace-status.schema.json", payload, root=repo)
-    return {
-        "kind": "schema_validation",
-        "target": "data",
-        "schema": "workspace-status.schema.json",
-        "ok": bool(validation["ok"]),
-        "required_gaps": list(validation["required_gaps"]),
-    }
+    return _prove.workspace_status_validation(repo, payload)
 
 
 def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:
-    return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
+    return _prove.workspace_status_validation_gaps(validation)
 
 
 def _command_data_validation(
@@ -282,14 +238,7 @@ def _command_data_validation(
     schema_name: str,
     payload: dict[str, object],
 ) -> dict[str, object]:
-    validation = validate_schema_instance(schema_name, payload, root=repo)
-    return {
-        "kind": "schema_validation",
-        "target": "data",
-        "schema": schema_name,
-        "ok": bool(validation["ok"]),
-        "required_gaps": list(validation["required_gaps"]),
-    }
+    return _prove.command_data_validation(repo, schema_name=schema_name, payload=payload)
 
 
 def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:

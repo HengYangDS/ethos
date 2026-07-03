@@ -52,30 +52,25 @@ pythonpath = [
 ]
 
 [tool.ruff]
-line-length = 100
-target-version = "py312"
-
-[tool.ruff.lint]
-# Tightened rule set — correctness + determinism + elegance (道: raise the quality floor,
-# make low-quality unrepresentable). E/F/I/UP/B/SIM are the base; the rest add:
-# comprehension clarity (C4), return hygiene (RET), pathlib (PTH), pytest style (PT),
-# naming (N), builtin-shadowing (A), implicit-str-concat (ISC), flake8-flynt (FLY),
-# perf (PERF), typing-only imports (TC), tidy imports (TID), unnecessary code (PIE),
-# and ruff's own checks (RUF).
-select = [
-    "E", "F", "I", "UP", "B", "SIM",
-    "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF",
-]
-# Ratchet: correctness rules enforced everywhere, zero tolerance. A small set of pre-existing
-# STYLE debt is frozen (not permanent — dissolves during the package-split migration that
-# rewrites these modules). New code gets the full strict set.
-ignore = [
-    "PERF401",  # manual list-comprehension: 38 in junk-drawer modules to be dissolved
-]
+# Ruff rule set lives in .config/checks/ruff/ruff.toml (separation of concerns:
+# pyproject.toml carries packaging; tool rules live under .config/). Only path-glob
+# ignores stay here — ruff resolves per-file-ignore globs relative to THIS file's
+# directory, so root-relative patterns must live in the project-root pyproject.
+extend = ".config/checks/ruff/ruff.toml"
 
 [tool.ruff.lint.per-file-ignores]
 # Test data lines are legitimately long (assertion payloads/fixtures); logic still wraps.
 "tests/**" = ["E501"]
 # `id` on a widely-called classmethod — rename deferred to the package-split migration.
 "packages/ethos-repository/src/ethos_repository/evidence.py" = ["A002"]
+# C901 cyclomatic-complexity ratchet: 9 pre-existing tangled functions frozen (not
+# permanent — they decompose during the package-split migration). New code: cap 12.
+"packages/ethos-adapters/src/ethos_adapters/lanes.py" = ["C901"]
+"packages/ethos-contracts/src/ethos_contracts/rules.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/authority_graph.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/claims.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/coupling.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/evolution.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/parity.py" = ["C901"]
+"packages/ethos-repository/src/ethos_repository/rules.py" = ["C901"]
 

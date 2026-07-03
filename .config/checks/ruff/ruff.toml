@@ -1,0 +1,34 @@
+# Ruff configuration — separated from pyproject.toml per separation-of-concerns
+# (system/tools.toml decides WHY ruff runs; this file decides HOW).
+# Referenced from pyproject.toml via [tool.ruff] extend = ".config/checks/ruff/ruff.toml".
+
+line-length = 100
+target-version = "py312"
+
+[lint]
+# Tightened rule set — correctness + determinism + elegance (道: raise the quality
+# floor, make low-quality unrepresentable). Base E/F/I/UP/B/SIM plus:
+# comprehension clarity (C4), return hygiene (RET), pathlib (PTH), pytest style (PT),
+# naming (N), builtin-shadowing (A), implicit-str-concat (ISC), flake8-flynt (FLY),
+# perf (PERF), typing-only imports (TC), tidy imports (TID), unnecessary code (PIE),
+# ruff's own checks (RUF), and mccabe cyclomatic complexity (C90).
+select = [
+    "E", "F", "I", "UP", "B", "SIM",
+    "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF",
+    "C90",
+]
+# Ratchet: correctness rules enforced everywhere, zero tolerance. A small set of
+# pre-existing STYLE debt is frozen (not permanent — dissolves during the
+# package-split migration that rewrites these modules). New code gets the full set.
+ignore = [
+    "PERF401",  # manual list-comprehension: 38 in junk-drawer modules to be dissolved
+]
+
+[lint.mccabe]
+# Cyclomatic complexity cap — no function may branch beyond this (borrowed from
+# di-effect's max-complexity=10). Forces decomposition of tangled logic.
+max-complexity = 12
+
+# NOTE: per-file-ignores stay in pyproject.toml — ruff resolves their glob paths
+# relative to the config file's own directory, so root-relative patterns
+# (tests/**, packages/...) only match correctly from the project-root pyproject.

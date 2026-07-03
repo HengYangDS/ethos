@@ -68,6 +68,11 @@ from ethos_contracts.package_ontology import (
     package_ontology_report,
     workspace_package_config_report,
 )
+from ethos_contracts.rules import (
+    RuleAttestation,
+    RuleFactSnapshot,
+    stable_digest,
+)
 from ethos_core.action_graph import ActionGraph, ActionNode
 from ethos_core.result import EthosResult
 from ethos_quality.docs_profile import docs_quality_profile
@@ -101,6 +106,14 @@ from ethos_repository.planner import (
     detect_repo_profile,
 )
 from ethos_repository.release import release_policy_report
+from ethos_repository.rules import (
+    compile_rules,
+    coverage_report,
+    explain_rules_target,
+    policy_exceptions_report,
+    rules_check_report,
+    rules_evaluation_report,
+)
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
 
@@ -114,6 +127,7 @@ fleet_app = App(name="fleet", help="External adopter and fleet inspection.", sho
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
 hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
 parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
+rules_app = App(name="rules", help="Rules Product Kernel operations.", show=False)
 app.command(quality_app)
 app.command(campaign_app)
 app.command(intake_app)
@@ -123,6 +137,7 @@ app.command(fleet_app)
 app.command(lane_app)
 app.command(hook_app)
 app.command(parity_app)
+app.command(rules_app)
 
 
 JsonFlag = Annotated[bool, Parameter(name="--json")]
@@ -1853,6 +1868,379 @@ def npm_quality(
         data=report,
     )
     _emit(result, json_output)
+
+
+def _rule_fact_snapshot(
+    repo: Path,
+    *,
+    phase: str,
+    head: str,
+    changed_paths: tuple[str, ...] = (),
+    mutation: bool = False,
+    authorized: bool = False,
+    actor: str = "local",
+    scope: str = "repository",
+    status_payload: dict[str, object] | None = None,
+    prewrite_report: dict[str, object] | None = None,
+    audit_payload: dict[str, object] | None = None,
+) -> RuleFactSnapshot:
+    facts: dict[str, dict[str, object]] = {
+        "changed_paths": _rule_fact(
+            owner="ethos-adapters.status",
+            value=list(changed_paths),
+        ),
+        "mutation": _rule_fact(owner="ethos-cli", value=mutation),
+        "authorization": _rule_fact(owner="ethos-cli", value=authorized),
+        "actor": _rule_fact(owner="ethos-cli", value=actor),
+        "scope": _rule_fact(owner="ethos-cli", value=scope),
+    }
+    source_refs = [
+        "ethos-adapters.status",
+        "ethos-repository.self-audit",
+        "ethos-repository.claims",
+        "ethos-repository.command-registry",
+        "ethos-assistants.projections",
+    ]
+    audit_mode = "product"
+    try:
+        status = status_payload if status_payload is not None else workspace_status(repo)
+        facts["worktree"] = _rule_fact(
+            owner="ethos-adapters.status",
+            value={
+                "branch": status.get("branch", ""),
+                "role": status.get("role", ""),
+                "changed_paths": status.get("changed_paths", []),
+                "required_gaps": _status_worktree_gaps(status),
+            },
+        )
+    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
+        facts["worktree"] = _unavailable_rule_fact("ethos-adapters.status", exc)
+    if prewrite_report is not None:
+        source_refs.append("ethos-adapters.prewrite")
+        facts["prewrite"] = _rule_fact(
+            owner="ethos-adapters.prewrite",
+            value={
+                "ok": prewrite_report.get("ok", False),
+                "role": prewrite_report.get("role", ""),
+                "required_gaps": prewrite_report.get("required_gaps", []),
+                "paths": prewrite_report.get("paths", []),
+            },
+        )
+    elif phase == "prewrite":
+        source_refs.append("ethos-adapters.prewrite")
+        facts["prewrite"] = _rule_fact(
+            owner="ethos-adapters.prewrite",
+            value={"required_gaps": ["prewrite_guard_not_supplied"]},
+            fresh=False,
+            available=False,
+        )
+    else:
+        facts["prewrite"] = _rule_fact(
+            owner="ethos-adapters.prewrite",
+            value={"ok": True, "required_gaps": [], "not_applicable": True},
+        )
+    try:
+        audit = audit_payload if audit_payload is not None else _audit_for_root(repo)
+        audit_mode = str(audit.get("mode", "product"))
+        facts["openspec_state"] = _rule_fact(
+            owner="ethos-repository.self-audit",
+            value=audit.get("openspec", {}),
+        )
+        facts["host_readiness"] = _rule_fact(
+            owner="ethos-repository.self-audit",
+            value={
+                "mode": audit.get("mode", "product"),
+                "ok": audit.get("ok", False),
+                "required_gaps": audit.get("required_gaps", []),
+            },
+        )
+    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
+        facts["openspec_state"] = _unavailable_rule_fact("ethos-repository.self-audit", exc)
+        facts["host_readiness"] = _unavailable_rule_fact("ethos-repository.self-audit", exc)
+    try:
+        claims = claims_report(repo)
+        claim_gaps = [str(gap) for gap in claims.get("required_gaps", [])]
+        if audit_mode == "adopter":
+            claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]
+        claims_ok = bool(claims.get("ok", False)) or not claim_gaps
+        facts["claim_state"] = _rule_fact(
+            owner="ethos-repository.claims",
+            value={
+                "ok": claims_ok,
+                "required_gaps": claim_gaps,
+            },
+        )
+        facts["evidence_freshness"] = _rule_fact(
+            owner="ethos-repository.claims",
+            value={
+                "ok": claims_ok,
+                "stale": [gap for gap in claim_gaps if "digest" in str(gap)],
+            },
+        )
+    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
+        facts["claim_state"] = _unavailable_rule_fact("ethos-repository.claims", exc)
+        facts["evidence_freshness"] = _unavailable_rule_fact("ethos-repository.claims", exc)
+    try:
+        command_report = command_registry_report(repo)
+        facts["command_registry"] = _rule_fact(
+            owner="ethos-repository.command-registry",
+            value={
+                "ok": command_report.get("ok", False),
+                "required_gaps": command_report.get("required_gaps", []),
+                "public_commands": command_report.get("public_commands", []),
+            },
+        )
+    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
+        facts["command_registry"] = _unavailable_rule_fact(
+            "ethos-repository.command-registry", exc
+        )
+    try:
+        projection = projection_contract()
+        facts["projection_drift"] = _rule_fact(
+            owner="ethos-assistants.projections",
+            value={
+                "truth": projection.get("truth", ""),
+                "ok": projection.get("truth", "") == ASSISTANT_TRUTH_BOUNDARY,
+            },
+        )
+    except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
+        facts["projection_drift"] = _unavailable_rule_fact(
+            "ethos-assistants.projections", exc
+        )
+    return RuleFactSnapshot(
+        phase=phase,
+        head=head,
+        facts=facts,
+        source_refs=tuple(source_refs),
+    )
+
+
+def _rule_fact(
+    *,
+    owner: str,
+    value: object,
+    fresh: bool = True,
+    available: bool = True,
+) -> dict[str, object]:
+    return {
+        "owner": owner,
+        "fresh": fresh,
+        "available": available,
+        "value": value,
+        "digest": stable_digest(value),
+    }
+
+
+def _unavailable_rule_fact(owner: str, exc: BaseException) -> dict[str, object]:
+    return _rule_fact(
+        owner=owner,
+        fresh=False,
+        available=False,
+        value={"error": type(exc).__name__, "message": str(exc)},
+    )
+
+
+def _status_worktree_gaps(status: dict[str, object]) -> list[str]:
+    gaps = [
+        str(gap)
+        for gap in status.get("required_gaps", [])
+        if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
+    ]
+    closeout = status.get("closeout_support")
+    if isinstance(closeout, dict):
+        gaps.extend(
+            str(gap)
+            for gap in closeout.get("required_gaps", [])
+            if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
+        )
+    return list(dict.fromkeys(gaps))
+
+
+def _rule_attestation_for_evaluation(
+    evaluation: dict[str, object],
+    *,
+    actor: str,
+    scope: str,
+) -> dict[str, object]:
+    attestation = RuleAttestation(
+        head=str(evaluation["head"]),
+        evaluation_digest=str(evaluation["digest"]),
+        rule_set_digest=str(evaluation["rule_set_digest"]),
+        compiled_policy_digest=str(evaluation["compiled_policy_digest"]),
+        fact_snapshot_digest=str(evaluation["fact_snapshot_digest"]),
+        actor=actor,
+        scope=scope,
+        runner_identity="ethos-cli",
+        input=dict(evaluation["input_snapshot"]),
+        output={
+            "state": evaluation["state"],
+            "required_gaps": list(evaluation["required_gaps"]),
+            "required_gates": list(evaluation["required_gates"]),
+        },
+    )
+    return attestation.to_dict()
+
+
+@rules_app.command(name="check")
+def rules_check(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Check Rules Product Kernel readiness."""
+    repo = _root(root)
+    report = rules_check_report(repo)
+    result = EthosResult(
+        command="rules check",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        summary={
+            "coverage_tier": report["coverage_tier"],
+            "rule_count": len(report["resolved_rules"]),
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=tuple(report["next_action_contract"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@rules_app.command(name="eval")
+def rules_eval(
+    *,
+    root: RootOption | None = None,
+    phase: str = "plan",
+    changed_path: tuple[str, ...] = (),
+    mutation: bool = False,
+    authorized: bool = False,
+    actor: str = "local",
+    scope: str = "repository",
+    json_output: JsonFlag = False,
+) -> None:
+    """Evaluate repository rules for a phase."""
+    repo = _root(root)
+    current_head = _current_head(repo)
+    report = rules_evaluation_report(
+        repo,
+        phase=phase,
+        changed_paths=tuple(changed_path),
+        mutation=mutation,
+        authorized=authorized,
+        actor=actor,
+        scope=scope,
+        head=current_head,
+        fact_snapshot=_rule_fact_snapshot(
+            repo,
+            phase=phase,
+            changed_paths=tuple(changed_path),
+            mutation=mutation,
+            authorized=authorized,
+            actor=actor,
+            scope=scope,
+            head=current_head,
+        ),
+    )
+    attestation = _rule_attestation_for_evaluation(report, actor=actor, scope=scope)
+    result = EthosResult(
+        command="rules eval",
+        ok=not report["required_gaps"],
+        state="blocked" if report["state"] == "block" else str(report["state"]),
+        summary={
+            "phase": phase,
+            "digest": report["digest"],
+            "attestation": attestation,
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=tuple(report["next_action_contract"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@rules_app.command(name="coverage")
+def rules_coverage(
+    *,
+    root: RootOption | None = None,
+    changed: bool = False,
+    changed_path: tuple[str, ...] = (),
+    json_output: JsonFlag = False,
+) -> None:
+    """Report changed-path rule coverage."""
+    repo = _root(root)
+    paths = tuple(workspace_status(repo)["changed_paths"]) if changed else tuple(changed_path)
+    report = coverage_report(repo, changed_paths=paths)
+    result = EthosResult(
+        command="rules coverage",
+        ok=bool(report["ok"]),
+        state="covered" if report["ok"] else "gapped",
+        summary={
+            "covered_path_count": len(report["covered_paths"]),
+            "uncovered_path_count": len(report["uncovered_paths"]),
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=tuple(report["next_action_contract"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@rules_app.command(name="compile")
+def rules_compile(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Compile repository rules deterministically."""
+    repo = _root(root)
+    report = compile_rules(repo)
+    result = EthosResult(
+        command="rules compile",
+        ok=True,
+        state="compiled",
+        summary={"rule_count": len(report["rules"])},
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@rules_app.command(name="explain")
+def rules_explain(
+    target: str,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Explain a rule, gap, or path."""
+    repo = _root(root)
+    report = explain_rules_target(repo, target)
+    result = EthosResult(
+        command="rules explain",
+        ok=True,
+        state="explained",
+        summary={"target": target},
+        next_actions=tuple(report["next_action_contract"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
+
+@rules_app.command(name="exceptions")
+def rules_exceptions(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """List policy exceptions."""
+    report = policy_exceptions_report(_root(root))
+    result = EthosResult(
+        command="rules exceptions",
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
+
 
 
 @quality_app.command

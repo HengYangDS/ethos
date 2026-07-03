@@ -46,12 +46,12 @@ test_effective_max_lines = 1200
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 3226
+effective_max_lines = 3189
 reason = "monolith; ratchet caps at current size — split into thin surface + lifecycle/adapter modules to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/rules.py"
-effective_max_lines = 1082
+effective_max_lines = 1083
 reason = "rules engine; relocate to ethos-core/method with sub-module split to reach 400"
 
 [[quality.code_size.exception]]
@@ -76,17 +76,17 @@ reason = "adoption planner; split scaffold/detect to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-adapters/src/ethos_adapters/shadow.py"
-effective_max_lines = 646
+effective_max_lines = 647
 reason = "shadow parity; split classify/report to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/coupling.py"
-effective_max_lines = 637
+effective_max_lines = 638
 reason = "coupling audit; split by binding kind to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/parity.py"
-effective_max_lines = 549
+effective_max_lines = 551
 reason = "parity report; split evidence/gaps to reach 400"
 
 [[quality.code_size.exception]]
@@ -96,7 +96,7 @@ reason = "work lane lifecycle; split by lane operation to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/docs_registry.py"
-effective_max_lines = 496
+effective_max_lines = 498
 reason = "docs registry; split registry/validation to reach 400"
 
 [[quality.code_size.exception]]

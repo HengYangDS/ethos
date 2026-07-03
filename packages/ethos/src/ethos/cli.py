@@ -118,6 +118,8 @@ from ethos_repository.rules import (
 from ethos_repository.schema_validation import schema_validation_report, validate_schema_instance
 from ethos_repository.standards import standard_adapter_registry
 
+from ethos.adapters import git as _gitio
+
 app = App(name="ethos", help="ETHOS command plane.")
 quality_app = App(name="quality", help="Quality and determinism checks.", show=False)
 campaign_app = App(name="campaign", help="Evolution campaign commands.", show=False)
@@ -151,34 +153,15 @@ def _root(root: Path | None) -> Path:
 
 
 def _current_head(root: Path) -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return "untracked"
-    return completed.stdout.strip()
+    return _gitio.current_head(root)
 
 
 def _current_tracked_head(root: Path) -> str:
-    head = _current_head(root)
-    return "" if head == "untracked" else head
+    return _gitio.current_tracked_head(root)
 
 
 def _git_stdout(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout.strip()
+    return _gitio.git_stdout(root, *args)
 
 
 def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
@@ -217,19 +200,11 @@ def _acceptable_parity_target_heads(
 
 
 def _same_git_repository(left: Path, right: Path) -> bool:
-    left_common = _git_common_dir(left)
-    right_common = _git_common_dir(right)
-    return bool(left_common and right_common and left_common == right_common)
+    return _gitio.same_git_repository(left, right)
 
 
 def _git_common_dir(root: Path) -> str:
-    common_dir = _git_stdout(root, "rev-parse", "--git-common-dir")
-    if not common_dir:
-        return ""
-    path = Path(common_dir)
-    if not path.is_absolute():
-        path = root / path
-    return path.resolve().as_posix()
+    return _gitio.git_common_dir(root)
 
 
 def _adoption_mutation_gaps(
@@ -369,17 +344,7 @@ def _sha256_file(path: Path) -> str:
 
 
 def _git_files(root: Path, *patterns: str) -> list[str]:
-    command = ["git", "ls-files", *patterns]
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return []
-    return [line for line in completed.stdout.splitlines() if line]
+    return _gitio.git_files(root, *patterns)
 
 
 def _quality_tool_report(

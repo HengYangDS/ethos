@@ -279,12 +279,8 @@ def test_completed_active_changes_report_blocks_invalid_archives(
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
-    assert "openspec_archive_metadata_missing:2026-07-02-sample-change" in (
-        report["required_gaps"]
-    )
-    assert "openspec_archive_tasks_incomplete:2026-07-02-sample-change" in (
-        report["required_gaps"]
-    )
+    assert "openspec_archive_metadata_missing:2026-07-02-sample-change" in (report["required_gaps"])
+    assert "openspec_archive_tasks_incomplete:2026-07-02-sample-change" in (report["required_gaps"])
     assert report["archive_closeout"]["ok"] is False
 
 

@@ -279,8 +279,7 @@ def _rules_as_contracts(root: Path, profile_stack: list[str]) -> tuple[list[Rule
         schema_gaps = _rule_schema_gaps(raw_rule)
         if schema_gaps:
             gaps.extend(
-                f"rule_schema_invalid:{rule_id or '<missing>'}:{gap}"
-                for gap in schema_gaps
+                f"rule_schema_invalid:{rule_id or '<missing>'}:{gap}" for gap in schema_gaps
             )
             continue
         rule = Rule(
@@ -447,10 +446,7 @@ def _fact_value(snapshot: RuleFactSnapshot, name: str, default: Any) -> Any:
 
 def _fact_value_gaps(*, phase: str, name: str, value: Any) -> list[str]:
     phase_closed_facts = PHASED_FAIL_CLOSED_VALUE_FACTS.get(name, set())
-    fail_closed = (
-        name in ALWAYS_FAIL_CLOSED_VALUE_FACTS
-        or phase in phase_closed_facts
-    )
+    fail_closed = name in ALWAYS_FAIL_CLOSED_VALUE_FACTS or phase in phase_closed_facts
     if not fail_closed or not isinstance(value, dict):
         return []
     gaps: list[str] = []
@@ -465,11 +461,7 @@ def _fact_value_gaps(*, phase: str, name: str, value: Any) -> list[str]:
         )
     stale = value.get("stale")
     if isinstance(stale, list):
-        gaps.extend(
-            f"fact_stale_ref:{name}:{ref}"
-            for ref in stale
-            if isinstance(ref, str) and ref
-        )
+        gaps.extend(f"fact_stale_ref:{name}:{ref}" for ref in stale if isinstance(ref, str) and ref)
     return gaps
 
 
@@ -591,8 +583,7 @@ def rules_evaluation_report(
         match_gaps: list[str] = []
         if phase != "prove":
             match_gaps.extend(
-                f"gate_required:{rule_id}:{gate}"
-                for gate in match.get("required_gates", [])
+                f"gate_required:{rule_id}:{gate}" for gate in match.get("required_gates", [])
             )
         if phase in {"land", "publish"}:
             match_gaps.extend(
@@ -694,19 +685,11 @@ def rules_evaluation_report(
         "decisions": decisions,
         "obligations": list(_dedupe_records(obligations)),
         "required_gates": sorted(
-            {
-                str(gate)
-                for match in matched
-                for gate in match.get("required_gates", [])
-            }
+            {str(gate) for match in matched for gate in match.get("required_gates", [])}
         ),
         "required_gates_detail": _required_gate_details(matched),
         "evidence_requirements": sorted(
-            {
-                str(req)
-                for match in matched
-                for req in match.get("evidence_requirements", [])
-            }
+            {str(req) for match in matched for req in match.get("evidence_requirements", [])}
         ),
         "stops": [gap.split(":", 1)[0] for gap in deduped_gaps],
         "waivers_applied": waivers_applied,
@@ -762,7 +745,8 @@ def rules_layer_report(root: Path) -> dict[str, object]:
     depth_gaps: list[str] = []
     if strict:
         missing = sorted(
-            subject for subject in ("contract", "transition", "evidence", "stop")
+            subject
+            for subject in ("contract", "transition", "evidence", "stop")
             if not depth_tiers[subject]
         )
         if missing:
@@ -805,9 +789,8 @@ def _legacy_state(root: Path) -> dict[str, object]:
         return {"legacy_detected": False}
     legacy_keys = {"formats", "artifacts", "determinism", "standards", "gates"}
     rules = config.get("rule")
-    legacy_rule_items = (
-        isinstance(rules, list)
-        and any(isinstance(item, dict) and _is_legacy_rule_item(item) for item in rules)
+    legacy_rule_items = isinstance(rules, list) and any(
+        isinstance(item, dict) and _is_legacy_rule_item(item) for item in rules
     )
     has_v2_rules = isinstance(config.get("profiles"), dict) or (
         isinstance(rules, list) and not legacy_rule_items
@@ -1020,15 +1003,10 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
         if record["rule_id"] not in known_rule_ids:
             gaps.append(f"policy_exception_unknown_rule:{record['id']}:{record['rule_id']}")
         elif bool(known_rules[str(record["rule_id"])].get("non_waivable", False)):
-            gaps.append(
-                f"policy_exception_non_waivable_rule:{record['id']}:{record['rule_id']}"
-            )
+            gaps.append(f"policy_exception_non_waivable_rule:{record['id']}:{record['rule_id']}")
         scope_value = str(record["scope"])
-        if (
-            (scope_value != "repository"
-            and not scope_value.startswith("path:"))
-            or (scope_value.startswith("path:")
-            and not scope_value.removeprefix("path:").strip("/"))
+        if (scope_value != "repository" and not scope_value.startswith("path:")) or (
+            scope_value.startswith("path:") and not scope_value.removeprefix("path:").strip("/")
         ):
             gaps.append(f"policy_exception_scope_invalid:{record['id']}")
         evidence_ref = str(record["evidence_ref"])
@@ -1073,8 +1051,7 @@ def rules_docs_manifest_report(root: Path) -> dict[str, object]:
         {
             str(ref)
             for rule in compile_rules(root)["rules"]
-            if isinstance(rule, dict)
-            and (product_root or rule.get("owner") != "ethos")
+            if isinstance(rule, dict) and (product_root or rule.get("owner") != "ethos")
             for ref in (rule.get("authority_ref"), rule.get("contract_ref"))
             if isinstance(ref, str) and ref.endswith(".md")
         }
@@ -1104,8 +1081,7 @@ def explain_rules_target(root: Path, target: str) -> dict[str, object]:
             "target": target,
             "kind": "gap",
             "meaning": (
-                "Rules gaps identify missing coverage, evidence, authorization, "
-                "or valid policy."
+                "Rules gaps identify missing coverage, evidence, authorization, or valid policy."
             ),
             "matched_rules": [],
             "next_action_contract": [

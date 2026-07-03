@@ -218,10 +218,7 @@ def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
         "work/feature",
         "submit/feature",
     ]
-    bindings = {
-        binding["branch"]: binding
-        for binding in status["branch_bindings"]
-    }
+    bindings = {binding["branch"]: binding for binding in status["branch_bindings"]}
     assert bindings["main"]["role"] == "release_root"
     assert bindings["main"]["worktree_binding"] == "unbound"
     assert bindings["dev"]["worktree_binding"] == "current"

@@ -772,16 +772,12 @@ def adoption_plan(
     planned = sorted(files)
     existing = sorted(relative for relative in files if (root / relative).exists())
     write_plan = _write_plan(root, files)
-    conflict_gaps = [
-        f"adoption_conflict:{item['path']}" for item in write_plan if item["conflict"]
-    ]
+    conflict_gaps = [f"adoption_conflict:{item['path']}" for item in write_plan if item["conflict"]]
     profile_ok = bool(profile_match["ok"])
     required_gaps = list(conflict_gaps)
     if apply and not profile_ok:
         required_gaps.append(f"profile_mismatch:{selected_profile}")
-    generated_files = sorted(
-        str(item["path"]) for item in write_plan if not bool(item["existed"])
-    )
+    generated_files = sorted(str(item["path"]) for item in write_plan if not bool(item["existed"]))
     applied = bool(apply and not required_gaps)
     if applied:
         for relative, content in files.items():

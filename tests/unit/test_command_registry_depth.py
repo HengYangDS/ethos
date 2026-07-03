@@ -191,9 +191,7 @@ def test_command_examples_reject_unknown_ethos_subcommands(tmp_path: Path) -> No
     report = command_examples_report(tmp_path)
 
     assert report["ok"] is False
-    assert report["required_gaps"] == [
-        "unknown_ethos_command_example:README.md:2:ethos frobnicate"
-    ]
+    assert report["required_gaps"] == ["unknown_ethos_command_example:README.md:2:ethos frobnicate"]
 
 
 def test_command_examples_require_key_product_examples(tmp_path: Path) -> None:

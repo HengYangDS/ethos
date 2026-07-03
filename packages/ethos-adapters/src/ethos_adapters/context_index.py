@@ -453,8 +453,7 @@ def context_eval_report(
         if not search["ok"]:
             critical_stale_hits += 1
         result_paths = {
-            str(result["source_ref"]["path"])
-            for result in search["selection"]["results"]
+            str(result["source_ref"]["path"]) for result in search["selection"]["results"]
         }
         missing_paths = sorted(set(expected_paths) - result_paths)
         stale_hits = [

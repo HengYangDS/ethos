@@ -200,10 +200,14 @@ def trust_closeout_package(
         for gap in envelope.get("required_gaps", [])
         if isinstance(envelope, dict)
     ]
-    promotion_ready = bool(envelopes) and not envelope_gaps and all(
-        isinstance(envelope.get("promotion"), dict)
-        and envelope["promotion"].get("ready") is True
-        for envelope in envelopes
+    promotion_ready = (
+        bool(envelopes)
+        and not envelope_gaps
+        and all(
+            isinstance(envelope.get("promotion"), dict)
+            and envelope["promotion"].get("ready") is True
+            for envelope in envelopes
+        )
     )
     executed_proof_evidence = any(
         command_is_executed_proof(command)
@@ -271,9 +275,7 @@ def acceptable_parity_target_heads(
         return ()
     accepted = [current_head]
     if _gitio.same_git_repository(root, target):
-        evidence_path = (
-            Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
-        )
+        evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
         last_change = _gitio.git_stdout(
             root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
         )

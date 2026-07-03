@@ -5,6 +5,16 @@
 line-length = 100
 target-version = "py312"
 
+# Format IS a quality/determinism gate (user: format 也是质量的一种; 代码确定性很重要).
+# ruff format is enforced in CI (ruff format --check) so every file has one canonical
+# shape — no formatting drift, deterministic diffs.
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+
 [lint]
 # Maximalist rule set toward di-effect's 57-family posture (道: raise the quality
 # floor, make low-quality unrepresentable). Correctness + determinism + elegance +

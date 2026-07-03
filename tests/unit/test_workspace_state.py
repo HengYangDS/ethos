@@ -22,9 +22,7 @@ def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:
     with sqlite3.connect(db_path) as connection:
         tables = {
             row[0]
-            for row in connection.execute(
-                "select name from sqlite_master where type = 'table'"
-            )
+            for row in connection.execute("select name from sqlite_master where type = 'table'")
         }
     assert {
         "schema_migrations",

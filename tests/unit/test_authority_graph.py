@@ -105,6 +105,4 @@ stable_path = "README.md"
     report = authority_graph_report(tmp_path)
 
     assert report["ok"] is False
-    assert "ethos:north-star:derived_view_missing_authority_derivation" in (
-        report["required_gaps"]
-    )
+    assert "ethos:north-star:derived_view_missing_authority_derivation" in (report["required_gaps"])

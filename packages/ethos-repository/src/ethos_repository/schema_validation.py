@@ -129,10 +129,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
             return value
         referenced = load_schema(ref, root=root)
         return _bundle_node(referenced, root=root, seen=seen | {ref})
-    return {
-        key: _bundle_node(item, root=root, seen=seen)
-        for key, item in value.items()
-    }
+    return {key: _bundle_node(item, root=root, seen=seen) for key, item in value.items()}
 
 
 def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
@@ -749,8 +746,7 @@ def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
         )
         if not validation["ok"]:
             gaps.extend(
-                f"{path.relative_to(root).as_posix()}:{gap}"
-                for gap in validation["required_gaps"]
+                f"{path.relative_to(root).as_posix()}:{gap}" for gap in validation["required_gaps"]
             )
     if mode == "adopter":
         advisory_gaps = gaps

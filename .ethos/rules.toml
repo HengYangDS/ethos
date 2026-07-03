@@ -60,7 +60,7 @@ test_effective_max_lines = 1200
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 2486
+effective_max_lines = 2482
 reason = "surface aggregator mid-split; ratchet caps at current — sink command bodies to domain + split into surface/cli/<group>.py each under surface soft (800)"
 
 [[quality.code_size.exception]]
@@ -100,7 +100,7 @@ reason = "coupling audit; split by binding kind to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos-repository/src/ethos_repository/parity.py"
-effective_max_lines = 552
+effective_max_lines = 554
 reason = "parity report; split evidence/gaps to reach 400"
 
 [[quality.code_size.exception]]

@@ -23,9 +23,7 @@ TRANSITION_COMMANDS = (
     "ethos publish",
 )
 
-SCORECARD_COMMANDS = (
-    "ethos report",
-)
+SCORECARD_COMMANDS = ("ethos report",)
 
 
 def governance_context(root: Path, *, profile: str) -> dict[str, object]:

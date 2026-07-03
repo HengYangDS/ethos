@@ -104,9 +104,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(
-        encoding="utf-8"
-    )
+    assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(encoding="utf-8")
     assert "primary_invariant" in (
         tmp_path / "openspec/specs/ethos-repository/capability.toml"
     ).read_text(encoding="utf-8")
@@ -115,9 +113,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     )
     assert "decision_axes" in repository_profile
     assert "[recommended_facets]" in repository_profile
-    assert "OpenSpec Workspace" in (tmp_path / "openspec/README.md").read_text(
-        encoding="utf-8"
-    )
+    assert "OpenSpec Workspace" in (tmp_path / "openspec/README.md").read_text(encoding="utf-8")
     assert "Change Template" in (tmp_path / "openspec/changes/template.md").read_text(
         encoding="utf-8"
     )
@@ -147,9 +143,9 @@ def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
 def test_generated_skill_loop_uses_workflow_plus_scorecard(tmp_path: Path) -> None:
     adoption_plan(tmp_path, profile="generic", apply=True)
 
-    skill = (
-        tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md"
-    ).read_text(encoding="utf-8")
+    skill = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+        encoding="utf-8"
+    )
 
     for command in (
         "ethos status",

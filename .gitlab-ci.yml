@@ -1,24 +1,72 @@
 stages:
+  - quality
   - verify
   - package
 
 variables:
   UV_LINK_MODE: copy
+  UV_CACHE_DIR: .uv-cache
 
-ethos:verify:
-  stage: verify
+# The quality stage runs every registered gate so a red gate fails CI — not just a
+# subset. Gates: ruff (40 families + complexity 10), ty (types), import-linter
+# (architecture), bandit (security), lychee (doc links), code-size (role-based LOC).
+# 道: a gate that does not run in CI is not a gate.
+.python_setup: &python_setup
   image: python:3.12
-  script:
-    - apt-get update && apt-get install -y npm
+  before_script:
+    - pip install uv
     - printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec "$@"' > /usr/local/bin/openspec
     - chmod +x /usr/local/bin/openspec
-    - openspec --version
-    - pip install uv
-    - uv run --group dev pytest tests/unit tests/architecture -q
+
+ethos:lint:
+  <<: *python_setup
+  stage: quality
+  script:
     - uv run --group dev ruff check .
+    - uv run --group dev ruff format --check .
+
+ethos:types:
+  <<: *python_setup
+  stage: quality
+  script:
+    # Zero-tolerance tier (see .config/checks/ty/policy.toml): the pure packages
+    # must always be 0 diagnostics. The product-layer ratchet tiers are enforced by
+    # the ethos-run gate as their baselines dissolve during the surface split.
+    - uv run --no-project --with ty ty check packages/ethos-core/src
+    - uv run --no-project --with ty ty check packages/ethos-quality/src
+    - uv run --no-project --with ty ty check packages/ethos-contracts/src
+
+ethos:architecture:
+  <<: *python_setup
+  stage: quality
+  script:
+    - uv run --no-project --with import-linter lint-imports --config .config/checks/import-linter/contracts.ini
+
+ethos:security:
+  <<: *python_setup
+  stage: quality
+  script:
+    - uv run --no-project --with bandit bandit -r packages -c .config/checks/bandit/bandit.yaml --severity-level medium -q
+
+ethos:docs-links:
+  image: python:3.12
+  stage: quality
+  script:
+    - apt-get update && apt-get install -y curl
+    - curl -sSL https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin lychee || true
+    - pip install uv
+    - uv run --package ethos ethos quality markdown-links --json
+
+ethos:verify:
+  <<: *python_setup
+  stage: verify
+  script:
+    - openspec --version
+    - uv run --group dev pytest tests/unit tests/architecture -q
     - openspec validate --all --strict --json
     - uv run --package ethos ethos audit --json
     - uv run --package ethos ethos report --json
+    - uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:npm:
   stage: verify
@@ -32,10 +80,9 @@ ethos:npm:
     - npm run test:npm
 
 ethos:package:
+  <<: *python_setup
   stage: package
-  image: python:3.12
   script:
-    - pip install uv
     - uv build --all-packages
   artifacts:
     when: always

@@ -14,9 +14,7 @@ PUBLIC_WORKFLOW_COMMANDS = (
     "ethos land",
     "ethos publish",
 )
-SCORECARD_COMMANDS = (
-    "ethos report",
-)
+SCORECARD_COMMANDS = ("ethos report",)
 SETUP_COMMANDS = (
     "ethos init",
     "ethos adopt",
@@ -37,18 +35,12 @@ MAINTAINER_REFERENCE_COMMANDS = (
     "ethos explain",
     "ethos docs",
 )
-GOVERNANCE_GATE_COMMANDS = (
-    "openspec validate --all --strict --json",
-)
-LOCAL_CLOSEOUT_COMMANDS = (
-    "ethos land --closeout --apply --authorize --expect-head <HEAD>",
-)
+GOVERNANCE_GATE_COMMANDS = ("openspec validate --all --strict --json",)
+LOCAL_CLOSEOUT_COMMANDS = ("ethos land --closeout --apply --authorize --expect-head <HEAD>",)
 EVIDENCE_REFRESH_COMMANDS = (
     "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
 )
-PUBLIC_COMMANDS = (
-    *PUBLIC_WORKFLOW_COMMANDS,
-)
+PUBLIC_COMMANDS = (*PUBLIC_WORKFLOW_COMMANDS,)
 KNOWN_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
     *SCORECARD_COMMANDS,
@@ -137,8 +129,7 @@ def _policy_doc_paths(root: Path) -> tuple[Path, ...]:
 
 def _is_historical_path(relative: str, historical_roots: tuple[str, ...]) -> bool:
     return any(
-        relative == root or relative.startswith(f"{root.rstrip('/')}/")
-        for root in historical_roots
+        relative == root or relative.startswith(f"{root.rstrip('/')}/") for root in historical_roots
     )
 
 
@@ -197,25 +188,19 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
     )
     advanced_public_commands = [command for command in PUBLIC_COMMANDS if command not in classified]
     leaked = [
-        command
-        for command in PUBLIC_COMMANDS
-        if command.split(" ", 1)[0] in RETIRED_PUBLIC_ROOTS
+        command for command in PUBLIC_COMMANDS if command.split(" ", 1)[0] in RETIRED_PUBLIC_ROOTS
     ]
     mentions = _scan_retired_public_roots(root) if root else []
     retired_prefix_mentions = _scan_retired_public_command_prefixes(root) if root else []
-    required_gaps = [
-        f"retired_public_root:{command}"
-        for command in leaked
-    ] + [
-        f"advanced_public_command:{command}"
-        for command in advanced_public_commands
-    ] + [
-        f"retired_public_root_mention:{mention}"
-        for mention in mentions
-    ] + [
-        f"retired_public_command_prefix_mention:{mention}"
-        for mention in retired_prefix_mentions
-    ]
+    required_gaps = (
+        [f"retired_public_root:{command}" for command in leaked]
+        + [f"advanced_public_command:{command}" for command in advanced_public_commands]
+        + [f"retired_public_root_mention:{mention}" for mention in mentions]
+        + [
+            f"retired_public_command_prefix_mention:{mention}"
+            for mention in retired_prefix_mentions
+        ]
+    )
     return {
         "ok": not required_gaps,
         "public_commands": list(PUBLIC_COMMANDS),

@@ -110,6 +110,7 @@ def test_active_claims_reject_retired_product_family_subjects(tmp_path: Path) ->
         in report["required_gaps"]
     )
 
+
 def test_active_trust_claim_requires_boundary_carriers_and_promotion(tmp_path: Path) -> None:
     claims = tmp_path / "claims"
     evidence = tmp_path / "docs" / "evidence"

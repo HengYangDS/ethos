@@ -184,9 +184,7 @@ def _allowed_states(root: Path) -> set[str]:
 def docs_health_report(root: Path) -> dict[str, object]:
     registry = build_docs_registry(root)
     missing = [
-        entry["path"]
-        for entry in registry
-        if any(not entry[field] for field in REQUIRED_FIELDS)
+        entry["path"] for entry in registry if any(not entry[field] for field in REQUIRED_FIELDS)
     ]
     allowed_states = _allowed_states(root)
     invalid_state = [
@@ -256,11 +254,9 @@ def docs_quality_report(root: Path) -> dict[str, object]:
         "glossary": glossary,
     }
     command_examples = command_examples_report(root)
-    required_gaps = [
-        gap
-        for check in checks.values()
-        for gap in check["required_gaps"]
-    ] + list(command_examples["required_gaps"])
+    required_gaps = [gap for check in checks.values() for gap in check["required_gaps"]] + list(
+        command_examples["required_gaps"]
+    )
     return {
         "ok": not required_gaps and health["ok"] and command_examples["ok"],
         "style_goals": ["faithful", "expressive", "elegant"],
@@ -332,11 +328,7 @@ def _glossary_report(root: Path) -> dict[str, object]:
     if not path.exists():
         return {"ok": False, "required_gaps": ["glossary_missing:docs/reference/glossary.md"]}
     text = path.read_text(encoding="utf-8")
-    gaps = [
-        f"glossary_term_missing:{term}"
-        for term in GLOSSARY_TERMS
-        if f"## {term}" not in text
-    ]
+    gaps = [f"glossary_term_missing:{term}" for term in GLOSSARY_TERMS if f"## {term}" not in text]
     return {"ok": not gaps, "required_gaps": gaps}
 
 
@@ -360,9 +352,7 @@ def _stable_paths_report(root: Path) -> dict[str, object]:
             for item in payload.get("stable_path", [])
             if isinstance(item, dict) and item.get("path")
         }
-    missing = sorted(
-        f"stable_path_missing:{item}" for item in required if item not in configured
-    )
+    missing = sorted(f"stable_path_missing:{item}" for item in required if item not in configured)
     missing.extend(
         f"stable_path_target_missing:{item}"
         for item in sorted(configured)

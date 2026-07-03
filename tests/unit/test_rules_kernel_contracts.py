@@ -132,10 +132,14 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
         "profile_layers": ["generic"],
         "rules": [rule],
     }
-    fact_snapshot = RuleEvalRequest(
-        phase="plan",
-        changed_paths=("docs/index.md",),
-    ).to_fact_snapshot(head="untracked").to_dict()
+    fact_snapshot = (
+        RuleEvalRequest(
+            phase="plan",
+            changed_paths=("docs/index.md",),
+        )
+        .to_fact_snapshot(head="untracked")
+        .to_dict()
+    )
     evaluation = {
         "schema_version": 1,
         "state": "allow",
@@ -265,9 +269,7 @@ def test_normalized_rule_shadow_fixtures_cover_reference_repositories() -> None:
             "pep-no-side-effect",
             "strict-coverage",
         } <= set(stages)
-    assert fixtures["reference-legacy"]["report"]["required_gap_kinds"] == [
-        "rule_schema_invalid"
-    ]
+    assert fixtures["reference-legacy"]["report"]["required_gap_kinds"] == ["rule_schema_invalid"]
 
 
 def test_rules_check_passes_for_starter_profile(tmp_path: Path) -> None:
@@ -288,7 +290,7 @@ def test_rules_check_passes_for_starter_profile(tmp_path: Path) -> None:
 def test_rules_check_blocks_malformed_and_invalid_config(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     rules_path = tmp_path / ".ethos" / "rules.toml"
-    rules_path.write_text("[profiles\nactive = [\"generic\"]\n", encoding="utf-8")
+    rules_path.write_text('[profiles\nactive = ["generic"]\n', encoding="utf-8")
 
     malformed = rules_check_report(tmp_path)
 
@@ -380,10 +382,7 @@ def test_starter_docs_cover_package_and_distribution_readmes(tmp_path: Path) -> 
 
     assert report["ok"] is True
     assert report["uncovered_paths"] == []
-    assert {
-        match["rule_id"]
-        for match in report["matched_rules"]
-    } == {"starter.docs"}
+    assert {match["rule_id"] for match in report["matched_rules"]} == {"starter.docs"}
 
 
 def test_rule_evaluation_blocks_missing_authorization_for_publish(tmp_path: Path) -> None:
@@ -546,13 +545,9 @@ def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> Non
     report = rules_evaluation_report(tmp_path, phase="prove", fact_snapshot=snapshot)
 
     assert report["state"] == "block"
-    assert "fact_required_gap:claim_state:claim_digest_mismatch:rules" in report[
-        "required_gaps"
-    ]
+    assert "fact_required_gap:claim_state:claim_digest_mismatch:rules" in report["required_gaps"]
     assert "fact_not_ok:evidence_freshness" in report["required_gaps"]
-    assert "fact_stale_ref:evidence_freshness:docs/evidence/rules.md" in report[
-        "required_gaps"
-    ]
+    assert "fact_stale_ref:evidence_freshness:docs/evidence/rules.md" in report["required_gaps"]
 
 
 def test_rule_evaluation_blocks_worktree_gaps_for_publish(tmp_path: Path) -> None:
@@ -693,10 +688,7 @@ stop_condition = "docs_missing"
     assert report["generated_from"] == "compiled-rules"
     assert "missing_doc_ref:docs/missing-authority.md" in report["required_gaps"]
     assert layer["docs_manifest_ok"] is False
-    assert (
-        "rules_docs_manifest:missing_doc_ref:docs/missing-contract.md"
-        in layer["required_gaps"]
-    )
+    assert "rules_docs_manifest:missing_doc_ref:docs/missing-contract.md" in layer["required_gaps"]
 
 
 def test_policy_exceptions_validate_required_owner_scope_ttl_and_digest(tmp_path: Path) -> None:
@@ -797,12 +789,11 @@ digest = "{non_waivable["digest"]}"
     report = policy_exceptions_report(tmp_path, today="2026-07-01")
 
     assert report["ok"] is False
-    assert "policy_exception_date_invalid:invalid-date:expires_at" in report[
-        "required_gaps"
-    ]
-    assert "policy_exception_non_waivable_rule:non-waivable:starter.governance" in report[
-        "required_gaps"
-    ]
+    assert "policy_exception_date_invalid:invalid-date:expires_at" in report["required_gaps"]
+    assert (
+        "policy_exception_non_waivable_rule:non-waivable:starter.governance"
+        in report["required_gaps"]
+    )
 
 
 def test_policy_exceptions_block_empty_path_scope(tmp_path: Path) -> None:
@@ -987,7 +978,7 @@ digest = "{waiver["digest"]}"
 def test_legacy_rules_migration_is_dry_run(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "rules.toml").write_text(
-        "[formats]\nuser_config = \"TOML\"\n",
+        '[formats]\nuser_config = "TOML"\n',
         encoding="utf-8",
     )
 
@@ -996,9 +987,9 @@ def test_legacy_rules_migration_is_dry_run(tmp_path: Path) -> None:
     assert report["ok"] is True
     assert report["legacy_detected"] is True
     assert report["applied"] is False
-    assert "ethos rules migrate --apply --authorize --expect-head <git-head>" in report[
-        "next_actions"
-    ]
+    assert (
+        "ethos rules migrate --apply --authorize --expect-head <git-head>" in report["next_actions"]
+    )
 
 
 def test_v2_rules_with_gate_definitions_are_not_legacy(tmp_path: Path) -> None:
@@ -1080,9 +1071,9 @@ evidence = ["unit test output"]
     assert report["target"]["profiles"]["active"] == ["generic", "python"]
     assert report["target"]["gates"]["unit"]["command"] == "uv run pytest -q"
     written = rules_path.read_text(encoding="utf-8")
-    assert '[gates.unit]' in written
+    assert "[gates.unit]" in written
     assert 'command = "uv run pytest -q"' in written
-    assert 'blocking = true' in written
+    assert "blocking = true" in written
     after = rules_check_report(tmp_path)
     assert after["ok"] is True
     assert "unknown_rule_gate:legacy.src:unit" not in after["required_gaps"]
@@ -1103,9 +1094,9 @@ def test_contract_dataclasses_serialize_to_schema_payloads() -> None:
     request = RuleEvalRequest(phase="plan", changed_paths=("docs/index.md",))
 
     assert validate_schema_instance("rule-set.schema.json", rule_set.to_dict())["ok"]
-    assert request.to_fact_snapshot(head="abc123").to_dict()["facts"]["changed_paths"][
-        "value"
-    ] == ["docs/index.md"]
+    assert request.to_fact_snapshot(head="abc123").to_dict()["facts"]["changed_paths"]["value"] == [
+        "docs/index.md"
+    ]
 
 
 def test_rule_attestation_verifier_detects_tampering() -> None:

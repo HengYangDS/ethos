@@ -398,9 +398,7 @@ def _normalized_semantic_projections(
     external_projection["required_gaps"] = sorted(external_gaps)
     if accepted and not external_gaps and not embedded_gaps:
         external_projection["ok"] = True
-        external_projection["state"] = _ready_state_for_command(
-            external_projection.get("command")
-        )
+        external_projection["state"] = _ready_state_for_command(external_projection.get("command"))
         _mark_projection_ready(external_projection)
     return external_projection, embedded_projection, accepted
 
@@ -600,9 +598,7 @@ def _without_product_repository_audit_gaps(
 ) -> tuple[list[str], list[str]]:
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
     repository_audit = (
-        data.get("repository_audit")
-        if isinstance(data.get("repository_audit"), dict)
-        else {}
+        data.get("repository_audit") if isinstance(data.get("repository_audit"), dict) else {}
     )
     audit_gaps = {
         gap
@@ -660,9 +656,7 @@ def _is_changed_route_noop(
     gaps: list[str],
 ) -> bool:
     external_data = external.get("data") if isinstance(external.get("data"), dict) else {}
-    embedded_summary = (
-        embedded.get("summary") if isinstance(embedded.get("summary"), dict) else {}
-    )
+    embedded_summary = embedded.get("summary") if isinstance(embedded.get("summary"), dict) else {}
     return (
         (external.get("command") or external_data.get("command")) == "playbooks route"
         and external_data.get("subject") == "changed-scope"
@@ -679,9 +673,7 @@ def _report_parity_evidence_refresh_bootstrap_gaps(
     external_projection: dict[str, Any],
     embedded_projection: dict[str, Any],
 ) -> list[str]:
-    external_summary = (
-        external.get("summary") if isinstance(external.get("summary"), dict) else {}
-    )
+    external_summary = external.get("summary") if isinstance(external.get("summary"), dict) else {}
     parity_pending_count = external_summary.get("parity_pending_count")
     governance_gap_count = external_summary.get("governance_gap_count")
     if not isinstance(parity_pending_count, int) or parity_pending_count <= 0:

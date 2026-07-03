@@ -135,9 +135,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     assert registry["ruff_lint_runner"]["layer"] == "product_toolchain_binding"
     assert registry["gitlab_release_profile"]["layer"] == "profile_or_adapter_binding"
     assert registry["mcp_acp_protocol_adapters"]["layer"] == "profile_or_adapter_binding"
-    assert registry["npm_launcher_distribution_adapter"]["layer"] == (
-        "profile_or_adapter_binding"
-    )
+    assert registry["npm_launcher_distribution_adapter"]["layer"] == ("profile_or_adapter_binding")
     assert report["release_product_files"] == [
         "README.md",
         "LICENSE",
@@ -180,9 +178,7 @@ def test_binding_registry_keeps_each_binding_in_its_mechanism_layer() -> None:
     report = coupling_audit_report(Path.cwd())
     registry = {entry["id"]: entry for entry in report["binding_registry"]}
 
-    assert registry["git_repository_substrate"]["layer"] == (
-        "product_semantic_hard_binding"
-    )
+    assert registry["git_repository_substrate"]["layer"] == ("product_semantic_hard_binding")
     assert registry["branch_role_policy"]["layer"] == "product_semantic_hard_binding"
     assert registry["work_lane_lifecycle_command_contract"]["layer"] == (
         "product_semantic_hard_binding"
@@ -318,8 +314,8 @@ def test_coupling_audit_flags_missing_work_lane_lifecycle_binding(
     report = coupling_audit_report(Path.cwd())
 
     assert report["ok"] is False
-    assert "binding_registry_missing:work_lane_lifecycle_command_contract" in (
-        report["required_gaps"]
+    assert (
+        "binding_registry_missing:work_lane_lifecycle_command_contract" in (report["required_gaps"])
     )
 
 
@@ -330,9 +326,7 @@ def test_coupling_audit_flags_missing_git_product_binding(
 
     def registry_without_git(root: Path) -> list[dict[str, object]]:
         return [
-            entry
-            for entry in original_registry(root)
-            if entry["id"] != "git_repository_substrate"
+            entry for entry in original_registry(root) if entry["id"] != "git_repository_substrate"
         ]
 
     monkeypatch.setattr(coupling, "_binding_registry", registry_without_git)
@@ -362,15 +356,12 @@ def test_coupling_audit_flags_openspec_as_product_substrate(
     report = coupling_audit_report(Path.cwd())
 
     assert report["ok"] is False
-    assert "binding_registry_layer:openspec_workspace:product_semantic_hard_binding" in (
-        report["required_gaps"]
+    assert (
+        "binding_registry_layer:openspec_workspace:product_semantic_hard_binding"
+        in (report["required_gaps"])
     )
-    assert "binding_registry_product_semantics:openspec_workspace" in (
-        report["required_gaps"]
-    )
-    assert "binding_registry_product_substrate:openspec_workspace" in (
-        report["required_gaps"]
-    )
+    assert "binding_registry_product_semantics:openspec_workspace" in (report["required_gaps"])
+    assert "binding_registry_product_substrate:openspec_workspace" in (report["required_gaps"])
 
 
 def test_coupling_audit_flags_adapter_owning_product_semantics(
@@ -391,11 +382,13 @@ def test_coupling_audit_flags_adapter_owning_product_semantics(
     report = coupling_audit_report(Path.cwd())
 
     assert report["ok"] is False
-    assert "binding_registry_product_semantics:npm_launcher_distribution_adapter" in (
-        report["required_gaps"]
+    assert (
+        "binding_registry_product_semantics:npm_launcher_distribution_adapter"
+        in (report["required_gaps"])
     )
-    assert "binding_registry_ui_projection:npm_launcher_distribution_adapter:action" in (
-        report["required_gaps"]
+    assert (
+        "binding_registry_ui_projection:npm_launcher_distribution_adapter:action"
+        in (report["required_gaps"])
     )
 
 
@@ -416,11 +409,13 @@ def test_coupling_audit_flags_model_and_editor_terms_in_product_docs(tmp_path: P
 
     report = coupling_audit_report(tmp_path)
 
-    assert "product_vendor_term:docs/governance/product-design-contract.md:OpenAI" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:OpenAI"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:IDE" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:IDE"
+        in (report["required_gaps"])
     )
     assert not any(
         "product_vendor_term" in gap and ":Git" in gap for gap in report["required_gaps"]
@@ -446,23 +441,29 @@ def test_coupling_audit_flags_additional_model_editor_and_host_vendor_names(
 
     report = coupling_audit_report(tmp_path)
 
-    assert "product_vendor_term:docs/governance/product-design-contract.md:JetBrains" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:JetBrains"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:Anthropic" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:Anthropic"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:Gemini" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:Gemini"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:Copilot" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:Copilot"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:Cursor" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:Cursor"
+        in (report["required_gaps"])
     )
-    assert "product_vendor_term:docs/governance/product-design-contract.md:Windsurf" in (
-        report["required_gaps"]
+    assert (
+        "product_vendor_term:docs/governance/product-design-contract.md:Windsurf"
+        in (report["required_gaps"])
     )
 
 
@@ -485,9 +486,11 @@ def test_coupling_audit_flags_host_projection_labels_in_product_docs(
 
     report = coupling_audit_report(tmp_path)
 
-    assert "product_host_projection_term:docs/reference/command-plane.md:Open Worktree" in (
-        report["required_gaps"]
+    assert (
+        "product_host_projection_term:docs/reference/command-plane.md:Open Worktree"
+        in (report["required_gaps"])
     )
-    assert "product_host_projection_term:docs/reference/command-plane.md:Checkout" in (
-        report["required_gaps"]
+    assert (
+        "product_host_projection_term:docs/reference/command-plane.md:Checkout"
+        in (report["required_gaps"])
     )

@@ -201,11 +201,7 @@ def update_lease_payload(
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     initialize_state(db_path)
-    matching = [
-        lease
-        for lease in active_leases(db_path)
-        if lease["subject"] == subject
-    ]
+    matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
     if not matching:
         return {}
     lease = matching[-1]
@@ -233,9 +229,7 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
     now = datetime.now(UTC)
     with sqlite3.connect(db_path) as connection:
         columns = _table_columns(connection, "leases")
-        if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(
-            columns
-        ):
+        if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
             return []
         rows = connection.execute(
             """

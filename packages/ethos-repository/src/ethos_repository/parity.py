@@ -519,8 +519,10 @@ def _validate_parity_evidence(
         else:
             for capability in verified:
                 basis = capability_basis.get(capability)
-                if not isinstance(basis, list) or not basis or not all(
-                    isinstance(item, str) and item for item in basis
+                if (
+                    not isinstance(basis, list)
+                    or not basis
+                    or not all(isinstance(item, str) and item for item in basis)
                 ):
                     required_gaps.append(
                         f"parity_evidence_invalid:{adopter}:capability_basis:{capability}"

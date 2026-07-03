@@ -39,8 +39,7 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
 
     assert "Evidence-grounded Trust for Human-Agent Operational Stewardship" in text
     kernel_chain = (
-        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> "
-        "Claim -> Chronicle"
+        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
     )
     assert kernel_chain in text
     assert "North Star is a derived reader view, not the judgment source" in text
@@ -109,9 +108,7 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
 
     assert "adapter UI text is not product state" in command_plane
     assert "OpenSpec remains mandatory governance, not a product substrate" in product
-    assert "OpenSpec remains mandatory governance, not a product substrate" in (
-        repository_spec
-    )
+    assert "OpenSpec remains mandatory governance, not a product substrate" in (repository_spec)
     assert "not a second command plane" in repository_spec
     assert "adapters derive presentation from `worktree_binding`" in adapters_spec
     assert "host navigation labels are not product state" in adapters_spec

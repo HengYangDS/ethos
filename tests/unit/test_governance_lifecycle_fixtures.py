@@ -10,14 +10,20 @@ def test_complete_governance_lifecycle_fixture_validates_contracts() -> None:
     fixture = complete_governance_lifecycle()
 
     assert fixture["required_gaps"] == []
-    assert validate_schema_instance(
-        "trust-envelope.schema.json",
-        fixture["trust_envelope"],
-    )["ok"] is True
-    assert validate_schema_instance(
-        "capability-profile.schema.json",
-        fixture["capability_profile"],
-    )["ok"] is True
+    assert (
+        validate_schema_instance(
+            "trust-envelope.schema.json",
+            fixture["trust_envelope"],
+        )["ok"]
+        is True
+    )
+    assert (
+        validate_schema_instance(
+            "capability-profile.schema.json",
+            fixture["capability_profile"],
+        )["ok"]
+        is True
+    )
     for target in fixture["trust_envelope"]["promotion"]["targets"]:
         assert validate_schema_instance("promotion-target.schema.json", target)["ok"] is True
 

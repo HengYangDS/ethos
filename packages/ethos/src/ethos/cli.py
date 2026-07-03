@@ -192,7 +192,11 @@ def _quality_tool_report(
     files: list[str],
 ) -> dict[str, object]:
     return _qtool.quality_tool_report(
-        root=root, gate_id=gate_id, tool=tool, command=command, files=files,
+        root=root,
+        gate_id=gate_id,
+        tool=tool,
+        command=command,
+        files=files,
     )
 
 
@@ -652,22 +656,14 @@ def prove(
     )
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
     trust_gaps: tuple[str, ...] = (
-        ("trust_bearing_proof_missing",)
-        if execute and verdicts_ok and not trust_bearing_ok
-        else ()
+        ("trust_bearing_proof_missing",) if execute and verdicts_ok and not trust_bearing_ok else ()
     )
     head_gaps: tuple[str, ...] = (
         ("expected_head_mismatch",)
         if expect_head is not None and expect_head != current_head
         else ()
     )
-    ok = (
-        bool(audit["ok"])
-        and runs_ok
-        and graph.validate().ok
-        and not proof_gaps
-        and not head_gaps
-    )
+    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok and not proof_gaps and not head_gaps
     result_state = "proven" if ok and execute else "ready" if ok else "gapped"
     next_actions = (
         ("ethos land",)
@@ -906,7 +902,9 @@ def _closeout_bootstrap_package(
     required_gaps: tuple[str, ...],
 ) -> dict[str, object]:
     return _land.closeout_bootstrap_package(
-        repo=repo, audit_root=audit_root, required_gaps=required_gaps,
+        repo=repo,
+        audit_root=audit_root,
+        required_gaps=required_gaps,
     )
 
 
@@ -1781,9 +1779,7 @@ def coupling_audit(
         schema_name="coupling-audit.schema.json",
         payload=report,
     )
-    validation_gaps = tuple(
-        f"coupling_audit_schema:{gap}" for gap in validation["required_gaps"]
-    )
+    validation_gaps = tuple(f"coupling_audit_schema:{gap}" for gap in validation["required_gaps"])
     ok = bool(report["ok"]) and bool(validation["ok"])
     result = EthosResult(
         command="quality coupling-audit",

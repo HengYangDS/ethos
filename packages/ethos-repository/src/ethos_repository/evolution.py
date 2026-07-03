@@ -243,9 +243,12 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
         needs_existing_carrier = (
             step["state"] != "planned" or step["closeout"]["state"] != "planned"
         )
-        if needs_existing_carrier and change and not (
-            root / "openspec" / "changes" / change
-        ).exists() and not any((root / "openspec" / "changes" / "archive").glob(f"*-{change}")):
+        if (
+            needs_existing_carrier
+            and change
+            and not (root / "openspec" / "changes" / change).exists()
+            and not any((root / "openspec" / "changes" / "archive").glob(f"*-{change}"))
+        ):
             gaps.append(f"campaign_step_openspec_missing:{campaign['id']}:{step_id}")
     return gaps
 
@@ -279,6 +282,6 @@ def evolution_candidates(root: Path) -> dict[str, object]:
             "retirement_conditions": [
                 "ethos-quality owns quality semantics and repository consumes them"
             ],
-        }
+        },
     ]
     return {"ok": True, "candidates": candidates}

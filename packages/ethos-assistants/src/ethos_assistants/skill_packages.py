@@ -45,6 +45,8 @@ _READONLY_ETHOS_COMMANDS = {
     "report",
     "status",
 }
+
+
 def compute_skill_package_digest(package_dir: Path, include: list[str]) -> str:
     digest = hashlib.sha256()
     for relative in sorted(include):

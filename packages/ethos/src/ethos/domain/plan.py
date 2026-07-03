@@ -264,9 +264,7 @@ def rule_fact_snapshot(
             },
         )
     except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["command_registry"] = unavailable_rule_fact(
-            "ethos-repository.command-registry", exc
-        )
+        facts["command_registry"] = unavailable_rule_fact("ethos-repository.command-registry", exc)
     try:
         projection = projection_contract()
         facts["projection_drift"] = rule_fact(
@@ -277,9 +275,7 @@ def rule_fact_snapshot(
             },
         )
     except BaseException as exc:  # pragma: no cover - defensive adapter boundary.
-        facts["projection_drift"] = unavailable_rule_fact(
-            "ethos-assistants.projections", exc
-        )
+        facts["projection_drift"] = unavailable_rule_fact("ethos-assistants.projections", exc)
     return RuleFactSnapshot(
         phase=phase,
         head=head,

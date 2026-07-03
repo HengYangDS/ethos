@@ -104,12 +104,11 @@ ethos lane nope --json
     report = command_examples_report(tmp_path)
 
     assert report["ok"] is False
-    assert "unknown_ethos_command_example:README.md:4:ethos quality frobnicate" in report[
-        "required_gaps"
-    ]
-    assert "unknown_ethos_command_example:README.md:5:ethos lane nope" in report[
-        "required_gaps"
-    ]
+    assert (
+        "unknown_ethos_command_example:README.md:4:ethos quality frobnicate"
+        in report["required_gaps"]
+    )
+    assert "unknown_ethos_command_example:README.md:5:ethos lane nope" in report["required_gaps"]
 
 
 def test_command_examples_validate_wrapped_uv_ethos_commands(tmp_path: Path) -> None:

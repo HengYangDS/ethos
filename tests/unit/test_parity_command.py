@@ -221,9 +221,7 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == (
-        "docs/evidence/parity/alphasim-dmgr-shadow.json"
-    )
+    assert payload["data"]["evidence"]["path"] == ("docs/evidence/parity/alphasim-dmgr-shadow.json")
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
 
 
@@ -843,9 +841,7 @@ def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:
                 "root": Path.cwd().resolve().as_posix(),
                 "target": tmp_path.resolve().as_posix(),
                 "blocking": True,
-                "required_gaps": [
-                    f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}"
-                ],
+                "required_gaps": [f"shadow_parity_not_executed:{tmp_path.resolve().as_posix()}"],
                 "command": (
                     "ethos parity shadow --adopter generic "
                     f"--target {tmp_path.resolve().as_posix()} "

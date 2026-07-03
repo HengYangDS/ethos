@@ -365,9 +365,7 @@ def _gate_profile_gaps() -> list[str]:
 
 def _product_toolchain() -> dict[str, object]:
     registry = gate_registry()
-    toolchains = sorted(
-        {registry[gate_id].toolchain for gate_id in PRODUCT_REPOSITORY_GATES}
-    )
+    toolchains = sorted({registry[gate_id].toolchain for gate_id in PRODUCT_REPOSITORY_GATES})
     return {
         "profile": "product-toolchain",
         "layer": "product_toolchain_binding",
@@ -438,12 +436,8 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
             "owns_product_semantics": True,
             "adapter_replaceable": False,
             **branch_role_metadata,
-            "role_order": [
-                str(record["role"]) for record in policy.semantic_order()
-            ],
-            "configured_patterns": [
-                str(record["pattern"]) for record in policy.semantic_order()
-            ],
+            "role_order": [str(record["role"]) for record in policy.semantic_order()],
+            "configured_patterns": [str(record["pattern"]) for record in policy.semantic_order()],
         },
         {
             "id": "work_lane_lifecycle_command_contract",

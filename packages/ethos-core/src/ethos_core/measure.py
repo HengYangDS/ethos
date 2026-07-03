@@ -25,9 +25,7 @@ def _string_expr_line_spans(tree: ast.AST) -> set[int]:
     spans: set[int] = set()
     # Docstrings: leading string Expr of module/class/function bodies.
     for node in ast.walk(tree):
-        if not isinstance(
-            node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
-        ):
+        if not isinstance(node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             continue
         body = getattr(node, "body", None)
         if not body:

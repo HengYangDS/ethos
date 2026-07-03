@@ -46,11 +46,7 @@ def _ethos_result_diagnostics(stdout: str) -> tuple[dict[str, Any], ...]:
             "kind": "ethos_result",
             "ok": False,
             "state": str(payload.get("state", "")),
-            "required_gaps": [
-                str(gap)
-                for gap in payload.get("required_gaps", [])
-                if str(gap)
-            ],
+            "required_gaps": [str(gap) for gap in payload.get("required_gaps", []) if str(gap)],
         },
     )
 

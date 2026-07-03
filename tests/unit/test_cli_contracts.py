@@ -555,7 +555,7 @@ def test_hook_admit_pre_run_blocks_mutation_risk_without_paths(tmp_path: Path) -
         repo.as_posix(),
         "--require-editor-root",
         "--command",
-        "python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'",
+        'python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
         "--json",
         cwd=repo,
     )
@@ -1705,9 +1705,7 @@ def test_quality_coupling_audit_reports_git_native_boundary() -> None:
     assert payload["data"]["native_protocols"]["provider_optional"] is False
     assert payload["data"]["release_host_profile"]["provider"] == "gitlab"
     assert payload["data"]["product_toolchain"]["profile"] == "product-toolchain"
-    assert payload["data"]["product_toolchain"]["layer"] == (
-        "product_toolchain_binding"
-    )
+    assert payload["data"]["product_toolchain"]["layer"] == ("product_toolchain_binding")
     assert {
         "kind": "schema_validation",
         "target": "data",
@@ -1753,18 +1751,14 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
         "ethos land",
         "ethos publish",
     ]
-    assert payload["data"]["repository_audit"]["governance_context"][
-        "transition_commands"
-    ] == [
+    assert payload["data"]["repository_audit"]["governance_context"]["transition_commands"] == [
         "ethos status",
         "ethos plan",
         "ethos prove",
         "ethos land",
         "ethos publish",
     ]
-    assert payload["data"]["repository_audit"]["governance_context"][
-        "scorecard_commands"
-    ] == [
+    assert payload["data"]["repository_audit"]["governance_context"]["scorecard_commands"] == [
         "ethos report",
     ]
 
@@ -1777,9 +1771,10 @@ def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> N
     assert payload["ok"] is True
     assert "self_audit" not in payload["data"]
     assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert payload["data"]["governance_context"] == payload["data"]["repository_audit"][
-        "governance_context"
-    ]
+    assert (
+        payload["data"]["governance_context"]
+        == payload["data"]["repository_audit"]["governance_context"]
+    )
     assert "posture" not in payload["data"]["governance_context"]
     assert payload["summary"]["governance_gap_count"] == 0
     assert payload["data"]["scores"]["adopter_governance"] == 1
@@ -2542,9 +2537,7 @@ boundary = "workflow-package-projection"
 def test_product_playbook_activation_routes_evolution_campaigns() -> None:
     activation = tomllib.loads(Path(".agents/skills/activation.toml").read_text(encoding="utf-8"))
     record = next(
-        item
-        for item in activation["skill"]
-        if item["id"] == "ethos-repository-governance"
+        item for item in activation["skill"] if item["id"] == "ethos-repository-governance"
     )
 
     assert "evolution/**" in record["path_globs"]
@@ -2556,9 +2549,7 @@ def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path)
     skills_root = root / ".agents" / "skills"
     skills_root.mkdir(parents=True)
     (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(
-        write_v2_playbook_package(skills_root, "ethos-repository-governance")
-    )
+    package_manifest = Path(write_v2_playbook_package(skills_root, "ethos-repository-governance"))
     (skills_root / "activation.toml").write_text(
         f"""
 [meta]
@@ -2870,8 +2861,7 @@ boundary = "thin-playbook-projection"
     assert payload["data"]["playbooks"]["mode"] == "v2-strict"
     assert "skill_missing_id" in payload["data"]["playbooks"]["required_gaps"]
     assert (
-        "playbook_activation_unsupported_version:1"
-        in payload["data"]["playbooks"]["required_gaps"]
+        "playbook_activation_unsupported_version:1" in payload["data"]["playbooks"]["required_gaps"]
     )
 
 
@@ -2995,9 +2985,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["publication"]["local_submit_package"]["source_branch"] == branch
     assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
     assert packages["release"]["ok"] is True
-    assert packages["parity"]["pending_count"] == len(
-        payload["data"]["parity"]["pending_packages"]
-    )
+    assert packages["parity"]["pending_count"] == len(payload["data"]["parity"]["pending_packages"])
     assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]
     assert packages["parity"]["blocking"] is False
     assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
@@ -3006,9 +2994,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["shadow_parity"]["evidence_path"] == (
         "docs/evidence/parity/alphasim-dmgr-shadow.json"
     )
-    assert packages["shadow_parity"]["blocking"] == bool(
-        packages["shadow_parity"]["required_gaps"]
-    )
+    assert packages["shadow_parity"]["blocking"] == bool(packages["shadow_parity"]["required_gaps"])
     assert packages["intake_projection"]["kind"] == "intake_projection"
     assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
     assert packages["trust_closeout"]["kind"] == "trust_closeout"
@@ -3085,9 +3071,10 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
     assert payload["summary"]["governance_gap_count"] == 0
     assert "self_audit" not in payload["data"]
-    assert payload["data"]["governance_context"] == payload["data"]["repository_audit"][
-        "governance_context"
-    ]
+    assert (
+        payload["data"]["governance_context"]
+        == payload["data"]["repository_audit"]["governance_context"]
+    )
     assert "posture" not in payload["data"]["governance_context"]
     assert payload["data"]["gap_layers"]["governance_audit"] == {
         "scope": "governance_audit",
@@ -3138,7 +3125,7 @@ def test_retired_self_command_group_is_not_available() -> None:
     completed = run_ethos_raw("self", "audit", "--mode", "shape", "--json")
 
     assert completed.returncode != 0
-    assert "Unknown command \"self\"" in (completed.stderr or completed.stdout)
+    assert 'Unknown command "self"' in (completed.stderr or completed.stdout)
 
 
 def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:

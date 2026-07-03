@@ -207,7 +207,7 @@ stop_condition = "python_source_gap"
         "requires_backlog": False,
         "requires_product_openspec_family": False,
         "paths": [".ethos/rules.toml"],
-        "files": {".ethos/rules.toml": "[formats]\nuser_config = \"TOML\"\n"},
+        "files": {".ethos/rules.toml": '[formats]\nuser_config = "TOML"\n'},
     },
     "custom": {
         "strict": False,

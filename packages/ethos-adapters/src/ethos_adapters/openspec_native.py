@@ -79,9 +79,7 @@ def _selected_change(list_payload: dict[str, Any], requested: str | None) -> str
     if not isinstance(changes, list):
         return None
     in_progress = [
-        item
-        for item in changes
-        if isinstance(item, dict) and item.get("status") == "in-progress"
+        item for item in changes if isinstance(item, dict) and item.get("status") == "in-progress"
     ]
     if in_progress:
         return str(in_progress[0].get("name") or "")
@@ -156,11 +154,7 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
         required_gaps.append("openspec_list_failed")
     if list_result["parse_error"]:
         required_gaps.append("openspec_list_json_parse_failed")
-    completed_changes = (
-        []
-        if required_gaps
-        else _completed_active_change_names(list_result["json"])
-    )
+    completed_changes = [] if required_gaps else _completed_active_change_names(list_result["json"])
     required_gaps.extend(
         f"openspec_completed_change_unarchived:{name}" for name in completed_changes
     )
@@ -260,9 +254,7 @@ def _archive_closeout_issues(archive: Path, *, root: Path) -> list[dict[str, str
         path = archive / filename
         if not path.is_file():
             stem = "metadata" if filename == ".openspec.yaml" else path.stem
-            issues.append(
-                _archive_issue(f"openspec_archive_{stem}_missing", path, name, root=root)
-            )
+            issues.append(_archive_issue(f"openspec_archive_{stem}_missing", path, name, root=root))
     metadata = archive / ".openspec.yaml"
     if metadata.is_file():
         issues.extend(_archive_metadata_issues(metadata, archive_name=name, root=root))
@@ -424,9 +416,7 @@ def _archive_issue(code: str, path: Path, archive_name: str, *, root: Path) -> d
         "code": code,
         "gap": f"{code}:{archive_name}",
         "path": (
-            path.relative_to(root).as_posix()
-            if _is_relative_to(path, root)
-            else path.as_posix()
+            path.relative_to(root).as_posix() if _is_relative_to(path, root) else path.as_posix()
         ),
     }
 
@@ -631,8 +621,9 @@ def _lifecycle_report(
                 "carriers": carriers,
                 "proposal_protocol": proposal_protocol,
                 "required_gaps": [
-                    gap for gap in required_gaps if gap.endswith(f":{change_name}")
-                    or f":{change_name}:" in gap
+                    gap
+                    for gap in required_gaps
+                    if gap.endswith(f":{change_name}") or f":{change_name}:" in gap
                 ],
             }
         )
@@ -671,9 +662,7 @@ def _proposal_protocol_report(root: Path, change_name: str) -> dict[str, Any]:
             gaps.append(f"openspec_proposal_reuse_invalid:{change_name}:{capability}:{reuse}")
         direction = metadata.get("change", "")
         if direction and direction not in VALID_CHANGE_DIRECTIONS:
-            gaps.append(
-                f"openspec_proposal_change_invalid:{change_name}:{capability}:{direction}"
-            )
+            gaps.append(f"openspec_proposal_change_invalid:{change_name}:{capability}:{direction}")
     return {
         "ok": not gaps,
         "required_gaps": gaps,
@@ -725,10 +714,14 @@ def _capability_profile_gaps(root: Path, change_name: str, capability: str) -> l
     gaps: list[str] = []
     for field in ("family", "primary_invariant", "routing_question"):
         if not payload.get(field):
-            gaps.append(f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}")
+            gaps.append(
+                f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}"
+            )
     for field in ("decision_axes", "recommended_facets"):
         if not payload.get(field):
-            gaps.append(f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}")
+            gaps.append(
+                f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}"
+            )
     if not payload.get("boundary_rules"):
         gaps.append(
             f"openspec_capability_profile_field_missing:{change_name}:{capability}:boundary_rules"

@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 
 
 def test_available_profiles_are_explicit() -> None:
-    assert {"generic", "python", "monorepo", "github", "gitlab"} <= set(
-        available_profiles()
-    )
+    assert {"generic", "python", "monorepo", "github", "gitlab"} <= set(available_profiles())
 
 
 def test_python_package_profile_alias_is_not_current_product_surface(
@@ -97,7 +95,7 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     assert (tmp_path / ".gitlab-ci.yml").exists()
     assert "[host_profile]" in release
     assert 'provider = "gitlab"' in release
-    assert '[host_profile.surfaces]' in release
+    assert "[host_profile.surfaces]" in release
     assert 'ci = ".gitlab-ci.yml"' in release
 
 

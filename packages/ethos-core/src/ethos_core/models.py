@@ -19,9 +19,7 @@ def _tuple_text(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
 
 SEMANTIC_VERIFIERS = {"semantic"}
 DIGEST_ONLY_VERIFIERS = {"digest_only"}
-CLAIM_OVERCLAIM_PHRASES = (
-    "semantic",
-)
+CLAIM_OVERCLAIM_PHRASES = ("semantic",)
 CHRONICLE_EVENT_TYPES = ("decision", "evidence", "state_change", "supersession")
 
 
@@ -190,9 +188,8 @@ class EvidenceClaim:
             msg = "verifier must be one of digest_only or semantic"
             raise ValueError(msg)
         binding = self.binding.lower()
-        if (
-            self.verifier not in SEMANTIC_VERIFIERS
-            and any(phrase in binding for phrase in CLAIM_OVERCLAIM_PHRASES)
+        if self.verifier not in SEMANTIC_VERIFIERS and any(
+            phrase in binding for phrase in CLAIM_OVERCLAIM_PHRASES
         ):
             msg = "semantic claims require semantic verifier"
             raise ValueError(msg)

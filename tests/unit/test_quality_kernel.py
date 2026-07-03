@@ -30,9 +30,7 @@ def test_quality_profile_covers_repository_asset_classes() -> None:
     profile = product_quality_profile()
     asset_classes = {asset["class"] for asset in profile["asset_classes"]}
     dimensions = {
-        dimension
-        for asset in profile["asset_classes"]
-        for dimension in asset["dimensions"]
+        dimension for asset in profile["asset_classes"] for dimension in asset["dimensions"]
     }
 
     assert {

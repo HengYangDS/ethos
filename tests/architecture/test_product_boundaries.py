@@ -142,9 +142,9 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
 
 
 def test_repository_package_does_not_depend_on_provider_adapters() -> None:
-    pyproject = (
-        ROOT / "packages" / "ethos-repository" / "pyproject.toml"
-    ).read_text(encoding="utf-8")
+    pyproject = (ROOT / "packages" / "ethos-repository" / "pyproject.toml").read_text(
+        encoding="utf-8"
+    )
 
     assert '"ethos-adapters"' not in pyproject
 
@@ -195,9 +195,7 @@ def test_active_openspec_changes_do_not_expose_compatibility_residue() -> None:
 
 def test_target_packages_do_not_import_migration_hosts() -> None:
     contract = package_ontology_report()
-    migration_imports = {
-        package.replace("-", "_") for package in contract["migration_hosts"]
-    }
+    migration_imports = {package.replace("-", "_") for package in contract["migration_hosts"]}
 
     for package in contract["target_packages"]:
         source = ROOT / "packages" / package / "src"
@@ -287,9 +285,7 @@ def test_package_roots_do_not_reexport_module_surfaces() -> None:
             assert not isinstance(node, (ast.Import, ast.ImportFrom)), path
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-                    assert not (
-                        isinstance(target, ast.Name) and target.id == "__all__"
-                    ), path
+                    assert not (isinstance(target, ast.Name) and target.id == "__all__"), path
 
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:
@@ -312,10 +308,7 @@ def test_openspec_specs_are_mece_product_families() -> None:
         "ethos-repository",
         "ethos-test",
     }
-    actual = {
-        path.parent.name
-        for path in (ROOT / "openspec" / "specs").glob("*/spec.md")
-    }
+    actual = {path.parent.name for path in (ROOT / "openspec" / "specs").glob("*/spec.md")}
 
     assert actual == expected
 
@@ -466,9 +459,7 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
-            encoding="utf-8"
-        ),
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     fake_bin = tmp_path / "fake-bin"
@@ -477,7 +468,7 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
     fake_python = fake_bin / "python3"
     fake_python.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 0; fi\n"
+        'if [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit 0; fi\n'
         f"printf '%s\\n' \"$*\" >> {log}\n"
         "printf '0.1.0a1\\n'\n",
         encoding="utf-8",
@@ -508,9 +499,7 @@ def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: P
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
-            encoding="utf-8"
-        ),
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     fake_repo = tmp_path / "untrusted-repo"
@@ -528,9 +517,7 @@ def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: P
     fake_uv.chmod(0o755)
     fake_python = fake_bin / "python3"
     fake_python.write_text(
-        "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 1; fi\n"
-        "exit 127\n",
+        '#!/bin/sh\nif [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit 1; fi\nexit 127\n',
         encoding="utf-8",
     )
     fake_python.chmod(0o755)
@@ -558,9 +545,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     launcher = tmp_path / "package" / "bin" / "ethos.mjs"
     launcher.parent.mkdir(parents=True)
     launcher.write_text(
-        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(
-            encoding="utf-8"
-        ),
+        (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     fake_bin = tmp_path / "fake-bin"
@@ -569,7 +554,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     fake_python3 = fake_bin / "python3"
     fake_python3.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 1; fi\n"
+        'if [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit 1; fi\n'
         f"printf '%s\\n' \"python3:$*\" >> {log}\n"
         "exit 99\n",
         encoding="utf-8",
@@ -578,7 +563,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
     fake_python = fake_bin / "python"
     fake_python.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = \"-c\" ] || [ \"$2\" = \"-c\" ]; then exit 0; fi\n"
+        'if [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit 0; fi\n'
         f"printf '%s\\n' \"python:$*\" >> {log}\n"
         "printf '0.1.0a1\\n'\n",
         encoding="utf-8",
@@ -598,9 +583,7 @@ def test_npm_launcher_selects_python_with_ethos_module(tmp_path: Path) -> None:
 
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == "0.1.0a1"
-    assert log.read_text(encoding="utf-8").splitlines() == [
-        "python:-P -m ethos.cli --version"
-    ]
+    assert log.read_text(encoding="utf-8").splitlines() == ["python:-P -m ethos.cli --version"]
 
 
 def test_markdown_docs_declare_subject_role_state_relations() -> None:

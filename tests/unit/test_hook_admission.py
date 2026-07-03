@@ -113,7 +113,7 @@ def test_pre_run_hook_blocks_mutation_risk_without_target_paths(tmp_path: Path) 
     report = hook_admission_report(
         root=repo,
         layer="pre-run",
-        command="python -c 'from pathlib import Path; Path(\"README.md\").write_text(\"x\")'",
+        command='python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
         editor_root=repo,
         require_editor_root=True,
     )

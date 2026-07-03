@@ -142,16 +142,7 @@ def _git_stdout(root: Path, *args: str) -> str:
 
 
 def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
-    current_head = _current_tracked_head(root)
-    if not current_head:
-        return ()
-    accepted = [current_head]
-    evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
-    last_change = _git_stdout(root, "log", "-1", "--format=%H", "--", evidence_path.as_posix())
-    if last_change == current_head:
-        parents_line = _git_stdout(root, "rev-list", "--parents", "-n", "1", current_head)
-        accepted.extend(parents_line.split()[1:])
-    return tuple(dict.fromkeys(head for head in accepted if head))
+    return _land.acceptable_parity_product_heads(root, adopter)
 
 
 def _acceptable_parity_target_heads(
@@ -159,21 +150,7 @@ def _acceptable_parity_target_heads(
     target: Path | None,
     adopter: str | None,
 ) -> tuple[str, ...]:
-    if target is None:
-        return ()
-    current_head = _current_tracked_head(target)
-    if not current_head:
-        return ()
-    accepted = [current_head]
-    if _same_git_repository(root, target):
-        evidence_path = (
-            Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
-        )
-        last_change = _git_stdout(root, "log", "-1", "--format=%H", "--", evidence_path.as_posix())
-        if last_change == current_head:
-            parents_line = _git_stdout(target, "rev-list", "--parents", "-n", "1", current_head)
-            accepted.extend(parents_line.split()[1:])
-    return tuple(dict.fromkeys(head for head in accepted if head))
+    return _land.acceptable_parity_target_heads(root, target, adopter)
 
 
 def _same_git_repository(left: Path, right: Path) -> bool:

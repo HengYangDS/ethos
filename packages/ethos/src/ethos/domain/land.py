@@ -234,3 +234,46 @@ def trust_closeout_package(
         "blocking": bool(gaps),
         "required_gaps": gaps,
     }
+
+
+def acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
+    """Compute product heads accepted as parity-evidence-current (head + parents)."""
+    current_head = _gitio.current_tracked_head(root)
+    if not current_head:
+        return ()
+    accepted = [current_head]
+    evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+    last_change = _gitio.git_stdout(
+        root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
+    )
+    if last_change == current_head:
+        parents_line = _gitio.git_stdout(root, "rev-list", "--parents", "-n", "1", current_head)
+        accepted.extend(parents_line.split()[1:])
+    return tuple(dict.fromkeys(head for head in accepted if head))
+
+
+def acceptable_parity_target_heads(
+    root: Path,
+    target: Path | None,
+    adopter: str | None,
+) -> tuple[str, ...]:
+    """Compute target heads accepted as parity-evidence-current for a shadow target."""
+    if target is None:
+        return ()
+    current_head = _gitio.current_tracked_head(target)
+    if not current_head:
+        return ()
+    accepted = [current_head]
+    if _gitio.same_git_repository(root, target):
+        evidence_path = (
+            Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+        )
+        last_change = _gitio.git_stdout(
+            root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
+        )
+        if last_change == current_head:
+            parents_line = _gitio.git_stdout(
+                target, "rev-list", "--parents", "-n", "1", current_head
+            )
+            accepted.extend(parents_line.split()[1:])
+    return tuple(dict.fromkeys(head for head in accepted if head))

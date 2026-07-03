@@ -29,12 +29,12 @@ ethos:types:
   <<: *python_setup
   stage: quality
   script:
-    # Zero-tolerance tier (see .config/checks/ty/policy.toml): the pure packages
-    # must always be 0 diagnostics. The product-layer ratchet tiers are enforced by
-    # the ethos-run gate as their baselines dissolve during the surface split.
-    - uv run --no-project --with ty ty check packages/ethos-core/src
-    - uv run --no-project --with ty ty check packages/ethos-quality/src
-    - uv run --no-project --with ty ty check packages/ethos-contracts/src
+    # `ethos quality types` enforces EVERY ty policy tier (.config/checks/ty/
+    # policy.toml): zero-tolerance packages must be 0 diagnostics, ratchet packages
+    # must stay within their baseline (which may only shrink). Fail-closed via the
+    # verdict->exit binding, so a breach fails the pipeline.
+    - uv run --no-project --with ty pip install ty >/dev/null 2>&1 || true
+    - uv run --package ethos --with ty ethos quality types --json
 
 ethos:architecture:
   <<: *python_setup

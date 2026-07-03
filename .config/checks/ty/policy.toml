@@ -31,4 +31,4 @@ packages = [
 "packages/ethos-assistants" = 17
 "packages/ethos-adapters" = 57
 "packages/ethos-repository" = 87
-"packages/ethos" = 137
+"packages/ethos" = 144

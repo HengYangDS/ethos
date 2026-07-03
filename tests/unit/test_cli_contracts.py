@@ -1227,6 +1227,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "standards",
         "tool-profiles",
         "toml",
+        "types",
         "yaml",
     }
 
@@ -3151,3 +3152,21 @@ def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:
     assert "openspec/config.yaml" in payload["data"]["planned_files"]
     assert ".agents/skills/activation.toml" in payload["data"]["planned_files"]
     assert not (tmp_path / ".ethos").exists()
+
+
+def test_quality_types_enforces_ty_policy_tiers() -> None:
+    import json as _json
+
+    completed = run_ethos_raw("quality", "types", "--json")
+    payload = _json.loads(completed.stdout)
+
+    assert payload["command"] == "quality types"
+    packages = payload["data"]["packages"]
+    # Zero-tolerance tier packages must report a zero limit; ratchet tiers a baseline.
+    for pkg in ("packages/ethos-core", "packages/ethos-quality", "packages/ethos-contracts"):
+        assert packages[pkg]["limit"] == 0
+        assert packages[pkg]["tier"] == "zero_tolerance"
+    assert packages["packages/ethos"]["tier"] == "ratchet"
+    assert packages["packages/ethos"]["limit"] > 0
+    # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
+    assert completed.returncode == (0 if payload["ok"] else 1)

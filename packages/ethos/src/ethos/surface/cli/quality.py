@@ -24,6 +24,7 @@ from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root as _root
 from ethos.surface.cli._base import sha256_file as _sha256_file
 from ethos_adapters.commit_policy import signature_policy_report
+from ethos_adapters.ty_gate import ty_gate_report
 from ethos_assistants.playbooks import playbooks_report
 from ethos_assistants.projections import projection_contract
 from ethos_contracts.package_ontology import package_ontology_report
@@ -65,6 +66,26 @@ def asset_policy(
         data=profile,
     )
     _emit(result, json_output, enforce=False)
+
+
+@quality_app.command(name="types")
+def quality_types(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Enforce the ty type-check policy tiers (zero-tolerance + ratchet baselines)."""
+    repo = _root(root)
+    report = ty_gate_report(repo)
+    result = EthosResult(
+        command="quality types",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={"package_count": len(report["packages"])},
+        required_gaps=tuple(report["required_gaps"]),
+        data=report,
+    )
+    _emit(result, json_output)
 
 
 @quality_app.command(name="docs")

@@ -120,7 +120,7 @@ reason = "workspace status; minor split to reach 400"
 
 [[quality.code_size.exception]]
 path = "tests/unit/test_cli_contracts.py"
-effective_max_lines = 2682
+effective_max_lines = 2688
 reason = "broad CLI contract coverage; ratchet caps at current — split per-command test modules as cli.py splits"
 
 [[quality.code_size.exception]]

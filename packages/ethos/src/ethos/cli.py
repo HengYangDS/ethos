@@ -17,6 +17,7 @@ from cyclopts import Parameter
 import ethos_assistants.playbooks as playbooks_module
 import ethos_repository.repository_audit as repository_audit_module
 from ethos.adapters import git as _gitio
+from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
@@ -315,19 +316,7 @@ def _command_data_validation(
 
 
 def _local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
-    return {
-        "kind": "submit_branch_plan",
-        "source_branch": branch,
-        "submit_branch": submit_branch,
-        "remote_push": "not_performed",
-        "remote_state": "deferred",
-        "blocking": False,
-        "required_steps": [
-            "land work lane to candidate role",
-            "fast-forward accepted root from candidate role",
-            "create configured submit branch when remote publication is available",
-        ],
-    }
+    return _land.local_submit_package(branch=branch, submit_branch=submit_branch)
 
 
 def _publication_readiness(
@@ -356,45 +345,11 @@ def _publication_readiness(
 
 
 def _remote_publication_deferred() -> dict[str, object]:
-    return {
-        "remote_push": "not_performed",
-        "state": "deferred",
-        "reason": "remote publication adapter unavailable",
-    }
+    return _land.remote_publication_deferred()
 
 
 def _intake_projection_report(repo: Path) -> dict[str, object]:
-    config_path = repo / ".ethos" / "intake.toml"
-    gaps: list[str] = []
-    provider = "unconfigured"
-    configured = False
-    if config_path.exists():
-        try:
-            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            provider = "invalid"
-            gaps.append("intake_config_invalid:.ethos/intake.toml")
-        else:
-            configured_provider = str(config.get("provider") or "").strip()
-            if configured_provider:
-                provider = configured_provider
-                configured = True
-            else:
-                provider = "invalid"
-                gaps.append("intake_provider_missing:.ethos/intake.toml")
-    state = "configured" if configured else "invalid" if gaps else "unconfigured"
-    return {
-        "kind": "intake_projection",
-        "state": state,
-        "truth_boundary": "projection-evidence",
-        "repository_truth": False,
-        "provider": provider,
-        "configured": configured,
-        "expected_config": ".ethos/intake.toml",
-        "adapters": ["backlog", "github", "gitlab"],
-        "blocking": False,
-        "required_gaps": gaps,
-    }
+    return _land.intake_projection_report(repo)
 
 
 def _trust_closeout_package(
@@ -463,8 +418,7 @@ def _trust_closeout_package(
 
 
 def _command_is_executed_proof(command: object) -> bool:
-    text = str(command)
-    return "prove" in text and "--execute" in text
+    return _land.command_is_executed_proof(command)
 
 
 def _campaign_closeout_report(
@@ -1188,21 +1142,11 @@ def _land_next_actions(
     gaps: tuple[str, ...],
     current_head: str,
 ) -> tuple[str, ...]:
-    if ok:
-        return ("ethos publish",)
-    if "candidate_base_stale" in gaps:
-        return (f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json",)
-    return ("ethos prove --json",)
+    return _land.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
 
 
 def _closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
-    if not decision.ok:
-        return repo
-    candidate = workspace_status(repo).get("candidate", {})
-    if not isinstance(candidate, dict):
-        return repo
-    candidate_path = str(candidate.get("worktree_path") or "")
-    return Path(candidate_path) if candidate_path else repo
+    return _land.closeout_audit_root(repo, decision)
 
 
 def _closeout_bootstrap_package(

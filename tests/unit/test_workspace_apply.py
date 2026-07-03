@@ -7,6 +7,17 @@ from ethos_adapters import mutation
 from ethos_adapters.mutation import MutationRequest
 from ethos_adapters.mutation import apply_land_to_candidate
 from ethos_adapters.mutation import evaluate_mutation
+from ethos_adapters.proof_record import record_executed_proof
+
+
+def seed_proof(root: Path, head: str) -> None:
+    """Seed a HEAD-keyed executed-proof record, as `ethos prove --execute` would.
+
+    evaluate_mutation now requires executed proof at the current HEAD before a
+    merge; tests exercising the OTHER admission gates seed the proof so the proof
+    gate is satisfied and the intended gap is isolated.
+    """
+    record_executed_proof(root, head=head, evidence_digest="sha256:test", gate_count=1)
 
 
 def git(root: Path, *args: str) -> str:
@@ -24,6 +35,9 @@ def init_repo(path: Path) -> Path:
     path.mkdir(parents=True)
     git(path, "init", "-b", "dev")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
+    # Generated state (incl. HEAD-keyed proof records) is ignored, as in a real
+    # adopted repo — so a proof record never dirties the work lane.
+    (path / ".gitignore").write_text(".ethos/state/\n", encoding="utf-8")
     git(path, "add", ".")
     git(
         path,
@@ -72,6 +86,8 @@ def test_mutation_apply_requires_matching_expected_head(tmp_path: Path) -> None:
         authorized=True,
         expect_head="abc123",
     )
+
+    seed_proof(worktree, "abc123")
 
     result = evaluate_mutation(request, root=worktree, current_head="abc123")
 
@@ -137,6 +153,7 @@ def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
     )
     work_head = git(worktree, "rev-parse", "HEAD")
     dev_head = git(repo, "rev-parse", "dev")
+    seed_proof(worktree, work_head)
 
     report = apply_land_to_candidate(
         root=worktree,
@@ -182,6 +199,7 @@ def test_apply_land_to_candidate_reports_stale_candidate_base(tmp_path: Path) ->
     )
     work_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_proof(worktree, work_head)
 
     report = apply_land_to_candidate(
         root=worktree,
@@ -238,6 +256,7 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_proof(repo, accepted_head)
 
     report = mutation.apply_candidate_to_accepted(
         root=repo,

@@ -4,10 +4,25 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from ethos_adapters.proof_record import executed_proof_record
 from ethos_adapters.status import workspace_status
 from ethos_contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_contracts.branch_roles import ROLE_WORK_LANE
 from ethos_contracts.branch_roles import load_branch_role_policy
+
+
+def _proof_gaps(root: Path, current_head: str) -> list[str]:
+    """Blocking gaps when no executed proof is bound to the exact current HEAD.
+
+    Binds the mutation to executed proof: a land/publish cannot proceed unless
+    `ethos prove --execute` recorded a proof at this HEAD. This is the runtime
+    precondition that turns "only proven evidence may satisfy land/publish" from
+    prose into an enforced barrier (tao First Principle #2 / #3).
+    """
+    record = executed_proof_record(root, current_head)
+    if record is None:
+        return ["proof_not_proven"]
+    return []
 
 
 @dataclass(frozen=True)
@@ -45,6 +60,7 @@ def evaluate_mutation(
         gaps.append("protected_root_mutation")
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
+    gaps.extend(_proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
     return MutationDecision(ok=True, state=f"{request.command}_ready")
@@ -79,6 +95,7 @@ def evaluate_closeout_mutation(
         candidate_path = Path(str(candidate["worktree_path"]))
         if workspace_status(candidate_path)["dirty"]:
             gaps.append("candidate_worktree_dirty")
+    gaps.extend(_proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
     return MutationDecision(ok=True, state=f"{request.command}_ready")

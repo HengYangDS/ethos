@@ -100,6 +100,17 @@ def adopt_and_commit(repo: Path) -> None:
     )
 
 
+def seed_executed_proof(repo: Path, head: str) -> None:
+    """Record an executed-proof at HEAD, as `ethos prove --execute` would.
+
+    Land/publish now require a HEAD-keyed proof record before the merge, so tests
+    exercising land mechanics seed the proof the same way the prove command does.
+    """
+    from ethos_adapters.proof_record import record_executed_proof
+
+    record_executed_proof(repo, head=head, evidence_digest="sha256:test", gate_count=1)
+
+
 def test_status_json_contract() -> None:
     payload = run_ethos("status", "--json")
 
@@ -2070,6 +2081,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(repo, accepted_head)
 
     payload = run_ethos(
         "land",
@@ -2122,6 +2134,7 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
         "candidate change",
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, accepted_head)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         if root.resolve() == candidate.resolve():
@@ -2269,6 +2282,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
     )
     git(repo, "branch", "release", "integration")
     accepted_head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, accepted_head)
     candidate_path = tmp_path / "repo-stage-integration"
 
     candidate_payload = run_ethos(
@@ -2326,6 +2340,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
         "configured lane change",
     )
     work_head = git(worktree, "rev-parse", "HEAD")
+    seed_executed_proof(worktree, work_head)
 
     publish_payload = run_ethos("publish", "--json", cwd=worktree)
 

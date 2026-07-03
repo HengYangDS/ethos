@@ -1,3 +1,10 @@
+"""Kernel constants — the canonical governance chain.
+
+Pure kernel: names only, zero IO. The system-contract loader and its contract-name
+list live in ethos-contracts (the layer permitted TOML IO), so the kernel stays a
+pure leaf.
+"""
+
 from __future__ import annotations
 
 KERNEL_CHAIN = (
@@ -12,4 +19,5 @@ KERNEL_CHAIN = (
 
 
 def kernel_chain() -> tuple[str, ...]:
+    """Return the canonical kernel chain."""
     return KERNEL_CHAIN

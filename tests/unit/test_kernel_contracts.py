@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 import ethos_core.models as models
+from ethos_contracts.system_contracts import load_system_contract
+from ethos_contracts.system_contracts import system_contracts_report
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode
 from ethos_core.kernel import kernel_chain
@@ -350,3 +352,30 @@ def test_json_schemas_are_valid_json_documents() -> None:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert payload["title"].startswith("ETHOS")
+
+
+def test_system_contracts_all_load() -> None:
+    report = system_contracts_report(Path())
+
+    assert report["ok"] is True, report["required_gaps"]
+    contracts = report["contracts"]
+    assert isinstance(contracts, dict)
+    # Every declared system-tier contract is present and parseable — system/ is
+    # load-bearing, not inert prose (tao First Principle #5: derive don't store).
+    assert all(contracts.values())
+    assert set(contracts) >= {"authority", "evidence_boundaries", "workflows"}
+
+
+def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
+    contract = load_system_contract(Path(), "evidence_boundaries")
+
+    assert contract["decision"]["verdicts"] == ["allow", "block", "defer"]
+    assert "verdict" in contract["decision"]["required_fields"]
+    # The seven evidence boundaries are declared, not merely documented.
+    boundary_ids = {entry["id"] for entry in contract["boundary"]}
+    assert {
+        "dry_run_not_executed_proof",
+        "digest_not_semantic",
+        "promotion_not_absolute",
+    } <= boundary_ids
+    assert contract["truth"]["implies_absolute_correctness"] is False

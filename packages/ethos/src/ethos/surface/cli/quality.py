@@ -29,11 +29,11 @@ from ethos_assistants.playbooks import playbooks_report
 from ethos_assistants.projections import projection_contract
 from ethos_contracts.package_ontology import package_ontology_report
 from ethos_contracts.package_ontology import workspace_package_config_report
+from ethos_core.quality.docs_profile import docs_quality_profile
+from ethos_core.quality.profiles import product_quality_profile
+from ethos_core.quality.profiles import tool_profiles
+from ethos_core.quality.proof_policy import proof_lattice
 from ethos_core.result import EthosResult
-from ethos_quality.docs_profile import docs_quality_profile
-from ethos_quality.profiles import product_quality_profile
-from ethos_quality.profiles import tool_profiles
-from ethos_quality.proof_policy import proof_lattice
 from ethos_repository.attestation import release_attestation
 from ethos_repository.attestation import sbom_projection
 from ethos_repository.claims import claims_report

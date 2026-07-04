@@ -23,7 +23,6 @@
 [zero_tolerance]
 packages = [
     "packages/ethos-core",
-    "packages/ethos-quality",
     "packages/ethos-contracts",
 ]
 

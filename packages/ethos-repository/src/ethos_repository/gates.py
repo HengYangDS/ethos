@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode
-from ethos_quality.gates import quality_gate_registry
+from ethos_core.quality.gates import quality_gate_registry
 
 
 @dataclass(frozen=True)

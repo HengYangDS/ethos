@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_quality.models import QualityGateDescriptor
+from ethos_core.quality.models import QualityGateDescriptor
 
 QUALITY_GATES = (
     QualityGateDescriptor(

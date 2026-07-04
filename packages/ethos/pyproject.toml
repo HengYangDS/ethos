@@ -9,7 +9,6 @@ dependencies = [
   "ethos-assistants",
   "ethos-contracts",
   "ethos-core",
-  "ethos-quality",
   "ethos-repository",
 ]
 

@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from ethos_quality.proof_policy import run_state_for_adapter_state
+from ethos_core.quality.proof_policy import run_state_for_adapter_state
 
 PROOF_RUN_STATES = {
     "planned",

@@ -3,7 +3,7 @@
 # The machine kernel's map from "what am I touching" to "which stage and proof applies".
 # Derived from .ethos/workspace.toml branch roles and the terminal design loop.
 
-schema = "system/schemas/routing.schema.json"
+schema = "system/schemas/contracts/routing.schema.json"
 
 # The one product loop.
 [loop]

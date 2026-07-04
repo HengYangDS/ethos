@@ -34,7 +34,7 @@ def context_bundle(
         "resources": {
             "ethos://docs/index": "docs/index.md",
             "ethos://docs/command-plane": "docs/reference/command-plane.md",
-            "ethos://schemas/result": "schemas/ethos/result.schema.json",
+            "ethos://schemas/result": "system/schemas/kernel/result.schema.json",
             "ethos://governance/evolution": "docs/governance/evolution-ledger.toml",
         },
         "rules": [

@@ -5,7 +5,7 @@
 # State is DERIVED (principle 5): OpenSpec change + Git facts + evidence
 # manifests + this file + ethos.toml profile = derived state and allowed transitions.
 
-schema = "system/schemas/workflows.schema.json"
+schema = "system/schemas/contracts/workflows.schema.json"
 
 [lifecycle]
 states = ["planned", "admitted", "authored", "proven", "landed", "closed", "retired"]

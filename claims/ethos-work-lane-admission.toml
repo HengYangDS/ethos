@@ -25,7 +25,7 @@ commands = [
   "ethos publish",
 ]
 schemas = [
-  "schemas/ethos/mutation-decision.schema.json",
+  "system/schemas/kernel/mutation-decision.schema.json",
 ]
 
 [boundary]

@@ -319,7 +319,7 @@ def test_result_contract_has_stable_top_level_fields() -> None:
 
 
 def test_json_schemas_are_declared_for_kernel_protocols() -> None:
-    schema_dir = Path("schemas/ethos")
+    schema_dir = Path("system/schemas/kernel")
     expected = {
         "result.schema.json",
         "claim.schema.json",
@@ -348,7 +348,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
 
 
 def test_json_schemas_are_valid_json_documents() -> None:
-    for path in Path("schemas/ethos").glob("*.schema.json"):
+    for path in Path("system/schemas/kernel").glob("*.schema.json"):
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert payload["title"].startswith("ETHOS")
@@ -396,7 +396,7 @@ def test_system_contracts_have_real_validating_schemas() -> None:
 def test_system_contract_schema_violation_blocks() -> None:
     from ethos_core.contracts.system_contracts import _schema_validation_gaps
 
-    schema_path = Path("system/schemas/authority.schema.json")
+    schema_path = Path("system/schemas/contracts/authority.schema.json")
     # An authority contract missing its required `order` violates the schema.
     gaps = _schema_validation_gaps(
         "authority", {"schema": str(schema_path)}, schema_path

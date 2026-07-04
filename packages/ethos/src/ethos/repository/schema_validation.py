@@ -23,7 +23,7 @@ def _repo_root() -> Path:
 
 
 def _schema_dir(root: Path) -> Path:
-    return root / "schemas" / "ethos"
+    return root / "system" / "schemas" / "kernel"
 
 
 def _schema_dir_has_contracts(path: Path) -> bool:
@@ -38,7 +38,7 @@ def _schema_dir_has_product_contracts(path: Path) -> bool:
 
 def _product_schema_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "schemas" / "ethos"
+        candidate = parent / "system" / "schemas" / "kernel"
         if _schema_dir_has_contracts(candidate):
             return candidate
     return _schema_dir(_repo_root())

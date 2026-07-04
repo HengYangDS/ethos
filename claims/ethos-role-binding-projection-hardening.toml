@@ -36,7 +36,7 @@ packages = [
   "ethos-repository",
 ]
 schemas = [
-  "schemas/ethos/coupling-audit.schema.json",
+  "system/schemas/kernel/coupling-audit.schema.json",
 ]
 tests = [
   "tests/unit/test_coupling_governance.py",
@@ -66,7 +66,7 @@ kill_signal = "ETHOS workflow state can be created by host UI labels or raw work
 targets = [
   "docs/evidence/role-binding-projection-hardening-2026-07-01.md",
   "packages/ethos/src/ethos/repository/coupling.py",
-  "schemas/ethos/coupling-audit.schema.json",
+  "system/schemas/kernel/coupling-audit.schema.json",
   "tests/unit/test_coupling_governance.py",
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",

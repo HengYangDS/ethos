@@ -80,7 +80,7 @@ def test_context_index_rebuild_and_search_returns_verified_source_refs(tmp_path:
     assert first["source_ref"]["path"] in {
         "README.md",
         "packages/ethos-demo/src/ethos_demo/sample.py",
-        "schemas/ethos/workspace-status.schema.json",
+        "system/schemas/kernel/workspace-status.schema.json",
     }
     assert first["source_ref"]["sha256"]
 

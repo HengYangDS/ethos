@@ -19,7 +19,7 @@ def mcp_manifest() -> dict[str, object]:
             "ethos://schemas/result": {
                 "description": "ETHOS result JSON Schema",
                 "capability": "mcp_resource",
-                "path": "schemas/ethos/result.schema.json",
+                "path": "system/schemas/kernel/result.schema.json",
             },
         },
         "prompts": {

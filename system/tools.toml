@@ -7,7 +7,7 @@
 # Derived from the terminal design "Tool Catalog" table. This is the target
 # catalog; gate implementations converge here in Phase E2 (quality-proof-ratchet).
 
-schema = "system/schemas/tools.schema.json"
+schema = "system/schemas/contracts/tools.schema.json"
 
 [[tool]]
 concern = "python_format_lint"

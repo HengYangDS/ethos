@@ -67,7 +67,7 @@ BASE_ADOPTION_FILES = (
     "docs/governance/ethos.md",
     "docs/evidence/.gitkeep",
     "claims/.gitkeep",
-    "schemas/ethos/.gitkeep",
+    "system/schemas/kernel/.gitkeep",
 )
 
 STATIC_DEFAULT_FILES = {
@@ -106,7 +106,7 @@ acp = "protocol-projection"
     "openspec/changes/archive/.gitkeep": "",
     "docs/evidence/.gitkeep": "",
     "claims/.gitkeep": "",
-    "schemas/ethos/.gitkeep": "",
+    "system/schemas/kernel/.gitkeep": "",
 }
 
 

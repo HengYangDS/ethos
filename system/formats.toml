@@ -2,7 +2,7 @@
 # Carrier policy — use formats by author and lifecycle, not by habit.
 # Derived from the terminal design "Carrier Policy" table and .ethos/rules.toml [formats].
 
-schema = "system/schemas/formats.schema.json"
+schema = "system/schemas/contracts/formats.schema.json"
 
 [carriers.markdown]
 use = "Human judgment, Tao, design, reviews, retrospectives, docs."

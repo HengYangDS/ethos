@@ -5,7 +5,7 @@
 #
 # Higher rank wins on conflict. Lower surfaces are stale until repaired.
 
-schema = "system/schemas/authority.schema.json"
+schema = "system/schemas/contracts/authority.schema.json"
 
 [[order]]
 rank = 1

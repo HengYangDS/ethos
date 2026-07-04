@@ -68,7 +68,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "docs/governance/ethos.md",
         "docs/evidence/.gitkeep",
         "claims/.gitkeep",
-        "schemas/ethos/.gitkeep",
+        "system/schemas/kernel/.gitkeep",
         ".gitlab-ci.yml",
     }
 

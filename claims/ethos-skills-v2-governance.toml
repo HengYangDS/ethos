@@ -69,9 +69,9 @@ targets = [
   "packages/ethos/src/ethos/assistants/skill_packages.py",
   "packages/ethos/src/ethos/assistants/playbooks.py",
   "packages/ethos/src/ethos/repository/schema_validation.py",
-  "schemas/ethos/skill-activation.schema.json",
-  "schemas/ethos/skill-registry.schema.json",
-  "schemas/ethos/skill-package-manifest.schema.json",
+  "system/schemas/kernel/skill-activation.schema.json",
+  "system/schemas/kernel/skill-registry.schema.json",
+  "system/schemas/kernel/skill-package-manifest.schema.json",
   ".agents/skills/activation.toml",
   ".agents/skills/ethos-repository-governance/package.toml",
 ]

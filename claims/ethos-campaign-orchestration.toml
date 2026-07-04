@@ -28,8 +28,8 @@ packages = [
   "ethos-repository",
 ]
 schemas = [
-  "schemas/ethos/campaign.schema.json",
-  "schemas/ethos/campaign-closeout.schema.json",
+  "system/schemas/kernel/campaign.schema.json",
+  "system/schemas/kernel/campaign-closeout.schema.json",
 ]
 docs = [
   "docs/governance/evolution-campaign.md",
@@ -61,8 +61,8 @@ targets = [
   "packages/ethos/src/ethos/repository/evolution.py",
   "packages/ethos/src/ethos/repository/schema_validation.py",
   "packages/ethos/src/ethos/cli.py",
-  "schemas/ethos/campaign.schema.json",
-  "schemas/ethos/campaign-closeout.schema.json",
+  "system/schemas/kernel/campaign.schema.json",
+  "system/schemas/kernel/campaign-closeout.schema.json",
   "tests/unit/test_cli_contracts.py",
   "tests/unit/test_evolution_ledger.py",
   "tests/unit/test_schema_validation_and_gates.py",

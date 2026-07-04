@@ -37,9 +37,9 @@ docs = [
   "docs/governance/product-design-contract.md",
 ]
 schemas = [
-  "schemas/ethos/trust-envelope.schema.json",
-  "schemas/ethos/promotion-target.schema.json",
-  "schemas/ethos/capability-profile.schema.json",
+  "system/schemas/kernel/trust-envelope.schema.json",
+  "system/schemas/kernel/promotion-target.schema.json",
+  "system/schemas/kernel/capability-profile.schema.json",
 ]
 
 [boundary]
@@ -54,9 +54,9 @@ kill_signal = "A valid OpenSpec change or intake state can be archived as truste
 [promotion]
 targets = [
   "docs/evidence/governance-productization-2026-07-01.md",
-  "schemas/ethos/trust-envelope.schema.json",
-  "schemas/ethos/promotion-target.schema.json",
-  "schemas/ethos/capability-profile.schema.json",
+  "system/schemas/kernel/trust-envelope.schema.json",
+  "system/schemas/kernel/promotion-target.schema.json",
+  "system/schemas/kernel/capability-profile.schema.json",
   "docs/reference/command-plane.md",
   "openspec/changes/archive/2026-07-01-complete-ethos-governance-productization",
 ]

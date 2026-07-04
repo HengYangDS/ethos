@@ -223,7 +223,9 @@ def repository_audit(
         doc for doc in REQUIRED_DOCS if (root / doc).exists() and not _front_matter_ok(root / doc)
     ]
     schemas_missing = [
-        schema for schema in REQUIRED_SCHEMAS if not (root / "schemas" / "ethos" / schema).exists()
+        schema
+        for schema in REQUIRED_SCHEMAS
+        if not (root / "system" / "schemas" / "kernel" / schema).exists()
     ]
     release_files = release_files_report(root)
     release_files_missing = list(release_files["missing"])

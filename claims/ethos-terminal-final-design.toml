@@ -31,7 +31,7 @@ openspec = [
   "openspec/changes/template.md",
   "openspec/changes/archive/2026-07-02-ethos-terminal-final-design",
 ]
-schemas = ["schemas/ethos/capability-profile.schema.json"]
+schemas = ["system/schemas/kernel/capability-profile.schema.json"]
 
 [boundary]
 owner = "ethos-repository"
@@ -62,7 +62,7 @@ targets = [
   "openspec/specs/ethos-adapters/spec.md",
   "openspec/specs/ethos-contracts/spec.md",
   "openspec/specs/ethos-repository/spec.md",
-  "schemas/ethos/capability-profile.schema.json",
+  "system/schemas/kernel/capability-profile.schema.json",
   "docs/architecture/terminal-governance-product-design.md",
   "docs/governance/openspec-governance.md",
 ]

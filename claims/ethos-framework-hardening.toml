@@ -24,12 +24,12 @@ commands = [
   "ethos campaign hypotheses",
 ]
 schemas = [
-  "schemas/ethos/proof-run.schema.json",
-  "schemas/ethos/evidence-set.schema.json",
-  "schemas/ethos/provenance.schema.json",
-  "schemas/ethos/docs-registry.schema.json",
-  "schemas/ethos/assistant-projection.schema.json",
-  "schemas/ethos/mutation-decision.schema.json",
+  "system/schemas/kernel/proof-run.schema.json",
+  "system/schemas/kernel/evidence-set.schema.json",
+  "system/schemas/kernel/provenance.schema.json",
+  "system/schemas/kernel/docs-registry.schema.json",
+  "system/schemas/kernel/assistant-projection.schema.json",
+  "system/schemas/kernel/mutation-decision.schema.json",
 ]
 
 [boundary]
@@ -45,7 +45,7 @@ kill_signal = "Framework proof depends on untracked host or assistant state."
 [promotion]
 targets = [
   "docs/evidence/hardening-2026-06-30.md",
-  "schemas/ethos/proof-run.schema.json",
-  "schemas/ethos/evidence-set.schema.json",
+  "system/schemas/kernel/proof-run.schema.json",
+  "system/schemas/kernel/evidence-set.schema.json",
   "openspec/specs/ethos-repository/spec.md",
 ]

@@ -8,7 +8,7 @@
 # These boundaries are enforced (not merely documented): a decision or evidence
 # claim that crosses a boundary must carry the required qualifier or be blocked.
 
-schema = "system/schemas/evidence-boundaries.schema.json"
+schema = "system/schemas/contracts/evidence-boundaries.schema.json"
 
 # ---- Decision verdict contract -------------------------------------------------
 # Every command's decision output uses ONE of these top-level verdicts. Safety

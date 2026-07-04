@@ -79,12 +79,6 @@ from ethos_repository.parity import write_tracked_parity_evidence
 from ethos_repository.planner import adoption_plan
 from ethos_repository.planner import adoption_scaffold_report
 from ethos_repository.planner import available_profiles
-from ethos_repository.rules import compile_rules
-from ethos_repository.rules import coverage_report
-from ethos_repository.rules import explain_rules_target
-from ethos_repository.rules import policy_exceptions_report
-from ethos_repository.rules import rules_check_report
-from ethos_repository.rules import rules_evaluation_report
 from ethos_repository.schema_validation import schema_validation_report
 from ethos_repository.standards import standard_adapter_registry
 
@@ -100,6 +94,7 @@ if TYPE_CHECKING:
 from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
 from ethos.surface.cli import intake as _intake_group  # noqa: F401
 from ethos.surface.cli import quality as _quality_group  # noqa: F401
+from ethos.surface.cli import rules as _rules_group  # noqa: F401
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -112,7 +107,6 @@ from ethos.surface.cli._base import lane_app
 from ethos.surface.cli._base import parity_app
 from ethos.surface.cli._base import playbooks_app
 from ethos.surface.cli._base import resolve_root as _root
-from ethos.surface.cli._base import rules_app
 
 
 def _current_head(root: Path) -> str:
@@ -1118,167 +1112,6 @@ def adopt(
         "current_head": current_head,
     }
     _emit(result, json_output, enforce=apply)
-
-
-@rules_app.command(name="check")
-def rules_check(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Check Rules Product Kernel readiness."""
-    repo = _root(root)
-    report = rules_check_report(repo)
-    result = EthosResult(
-        command="rules check",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        summary={
-            "coverage_tier": report["coverage_tier"],
-            "rule_count": len(report["resolved_rules"]),
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@rules_app.command(name="eval")
-def rules_eval(
-    *,
-    root: RootOption | None = None,
-    phase: str = "plan",
-    changed_path: tuple[str, ...] = (),
-    mutation: bool = False,
-    authorized: bool = False,
-    actor: str = "local",
-    scope: str = "repository",
-    json_output: JsonFlag = False,
-) -> None:
-    """Evaluate repository rules for a phase."""
-    repo = _root(root)
-    current_head = _current_head(repo)
-    report = rules_evaluation_report(
-        repo,
-        phase=phase,
-        changed_paths=tuple(changed_path),
-        mutation=mutation,
-        authorized=authorized,
-        actor=actor,
-        scope=scope,
-        head=current_head,
-        fact_snapshot=_rule_fact_snapshot(
-            repo,
-            phase=phase,
-            changed_paths=tuple(changed_path),
-            mutation=mutation,
-            authorized=authorized,
-            actor=actor,
-            scope=scope,
-            head=current_head,
-        ),
-    )
-    attestation = _rule_attestation_for_evaluation(report, actor=actor, scope=scope)
-    result = EthosResult(
-        command="rules eval",
-        ok=not report["required_gaps"],
-        state="blocked" if report["state"] == "block" else str(report["state"]),
-        summary={
-            "phase": phase,
-            "digest": report["digest"],
-            "attestation": attestation,
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@rules_app.command(name="coverage")
-def rules_coverage(
-    *,
-    root: RootOption | None = None,
-    changed: bool = False,
-    changed_path: tuple[str, ...] = (),
-    json_output: JsonFlag = False,
-) -> None:
-    """Report changed-path rule coverage."""
-    repo = _root(root)
-    paths = tuple(workspace_status(repo)["changed_paths"]) if changed else tuple(changed_path)
-    report = coverage_report(repo, changed_paths=paths)
-    result = EthosResult(
-        command="rules coverage",
-        ok=bool(report["ok"]),
-        state="covered" if report["ok"] else "gapped",
-        summary={
-            "covered_path_count": len(report["covered_paths"]),
-            "uncovered_path_count": len(report["uncovered_paths"]),
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@rules_app.command(name="compile")
-def rules_compile(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Compile repository rules deterministically."""
-    repo = _root(root)
-    report = compile_rules(repo)
-    result = EthosResult(
-        command="rules compile",
-        ok=True,
-        state="compiled",
-        summary={"rule_count": len(report["rules"])},
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@rules_app.command(name="explain")
-def rules_explain(
-    target: str,
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Explain a rule, gap, or path."""
-    repo = _root(root)
-    report = explain_rules_target(repo, target)
-    result = EthosResult(
-        command="rules explain",
-        ok=True,
-        state="explained",
-        summary={"target": target},
-        next_actions=tuple(report["next_action_contract"]),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@rules_app.command(name="exceptions")
-def rules_exceptions(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """List policy exceptions."""
-    report = policy_exceptions_report(_root(root))
-    result = EthosResult(
-        command="rules exceptions",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
 
 
 @campaign_app.command(name="status")

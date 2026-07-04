@@ -8,39 +8,10 @@ submit_branch_prefix = "submit/"
 [[package]]
 name = "ethos-core"
 path = "packages/ethos-core"
-domains = ["kernel", "action-graph", "state-machine"]
-
-[[package]]
-name = "ethos-contracts"
-path = "packages/ethos-contracts"
-domains = ["schemas", "contracts", "protocols"]
-
-[[package]]
-name = "ethos-repository"
-path = "packages/ethos-repository"
-domains = ["repository-lifecycle"]
-
-[[package]]
-name = "ethos-quality"
-path = "packages/ethos-quality"
-domains = ["quality", "determinism", "proof-policy", "docs-quality"]
-
-[[package]]
-name = "ethos-assistants"
-path = "packages/ethos-assistants"
-domains = ["assistants", "playbooks", "context", "projection"]
-
-[[package]]
-name = "ethos-adapters"
-path = "packages/ethos-adapters"
-domains = ["providers", "workspace-io", "execution", "local-state"]
+domains = ["kernel", "action-graph", "state-machine", "schemas", "contracts", "quality", "proof-policy"]
 
 [[package]]
 name = "ethos"
 path = "packages/ethos"
-domains = ["cli", "ux"]
+domains = ["cli", "ux", "adapters", "repository-lifecycle", "assistants", "playbooks", "execution", "local-state", "conformance", "fixtures"]
 
-[[package]]
-name = "ethos-test"
-path = "packages/ethos-test"
-domains = ["conformance", "parity", "fixtures"]

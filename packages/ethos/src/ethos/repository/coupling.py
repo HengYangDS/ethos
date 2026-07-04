@@ -4,10 +4,10 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.gates import gate_registry
+from ethos.repository.release import REQUIRED_RELEASE_FILES
+from ethos.repository.release import release_policy_report
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-from ethos_repository.gates import gate_registry
-from ethos_repository.release import REQUIRED_RELEASE_FILES
-from ethos_repository.release import release_policy_report
 
 if TYPE_CHECKING:
     from pathlib import Path

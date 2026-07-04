@@ -3,8 +3,8 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from ethos_adapters import openspec_native
-from ethos_repository.schema_validation import validate_schema_instance
+from ethos.adapters import openspec_native
+from ethos.repository.schema_validation import validate_schema_instance
 
 ROOT = Path(__file__).resolve().parents[2]
 

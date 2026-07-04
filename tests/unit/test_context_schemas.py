@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_assistants.context import context_bundle
-from ethos_repository.schema_validation import validate_schema_instance
+from ethos.assistants.context import context_bundle
+from ethos.repository.schema_validation import validate_schema_instance
 
 
 def test_context_bundle_schema_accepts_untrusted_source_verified_bundle() -> None:

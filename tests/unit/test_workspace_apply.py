@@ -3,11 +3,11 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos_adapters import mutation
-from ethos_adapters.mutation import MutationRequest
-from ethos_adapters.mutation import apply_land_to_candidate
-from ethos_adapters.mutation import evaluate_mutation
-from ethos_adapters.proof_record import record_executed_proof
+from ethos.adapters import mutation
+from ethos.adapters.mutation import MutationRequest
+from ethos.adapters.mutation import apply_land_to_candidate
+from ethos.adapters.mutation import evaluate_mutation
+from ethos.adapters.proof_record import record_executed_proof
 
 
 def seed_proof(root: Path, head: str) -> None:

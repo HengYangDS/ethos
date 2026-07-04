@@ -21,30 +21,18 @@ package = false
 [tool.uv.workspace]
 members = [
   "packages/ethos",
-  "packages/ethos-adapters",
-  "packages/ethos-assistants",
   "packages/ethos-core",
-  "packages/ethos-repository",
-  "packages/ethos-test",
 ]
 
 [tool.uv.sources]
-ethos-adapters = { workspace = true }
-ethos-assistants = { workspace = true }
 ethos-core = { workspace = true }
-ethos-repository = { workspace = true }
-ethos-test = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
   ".",
   "packages/ethos/src",
-  "packages/ethos-adapters/src",
-  "packages/ethos-assistants/src",
   "packages/ethos-core/src",
-  "packages/ethos-repository/src",
-  "packages/ethos-test/src",
 ]
 
 [tool.ruff]
@@ -60,24 +48,24 @@ extend = ".config/checks/ruff/ruff.toml"
 # packages (INP001) — both are standard pytest patterns, not product code.
 "tests/**" = ["E501", "SLF001", "INP001", "PLR2004", "S101"]
 # `id` on a widely-called classmethod — rename deferred to the package-split migration.
-"packages/ethos-repository/src/ethos_repository/evidence.py" = ["A002"]
 # C901 cyclomatic-complexity ratchet: 9 pre-existing tangled functions frozen (not
 # permanent — they decompose during the package-split migration). New code: cap 12.
-"packages/ethos-adapters/src/ethos_adapters/lanes.py" = ["C901"]
 "packages/ethos-core/src/ethos_core/contracts/rules.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/authority_graph.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/claims.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/coupling.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/evolution.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/parity.py" = ["C901"]
-"packages/ethos-repository/src/ethos_repository/rules.py" = ["C901"]
 # C901 ratchet extended when max-complexity tightened 12 -> 10: these pre-existing
 # functions exceed 10 and decompose during the surface split. New code: cap 10.
-"packages/ethos-adapters/src/ethos_adapters/mutation.py" = ["C901"]
-"packages/ethos-adapters/src/ethos_adapters/openspec_native.py" = ["C901"]
-"packages/ethos-assistants/src/ethos_assistants/skill_packages.py" = ["C901"]
 "packages/ethos-core/src/ethos_core/models.py" = ["C901"]
 "packages/ethos/src/ethos/cli.py" = ["T201", "C901"]
+"packages/ethos/src/ethos/adapters/lanes.py" = ["C901"]
+"packages/ethos/src/ethos/adapters/mutation.py" = ["C901"]
+"packages/ethos/src/ethos/adapters/openspec_native.py" = ["C901"]
+"packages/ethos/src/ethos/assistants/skill_packages.py" = ["C901"]
+"packages/ethos/src/ethos/repository/authority_graph.py" = ["C901"]
+"packages/ethos/src/ethos/repository/claims.py" = ["C901"]
+"packages/ethos/src/ethos/repository/coupling.py" = ["C901"]
+"packages/ethos/src/ethos/repository/evidence.py" = ["C901", "A002"]
+"packages/ethos/src/ethos/repository/evolution.py" = ["C901"]
+"packages/ethos/src/ethos/repository/parity.py" = ["C901"]
+"packages/ethos/src/ethos/repository/rules.py" = ["C901"]
 # The CLI surface layer is the sanctioned place that prints to stdout (emit()); T20
 # (no-print) applies to library/logic code, not the surface.
 "packages/ethos/src/ethos/surface/cli/_base.py" = ["T201"]

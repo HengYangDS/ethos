@@ -3,9 +3,9 @@ from __future__ import annotations
 import sqlite3
 from typing import TYPE_CHECKING
 
-from ethos_adapters.context_index import default_retrieval_db_path
-from ethos_adapters.context_index import initialize_context_index
-from ethos_adapters.context_index import purge_context_index
+from ethos.adapters.context_index import default_retrieval_db_path
+from ethos.adapters.context_index import initialize_context_index
+from ethos.adapters.context_index import purge_context_index
 
 if TYPE_CHECKING:
     from pathlib import Path

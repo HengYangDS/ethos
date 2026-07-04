@@ -4,8 +4,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from ethos_adapters.proof_record import executed_proof_record
-from ethos_adapters.status import workspace_status
+from ethos.adapters.proof_record import executed_proof_record
+from ethos.adapters.status import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy

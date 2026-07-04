@@ -12,17 +12,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters import git as _gitio
-from ethos_adapters.status import workspace_status
+from ethos.adapters.status import workspace_status
+from ethos.repository.claims import claims_report
+from ethos.repository.evolution import campaign_report
+from ethos.repository.evolution import evolution_report
+from ethos.repository.parity import parity_gaps_report
+from ethos.repository.parity import shadow_parity_report
+from ethos.repository.release import release_policy_report
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-from ethos_repository.claims import claims_report
-from ethos_repository.evolution import campaign_report
-from ethos_repository.evolution import evolution_report
-from ethos_repository.parity import parity_gaps_report
-from ethos_repository.parity import shadow_parity_report
-from ethos_repository.release import release_policy_report
 
 if TYPE_CHECKING:
-    from ethos_adapters.mutation import MutationDecision
+    from ethos.adapters.mutation import MutationDecision
     from ethos_core.contracts.branch_roles import BranchRolePolicy
 
 

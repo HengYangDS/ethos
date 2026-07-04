@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos_adapters import openspec_native
+from ethos.adapters import openspec_native
 
 if TYPE_CHECKING:
     from pathlib import Path

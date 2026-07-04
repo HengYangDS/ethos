@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from ethos_adapters import runner
+from ethos.adapters import runner
 from ethos_core.action_graph import ActionNode
 
 

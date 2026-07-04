@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from ethos.repository.coupling import coupling_audit_report
+from ethos.repository.gates import gate_graph
+from ethos.repository.gates import gate_registry
+from ethos.repository.schema_validation import schema_validation_report
+from ethos.repository.schema_validation import validate_ethos_result
+from ethos.repository.schema_validation import validate_schema_instance
 from ethos_core.result import EthosResult
-from ethos_repository.coupling import coupling_audit_report
-from ethos_repository.gates import gate_graph
-from ethos_repository.gates import gate_registry
-from ethos_repository.schema_validation import schema_validation_report
-from ethos_repository.schema_validation import validate_ethos_result
-from ethos_repository.schema_validation import validate_schema_instance
 
 ROLE_POLICY_SAMPLE = {
     "release_branch": "main",
@@ -483,7 +483,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
             "targets": [
                 {
                     "kind": "source",
-                    "path": "packages/ethos-repository/src/ethos_repository/claims.py",
+                    "path": "packages/ethos-repository/src/ethos.repository/claims.py",
                 },
                 {
                     "kind": "openspec",

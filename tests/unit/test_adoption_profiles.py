@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos_repository.planner import adoption_plan
-from ethos_repository.planner import available_profiles
+from ethos.repository.planner import adoption_plan
+from ethos.repository.planner import available_profiles
 
 if TYPE_CHECKING:
     from pathlib import Path

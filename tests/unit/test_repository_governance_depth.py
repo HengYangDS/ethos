@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.repository_audit import repository_audit
+from ethos.repository.repository_audit import repository_audit
 
 
 def write(path: Path, text: str = "x\n") -> None:

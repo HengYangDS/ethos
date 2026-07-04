@@ -5,10 +5,8 @@ description = "ETHOS public command plane"
 requires-python = ">=3.12"
 dependencies = [
   "cyclopts>=3.20",
-  "ethos-adapters",
-  "ethos-assistants",
   "ethos-core",
-  "ethos-repository",
+  "jsonschema>=4.23",
 ]
 
 [project.scripts]

@@ -1,1 +1,0 @@
-"""ETHOS provider adapter package."""

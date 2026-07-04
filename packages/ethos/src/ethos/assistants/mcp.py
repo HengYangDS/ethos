@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_assistants.context import context_bundle
+from ethos.assistants.context import context_bundle
 
 
 def mcp_manifest() -> dict[str, object]:

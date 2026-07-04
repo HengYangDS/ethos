@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.repository_audit import REQUIRED_DOCS
-from ethos_repository.repository_audit import repository_audit
+from ethos.repository.repository_audit import REQUIRED_DOCS
+from ethos.repository.repository_audit import repository_audit
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (
@@ -304,13 +304,7 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
     assert target["migration_status"] == "complete"
     assert target["target_packages"] == [
         "ethos-core",
-        "ethos-contracts",
-        "ethos-quality",
-        "ethos-repository",
-        "ethos-assistants",
-        "ethos-adapters",
         "ethos",
-        "ethos-test",
     ]
     assert target["migration_hosts"] == []
     assert target["target_distribution_adapters"] == ["distributions/npm"]

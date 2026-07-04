@@ -7,15 +7,15 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos_adapters.lanes import bind_work_lane_claim
-from ethos_adapters.lanes import refresh_work_lane_base
-from ethos_adapters.lanes import retire_landed_work_lanes
-from ethos_adapters.lanes import start_work_lane
-from ethos_adapters.prewrite import prewrite_guard
-from ethos_adapters.state import active_leases
-from ethos_adapters.status import workspace_status
+from ethos.adapters.lanes import bind_work_lane_claim
+from ethos.adapters.lanes import refresh_work_lane_base
+from ethos.adapters.lanes import retire_landed_work_lanes
+from ethos.adapters.lanes import start_work_lane
+from ethos.adapters.prewrite import prewrite_guard
+from ethos.adapters.state import active_leases
+from ethos.adapters.status import workspace_status
+from ethos.repository.schema_validation import validate_schema_instance
 from ethos_core.contracts.branch_roles import BranchRolePolicy
-from ethos_repository.schema_validation import validate_schema_instance
 
 if TYPE_CHECKING:
     from pathlib import Path

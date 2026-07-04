@@ -13,7 +13,7 @@ def test_quality_package_is_focused_and_importable() -> None:
     import ethos_core.quality.profiles
     import ethos_core.quality.proof_policy
 
-    init_path = ROOT / "packages/ethos-quality/src/ethos_core.quality/__init__.py"
+    init_path = ROOT / "packages/ethos-core/src/ethos_core/quality/__init__.py"
     tree = ast.parse(init_path.read_text(encoding="utf-8"))
 
     assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(tree))

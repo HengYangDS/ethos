@@ -9,13 +9,13 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 from jsonschema.exceptions import ValidationError
 
+from ethos.repository.docs_registry import docs_health_report
+from ethos.repository.gates import gate_registry
+from ethos.repository.governance_profiles import governance_profile_report
 from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest
 from ethos_core.quality.gates import product_gate_plan
 from ethos_core.quality.profiles import product_quality_profile
-from ethos_repository.docs_registry import docs_health_report
-from ethos_repository.gates import gate_registry
-from ethos_repository.governance_profiles import governance_profile_report
 
 
 def _repo_root() -> Path:
@@ -133,7 +133,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
 
 
 def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
-    from ethos_repository.coupling import coupling_audit_report
+    from ethos.repository.coupling import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "docs" / "governance" / "evolution-ledger.toml"
@@ -689,7 +689,7 @@ def _trust_envelope_contract_sample() -> dict[str, Any]:
             "targets": [
                 {
                     "kind": "source",
-                    "path": "packages/ethos-repository/src/ethos_repository/claims.py",
+                    "path": "packages/ethos-repository/src/ethos.repository/claims.py",
                 },
                 {
                     "kind": "openspec",

@@ -96,9 +96,9 @@ def imported_modules(path: Path) -> set[str]:
 
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
     forbidden = {
-        "ethos_repository",
-        "ethos_assistants",
-        "ethos_adapters",
+        "ethos.repository",
+        "ethos.assistants",
+        "ethos.adapters",
         "sqlite3",
         "subprocess",
         "tools",
@@ -125,14 +125,14 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
         "ethos-core": {"subprocess", "sqlite3", "shutil"},
         "ethos-contracts": {"subprocess", "sqlite3", "shutil"},
         "ethos-repository": {
-            "ethos_adapters",
+            "ethos.adapters",
             "subprocess",
             "sqlite3",
             "shutil",
         },
         "ethos-quality": {
-            "ethos_adapters",
-            "ethos_repository",
+            "ethos.adapters",
+            "ethos.repository",
             "subprocess",
             "sqlite3",
             "shutil",
@@ -144,12 +144,6 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
             assert imported_modules(path).isdisjoint(forbidden), path
 
 
-def test_repository_package_does_not_depend_on_provider_adapters() -> None:
-    pyproject = (ROOT / "packages" / "ethos-repository" / "pyproject.toml").read_text(
-        encoding="utf-8"
-    )
-
-    assert '"ethos-adapters"' not in pyproject
 
 
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
@@ -206,9 +200,6 @@ def test_target_packages_do_not_import_migration_hosts() -> None:
             assert imported_modules(path).isdisjoint(migration_imports), path
 
 
-def test_adapters_do_not_import_public_cli_surface() -> None:
-    for path in (ROOT / "packages" / "ethos-adapters" / "src").rglob("*.py"):
-        assert "ethos" not in imported_modules(path), path
 
 
 def test_product_workspace_has_no_migration_host_packages() -> None:
@@ -228,20 +219,22 @@ def test_ethos_workspace_config_uses_target_product_packages() -> None:
     paths = {package["path"] for package in packages}
 
     assert names == set(package_ontology_report()["target_packages"])
-    repository_domains = {
+    core_domains = {
         domain
         for package in packages
-        if package["name"] == "ethos-repository"
+        if package["name"] == "ethos-core"
         for domain in package.get("domains", [])
     }
-    quality_domains = {
+    ethos_domains = {
         domain
         for package in packages
-        if package["name"] == "ethos-quality"
+        if package["name"] == "ethos"
         for domain in package.get("domains", [])
     }
-    assert repository_domains == {"repository-lifecycle"}
-    assert quality_domains >= {"quality", "determinism", "proof-policy", "docs-quality"}
+    # The two-package world: ethos-core carries the pure kernel + absorbed
+    # contracts/quality; ethos carries the runtime (cli/adapters/repository/assistants).
+    assert core_domains >= {"kernel", "contracts", "quality"}
+    assert ethos_domains >= {"cli", "adapters", "repository-lifecycle", "assistants"}
     for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
         assert retired not in names
         assert f"packages/{retired}" not in paths
@@ -407,11 +400,6 @@ def test_product_packages_have_canonical_readmes() -> None:
     for package in (
         "ethos",
         "ethos-core",
-        "ethos-contracts",
-        "ethos-repository",
-        "ethos-adapters",
-        "ethos-assistants",
-        "ethos-test",
     ):
         readme = ROOT / "packages" / package / "README.md"
         assert readme.exists()

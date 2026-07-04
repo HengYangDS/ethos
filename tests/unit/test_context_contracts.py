@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from ethos.testing.fixtures import context_retrieval_smoke_queries
 from ethos_core.contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
 from ethos_core.contracts.context_projection import context_projection_contract
 from ethos_core.contracts.context_projection import default_context_policy
-from ethos_test.fixtures import context_retrieval_smoke_queries
 
 
 def test_context_projection_contract_is_advisory_only() -> None:

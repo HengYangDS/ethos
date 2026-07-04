@@ -16,7 +16,7 @@ tests = [
   "uv run --group dev pytest tests/unit/test_coupling_governance.py tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos quality schemas --json",
-  "uv run --group dev ruff check packages/ethos-repository/src/ethos_repository/coupling.py tests/unit/test_coupling_governance.py tests/architecture/test_product_design_contract.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/coupling.py tests/unit/test_coupling_governance.py tests/architecture/test_product_design_contract.py",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv build --all-packages",
@@ -65,7 +65,7 @@ kill_signal = "ETHOS workflow state can be created by host UI labels or raw work
 [promotion]
 targets = [
   "docs/evidence/role-binding-projection-hardening-2026-07-01.md",
-  "packages/ethos-repository/src/ethos_repository/coupling.py",
+  "packages/ethos/src/ethos/repository/coupling.py",
   "schemas/ethos/coupling-audit.schema.json",
   "tests/unit/test_coupling_governance.py",
   "docs/governance/product-design-contract.md",

@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from ethos_adapters import shadow
-from ethos_adapters.shadow import _accepted_semantic_differences
-from ethos_adapters.shadow import _run_embedded
-from ethos_adapters.shadow import _run_external
-from ethos_adapters.shadow import _semantic_diff
-from ethos_adapters.shadow import run_shadow_parity
-from ethos_repository.parity import parity_gaps_report
-from ethos_repository.parity import shadow_parity_report
-from ethos_repository.schema_validation import validate_schema_instance
+from ethos.adapters import shadow
+from ethos.adapters.shadow import _accepted_semantic_differences
+from ethos.adapters.shadow import _run_embedded
+from ethos.adapters.shadow import _run_external
+from ethos.adapters.shadow import _semantic_diff
+from ethos.adapters.shadow import run_shadow_parity
+from ethos.repository.parity import parity_gaps_report
+from ethos.repository.parity import shadow_parity_report
+from ethos.repository.schema_validation import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 
 MIGRATED_CAPABILITIES = [
@@ -1620,8 +1620,8 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
             },
         }
 
-    monkeypatch.setattr("ethos_adapters.shadow._run_external", fake_external)
-    monkeypatch.setattr("ethos_adapters.shadow._run_embedded", fake_embedded)
+    monkeypatch.setattr("ethos.adapters.shadow._run_external", fake_external)
+    monkeypatch.setattr("ethos.adapters.shadow._run_embedded", fake_embedded)
 
     payload = run_shadow_parity(tmp_path, timeout_seconds=5)
 

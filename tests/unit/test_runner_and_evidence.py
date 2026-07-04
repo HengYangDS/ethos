@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from ethos_adapters.runner import DryRunRunner
-from ethos_adapters.runner import LocalSubprocessRunner
+from ethos.adapters.runner import DryRunRunner
+from ethos.adapters.runner import LocalSubprocessRunner
+from ethos.repository.evidence import EvidenceSet
+from ethos.repository.evidence import ProofRun
+from ethos.repository.evidence import provenance_envelope
+from ethos.repository.evidence import trim_output
 from ethos_core.action_graph import ActionNode
-from ethos_repository.evidence import EvidenceSet
-from ethos_repository.evidence import ProofRun
-from ethos_repository.evidence import provenance_envelope
-from ethos_repository.evidence import trim_output
 
 
 def test_dry_run_runner_records_action_without_execution() -> None:

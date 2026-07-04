@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository import repository_audit as repository_audit_module
+from ethos.repository import repository_audit as repository_audit_module
 
 
 def test_repository_audit_can_skip_deep_openspec_cli() -> None:

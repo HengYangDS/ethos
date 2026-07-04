@@ -55,6 +55,6 @@ kill_signal = "Active migration-host packages reappear in product topology."
 targets = [
   "docs/evidence/product-migration-closure-2026-07-01.md",
   "docs/architecture/package-ontology.md",
-  "packages/ethos-contracts/src/ethos_contracts/package_ontology.py",
+  "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
   "openspec/specs/ethos-contracts/spec.md",
 ]

@@ -5,12 +5,8 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ethos",
-    "ethos-adapters",
-    "ethos-assistants",
     "ethos-core",
     "ethos-product-monorepo",
-    "ethos-repository",
-    "ethos-test",
 ]
 
 [[package]]
@@ -88,36 +84,16 @@ version = "0.1.0a1"
 source = { editable = "packages/ethos" }
 dependencies = [
     { name = "cyclopts" },
-    { name = "ethos-adapters" },
-    { name = "ethos-assistants" },
     { name = "ethos-core" },
-    { name = "ethos-repository" },
+    { name = "jsonschema" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=3.20" },
-    { name = "ethos-adapters", editable = "packages/ethos-adapters" },
-    { name = "ethos-assistants", editable = "packages/ethos-assistants" },
     { name = "ethos-core", editable = "packages/ethos-core" },
-    { name = "ethos-repository", editable = "packages/ethos-repository" },
+    { name = "jsonschema", specifier = ">=4.23" },
 ]
-
-[[package]]
-name = "ethos-adapters"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-adapters" }
-dependencies = [
-    { name = "ethos-core" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ethos-core", editable = "packages/ethos-core" }]
-
-[[package]]
-name = "ethos-assistants"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-assistants" }
 
 [[package]]
 name = "ethos-core"
@@ -150,28 +126,6 @@ dev = [
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.8" },
 ]
-
-[[package]]
-name = "ethos-repository"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-repository" }
-dependencies = [
-    { name = "ethos-assistants" },
-    { name = "ethos-core" },
-    { name = "jsonschema" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ethos-assistants", editable = "packages/ethos-assistants" },
-    { name = "ethos-core", editable = "packages/ethos-core" },
-    { name = "jsonschema", specifier = ">=4.23" },
-]
-
-[[package]]
-name = "ethos-test"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-test" }
 
 [[package]]
 name = "grimp"

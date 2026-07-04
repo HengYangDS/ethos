@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.attestation import release_attestation
-from ethos_repository.attestation import sbom_projection
-from ethos_repository.release import release_policy_report
-from ethos_repository.release import version_manifest
+from ethos.repository.attestation import release_attestation
+from ethos.repository.attestation import sbom_projection
+from ethos.repository.release import release_policy_report
+from ethos.repository.release import version_manifest
 
 
 def test_version_manifest_keeps_workspace_packages_aligned() -> None:
@@ -16,13 +16,7 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     assert manifest["all_package_versions_match"] is True
     assert set(manifest["packages"]) == {
         "ethos",
-        "ethos-adapters",
-        "ethos-assistants",
-        "ethos-contracts",
         "ethos-core",
-        "ethos-quality",
-        "ethos-repository",
-        "ethos-test",
     }
 
 

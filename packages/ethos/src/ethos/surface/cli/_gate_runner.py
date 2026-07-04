@@ -15,9 +15,9 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.runner import ActionRunResult
+from ethos.adapters.runner import classify_action_result
 from ethos.surface.cli._base import app
-from ethos_adapters.runner import ActionRunResult
-from ethos_adapters.runner import classify_action_result
 
 if TYPE_CHECKING:
     from ethos_core.action_graph import ActionNode

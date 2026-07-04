@@ -6,9 +6,9 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from ethos_assistants.skill_packages import DEFAULT_REQUIRED_SECTIONS
-from ethos_assistants.skill_packages import validate_skill_markdown
-from ethos_assistants.skill_packages import validate_skill_package_manifest
+from ethos.assistants.skill_packages import DEFAULT_REQUIRED_SECTIONS
+from ethos.assistants.skill_packages import validate_skill_markdown
+from ethos.assistants.skill_packages import validate_skill_package_manifest
 from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest
 

@@ -6,11 +6,11 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos_assistants.skill_packages import compute_skill_package_digest
+from ethos.assistants.skill_packages import compute_skill_package_digest
+from ethos.repository.planner import adoption_plan
+from ethos.repository.schema_validation import validate_schema_instance
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.contracts.package_ontology import package_ontology_report
-from ethos_repository.planner import adoption_plan
-from ethos_repository.schema_validation import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -106,7 +106,7 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     Land/publish now require a HEAD-keyed proof record before the merge, so tests
     exercising land mechanics seed the proof the same way the prove command does.
     """
-    from ethos_adapters.proof_record import record_executed_proof
+    from ethos.adapters.proof_record import record_executed_proof
 
     record_executed_proof(repo, head=head, evidence_digest="sha256:test", gate_count=1)
 
@@ -318,7 +318,7 @@ def test_quality_package_ontology_reports_migration_state() -> None:
     assert payload["data"]["migration_complete"] is True
     assert payload["data"]["migration_status"] == "complete"
     assert "ethos" in payload["data"]["target_packages"]
-    assert "ethos-quality" in payload["data"]["target_packages"]
+    assert "ethos-core" in payload["data"]["target_packages"]
     assert "ethos" not in payload["data"]["migration_hosts"]
     assert payload["data"]["distribution_status"]["distributions/npm"]["state"] == ("migrated")
 
@@ -1225,7 +1225,7 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos_adapters import openspec_native
+    from ethos.adapters import openspec_native
 
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
@@ -3158,9 +3158,10 @@ def test_quality_types_enforces_ty_policy_tiers() -> None:
     assert payload["command"] == "quality types"
     packages = payload["data"]["packages"]
     # Zero-tolerance tier packages must report a zero limit; ratchet tiers a baseline.
-    for pkg in ("packages/ethos-core", "packages/ethos-quality", "packages/ethos-contracts"):
-        assert packages[pkg]["limit"] == 0
-        assert packages[pkg]["tier"] == "zero_tolerance"
+    # ethos-core absorbs the former ethos-contracts and ethos-quality zero-tolerance
+    # packages; ethos remains the ratchet-tier runtime.
+    assert packages["packages/ethos-core"]["limit"] == 0
+    assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
     assert packages["packages/ethos"]["tier"] == "ratchet"
     assert packages["packages/ethos"]["limit"] > 0
     # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_repository.governance_profiles import governance_profile_report
-from ethos_repository.schema_validation import validate_schema_instance
+from ethos.repository.governance_profiles import governance_profile_report
+from ethos.repository.schema_validation import validate_schema_instance
 
 
 def test_self_and_product_profiles_are_isomorphic() -> None:

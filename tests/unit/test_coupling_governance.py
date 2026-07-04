@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos_repository import coupling
-from ethos_repository.coupling import coupling_audit_report
+from ethos.repository import coupling
+from ethos.repository.coupling import coupling_audit_report
 
 if TYPE_CHECKING:
     import pytest

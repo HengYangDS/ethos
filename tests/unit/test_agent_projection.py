@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_assistants.mcp import mcp_manifest
-from ethos_assistants.projections import projection_contract
+from ethos.assistants.mcp import mcp_manifest
+from ethos.assistants.projections import projection_contract
 
 
 def test_mcp_manifest_exposes_resources_prompts_and_tools() -> None:

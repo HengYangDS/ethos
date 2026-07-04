@@ -8,13 +8,7 @@ if TYPE_CHECKING:
 
 TARGET_PACKAGES = (
     "ethos-core",
-    "ethos-contracts",
-    "ethos-quality",
-    "ethos-repository",
-    "ethos-assistants",
-    "ethos-adapters",
     "ethos",
-    "ethos-test",
 )
 
 MIGRATION_HOSTS = ()

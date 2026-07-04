@@ -11,11 +11,30 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-import ethos_assistants.playbooks as playbooks_module
-import ethos_repository.repository_audit as repository_audit_module
+import ethos.assistants.playbooks as playbooks_module
+import ethos.repository.repository_audit as repository_audit_module
 from ethos.adapters import git as _gitio
 from ethos.adapters import quality_tool as _qtool
+from ethos.adapters.commit_policy import signature_policy_report
+from ethos.adapters.ty_gate import ty_gate_report
+from ethos.assistants.playbooks import playbooks_report
+from ethos.assistants.projections import projection_contract
 from ethos.domain import prove as _prove
+from ethos.repository.attestation import release_attestation
+from ethos.repository.attestation import sbom_projection
+from ethos.repository.claims import claims_report
+from ethos.repository.command_registry import command_registry_report
+from ethos.repository.coupling import coupling_audit_report
+from ethos.repository.docs_registry import command_examples_report
+from ethos.repository.docs_registry import docs_health_report
+from ethos.repository.docs_registry import docs_quality_report
+from ethos.repository.evidence import EvidenceSet
+from ethos.repository.evidence import ProofRun
+from ethos.repository.evidence import provenance_envelope
+from ethos.repository.gates import gate_registry
+from ethos.repository.release import release_policy_report
+from ethos.repository.schema_validation import schema_validation_report
+from ethos.repository.standards import standard_adapter_registry
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -23,10 +42,6 @@ from ethos.surface.cli._base import emit as _emit
 from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root as _root
 from ethos.surface.cli._base import sha256_file as _sha256_file
-from ethos_adapters.commit_policy import signature_policy_report
-from ethos_adapters.ty_gate import ty_gate_report
-from ethos_assistants.playbooks import playbooks_report
-from ethos_assistants.projections import projection_contract
 from ethos_core.contracts.package_ontology import package_ontology_report
 from ethos_core.contracts.package_ontology import workspace_package_config_report
 from ethos_core.quality.docs_profile import docs_quality_profile
@@ -34,21 +49,6 @@ from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles
 from ethos_core.quality.proof_policy import proof_lattice
 from ethos_core.result import EthosResult
-from ethos_repository.attestation import release_attestation
-from ethos_repository.attestation import sbom_projection
-from ethos_repository.claims import claims_report
-from ethos_repository.command_registry import command_registry_report
-from ethos_repository.coupling import coupling_audit_report
-from ethos_repository.docs_registry import command_examples_report
-from ethos_repository.docs_registry import docs_health_report
-from ethos_repository.docs_registry import docs_quality_report
-from ethos_repository.evidence import EvidenceSet
-from ethos_repository.evidence import ProofRun
-from ethos_repository.evidence import provenance_envelope
-from ethos_repository.gates import gate_registry
-from ethos_repository.release import release_policy_report
-from ethos_repository.schema_validation import schema_validation_report
-from ethos_repository.standards import standard_adapter_registry
 
 
 @quality_app.command
@@ -406,7 +406,7 @@ def projection_drift(
                 "ok": expected_registry_digest == registry_digest,
             },
             "generator": {
-                "id": "ethos_assistants.playbooks",
+                "id": "ethos.assistants.playbooks",
                 "digest": generator_digest,
                 "expected_digest": expected_generator_digest,
                 "ok": expected_generator_digest == generator_digest,

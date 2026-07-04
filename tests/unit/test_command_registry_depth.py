@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.command_registry import command_registry_report
-from ethos_repository.command_registry import public_commands
-from ethos_repository.docs_registry import command_examples_report
+from ethos.repository.command_registry import command_registry_report
+from ethos.repository.command_registry import public_commands
+from ethos.repository.docs_registry import command_examples_report
 
 
 def test_command_registry_separates_public_workflow_from_maintainer_reference() -> None:
@@ -167,9 +167,9 @@ def test_current_product_docs_do_not_track_superpowers_execution_plans() -> None
 def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> None:
     surfaces = (
         Path("packages/ethos/src/ethos/cli.py"),
-        Path("packages/ethos-assistants/src/ethos_assistants/playbooks.py"),
-        Path("packages/ethos-contracts/src/ethos_core.contracts/skill_activation.py"),
-        Path("packages/ethos-adapters/src/ethos_adapters/shadow.py"),
+        Path("packages/ethos/src/ethos/assistants/playbooks.py"),
+        Path("packages/ethos-core/src/ethos_core/contracts/skill_activation.py"),
+        Path("packages/ethos/src/ethos/adapters/shadow.py"),
         Path("schemas/ethos/campaign-closeout.schema.json"),
         Path("schemas/ethos/shadow-parity.schema.json"),
         Path("schemas/ethos/skill-registry.schema.json"),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_assistants.mcp import mcp_manifest
+from ethos.assistants.mcp import mcp_manifest
 
 
 def mcp_server_descriptor() -> dict[str, object]:

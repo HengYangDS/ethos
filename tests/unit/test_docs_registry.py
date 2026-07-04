@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_repository.docs_registry import build_docs_registry
-from ethos_repository.docs_registry import command_examples_report
-from ethos_repository.docs_registry import docs_health_report
+from ethos.repository.docs_registry import build_docs_registry
+from ethos.repository.docs_registry import command_examples_report
+from ethos.repository.docs_registry import docs_health_report
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:
@@ -28,7 +28,7 @@ def test_docs_health_report_has_no_missing_metadata() -> None:
 
 
 def test_docs_quality_report_enforces_taxonomy_and_visible_sections() -> None:
-    from ethos_repository.docs_registry import docs_quality_report
+    from ethos.repository.docs_registry import docs_quality_report
 
     report = docs_quality_report(Path.cwd())
 

@@ -11,9 +11,9 @@ evidence_ids = ["evidence:ethos-work-lane-admission"]
 binding = "digest-bound lane admission evidence binding"
 verifier = "digest_only"
 tests = [
-  "tests/unit/test_workspace_lanes.py",
-  "tests/unit/test_workspace_apply.py",
-  "tests/unit/test_cli_contracts.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/lanes/test_apply.py",
+  "tests/unit/cli/test_contracts.py",
 ]
 
 [scope]

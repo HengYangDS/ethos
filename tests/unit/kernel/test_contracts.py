@@ -51,7 +51,7 @@ def test_kernel_entities_project_to_chain() -> None:
         id="evidence:bootstrap",
         change_id=change.id,
         kind="test",
-        refs=("tests/unit/test_kernel_contracts.py",),
+        refs=("tests/unit/kernel/test_contracts.py",),
         head="abc123",
     )
     claim = models.EvidenceClaim(

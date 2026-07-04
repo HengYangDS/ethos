@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-campaign-orchestration"]
 binding = "digest-bound campaign orchestration evidence"
 verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest -q tests/unit/test_evolution_ledger.py::test_campaign_report_exposes_manifest_steps_and_closeout_progress tests/unit/test_cli_contracts.py::test_campaign_status_reports_manifest_steps tests/unit/test_cli_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/test_schema_validation_and_gates.py::test_campaign_schema_accepts_lane_closeout_steps",
+  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py::test_campaign_report_exposes_manifest_steps_and_closeout_progress tests/unit/cli/test_contracts.py::test_campaign_status_reports_manifest_steps tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/governance/test_validation_gates.py::test_campaign_schema_accepts_lane_closeout_steps",
   "uv run --package ethos ethos quality schemas --json",
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos campaign status --json",
@@ -63,7 +63,7 @@ targets = [
   "packages/ethos/src/ethos/cli.py",
   "system/schemas/kernel/campaign.schema.json",
   "system/schemas/kernel/campaign-closeout.schema.json",
-  "tests/unit/test_cli_contracts.py",
-  "tests/unit/test_evolution_ledger.py",
-  "tests/unit/test_schema_validation_and_gates.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/governance/test_validation_gates.py",
 ]

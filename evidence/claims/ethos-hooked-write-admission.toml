@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-hooked-write-admission"]
 binding = "semantic hooked write admission evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest -q tests/unit/test_hook_admission.py tests/unit/test_cli_contracts.py::test_hook_admit_pre_tool_blocks_accepted_root tests/unit/test_cli_contracts.py::test_hook_admit_pre_run_blocks_mutation_risk_without_paths tests/unit/test_command_registry_depth.py::test_hook_admission_is_reference_command_not_public_workflow",
+  "uv run --group dev pytest -q tests/unit/lanes/test_hook_admission.py tests/unit/cli/test_contracts.py::test_hook_admit_pre_tool_blocks_accepted_root tests/unit/cli/test_contracts.py::test_hook_admit_pre_run_blocks_mutation_risk_without_paths tests/unit/cli/test_command_registry.py::test_hook_admission_is_reference_command_not_public_workflow",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv run openspec validate --all --strict --json",
@@ -59,8 +59,8 @@ targets = [
   "packages/ethos/src/ethos/adapters/admission/core.py",
   "packages/ethos/src/ethos/repository/registry/commands.py",
   "packages/ethos/src/ethos/cli.py",
-  "tests/unit/test_adopt_apply_sample.py",
-  "tests/unit/test_cli_contracts.py",
-  "tests/unit/test_command_registry_depth.py",
-  "tests/unit/test_hook_admission.py",
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/cli/test_command_registry.py",
+  "tests/unit/lanes/test_hook_admission.py",
 ]

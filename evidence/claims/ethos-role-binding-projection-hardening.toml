@@ -11,12 +11,12 @@ evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
 binding = "semantic role-binding projection hardening evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/test_coupling_governance.py -q",
-  "uv run --group dev pytest tests/unit/test_coupling_governance.py tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
-  "uv run --group dev pytest tests/unit/test_coupling_governance.py tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/test_schema_validation_and_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/test_validation_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/test_validation_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/test_validation_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/test_validation_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos quality schemas --json",
-  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/test_coupling_governance.py tests/architecture/test_product_design_contract.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/audit/test_coupling.py tests/architecture/test_product_design_contract.py",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv build --all-packages",
@@ -39,7 +39,7 @@ schemas = [
   "system/schemas/kernel/coupling-audit.schema.json",
 ]
 tests = [
-  "tests/unit/test_coupling_governance.py",
+  "tests/unit/audit/test_coupling.py",
   "tests/architecture/test_product_design_contract.py",
 ]
 docs = [
@@ -67,7 +67,7 @@ targets = [
   "evidence/role-binding-projection-hardening-2026-07-01.md",
   "packages/ethos/src/ethos/repository/policy/coupling.py",
   "system/schemas/kernel/coupling-audit.schema.json",
-  "tests/unit/test_coupling_governance.py",
+  "tests/unit/audit/test_coupling.py",
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",
   "openspec/specs/ethos-repository/spec.md",

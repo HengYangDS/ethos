@@ -68,9 +68,9 @@ targets = [
   "packages/ethos/src/ethos/repository/adoption/planner.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/cli.py",
-  "tests/unit/test_adoption_profiles.py",
-  "tests/unit/test_authority_graph.py",
-  "tests/unit/test_cli_contracts.py",
-  "tests/unit/test_parity_command.py",
+  "tests/unit/adoption/test_profiles.py",
+  "tests/unit/governance/test_authority_graph.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/product/test_parity.py",
   "tests/architecture/test_product_design_contract.py",
 ]

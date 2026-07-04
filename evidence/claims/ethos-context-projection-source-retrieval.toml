@@ -11,9 +11,9 @@ evidence_ids = ["evidence:ethos-context-projection-source-retrieval"]
 binding = "semantic source-verified context projection evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/test_context_contracts.py tests/unit/test_context_schemas.py tests/unit/test_context_index_state.py tests/unit/test_context_retrieval.py tests/unit/test_context_selection.py tests/unit/test_context_cli_contracts.py -q",
-  "uv run --group dev pytest tests/unit/test_agent_context_provider.py tests/unit/test_mcp_server.py tests/unit/test_schema_validation_and_gates.py -q",
-  "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/context_index.py packages/ethos-assistants/src/ethos_assistants/context.py packages/ethos-assistants/src/ethos_assistants/context_selection.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-test/src/ethos_test/fixtures.py packages/ethos/src/ethos/cli.py tests/unit/test_context_*.py -q",
+  "uv run --group dev pytest tests/unit/context/test_contracts.py tests/unit/context/test_schemas.py tests/unit/context/test_index_state.py tests/unit/context/test_retrieval.py tests/unit/context/test_selection.py tests/unit/context/test_cli.py -q",
+  "uv run --group dev pytest tests/unit/assistants/test_context_provider.py tests/unit/assistants/test_server.py tests/unit/governance/test_validation_gates.py -q",
+  "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/context_index.py packages/ethos-assistants/src/ethos_assistants/context.py packages/ethos-assistants/src/ethos_assistants/context_selection.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-test/src/ethos_test/fixtures.py packages/ethos/src/ethos/cli.py tests/unit/context/test_*.py -q",
   "uv run --group dev pytest tests/unit tests/architecture -q",
   "uv run --group dev ruff check .",
   "uv run --package ethos ethos quality schemas --json",

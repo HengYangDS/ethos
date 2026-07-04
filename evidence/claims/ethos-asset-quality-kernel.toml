@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-asset-quality-kernel"]
 binding = "semantic quality-kernel evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/test_quality_kernel.py tests/unit/test_docs_registry.py tests/unit/test_schema_validation_and_gates.py tests/unit/test_cli_contracts.py tests/unit/test_evolution_ledger.py tests/unit/test_parity_command.py tests/architecture/test_product_boundaries.py -q",
+  "uv run --group dev pytest tests/unit/kernel/test_quality.py tests/unit/governance/test_docs_registry.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py tests/unit/governance/test_evolution_ledger.py tests/unit/product/test_parity.py tests/architecture/test_product_boundaries.py -q",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv run openspec validate --all --strict --json",
@@ -146,14 +146,14 @@ targets = [
   "tests/architecture/test_product_boundaries.py",
   "tests/architecture/test_product_design_contract.py",
   "tests/support/ethos_cli_runner.py",
-  "tests/unit/test_claims_governance.py",
-  "tests/unit/test_cli_contracts.py",
-  "tests/unit/test_docs_registry.py",
-  "tests/unit/test_kernel_contracts.py",
-  "tests/unit/test_parity_command.py",
-  "tests/unit/test_quality_kernel.py",
-  "tests/unit/test_release_policy_and_attestation.py",
-  "tests/unit/test_runner_and_evidence.py",
-  "tests/unit/test_schema_validation_and_gates.py",
-  "tests/unit/test_evolution_ledger.py",
+  "tests/unit/governance/test_claims.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/governance/test_docs_registry.py",
+  "tests/unit/kernel/test_contracts.py",
+  "tests/unit/product/test_parity.py",
+  "tests/unit/kernel/test_quality.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "tests/unit/lanes/test_runner_evidence.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/test_evolution_ledger.py",
 ]

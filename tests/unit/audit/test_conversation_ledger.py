@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ethos.repository.audit import REQUIRED_DOCS
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 LEDGER = ROOT / "docs" / "governance" / "conversation-ledger.md"
 
 

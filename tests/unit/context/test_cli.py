@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from tests.support.ethos_cli_runner import run_ethos
-from tests.unit.test_context_retrieval import init_repo
+from tests.unit.context.test_retrieval import init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path

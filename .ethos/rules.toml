@@ -119,11 +119,11 @@ effective_max_lines = 415
 reason = "workspace status; minor split to reach 400"
 
 [[quality.code_size.exception]]
-path = "tests/unit/test_cli_contracts.py"
+path = "tests/unit/cli/test_contracts.py"
 effective_max_lines = 2689
 reason = "broad CLI contract coverage; ratchet caps at current — split per-command test modules as cli.py splits"
 
 [[quality.code_size.exception]]
-path = "tests/unit/test_parity_command.py"
+path = "tests/unit/product/test_parity.py"
 effective_max_lines = 1512
 reason = "parity/shadow contract coverage; ratchet caps at current — split as parity.py splits"

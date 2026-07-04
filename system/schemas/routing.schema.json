@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos/system/routing",
+  "type": "object",
+  "title": "ETHOS Routing Contract",
+  "required": [
+    "schema",
+    "loop"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string"
+    },
+    "loop": {
+      "type": "object",
+      "required": [
+        "stages"
+      ],
+      "properties": {
+        "stages": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

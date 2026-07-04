@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos/system/workflows",
+  "type": "object",
+  "title": "ETHOS Workflows Contract",
+  "required": [
+    "schema",
+    "lifecycle"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "object",
+      "required": [
+        "states"
+      ],
+      "properties": {
+        "states": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

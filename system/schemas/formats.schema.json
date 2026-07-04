@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos/system/formats",
+  "type": "object",
+  "title": "ETHOS Formats Contract",
+  "required": [
+    "schema"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string"
+    }
+  }
+}

@@ -379,3 +379,27 @@ def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
         "promotion_not_absolute",
     } <= boundary_ids
     assert contract["truth"]["implies_absolute_correctness"] is False
+
+
+def test_system_contracts_have_real_validating_schemas() -> None:
+    from ethos_contracts.system_contracts import system_contracts_report
+
+    report = system_contracts_report(Path())
+
+    # Every declared schema= ref now resolves AND the contract validates against it —
+    # no decorative schema references.
+    assert report["ok"] is True, report["required_gaps"]
+    assert not any("schema_ref_missing" in g for g in report["required_gaps"])
+    assert not any("schema_violation" in g for g in report["required_gaps"])
+
+
+def test_system_contract_schema_violation_blocks() -> None:
+    from ethos_contracts.system_contracts import _schema_validation_gaps
+
+    schema_path = Path("system/schemas/authority.schema.json")
+    # An authority contract missing its required `order` violates the schema.
+    gaps = _schema_validation_gaps(
+        "authority", {"schema": str(schema_path)}, schema_path
+    )
+
+    assert any("schema_violation" in g for g in gaps)

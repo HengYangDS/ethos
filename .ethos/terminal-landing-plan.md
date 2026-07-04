@@ -16,7 +16,7 @@
 - `ethos-repository → [几乎所有]` 5193 LOC = 历史垃圾场,非内聚部署单元 → 应解散,内容按语义归位。
 - `ethos → [所有]` 产品根。
 
-**eff-LOC 巨石(AST 排 docstring):** cli.py 3224 / rules.py 1082 / context_index.py 965 / schema_validation.py 762 / openspec_native.py 688 / planner.py 671 / shadow.py 646 / coupling.py 637 / parity.py 549 / lanes.py 509 / docs_registry.py 496 / status.py 410。62 文件,16219 总 eff-LOC。
+**eff-LOC 巨石(AST 排 docstring):** cli.py 3224 / rules.py 1082 / context_index.py 965 / schema_validation.py 762 / openspec.py 688 / planner.py 671 / shadow.py 646 / coupling.py 637 / parity.py 549 / lanes.py 509 / docs_registry.py 496 / status.py 410。62 文件,16219 总 eff-LOC。
 
 ## 2. LOC 硬规则(落地地基 — 优先做,防腐化免疫系统)
 

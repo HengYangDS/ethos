@@ -12,10 +12,10 @@ from ethos.adapters.mutation import apply_land_to_candidate
 from ethos.adapters.mutation import candidate_base_report
 from ethos.adapters.mutation import evaluate_closeout_mutation
 from ethos.adapters.mutation import evaluate_mutation
-from ethos.adapters.openspec_native import (
+from ethos.adapters.openspec import (
     completed_active_changes_report as openspec_completed_active_changes_report,
 )
-from ethos.adapters.openspec_native import openspec_governance_report
+from ethos.adapters.openspec import openspec_governance_report
 from ethos.adapters.proof_record import record_executed_proof
 from ethos.adapters.runner import DryRunRunner
 from ethos.adapters.runner import LocalSubprocessRunner

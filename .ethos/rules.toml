@@ -79,7 +79,7 @@ effective_max_lines = 764
 reason = "schema validation; relocate to ethos-core/contract with split to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/openspec_native.py"
+path = "packages/ethos/src/ethos/adapters/openspec.py"
 effective_max_lines = 688
 reason = "openspec adapter; split by concern to reach 400"
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from ethos.adapters import openspec_native
+from ethos.adapters import openspec
 from ethos.repository.schema_validation import validate_schema_instance
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -153,10 +153,10 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
 
-    report = openspec_native.openspec_governance_report(root, lifecycle=True)
+    report = openspec.openspec_governance_report(root, lifecycle=True)
 
     assert report["ok"] is True
     assert [item["name"] for item in report["lifecycle"]["changes"]] == [

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec_native import openspec_governance_report
+from ethos.adapters.openspec import openspec_governance_report
 from ethos.repository import repository_audit as repository_audit_module
 from ethos.repository.claims import claims_report
 from ethos.repository.docs_registry import docs_health_report

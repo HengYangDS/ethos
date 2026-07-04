@@ -1225,7 +1225,7 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos.adapters import openspec_native
+    from ethos.adapters import openspec
 
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
@@ -1254,8 +1254,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_native, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_native, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--json")
 

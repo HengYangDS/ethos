@@ -156,9 +156,10 @@ def _trust_envelope(
     }
 
 
-def claims_report(root: Path) -> dict[str, object]:
+def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
     claims_dir = root / "claims"
     gaps: list[str] = []
+    advisory_gaps: list[str] = []
     claims: dict[str, dict[str, object]] = {}
     claim_paths = sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []
     if not claim_paths:
@@ -221,6 +222,17 @@ def claims_report(root: Path) -> dict[str, object]:
         elif expected_digest != actual_digest:
             gaps.append(f"{claim_id}:evidence.sha256_mismatch")
             evidence_digest_gap = True
+        # HEAD-binding: a digest proves the narrative file is unchanged, NOT that the
+        # claim is current for the product state it asserts about. An active claim
+        # should record the product HEAD it was proven at. A DECLARED-but-mismatched
+        # head is a stale claim (blocking); an unbound legacy claim is surfaced as
+        # advisory so the fleet can be migrated without a hard break.
+        claim_head = str(evidence.get("head", ""))
+        if is_active and current_head:
+            if claim_head and claim_head != current_head:
+                gaps.append(f"{claim_id}:evidence.head_stale:{claim_head}!={current_head}")
+            elif not claim_head:
+                advisory_gaps.append(f"{claim_id}:evidence.head_unbound")
         trust_envelope = (
             _trust_envelope(
                 root=root,
@@ -242,4 +254,9 @@ def claims_report(root: Path) -> dict[str, object]:
             "state": claim.get("state", ""),
             "trust_envelope": trust_envelope,
         }
-    return {"ok": not gaps, "required_gaps": gaps, "claims": claims}
+    return {
+        "ok": not gaps,
+        "required_gaps": gaps,
+        "advisory_gaps": advisory_gaps,
+        "claims": claims,
+    }

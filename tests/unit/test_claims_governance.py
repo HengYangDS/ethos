@@ -252,3 +252,59 @@ def test_digest_only_claim_rejects_summary_overclaim(tmp_path: Path) -> None:
 
     assert report["ok"] is False
     assert "sample:semantic_overclaim_requires_semantic_verifier" in report["required_gaps"]
+
+
+def _write_head_claim(tmp_path: Path, *, head: str | None) -> None:
+    claims = tmp_path / "claims"
+    evidence = tmp_path / "docs" / "evidence"
+    claims.mkdir(exist_ok=True)
+    evidence.mkdir(parents=True, exist_ok=True)
+    evidence_file = evidence / "sample.md"
+    evidence_file.write_text("sample\n", encoding="utf-8")
+    lines = [
+        "[claim]",
+        'id = "ethos-sample"',
+        'subject = "ethos:sample"',
+        'state = "active"',
+        'summary = "sample claim"',
+        "",
+        "[evidence]",
+        'dated = "docs/evidence/sample.md"',
+        'evidence_ids = ["evidence:sample"]',
+        'binding = "digest-bound evidence binding"',
+        'verifier = "digest_only"',
+        f'sha256 = "{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
+    ]
+    if head is not None:
+        lines.append(f'head = "{head}"')
+    (claims / "ethos-sample.toml").write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_claim_with_stale_head_blocks(tmp_path: Path) -> None:
+    _write_head_claim(tmp_path, head="oldhead")
+
+    report = claims_report(tmp_path, current_head="newhead")
+
+    assert report["ok"] is False
+    assert any(
+        gap.startswith("ethos-sample:evidence.head_stale") for gap in report["required_gaps"]
+    )
+
+
+def test_claim_without_head_is_advisory_not_blocking(tmp_path: Path) -> None:
+    _write_head_claim(tmp_path, head=None)
+
+    report = claims_report(tmp_path, current_head="newhead")
+
+    # Legacy unbound claim surfaces as advisory (migration signal), does not block.
+    assert "ethos-sample:evidence.head_unbound" in report["advisory_gaps"]
+    assert not any("head" in gap for gap in report["required_gaps"])
+
+
+def test_claim_with_matching_head_passes(tmp_path: Path) -> None:
+    _write_head_claim(tmp_path, head="matchhead")
+
+    report = claims_report(tmp_path, current_head="matchhead")
+
+    assert not any("head" in gap for gap in report["required_gaps"])
+    assert not any("head" in gap for gap in report["advisory_gaps"])

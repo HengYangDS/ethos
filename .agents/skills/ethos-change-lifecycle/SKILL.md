@@ -42,6 +42,16 @@ Evidence boundaries (enforced in `system/evidence_boundaries.toml`): dry-run
 readiness != executed proof; digest-bound != semantic correctness; local != hosted;
 promotion != absolute correctness (only: a bounded claim was admitted).
 
+## Bundled Resources
+
+- `scripts/readiness.py` — deterministic read-only driver: runs status -> plan ->
+  prove (readiness) in order, parses each verdict, prints the first blocking gap with
+  its next action. Read-only; never lands, publishes, or executes proof. Run it
+  before a land to see the whole readiness picture in one pass.
+- `references/verdicts-and-gaps.md` — how to read the loop's JSON verdicts and act on
+  common `required_gaps` (a skill-specific lookup not in the repository). Read it when
+  a gap is unfamiliar.
+
 ## Trust Boundary
 
 This skill is a workflow package projection. Repository truth — source, tests,

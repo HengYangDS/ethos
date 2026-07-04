@@ -34,6 +34,15 @@ ethos prove --json
 ethos report --json
 ```
 
+## Bundled Resources
+
+- `scripts/govern_check.py` — deterministic read-only governance summary: runs
+  status -> audit (shape) -> report, parses each verdict, prints a gap scorecard.
+  Never mutates. Run it for a one-pass health read.
+- `references/governance-map.md` — which ETHOS command governs which concern (loop,
+  surfaces, lane lifecycle, authority order). A skill-specific lookup for choosing
+  the right command.
+
 ## Trust Boundary
 
 This skill is a workflow package projection. Repository source, tests, schemas,

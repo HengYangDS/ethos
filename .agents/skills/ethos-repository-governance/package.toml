@@ -4,10 +4,14 @@ entrypoint = "SKILL.md"
 boundary = "repository-skill-source"
 truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
-include = ["SKILL.md"]
+include = [
+  "SKILL.md",
+  "scripts/govern_check.py",
+  "references/governance-map.md",
+]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:2b7409483332af90cd48e34d723d59247f15f6a4a6451d299dff9cd2e822d475"
+expected_digest = "sha256:87da944fef7ad688df4b688f3914d86c7ad686213b606809b62cd1a4b197fbb0"
 
 [quality]
 placeholder_allowed = false

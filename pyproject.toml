@@ -43,6 +43,7 @@ pythonpath = [
 extend = ".config/checks/ruff/ruff.toml"
 
 [tool.ruff.lint.per-file-ignores]
+".agents/skills/**/scripts/*.py" = ["T201", "INP001"]
 # Test data lines are legitimately long (assertion payloads/fixtures); logic still wraps.
 # Tests legitimately access private members (SLF001) and test dirs are not import
 # packages (INP001) — both are standard pytest patterns, not product code.

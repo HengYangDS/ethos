@@ -93,3 +93,41 @@ def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> Non
         return
     if enforce and not result.ok:
         raise SystemExit(1)
+
+
+def load_command_groups(argv: list[str]) -> None:
+    """Import only the command-group module the invocation needs (lazy startup).
+
+    Each group registers its commands onto the shared *_app objects at import time;
+    importing a group pulls that group's heavy deps. The common root commands
+    (status/plan/prove/land/publish/report/...) live in this module and need no
+    group, so a bare `ethos status` never loads the quality/repository graph. When a
+    group sub-command is invoked (`ethos quality ...`, `ethos lane ...`), only that
+    group is imported. With no recognizable group token (e.g. `--help`), all groups
+    load so the full command surface is shown.
+    """
+    import importlib
+
+    groups = (
+        "fleet",
+        "intake",
+        "quality",
+        "rules",
+        "lane",
+        "assistants",
+        "campaign",
+        "parity",
+        "playbooks",
+        "hook",
+    )
+    token = next((arg for arg in argv if not arg.startswith("-")), "")
+    if token in groups:
+        selected = [token]
+    elif token:
+        # A recognized root command (status/plan/prove/land/...) needs no group.
+        selected = []
+    else:
+        # No command token (bare `ethos` / `ethos --help`): show the full surface.
+        selected = list(groups)
+    for name in selected:
+        importlib.import_module(f"ethos.surface.cli.{name}")

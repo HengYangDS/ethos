@@ -2,23 +2,10 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Annotated
-
-from cyclopts import Parameter
 
 from ethos.adapters import git as _gitio
 from ethos.adapters import quality_tool as _qtool
 from ethos.adapters.commit_policy import signature_policy_report
-from ethos.adapters.context_index import context_eval_report
-from ethos.adapters.context_index import purge_context_index
-from ethos.adapters.context_index import rebuild_context_index
-from ethos.adapters.context_index import search_context_index
-from ethos.adapters.hook_admission import hook_admission_report
-from ethos.adapters.lanes import bind_work_lane_claim
-from ethos.adapters.lanes import bootstrap_candidate
-from ethos.adapters.lanes import refresh_work_lane_base
-from ethos.adapters.lanes import retire_landed_work_lanes
-from ethos.adapters.lanes import start_work_lane
 from ethos.adapters.mutation import MutationRequest
 from ethos.adapters.mutation import apply_candidate_to_accepted
 from ethos.adapters.mutation import apply_land_to_candidate
@@ -29,18 +16,13 @@ from ethos.adapters.openspec_native import (
     completed_active_changes_report as openspec_completed_active_changes_report,
 )
 from ethos.adapters.openspec_native import openspec_governance_report
-from ethos.adapters.prewrite import prewrite_guard
 from ethos.adapters.proof_record import record_executed_proof
 from ethos.adapters.runner import DryRunRunner
 from ethos.adapters.runner import LocalSubprocessRunner
 from ethos.adapters.state import initialize_state
 from ethos.adapters.status import workspace_status
-from ethos.assistants.context import context_bundle
-from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.playbooks import playbooks_report
-from ethos.assistants.playbooks import route_playbook
 from ethos.assistants.projections import projection_contract
-from ethos.assistants.server import mcp_server_descriptor
 from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
@@ -53,16 +35,11 @@ from ethos.repository.evidence import EvidenceSet
 from ethos.repository.evidence import ProofRun
 from ethos.repository.evidence import provenance_envelope
 from ethos.repository.evidence import trim_output
-from ethos.repository.evolution import campaign_report
-from ethos.repository.evolution import evolution_ledger
 from ethos.repository.evolution import evolution_report
 from ethos.repository.gates import gate_graph
 from ethos.repository.gates import gate_registry
-from ethos.repository.parity import build_tracked_parity_evidence
 from ethos.repository.parity import parity_gaps_report
 from ethos.repository.parity import parity_ledger_report
-from ethos.repository.parity import shadow_parity_report
-from ethos.repository.parity import write_tracked_parity_evidence
 from ethos.repository.planner import adoption_plan
 from ethos.repository.planner import adoption_scaffold_report
 from ethos.repository.planner import available_profiles
@@ -73,26 +50,16 @@ from ethos.repository.standards import standard_adapter_registry
 # import time; importing them here wires those groups into the CLI. Each group
 # imports only its own domain deps, so a group's heavy dependencies load only when
 # that group is imported (lazy path for the common commands).
-from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
-from ethos.surface.cli import intake as _intake_group  # noqa: F401
-from ethos.surface.cli import quality as _quality_group  # noqa: F401
-from ethos.surface.cli import rules as _rules_group  # noqa: F401
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
-from ethos.surface.cli._base import assistants_app
-from ethos.surface.cli._base import campaign_app
 from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import hook_app
-from ethos.surface.cli._base import lane_app
-from ethos.surface.cli._base import parity_app
-from ethos.surface.cli._base import playbooks_app
+from ethos.surface.cli._base import load_command_groups as _load_command_groups
 from ethos.surface.cli._base import resolve_root as _root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate as _run_inprocess_cli_gate
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.contracts.context_projection import context_projection_contract
-from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
 from ethos_core.result import EthosResult
 
 
@@ -136,15 +103,6 @@ def _command_data_validation(
     return _prove.command_data_validation(repo, schema_name=schema_name, payload=payload)
 
 
-def _campaign_closeout_report(
-    *,
-    repo: Path,
-    adopter: str,
-    target: Path,
-) -> dict[str, object]:
-    return _land.campaign_closeout_report(repo=repo, adopter=adopter, target=target)
-
-
 @app.command
 def status(
     *,
@@ -172,273 +130,6 @@ def status(
         data=status_payload,
     )
     _emit(result, json_output, enforce=False)
-
-
-@lane_app.command(name="status")
-def lane_status(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Inspect Work Lane topology and foreign lanes."""
-    repo = _root(root)
-    status_payload = workspace_status(repo)
-    validation = _prove.workspace_status_validation(repo, status_payload)
-    validation_gaps = _prove.workspace_status_validation_gaps(validation)
-    ok = bool(validation["ok"])
-    result = EthosResult(
-        command="lane status",
-        ok=ok,
-        state="ready" if ok else "invalid",
-        summary={
-            "branch": status_payload["branch"],
-            "role": status_payload["role"],
-            "foreign_work_lane_count": len(status_payload["foreign_work_lanes"]),
-        },
-        diagnostics=(validation,),
-        required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
-        next_actions=("ethos lane prewrite <path>",),
-        data=status_payload,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@lane_app.command
-def candidate(
-    *,
-    apply: bool = False,
-    path: Annotated[Path | None, Parameter(name="--path")] = None,
-    expect_head: str | None = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Bootstrap or inspect the local candidate train."""
-    repo = _root(root)
-    report = bootstrap_candidate(root=repo, path=path, expect_head=expect_head, apply=apply)
-    result = EthosResult(
-        command="lane candidate",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "branch": report["branch"],
-            "head": report["head"],
-            "path": report["path"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
-        data=report,
-    )
-    _emit(result, json_output, enforce=apply)
-
-
-@lane_app.command
-def prewrite(
-    paths: tuple[Path, ...],
-    *,
-    editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
-    require_editor_root: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Check tracked write admission before editing files."""
-    repo = _root(root)
-    report = prewrite_guard(
-        root=repo,
-        paths=[path if path.is_absolute() else repo / path for path in paths],
-        editor_root=editor_root,
-        require_editor_root=require_editor_root,
-    )
-    result = EthosResult(
-        command="lane prewrite",
-        ok=bool(report["ok"]),
-        state="admitted" if report["ok"] else "blocked",
-        summary={
-            "path_count": len(paths),
-            "role": report["role"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane start <name>",) if not report["ok"] else (),
-        data=report,
-    )
-    _emit(result, json_output, enforce=True)
-
-
-@hook_app.command
-def admit(
-    layer: str,
-    paths: tuple[Path, ...] = (),
-    *,
-    command: Annotated[str, Parameter(name="--command")] = "",
-    editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
-    expected_root: Annotated[Path | None, Parameter(name="--expected-root")] = None,
-    require_editor_root: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Evaluate hook-time write admission before a host mutates tracked files."""
-    repo = _root(root)
-    report = hook_admission_report(
-        root=repo,
-        layer=layer,
-        paths=[path if path.is_absolute() else repo / path for path in paths],
-        editor_root=editor_root,
-        expected_root=expected_root,
-        require_editor_root=require_editor_root,
-        command=command,
-    )
-    decision = report.get("decision", {})
-    decision_action = ""
-    if isinstance(decision, dict):
-        decision_action = str(decision.get("action", ""))
-    result = EthosResult(
-        command="hook admit",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "layer": report["layer"],
-            "role": report["role"],
-            "decision": decision_action,
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
-        data=report,
-    )
-    _emit(result, json_output, enforce=True)
-
-
-@hook_app.command
-def install(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
-    repo = _root(root)
-    hook_path = repo / ".githooks" / "pre-commit"
-    gaps: list[str] = []
-    if not hook_path.exists():
-        gaps.append("hook_script_missing:.githooks/pre-commit")
-    wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
-    if not gaps and not wired:
-        gaps.append("hooks_path_wire_failed")
-    result = EthosResult(
-        command="hook install",
-        ok=not gaps,
-        state="installed" if not gaps else "blocked",
-        summary={"hooks_path": ".githooks", "wired": wired},
-        required_gaps=tuple(gaps),
-        next_actions=(
-            ("git commit — the pre-commit admission gate is now active",) if not gaps else ()
-        ),
-        data={
-            "hooks_path": ".githooks",
-            "hook_script": ".githooks/pre-commit",
-            "wired": wired,
-        },
-    )
-    _emit(result, json_output, enforce=True)
-
-
-@lane_app.command
-def start(
-    name: str,
-    *,
-    path: Annotated[Path, Parameter(name="--path")],
-    owner: str,
-    claim_id: Annotated[str | None, Parameter(name="--claim-id")] = None,
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Start an owned Work Lane and acquire a local lease."""
-    repo = _root(root)
-    report = start_work_lane(
-        root=repo,
-        name=name,
-        path=path,
-        owner=owner,
-        claim_id=claim_id,
-        apply=apply,
-    )
-    result = EthosResult(
-        command="lane start",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "branch": report["branch"],
-            "path": report.get("path", ""),
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@lane_app.command(name="refresh-base")
-def lane_refresh_base(
-    *,
-    apply: bool = False,
-    authorize: bool = False,
-    expect_head: str | None = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Replay the current Work Lane onto the configured candidate branch."""
-    repo = _root(root)
-    report = refresh_work_lane_base(
-        root=repo,
-        apply=apply,
-        authorized=authorize,
-        expect_head=expect_head,
-    )
-    result = EthosResult(
-        command="lane refresh-base",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "branch": report["branch"],
-            "candidate_branch": report["candidate_branch"],
-            "head": report["head"],
-            "candidate_head": report["candidate_head"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos land --json",) if report["ok"] else ("ethos status --json",),
-        data=report,
-    )
-    _emit(result, json_output)
-
-
-@lane_app.command(name="bind-claim")
-def lane_bind_claim(
-    *,
-    claim_id: Annotated[str, Parameter(name="--claim-id")],
-    branch: Annotated[str | None, Parameter(name="--branch")] = None,
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Bind an existing Work Lane lease to a trust-bearing claim."""
-    repo = _root(root)
-    report = bind_work_lane_claim(
-        root=repo,
-        branch=branch,
-        claim_id=claim_id,
-        apply=apply,
-    )
-    result = EthosResult(
-        command="lane bind-claim",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "branch": report["branch"],
-            "claim_id": report["claim_id"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
-        data=report,
-    )
-    _emit(result, json_output)
 
 
 @app.command
@@ -473,32 +164,6 @@ def plan(
         },
     )
     _emit(result, json_output, enforce=False)
-
-
-@lane_app.command(name="retire-landed")
-def lane_retire_landed(
-    *,
-    branch: str | None = None,
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Retire a landed Work Lane after it is merged into the accepted root."""
-    repo = _root(root)
-    report = retire_landed_work_lanes(root=repo, branch=branch, apply=apply)
-    result = EthosResult(
-        command="lane retire-landed",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "landed_lane_count": sum(1 for lane in report["lanes"] if lane["retire_ready"]),
-            "selected_branch": branch or "",
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
-        data=report,
-    )
-    _emit(result, json_output)
 
 
 @app.command
@@ -932,438 +597,6 @@ def adopt(
     _emit(result, json_output, enforce=apply)
 
 
-@campaign_app.command(name="status")
-def campaign_status(
-    *,
-    campaign: str | None = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report canonical campaign model."""
-    repo = _root(root)
-    report = campaign_report(repo, campaign_id=campaign)
-    result = EthosResult(
-        command="campaign status",
-        ok=bool(report["ok"]),
-        state="active",
-        summary={
-            "active_campaign_count": report["active_count"],
-            "campaign_count": report["campaign_count"],
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos campaign closeout --json",),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@campaign_app.command
-def hypotheses(*, json_output: JsonFlag = False) -> None:
-    """List active ETHOS evolution hypotheses."""
-    ledger = evolution_ledger(Path.cwd())
-    result = EthosResult(
-        command="campaign hypotheses",
-        ok=True,
-        state="active",
-        summary={"campaign": "ethos-product-maturation"},
-        next_actions=("ethos audit --mode shape",),
-        data=ledger,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@campaign_app.command(name="closeout")
-def campaign_closeout(
-    *,
-    adopter: str = "generic",
-    target: Annotated[Path | None, Parameter(name="--target")] = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report the local campaign closeout package without publishing remotely."""
-    repo = _root(root)
-    report = _campaign_closeout_report(
-        repo=repo,
-        adopter=adopter,
-        target=(target or repo).resolve(),
-    )
-    result = EthosResult(
-        command="campaign closeout",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "adopter": adopter,
-            "remote_state": report["remote_publication"]["state"],
-            "parity_pending_count": len(report["parity"]["pending_packages"]),
-            "release_ok": report["release"]["ok"],
-        },
-        required_gaps=tuple(report["evolution"]["required_gaps"])
-        + tuple(report["release"]["required_gaps"]),
-        next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="doctor")
-def assistants_doctor(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report assistant projection readiness."""
-    _root(root)
-    contract = projection_contract()
-    result = EthosResult(
-        command="assistants doctor",
-        ok=True,
-        state="ready",
-        summary={"surface_count": len(contract["surfaces"])},
-        next_actions=("ethos assistants mcp-manifest",),
-        data={"contract": contract},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command
-def check_projections(*, json_output: JsonFlag = False) -> None:
-    """Check assistant projections stay thin."""
-    contract = projection_contract()
-    result = EthosResult(
-        command="assistants check-projections",
-        ok=contract["truth"] == ASSISTANT_TRUTH_BOUNDARY,
-        state="clean",
-        next_actions=("ethos quality projection-drift",),
-        data={"contract": contract},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="mcp-manifest")
-def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
-    """Emit ETHOS MCP projection manifest."""
-    manifest = mcp_manifest()
-    result = EthosResult(
-        command="assistants mcp-manifest",
-        ok=True,
-        state="ready",
-        summary={
-            "resource_count": len(manifest["resources"]),
-            "tool_count": len(manifest["tools"]),
-        },
-        next_actions=("ethos assistants check-projections",),
-        data={"manifest": manifest},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="mcp-server")
-def mcp_server_command(*, json_output: JsonFlag = False) -> None:
-    """Describe the ETHOS MCP server adapter."""
-    descriptor = mcp_server_descriptor()
-    result = EthosResult(
-        command="assistants mcp-server",
-        ok=True,
-        state="ready",
-        summary={"transport": descriptor["transport"]},
-        next_actions=("ethos assistants mcp-manifest",),
-        data={"server": descriptor},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="context")
-def assistants_context(
-    *,
-    root: RootOption | None = None,
-    scope: str = "repo",
-    query: str | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Emit the ETHOS agentic context bundle."""
-    repo = _root(root)
-    retrieval = search_context_index(repo, query) if query else None
-    selection = retrieval["selection"] if retrieval else None
-    bundle = context_bundle(query=query, selection=selection, scope=scope)
-    result = EthosResult(
-        command="assistants context",
-        ok=bool(retrieval["ok"]) if retrieval else True,
-        state=str(retrieval["state"]) if retrieval else "ready",
-        summary={
-            "protocol_count": len(bundle["protocols"]),
-            "verified_count": retrieval["summary"]["verified_count"] if retrieval else 0,
-        },
-        required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
-        data={"context": bundle},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="search")
-def assistants_search(
-    query: str,
-    *,
-    root: RootOption | None = None,
-    limit: int = 10,
-    json_output: JsonFlag = False,
-) -> None:
-    """Search the local source-verified context projection."""
-    repo = _root(root)
-    report = search_context_index(repo, query, limit=limit)
-    result = EthosResult(
-        command="assistants search",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(report["summary"]),
-        required_gaps=tuple(report["required_gaps"]),
-        data={"selection": report["selection"]},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="context-index")
-def assistants_context_index(
-    *,
-    root: RootOption | None = None,
-    apply: bool = False,
-    authorize: bool = False,
-    json_output: JsonFlag = False,
-) -> None:
-    """Build the local context projection index."""
-    repo = _root(root)
-    report = rebuild_context_index(repo, apply=apply, authorized=authorize)
-    result = EthosResult(
-        command="assistants context-index",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(report["summary"]),
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos assistants search <query> --json",)
-        if report["ok"] and report["state"] == "indexed"
-        else (),
-        data=dict(report.get("data", {})),
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="context-purge")
-def assistants_context_purge(
-    *,
-    root: RootOption | None = None,
-    apply: bool = False,
-    authorize: bool = False,
-    json_output: JsonFlag = False,
-) -> None:
-    """Purge the local context projection index."""
-    repo = _root(root)
-    report = purge_context_index(repo, apply=apply, authorized=authorize)
-    result = EthosResult(
-        command="assistants context-purge",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(report["summary"]),
-        required_gaps=tuple(report["required_gaps"]),
-        data=dict(report.get("data", {})),
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@assistants_app.command(name="context-eval")
-def assistants_context_eval(
-    *,
-    root: RootOption | None = None,
-    suite: str = "smoke",
-    json_output: JsonFlag = False,
-) -> None:
-    """Evaluate the local context projection index."""
-    repo = _root(root)
-    fixtures = context_retrieval_smoke_queries() if suite == "smoke" else ()
-    report = context_eval_report(repo, suite=suite, fixtures=fixtures)
-    result = EthosResult(
-        command="assistants context-eval",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(report["summary"]),
-        required_gaps=tuple(report["required_gaps"]),
-        data=dict(report.get("data", {})),
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@playbooks_app.command(name="check")
-def playbooks_check(
-    *,
-    root: RootOption | None = None,
-    mode: str = "v2-strict",
-    json_output: JsonFlag = False,
-) -> None:
-    """Check repo-local ETHOS playbook projection."""
-    repo = _root(root)
-    report = playbooks_report(repo, mode=mode)
-    result = EthosResult(
-        command="playbooks check",
-        ok=bool(report["ok"]),
-        state="ready" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos playbooks route",),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@playbooks_app.command(name="route")
-def playbooks_route(
-    *,
-    subject: str = "repository-governance",
-    changed: bool = False,
-    root: RootOption | None = None,
-    mode: str = "v2-strict",
-    json_output: JsonFlag = False,
-) -> None:
-    """Route a subject to repo-local ETHOS playbooks."""
-    repo = _root(root)
-    route_subject = "changed-scope" if changed else subject
-    changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
-    report = route_playbook(
-        repo,
-        route_subject,
-        require_explicit_subject=changed,
-        mode=mode,
-        changed_paths=changed_paths,
-    )
-    result = EthosResult(
-        command="playbooks route",
-        ok=bool(report["ok"]),
-        state="routed" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@parity_app.command(name="ledger")
-def parity_ledger(*, json_output: JsonFlag = False) -> None:
-    """Emit the executable capability parity ledger."""
-    report = parity_ledger_report()
-    result = EthosResult(
-        command="parity ledger",
-        ok=bool(report["ok"]),
-        state="classified",
-        summary=report["summary"],
-        next_actions=("ethos parity gaps --adopter <adopter>",),
-        data={"records": report["records"]},
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@parity_app.command(name="gaps")
-def parity_gaps(
-    *,
-    adopter: str | None = None,
-    target: Path | None = None,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report remaining product/adopter parity gaps."""
-    repo = _root(root)
-    report = parity_gaps_report(
-        adopter=adopter,
-        root=repo,
-        target=target,
-        current_target_head=_gitio.current_tracked_head(target) if target is not None else "",
-        current_product_head=_gitio.current_tracked_head(repo),
-        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
-        acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
-    )
-    evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
-    refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
-    refresh_command = (
-        str(refresh["command"]) if isinstance(refresh, dict) and refresh.get("command") else ""
-    )
-    result = EthosResult(
-        command="parity gaps",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "gapped",
-        summary={"adopter": report["adopter"], "gap_count": len(report["required_gaps"])},
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=(
-            (
-                refresh_command
-                or (
-                    "ethos parity shadow --adopter <adopter-id> --target <repo> "
-                    "--execute --write-evidence"
-                ),
-            )
-            if report["required_gaps"]
-            else ("ethos prove --full",)
-        ),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
-@parity_app.command(name="shadow")
-def parity_shadow(
-    *,
-    target: Path,
-    adopter: str | None = None,
-    execute: bool = False,
-    write_evidence: bool = False,
-    timeout_seconds: int = 30,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Plan an external shadow parity comparison for an adopter."""
-    repo = _root(root)
-    adopter_name = adopter or "generic"
-    if execute:
-        from ethos.adapters.shadow import run_shadow_parity
-
-        report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
-    else:
-        report = shadow_parity_report(
-            target=target,
-            root=repo,
-            adopter=adopter,
-            current_target_head=_gitio.current_tracked_head(target),
-            current_product_head=_gitio.current_tracked_head(repo),
-            acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
-            acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
-        )
-    required_gaps = list(report["required_gaps"])
-    evidence_path = ""
-    if write_evidence:
-        if not execute:
-            required_gaps.append("parity_evidence_write_requires_execute")
-        elif report.get("ok") is not True:
-            required_gaps.append(f"parity_evidence_write_blocked:{adopter_name}")
-        else:
-            evidence = build_tracked_parity_evidence(
-                adopter=adopter_name,
-                target=target,
-                shadow=report,
-                current_product_head=_gitio.current_tracked_head(repo),
-                current_target_head=_gitio.current_tracked_head(target),
-                timeout_seconds=timeout_seconds,
-            )
-            written = write_tracked_parity_evidence(
-                root=repo,
-                adopter=adopter_name,
-                evidence=evidence,
-            )
-            evidence_path = written.relative_to(repo).as_posix()
-            report = {**report, "evidence_written": evidence_path}
-    result = EthosResult(
-        command="parity shadow",
-        ok=bool(report["ok"]) and not required_gaps,
-        state=str(report["state"]),
-        required_gaps=tuple(required_gaps),
-        next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
-        data=report,
-    )
-    _emit(result, json_output, enforce=False)
-
-
 @app.command
 def report(
     *,
@@ -1639,7 +872,12 @@ def openspec(
     )
     _emit(result, json_output, enforce=False)
 
+
+
 def main() -> None:
+    import sys
+
+    _load_command_groups(sys.argv[1:])
     app()
 
 

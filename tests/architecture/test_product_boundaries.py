@@ -267,11 +267,15 @@ def test_npm_distribution_lives_outside_python_packages() -> None:
 
 
 def test_cli_uses_cyclopts_not_argparse() -> None:
-    cli_path = ROOT / "packages/ethos/src/ethos/cli.py"
-    imports = imported_modules(cli_path)
+    # The CLI framework (the shared App objects) lives in the surface _base module;
+    # cli.py is a thin dispatcher that imports the command-group modules. The
+    # invariant is that the surface uses cyclopts and no module reaches for argparse.
+    base_path = ROOT / "packages/ethos/src/ethos/surface/cli/_base.py"
+    assert "cyclopts" in imported_modules(base_path)
 
-    assert "cyclopts" in imports
-    assert "argparse" not in imports
+    for path in (ROOT / "packages/ethos/src/ethos/surface/cli").glob("*.py"):
+        assert "argparse" not in imported_modules(path), path
+    assert "argparse" not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
 
 
 def test_package_roots_do_not_reexport_module_surfaces() -> None:

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.runner import ActionRunResult
 from ethos.adapters.runner import classify_action_result
 from ethos.surface.cli._base import app
+from ethos.surface.cli._base import load_command_groups as _load_command_groups
 
 if TYPE_CHECKING:
     from ethos_core.action_graph import ActionNode
@@ -33,11 +34,13 @@ def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | No
     stderr = StringIO()
     previous_cwd = Path.cwd()
     exit_code = 0
+    command_args = list(node.command[3:])
     try:
         os.chdir(root)
         with redirect_stdout(stdout), redirect_stderr(stderr):
             try:
-                app(list(node.command[3:]), exit_on_error=False)
+                _load_command_groups(command_args)
+                app(command_args, exit_on_error=False)
             except SystemExit as exc:
                 exit_code = exc.code if isinstance(exc.code, int) else 1
     except BaseException as exc:  # pragma: no cover - returned as runner failure.

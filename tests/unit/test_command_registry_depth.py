@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository.command_registry import command_registry_report
-from ethos.repository.command_registry import public_commands
-from ethos.repository.docs_registry import command_examples_report
+from ethos.repository.registry.commands import command_registry_report
+from ethos.repository.registry.commands import public_commands
+from ethos.repository.registry.docs import command_examples_report
 
 
 def test_command_registry_separates_public_workflow_from_maintainer_reference() -> None:

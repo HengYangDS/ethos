@@ -11,13 +11,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec import openspec_governance_report
-from ethos.repository import repository_audit as repository_audit_module
-from ethos.repository.claims import claims_report
-from ethos.repository.docs_registry import docs_health_report
-from ethos.repository.fleet import inspect_adopter
-from ethos.repository.governance_context import governance_context
-from ethos.repository.planner import detect_repo_profile
-from ethos.repository.schema_validation import schema_validation_report
+from ethos.repository import audit as repository_audit_module
+from ethos.repository.adoption.fleet import inspect_adopter
+from ethos.repository.adoption.planner import detect_repo_profile
+from ethos.repository.context import governance_context
+from ethos.repository.evidence.claims import claims_report
+from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.registry.docs import docs_health_report
 
 if TYPE_CHECKING:
     from pathlib import Path

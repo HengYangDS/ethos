@@ -6,10 +6,10 @@ import pytest
 
 from ethos.adapters.runner import DryRunRunner
 from ethos.adapters.runner import LocalSubprocessRunner
-from ethos.repository.evidence import EvidenceSet
-from ethos.repository.evidence import ProofRun
-from ethos.repository.evidence import provenance_envelope
-from ethos.repository.evidence import trim_output
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
+from ethos.repository.evidence.core import provenance_envelope
+from ethos.repository.evidence.core import trim_output
 from ethos_core.action_graph import ActionNode
 
 

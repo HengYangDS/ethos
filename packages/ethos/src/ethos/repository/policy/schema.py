@@ -9,9 +9,9 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 from jsonschema.exceptions import ValidationError
 
-from ethos.repository.docs_registry import docs_health_report
-from ethos.repository.gates import gate_registry
-from ethos.repository.governance_profiles import governance_profile_report
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest
 from ethos_core.quality.gates import product_gate_plan
@@ -133,7 +133,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
 
 
 def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
-    from ethos.repository.coupling import coupling_audit_report
+    from ethos.repository.policy.coupling import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "docs" / "governance" / "evolution-ledger.toml"

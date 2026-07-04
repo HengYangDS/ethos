@@ -13,9 +13,9 @@ from ethos.adapters.shadow import _run_embedded
 from ethos.adapters.shadow import _run_external
 from ethos.adapters.shadow import _semantic_diff
 from ethos.adapters.shadow import run_shadow_parity
-from ethos.repository.parity import parity_gaps_report
-from ethos.repository.parity import shadow_parity_report
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.evidence.parity import parity_gaps_report
+from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 
 MIGRATED_CAPABILITIES = [

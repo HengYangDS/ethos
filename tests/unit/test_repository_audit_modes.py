@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository import repository_audit as repository_audit_module
+from ethos.repository import audit as repository_audit_module
 
 
 def test_repository_audit_can_skip_deep_openspec_cli() -> None:
@@ -96,7 +96,7 @@ def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path) ->
     """A change whose tasks are all complete but which is still in changes/ (not
     archived) is a carrier masquerading as active — the always-run shape audit must
     flag it from ETHOS's own tasks-complete signal, not only at land --closeout."""
-    from ethos.repository.repository_audit import _openspec_shape_report
+    from ethos.repository.audit import _openspec_shape_report
 
     openspec = tmp_path / "openspec"
     (openspec / "specs").mkdir(parents=True)
@@ -112,7 +112,7 @@ def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path) ->
 
 
 def test_openspec_shape_allows_in_progress_and_archived_changes(tmp_path: Path) -> None:
-    from ethos.repository.repository_audit import _openspec_shape_report
+    from ethos.repository.audit import _openspec_shape_report
 
     openspec = tmp_path / "openspec"
     (openspec / "specs").mkdir(parents=True)

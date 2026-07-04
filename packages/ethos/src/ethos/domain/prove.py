@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters import git as _git
 from ethos.adapters.config import code_size_policy
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.measure import effective_code_lines
 
 if TYPE_CHECKING:

@@ -64,7 +64,7 @@ effective_max_lines = 824
 reason = "surface aggregator mid-split; ratchet caps at current — sink command bodies to domain + split into surface/cli/<group>.py each under surface soft (800)"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/rules.py"
+path = "packages/ethos/src/ethos/repository/policy/rules.py"
 effective_max_lines = 1083
 reason = "rules engine; relocate to ethos-core/method with sub-module split to reach 400"
 
@@ -74,7 +74,7 @@ effective_max_lines = 967
 reason = "context index engine; split index/verify/search sub-modules to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/schema_validation.py"
+path = "packages/ethos/src/ethos/repository/policy/schema.py"
 effective_max_lines = 764
 reason = "schema validation; relocate to ethos-core/contract with split to reach 400"
 
@@ -84,7 +84,7 @@ effective_max_lines = 688
 reason = "openspec adapter; split by concern to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/planner.py"
+path = "packages/ethos/src/ethos/repository/adoption/planner.py"
 effective_max_lines = 673
 reason = "adoption planner; split scaffold/detect to reach 400"
 
@@ -94,12 +94,12 @@ effective_max_lines = 647
 reason = "shadow parity; split classify/report to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/coupling.py"
+path = "packages/ethos/src/ethos/repository/policy/coupling.py"
 effective_max_lines = 640
 reason = "coupling audit; split by binding kind to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/parity.py"
+path = "packages/ethos/src/ethos/repository/evidence/parity.py"
 effective_max_lines = 554
 reason = "parity report; split evidence/gaps to reach 400"
 
@@ -109,7 +109,7 @@ effective_max_lines = 509
 reason = "work lane lifecycle; split by lane operation to reach 400"
 
 [[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/docs_registry.py"
+path = "packages/ethos/src/ethos/repository/registry/docs.py"
 effective_max_lines = 500
 reason = "docs registry; split registry/validation to reach 400"
 

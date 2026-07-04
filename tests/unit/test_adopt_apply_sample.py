@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.planner import adoption_plan
-from ethos.repository.planner import detect_repo_profile
+from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.adoption.planner import detect_repo_profile
 
 if TYPE_CHECKING:
     from pathlib import Path

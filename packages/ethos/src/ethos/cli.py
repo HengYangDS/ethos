@@ -27,24 +27,24 @@ from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
-from ethos.repository.claims import claims_report
-from ethos.repository.command_registry import command_registry_report
-from ethos.repository.docs_registry import build_docs_registry
-from ethos.repository.docs_registry import docs_health_report
-from ethos.repository.evidence import EvidenceSet
-from ethos.repository.evidence import ProofRun
-from ethos.repository.evidence import provenance_envelope
-from ethos.repository.evidence import trim_output
-from ethos.repository.evolution import evolution_report
-from ethos.repository.gates import gate_graph
-from ethos.repository.gates import gate_registry
-from ethos.repository.parity import parity_gaps_report
-from ethos.repository.parity import parity_ledger_report
-from ethos.repository.planner import adoption_plan
-from ethos.repository.planner import adoption_scaffold_report
-from ethos.repository.planner import available_profiles
-from ethos.repository.schema_validation import schema_validation_report
-from ethos.repository.standards import standard_adapter_registry
+from ethos.repository.adoption.evolution import evolution_report
+from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.adoption.planner import adoption_scaffold_report
+from ethos.repository.adoption.planner import available_profiles
+from ethos.repository.evidence.claims import claims_report
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
+from ethos.repository.evidence.core import provenance_envelope
+from ethos.repository.evidence.core import trim_output
+from ethos.repository.evidence.parity import parity_gaps_report
+from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.policy.gates import gate_graph
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.registry.commands import command_registry_report
+from ethos.repository.registry.docs import build_docs_registry
+from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.standards import standard_adapter_registry
 
 # Command-group modules register their commands onto the shared *_app objects at
 # import time; importing them here wires those groups into the CLI. Each group

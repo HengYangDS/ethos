@@ -17,8 +17,8 @@ from ethos.assistants.projections import projection_contract
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.domain.status import string_list
-from ethos.repository.claims import claims_report
-from ethos.repository.command_registry import command_registry_report
+from ethos.repository.evidence.claims import claims_report
+from ethos.repository.registry.commands import command_registry_report
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode

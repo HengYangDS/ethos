@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs the runtime type for --target
 
-from ethos.repository.fleet import inspect_adopter
+from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import fleet_app

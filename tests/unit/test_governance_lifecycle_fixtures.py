@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos.testing.fixtures import complete_governance_lifecycle
 from ethos.testing.fixtures import malformed_governance_lifecycle
 from ethos.testing.fixtures import reference_adopter_profile_fixture

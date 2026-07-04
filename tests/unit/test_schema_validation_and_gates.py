@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ethos.repository.coupling import coupling_audit_report
-from ethos.repository.gates import gate_graph
-from ethos.repository.gates import gate_registry
-from ethos.repository.schema_validation import schema_validation_report
-from ethos.repository.schema_validation import validate_ethos_result
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.gates import gate_graph
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.policy.schema import validate_ethos_result
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.result import EthosResult
 
 ROLE_POLICY_SAMPLE = {

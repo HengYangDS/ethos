@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core import models
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode
@@ -431,7 +431,7 @@ def test_judgment_source_does_not_own_downstream_node_duties() -> None:
 def test_governance_context_head_is_a_real_judgment_source_with_authority() -> None:
     """The governed-repository context must anchor on a real JudgmentSource carrying
     the authority order (not an inline dict) — the chain's production constructor."""
-    from ethos.repository.governance_context import governance_context
+    from ethos.repository.context import governance_context
 
     context = governance_context(Path.cwd(), profile="product")
     assert context["kernel_chain"][0] == "JudgmentSource"

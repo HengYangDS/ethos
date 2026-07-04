@@ -5,14 +5,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ethos.assistants.playbooks import playbooks_report
-from ethos.repository.authority_graph import authority_graph_report
-from ethos.repository.claims import claims_report
-from ethos.repository.command_registry import command_registry_report
-from ethos.repository.coupling import coupling_audit_report
-from ethos.repository.evolution import evolution_report
-from ethos.repository.governance_context import governance_context
-from ethos.repository.release import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
-from ethos.repository.schema_validation import schema_validation_report
+from ethos.repository.adoption.evolution import evolution_report
+from ethos.repository.context import governance_context
+from ethos.repository.evidence.claims import claims_report
+from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.registry.authority import authority_graph_report
+from ethos.repository.registry.commands import command_registry_report
+from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 from ethos_core.contracts.package_ontology import package_ontology_report
 from ethos_core.contracts.package_ontology import workspace_package_config_report
 from ethos_core.contracts.system_contracts import system_contracts_report

@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.repository.evidence import trim_output
+from ethos.repository.evidence.core import trim_output
 
 if TYPE_CHECKING:
     from pathlib import Path

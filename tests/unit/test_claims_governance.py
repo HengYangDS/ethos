@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from ethos.repository.claims import claims_report
+from ethos.repository.evidence.claims import claims_report
 
 
 def test_claim_evidence_digests_are_verified() -> None:
@@ -23,10 +23,10 @@ def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -
 
     assert {
         "packages/ethos/src/ethos/cli.py",
-        "packages/ethos/src/ethos/repository/gates.py",
-        "packages/ethos/src/ethos/repository/evidence.py",
-        "packages/ethos/src/ethos/repository/docs_registry.py",
-        "packages/ethos/src/ethos/repository/schema_validation.py",
+        "packages/ethos/src/ethos/repository/policy/gates.py",
+        "packages/ethos/src/ethos/repository/evidence/core.py",
+        "packages/ethos/src/ethos/repository/registry/docs.py",
+        "packages/ethos/src/ethos/repository/policy/schema.py",
         "packages/ethos-core/src/ethos_core/action_graph.py",
         "tests/unit/test_quality_kernel.py",
         "tests/unit/test_runner_and_evidence.py",

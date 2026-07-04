@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository.attestation import release_attestation
-from ethos.repository.attestation import sbom_projection
-from ethos.repository.release import release_policy_report
-from ethos.repository.release import version_manifest
+from ethos.repository.release.attestation import release_attestation
+from ethos.repository.release.attestation import sbom_projection
+from ethos.repository.release.core import release_policy_report
+from ethos.repository.release.core import version_manifest
 
 
 def test_version_manifest_keeps_workspace_packages_aligned() -> None:

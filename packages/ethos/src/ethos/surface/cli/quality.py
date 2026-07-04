@@ -12,7 +12,7 @@ import tomllib
 from pathlib import Path
 
 import ethos.assistants.playbooks as playbooks_module
-import ethos.repository.repository_audit as repository_audit_module
+import ethos.repository.audit as repository_audit_module
 from ethos.adapters import git as _gitio
 from ethos.adapters import quality_tool as _qtool
 from ethos.adapters.commit_policy import signature_policy_report
@@ -20,21 +20,21 @@ from ethos.adapters.ty_gate import ty_gate_report
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.domain import prove as _prove
-from ethos.repository.attestation import release_attestation
-from ethos.repository.attestation import sbom_projection
-from ethos.repository.claims import claims_report
-from ethos.repository.command_registry import command_registry_report
-from ethos.repository.coupling import coupling_audit_report
-from ethos.repository.docs_registry import command_examples_report
-from ethos.repository.docs_registry import docs_health_report
-from ethos.repository.docs_registry import docs_quality_report
-from ethos.repository.evidence import EvidenceSet
-from ethos.repository.evidence import ProofRun
-from ethos.repository.evidence import provenance_envelope
-from ethos.repository.gates import gate_registry
-from ethos.repository.release import release_policy_report
-from ethos.repository.schema_validation import schema_validation_report
-from ethos.repository.standards import standard_adapter_registry
+from ethos.repository.evidence.claims import claims_report
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
+from ethos.repository.evidence.core import provenance_envelope
+from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.registry.commands import command_registry_report
+from ethos.repository.registry.docs import command_examples_report
+from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs import docs_quality_report
+from ethos.repository.registry.standards import standard_adapter_registry
+from ethos.repository.release.attestation import release_attestation
+from ethos.repository.release.attestation import sbom_projection
+from ethos.repository.release.core import release_policy_report
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption

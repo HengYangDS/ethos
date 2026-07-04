@@ -6,8 +6,8 @@ from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.gates import gate_registry
-from ethos.repository.schema_validation import validate_schema_instance
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import PolicyException
 from ethos_core.contracts.rules import Rule
 from ethos_core.contracts.rules import RuleEvalRequest

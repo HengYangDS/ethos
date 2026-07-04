@@ -50,8 +50,8 @@ kill_signal = "Governed-repository and product-adopter profiles diverge in kerne
 targets = [
   "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md",
   "system/schemas/kernel/governance-profile.schema.json",
-  "packages/ethos/src/ethos/repository/governance_profiles.py",
-  "packages/ethos/src/ethos/repository/schema_validation.py",
+  "packages/ethos/src/ethos/repository/registry/profiles.py",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
   "docs/governance/product-design-contract.md",
   "openspec/changes/archive/2026-07-02-isomorphic-governance-kernel",
 ]

@@ -6,11 +6,11 @@ from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signat
 
 from ethos.adapters import git as _gitio
 from ethos.domain import land as _land
-from ethos.repository.parity import build_tracked_parity_evidence
-from ethos.repository.parity import parity_gaps_report
-from ethos.repository.parity import parity_ledger_report
-from ethos.repository.parity import shadow_parity_report
-from ethos.repository.parity import write_tracked_parity_evidence
+from ethos.repository.evidence.parity import build_tracked_parity_evidence
+from ethos.repository.evidence.parity import parity_gaps_report
+from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.evidence.parity import write_tracked_parity_evidence
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit as _emit

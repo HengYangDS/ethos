@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos.repository.standards import standard_adapter_registry
+from ethos.repository.registry.standards import standard_adapter_registry
 
 
 def test_standard_adapter_registry_is_explicit_and_retirable() -> None:

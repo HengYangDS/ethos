@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def authority_graph_report(root: Path) -> dict[str, object]:
-    module = importlib.import_module("ethos.repository.authority_graph")
+    module = importlib.import_module("ethos.repository.registry.authority")
     return module.authority_graph_report(root)
 
 

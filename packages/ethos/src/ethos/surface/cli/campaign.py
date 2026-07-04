@@ -8,8 +8,8 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.domain import land as _land
-from ethos.repository.evolution import campaign_report
-from ethos.repository.evolution import evolution_ledger
+from ethos.repository.adoption.evolution import campaign_report
+from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import campaign_app

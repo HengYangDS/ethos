@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository.repository_audit import REQUIRED_DOCS
-from ethos.repository.repository_audit import repository_audit
+from ethos.repository.audit import REQUIRED_DOCS
+from ethos.repository.audit import repository_audit
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (

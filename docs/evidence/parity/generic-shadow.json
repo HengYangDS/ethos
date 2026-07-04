@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-hooked-write-admission-runtime",
-  "generated_on": "2026-07-01",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-hooked-write-admission-runtime --execute --timeout-seconds 30 --json",
+  "target": "/Users/yheng/projects/ethos",
+  "generated_on": "2026-07-04",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "25b5be2e9973008ca57c22a3dae6d09689b89060",
-    "target_head": "25b5be2e9973008ca57c22a3dae6d09689b89060",
-    "command_sha256": "fe4a972d8921d793f48b97645e5d227384e6b3887bea948a020547de8bb38f34"
+    "product_head": "6730e57e9c4494e1019daafd2df6cd5d78967d74",
+    "target_head": "6730e57e9c4494e1019daafd2df6cd5d78967d74",
+    "command_sha256": "984ee42f8ebc75a401fb590a5a7f6d30914acf80142bf0ba8f0d759143f4de8a"
   },
   "shadow": {
     "ok": true,

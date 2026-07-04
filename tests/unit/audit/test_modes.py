@@ -129,3 +129,32 @@ def test_openspec_shape_allows_in_progress_and_archived_changes(tmp_path: Path) 
     report = _openspec_shape_report(tmp_path)
 
     assert not any("unarchived" in gap for gap in report["required_gaps"])
+
+
+def test_repository_audit_flags_unarmed_write_admission(tmp_path, monkeypatch) -> None:
+    """The write-admission moat must be armed (git core.hooksPath -> .githooks) for the
+    always-run audit to pass. An ETHOS-admission repo (has .githooks/pre-commit) whose
+    hooksPath is unset is a governance runtime green about its own ungated writes."""
+    import subprocess
+
+    from ethos.repository.audit import _write_admission_armed_gaps
+
+    hook = tmp_path / ".githooks" / "pre-commit"
+    hook.parent.mkdir(parents=True)
+    hook.write_text("#!/bin/sh\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    # hooksPath unset -> flagged
+    assert "write_admission_not_armed:core.hooksPath" in _write_admission_armed_gaps(tmp_path)
+
+    # armed -> clean
+    subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=tmp_path, check=True)
+    assert _write_admission_armed_gaps(tmp_path) == []
+
+
+def test_write_admission_check_is_silent_for_non_admission_repos(tmp_path) -> None:
+    # A repo without the .githooks/pre-commit script is not an ETHOS-admission repo;
+    # nothing to arm, so no gap (do not punish plain adopters).
+    from ethos.repository.audit import _write_admission_armed_gaps
+
+    assert _write_admission_armed_gaps(tmp_path) == []

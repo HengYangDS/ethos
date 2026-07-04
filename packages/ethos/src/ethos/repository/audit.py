@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -161,6 +162,32 @@ def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
     return unarchived
 
 
+def _write_admission_armed_gaps(root: Path) -> list[str]:
+    """Gap when the write-admission moat is NOT armed for this checkout.
+
+    ETHOS's write-admission depends on git core.hooksPath pointing at .githooks so the
+    pre-commit gate actually fires. Prior to this check the audit could report ok=True
+    while the moat was unwired — a governance runtime green about its own ungated
+    writes. Bind the moat to the always-run audit: an unarmed checkout is a blocking
+    gap, discoverable and fixable via `ethos hook install`.
+    """
+    hook_script = root / ".githooks" / "pre-commit"
+    if not hook_script.exists():
+        # Not an ETHOS-admission repo (adopter without the hook script) — nothing to arm.
+        return []
+    completed = subprocess.run(
+        ["git", "config", "--get", "core.hooksPath"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    hooks_path = completed.stdout.strip() if completed.returncode == 0 else ""
+    if hooks_path != ".githooks":
+        return ["write_admission_not_armed:core.hooksPath"]
+    return []
+
+
 def _openspec_shape_report(root: Path) -> dict[str, object]:
     openspec_root = root / "openspec"
     required_gaps = []
@@ -279,6 +306,7 @@ def repository_audit(
         + workspace_config_gaps
         + playbook_gaps
         + system_contract_gaps
+        + _write_admission_armed_gaps(root)
     )
     return {
         "ok": not gaps,

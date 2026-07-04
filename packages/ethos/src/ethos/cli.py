@@ -138,21 +138,6 @@ def _code_size_report(root: Path) -> dict[str, object]:
     return _prove.code_size_report(root)
 
 
-def _matching_rule_gates(
-    root: Path,
-    paths: tuple[str, ...],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    return _plan.matching_rule_gates(root, paths)
-
-
-def _workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
-    return _prove.workspace_status_validation(repo, payload)
-
-
-def _workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:
-    return _prove.workspace_status_validation_gaps(validation)
-
-
 def _command_data_validation(
     repo: Path,
     *,
@@ -189,8 +174,8 @@ def status(
     """Inspect repository state."""
     repo = _root(root)
     status_payload = workspace_status(repo)
-    validation = _workspace_status_validation(repo, status_payload)
-    validation_gaps = _workspace_status_validation_gaps(validation)
+    validation = _prove.workspace_status_validation(repo, status_payload)
+    validation_gaps = _prove.workspace_status_validation_gaps(validation)
     ok = bool(validation["ok"])
     result = EthosResult(
         command="status",
@@ -218,8 +203,8 @@ def lane_status(
     """Inspect Work Lane topology and foreign lanes."""
     repo = _root(root)
     status_payload = workspace_status(repo)
-    validation = _workspace_status_validation(repo, status_payload)
-    validation_gaps = _workspace_status_validation_gaps(validation)
+    validation = _prove.workspace_status_validation(repo, status_payload)
+    validation_gaps = _prove.workspace_status_validation_gaps(validation)
     ok = bool(validation["ok"])
     result = EthosResult(
         command="lane status",
@@ -488,7 +473,7 @@ def plan(
     status_payload = workspace_status(repo)
     paths = tuple(status_payload["changed_paths"]) if changed else ()
     graph = _plan.graph_for_paths(paths)
-    matched_rules, required_gates = _matching_rule_gates(repo, paths)
+    matched_rules, required_gates = _plan.matching_rule_gates(repo, paths)
     result = EthosResult(
         command="plan",
         ok=True,
@@ -709,7 +694,7 @@ def land(
             root=repo,
             current_head=_gitio.current_head(repo),
         )
-        audit_root = _closeout_audit_root(repo, decision)
+        audit_root = _land.closeout_audit_root(repo, decision)
         audit = _repository_audit_after_admission(audit_root, decision)
         openspec_lifecycle = openspec_completed_active_changes_report(audit_root)
         openspec_gaps = tuple(str(gap) for gap in openspec_lifecycle["required_gaps"])
@@ -834,10 +819,6 @@ def _land_next_actions(
     current_head: str,
 ) -> tuple[str, ...]:
     return _land.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
-
-
-def _closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
-    return _land.closeout_audit_root(repo, decision)
 
 
 def _closeout_bootstrap_package(

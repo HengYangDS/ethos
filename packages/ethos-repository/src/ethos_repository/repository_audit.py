@@ -100,9 +100,9 @@ REQUIRED_RELEASE_FILES = (
 )
 
 REQUIRED_PLAYBOOK_FILES = (
-    "skills/README.md",
-    "skills/activation.toml",
-    "skills/ethos-repository-governance/SKILL.md",
+    ".agents/skills/README.md",
+    ".agents/skills/activation.toml",
+    ".agents/skills/ethos-repository-governance/SKILL.md",
 )
 
 REQUIRED_OPENSPEC_FAMILIES = (

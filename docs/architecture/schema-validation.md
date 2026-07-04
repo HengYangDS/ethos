@@ -85,5 +85,5 @@ tracked schema is not mature enough for automation.
 `ethos quality schemas --json` validates both schemas and representative
 instances for docs registry, gate registry, workspace status, campaign closeout,
 shadow parity, and Skills V2 contracts. Product-root runs also validate the live
-`skills/activation.toml`, the normalized live skill registry, and every
-live `skills/*/package.toml` against the Skills V2 schemas.
+`.agents/skills/activation.toml`, the normalized live skill registry, and every
+live `.agents/skills/*/package.toml` against the Skills V2 schemas.

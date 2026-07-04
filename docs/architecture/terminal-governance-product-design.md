@@ -298,7 +298,7 @@ ETHOS must ship more than a CLI:
 | --- | --- | --- |
 | CLI | Human and script workflow. | `packages/ethos` |
 | MCP | Agent resource, prompt, and guarded tool surface. | `packages/ethos`, `system/surfaces.toml` |
-| Skills | Agent workflow packages generated from repository truth. | `skills/` source, host projections generated as needed |
+| Skills | Agent workflow packages generated from repository truth. | `.agents/skills/` source, host projections generated as needed |
 | SDK | Stable client API for command JSON and governance records. | `sdks/typescript` when needed |
 | Distributions | Thin launchers and runner packages. | `distributions/` |
 | Scaffolds | Bootstrap and adopt profiles. | `scaffolds/` |
@@ -377,7 +377,7 @@ This is the desired repository shape after destructive migration:
 |   |-- ledger.toml
 |   |-- memory.toml
 |   `-- campaigns/
-|-- skills/
+|-- .agents/skills/
 |   |-- README.md
 |   |-- activation.toml
 |   `-- <skill-id>/
@@ -643,9 +643,9 @@ ETHOS memory must not be a hidden custom database.
 `evolution/memory.toml` declares providers, promotion rules, retention policy,
 and privacy boundaries. It does not store unreviewed memories as truth.
 
-### `skills/`
+### `.agents/skills/`
 
-`skills/` is the canonical repository skill source.
+`.agents/skills/` is the canonical repository skill source.
 
 `skills`, `.claude/skills`, `.codex/skills`, JetBrains rules, Junie
 files, Cursor rules, and other host surfaces are projections or official native
@@ -654,7 +654,7 @@ artifacts. They are not canonical ETHOS skill roots.
 Projection drift is mandatory:
 
 ```text
-skills/ + system/projections/ + system/surfaces.toml -> host projection
+.agents/skills/ + system/projections/ + system/surfaces.toml -> host projection
 ```
 
 Generated projection output must carry a source digest and fail drift checks
@@ -664,10 +664,10 @@ Terminal skill files:
 
 | Path | Duty |
 | --- | --- |
-| `skills/README.md` | Skill system overview and portfolio index. |
-| `skills/activation.toml` | Path and intent routing metadata. |
-| `skills/<skill-id>/SKILL.md` | Loadable skill procedure. |
-| `skills/<skill-id>/package.toml` | Skill manifest, capabilities, and quality metadata. |
+| `.agents/skills/README.md` | Skill system overview and portfolio index. |
+| `.agents/skills/activation.toml` | Path and intent routing metadata. |
+| `.agents/skills/<skill-id>/SKILL.md` | Loadable skill procedure. |
+| `.agents/skills/<skill-id>/package.toml` | Skill manifest, capabilities, and quality metadata. |
 
 ### `extensions/`
 
@@ -681,7 +681,7 @@ extensions/<id>/
 |-- gates.toml
 |-- policies/
 |-- scaffolds/
-|-- skills/
+|-- .agents/skills/
 |-- mcp/
 |-- adapters/
 |-- views/
@@ -862,7 +862,7 @@ Minimal governed repository:
 Agentic governed repository adds:
 
 ```text
-skills/
+.agents/skills/
 extensions/
 scaffolds/
 system/projections/
@@ -1097,7 +1097,7 @@ Terminal design deletes or forbids:
 | `claims/` root | Move to `evidence/claims/`. |
 | `docs/evidence/` | Move proof truth to `evidence/`; docs link or summarize. |
 | `schemas/` root | Move ETHOS schemas to `system/schemas/`. |
-| `skills` as source | Replace with `skills/` source and host projections. |
+| `skills` as source | Replace with `.agents/skills/` source and host projections. |
 | `cases/` | Do not create. OpenSpec changes are cases. |
 | `contracts/` | Do not create. Contracts live in `system/` and OpenSpec. |
 | `govern/` | Do not create. It duplicates `system/`, `rules/`, `evidence/`, `evolution/`. |
@@ -1127,13 +1127,13 @@ rules/
 .config/
 evidence/
 evolution/
-skills/
+.agents/skills/
 scaffolds/
 extensions/
 ```
 
 This stage includes a thin `AGENTS.md`, the initial `rules/` kernel, and the
-canonical `skills/` source. Migrate existing docs and schemas into the terminal
+canonical `.agents/skills/` source. Migrate existing docs and schemas into the terminal
 roots. Delete replaced roots after proof.
 
 ### Stage 2: Hooked Write Admission
@@ -1231,7 +1231,7 @@ The terminal redesign is acceptable only when:
 1. `ethos adopt` can add governance to an existing repository without partial
    substrate gaps.
 1. MCP manifest and server expose the same command JSON and docs truth as CLI.
-1. Skills are sourced from `skills/` and projections pass drift checks.
+1. Skills are sourced from `.agents/skills/` and projections pass drift checks.
 1. OpenSpec changes serve as case carriers without a separate `cases/` root.
 1. Evidence lives under `evidence/` and runtime artifacts under ignored
    `.ethos/`.

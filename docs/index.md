@@ -44,7 +44,7 @@ truth.
 - Product design contract: [Product Design Contract](governance/product-design-contract.md)
 - Terminal target design: [Terminal Governance Product Design](architecture/terminal-governance-product-design.md)
 - Rule system: [Rules System](../rules/README.md)
-- Skills: [Skills](../skills/README.md)
+- Skills: [Skills](../.agents/skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)

@@ -33,8 +33,8 @@ packages = [
 docs = [
   "docs/reference/command-plane.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
-  "skills/activation.toml",
-  "skills/activation.toml",
+  ".agents/skills/activation.toml",
+  ".agents/skills/activation.toml",
 ]
 
 [boundary]
@@ -53,8 +53,8 @@ targets = [
   "docs/reference/command-plane.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-03-ethos-hooked-write-admission",
-  "skills/activation.toml",
-  "skills/activation.toml",
+  ".agents/skills/activation.toml",
+  ".agents/skills/activation.toml",
   "packages/ethos-repository/src/ethos_repository/planner.py",
   "packages/ethos-adapters/src/ethos_adapters/hook_admission.py",
   "packages/ethos-repository/src/ethos_repository/command_registry.py",

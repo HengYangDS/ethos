@@ -72,6 +72,6 @@ targets = [
   "schemas/ethos/skill-activation.schema.json",
   "schemas/ethos/skill-registry.schema.json",
   "schemas/ethos/skill-package-manifest.schema.json",
-  "skills/activation.toml",
-  "skills/ethos-repository-governance/package.toml",
+  ".agents/skills/activation.toml",
+  ".agents/skills/ethos-repository-governance/package.toml",
 ]

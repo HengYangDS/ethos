@@ -18,8 +18,8 @@ vendor-specific assistant root canonical.
 - Evidence rules: [Evidence Rules](rules/evidence.md)
 - Release rules: [Release Rules](rules/release.md)
 - Skill rules: [Skill Rules](rules/skills.md)
-- Repo-local skills: [Skills](skills/README.md)
-- Skill activation policy: [Skill Activation](skills/activation.toml)
+- Repo-local skills: [Skills](.agents/skills/README.md)
+- Skill activation policy: [Skill Activation](.agents/skills/activation.toml)
 - OpenSpec workspace: [OpenSpec](openspec/)
 - Current docs index: [Documentation Index](docs/index.md)
 
@@ -42,7 +42,7 @@ stale until it is repaired.
 1. Read this file.
 1. Read [Rules System](rules/README.md).
 1. Read the rule file matching the task.
-1. Use [Skill Activation](skills/activation.toml) to select candidate skills.
+1. Use [Skill Activation](.agents/skills/activation.toml) to select candidate skills.
 1. Run `ethos status --json` before mutation planning.
 
 Host-local memory, IDE state, generated views, and assistant outputs are context

@@ -51,7 +51,7 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
         "identifier_source": identifier_source,
         "priority": int(entry.get("priority") or 0),
         "path": _string(entry.get("path"))
-        or (f"skills/{skill_id}/SKILL.md" if skill_id else ""),
+        or (f".agents/skills/{skill_id}/SKILL.md" if skill_id else ""),
         "package_manifest": _string(entry.get("package_manifest")),
         "primary_subject": primary_subject,
         "operation": _string(entry.get("operation")),

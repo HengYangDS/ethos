@@ -8,7 +8,7 @@ not replace those surfaces as authority.
 
 ## Operating Model
 
-- Canonical tracked skills live under `skills/<skill-id>/`.
+- Canonical tracked skills live under `.agents/skills/<skill-id>/`.
 - Host-native skill directories are projections unless explicitly classified as
   official native artifacts.
 - Each skill has `SKILL.md` with `name` and `description` frontmatter.
@@ -27,4 +27,4 @@ not replace those surfaces as authority.
 ## Projection Boundary
 
 Existing `.agents/skills` content is a host-facing projection until the terminal
-projection generator replaces it. New semantic skill work belongs in `skills/`.
+projection generator replaces it. New semantic skill work belongs in `.agents/skills/`.

@@ -1,13 +1,13 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:5b9e6be3fd54a6337d641f1a7ab9ac48f1e69f5111a7c31c0c505602547d9d93"
-expected_generator_digest = "sha256:3e566c56d4850e0a6b0f562fa246108df0a757ec50a0d26b68a86f93eacd9550"
+expected_registry_digest = "sha256:e6e9305b95af9b04e5fada84e5e2ee728bbd8ee6b8b776b3ae2bb4058841a91d"
+expected_generator_digest = "sha256:409765023d13152bec47852d1e0b217f06f936c3402f639f7cd155bc1035c4b8"
 
 [[skill]]
 id = "ethos-repository-governance"
-path = "skills/ethos-repository-governance/SKILL.md"
-package_manifest = "skills/ethos-repository-governance/package.toml"
+path = ".agents/skills/ethos-repository-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
 subject = "repository-governance"
 operation = "govern"
 authority = "primary"
@@ -19,7 +19,7 @@ path_globs = [
   "README.md",
   ".gitlab-ci.yml",
   ".ethos/**",
-  "skills/**",
+  ".agents/skills/**",
   "distributions/**",
   "docs/**",
   "evolution/**",
@@ -43,8 +43,8 @@ boundary = "workflow-package-projection"
 
 [[skill]]
 id = "ethos-change-lifecycle"
-path = "skills/ethos-change-lifecycle/SKILL.md"
-package_manifest = "skills/ethos-change-lifecycle/package.toml"
+path = ".agents/skills/ethos-change-lifecycle/SKILL.md"
+package_manifest = ".agents/skills/ethos-change-lifecycle/package.toml"
 subject = "change-lifecycle"
 operation = "prove"
 authority = "primary"

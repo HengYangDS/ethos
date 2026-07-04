@@ -22,7 +22,7 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         "rules": (repo / ".ethos" / "rules.toml").exists(),
         "openspec": (repo / "openspec" / "config.yaml").exists()
         and (repo / "openspec" / "specs").exists(),
-        "skills": (repo / "skills" / "activation.toml").exists(),
+        "skills": (repo / ".agents" / "skills" / "activation.toml").exists(),
         "docs": _has_docs(repo),
         "claims": (repo / "claims").exists(),
         "evidence": (repo / "docs" / "evidence").exists(),

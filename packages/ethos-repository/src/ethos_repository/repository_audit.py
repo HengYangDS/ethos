@@ -167,6 +167,7 @@ def repository_audit(
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
+    current_head: str = "",
 ) -> dict[str, object]:
     package_missing = [
         f"packages/{package}"
@@ -208,7 +209,7 @@ def repository_audit(
     ]
     command_report = command_registry_report(root)
     authority_graph = authority_graph_report(root)
-    claim_report = claims_report(root)
+    claim_report = claims_report(root, current_head=current_head)
     workspace_config = workspace_package_config_report(root)
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)

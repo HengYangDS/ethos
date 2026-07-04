@@ -192,8 +192,12 @@ def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
     return _plan.graph_for_paths(paths)
 
 
-def _audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
-    return _status.audit_for_root(root, openspec_mode=openspec_mode)
+def _audit_for_root(
+    root: Path, *, openspec_mode: str = "shape", current_head: str = ""
+) -> dict[str, object]:
+    return _status.audit_for_root(
+        root, openspec_mode=openspec_mode, current_head=current_head
+    )
 
 
 def _sha256_file(path: Path) -> str:
@@ -639,7 +643,9 @@ def prove(
     """Produce a local proof-readiness summary."""
     repo = _root(root)
     current_head = _current_head(repo)
-    audit = _audit_for_root(repo, openspec_mode="deep" if full else "shape")
+    audit = _audit_for_root(
+        repo, openspec_mode="deep" if full else "shape", current_head=current_head
+    )
     graph = gate_graph(gate, full=full)
     gates_by_id = gate_registry()
     runner = (

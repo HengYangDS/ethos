@@ -59,20 +59,27 @@ def is_product_root(root: Path) -> bool:
     ).exists()
 
 
-def audit_for_root(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+def audit_for_root(
+    root: Path, *, openspec_mode: str = "shape", current_head: str = ""
+) -> dict[str, object]:
     """Dispatch to the product-repository or adopter audit for the given root."""
     if is_product_root(root):
-        return product_repository_audit(root, openspec_mode=openspec_mode)
+        return product_repository_audit(
+            root, openspec_mode=openspec_mode, current_head=current_head
+        )
     return adopter_audit(root)
 
 
-def product_repository_audit(root: Path, *, openspec_mode: str) -> dict[str, object]:
+def product_repository_audit(
+    root: Path, *, openspec_mode: str, current_head: str = ""
+) -> dict[str, object]:
     """Run the product repository audit (deep openspec validation when requested)."""
     reporter = openspec_governance_report if openspec_mode == "deep" else None
     return repository_audit_module.repository_audit(
         root,
         openspec_mode=openspec_mode,
         openspec_reporter=reporter,
+        current_head=current_head,
     )
 
 

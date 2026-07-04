@@ -90,3 +90,42 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
 
     assert payload["ok"] is True
     assert payload["data"]["repository_audit"]["openspec"]["mode"] == "shape"
+
+
+def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path) -> None:
+    """A change whose tasks are all complete but which is still in changes/ (not
+    archived) is a carrier masquerading as active — the always-run shape audit must
+    flag it from ETHOS's own tasks-complete signal, not only at land --closeout."""
+    from ethos.repository.repository_audit import _openspec_shape_report
+
+    openspec = tmp_path / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+    change = openspec / "changes" / "done-change"
+    change.mkdir(parents=True)
+    (change / "tasks.md").write_text("## 1\n\n- [x] a\n- [x] b\n", encoding="utf-8")
+
+    report = _openspec_shape_report(tmp_path)
+
+    assert report["ok"] is False
+    assert "openspec_completed_change_unarchived:done-change" in report["required_gaps"]
+
+
+def test_openspec_shape_allows_in_progress_and_archived_changes(tmp_path: Path) -> None:
+    from ethos.repository.repository_audit import _openspec_shape_report
+
+    openspec = tmp_path / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+    # in-progress change (a box unchecked) is legitimately active
+    active = openspec / "changes" / "wip"
+    active.mkdir(parents=True)
+    (active / "tasks.md").write_text("- [x] a\n- [ ] b\n", encoding="utf-8")
+    # archived completed change is fine
+    archived = openspec / "changes" / "archive" / "2026-01-01-old"
+    archived.mkdir(parents=True)
+    (archived / "tasks.md").write_text("- [x] a\n", encoding="utf-8")
+
+    report = _openspec_shape_report(tmp_path)
+
+    assert not any("unarchived" in gap for gap in report["required_gaps"])

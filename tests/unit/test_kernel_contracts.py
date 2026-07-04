@@ -439,3 +439,30 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     # The authority order is surfaced (head-of-chain hole filled).
     assert "user_instruction" in context["judgment_source"]["policy_refs"]
     assert context["subject"]["kind"] == "repository"
+
+
+def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
+    """Each kernel-chain node owns exactly one duty. This pins the must-not-own
+    boundary per node so a future field addition that lets one node absorb a
+    sibling's duty fails a test rather than drifting silently."""
+    from dataclasses import fields
+
+    from ethos_core import models
+
+    forbidden_per_node = {
+        # Subject: identity+scope only — no state/obligation/authority.
+        "Subject": {"state", "lifecycle", "transition", "authority", "evidence_ids"},
+        # Commitment: durable normative statement — no lifecycle/evidence.
+        "Commitment": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
+        # Evidence: immutable observation — asserts NO verdict (that is Claim's).
+        "Evidence": {"state", "verdict", "trust_bearing", "verifier"},
+        # Claim: verifier-capped binding — does NOT own lifecycle state.
+        "EvidenceClaim": {"state", "lifecycle", "transition"},
+        # Chronicle: append-only judged-history index — no live lifecycle transition.
+        "ChronicleEvent": {"state", "lifecycle", "transition"},
+    }
+    for node_name, forbidden in forbidden_per_node.items():
+        model = getattr(models, node_name)
+        field_names = {f.name for f in fields(model)}
+        leaked = field_names & forbidden
+        assert not leaked, f"{node_name} must not own downstream duties: {leaked}"

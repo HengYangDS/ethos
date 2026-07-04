@@ -25,8 +25,10 @@ JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chroni
 `JudgmentSource` is the authority used for product decisions. The North Star is
 a derived reader view, not the judgment source. `Subject` scopes the governed
 object. `Commitment` unifies contracts, specs, policies, rules, and decisions.
-`Change` carries IR, transition, inscription, supersession, and current-state
-movement. `Evidence` stores proof, gate, digest, and HEAD facts. `Claim` binds
-evidence to a Change; digest-only claims do not prove semantic truth. `Chronicle`
-keeps judged memory: what happened, which evidence was used, which decision was
-made, and how current truth moved.
+`Change` carries IR, transition, and inscription — the in-flight lifecycle
+movement, and nothing already judged. `Evidence` stores proof, gate, digest, and
+HEAD facts, and asserts no verdict. `Claim` binds evidence to a Change, capped by
+its verifier; digest-only claims do not prove semantic truth, and a Claim does not
+own lifecycle state. `Chronicle` keeps judged memory: what happened, which evidence
+was used, which decision was made, what was superseded, and how current truth
+moved.

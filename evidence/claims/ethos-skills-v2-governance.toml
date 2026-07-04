@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS Skills V2 now separates activation semantics from provider-visible skill packages, enforces strict product-root package quality, keeps historical adopter migration evidence readable, and binds routing to changed-path evidence."
 
 [evidence]
-dated = "docs/evidence/skills-v2-governance-2026-07-01.md"
+dated = "evidence/skills-v2-governance-2026-07-01.md"
 sha256 = "ccae4714e24999487cb2f17300dd4f4271a1fd9c9debb2984dbbe1be61ac4f68"
 evidence_ids = ["evidence:ethos-skills-v2-governance"]
 binding = "semantic skills-v2 governance evidence binding"
@@ -59,7 +59,7 @@ kill_signal = "Provider-visible skill package metadata can diverge from activati
 
 [promotion]
 targets = [
-  "docs/evidence/skills-v2-governance-2026-07-01.md",
+  "evidence/skills-v2-governance-2026-07-01.md",
   "docs/governance/playbooks-and-skills.md",
   "docs/architecture/agent-projections.md",
   "docs/architecture/schema-validation.md",

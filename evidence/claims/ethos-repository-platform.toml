@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, npm distribution policy, deeper repository-audit, schema instance validation, and stronger standards adapters."
 
 [evidence]
-dated = "docs/evidence/governance-platform-2026-06-30.md"
+dated = "evidence/governance-platform-2026-06-30.md"
 sha256 = "fc28a000adef11627233f78a8798cafd764226bd7388556f3bbb4c836ddc91a6"
 evidence_ids = ["evidence:ethos-repository-platform"]
 binding = "digest-bound evidence binding"
@@ -47,7 +47,7 @@ kill_signal = "Repository platform readiness depends on a second command plane o
 
 [promotion]
 targets = [
-  "docs/evidence/governance-platform-2026-06-30.md",
+  "evidence/governance-platform-2026-06-30.md",
   "docs/governance/openspec-governance.md",
   "docs/governance/standards-adoption-policy.md",
   "openspec/specs/ethos-repository/spec.md",

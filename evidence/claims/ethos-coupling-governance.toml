@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, historical evidence, and fixtures through explicit binding layers."
 
 [evidence]
-dated = "docs/evidence/coupling-contract-hardening-2026-07-01.md"
+dated = "evidence/coupling-contract-hardening-2026-07-01.md"
 sha256 = "137834ec018347bfed20b4bd07893179134543003c45c8f714c05a91fde2897d"
 evidence_ids = ["evidence:ethos-coupling-governance"]
 binding = "semantic coupling governance evidence binding"
@@ -58,7 +58,7 @@ kill_signal = "A provider-specific runtime becomes required for local ETHOS proo
 
 [promotion]
 targets = [
-  "docs/evidence/coupling-governance-2026-07-01.md",
+  "evidence/coupling-governance-2026-07-01.md",
   "docs/governance/product-design-contract.md",
   "docs/architecture/gate-runner.md",
   "openspec/specs/ethos-repository/spec.md",

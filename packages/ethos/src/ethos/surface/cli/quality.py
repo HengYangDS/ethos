@@ -157,7 +157,7 @@ def markdown_links(
     files = [
         path
         for path in _gitio.git_files(repo, "*.md")
-        if not path.startswith(("docs/evidence/", "docs/archive/"))
+        if not path.startswith(("evidence/", "docs/archive/"))
     ]
     report = _qtool.quality_tool_report(
         root=repo,
@@ -727,7 +727,7 @@ def evidence_freshness(
         command="quality evidence-freshness",
         ok=bool(claim_report["ok"]),
         state="clean" if claim_report["ok"] else "blocked",
-        summary={"evidence_roots": ["docs/evidence"]},
+        summary={"evidence_roots": ["evidence"]},
         required_gaps=tuple(claim_report["required_gaps"]),
         next_actions=("ethos prove --json",),
         data={"stale": [], "claims": claim_report},

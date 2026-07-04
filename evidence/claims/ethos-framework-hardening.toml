@@ -5,7 +5,7 @@ state = "active"
 summary = "Harden ETHOS from bootstrap skeleton into a verifiable framework core."
 
 [evidence]
-dated = "docs/evidence/hardening-2026-06-30.md"
+dated = "evidence/hardening-2026-06-30.md"
 sha256 = "ccc626c5ee7051763462a50cd99dfa49c036cd5eff45db13df6767a0fb6d90a5"
 evidence_ids = ["evidence:ethos-framework-hardening"]
 binding = "digest-bound evidence binding"
@@ -44,7 +44,7 @@ kill_signal = "Framework proof depends on untracked host or assistant state."
 
 [promotion]
 targets = [
-  "docs/evidence/hardening-2026-06-30.md",
+  "evidence/hardening-2026-06-30.md",
   "system/schemas/kernel/proof-run.schema.json",
   "system/schemas/kernel/evidence-set.schema.json",
   "openspec/specs/ethos-repository/spec.md",

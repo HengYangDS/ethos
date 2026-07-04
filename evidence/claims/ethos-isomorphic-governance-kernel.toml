@@ -2,10 +2,10 @@
 id = "ethos-isomorphic-governance-kernel"
 subject = "ethos:isomorphic-governance-kernel"
 state = "active"
-summary = "Self-governance and product-adopter are two profile forms of one ETHOS governance kernel, sharing the same kernel chain, trust lifecycle, capability graph, truth sources, run steps, and advisory projection boundaries."
+summary = "Governed-repository and product-adopter are two profile forms of one ETHOS governance kernel, sharing the same kernel chain, trust lifecycle, capability graph, truth sources, run steps, and advisory projection boundaries."
 
 [evidence]
-dated = "docs/evidence/isomorphic-governance-kernel-2026-07-01.md"
+dated = "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md"
 sha256 = "19f694edd428ddf65758fedcba3bd87e52ddc00923a5aec7e99f8fbd593b79ed"
 evidence_ids = ["evidence:ethos-isomorphic-governance-kernel"]
 binding = "digest-bound dual-form governance evidence binding"
@@ -30,28 +30,28 @@ docs = [
   "docs/governance/product-design-contract.md",
   "docs/architecture/adoption-profiles.md",
   "docs/architecture/schema-validation.md",
-  "docs/evidence/isomorphic-governance-kernel-2026-07-01.md",
+  "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md",
 ]
 schemas = [
-  "schemas/ethos/governance-profile.schema.json",
+  "system/schemas/kernel/governance-profile.schema.json",
 ]
 
 [boundary]
 owner = "ethos-repository"
-scope = "Dual-form self-governance and product-adopter profile contract"
+scope = "Governed-repository kernel chain and adopter profile contract"
 
 [carriers]
-openspec = "openspec/changes/isomorphic-governance-kernel"
+openspec = "openspec/changes/archive/2026-07-02-isomorphic-governance-kernel"
 
 fallback = "Keep product and adopter governance under existing trust lifecycle checks until the governance profile contract is clean."
-kill_signal = "Self-governance and product-adopter profiles diverge in kernel chain or trust lifecycle."
+kill_signal = "Governed-repository and product-adopter profiles diverge in kernel chain or trust lifecycle."
 
 [promotion]
 targets = [
-  "docs/evidence/isomorphic-governance-kernel-2026-07-01.md",
-  "schemas/ethos/governance-profile.schema.json",
-  "packages/ethos-repository/src/ethos_repository/governance_profiles.py",
-  "packages/ethos-repository/src/ethos_repository/schema_validation.py",
+  "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md",
+  "system/schemas/kernel/governance-profile.schema.json",
+  "packages/ethos/src/ethos/repository/governance_profiles.py",
+  "packages/ethos/src/ethos/repository/schema_validation.py",
   "docs/governance/product-design-contract.md",
-  "openspec/changes/isomorphic-governance-kernel",
+  "openspec/changes/archive/2026-07-02-isomorphic-governance-kernel",
 ]

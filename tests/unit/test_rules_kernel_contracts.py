@@ -180,7 +180,7 @@ def test_rule_contract_schemas_validate_minimal_payloads() -> None:
         owner="ethos",
         approver="maintainer",
         reason="temporary docs migration",
-        evidence_ref="docs/evidence/example.md",
+        evidence_ref="evidence/example.md",
         created_at="2026-07-01",
         expires_at="2026-07-31",
     ).to_dict()
@@ -536,7 +536,7 @@ def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> Non
                 "available": True,
                 "value": {
                     "ok": False,
-                    "stale": ["docs/evidence/rules.md"],
+                    "stale": ["evidence/rules.md"],
                 },
             },
         },
@@ -547,7 +547,7 @@ def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> Non
     assert report["state"] == "block"
     assert "fact_required_gap:claim_state:claim_digest_mismatch:rules" in report["required_gaps"]
     assert "fact_not_ok:evidence_freshness" in report["required_gaps"]
-    assert "fact_stale_ref:evidence_freshness:docs/evidence/rules.md" in report["required_gaps"]
+    assert "fact_stale_ref:evidence_freshness:evidence/rules.md" in report["required_gaps"]
 
 
 def test_rule_evaluation_blocks_worktree_gaps_for_publish(tmp_path: Path) -> None:
@@ -703,7 +703,7 @@ scope = "repository"
 owner = "ethos"
 approver = "maintainer"
 reason = "temporary"
-evidence_ref = "docs/evidence/example.md"
+evidence_ref = "evidence/example.md"
 created_at = "2026-01-01"
 expires_at = "2026-01-03"
 status = "active"
@@ -720,7 +720,7 @@ digest = "0"
     assert "policy_exception_digest_mismatch:expired" in report["required_gaps"]
     assert "policy_exception_ttl_exceeded:expired" in report["required_gaps"]
     assert (
-        "policy_exception_evidence_missing:expired:docs/evidence/example.md"
+        "policy_exception_evidence_missing:expired:evidence/example.md"
         in report["required_gaps"]
     )
 
@@ -728,7 +728,7 @@ digest = "0"
 def test_policy_exceptions_block_invalid_dates_and_non_waivable_rules(
     tmp_path: Path,
 ) -> None:
-    evidence = tmp_path / "docs" / "evidence" / "example.md"
+    evidence = tmp_path / "evidence" / "example.md"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("evidence\n", encoding="utf-8")
     invalid_date = PolicyException(
@@ -738,7 +738,7 @@ def test_policy_exceptions_block_invalid_dates_and_non_waivable_rules(
         owner="ethos",
         approver="maintainer",
         reason="temporary",
-        evidence_ref="docs/evidence/example.md",
+        evidence_ref="evidence/example.md",
         created_at="2026-07-01",
         expires_at="never",
     ).to_dict()
@@ -749,7 +749,7 @@ def test_policy_exceptions_block_invalid_dates_and_non_waivable_rules(
         owner="ethos",
         approver="maintainer",
         reason="temporary",
-        evidence_ref="docs/evidence/example.md",
+        evidence_ref="evidence/example.md",
         created_at="2026-07-01",
         expires_at="2026-07-02",
     ).to_dict()
@@ -764,7 +764,7 @@ scope = "repository"
 owner = "ethos"
 approver = "maintainer"
 reason = "temporary"
-evidence_ref = "docs/evidence/example.md"
+evidence_ref = "evidence/example.md"
 created_at = "2026-07-01"
 expires_at = "never"
 status = "active"
@@ -777,7 +777,7 @@ scope = "repository"
 owner = "ethos"
 approver = "maintainer"
 reason = "temporary"
-evidence_ref = "docs/evidence/example.md"
+evidence_ref = "evidence/example.md"
 created_at = "2026-07-01"
 expires_at = "2026-07-02"
 status = "active"
@@ -797,7 +797,7 @@ digest = "{non_waivable["digest"]}"
 
 
 def test_policy_exceptions_block_empty_path_scope(tmp_path: Path) -> None:
-    evidence = tmp_path / "docs" / "evidence" / "example.md"
+    evidence = tmp_path / "evidence" / "example.md"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("evidence\n", encoding="utf-8")
     invalid_scope = PolicyException(
@@ -807,7 +807,7 @@ def test_policy_exceptions_block_empty_path_scope(tmp_path: Path) -> None:
         owner="ethos",
         approver="maintainer",
         reason="temporary",
-        evidence_ref="docs/evidence/example.md",
+        evidence_ref="evidence/example.md",
         created_at="2026-07-01",
         expires_at="2026-07-02",
     ).to_dict()
@@ -822,7 +822,7 @@ scope = "path:"
 owner = "ethos"
 approver = "maintainer"
 reason = "temporary"
-evidence_ref = "docs/evidence/example.md"
+evidence_ref = "evidence/example.md"
 created_at = "2026-07-01"
 expires_at = "2026-07-02"
 status = "active"
@@ -866,7 +866,7 @@ stop_condition = "docs_gap"
         owner="docs-team",
         approver="maintainer",
         reason="temporary docs gate migration",
-        evidence_ref="docs/evidence/exception.md",
+        evidence_ref="evidence/exception.md",
         created_at="2026-07-01",
         expires_at="2026-07-02",
     ).to_dict()
@@ -881,7 +881,7 @@ scope = "path:notes/"
 owner = "docs-team"
 approver = "maintainer"
 reason = "temporary docs gate migration"
-evidence_ref = "docs/evidence/exception.md"
+evidence_ref = "evidence/exception.md"
 created_at = "2026-07-01"
 expires_at = "2026-07-02"
 status = "active"
@@ -929,7 +929,7 @@ stop_condition = "docs_gap"
 """.lstrip(),
         encoding="utf-8",
     )
-    evidence = tmp_path / "docs" / "evidence" / "exception.md"
+    evidence = tmp_path / "evidence" / "exception.md"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("temporary waiver\n", encoding="utf-8")
     waiver = PolicyException(
@@ -939,7 +939,7 @@ stop_condition = "docs_gap"
         owner="docs-team",
         approver="maintainer",
         reason="temporary docs gate migration",
-        evidence_ref="docs/evidence/exception.md",
+        evidence_ref="evidence/exception.md",
         created_at="2026-07-01",
         expires_at="2026-07-02",
     ).to_dict()
@@ -954,7 +954,7 @@ scope = "path:docs"
 owner = "docs-team"
 approver = "maintainer"
 reason = "temporary docs gate migration"
-evidence_ref = "docs/evidence/exception.md"
+evidence_ref = "evidence/exception.md"
 created_at = "2026-07-01"
 expires_at = "2026-07-02"
 status = "active"

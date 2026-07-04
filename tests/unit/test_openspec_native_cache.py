@@ -97,8 +97,8 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
         "## ADDED Requirements\n",
         encoding="utf-8",
     )
-    (root / "claims").mkdir()
-    (root / "claims" / "sample.toml").write_text(
+    (root / "evidence" / "claims").mkdir(parents=True)
+    (root / "evidence" / "claims" / "sample.toml").write_text(
         "\n".join(
             [
                 "[claim]",
@@ -108,7 +108,7 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
                 'summary = "sample"',
                 "",
                 "[evidence]",
-                'dated = "docs/evidence/sample.md"',
+                'dated = "evidence/sample.md"',
                 f'sha256 = "{"0" * 64}"',
                 'tests = ["pytest"]',
                 'evidence_ids = ["evidence:sample"]',

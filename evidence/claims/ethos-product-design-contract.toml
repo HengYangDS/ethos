@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS now has a canonical product design contract, target package ontology, product/adopter boundary policy, and capability parity ledger for safe migration from embedded adopter implementation to product truth."
 
 [evidence]
-dated = "docs/evidence/product-design-contract-2026-07-01.md"
+dated = "evidence/product-design-contract-2026-07-01.md"
 sha256 = "1dadf15d9ea1cbaa1fd7df2bc1db7000256219915d60b0bb1a9e2d6f3261258b"
 evidence_ids = ["evidence:ethos-product-design-contract"]
 binding = "digest-bound design evidence binding"
@@ -45,7 +45,7 @@ kill_signal = "Product package ontology and adopter boundary are defined only in
 
 [promotion]
 targets = [
-  "docs/evidence/product-design-contract-2026-07-01.md",
+  "evidence/product-design-contract-2026-07-01.md",
   "docs/governance/product-design-contract.md",
   "docs/governance/capability-parity-ledger.md",
   "openspec/specs/ethos-contracts/spec.md",

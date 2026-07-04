@@ -37,7 +37,7 @@
             "minItems": 1,
             "items": {
               "type": "string",
-              "pattern": "^(docs/evidence/|claims/).+"
+              "pattern": "^(evidence/|claims/).+"
             }
           },
           "stable_path": {"type": "string", "minLength": 1},

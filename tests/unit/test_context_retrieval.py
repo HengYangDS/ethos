@@ -45,7 +45,7 @@ def init_repo(path: Path) -> Path:
         "def workspace_status_schema_validation() -> str:\n    return 'ok'\n",
         encoding="utf-8",
     )
-    schema_dir = path / "schemas" / "ethos"
+    schema_dir = path / "system" / "schemas" / "kernel"
     schema_dir.mkdir(parents=True)
     (schema_dir / "workspace-status.schema.json").write_text(
         '{"title": "Workspace Status", "type": "object"}\n',

@@ -103,8 +103,8 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             "- **THEN** sample\n",
             encoding="utf-8",
         )
-    claims = root / "claims"
-    claims.mkdir()
+    claims = root / "evidence" / "claims"
+    claims.mkdir(parents=True)
     for change in ("change-one", "change-two"):
         (claims / f"{change}.toml").write_text(
             "\n".join(

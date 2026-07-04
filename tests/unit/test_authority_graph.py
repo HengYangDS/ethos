@@ -77,9 +77,9 @@ def test_authority_graph_requires_derived_views_to_derive_from_authority(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "docs" / "_meta").mkdir(parents=True)
-    (tmp_path / "docs" / "evidence").mkdir(parents=True)
+    (tmp_path / "evidence").mkdir(parents=True)
     (tmp_path / "README.md").write_text("# Reader\n", encoding="utf-8")
-    (tmp_path / "docs" / "evidence" / "authority-2026-07-01.md").write_text(
+    (tmp_path / "evidence" / "authority-2026-07-01.md").write_text(
         "# Evidence\n",
         encoding="utf-8",
     )
@@ -96,7 +96,7 @@ canonical_for = ["reader entry"]
 derived_from = []
 supersedes = []
 doc_refs = ["README.md"]
-evidence_refs = ["docs/evidence/authority-2026-07-01.md"]
+evidence_refs = ["evidence/authority-2026-07-01.md"]
 stable_path = "README.md"
 """.lstrip(),
         encoding="utf-8",

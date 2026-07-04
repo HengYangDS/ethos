@@ -269,7 +269,7 @@ def acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[st
     if not current_head:
         return ()
     accepted = [current_head]
-    evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+    evidence_path = Path("evidence") / "parity" / f"{adopter or 'generic'}-shadow.json"
     last_change = _gitio.git_stdout(
         root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
     )
@@ -292,7 +292,7 @@ def acceptable_parity_target_heads(
         return ()
     accepted = [current_head]
     if _gitio.same_git_repository(root, target):
-        evidence_path = Path("docs") / "evidence" / "parity" / f"{adopter or 'generic'}-shadow.json"
+        evidence_path = Path("evidence") / "parity" / f"{adopter or 'generic'}-shadow.json"
         last_change = _gitio.git_stdout(
             root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
         )

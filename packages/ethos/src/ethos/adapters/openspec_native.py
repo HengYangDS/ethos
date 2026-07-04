@@ -550,7 +550,7 @@ def _openspec_governance_report(
 
 
 def _active_claim_openspec_carriers(root: Path) -> set[str]:
-    claims_dir = root / "claims"
+    claims_dir = root / "evidence" / "claims"
     carriers: set[str] = set()
     for path in sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))

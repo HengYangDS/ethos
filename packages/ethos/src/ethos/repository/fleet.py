@@ -24,8 +24,8 @@ def inspect_adopter(root: Path) -> dict[str, object]:
         and (repo / "openspec" / "specs").exists(),
         "skills": (repo / ".agents" / "skills" / "activation.toml").exists(),
         "docs": _has_docs(repo),
-        "claims": (repo / "claims").exists(),
-        "evidence": (repo / "docs" / "evidence").exists(),
+        "claims": (repo / "evidence" / "claims").exists(),
+        "evidence": (repo / "evidence").exists(),
     }
     required_gaps = [
         f"adopter_missing:{name}" for name, present in governance.items() if not present

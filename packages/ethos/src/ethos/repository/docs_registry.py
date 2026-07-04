@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
-OBSERVATIONAL_DOC_PREFIXES = ("docs/evidence/", "docs/archive/")
+OBSERVATIONAL_DOC_PREFIXES = ("evidence/", "docs/archive/")
 REQUIRED_COMMAND_EXAMPLES = (
     "ethos land",
     "ethos publish",
@@ -271,7 +271,7 @@ def _link_integrity_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     for path in _markdown_paths(root):
         relative = path.relative_to(root).as_posix()
-        if relative.startswith("docs/evidence/"):
+        if relative.startswith("evidence/"):
             continue
         for lineno, target in _markdown_links(path):
             path_part, _, fragment = target.partition("#")
@@ -364,6 +364,7 @@ def _stable_paths_report(root: Path) -> dict[str, object]:
 def _markdown_paths(root: Path) -> tuple[Path, ...]:
     paths = [root / "README.md", root / "CONTRIBUTING.md", root / "CHANGELOG.md"]
     paths.extend(sorted((root / "docs").rglob("*.md")))
+    paths.extend(sorted((root / "evidence").rglob("*.md")))
     return tuple(path for path in paths if path.exists())
 
 
@@ -381,7 +382,7 @@ def _command_root(command: str) -> str:
 
 
 def _command_scope(path: str) -> str:
-    if path.startswith("docs/evidence/"):
+    if path.startswith("evidence/"):
         return "evidence"
     if path.startswith("docs/archive/"):
         return "archive"

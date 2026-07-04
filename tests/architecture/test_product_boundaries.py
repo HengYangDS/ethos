@@ -29,7 +29,7 @@ CURRENT_PRODUCT_SURFACES = (
     ROOT / "docs" / "governance",
     ROOT / "docs" / "reference",
     ROOT / "openspec" / "specs",
-    ROOT / "claims",
+    ROOT / "evidence" / "claims",
     ROOT / ".agents" / "skills",
 )
 ACTIVE_OPENSPEC_CHANGES: tuple[Path, ...] = ()
@@ -241,7 +241,7 @@ def test_ethos_workspace_config_uses_target_product_packages() -> None:
 
 
 def test_active_claims_do_not_use_retired_product_family_subjects() -> None:
-    for path in sorted((ROOT / "claims").glob("*.toml")):
+    for path in sorted((ROOT / "evidence" / "claims").glob("*.toml")):
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
         claim = payload.get("claim", {})
         if claim.get("state") != "active":

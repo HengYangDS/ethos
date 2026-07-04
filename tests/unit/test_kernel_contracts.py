@@ -252,7 +252,7 @@ def test_action_graph_is_deterministic_and_digest_bound() -> None:
         kind="proof",
         command=("ethos", "prove", "--json"),
         inputs=("pyproject.toml", "packages/ethos/src/ethos/cli.py"),
-        outputs=("docs/evidence/proof.json",),
+        outputs=("evidence/proof.json",),
         policy="required",
         tool="ethos",
         tool_version="0.1.0",

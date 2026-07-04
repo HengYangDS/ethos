@@ -33,7 +33,7 @@ def test_malformed_governance_lifecycle_fixture_names_required_gaps() -> None:
 
     assert fixture["required_gaps"] == [
         "openspec_claim_binding_missing:sample-change",
-        "promotion_target_missing:sample-trust:docs/evidence/missing.md",
+        "promotion_target_missing:sample-trust:evidence/missing.md",
         "executed_proof_missing",
         "malformed_openspec_carrier:sample-change",
     ]

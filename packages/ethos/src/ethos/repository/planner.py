@@ -65,8 +65,8 @@ BASE_ADOPTION_FILES = (
     "docs/index.md",
     "docs/start/quickstart.md",
     "docs/governance/ethos.md",
-    "docs/evidence/.gitkeep",
-    "claims/.gitkeep",
+    "evidence/.gitkeep",
+    "evidence/claims/.gitkeep",
     "system/schemas/kernel/.gitkeep",
 )
 
@@ -83,7 +83,7 @@ local_state = "SQLite"
 [artifacts]
 state_path = ".ethos/state/state.sqlite"
 state_tracked_truth = false
-durable_evidence_roots = ["docs/evidence", "claims"]
+durable_evidence_roots = ["evidence", "evidence/claims"]
 
 [gates]
 governance_audit = "ethos report --json"
@@ -104,8 +104,8 @@ acp = "protocol-projection"
     ".ethos/state/.gitignore": "*\n!.gitignore\n",
     "openspec/changes/.gitkeep": "",
     "openspec/changes/archive/.gitkeep": "",
-    "docs/evidence/.gitkeep": "",
-    "claims/.gitkeep": "",
+    "evidence/.gitkeep": "",
+    "evidence/claims/.gitkeep": "",
     "system/schemas/kernel/.gitkeep": "",
 }
 
@@ -350,7 +350,7 @@ path_globs = [
   "docs/**",
   "evolution/**",
   "openspec/**",
-  "claims/**",
+  "evidence/claims/**",
   "packages/**",
   "schemas/**",
   "tests/**",
@@ -551,7 +551,7 @@ OpenSpec records, and the `ethos ...` command plane.
 1. User instruction.
 1. Repository source code, tests, schemas, and package metadata.
 1. Canonical docs under `docs/`.
-1. Evidence under `docs/evidence/`.
+1. Evidence under `evidence/`.
 1. Repo-local skills under `skills/`.
 
 ## Operating Rules

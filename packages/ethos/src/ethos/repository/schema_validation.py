@@ -339,7 +339,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
     }
     shadow_provenance = {
         "mode": "tracked_evidence",
-        "evidence_path": "docs/evidence/parity/example-shadow.json",
+        "evidence_path": "evidence/parity/example-shadow.json",
         "freshness": {
             "ok": True,
             "required_gaps": [],
@@ -354,7 +354,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "kind": "shadow_parity_evidence",
         "state": "matched",
         "target": "/repo",
-        "evidence_path": "docs/evidence/parity/example-shadow.json",
+        "evidence_path": "evidence/parity/example-shadow.json",
         "comparison_count": 9,
         "commands": ["ethos status --json"],
         "semantic_dimensions": ["branch role"],
@@ -421,7 +421,7 @@ def _campaign_contract_sample() -> dict[str, Any]:
                     "state": "retired",
                     "accepted_head": "a" * 40,
                     "candidate_head": "a" * 40,
-                    "evidence": ["docs/evidence/campaign-orchestration-2026-07-02.md"],
+                    "evidence": ["evidence/campaign-orchestration-2026-07-02.md"],
                 },
             }
         ],
@@ -662,7 +662,7 @@ def _trust_closeout_contract_sample() -> dict[str, Any]:
 def _promotion_target_contract_sample() -> dict[str, Any]:
     return {
         "kind": "evidence",
-        "path": "docs/evidence/sample.md",
+        "path": "evidence/sample.md",
         "description": "dated evidence promoted into repository truth",
     }
 
@@ -676,7 +676,7 @@ def _trust_envelope_contract_sample() -> dict[str, Any]:
             "scope": "repository lifecycle governance",
         },
         "evidence": {
-            "dated": "docs/evidence/sample.md",
+            "dated": "evidence/sample.md",
             "digest_trusted": True,
             "commands": ["ethos prove --execute --json"],
         },

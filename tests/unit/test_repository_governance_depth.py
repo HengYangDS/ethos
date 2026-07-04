@@ -76,7 +76,7 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
     ):
-        write(tmp_path / "schemas" / "ethos" / schema, "{}\n")
+        write(tmp_path / "system" / "schemas" / "kernel" / schema, "{}\n")
 
     for path in (
         "CHANGELOG.md",

@@ -51,7 +51,7 @@ def test_command_examples_do_not_leak_retired_roots() -> None:
 
 
 def test_command_examples_treat_evidence_as_observational(tmp_path: Path) -> None:
-    (tmp_path / "docs" / "evidence").mkdir(parents=True)
+    (tmp_path / "evidence").mkdir(parents=True)
     (tmp_path / "README.md").write_text(
         """# Example
 
@@ -61,7 +61,7 @@ ethos status
 """,
         encoding="utf-8",
     )
-    (tmp_path / "docs" / "evidence" / "run.md").write_text(
+    (tmp_path / "evidence" / "run.md").write_text(
         """# Evidence
 
 ```bash
@@ -80,7 +80,7 @@ TERM=xterm-256color codex doctor --json
     assert {
         example["command"]
         for example in report["examples"]
-        if example["path"] == "docs/evidence/run.md"
+        if example["path"] == "evidence/run.md"
     } == {
         "openspec validate --all --strict --json",
         "codex --version",
@@ -148,7 +148,7 @@ def test_command_examples_join_shell_continuation_lines_before_classification(
 
 ```bash
 uv run --package ethos ethos lane prewrite \\
-  docs/evidence/example.md \\
+  evidence/example.md \\
   packages/ethos/src/ethos/cli.py \\
   --require-editor-root \\
   --editor-root /tmp/ethos-work \\
@@ -165,7 +165,7 @@ uv run --package ethos ethos lane prewrite \\
     assert [example["command"] for example in report["examples"]] == [
         (
             "uv run --package ethos ethos lane prewrite "
-            "docs/evidence/example.md "
+            "evidence/example.md "
             "packages/ethos/src/ethos/cli.py "
             "--require-editor-root "
             "--editor-root /tmp/ethos-work "

@@ -41,7 +41,7 @@ def _list_field_gaps(node: dict[str, Any], entry_id: str) -> list[str]:
 
 
 def _is_evidence_ref(relative: str) -> bool:
-    return relative.startswith(("docs/evidence/", "claims/"))
+    return relative.startswith(("evidence/", "evidence/claims/"))
 
 
 def authority_graph_report(root: Path | None = None) -> dict[str, object]:

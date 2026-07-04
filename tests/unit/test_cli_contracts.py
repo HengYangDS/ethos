@@ -2946,7 +2946,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
     evidence = json.loads(
-        Path("docs/evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
+        Path("evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
     )
     target = Path(str(evidence["target"]))
 
@@ -3003,7 +3003,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
     assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
     assert packages["shadow_parity"]["evidence_path"] == (
-        "docs/evidence/parity/alphasim-dmgr-shadow.json"
+        "evidence/parity/alphasim-dmgr-shadow.json"
     )
     assert packages["shadow_parity"]["blocking"] == bool(packages["shadow_parity"]["required_gaps"])
     assert packages["intake_projection"]["kind"] == "intake_projection"
@@ -3109,7 +3109,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
-    path = Path("docs/evidence/shadow-parity-accepted-classification-2026-07-01.md")
+    path = Path("evidence/shadow-parity-accepted-classification-2026-07-01.md")
 
     text = path.read_text(encoding="utf-8")
 

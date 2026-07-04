@@ -101,7 +101,7 @@ def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
             kind="proof",
             command=("ethos", "prove", "--json"),
             inputs=inputs,
-            outputs=("docs/evidence/latest-proof.json",),
+            outputs=("evidence/latest-proof.json",),
             policy="required",
         ),
         ActionNode(

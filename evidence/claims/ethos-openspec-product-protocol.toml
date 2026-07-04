@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS OpenSpec lifecycle review enforces proposal protocol metadata and live capability routing."
 
 [evidence]
-dated = "docs/evidence/openspec-product-protocol-2026-07-02.md"
+dated = "evidence/openspec-product-protocol-2026-07-02.md"
 sha256 = "dbd3181559774e971aa0bb14bceb145ff03b4a0634347210eda863dcf3ba71ba"
 evidence_ids = ["evidence:ethos-openspec-product-protocol"]
 binding = "digest-bound OpenSpec product protocol evidence"
@@ -39,10 +39,10 @@ kill_signal = "OpenSpec proposals can become active without live capability rout
 
 [promotion]
 targets = [
-  "claims/ethos-openspec-product-protocol.toml",
-  "docs/evidence/openspec-product-protocol-2026-07-02.md",
-  "docs/evidence/parity/generic-shadow.json",
-  "docs/evidence/parity/alphasim-dmgr-shadow.json",
+  "evidence/claims/ethos-openspec-product-protocol.toml",
+  "evidence/openspec-product-protocol-2026-07-02.md",
+  "evidence/parity/generic-shadow.json",
+  "evidence/parity/alphasim-dmgr-shadow.json",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
   "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/proposal.md",

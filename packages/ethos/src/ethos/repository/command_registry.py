@@ -63,7 +63,7 @@ RETIRED_PUBLIC_COMMAND_PREFIXES = (
     "ethos project",
     "ethos node",
 )
-DEFAULT_HISTORICAL_EXEMPT_ROOTS = ("docs/evidence", "docs/archive")
+DEFAULT_HISTORICAL_EXEMPT_ROOTS = ("evidence", "docs/archive")
 
 
 def public_commands() -> tuple[str, ...]:

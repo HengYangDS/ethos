@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS campaigns are manifest-backed orchestration records for sequential OpenSpec-backed Work Lane closeouts."
 
 [evidence]
-dated = "docs/evidence/campaign-orchestration-2026-07-02.md"
+dated = "evidence/campaign-orchestration-2026-07-02.md"
 sha256 = "2382224a2b3d61d99ad8f26c82a8c2a3e66657a8248e03abad8eff5ac0041cd0"
 evidence_ids = ["evidence:ethos-campaign-orchestration"]
 binding = "digest-bound campaign orchestration evidence"
@@ -47,10 +47,10 @@ kill_signal = "Campaign orchestration would need redesign if campaign steps beco
 
 [promotion]
 targets = [
-  "claims/ethos-campaign-orchestration.toml",
-  "docs/evidence/campaign-orchestration-2026-07-02.md",
-  "docs/evidence/parity/generic-shadow.json",
-  "docs/evidence/parity/alphasim-dmgr-shadow.json",
+  "evidence/claims/ethos-campaign-orchestration.toml",
+  "evidence/campaign-orchestration-2026-07-02.md",
+  "evidence/parity/generic-shadow.json",
+  "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/evolution-campaign.md",
   "docs/architecture/terminal-governance-product-design.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",

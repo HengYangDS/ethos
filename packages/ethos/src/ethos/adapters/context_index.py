@@ -562,7 +562,7 @@ def _is_allowed_source_rel(rel: str) -> bool:
         return True
     if rel.endswith("/README.md") and rel.startswith("packages/"):
         return True
-    if rel.startswith(("docs/", "openspec/", "claims/", "schemas/")):
+    if rel.startswith(("docs/", "openspec/", "evidence/claims/", "schemas/")):
         return True
     return rel.startswith("packages/") and Path(rel).suffix == ".py"
 
@@ -867,7 +867,7 @@ def _language_for(source: Path) -> str:
 
 
 def _kind_for(rel: str, source: Path) -> str:
-    if rel.startswith("claims/"):
+    if rel.startswith("evidence/claims/"):
         return "claim"
     if rel.startswith("openspec/"):
         return "openspec"

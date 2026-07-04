@@ -5,7 +5,7 @@ state = "active"
 summary = "Records the ETHOS productization convergence batch across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
 
 [evidence]
-dated = "docs/evidence/productization-convergence-2026-07-01.md"
+dated = "evidence/productization-convergence-2026-07-01.md"
 sha256 = "f92e1ddb853843ee09fdb7d9d8700b6e0277879f8c4b176a99bbddc5dc976a36"
 evidence_ids = ["evidence:ethos-productization-convergence"]
 binding = "digest-bound convergence evidence binding"
@@ -50,8 +50,8 @@ kill_signal = "Productization convergence claims require external hosted publica
 
 [promotion]
 targets = [
-  "docs/evidence/productization-convergence-2026-07-01.md",
-  "claims/ethos-productization-convergence.toml",
+  "evidence/productization-convergence-2026-07-01.md",
+  "evidence/claims/ethos-productization-convergence.toml",
   "README.md",
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",

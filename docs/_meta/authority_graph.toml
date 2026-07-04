@@ -12,8 +12,8 @@ derived_from = []
 supersedes = []
 doc_refs = ["docs/governance/judgment-source.md"]
 evidence_refs = [
-  "docs/evidence/product-design-contract-2026-07-01.md",
-  "docs/evidence/productization-convergence-2026-07-01.md",
+  "evidence/product-design-contract-2026-07-01.md",
+  "evidence/productization-convergence-2026-07-01.md",
 ]
 stable_path = "docs/governance/judgment-source.md"
 
@@ -26,8 +26,8 @@ derived_from = ["ethos:judgment-source"]
 supersedes = []
 doc_refs = ["README.md"]
 evidence_refs = [
-  "docs/evidence/product-design-contract-2026-07-01.md",
-  "docs/evidence/productization-convergence-2026-07-01.md",
+  "evidence/product-design-contract-2026-07-01.md",
+  "evidence/productization-convergence-2026-07-01.md",
 ]
 stable_path = "README.md"
 
@@ -39,8 +39,8 @@ canonical_for = []
 derived_from = []
 supersedes = []
 doc_refs = []
-evidence_refs = ["docs/evidence/product-design-contract-2026-07-01.md"]
-stable_path = "docs/evidence/product-design-contract-2026-07-01.md"
+evidence_refs = ["evidence/product-design-contract-2026-07-01.md"]
+stable_path = "evidence/product-design-contract-2026-07-01.md"
 
 [[node]]
 id = "ethos:product-design-contract"
@@ -51,7 +51,7 @@ derived_from = ["ethos:judgment-source"]
 supersedes = ["ethos:legacy-nine-term-chain"]
 doc_refs = ["docs/governance/product-design-contract.md"]
 evidence_refs = [
-  "docs/evidence/product-design-contract-2026-07-01.md",
-  "docs/evidence/productization-convergence-2026-07-01.md",
+  "evidence/product-design-contract-2026-07-01.md",
+  "evidence/productization-convergence-2026-07-01.md",
 ]
 stable_path = "docs/governance/product-design-contract.md"

@@ -107,7 +107,7 @@ def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path
 def test_schema_validation_adopter_partial_schemas_do_not_replace_product_contracts(
     tmp_path,
 ) -> None:
-    schema_dir = tmp_path / "schemas" / "ethos"
+    schema_dir = tmp_path / "system" / "schemas" / "kernel"
     schema_dir.mkdir(parents=True)
     (schema_dir / "custom.schema.json").write_text(
         json.dumps({"$schema": "https://json-schema.org/draft/2020-12/schema"}),
@@ -200,7 +200,7 @@ def test_campaign_schema_accepts_lane_closeout_steps() -> None:
                     "state": "retired",
                     "accepted_head": "a" * 40,
                     "candidate_head": "a" * 40,
-                    "evidence": ["docs/evidence/campaign-orchestration-2026-07-02.md"],
+                    "evidence": ["evidence/campaign-orchestration-2026-07-02.md"],
                 },
             }
         ],
@@ -471,7 +471,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
         "state": "active",
         "boundary": {"owner": "repository", "scope": "governance"},
         "evidence": {
-            "dated": "docs/evidence/sample.md",
+            "dated": "evidence/sample.md",
             "digest_trusted": True,
         },
         "carriers": {
@@ -501,7 +501,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
         "claim_id": "sample-trust",
         "state": "active",
         "boundary": {"owner": "repository"},
-        "evidence": {"dated": "docs/evidence/sample.md"},
+        "evidence": {"dated": "evidence/sample.md"},
         "carriers": {},
         "promotion": {"targets": []},
         "required_gaps": ["sample-trust:carriers.openspec_missing"],
@@ -516,7 +516,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
 def test_promotion_target_contract_rejects_provider_paths() -> None:
     valid = {
         "kind": "evidence",
-        "path": "docs/evidence/sample.md",
+        "path": "evidence/sample.md",
         "description": "dated evidence promoted into repository truth",
     }
 

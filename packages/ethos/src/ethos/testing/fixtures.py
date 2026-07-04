@@ -28,7 +28,7 @@ def complete_governance_lifecycle() -> dict[str, object]:
         "state": "active",
         "boundary": {"owner": "ethos-repository", "scope": "repository lifecycle"},
         "evidence": {
-            "dated": "docs/evidence/sample.md",
+            "dated": "evidence/sample.md",
             "digest_trusted": True,
             "commands": ["ethos prove --full --execute --json"],
         },
@@ -40,7 +40,7 @@ def complete_governance_lifecycle() -> dict[str, object]:
                 {"kind": "source", "path": "packages/ethos/src/ethos/cli.py"},
                 {"kind": "tests", "path": "tests/unit/test_cli_contracts.py"},
                 {"kind": "openspec", "path": "openspec/specs/ethos-cli/spec.md"},
-                {"kind": "evidence", "path": "docs/evidence/sample.md"},
+                {"kind": "evidence", "path": "evidence/sample.md"},
             ],
             "ready": True,
         },
@@ -87,7 +87,7 @@ def malformed_governance_lifecycle() -> dict[str, object]:
             "state": "active",
             "boundary": {"owner": "ethos-repository", "scope": "repository lifecycle"},
             "evidence": {
-                "dated": "docs/evidence/missing.md",
+                "dated": "evidence/missing.md",
                 "digest_trusted": False,
                 "commands": ["ethos prove --json"],
             },
@@ -95,11 +95,11 @@ def malformed_governance_lifecycle() -> dict[str, object]:
             "fallback": "stop promotion",
             "kill_signal": "required lifecycle carrier missing",
             "promotion": {
-                "targets": [{"kind": "evidence", "path": "docs/evidence/missing.md"}],
+                "targets": [{"kind": "evidence", "path": "evidence/missing.md"}],
                 "ready": False,
             },
             "required_gaps": [
-                "promotion_target_missing:docs/evidence/missing.md",
+                "promotion_target_missing:evidence/missing.md",
                 "evidence.digest_untrusted",
             ],
         },
@@ -114,7 +114,7 @@ def malformed_governance_lifecycle() -> dict[str, object]:
         "proof": {"executed": False, "state": "ready"},
         "required_gaps": [
             "openspec_claim_binding_missing:sample-change",
-            "promotion_target_missing:sample-trust:docs/evidence/missing.md",
+            "promotion_target_missing:sample-trust:evidence/missing.md",
             "executed_proof_missing",
             "malformed_openspec_carrier:sample-change",
         ],

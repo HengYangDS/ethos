@@ -119,7 +119,7 @@ def test_command_registry_respects_adopter_command_surface_policy(tmp_path: Path
         """
 [policy]
 current_doc_globs = ["docs/current/*.md"]
-historical_exempt_roots = ["docs/evidence"]
+historical_exempt_roots = ["evidence"]
 """.lstrip(),
         encoding="utf-8",
     )

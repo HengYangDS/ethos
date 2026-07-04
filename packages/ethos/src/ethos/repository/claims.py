@@ -52,7 +52,7 @@ def _list_value(payload: dict[str, Any], key: str) -> list[str]:
 
 
 def _promotion_kind(path: str) -> str:
-    if path.startswith("docs/evidence/"):
+    if path.startswith("evidence/"):
         return "evidence"
     if path.startswith("docs/"):
         return "docs"
@@ -157,7 +157,7 @@ def _trust_envelope(
 
 
 def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
-    claims_dir = root / "claims"
+    claims_dir = root / "evidence" / "claims"
     gaps: list[str] = []
     advisory_gaps: list[str] = []
     claims: dict[str, dict[str, object]] = {}

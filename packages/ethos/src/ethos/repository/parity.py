@@ -146,7 +146,7 @@ def write_tracked_parity_evidence(
     adopter: str,
     evidence: dict[str, object],
 ) -> Path:
-    path = root / "docs" / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(evidence, indent=2, sort_keys=False) + "\n",
@@ -426,7 +426,7 @@ def _parity_evidence(
 ) -> dict[str, object]:
     if not adopter:
         return {}
-    path = root / "docs" / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
     if not path.exists():
         return {}
     try:

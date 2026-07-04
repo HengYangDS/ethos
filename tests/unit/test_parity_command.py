@@ -165,7 +165,7 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
 ) -> None:
     product = _init_git_repo(tmp_path / "product")
     target = _init_git_repo(tmp_path / "sample-adopter")
-    evidence_dir = product / "docs" / "evidence" / "parity"
+    evidence_dir = product / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     stale = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(stale, adopter="sample-adopter", target=target)
@@ -221,7 +221,7 @@ def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == ("docs/evidence/parity/alphasim-dmgr-shadow.json")
+    assert payload["data"]["evidence"]["path"] == ("evidence/parity/alphasim-dmgr-shadow.json")
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
 
 
@@ -231,7 +231,7 @@ def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/generic-shadow.json"
+    assert payload["data"]["evidence"]["path"] == "evidence/parity/generic-shadow.json"
 
 
 def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
@@ -279,7 +279,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
         cwd=product,
     )
 
-    evidence_path = product / "docs" / "evidence" / "parity" / "sample-adopter-shadow.json"
+    evidence_path = product / "evidence" / "parity" / "sample-adopter-shadow.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     expected_command = (
         "uv run --package ethos ethos parity shadow --adopter sample-adopter "
@@ -345,7 +345,7 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
         cwd=product,
     )
 
-    evidence_path = product / "docs" / "evidence" / "parity" / "generic-shadow.json"
+    evidence_path = product / "evidence" / "parity" / "generic-shadow.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
 
     assert payload["ok"] is True
@@ -371,7 +371,7 @@ def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:
     )
     findings: list[str] = []
 
-    for path in Path("docs/evidence/parity").glob("*-shadow.json"):
+    for path in Path("evidence/parity").glob("*-shadow.json"):
         text = path.read_text(encoding="utf-8").lower()
         for term in retired_terms:
             if term in text:
@@ -383,7 +383,7 @@ def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(_complete_parity_evidence("sample-adopter")),
@@ -404,7 +404,7 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
     assert payload["data"]["evidence"]["path"] == (
-        "docs/evidence/parity/sample-adopter-shadow.json"
+        "evidence/parity/sample-adopter-shadow.json"
     )
 
 
@@ -414,7 +414,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
     evidence = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["semantic_dimensions"] = ["branch role", "publish readiness"]
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(evidence),
@@ -435,7 +435,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
             "kind": "shadow_parity_evidence",
             "state": "matched",
             "target": target.resolve().as_posix(),
-            "evidence_path": "docs/evidence/parity/sample-adopter-shadow.json",
+            "evidence_path": "evidence/parity/sample-adopter-shadow.json",
             "comparison_count": len(SHADOW_COMMANDS),
             "commands": SHADOW_COMMANDS,
             "semantic_dimensions": evidence["semantic_dimensions"],
@@ -443,7 +443,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
             "required_gaps": [],
             "provenance": {
                 "mode": "tracked_evidence",
-                "evidence_path": "docs/evidence/parity/sample-adopter-shadow.json",
+                "evidence_path": "evidence/parity/sample-adopter-shadow.json",
                 "freshness": {
                     "ok": True,
                     "required_gaps": [],
@@ -468,7 +468,7 @@ def test_shadow_parity_report_accepts_current_commit_parent_product_head(
     evidence = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["product_head"] = "parent-product-head"
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(evidence),
@@ -498,7 +498,7 @@ def test_shadow_parity_report_accepts_current_commit_parent_target_head(
     evidence = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["target_head"] = "parent-target-head"
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(evidence),
@@ -523,7 +523,7 @@ def test_shadow_parity_report_accepts_current_commit_parent_target_head(
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     stale = _complete_parity_evidence("sample-adopter")
     stale.pop("freshness")
@@ -547,7 +547,7 @@ def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
 
 
 def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     stale = _complete_parity_evidence("sample-adopter")
     stale["freshness"]["product_head"] = "old-product-head"
@@ -593,7 +593,7 @@ def test_parity_gaps_accepts_evidence_updated_in_current_commit(tmp_path: Path) 
         capture_output=True,
     ).stdout.strip()
 
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     evidence = _complete_parity_evidence("sample-adopter")
     evidence["freshness"]["product_head"] = parent_head
@@ -671,7 +671,7 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
     evidence = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["target_head"] = "stale-target-head"
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(evidence),
@@ -712,7 +712,7 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
 def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     weak = _complete_parity_evidence("sample-adopter")
     weak["shadow"] = {"ok": True, "required_gaps": [], "comparison_count": 1}
@@ -738,7 +738,7 @@ def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
 
 
 def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path: Path) -> None:
-    evidence_dir = tmp_path / "docs" / "evidence" / "parity"
+    evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(

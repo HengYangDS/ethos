@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS quality, determinism, docs quality, and proof policy semantics are a first-class product capability."
 
 [evidence]
-dated = "docs/evidence/asset-quality-kernel-2026-07-01.md"
+dated = "evidence/asset-quality-kernel-2026-07-01.md"
 sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6"
 evidence_ids = ["evidence:ethos-asset-quality-kernel"]
 binding = "semantic quality-kernel evidence binding"
@@ -64,7 +64,7 @@ kill_signal = "Quality or proof trust semantics require adopter-private terms or
 targets = [
   ".agents/skills/activation.toml",
   ".ethos/workspace.toml",
-  "claims/ethos-asset-quality-kernel.toml",
+  "evidence/claims/ethos-asset-quality-kernel.toml",
   "distributions/npm/README.md",
   "docs/_meta/stable_paths.toml",
   "docs/architecture/action-graph.md",
@@ -81,7 +81,7 @@ targets = [
   "docs/architecture/runner-and-mutation.md",
   "docs/architecture/schema-validation.md",
   "docs/concepts/kernel-model.md",
-  "docs/evidence/asset-quality-kernel-2026-07-01.md",
+  "evidence/asset-quality-kernel-2026-07-01.md",
   "docs/governance/adapter-lifecycle.md",
   "docs/governance/capability-parity-ledger.md",
   "docs/governance/commit-signature-policy.md",

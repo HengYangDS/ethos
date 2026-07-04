@@ -83,8 +83,6 @@ from ethos_repository.schema_validation import schema_validation_report
 from ethos_repository.standards import standard_adapter_registry
 
 if TYPE_CHECKING:
-    from ethos_contracts.rules import RuleFactSnapshot
-    from ethos_core.action_graph import ActionGraph
     from ethos_core.action_graph import ActionNode
 
 # Command-group modules register their commands onto the shared *_app objects at
@@ -107,91 +105,6 @@ from ethos.surface.cli._base import lane_app
 from ethos.surface.cli._base import parity_app
 from ethos.surface.cli._base import playbooks_app
 from ethos.surface.cli._base import resolve_root as _root
-
-
-def _current_head(root: Path) -> str:
-    return _gitio.current_head(root)
-
-
-def _current_tracked_head(root: Path) -> str:
-    return _gitio.current_tracked_head(root)
-
-
-def _acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
-    return _land.acceptable_parity_product_heads(root, adopter)
-
-
-def _acceptable_parity_target_heads(
-    root: Path,
-    target: Path | None,
-    adopter: str | None,
-) -> tuple[str, ...]:
-    return _land.acceptable_parity_target_heads(root, target, adopter)
-
-
-def _rule_fact_snapshot(
-    repo: Path,
-    *,
-    phase: str,
-    head: str,
-    changed_paths: tuple[str, ...] = (),
-    mutation: bool = False,
-    authorized: bool = False,
-    actor: str = "local",
-    scope: str = "repository",
-    status_payload: dict[str, object] | None = None,
-    prewrite_report: dict[str, object] | None = None,
-    audit_payload: dict[str, object] | None = None,
-) -> RuleFactSnapshot:
-    return _plan.rule_fact_snapshot(
-        repo,
-        phase=phase,
-        head=head,
-        changed_paths=changed_paths,
-        mutation=mutation,
-        authorized=authorized,
-        actor=actor,
-        scope=scope,
-        status_payload=status_payload,
-        prewrite_report=prewrite_report,
-        audit_payload=audit_payload,
-    )
-
-
-def _rule_attestation_for_evaluation(
-    evaluation: dict[str, object],
-    *,
-    actor: str,
-    scope: str,
-) -> dict[str, object]:
-    return _plan.rule_attestation_for_evaluation(evaluation, actor=actor, scope=scope)
-
-
-def _adoption_mutation_gaps(
-    *,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    current_head: str,
-) -> tuple[str, ...]:
-    return _status.adoption_mutation_gaps(
-        apply=apply,
-        authorize=authorize,
-        expect_head=expect_head,
-        current_head=current_head,
-    )
-
-
-def _graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
-    return _plan.graph_for_paths(paths)
-
-
-def _audit_for_root(
-    root: Path, *, openspec_mode: str = "shape", current_head: str = ""
-) -> dict[str, object]:
-    return _status.audit_for_root(
-        root, openspec_mode=openspec_mode, current_head=current_head
-    )
 
 
 def _sha256_file(path: Path) -> str:
@@ -574,7 +487,7 @@ def plan(
     repo = _root(root)
     status_payload = workspace_status(repo)
     paths = tuple(status_payload["changed_paths"]) if changed else ()
-    graph = _graph_for_paths(paths)
+    graph = _plan.graph_for_paths(paths)
     matched_rules, required_gates = _matching_rule_gates(repo, paths)
     result = EthosResult(
         command="plan",
@@ -636,8 +549,8 @@ def prove(
 ) -> None:
     """Produce a local proof-readiness summary."""
     repo = _root(root)
-    current_head = _current_head(repo)
-    audit = _audit_for_root(
+    current_head = _gitio.current_head(repo)
+    audit = _status.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
     graph = gate_graph(gate, full=full)
@@ -794,7 +707,7 @@ def land(
                 expect_head=expect_head,
             ),
             root=repo,
-            current_head=_current_head(repo),
+            current_head=_gitio.current_head(repo),
         )
         audit_root = _closeout_audit_root(repo, decision)
         audit = _repository_audit_after_admission(audit_root, decision)
@@ -841,7 +754,7 @@ def land(
                     "apply": apply,
                     "authorized": authorize,
                     "expect_head": expect_head,
-                    "current_head": _current_head(repo),
+                    "current_head": _gitio.current_head(repo),
                     "decision": decision.state,
                     "closeout": True,
                 },
@@ -862,7 +775,7 @@ def land(
             expect_head=expect_head,
         ),
         root=repo,
-        current_head=_current_head(repo),
+        current_head=_gitio.current_head(repo),
     )
     audit = _repository_audit_after_admission(repo, decision)
     openspec_lifecycle = openspec_completed_active_changes_report(repo)
@@ -896,7 +809,7 @@ def land(
         ok=ok,
         state=land_state,
         required_gaps=gaps,
-        next_actions=_land_next_actions(ok=ok, gaps=gaps, current_head=_current_head(repo)),
+        next_actions=_land_next_actions(ok=ok, gaps=gaps, current_head=_gitio.current_head(repo)),
         data={
             "repository_audit": audit,
             "openspec_lifecycle": openspec_lifecycle,
@@ -906,7 +819,7 @@ def land(
                 "apply": apply,
                 "authorized": authorize,
                 "expect_head": expect_head,
-                "current_head": _current_head(repo),
+                "current_head": _gitio.current_head(repo),
                 "decision": decision.state,
             },
         },
@@ -959,7 +872,7 @@ def publish(
             expect_head=expect_head,
         ),
         root=repo,
-        current_head=_current_head(repo),
+        current_head=_gitio.current_head(repo),
     )
     audit = _repository_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
@@ -983,7 +896,7 @@ def publish(
                 "apply": apply,
                 "authorized": authorize,
                 "expect_head": expect_head,
-                "current_head": _current_head(repo),
+                "current_head": _gitio.current_head(repo),
                 "decision": decision.state,
             },
         },
@@ -1027,8 +940,8 @@ def init(
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
     target = _root(root)
-    current_head = _current_head(target)
-    mutation_gaps = _adoption_mutation_gaps(
+    current_head = _gitio.current_head(target)
+    mutation_gaps = _status.adoption_mutation_gaps(
         apply=apply,
         authorize=authorize,
         expect_head=expect_head,
@@ -1078,8 +991,8 @@ def adopt(
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
     target = _root(root)
-    current_head = _current_head(target)
-    mutation_gaps = _adoption_mutation_gaps(
+    current_head = _gitio.current_head(target)
+    mutation_gaps = _status.adoption_mutation_gaps(
         apply=apply,
         authorize=authorize,
         expect_head=expect_head,
@@ -1452,10 +1365,10 @@ def parity_gaps(
         adopter=adopter,
         root=repo,
         target=target,
-        current_target_head=_current_tracked_head(target) if target is not None else "",
-        current_product_head=_current_tracked_head(repo),
-        acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
-        acceptable_target_heads=_acceptable_parity_target_heads(repo, target, adopter),
+        current_target_head=_gitio.current_tracked_head(target) if target is not None else "",
+        current_product_head=_gitio.current_tracked_head(repo),
+        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
+        acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
     )
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
@@ -1507,10 +1420,10 @@ def parity_shadow(
             target=target,
             root=repo,
             adopter=adopter,
-            current_target_head=_current_tracked_head(target),
-            current_product_head=_current_tracked_head(repo),
-            acceptable_product_heads=_acceptable_parity_product_heads(repo, adopter),
-            acceptable_target_heads=_acceptable_parity_target_heads(repo, target, adopter),
+            current_target_head=_gitio.current_tracked_head(target),
+            current_product_head=_gitio.current_tracked_head(repo),
+            acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
+            acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
         )
     required_gaps = list(report["required_gaps"])
     evidence_path = ""
@@ -1524,8 +1437,8 @@ def parity_shadow(
                 adopter=adopter_name,
                 target=target,
                 shadow=report,
-                current_product_head=_current_tracked_head(repo),
-                current_target_head=_current_tracked_head(target),
+                current_product_head=_gitio.current_tracked_head(repo),
+                current_target_head=_gitio.current_tracked_head(target),
                 timeout_seconds=timeout_seconds,
             )
             written = write_tracked_parity_evidence(
@@ -1554,7 +1467,7 @@ def report(
 ) -> None:
     """Emit a concise scorecard."""
     repo = _root(root)
-    audit = _audit_for_root(repo, openspec_mode="shape")
+    audit = _status.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
     command_report = command_registry_report(repo)
@@ -1569,8 +1482,8 @@ def report(
     parity_ledger = parity_ledger_report()
     parity_gaps = parity_gaps_report(
         root=repo,
-        current_product_head=_current_tracked_head(repo),
-        acceptable_product_heads=_acceptable_parity_product_heads(repo, None),
+        current_product_head=_gitio.current_tracked_head(repo),
+        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, None),
     )
     context_projection = context_projection_contract()
     context_projection_score = int(
@@ -1771,7 +1684,7 @@ def _repository_audit_after_admission(repo: Path, decision: MutationDecision) ->
             "required_gaps": [],
             "root": repo.as_posix(),
         }
-    return _audit_for_root(repo, openspec_mode="shape")
+    return _status.audit_for_root(repo, openspec_mode="shape")
 
 
 

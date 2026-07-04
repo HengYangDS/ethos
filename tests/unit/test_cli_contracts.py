@@ -1879,7 +1879,7 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
             "required_gaps": ["openspec_completed_change_unarchived:sample-change"],
         }
 
-    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+    monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
     monkeypatch.setattr(
         cli,
         "openspec_completed_active_changes_report",
@@ -2116,7 +2116,6 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from ethos import cli
 
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
@@ -2146,7 +2145,7 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
             "root": root.as_posix(),
         }
 
-    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+    monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
 
     payload = run_ethos(
         "land",
@@ -2252,7 +2251,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
             "required_gaps": [],
         }
 
-    monkeypatch.setattr(cli, "_audit_for_root", fake_audit)
+    monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
     monkeypatch.setattr(
         cli,
         "openspec_completed_active_changes_report",

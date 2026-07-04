@@ -11,11 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos_adapters.openspec_native import openspec_governance_report
-from ethos_contracts.governance_context import governance_context
 from ethos_repository import repository_audit as repository_audit_module
 from ethos_repository.claims import claims_report
 from ethos_repository.docs_registry import docs_health_report
 from ethos_repository.fleet import inspect_adopter
+from ethos_repository.governance_context import governance_context
 from ethos_repository.planner import detect_repo_profile
 from ethos_repository.schema_validation import schema_validation_report
 

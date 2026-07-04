@@ -198,10 +198,14 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
                 gaps.append(f"{claim_id}:verifier_missing")
             if isinstance(evidence_ids, list) and binding and verifier:
                 claim_text = "\n".join((summary, str(binding)))
+                # change_id must reference the Change this claim binds evidence to —
+                # NOT the Subject. Piping subject into change_id collapsed the
+                # Subject->Change->Claim boundary (kernel double-representation). Use
+                # an explicit change_id, falling back to the claim's own id.
                 try:
                     EvidenceClaim(
                         id=claim_id,
-                        change_id=str(claim.get("subject", claim_id)),
+                        change_id=str(claim.get("change_id") or claim_id),
                         evidence_ids=tuple(str(item) for item in evidence_ids),
                         binding=claim_text,
                         verifier=str(verifier),

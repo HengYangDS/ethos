@@ -63,7 +63,7 @@ targets = [
   "openspec/specs/ethos-contracts/spec.md",
   "openspec/specs/ethos-repository/spec.md",
   "packages/ethos-core/src/ethos_core/models.py",
-  "packages/ethos-contracts/src/ethos_contracts/governance_context.py",
+  "packages/ethos-repository/src/ethos_repository/governance_context.py",
   "packages/ethos-repository/src/ethos_repository/docs_registry.py",
   "packages/ethos-repository/src/ethos_repository/planner.py",
   "packages/ethos-repository/src/ethos_repository/parity.py",

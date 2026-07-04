@@ -1016,43 +1016,35 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
 
     assert payload["ok"] is True
     assert payload["command"] == "audit"
-    assert payload["data"]["governance_context"] == {
-        "contract": "governed_repository",
-        "profile": "product",
-        "subject": {
-            "kind": "repository",
-            "root": str(Path.cwd()),
-        },
-        "single_kernel": True,
-        "kernel_chain": [
-            "JudgmentSource",
-            "Subject",
-            "Commitment",
-            "Change",
-            "Evidence",
-            "Claim",
-            "Chronicle",
-        ],
-        "shared_commands": [
-            "ethos status",
-            "ethos plan",
-            "ethos prove",
-            "ethos land",
-            "ethos publish",
-        ],
-        "transition_commands": [
-            "ethos status",
-            "ethos plan",
-            "ethos prove",
-            "ethos land",
-            "ethos publish",
-        ],
-        "scorecard_commands": [
-            "ethos report",
-        ],
-        "truth_boundary": "repository",
-        "profile_boundary": "profile_or_adapter",
-    }
+    context = payload["data"]["governance_context"]
+    assert context["contract"] == "governed_repository"
+    assert context["profile"] == "product"
+    assert context["single_kernel"] is True
+    assert context["kernel_chain"] == [
+        "JudgmentSource",
+        "Subject",
+        "Commitment",
+        "Change",
+        "Evidence",
+        "Claim",
+        "Chronicle",
+    ]
+    # The head-of-chain nodes are real kernel models, not an inline dict — the
+    # JudgmentSource carries the authority order and the Subject is the governed repo.
+    assert context["judgment_source"]["authority"] == "system/authority.toml"
+    assert context["judgment_source"]["policy_refs"][0] == "user_instruction"
+    assert context["subject"]["kind"] == "repository"
+    assert context["subject"]["id"] == str(Path.cwd())
+    assert context["shared_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert context["scorecard_commands"] == ["ethos report"]
+    assert context["truth_boundary"] == "repository"
+    assert context["profile_boundary"] == "profile_or_adapter"
     assert "posture" not in payload["data"]["governance_context"]
     assert payload["data"]["openspec"]["mode"] == "shape"
     assert payload["required_gaps"] == []
@@ -1752,10 +1744,14 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
     )
     assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
     assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "generic"
-    assert payload["data"]["repository_audit"]["governance_context"]["subject"] == {
-        "kind": "repository",
-        "root": str(tmp_path.resolve()),
-    }
+    assert (
+        payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"]
+        == "repository"
+    )
+    assert (
+        payload["data"]["repository_audit"]["governance_context"]["subject"]["id"]
+        == str(tmp_path.resolve())
+    )
     assert payload["data"]["repository_audit"]["governance_context"]["shared_commands"] == [
         "ethos status",
         "ethos plan",

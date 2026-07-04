@@ -403,3 +403,39 @@ def test_system_contract_schema_violation_blocks() -> None:
     )
 
     assert any("schema_violation" in g for g in gaps)
+
+
+def test_judgment_source_does_not_own_downstream_node_duties() -> None:
+    """JudgmentSource is the authority anchor — it must NOT own lifecycle, evidence,
+    or history (those belong to Change / Claim / Chronicle). Pins the head-of-chain
+    boundary so it cannot silently absorb a sibling node's duty."""
+    from dataclasses import fields
+
+    from ethos_core.models import JudgmentSource
+
+    field_names = {f.name for f in fields(JudgmentSource)}
+    forbidden = {
+        "state",
+        "lifecycle",
+        "transition",
+        "change_id",
+        "evidence_ids",
+        "verifier",
+        "chronicle",
+        "events",
+    }
+    leaked = field_names & forbidden
+    assert not leaked, f"JudgmentSource must not own downstream duties: {leaked}"
+
+
+def test_governance_context_head_is_a_real_judgment_source_with_authority() -> None:
+    """The governed-repository context must anchor on a real JudgmentSource carrying
+    the authority order (not an inline dict) — the chain's production constructor."""
+    from ethos_repository.governance_context import governance_context
+
+    context = governance_context(Path.cwd(), profile="product")
+    assert context["kernel_chain"][0] == "JudgmentSource"
+    assert context["judgment_source"]["authority"] == "system/authority.toml"
+    # The authority order is surfaced (head-of-chain hole filled).
+    assert "user_instruction" in context["judgment_source"]["policy_refs"]
+    assert context["subject"]["kind"] == "repository"

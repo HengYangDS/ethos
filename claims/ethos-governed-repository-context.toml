@@ -63,7 +63,7 @@ kill_signal = "ETHOS requires a separate private command plane or role-specific 
 [promotion]
 targets = [
   "docs/evidence/governed-repository-context-2026-07-01.md",
-  "packages/ethos-contracts/src/ethos_contracts/governance_context.py",
+  "packages/ethos-repository/src/ethos_repository/governance_context.py",
   "packages/ethos-repository/src/ethos_repository/repository_audit.py",
   "packages/ethos-repository/src/ethos_repository/planner.py",
   "packages/ethos/src/ethos/cli.py",

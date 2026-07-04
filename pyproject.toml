@@ -54,7 +54,6 @@ extend = ".config/checks/ruff/ruff.toml"
 "packages/ethos-core/src/ethos_core/contracts/rules.py" = ["C901"]
 # C901 ratchet extended when max-complexity tightened 12 -> 10: these pre-existing
 # functions exceed 10 and decompose during the surface split. New code: cap 10.
-"packages/ethos-core/src/ethos_core/models.py" = ["C901"]
 "packages/ethos/src/ethos/cli.py" = ["T201", "C901"]
 "packages/ethos/src/ethos/adapters/mutation/lanes.py" = ["C901"]
 "packages/ethos/src/ethos/adapters/mutation/core.py" = ["C901"]

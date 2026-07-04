@@ -4,11 +4,33 @@
   "type": "object",
   "title": "ETHOS Formats Contract",
   "required": [
-    "schema"
+    "schema",
+    "carriers"
   ],
   "properties": {
     "schema": {
       "type": "string"
+    },
+    "carriers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "use",
+          "not_for"
+        ],
+        "properties": {
+          "use": {
+            "type": "string",
+            "minLength": 1
+          },
+          "not_for": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   }
 }

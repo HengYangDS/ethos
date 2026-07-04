@@ -39,7 +39,7 @@ areas must remain visible until implemented, tested, documented, and proven.
 - Superpowers is an external method pack and execution aid, not repository
   truth.
 - OpenSpec must be an official-native governance workspace under openspec.
-- Repository-local .agents/skills files are thin playbook projections, while
+- Repository-local skills files are thin playbook projections, while
   generated skills must still meet official-quality assistant skills
   expectations.
 - Assistant host memory, fast mode, goals, subagents, and doctor output are host

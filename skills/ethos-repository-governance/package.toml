@@ -6,8 +6,8 @@ truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
 include = ["SKILL.md"]
 exclude = [".DS_Store"]
-required_sections = ["Required Pre-Reads", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:50713f6faa5fdd6f588a7d2d85dde11bd0282d20e2d2f6812ac52785f742a6e9"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+expected_digest = "sha256:2b7409483332af90cd48e34d723d59247f15f6a4a6451d299dff9cd2e822d475"
 
 [quality]
 placeholder_allowed = false
@@ -19,15 +19,14 @@ kind = "command_readonly"
 command = ["ethos", "status", "--json"]
 
 [[capability]]
-id = "ethos.prewrite"
-kind = "command_mutation_guarded"
-command = ["ethos", "lane", "prewrite"]
-guard = "prewrite is itself the write-admission guard; it gates tracked writes"
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed"]
 
 [[capability]]
-id = "ethos.docs"
-kind = "command_readonly"
-command = ["ethos", "quality", "docs", "--json"]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]
 
 [[capability]]
 id = "ethos.report"

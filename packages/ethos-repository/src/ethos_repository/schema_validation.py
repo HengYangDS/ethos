@@ -242,7 +242,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     )
     skill_registry = normalize_skill_activation(
         _skill_activation_contract_sample(),
-        source=".agents/skills/activation.toml",
+        source="skills/activation.toml",
     )
     skill_registry["digest"] = skill_registry_digest(skill_registry)
     instances["skill-activation-contract"] = validate_schema_instance(
@@ -266,7 +266,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
 
 def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
     instances: dict[str, dict[str, object]] = {}
-    activation_path = root / ".agents" / "skills" / "activation.toml"
+    activation_path = root / "skills" / "activation.toml"
     if not activation_path.exists():
         return instances
     try:
@@ -285,7 +285,7 @@ def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
     )
     live_registry = normalize_skill_activation(
         activation,
-        source=".agents/skills/activation.toml",
+        source="skills/activation.toml",
     )
     live_registry["digest"] = skill_registry_digest(live_registry)
     instances["live-skill-registry-contract"] = validate_schema_instance(
@@ -294,7 +294,7 @@ def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
         root=root,
     )
     package_gaps: list[str] = []
-    for manifest_path in sorted((root / ".agents" / "skills").glob("*/package.toml")):
+    for manifest_path in sorted((root / "skills").glob("*/package.toml")):
         try:
             manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
         except tomllib.TOMLDecodeError as exc:
@@ -762,13 +762,13 @@ def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
 def _skill_activation_contract_sample() -> dict[str, Any]:
     return {
         "meta": {"version": 2, "owner": "ethos"},
-        "coverage": {"required_roots": [".agents", "docs", "packages"]},
+        "coverage": {"required_roots": ["skills", "docs", "packages"]},
         "retired": {"skill_names": []},
         "skill": [
             {
                 "id": "ethos-repository-governance",
-                "path": ".agents/skills/ethos-repository-governance/SKILL.md",
-                "package_manifest": ".agents/skills/ethos-repository-governance/package.toml",
+                "path": "skills/ethos-repository-governance/SKILL.md",
+                "package_manifest": "skills/ethos-repository-governance/package.toml",
                 "subject": "repository-governance",
                 "operation": "govern",
                 "authority": "primary",

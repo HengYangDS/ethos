@@ -370,7 +370,7 @@ def projection_drift(
     expected_registry_digest = str(registry_meta.get("expected_registry_digest") or "")
     generator_digest = _sha256_file(Path(playbooks_module.__file__))
     expected_generator_digest = str(registry_meta.get("expected_generator_digest") or "")
-    activation_digest = _sha256_file(repo / ".agents" / "skills" / "activation.toml")
+    activation_digest = _sha256_file(repo / "skills" / "activation.toml")
     drift = [
         {"kind": "skill_package", "gap": gap}
         for gap in playbooks["required_gaps"]
@@ -413,7 +413,7 @@ def projection_drift(
             },
             "inputs": [
                 {
-                    "path": ".agents/skills/activation.toml",
+                    "path": "skills/activation.toml",
                     "digest": activation_digest,
                 }
             ],

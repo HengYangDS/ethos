@@ -1,59 +1,55 @@
 [meta]
-version = 1
-source_of_truth = "skills"
-projection_boundary = "host-native skill directories are projections"
+version = 2
+source_of_truth = "repository"
+expected_registry_digest = "sha256:5b9e6be3fd54a6337d641f1a7ab9ac48f1e69f5111a7c31c0c505602547d9d93"
+expected_generator_digest = "sha256:3e566c56d4850e0a6b0f562fa246108df0a757ec50a0d26b68a86f93eacd9550"
 
 [[skill]]
 id = "ethos-repository-governance"
 path = "skills/ethos-repository-governance/SKILL.md"
 package_manifest = "skills/ethos-repository-governance/package.toml"
-subjects = ["ethos", "repository-governance", "work-lane", "proof", "rules", "skills", "adoption"]
-intent_tokens = ["ethos", "governance", "proof", "work lane", "rules", "skills", "adoption", "hooks"]
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
 path_globs = [
   "AGENTS.md",
-  "README.md",
   "CONTRIBUTING.md",
-  "pyproject.toml",
-  "package.json",
-  "docs/**",
-  "rules/**",
+  "README.md",
+  ".gitlab-ci.yml",
+  ".ethos/**",
   "skills/**",
-  ".agents/skills/**",
+  "distributions/**",
+  "docs/**",
   "evolution/**",
   "openspec/**",
-  "evidence/**",
   "claims/**",
-  "schemas/**",
   "packages/**",
-  "distributions/**",
+  "schemas/**",
   "tests/**",
+  "uv.lock",
+  "pyproject.toml",
 ]
-pre_reads = [
-  "AGENTS.md",
-  "rules/README.md",
-  "rules/mutation.md",
-  "rules/hooks.md",
-  "docs/architecture/terminal-governance-product-design.md",
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
+pre_reads = ["AGENTS.md", "docs/governance/playbooks-and-skills.md"]
+during_rules = [
+  "treat skills as projections over repository truth",
+  "use ETHOS command JSON as machine evidence",
 ]
-post_checks = [
-  "ethos quality docs-registry --json",
-  "ethos quality docs --json",
-  "ethos quality command-examples --json",
-  "ethos report --json",
-]
-commands = [
-  "ethos status --json",
-  "ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json",
-  "ethos prove --json",
-  "ethos report --json",
-]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
+boundary = "workflow-package-projection"
 
 [[skill]]
 id = "ethos-change-lifecycle"
 path = "skills/ethos-change-lifecycle/SKILL.md"
 package_manifest = "skills/ethos-change-lifecycle/package.toml"
-subjects = ["ethos", "change-lifecycle", "status", "plan", "prove", "land", "publish", "evidence"]
-intent_tokens = ["status", "plan", "prove", "land", "publish", "readiness", "evidence", "change", "loop"]
+subject = "change-lifecycle"
+operation = "prove"
+authority = "primary"
+lifecycle = "active"
+subjects = ["change-lifecycle", "status", "plan", "prove", "land", "publish", "evidence"]
 path_globs = [
   "packages/**",
   "docs/**",
@@ -62,20 +58,12 @@ path_globs = [
   "evidence/**",
   "claims/**",
 ]
-pre_reads = [
-  "AGENTS.md",
-  "rules/mutation.md",
-  "system/tao.md",
+intent_tokens = ["status", "plan", "prove", "land", "publish", "readiness", "evidence", "change", "loop"]
+pre_reads = ["AGENTS.md", "rules/mutation.md", "system/tao.md"]
+during_rules = [
+  "read the decision verdict; never assume success",
+  "dry-run readiness is not executed proof",
 ]
-post_checks = [
-  "ethos status --json",
-  "ethos report --json",
-]
-commands = [
-  "ethos status --json",
-  "ethos plan --changed --json",
-  "ethos prove --execute --expect-head <head> --json",
-  "ethos land --json",
-  "ethos publish --json",
-]
-
+post_checks = ["ethos status --json", "ethos report --json"]
+commands = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"]
+boundary = "workflow-package-projection"

@@ -647,7 +647,7 @@ and privacy boundaries. It does not store unreviewed memories as truth.
 
 `skills/` is the canonical repository skill source.
 
-`.agents/skills`, `.claude/skills`, `.codex/skills`, JetBrains rules, Junie
+`skills`, `.claude/skills`, `.codex/skills`, JetBrains rules, Junie
 files, Cursor rules, and other host surfaces are projections or official native
 artifacts. They are not canonical ETHOS skill roots.
 
@@ -1097,7 +1097,7 @@ Terminal design deletes or forbids:
 | `claims/` root | Move to `evidence/claims/`. |
 | `docs/evidence/` | Move proof truth to `evidence/`; docs link or summarize. |
 | `schemas/` root | Move ETHOS schemas to `system/schemas/`. |
-| `.agents/skills` as source | Replace with `skills/` source and host projections. |
+| `skills` as source | Replace with `skills/` source and host projections. |
 | `cases/` | Do not create. OpenSpec changes are cases. |
 | `contracts/` | Do not create. Contracts live in `system/` and OpenSpec. |
 | `govern/` | Do not create. It duplicates `system/`, `rules/`, `evidence/`, `evolution/`. |

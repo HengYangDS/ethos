@@ -16,7 +16,7 @@ PLAYBOOK_MODES = ("v2-strict",)
 
 
 def _skills_root(root: Path) -> Path:
-    return root / ".agents" / "skills"
+    return root / "skills"
 
 
 def _activation_path(root: Path) -> Path:
@@ -26,11 +26,11 @@ def _activation_path(root: Path) -> Path:
 def _load_activation(root: Path) -> tuple[dict[str, Any], list[str]]:
     path = _activation_path(root)
     if not path.exists():
-        return {}, [".agents/skills/activation.toml"]
+        return {}, ["skills/activation.toml"]
     try:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError:
-        return {}, [".agents/skills/activation.toml:invalid_toml"]
+        return {}, ["skills/activation.toml:invalid_toml"]
     return payload, []
 
 
@@ -38,7 +38,7 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
     selected_mode = _mode(mode)
     skills_root = _skills_root(root)
     payload, missing = _load_activation(root)
-    registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
+    registry = normalize_skill_activation(payload, source="skills/activation.toml")
     registry["digest"] = skill_registry_digest(registry)
     records = []
     required_gaps = list(missing)
@@ -85,17 +85,17 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         )
         v2_gaps.extend(_command_capability_gaps(record, package_report))
     if skills_root.exists() and not (skills_root / "README.md").exists():
-        required_gaps.append(".agents/skills/README.md")
+        required_gaps.append("skills/README.md")
     if not skills_root.exists():
-        required_gaps.append(".agents/skills")
+        required_gaps.append("skills")
     required_gaps.extend(_dedupe(v2_gaps))
     score = _skills_v2_score(required_gaps, advisory_gaps, selected_mode)
     return {
         "ok": not required_gaps,
         "schema_version": 2,
         "mode": selected_mode,
-        "skills_root": ".agents/skills",
-        "activation_path": ".agents/skills/activation.toml",
+        "skills_root": "skills",
+        "activation_path": "skills/activation.toml",
         "skills": [skill["id"] for skill in records],
         "records": records,
         "registry": registry,

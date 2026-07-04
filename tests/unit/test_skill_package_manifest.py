@@ -58,7 +58,7 @@ command = ["ethos", "report", "--json"]
 
 
 def test_skill_package_manifest_binds_entrypoint_digest(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
@@ -79,7 +79,7 @@ def test_skill_package_manifest_binds_entrypoint_digest(tmp_path: Path) -> None:
 
 
 def test_skill_package_manifest_rejects_stale_digest(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     manifest = _write_manifest(package_dir, "sha256:" + ("0" * 64))
@@ -93,7 +93,7 @@ def test_skill_package_manifest_rejects_stale_digest(tmp_path: Path) -> None:
 def test_skill_package_manifest_reports_missing_include_without_crashing(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     (package_dir / "package.toml").write_text(
@@ -111,7 +111,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -119,7 +119,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
 
 def test_skill_package_manifest_rejects_path_escape(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     (package_dir / "package.toml").write_text(
@@ -137,7 +137,7 @@ required_sections = ["When to Use"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -152,7 +152,7 @@ def test_skill_package_manifest_rejects_escaped_manifest_path(tmp_path: Path) ->
 
 
 def test_skill_package_manifest_requires_schema_fields(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     (package_dir / "package.toml").write_text(
@@ -167,7 +167,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -179,7 +179,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 def test_skill_package_manifest_rejects_placeholder_sections_when_disallowed(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(
         """---
@@ -225,7 +225,7 @@ placeholder_allowed = false
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -233,7 +233,7 @@ placeholder_allowed = false
 
 
 def test_skill_package_manifest_validates_capability_semantics(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
@@ -262,7 +262,7 @@ command = ["ethos", "status", "--json"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -279,7 +279,7 @@ command = ["ethos", "status", "--json"]
 def test_skill_package_manifest_rejects_untrusted_readonly_capabilities(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
@@ -308,7 +308,7 @@ command = ["scripts/inspect.sh"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False
@@ -325,7 +325,7 @@ command = ["scripts/inspect.sh"]
 def test_skill_package_manifest_rejects_non_proof_internal_commands(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir = tmp_path / "skills" / "sample-skill"
     package_dir.mkdir(parents=True)
     (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
@@ -349,7 +349,7 @@ command = ["ethos", "internal", "canonize"]
 
     result = validate_skill_package_manifest(
         tmp_path,
-        ".agents/skills/sample-skill/package.toml",
+        "skills/sample-skill/package.toml",
     )
 
     assert result["ok"] is False

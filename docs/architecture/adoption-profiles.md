@@ -31,7 +31,7 @@ Profiles generate the adopter governance skeleton:
 
 ```text
 .ethos/
-.agents/skills/
+skills/
 openspec/
 docs/
 docs/evidence/

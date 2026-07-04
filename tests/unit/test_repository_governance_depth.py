@@ -99,9 +99,9 @@ def test_repository_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None
     report = repository_audit(tmp_path, openspec_mode="shape")
 
     assert report["ok"] is False
-    assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
+    assert "skills/activation.toml" in report["playbooks"]["missing"]
     assert "openspec/specs/ethos-contracts/spec.md" in report["openspec_families"]["missing"]
-    assert "adoption_scaffold_missing:.agents/skills/activation.toml" in report["required_gaps"]
+    assert "adoption_scaffold_missing:skills/activation.toml" in report["required_gaps"]
 
 
 def test_repository_audit_includes_authority_graph() -> None:
@@ -119,9 +119,9 @@ def test_repository_audit_surfaces_retired_command_mentions_as_required_gaps(
 ) -> None:
     write_minimal_repository_audit_repo(tmp_path)
     for path in (
-        ".agents/skills/README.md",
-        ".agents/skills/activation.toml",
-        ".agents/skills/ethos-repository-governance/SKILL.md",
+        "skills/README.md",
+        "skills/activation.toml",
+        "skills/ethos-repository-governance/SKILL.md",
         "openspec/specs/ethos-assistants/spec.md",
         "openspec/specs/ethos-cli/spec.md",
         "openspec/specs/ethos-contracts/spec.md",

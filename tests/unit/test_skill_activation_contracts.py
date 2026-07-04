@@ -12,7 +12,7 @@ def test_normalizes_activation_contract_without_compatibility_surface() -> None:
         "skill": [
             {
                 "id": "code-change",
-                "path": ".agents/skills/code-change/SKILL.md",
+                "path": "skills/code-change/SKILL.md",
                 "subject": "implementation",
                 "authority": "primary",
                 "subjects": ["implementation"],
@@ -27,15 +27,15 @@ def test_normalizes_activation_contract_without_compatibility_surface() -> None:
         ],
     }
 
-    registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
+    registry = normalize_skill_activation(payload, source="skills/activation.toml")
 
     assert registry["schema_version"] == 2
-    assert registry["source"] == ".agents/skills/activation.toml"
+    assert registry["source"] == "skills/activation.toml"
     record = registry["records"][0]
     assert record["id"] == "code-change"
     assert record["declared_id"] == "code-change"
     assert record["identifier_source"] == "id"
-    assert record["path"] == ".agents/skills/code-change/SKILL.md"
+    assert record["path"] == "skills/code-change/SKILL.md"
     assert record["route_subjects"] == ["implementation", "changed-scope"]
     assert record["activation"]["path_globs"] == ["src/**", "tests/**"]
     assert record["routing"]["intent_tokens"] == ["implement", "refactor"]
@@ -111,7 +111,7 @@ def test_skill_registry_digest_is_stable_and_content_addressed() -> None:
             }
         ],
     }
-    registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
+    registry = normalize_skill_activation(payload, source="skills/activation.toml")
 
     assert skill_registry_digest(registry) == skill_registry_digest(deepcopy(registry))
 

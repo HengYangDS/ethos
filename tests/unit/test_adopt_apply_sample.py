@@ -38,10 +38,10 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".ethos/rules.toml",
         ".ethos/assistants.toml",
         ".ethos/state/.gitignore",
-        ".agents/skills/README.md",
-        ".agents/skills/activation.toml",
-        ".agents/skills/ethos-repository-governance/SKILL.md",
-        ".agents/skills/ethos-repository-governance/package.toml",
+        "skills/README.md",
+        "skills/activation.toml",
+        "skills/ethos-repository-governance/SKILL.md",
+        "skills/ethos-repository-governance/package.toml",
         "AGENTS.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
@@ -76,14 +76,14 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert required <= planned
     for relative in required:
         assert (tmp_path / relative).exists(), relative
-    assert "sourceOfTruth" not in (tmp_path / ".agents/skills/activation.toml").read_text(
+    assert "sourceOfTruth" not in (tmp_path / "skills/activation.toml").read_text(
         encoding="utf-8"
     )
-    activation = (tmp_path / ".agents/skills/activation.toml").read_text(encoding="utf-8")
+    activation = (tmp_path / "skills/activation.toml").read_text(encoding="utf-8")
     package_manifest = (
-        tmp_path / ".agents/skills/ethos-repository-governance/package.toml"
+        tmp_path / "skills/ethos-repository-governance/package.toml"
     ).read_text(encoding="utf-8")
-    skill_text = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+    skill_text = (tmp_path / "skills/ethos-repository-governance/SKILL.md").read_text(
         encoding="utf-8"
     )
     assert "version = 2" in activation
@@ -91,7 +91,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert 'operation = "govern"' in activation
     assert 'authority = "primary"' in activation
     assert (
-        'package_manifest = ".agents/skills/ethos-repository-governance/package.toml"' in activation
+        'package_manifest = "skills/ethos-repository-governance/package.toml"' in activation
     )
     assert 'expected_digest = "sha256:' not in activation
     assert 'entrypoint = "SKILL.md"' in package_manifest
@@ -143,7 +143,7 @@ def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
 def test_generated_skill_loop_uses_workflow_plus_scorecard(tmp_path: Path) -> None:
     adoption_plan(tmp_path, profile="generic", apply=True)
 
-    skill = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+    skill = (tmp_path / "skills/ethos-repository-governance/SKILL.md").read_text(
         encoding="utf-8"
     )
 

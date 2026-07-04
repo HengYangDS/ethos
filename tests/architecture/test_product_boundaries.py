@@ -30,7 +30,7 @@ CURRENT_PRODUCT_SURFACES = (
     ROOT / "docs" / "reference",
     ROOT / "openspec" / "specs",
     ROOT / "claims",
-    ROOT / ".agents",
+    ROOT / "skills",
 )
 ACTIVE_OPENSPEC_CHANGES: tuple[Path, ...] = ()
 RETIRED_SELF_TERMS = (
@@ -388,7 +388,7 @@ def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
 
 
 def test_repo_local_skills_are_thin_playbook_projection() -> None:
-    skills_root = ROOT / ".agents" / "skills"
+    skills_root = ROOT / "skills"
 
     assert (skills_root / "README.md").exists()
     assert (skills_root / "activation.toml").exists()

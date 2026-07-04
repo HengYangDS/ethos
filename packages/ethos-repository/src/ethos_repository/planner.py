@@ -49,10 +49,10 @@ BASE_ADOPTION_FILES = (
     ".ethos/assistants.toml",
     ".ethos/release.toml",
     ".ethos/state/.gitignore",
-    ".agents/skills/README.md",
-    ".agents/skills/activation.toml",
-    ".agents/skills/ethos-repository-governance/SKILL.md",
-    ".agents/skills/ethos-repository-governance/package.toml",
+    "skills/README.md",
+    "skills/activation.toml",
+    "skills/ethos-repository-governance/SKILL.md",
+    "skills/ethos-repository-governance/package.toml",
     "openspec/config.yaml",
     "openspec/README.md",
     "openspec/specs/README.md",
@@ -336,8 +336,8 @@ source_of_truth = "repository"
 
 [[skill]]
 id = "ethos-repository-governance"
-path = ".agents/skills/ethos-repository-governance/SKILL.md"
-package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
+path = "skills/ethos-repository-governance/SKILL.md"
+package_manifest = "skills/ethos-repository-governance/package.toml"
 subject = "repository-governance"
 operation = "govern"
 authority = "primary"
@@ -346,7 +346,7 @@ subjects = ["repository-governance", "ethos", "repository governance", "adoption
 path_globs = [
   "AGENTS.md",
   ".ethos/**",
-  ".agents/skills/**",
+  "skills/**",
   "docs/**",
   "evolution/**",
   "openspec/**",
@@ -552,7 +552,7 @@ OpenSpec records, and the `ethos ...` command plane.
 1. Repository source code, tests, schemas, and package metadata.
 1. Canonical docs under `docs/`.
 1. Evidence under `docs/evidence/`.
-1. Repo-local skills under `.agents/skills/`.
+1. Repo-local skills under `skills/`.
 
 ## Operating Rules
 
@@ -655,10 +655,10 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "openspec/specs/capability.template.toml": _openspec_capability_template(),
         "openspec/changes/README.md": _openspec_changes_readme(),
         "openspec/changes/template.md": _openspec_change_template(),
-        ".agents/skills/README.md": _skills_readme(),
-        ".agents/skills/activation.toml": _skills_activation(package_digest),
-        ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,
-        ".agents/skills/ethos-repository-governance/package.toml": (
+        "skills/README.md": _skills_readme(),
+        "skills/activation.toml": _skills_activation(package_digest),
+        "skills/ethos-repository-governance/SKILL.md": governance_skill,
+        "skills/ethos-repository-governance/package.toml": (
             _governance_skill_package(package_digest)
         ),
         "docs/index.md": _docs_index(root),

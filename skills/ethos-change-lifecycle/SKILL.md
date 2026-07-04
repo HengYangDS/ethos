@@ -5,59 +5,45 @@ description: Use when driving an ETHOS repository change through its main loop �
 
 # ETHOS Change Lifecycle
 
-Drive a repository change through the one canonical loop. ETHOS governs whether a
-change may land or publish, based on evidence — not on assertion. This skill is the
-daily driver for that loop.
+## When to Use
 
-```text
-status -> plan -> prove -> land -> publish
-```
-
-Each step is a command that emits a JSON decision (`ok`, `state`, `required_gaps`,
-`next_actions`). Read the decision; do not assume success.
-
-## Required Pre-Reads
-
-1. `AGENTS.md` — authority order and operating kernel.
-2. `rules/mutation.md` — before any tracked write.
-3. `system/tao.md` — the value judgment layer, when a call is ambiguous.
+Use this skill when driving a repository change through the one canonical loop —
+`status -> plan -> prove -> land -> publish` — or when checking readiness, compiling
+a change plan, running proof, landing to the candidate role, or publishing. ETHOS
+governs whether a change may land or publish, based on evidence, not assertion.
 
 ## Workflow
 
-1. **status** — `ethos status --json`. Confirm the checkout role (work_lane vs
-   accepted_root) and read `required_gaps`. Never mutate an accepted root directly.
-2. **plan** — `ethos plan --changed --json`. Compile the change plan: which rules
-   match the changed paths, which gates are required, what evidence must exist.
-3. **prove** — `ethos prove --json` for readiness; `ethos prove --execute
-   --expect-head "$(git rev-parse HEAD)" --json` for an EXECUTED proof. Dry-run
-   readiness is NOT executed proof — only `--execute` produces a trust-bearing
-   proof (see the evidence boundaries below).
-4. **land** — `ethos land --json`. Lands the work lane to the candidate role; the
-   verdict gates the fast-forward. A blocked verdict refuses; read `required_gaps`.
-5. **publish** — `ethos publish --json`. Local publication readiness. Remote push
-   is a deferred, separate, human-authorized step — stop before it.
+1. Run `ethos status --json`; confirm the checkout role (work_lane vs accepted_root)
+   and read `required_gaps`. Never mutate an accepted root directly.
+2. Run `ethos plan --changed --json` to compile the change plan: which rules match
+   the changed paths, which gates are required, what evidence must exist.
+3. Run `ethos prove --json` for readiness; `ethos prove --execute --expect-head
+   "$(git rev-parse HEAD)" --json` for an EXECUTED proof. Dry-run readiness is not
+   executed proof — only `--execute` produces trust-bearing, HEAD-bound evidence.
+4. Run `ethos land --json`; the verdict gates the fast-forward to the candidate
+   role. A blocked verdict refuses (non-zero exit); read `required_gaps`.
+5. Run `ethos publish --json` for local publication readiness. Remote push is a
+   deferred, separately human-authorized step — stop before it.
 
-`ethos report --json` is the read-only scorecard across all governed checks; use it
-to see the whole picture without mutating.
+## Evidence
 
-## Evidence Boundaries (do not conflate)
+Use the `ethos ...` public command plane; the JSON is machine evidence:
 
-These are enforced in `system/evidence_boundaries.toml`. The left never implies the
-right:
+```bash
+ethos status --json
+ethos plan --changed --json
+ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+ethos land --json
+ethos report --json
+```
 
-- dry-run readiness != executed proof
-- digest-bound evidence != semantic correctness
-- local evidence != hosted verification
-- promotion != absolute correctness (only: a bounded claim was admitted)
-
-## Decision Contract
-
-Every command emits one verdict shape: `ok` + `state` + `required_gaps` +
-`next_actions`. When `ok` is false, the `required_gaps` name exactly what blocks the
-change and `next_actions` name the next command. Follow the next action; do not
-work around the gap.
+Evidence boundaries (enforced in `system/evidence_boundaries.toml`): dry-run
+readiness != executed proof; digest-bound != semantic correctness; local != hosted;
+promotion != absolute correctness (only: a bounded claim was admitted).
 
 ## Trust Boundary
 
-This skill is a procedure over repository truth. Source, tests, schemas, docs,
-OpenSpec, rules, and evidence remain higher authority than any command output.
+This skill is a workflow package projection. Repository truth — source, tests,
+schemas, OpenSpec records, claims, evidence, and ETHOS command JSON — remains the
+source of truth above any command output or skill text.

@@ -62,7 +62,7 @@ kill_signal = "Quality or proof trust semantics require adopter-private terms or
 
 [promotion]
 targets = [
-  ".agents/skills/activation.toml",
+  "skills/activation.toml",
   ".ethos/workspace.toml",
   "claims/ethos-asset-quality-kernel.toml",
   "distributions/npm/README.md",

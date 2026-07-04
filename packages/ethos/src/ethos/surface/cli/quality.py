@@ -27,8 +27,8 @@ from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.ty_gate import ty_gate_report
 from ethos_assistants.playbooks import playbooks_report
 from ethos_assistants.projections import projection_contract
-from ethos_contracts.package_ontology import package_ontology_report
-from ethos_contracts.package_ontology import workspace_package_config_report
+from ethos_core.contracts.package_ontology import package_ontology_report
+from ethos_core.contracts.package_ontology import workspace_package_config_report
 from ethos_core.quality.docs_profile import docs_quality_profile
 from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles

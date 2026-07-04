@@ -7,7 +7,6 @@ dependencies = [
   "cyclopts>=3.20",
   "ethos-adapters",
   "ethos-assistants",
-  "ethos-contracts",
   "ethos-core",
   "ethos-repository",
 ]

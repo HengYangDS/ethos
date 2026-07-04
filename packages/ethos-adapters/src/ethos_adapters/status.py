@@ -4,11 +4,11 @@ import subprocess
 from pathlib import Path
 
 from ethos_adapters.state import active_leases
-from ethos_contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_contracts.branch_roles import ROLE_CANDIDATE
-from ethos_contracts.branch_roles import ROLE_WORK_LANE
-from ethos_contracts.branch_roles import BranchRolePolicy
-from ethos_contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
+from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch_roles import BranchRolePolicy
+from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 
 def _run_git(root: Path, *args: str) -> str:

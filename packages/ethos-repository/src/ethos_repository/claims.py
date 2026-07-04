@@ -5,7 +5,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 
 if TYPE_CHECKING:

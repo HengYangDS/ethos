@@ -12,8 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ethos_contracts.context_projection import looks_secret_like
-from ethos_contracts.context_projection import redact_secret_like
+from ethos_core.contracts.context_projection import looks_secret_like
+from ethos_core.contracts.context_projection import redact_secret_like
 
 RETRIEVAL_SCHEMA_VERSION = 1
 

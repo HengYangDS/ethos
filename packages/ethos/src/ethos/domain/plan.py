@@ -18,11 +18,11 @@ from ethos.domain.status import string_list
 from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos_adapters.status import workspace_status
 from ethos_assistants.projections import projection_contract
-from ethos_contracts.rules import RuleAttestation
-from ethos_contracts.rules import RuleFactSnapshot
-from ethos_contracts.rules import stable_digest
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode
+from ethos_core.contracts.rules import RuleAttestation
+from ethos_core.contracts.rules import RuleFactSnapshot
+from ethos_core.contracts.rules import stable_digest
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report
 

@@ -4,7 +4,6 @@ version = "0.1.0a1"
 description = "ETHOS assistant and context boundaries"
 requires-python = ">=3.12"
 dependencies = [
-  "ethos-contracts",
 ]
 
 [build-system]

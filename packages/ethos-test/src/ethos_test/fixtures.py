@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_contracts.context_projection import (
+from ethos_core.contracts.context_projection import (
     context_retrieval_smoke_queries as _context_retrieval_smoke_queries,
 )
 

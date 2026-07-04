@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos_contracts.capability_parity import capability_parity_records
+from ethos_core.contracts.capability_parity import capability_parity_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

@@ -4,7 +4,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos_adapters.status import workspace_status
-from ethos_contracts.branch_roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
 
 if TYPE_CHECKING:
     from pathlib import Path

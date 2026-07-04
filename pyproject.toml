@@ -23,7 +23,6 @@ members = [
   "packages/ethos",
   "packages/ethos-adapters",
   "packages/ethos-assistants",
-  "packages/ethos-contracts",
   "packages/ethos-core",
   "packages/ethos-repository",
   "packages/ethos-test",
@@ -32,7 +31,6 @@ members = [
 [tool.uv.sources]
 ethos-adapters = { workspace = true }
 ethos-assistants = { workspace = true }
-ethos-contracts = { workspace = true }
 ethos-core = { workspace = true }
 ethos-repository = { workspace = true }
 ethos-test = { workspace = true }
@@ -44,7 +42,6 @@ pythonpath = [
   "packages/ethos/src",
   "packages/ethos-adapters/src",
   "packages/ethos-assistants/src",
-  "packages/ethos-contracts/src",
   "packages/ethos-core/src",
   "packages/ethos-repository/src",
   "packages/ethos-test/src",
@@ -67,7 +64,7 @@ extend = ".config/checks/ruff/ruff.toml"
 # C901 cyclomatic-complexity ratchet: 9 pre-existing tangled functions frozen (not
 # permanent — they decompose during the package-split migration). New code: cap 12.
 "packages/ethos-adapters/src/ethos_adapters/lanes.py" = ["C901"]
-"packages/ethos-contracts/src/ethos_contracts/rules.py" = ["C901"]
+"packages/ethos-core/src/ethos_core/contracts/rules.py" = ["C901"]
 "packages/ethos-repository/src/ethos_repository/authority_graph.py" = ["C901"]
 "packages/ethos-repository/src/ethos_repository/claims.py" = ["C901"]
 "packages/ethos-repository/src/ethos_repository/coupling.py" = ["C901"]

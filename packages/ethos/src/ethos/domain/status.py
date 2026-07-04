@@ -3,7 +3,7 @@
 Pure reducers (string_list, adoption_mutation_gaps, status_worktree_gaps) plus the
 repository/adopter audit composition (audit_for_root and friends), which orchestrate
 lower-layer reports. Imports flow downward only (ethos_repository/ethos_adapters/
-ethos_contracts), keeping the surface→domain→... layering acyclic.
+ethos_core.contracts), keeping the surface→domain→... layering acyclic.
 """
 
 from __future__ import annotations

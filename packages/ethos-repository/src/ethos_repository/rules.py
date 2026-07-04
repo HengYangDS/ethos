@@ -6,12 +6,12 @@ from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos_contracts.rules import PolicyException
-from ethos_contracts.rules import Rule
-from ethos_contracts.rules import RuleEvalRequest
-from ethos_contracts.rules import RuleFactSnapshot
-from ethos_contracts.rules import RuleSet
-from ethos_contracts.rules import stable_digest
+from ethos_core.contracts.rules import PolicyException
+from ethos_core.contracts.rules import Rule
+from ethos_core.contracts.rules import RuleEvalRequest
+from ethos_core.contracts.rules import RuleFactSnapshot
+from ethos_core.contracts.rules import RuleSet
+from ethos_core.contracts.rules import stable_digest
 from ethos_repository.gates import gate_registry
 from ethos_repository.schema_validation import validate_schema_instance
 

@@ -67,9 +67,9 @@ from ethos_assistants.playbooks import playbooks_report
 from ethos_assistants.playbooks import route_playbook
 from ethos_assistants.projections import projection_contract
 from ethos_assistants.server import mcp_server_descriptor
-from ethos_contracts.branch_roles import load_branch_role_policy
-from ethos_contracts.context_projection import context_projection_contract
-from ethos_contracts.context_projection import context_retrieval_smoke_queries
+from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.context_projection import context_projection_contract
+from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
 from ethos_core.result import EthosResult
 from ethos_repository.claims import claims_report
 from ethos_repository.command_registry import command_registry_report

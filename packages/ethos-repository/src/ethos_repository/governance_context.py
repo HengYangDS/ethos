@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos_contracts.system_contracts import load_system_contract
+from ethos_core.contracts.system_contracts import load_system_contract
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.models import JudgmentSource
 from ethos_core.models import Subject

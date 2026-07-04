@@ -168,7 +168,7 @@ def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> 
     surfaces = (
         Path("packages/ethos/src/ethos/cli.py"),
         Path("packages/ethos-assistants/src/ethos_assistants/playbooks.py"),
-        Path("packages/ethos-contracts/src/ethos_contracts/skill_activation.py"),
+        Path("packages/ethos-contracts/src/ethos_core.contracts/skill_activation.py"),
         Path("packages/ethos-adapters/src/ethos_adapters/shadow.py"),
         Path("schemas/ethos/campaign-closeout.schema.json"),
         Path("schemas/ethos/shadow-parity.schema.json"),

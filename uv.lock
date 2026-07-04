@@ -7,7 +7,6 @@ members = [
     "ethos",
     "ethos-adapters",
     "ethos-assistants",
-    "ethos-contracts",
     "ethos-core",
     "ethos-product-monorepo",
     "ethos-repository",
@@ -91,7 +90,6 @@ dependencies = [
     { name = "cyclopts" },
     { name = "ethos-adapters" },
     { name = "ethos-assistants" },
-    { name = "ethos-contracts" },
     { name = "ethos-core" },
     { name = "ethos-repository" },
 ]
@@ -101,7 +99,6 @@ requires-dist = [
     { name = "cyclopts", specifier = ">=3.20" },
     { name = "ethos-adapters", editable = "packages/ethos-adapters" },
     { name = "ethos-assistants", editable = "packages/ethos-assistants" },
-    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
     { name = "ethos-core", editable = "packages/ethos-core" },
     { name = "ethos-repository", editable = "packages/ethos-repository" },
 ]
@@ -111,31 +108,16 @@ name = "ethos-adapters"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-adapters" }
 dependencies = [
-    { name = "ethos-contracts" },
     { name = "ethos-core" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
-    { name = "ethos-core", editable = "packages/ethos-core" },
-]
+requires-dist = [{ name = "ethos-core", editable = "packages/ethos-core" }]
 
 [[package]]
 name = "ethos-assistants"
 version = "0.1.0a1"
 source = { editable = "packages/ethos-assistants" }
-dependencies = [
-    { name = "ethos-contracts" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "ethos-contracts", editable = "packages/ethos-contracts" }]
-
-[[package]]
-name = "ethos-contracts"
-version = "0.1.0a1"
-source = { editable = "packages/ethos-contracts" }
 
 [[package]]
 name = "ethos-core"
@@ -175,7 +157,6 @@ version = "0.1.0a1"
 source = { editable = "packages/ethos-repository" }
 dependencies = [
     { name = "ethos-assistants" },
-    { name = "ethos-contracts" },
     { name = "ethos-core" },
     { name = "jsonschema" },
 ]
@@ -183,7 +164,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "ethos-assistants", editable = "packages/ethos-assistants" },
-    { name = "ethos-contracts", editable = "packages/ethos-contracts" },
     { name = "ethos-core", editable = "packages/ethos-core" },
     { name = "jsonschema", specifier = ">=4.23" },
 ]

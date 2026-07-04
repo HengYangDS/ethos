@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos_contracts.rules import PolicyException
-from ethos_contracts.rules import Rule
-from ethos_contracts.rules import RuleAttestation
-from ethos_contracts.rules import RuleEvalRequest
-from ethos_contracts.rules import RuleFactSnapshot
-from ethos_contracts.rules import RuleSet
-from ethos_contracts.rules import rule_attestation_gaps
+from ethos_core.contracts.rules import PolicyException
+from ethos_core.contracts.rules import Rule
+from ethos_core.contracts.rules import RuleAttestation
+from ethos_core.contracts.rules import RuleEvalRequest
+from ethos_core.contracts.rules import RuleFactSnapshot
+from ethos_core.contracts.rules import RuleSet
+from ethos_core.contracts.rules import rule_attestation_gaps
 from ethos_repository.rules import compile_rules
 from ethos_repository.rules import coverage_report
 from ethos_repository.rules import migrate_legacy_rules

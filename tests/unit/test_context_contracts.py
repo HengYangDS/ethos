@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ethos_contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
-from ethos_contracts.context_projection import context_projection_contract
-from ethos_contracts.context_projection import default_context_policy
+from ethos_core.contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
+from ethos_core.contracts.context_projection import context_projection_contract
+from ethos_core.contracts.context_projection import default_context_policy
 from ethos_test.fixtures import context_retrieval_smoke_queries
 
 

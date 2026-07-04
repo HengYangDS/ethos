@@ -8,9 +8,9 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
-from ethos_contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos_contracts.package_ontology import package_ontology_report
+from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
+from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_core.contracts.package_ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
@@ -119,7 +119,10 @@ def test_target_product_packages_exist_with_build_metadata() -> None:
 
 def test_semantic_target_packages_do_not_import_provider_execution() -> None:
     forbidden_by_package = {
-        "ethos-core": {"subprocess", "sqlite3", "shutil", "tomllib"},
+        # ethos-core absorbs ethos-contracts (which parses TOML system contracts), so
+        # tomllib is legitimate here — the same read-only TOML-parse the pure kernel
+        # already did in ethos_core.measure. Still no subprocess/sqlite/shell.
+        "ethos-core": {"subprocess", "sqlite3", "shutil"},
         "ethos-contracts": {"subprocess", "sqlite3", "shutil"},
         "ethos-repository": {
             "ethos_adapters",

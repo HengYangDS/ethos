@@ -14,7 +14,7 @@ from ethos_adapters.lanes import start_work_lane
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.state import active_leases
 from ethos_adapters.status import workspace_status
-from ethos_contracts.branch_roles import BranchRolePolicy
+from ethos_core.contracts.branch_roles import BranchRolePolicy
 from ethos_repository.schema_validation import validate_schema_instance
 
 if TYPE_CHECKING:

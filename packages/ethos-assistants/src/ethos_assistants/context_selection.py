@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from ethos_contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
-from ethos_contracts.context_projection import default_context_policy as _default_context_policy
+from ethos_core.contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
+from ethos_core.contracts.context_projection import (
+    default_context_policy as _default_context_policy,
+)
 
 FORBIDDEN_RESULT_FIELDS = {
     "instruction_role",

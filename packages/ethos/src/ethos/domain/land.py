@@ -66,6 +66,23 @@ def closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
     return Path(candidate_path) if candidate_path else repo
 
 
+def repository_audit_after_admission(
+    repo: Path, decision: MutationDecision
+) -> dict[str, object]:
+    """Run the shape audit after admission, or skip when the mutation was blocked."""
+    from ethos.domain.status import audit_for_root
+
+    if not decision.ok:
+        return {
+            "ok": False,
+            "state": "skipped",
+            "reason": "mutation_admission_blocked",
+            "required_gaps": [],
+            "root": repo.as_posix(),
+        }
+    return audit_for_root(repo, openspec_mode="shape")
+
+
 def local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
     """Plan the local submit-branch package (remote push deferred)."""
     return {

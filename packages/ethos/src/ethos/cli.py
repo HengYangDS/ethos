@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import os
-from contextlib import redirect_stderr
-from contextlib import redirect_stdout
-from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Annotated
 
 from cyclopts import Parameter
@@ -17,6 +12,28 @@ from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
+
+# Command-group modules register their commands onto the shared *_app objects at
+# import time; importing them here wires those groups into the CLI. Each group
+# imports only its own domain deps, so a group's heavy dependencies load only when
+# that group is imported (lazy path for the common commands).
+from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
+from ethos.surface.cli import intake as _intake_group  # noqa: F401
+from ethos.surface.cli import quality as _quality_group  # noqa: F401
+from ethos.surface.cli import rules as _rules_group  # noqa: F401
+from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
+from ethos.surface.cli._base import JsonFlag
+from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import app
+from ethos.surface.cli._base import assistants_app
+from ethos.surface.cli._base import campaign_app
+from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import hook_app
+from ethos.surface.cli._base import lane_app
+from ethos.surface.cli._base import parity_app
+from ethos.surface.cli._base import playbooks_app
+from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._gate_runner import run_inprocess_cli_gate as _run_inprocess_cli_gate
 from ethos_adapters.commit_policy import signature_policy_report
 from ethos_adapters.context_index import context_eval_report
 from ethos_adapters.context_index import purge_context_index
@@ -28,7 +45,6 @@ from ethos_adapters.lanes import bootstrap_candidate
 from ethos_adapters.lanes import refresh_work_lane_base
 from ethos_adapters.lanes import retire_landed_work_lanes
 from ethos_adapters.lanes import start_work_lane
-from ethos_adapters.mutation import MutationDecision
 from ethos_adapters.mutation import MutationRequest
 from ethos_adapters.mutation import apply_candidate_to_accepted
 from ethos_adapters.mutation import apply_land_to_candidate
@@ -41,10 +57,8 @@ from ethos_adapters.openspec_native import (
 from ethos_adapters.openspec_native import openspec_governance_report
 from ethos_adapters.prewrite import prewrite_guard
 from ethos_adapters.proof_record import record_executed_proof
-from ethos_adapters.runner import ActionRunResult
 from ethos_adapters.runner import DryRunRunner
 from ethos_adapters.runner import LocalSubprocessRunner
-from ethos_adapters.runner import classify_action_result
 from ethos_adapters.state import initialize_state
 from ethos_adapters.status import workspace_status
 from ethos_assistants.context import context_bundle
@@ -53,7 +67,6 @@ from ethos_assistants.playbooks import playbooks_report
 from ethos_assistants.playbooks import route_playbook
 from ethos_assistants.projections import projection_contract
 from ethos_assistants.server import mcp_server_descriptor
-from ethos_contracts.branch_roles import BranchRolePolicy
 from ethos_contracts.branch_roles import load_branch_role_policy
 from ethos_contracts.context_projection import context_projection_contract
 from ethos_contracts.context_projection import context_retrieval_smoke_queries
@@ -81,30 +94,6 @@ from ethos_repository.planner import adoption_scaffold_report
 from ethos_repository.planner import available_profiles
 from ethos_repository.schema_validation import schema_validation_report
 from ethos_repository.standards import standard_adapter_registry
-
-if TYPE_CHECKING:
-    from ethos_core.action_graph import ActionNode
-
-# Command-group modules register their commands onto the shared *_app objects at
-# import time; importing them here wires those groups into the CLI. Each group
-# imports only its own domain deps, so a group's heavy dependencies load only when
-# that group is imported (lazy path for the common commands).
-from ethos.surface.cli import fleet as _fleet_group  # noqa: F401
-from ethos.surface.cli import intake as _intake_group  # noqa: F401
-from ethos.surface.cli import quality as _quality_group  # noqa: F401
-from ethos.surface.cli import rules as _rules_group  # noqa: F401
-from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
-from ethos.surface.cli._base import assistants_app
-from ethos.surface.cli._base import campaign_app
-from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import hook_app
-from ethos.surface.cli._base import lane_app
-from ethos.surface.cli._base import parity_app
-from ethos.surface.cli._base import playbooks_app
-from ethos.surface.cli._base import resolve_root as _root
 
 
 def _sha256_file(path: Path) -> str:
@@ -145,15 +134,6 @@ def _command_data_validation(
     payload: dict[str, object],
 ) -> dict[str, object]:
     return _prove.command_data_validation(repo, schema_name=schema_name, payload=payload)
-
-
-def _publication_readiness(
-    *,
-    branch: str,
-    local_ok: bool,
-    policy: BranchRolePolicy,
-) -> dict[str, object]:
-    return _land.publication_readiness(branch=branch, local_ok=local_ok, policy=policy)
 
 
 def _campaign_closeout_report(
@@ -635,42 +615,6 @@ def prove(
     _emit(result, json_output, enforce=False)
 
 
-def _run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
-    if not (len(node.command) >= 4 and node.command[1:3] == ("-m", "ethos.cli")):
-        return None
-    if "--json" not in node.command:
-        return None
-    stdout = StringIO()
-    stderr = StringIO()
-    previous_cwd = Path.cwd()
-    exit_code = 0
-    try:
-        os.chdir(root)
-        with redirect_stdout(stdout), redirect_stderr(stderr):
-            try:
-                app(list(node.command[3:]), exit_on_error=False)
-            except SystemExit as exc:
-                exit_code = exc.code if isinstance(exc.code, int) else 1
-    except BaseException as exc:  # pragma: no cover - returned as runner failure.
-        exit_code = 1
-        stderr.write(f"{type(exc).__name__}: {exc}")
-    finally:
-        os.chdir(previous_cwd)
-    state, diagnostics = classify_action_result(
-        exit_code=exit_code,
-        stdout=stdout.getvalue(),
-    )
-    return ActionRunResult(
-        action_id=node.id,
-        command=node.command,
-        state=state,
-        exit_code=exit_code,
-        stdout=stdout.getvalue(),
-        stderr=stderr.getvalue(),
-        diagnostics=diagnostics,
-    )
-
-
 @app.command
 def land(
     *,
@@ -695,11 +639,11 @@ def land(
             current_head=_gitio.current_head(repo),
         )
         audit_root = _land.closeout_audit_root(repo, decision)
-        audit = _repository_audit_after_admission(audit_root, decision)
+        audit = _land.repository_audit_after_admission(audit_root, decision)
         openspec_lifecycle = openspec_completed_active_changes_report(audit_root)
         openspec_gaps = tuple(str(gap) for gap in openspec_lifecycle["required_gaps"])
         gaps = tuple(audit["required_gaps"]) + decision.gaps + openspec_gaps
-        closeout_bootstrap = _closeout_bootstrap_package(
+        closeout_bootstrap = _land.closeout_bootstrap_package(
             repo=repo,
             audit_root=audit_root,
             required_gaps=gaps,
@@ -762,7 +706,7 @@ def land(
         root=repo,
         current_head=_gitio.current_head(repo),
     )
-    audit = _repository_audit_after_admission(repo, decision)
+    audit = _land.repository_audit_after_admission(repo, decision)
     openspec_lifecycle = openspec_completed_active_changes_report(repo)
     openspec_gaps = tuple(str(gap) for gap in openspec_lifecycle["required_gaps"])
     gaps = tuple(audit["required_gaps"]) + decision.gaps + closeout_gaps + openspec_gaps
@@ -794,7 +738,9 @@ def land(
         ok=ok,
         state=land_state,
         required_gaps=gaps,
-        next_actions=_land_next_actions(ok=ok, gaps=gaps, current_head=_gitio.current_head(repo)),
+        next_actions=_land.land_next_actions(
+            ok=ok, gaps=gaps, current_head=_gitio.current_head(repo)
+        ),
         data={
             "repository_audit": audit,
             "openspec_lifecycle": openspec_lifecycle,
@@ -810,28 +756,6 @@ def land(
         },
     )
     _emit(result, json_output, enforce=apply)
-
-
-def _land_next_actions(
-    *,
-    ok: bool,
-    gaps: tuple[str, ...],
-    current_head: str,
-) -> tuple[str, ...]:
-    return _land.land_next_actions(ok=ok, gaps=gaps, current_head=current_head)
-
-
-def _closeout_bootstrap_package(
-    *,
-    repo: Path,
-    audit_root: Path,
-    required_gaps: tuple[str, ...],
-) -> dict[str, object]:
-    return _land.closeout_bootstrap_package(
-        repo=repo,
-        audit_root=audit_root,
-        required_gaps=required_gaps,
-    )
 
 
 @app.command
@@ -855,7 +779,7 @@ def publish(
         root=repo,
         current_head=_gitio.current_head(repo),
     )
-    audit = _repository_audit_after_admission(repo, decision)
+    audit = _land.repository_audit_after_admission(repo, decision)
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
     branch = workspace_status(repo)["branch"]
@@ -868,7 +792,7 @@ def publish(
         data={
             "repository_audit": audit,
             "remote_push": "not_performed",
-            "publication": _publication_readiness(
+            "publication": _land.publication_readiness(
                 branch=str(branch),
                 local_ok=ok,
                 policy=load_branch_role_policy(repo),
@@ -1654,19 +1578,6 @@ def docs(
         data={"path": path, "matches": matches},
     )
     _emit(result, json_output, enforce=False)
-
-
-def _repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
-    if not decision.ok:
-        return {
-            "ok": False,
-            "state": "skipped",
-            "reason": "mutation_admission_blocked",
-            "required_gaps": [],
-            "root": repo.as_posix(),
-        }
-    return _status.audit_for_root(repo, openspec_mode="shape")
-
 
 
 @app.command(show=False)

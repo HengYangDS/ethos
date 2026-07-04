@@ -20,20 +20,66 @@
     "required_gaps"
   ],
   "properties": {
-    "root": {"type": "string"},
-    "branch": {"type": "string"},
-    "dirty": {"type": "boolean"},
-    "changed_paths": {"type": "array", "items": {"type": "string"}},
-    "role": {"$ref": "#/$defs/role"},
-    "role_policy": {"$ref": "#/$defs/rolePolicy"},
-    "candidate": {"$ref": "#/$defs/candidate"},
-    "worktrees": {"type": "array", "items": {"$ref": "#/$defs/worktree"}},
-    "branch_bindings": {"type": "array", "items": {"$ref": "#/$defs/branchBinding"}},
-    "foreign_work_lanes": {"type": "array", "items": {"$ref": "#/$defs/foreignWorkLane"}},
-    "coordination_gaps": {"type": "array", "items": {"type": "string"}},
-    "coordination": {"$ref": "#/$defs/coordination"},
-    "closeout_support": {"$ref": "#/$defs/closeoutSupport"},
-    "required_gaps": {"type": "array", "items": {"type": "string"}}
+    "root": {
+      "type": "string"
+    },
+    "branch": {
+      "type": "string"
+    },
+    "dirty": {
+      "type": "boolean"
+    },
+    "changed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "role": {
+      "$ref": "#/$defs/role"
+    },
+    "role_policy": {
+      "$ref": "#/$defs/rolePolicy"
+    },
+    "candidate": {
+      "$ref": "#/$defs/candidate"
+    },
+    "worktrees": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/worktree"
+      }
+    },
+    "branch_bindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/branchBinding"
+      }
+    },
+    "foreign_work_lanes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/foreignWorkLane"
+      }
+    },
+    "coordination_gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "coordination": {
+      "$ref": "#/$defs/coordination"
+    },
+    "closeout_support": {
+      "$ref": "#/$defs/closeoutSupport"
+    },
+    "required_gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "additionalProperties": false,
   "$defs": {
@@ -60,24 +106,48 @@
         "semantic_order"
       ],
       "properties": {
-        "release_branch": {"type": "string"},
-        "accepted_branch": {"type": "string"},
-        "candidate_branch": {"type": "string"},
-        "work_branch_prefix": {"type": "string"},
-        "submit_branch_prefix": {"type": "string"},
+        "release_branch": {
+          "type": "string"
+        },
+        "accepted_branch": {
+          "type": "string"
+        },
+        "candidate_branch": {
+          "type": "string"
+        },
+        "work_branch_prefix": {
+          "type": "string"
+        },
+        "submit_branch_prefix": {
+          "type": "string"
+        },
         "semantic_order": {
           "type": "array",
-          "items": {"$ref": "#/$defs/rolePolicyBinding"}
+          "items": {
+            "$ref": "#/$defs/rolePolicyBinding"
+          }
         }
       },
       "additionalProperties": false
     },
     "rolePolicyBinding": {
       "type": "object",
-      "required": ["role", "kind", "config_key", "pattern"],
+      "required": [
+        "role",
+        "kind",
+        "config_key",
+        "pattern"
+      ],
       "properties": {
-        "role": {"$ref": "#/$defs/role"},
-        "kind": {"enum": ["exact_branch", "branch_prefix"]},
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "kind": {
+          "enum": [
+            "exact_branch",
+            "branch_prefix"
+          ]
+        },
         "config_key": {
           "enum": [
             "release_branch",
@@ -87,13 +157,20 @@
             "submit_branch_prefix"
           ]
         },
-        "pattern": {"type": "string"}
+        "pattern": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "worktreeBinding": {
       "type": "string",
-      "enum": ["current", "linked", "unbound", "absent"]
+      "enum": [
+        "current",
+        "linked",
+        "unbound",
+        "absent"
+      ]
     },
     "candidate": {
       "type": "object",
@@ -106,24 +183,60 @@
         "worktree_binding"
       ],
       "properties": {
-        "branch": {"type": "string"},
-        "exists": {"type": "boolean"},
-        "head": {"type": "string"},
-        "worktree_exists": {"type": "boolean"},
-        "worktree_path": {"type": "string"},
-        "worktree_binding": {"$ref": "#/$defs/worktreeBinding"}
+        "branch": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "head": {
+          "type": "string"
+        },
+        "worktree_exists": {
+          "type": "boolean"
+        },
+        "worktree_path": {
+          "type": "string"
+        },
+        "worktree_binding": {
+          "$ref": "#/$defs/worktreeBinding"
+        },
+        "behind_accepted": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Commits candidate is behind the accepted root (train-integrity signal)."
+        }
       },
       "additionalProperties": false
     },
     "worktree": {
       "type": "object",
-      "required": ["path", "head", "branch", "role", "worktree_binding"],
+      "required": [
+        "path",
+        "head",
+        "branch",
+        "role",
+        "worktree_binding"
+      ],
       "properties": {
-        "path": {"type": "string"},
-        "head": {"type": "string"},
-        "branch": {"type": "string"},
-        "role": {"$ref": "#/$defs/role"},
-        "worktree_binding": {"enum": ["current", "linked"]}
+        "path": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "worktree_binding": {
+          "enum": [
+            "current",
+            "linked"
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -139,13 +252,31 @@
         "claim_binding"
       ],
       "properties": {
-        "branch": {"type": "string"},
-        "role": {"$ref": "#/$defs/role"},
-        "head": {"type": "string"},
-        "worktree_path": {"type": "string"},
-        "worktree_binding": {"$ref": "#/$defs/worktreeBinding"},
-        "claim_id": {"type": "string"},
-        "claim_binding": {"enum": ["bound", "missing", "unbound"]}
+        "branch": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "head": {
+          "type": "string"
+        },
+        "worktree_path": {
+          "type": "string"
+        },
+        "worktree_binding": {
+          "$ref": "#/$defs/worktreeBinding"
+        },
+        "claim_id": {
+          "type": "string"
+        },
+        "claim_binding": {
+          "enum": [
+            "bound",
+            "missing",
+            "unbound"
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -163,15 +294,42 @@
         "claim_binding"
       ],
       "properties": {
-        "path": {"type": "string"},
-        "head": {"type": "string"},
-        "branch": {"type": "string"},
-        "role": {"const": "work_lane"},
-        "worktree_binding": {"enum": ["current", "linked"]},
-        "lease_owner": {"type": "string"},
-        "lease_state": {"enum": ["leased", "missing"]},
-        "claim_id": {"type": "string"},
-        "claim_binding": {"enum": ["bound", "missing"]}
+        "path": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "role": {
+          "const": "work_lane"
+        },
+        "worktree_binding": {
+          "enum": [
+            "current",
+            "linked"
+          ]
+        },
+        "lease_owner": {
+          "type": "string"
+        },
+        "lease_state": {
+          "enum": [
+            "leased",
+            "missing"
+          ]
+        },
+        "claim_id": {
+          "type": "string"
+        },
+        "claim_binding": {
+          "enum": [
+            "bound",
+            "missing"
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -189,15 +347,43 @@
         "required_gaps"
       ],
       "properties": {
-        "supported": {"type": "boolean"},
-        "branch": {"type": "string"},
-        "target_branch": {"type": "string"},
-        "target_path": {"type": "string"},
-        "operation": {"enum": ["land_to_candidate", ""]},
-        "owner": {"type": "string"},
-        "claim_id": {"type": "string"},
-        "claim_binding": {"enum": ["bound", "missing", "unbound"]},
-        "required_gaps": {"type": "array", "items": {"type": "string"}}
+        "supported": {
+          "type": "boolean"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "target_branch": {
+          "type": "string"
+        },
+        "target_path": {
+          "type": "string"
+        },
+        "operation": {
+          "enum": [
+            "land_to_candidate",
+            ""
+          ]
+        },
+        "owner": {
+          "type": "string"
+        },
+        "claim_id": {
+          "type": "string"
+        },
+        "claim_binding": {
+          "enum": [
+            "bound",
+            "missing",
+            "unbound"
+          ]
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -213,17 +399,37 @@
         "next_action"
       ],
       "properties": {
-        "kind": {"const": "work_lane_coordination"},
-        "blocking": {"const": false},
+        "kind": {
+          "const": "work_lane_coordination"
+        },
+        "blocking": {
+          "const": false
+        },
         "required_gaps": {
           "type": "array",
           "maxItems": 0,
-          "items": {"type": "string"}
+          "items": {
+            "type": "string"
+          }
         },
-        "advisory_gaps": {"type": "array", "items": {"type": "string"}},
-        "foreign_work_lane_count": {"type": "integer", "minimum": 0},
-        "missing_lease_count": {"type": "integer", "minimum": 0},
-        "next_action": {"type": "string", "minLength": 1}
+        "advisory_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "foreign_work_lane_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing_lease_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "additionalProperties": false
     }

@@ -258,6 +258,16 @@ def _candidate_status(
             break
     if head and not worktree_path:
         worktree_binding = "unbound"
+    # Candidate-train integrity: how many accepted-root commits the candidate has not
+    # yet caught up to. In a healthy train the candidate tracks accepted closely
+    # (promotions flow lane -> candidate -> accepted). A large lag means promotions
+    # bypassed the candidate train (e.g. a raw merge straight to accepted).
+    behind_accepted = 0
+    if head:
+        count = _run_git(
+            root, "rev-list", "--count", f"{policy.candidate_branch}..{policy.accepted_branch}"
+        ).strip()
+        behind_accepted = int(count) if count.isdigit() else 0
     return {
         "branch": policy.candidate_branch,
         "exists": bool(head),
@@ -265,6 +275,7 @@ def _candidate_status(
         "worktree_exists": bool(worktree_path),
         "worktree_path": worktree_path,
         "worktree_binding": worktree_binding,
+        "behind_accepted": behind_accepted,
     }
 
 

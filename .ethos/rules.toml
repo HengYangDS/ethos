@@ -115,7 +115,7 @@ reason = "docs registry; split registry/validation to reach 400"
 
 [[quality.code_size.exception]]
 path = "packages/ethos/src/ethos/adapters/status.py"
-effective_max_lines = 410
+effective_max_lines = 415
 reason = "workspace status; minor split to reach 400"
 
 [[quality.code_size.exception]]

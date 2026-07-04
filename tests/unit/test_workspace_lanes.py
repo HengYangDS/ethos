@@ -574,6 +574,7 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
         "worktree_exists": False,
         "worktree_path": "",
         "worktree_binding": "absent",
+        "behind_accepted": 0,
     }
     assert "candidate_branch_missing" in status["required_gaps"]
 
@@ -1027,3 +1028,30 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert report["state"] == "retired"
     assert not landed.exists()
     assert git(repo, "branch", "--list", "work/landed") == ""
+
+
+def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> None:
+    """Candidate-train integrity: status surfaces how far candidate/dev is behind the
+    accepted root (dev), so promotions that bypassed the lane->candidate->accepted
+    train (e.g. a raw merge straight to accepted) are visible, not silent drift."""
+    from ethos.adapters.status import workspace_status
+
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "branch", "candidate/dev")
+    for name in ("b.txt", "c.txt"):
+        (repo / name).write_text("x\n", encoding="utf-8")
+        git(repo, "add", name)
+        git(
+            repo,
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            f"add {name}",
+        )
+
+    status = workspace_status(repo)
+
+    assert status["candidate"]["behind_accepted"] == 2

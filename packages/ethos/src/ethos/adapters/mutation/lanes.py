@@ -4,12 +4,12 @@ import re
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.state import acquire_lease
-from ethos.adapters.state import active_leases
-from ethos.adapters.state import delete_lease
-from ethos.adapters.state import update_lease_payload
-from ethos.adapters.status import changed_paths
-from ethos.adapters.status import workspace_status
+from ethos.adapters.repo.status import changed_paths
+from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.store.state import acquire_lease
+from ethos.adapters.store.state import active_leases
+from ethos.adapters.store.state import delete_lease
+from ethos.adapters.store.state import update_lease_payload
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy

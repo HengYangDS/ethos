@@ -41,7 +41,7 @@ kill_signal = "A protected root can perform trust-bearing mutation without Work 
 [promotion]
 targets = [
   "evidence/work-lane-admission-2026-06-30.md",
-  "packages/ethos/src/ethos/adapters/lanes.py",
-  "packages/ethos/src/ethos/adapters/prewrite.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "openspec/specs/ethos-adapters/spec.md",
 ]

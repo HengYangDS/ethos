@@ -3,12 +3,12 @@ from __future__ import annotations
 import sqlite3
 from typing import TYPE_CHECKING
 
-from ethos.adapters.state import active_leases
-from ethos.adapters.state import append_chronicle_event
-from ethos.adapters.state import append_event
-from ethos.adapters.state import initialize_state
-from ethos.adapters.state import list_chronicle_events
-from ethos.adapters.state import list_events
+from ethos.adapters.store.state import active_leases
+from ethos.adapters.store.state import append_chronicle_event
+from ethos.adapters.store.state import append_event
+from ethos.adapters.store.state import initialize_state
+from ethos.adapters.store.state import list_chronicle_events
+from ethos.adapters.store.state import list_events
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -123,8 +123,8 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
 def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     tmp_path: Path,
 ) -> None:
-    from ethos.adapters.state import acquire_lease
-    from ethos.adapters.state import delete_lease
+    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state import delete_lease
 
     db_path = tmp_path / "state.sqlite"
     acquire_lease(db_path, subject="work/feature", owner="agent-a")

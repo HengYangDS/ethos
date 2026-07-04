@@ -15,8 +15,8 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.runner import ActionRunResult
-from ethos.adapters.runner import classify_action_result
+from ethos.adapters.gates.runner import ActionRunResult
+from ethos.adapters.gates.runner import classify_action_result
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import load_command_groups as _load_command_groups
 

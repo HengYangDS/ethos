@@ -13,10 +13,10 @@ from pathlib import Path
 
 import ethos.assistants.playbooks as playbooks_module
 import ethos.repository.audit as repository_audit_module
-from ethos.adapters import git as _gitio
-from ethos.adapters import quality_tool as _qtool
-from ethos.adapters.commit_policy import signature_policy_report
-from ethos.adapters.ty_gate import ty_gate_report
+from ethos.adapters.gates import tool as _qtool
+from ethos.adapters.gates.signature import signature_policy_report
+from ethos.adapters.gates.ty import ty_gate_report
+from ethos.adapters.repo import git as _gitio
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.domain import prove as _prove

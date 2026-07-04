@@ -106,7 +106,7 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     Land/publish now require a HEAD-keyed proof record before the merge, so tests
     exercising land mechanics seed the proof the same way the prove command does.
     """
-    from ethos.adapters.proof_record import record_executed_proof
+    from ethos.adapters.mutation.proof import record_executed_proof
 
     record_executed_proof(repo, head=head, evidence_digest="sha256:test", gate_count=1)
 

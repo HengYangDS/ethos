@@ -7,8 +7,8 @@ decorators run. Imports only what this group needs.
 
 from __future__ import annotations
 
-from ethos.adapters import git as _gitio
-from ethos.adapters.status import workspace_status
+from ethos.adapters.repo import git as _gitio
+from ethos.adapters.repo.status import workspace_status
 from ethos.domain import plan as _plan
 from ethos.repository.policy.rules import compile_rules
 from ethos.repository.policy.rules import coverage_report

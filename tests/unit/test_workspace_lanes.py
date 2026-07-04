@@ -7,13 +7,13 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.lanes import bind_work_lane_claim
-from ethos.adapters.lanes import refresh_work_lane_base
-from ethos.adapters.lanes import retire_landed_work_lanes
-from ethos.adapters.lanes import start_work_lane
-from ethos.adapters.prewrite import prewrite_guard
-from ethos.adapters.state import active_leases
-from ethos.adapters.status import workspace_status
+from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation.lanes import bind_work_lane_claim
+from ethos.adapters.mutation.lanes import refresh_work_lane_base
+from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.store.state import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 
@@ -1034,7 +1034,7 @@ def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> Non
     """Candidate-train integrity: status surfaces how far candidate/dev is behind the
     accepted root (dev), so promotions that bypassed the lane->candidate->accepted
     train (e.g. a raw merge straight to accepted) are visible, not silent drift."""
-    from ethos.adapters.status import workspace_status
+    from ethos.adapters.repo.status import workspace_status
 
     repo = init_repo(tmp_path / "repo")
     git(repo, "branch", "candidate/dev")

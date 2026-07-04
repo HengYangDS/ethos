@@ -8,13 +8,13 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters.lanes import bind_work_lane_claim
-from ethos.adapters.lanes import bootstrap_candidate
-from ethos.adapters.lanes import refresh_work_lane_base
-from ethos.adapters.lanes import retire_landed_work_lanes
-from ethos.adapters.lanes import start_work_lane
-from ethos.adapters.prewrite import prewrite_guard
-from ethos.adapters.status import workspace_status
+from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation.lanes import bind_work_lane_claim
+from ethos.adapters.mutation.lanes import bootstrap_candidate
+from ethos.adapters.mutation.lanes import refresh_work_lane_base
+from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.status import workspace_status
 from ethos.domain import prove as _prove
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption

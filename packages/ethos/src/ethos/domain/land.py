@@ -11,8 +11,8 @@ import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters import git as _gitio
-from ethos.adapters.status import workspace_status
+from ethos.adapters.repo import git as _gitio
+from ethos.adapters.repo.status import workspace_status
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
@@ -22,7 +22,7 @@ from ethos.repository.release.core import release_policy_report
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation import MutationDecision
+    from ethos.adapters.mutation.core import MutationDecision
     from ethos_core.contracts.branch_roles import BranchRolePolicy
 
 

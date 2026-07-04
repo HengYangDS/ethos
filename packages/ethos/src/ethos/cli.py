@@ -3,24 +3,24 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from ethos.adapters import git as _gitio
-from ethos.adapters import quality_tool as _qtool
-from ethos.adapters.commit_policy import signature_policy_report
-from ethos.adapters.mutation import MutationRequest
-from ethos.adapters.mutation import apply_candidate_to_accepted
-from ethos.adapters.mutation import apply_land_to_candidate
-from ethos.adapters.mutation import candidate_base_report
-from ethos.adapters.mutation import evaluate_closeout_mutation
-from ethos.adapters.mutation import evaluate_mutation
+from ethos.adapters.gates import tool as _qtool
+from ethos.adapters.gates.runner import DryRunRunner
+from ethos.adapters.gates.runner import LocalSubprocessRunner
+from ethos.adapters.gates.signature import signature_policy_report
+from ethos.adapters.mutation.core import MutationRequest
+from ethos.adapters.mutation.core import apply_candidate_to_accepted
+from ethos.adapters.mutation.core import apply_land_to_candidate
+from ethos.adapters.mutation.core import candidate_base_report
+from ethos.adapters.mutation.core import evaluate_closeout_mutation
+from ethos.adapters.mutation.core import evaluate_mutation
+from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.openspec import (
     completed_active_changes_report as openspec_completed_active_changes_report,
 )
 from ethos.adapters.openspec import openspec_governance_report
-from ethos.adapters.proof_record import record_executed_proof
-from ethos.adapters.runner import DryRunRunner
-from ethos.adapters.runner import LocalSubprocessRunner
-from ethos.adapters.state import initialize_state
-from ethos.adapters.status import workspace_status
+from ethos.adapters.repo import git as _gitio
+from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.store.state import initialize_state
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.domain import land as _land

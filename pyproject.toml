@@ -56,8 +56,8 @@ extend = ".config/checks/ruff/ruff.toml"
 # functions exceed 10 and decompose during the surface split. New code: cap 10.
 "packages/ethos-core/src/ethos_core/models.py" = ["C901"]
 "packages/ethos/src/ethos/cli.py" = ["T201", "C901"]
-"packages/ethos/src/ethos/adapters/lanes.py" = ["C901"]
-"packages/ethos/src/ethos/adapters/mutation.py" = ["C901"]
+"packages/ethos/src/ethos/adapters/mutation/lanes.py" = ["C901"]
+"packages/ethos/src/ethos/adapters/mutation/core.py" = ["C901"]
 "packages/ethos/src/ethos/adapters/openspec.py" = ["C901"]
 "packages/ethos/src/ethos/assistants/skill_packages.py" = ["C901"]
 "packages/ethos/src/ethos/repository/registry/authority.py" = ["C901"]

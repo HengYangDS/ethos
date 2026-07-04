@@ -7,8 +7,8 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters import git as _gitio
-from ethos.adapters.hook_admission import hook_admission_report
+from ethos.adapters.admission.core import hook_admission_report
+from ethos.adapters.repo import git as _gitio
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit as _emit

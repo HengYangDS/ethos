@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 
-from ethos.adapters import git as _gitio
+from ethos.adapters.repo import git as _gitio
 from ethos.domain import land as _land
 from ethos.repository.evidence.parity import build_tracked_parity_evidence
 from ethos.repository.evidence.parity import parity_gaps_report

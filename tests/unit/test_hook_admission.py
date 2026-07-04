@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.hook_admission import hook_admission_report
+from ethos.adapters.admission.core import hook_admission_report
 
 if TYPE_CHECKING:
     from pathlib import Path

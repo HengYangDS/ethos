@@ -56,7 +56,7 @@ targets = [
   ".agents/skills/activation.toml",
   ".agents/skills/activation.toml",
   "packages/ethos/src/ethos/repository/adoption/planner.py",
-  "packages/ethos/src/ethos/adapters/hook_admission.py",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
   "packages/ethos/src/ethos/repository/registry/commands.py",
   "packages/ethos/src/ethos/cli.py",
   "tests/unit/test_adopt_apply_sample.py",

@@ -108,7 +108,7 @@ targets = [
   "openspec/specs/ethos-quality/capability.toml",
   "openspec/specs/ethos-quality/spec.md",
   "packages/ethos/pyproject.toml",
-  "packages/ethos/src/ethos/adapters/runner.py",
+  "packages/ethos/src/ethos/adapters/gates/runner.py",
   "packages/ethos-core/src/ethos_core/contracts/capability_parity.py",
   "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
   "packages/ethos-core/src/ethos_core/action_graph.py",

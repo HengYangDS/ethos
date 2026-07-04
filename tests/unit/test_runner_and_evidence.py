@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.runner import DryRunRunner
-from ethos.adapters.runner import LocalSubprocessRunner
+from ethos.adapters.gates.runner import DryRunRunner
+from ethos.adapters.gates.runner import LocalSubprocessRunner
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope

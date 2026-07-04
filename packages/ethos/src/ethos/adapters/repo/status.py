@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.state import active_leases
+from ethos.adapters.store.state import active_leases
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE

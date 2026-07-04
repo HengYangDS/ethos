@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.prewrite import prewrite_guard
-from ethos.adapters.status import workspace_status
+from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.repo.status import workspace_status
 from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
 
 if TYPE_CHECKING:

@@ -12,8 +12,8 @@ from __future__ import annotations
 import fnmatch
 from typing import TYPE_CHECKING
 
-from ethos.adapters import git as _git
 from ethos.adapters.config import code_size_policy
+from ethos.adapters.repo import git as _git
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.measure import effective_code_lines
 

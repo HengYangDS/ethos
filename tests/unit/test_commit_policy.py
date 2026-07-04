@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos.adapters.commit_policy import commit_subject_ok
-from ethos.adapters.commit_policy import signature_policy_report
+from ethos.adapters.gates.signature import commit_subject_ok
+from ethos.adapters.gates.signature import signature_policy_report
 
 
 def test_conventional_commit_subjects_are_enforced() -> None:

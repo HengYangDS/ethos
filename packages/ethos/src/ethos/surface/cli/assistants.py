@@ -8,10 +8,10 @@ this group is imported).
 
 from __future__ import annotations
 
-from ethos.adapters.context_index import context_eval_report
-from ethos.adapters.context_index import purge_context_index
-from ethos.adapters.context_index import rebuild_context_index
-from ethos.adapters.context_index import search_context_index
+from ethos.adapters.store.retrieval import context_eval_report
+from ethos.adapters.store.retrieval import purge_context_index
+from ethos.adapters.store.retrieval import rebuild_context_index
+from ethos.adapters.store.retrieval import search_context_index
 from ethos.assistants.context import context_bundle
 from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.projections import projection_contract

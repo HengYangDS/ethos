@@ -91,7 +91,10 @@ fast-forwards the accepted branch from the candidate branch. The
 `closeout_bootstrap` package in `ethos land --closeout --json` records the
 accepted root, audit root, configured branches, heads, blocking gaps, and exact
 command so the handoff is product state rather than a host UI, assistant
-runtime, or shell convention.
+runtime, or shell convention. Its mode is `maintainer_break_glass_local`: a
+current ETHOS runner is allowed to execute the protected closeout with an
+explicit `--root <accepted-root>`, while remote push remains `deferred` and the
+candidate worktree is audited before accepted-root movement.
 
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"` and a

@@ -195,6 +195,11 @@ def closeout_bootstrap_package(
     )
     return {
         "kind": "closeout_bootstrap",
+        "mode": "maintainer_break_glass_local",
+        "runner_mode": "current_runner_with_explicit_accepted_root",
+        "remote_state": "deferred",
+        "remote_push": "not_performed",
+        "uses_current_runner": True,
         "state": "blocked" if required_gaps else "ready",
         "accepted_root": repo.resolve().as_posix(),
         "audit_root": audit_root.resolve().as_posix(),
@@ -205,6 +210,13 @@ def closeout_bootstrap_package(
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "command": command,
+        "required_order": [
+            "run closeout command with a current ETHOS runner",
+            "bind --root to the clean accepted_root checkout",
+            "audit the configured candidate worktree before accepted-root movement",
+            "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
+            "defer remote push until remote publication is available",
+        ],
         "next_action": "run closeout with a current ETHOS runner against accepted_root",
     }
 

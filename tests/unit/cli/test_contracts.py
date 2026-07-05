@@ -2252,6 +2252,11 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
     assert payload["ok"] is True
     assert bootstrap == {
         "kind": "closeout_bootstrap",
+        "mode": "maintainer_break_glass_local",
+        "runner_mode": "current_runner_with_explicit_accepted_root",
+        "remote_state": "deferred",
+        "remote_push": "not_performed",
+        "uses_current_runner": True,
         "state": "ready",
         "accepted_root": repo.resolve().as_posix(),
         "audit_root": candidate.resolve().as_posix(),
@@ -2265,6 +2270,13 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
             "ethos land --closeout --apply --authorize "
             f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
         ),
+        "required_order": [
+            "run closeout command with a current ETHOS runner",
+            "bind --root to the clean accepted_root checkout",
+            "audit the configured candidate worktree before accepted-root movement",
+            "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
+            "defer remote push until remote publication is available",
+        ],
         "next_action": "run closeout with a current ETHOS runner against accepted_root",
     }
 

@@ -378,6 +378,13 @@ def test_land_publication_and_parity_head_edges(
         repo=tmp_path, audit_root=tmp_path / "candidate", required_gaps=("gap",)
     )
     assert package["blocking"] is True and "--expect-head h1" in package["command"]
+    assert package["mode"] == "maintainer_break_glass_local"
+    assert package["runner_mode"] == "current_runner_with_explicit_accepted_root"
+    assert package["remote_state"] == "deferred"
+    assert package["uses_current_runner"] is True
+    assert (
+        package["required_order"][-1] == "defer remote push until remote publication is available"
+    )
 
     # Parity currency now derives from the parity-relevant tree via
     # commits_equivalent_over_paths: the boundary (last relevant-path commit) plus every

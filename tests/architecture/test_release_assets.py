@@ -51,6 +51,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     ruff = (ROOT / "ruff.toml").read_text(encoding="utf-8")
     pytest = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+    config_readme = (ROOT / ".config/README.md").read_text(encoding="utf-8")
+    tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
@@ -60,5 +62,13 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
+    assert "Separation of concerns" in config_readme
+    assert "system/tools.toml" in config_readme
+    assert 'config = "pytest.ini"' in tools
+    assert 'config = "ruff.toml + .config/checks/ruff/"' in tools
+    assert 'config = ".config/checks/import-linter/"' in tools
+    assert 'config = ".config/checks/lychee/"' in tools
+    assert 'config = ".config/boundaries/"' not in tools
+    assert 'config = ".config/docs/lychee.toml"' not in tools
     assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()
     assert (ROOT / ".config/ci/scripts/install-lychee.sh").exists()

@@ -16,96 +16,22 @@ config = "ruff.toml + .config/checks/ruff/"
 profile = "minimal"
 
 [[tool]]
-concern = "python_typing"
-tool = "ty"
-optional = "mypy"
-config = ".config/checks/ty/"
-profile = "product"
-
-[[tool]]
 concern = "tests"
 tool = "pytest"
 config = "pytest.ini"
 profile = "minimal"
 
 [[tool]]
-concern = "coverage"
-tool = "coverage.py"
-config = ".config/checks/coverage/"
+concern = "python_typing"
+tool = "ty"
+config = ".config/checks/ty/"
 profile = "product"
 
 [[tool]]
 concern = "import_boundaries"
 tool = "import-linter"
-config = ".config/boundaries/"
+config = ".config/checks/import-linter/"
 profile = "product"
-
-[[tool]]
-concern = "dependency_hygiene"
-tool = "deptry"
-config = ".config/checks/deptry/"
-profile = "product"
-
-[[tool]]
-concern = "toml"
-tool = "taplo"
-config = ".config/checks/taplo/"
-profile = "minimal"
-
-[[tool]]
-concern = "markdown_style"
-tool = "markdownlint-cli2,mdformat"
-config = ".config/checks/markdown/"
-profile = "minimal"
-
-[[tool]]
-concern = "links"
-tool = "lychee"
-config = ".config/docs/lychee.toml"
-profile = "product"
-
-[[tool]]
-concern = "prose"
-tool = "vale,codespell"
-config = ".config/checks/prose/"
-profile = "product"
-
-[[tool]]
-concern = "yaml"
-tool = "yamllint,spectral"
-config = ".config/checks/yaml/"
-profile = "ecosystem"
-
-[[tool]]
-concern = "json_schema"
-tool = "check-jsonschema,jq"
-config = "system/schemas/"
-profile = "minimal"
-
-[[tool]]
-concern = "shell"
-tool = "shellcheck,shfmt"
-config = ".config/checks/shell/"
-profile = "product"
-
-[[tool]]
-concern = "docker"
-tool = "hadolint"
-config = ".config/checks/docker/"
-profile = "distribution"
-
-[[tool]]
-concern = "sql"
-tool = "sqlfluff"
-config = ".config/checks/sqlfluff/"
-profile = "extension"
-
-[[tool]]
-concern = "secrets"
-tool = "gitleaks"
-optional = "trufflehog"
-config = ".gitleaks.toml"
-profile = "minimal"
 
 [[tool]]
 concern = "python_sast"
@@ -114,37 +40,127 @@ config = ".config/checks/bandit/"
 profile = "product"
 
 [[tool]]
+concern = "links"
+tool = "lychee"
+config = ".config/checks/lychee/"
+profile = "product"
+
+[[tool]]
+concern = "coverage"
+tool = "coverage.py"
+config = ".config/checks/coverage/"
+profile = "product"
+planned = true
+
+[[tool]]
+concern = "dependency_hygiene"
+tool = "deptry"
+config = ".config/checks/deptry/"
+profile = "product"
+planned = true
+
+[[tool]]
+concern = "toml"
+tool = "taplo"
+config = ".config/checks/taplo/"
+profile = "minimal"
+planned = true
+
+[[tool]]
+concern = "markdown_style"
+tool = "markdownlint-cli2,mdformat"
+config = ".config/checks/markdown/"
+profile = "minimal"
+planned = true
+
+[[tool]]
+concern = "prose"
+tool = "vale,codespell"
+config = ".config/checks/prose/"
+profile = "product"
+planned = true
+
+[[tool]]
+concern = "yaml"
+tool = "yamllint,spectral"
+config = ".config/checks/yaml/"
+profile = "ecosystem"
+planned = true
+
+[[tool]]
+concern = "json_schema"
+tool = "check-jsonschema,jq"
+config = "system/schemas/"
+profile = "minimal"
+planned = true
+
+[[tool]]
+concern = "shell"
+tool = "shellcheck,shfmt"
+config = ".config/checks/shell/"
+profile = "product"
+planned = true
+
+[[tool]]
+concern = "docker"
+tool = "hadolint"
+config = ".config/checks/docker/"
+profile = "distribution"
+planned = true
+
+[[tool]]
+concern = "sql"
+tool = "sqlfluff"
+config = ".config/checks/sqlfluff/"
+profile = "extension"
+planned = true
+
+[[tool]]
+concern = "secrets"
+tool = "gitleaks"
+optional = "trufflehog"
+config = ".config/checks/secrets/"
+profile = "minimal"
+planned = true
+
+[[tool]]
 concern = "python_vuln"
 tool = "pip-audit"
-config = ".config/security/"
+config = ".config/checks/security/"
 profile = "security"
+planned = true
 
 [[tool]]
 concern = "osv_vuln"
 tool = "osv-scanner"
-config = ".config/security/"
+config = ".config/checks/security/"
 profile = "security"
+planned = true
 
 [[tool]]
 concern = "sbom"
 tool = "syft"
 config = ".config/release/"
 profile = "release"
+planned = true
 
 [[tool]]
 concern = "image_package_scan"
 tool = "grype"
-config = ".config/security/"
+config = ".config/checks/security/"
 profile = "release"
+planned = true
 
 [[tool]]
 concern = "signing"
 tool = "sigstore,cosign"
 config = ".config/release/"
 profile = "release"
+planned = true
 
 [[tool]]
 concern = "attestation"
 tool = "in-toto,slsa"
 config = "evidence/attestations/"
 profile = "release"
+planned = true

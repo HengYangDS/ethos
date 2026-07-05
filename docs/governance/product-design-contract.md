@@ -201,6 +201,15 @@ ETHOS decides why a gate runs, which evidence is sufficient, whether a result is
 trusted, and whether land or publish is allowed. Tools only observe, execute, or
 translate.
 
+### Configuration boundaries
+
+Configuration follows separation of concerns, MECE, SSOT, and DRY. Package and
+workspace metadata stay in `pyproject.toml`; tool-native config belongs to the
+smallest stable owner (`pytest.ini`, `ruff.toml`, or `.config/checks/<concern>/`);
+hosted CI remains a provider projection over reusable scripts in `.config/ci/`;
+and `system/tools.toml` records why a gate exists and where its owning config
+lives. A provider file must invoke the owner instead of copying its policy.
+
 ### Proof separation
 
 Conformance, parity, golden output, migration replay, and sample repositories

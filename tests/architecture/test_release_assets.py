@@ -41,9 +41,10 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "uv run --group dev pytest tests/unit tests/architecture -q" in text
     assert ".config/ci/scripts/bootstrap-python.sh" in text
     assert ".config/ci/scripts/install-lychee.sh" in text
+    assert ".config/ci/scripts/run-import-linter.sh" in text
     assert (
         "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
-        in text
+        not in text
     )
     assert "uv run --no-project --with import-linter lint-imports" not in text
     assert "pip install uv" not in text

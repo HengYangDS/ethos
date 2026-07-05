@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/parity-adopter",
+  "target": "/Users/yheng/projects/ethos-work-concurrency-hardening-rebased",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/parity-adopter --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-concurrency-hardening-rebased --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "0098d44bb6f47c894fffb7d4235f2d1800f5c637",
-    "target_head": "0098d44bb6f47c894fffb7d4235f2d1800f5c637",
-    "command_sha256": "d084a3dadea172604c5d9ab3b9b33f335f77a7dc0a626ab7f87ef9bf544010f6"
+    "product_head": "ea78178843eef38ff3a71b2d3517d9f7f4d0e62b",
+    "target_head": "ea78178843eef38ff3a71b2d3517d9f7f4d0e62b",
+    "command_sha256": "e7584fc67181f7912001d7792fe24b8231b4500efb9124cddf557f7f071116f8"
   },
   "shadow": {
     "ok": true,

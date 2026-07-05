@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-expose-unbound-work-lane-refs",
+  "target": "/private/tmp/ethos-refresh-skill-portfolio-parity",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-expose-unbound-work-lane-refs --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-refresh-skill-portfolio-parity --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4ddd48d59505ffbfc5f070eb2cb7fc7b28d09cfa",
-    "target_head": "4ddd48d59505ffbfc5f070eb2cb7fc7b28d09cfa",
-    "command_sha256": "046560f196f45f0015dd8339c8414920db5692fcc5b0ab5ffd47b37539258c05"
+    "product_head": "e16a533947de86110cf957c59bb0862ab6f5e007",
+    "target_head": "e16a533947de86110cf957c59bb0862ab6f5e007",
+    "command_sha256": "d92e20a86e4b8b64f85a71518569815cd0feb8e9600eb1f8a8ad6a157682d24d"
   },
   "shadow": {
     "ok": true,

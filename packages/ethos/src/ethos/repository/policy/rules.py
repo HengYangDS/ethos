@@ -547,6 +547,7 @@ def rules_evaluation_report(
     scope: str = "repository",
     head: str = "untracked",
     fact_snapshot: RuleFactSnapshot | None = None,
+    today: str | None = None,
 ) -> dict[str, object]:
     compiled = compile_rules(root)
     request = RuleEvalRequest(
@@ -568,7 +569,7 @@ def rules_evaluation_report(
     snapshot_paths = tuple(str(path) for path in _fact_value(snapshot, "changed_paths", []))
     coverage = coverage_report(root, changed_paths=snapshot_paths)
     check = rules_check_report(root)
-    exceptions = policy_exceptions_report(root)
+    exceptions = policy_exceptions_report(root, today=today)
     required_gaps: list[str] = []
     waivers_applied: list[dict[str, object]] = []
     if phase not in VALID_PHASES:

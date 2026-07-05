@@ -214,3 +214,65 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     )
     assert lane["ok"] is True
     assert lane["state"] == "admitted"
+
+
+def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
+    """The proof record is tamper-evident: a hand-authored file that did not come from
+    an executed proof is rejected, so the write-admission moat cannot be minted with
+    `echo`. Only a record whose digest recomputes from its own sealed evidence body,
+    with every run proven, is accepted."""
+    import json
+
+    from ethos.adapters.mutation.core import _proof_gaps
+    from ethos.adapters.mutation.proof import executed_proof_record
+    from ethos.adapters.mutation.proof import record_executed_proof
+    from ethos.repository.evidence.core import EvidenceSet
+    from ethos.repository.evidence.core import ProofRun
+
+    head = "a" * 40
+    proof_dir = tmp_path / ".ethos" / "state" / "proof"
+    proof_dir.mkdir(parents=True)
+
+    # bare forgery — no evidence body
+    (proof_dir / f"{head}.json").write_text(
+        json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}), encoding="utf-8"
+    )
+    assert executed_proof_record(tmp_path, head) is None
+    assert "proof_not_proven" in _proof_gaps(tmp_path, head)
+
+    # forgery with a fabricated failing run + wrong digest
+    (proof_dir / f"{head}.json").write_text(
+        json.dumps(
+            {
+                "head": head,
+                "state": "proven",
+                "evidence_digest": "z",
+                "evidence": {
+                    "id": "p",
+                    "head": head,
+                    "durability": "local",
+                    "runs": [{"verdict": "failed"}],
+                    "digest": "z",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert executed_proof_record(tmp_path, head) is None
+
+    # a genuine executed proof IS accepted (round-trip)
+    run = ProofRun.from_adapter_result(
+        action_id="python-tests",
+        command=("pytest",),
+        exit_code=0,
+        stdout="",
+        stderr="",
+        adapter_state="proven",
+        evidence_class="test",
+        trust_bearing=True,
+        diagnostics=(),
+    )
+    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    record_executed_proof(tmp_path, evidence)
+    assert executed_proof_record(tmp_path, head) is not None
+    assert _proof_gaps(tmp_path, head) == []

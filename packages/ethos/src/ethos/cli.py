@@ -220,14 +220,10 @@ def prove(
     ok = bool(audit["ok"]) and runs_ok and graph.validate().ok and not proof_gaps and not head_gaps
     result_state = "proven" if ok and execute else "ready" if ok else "gapped"
     if result_state == "proven":
-        # Persist a HEAD-keyed proof record so land/publish can require executed
-        # proof at this exact HEAD (binds the verdict to the mutation barrier).
-        record_executed_proof(
-            repo,
-            head=current_head,
-            evidence_digest=str(evidence.digest),
-            gate_count=len(proof_runs),
-        )
+        # Persist a HEAD-keyed, self-authenticating proof record so land/publish can
+        # require executed proof at this exact HEAD. The full evidence body is stored
+        # so the record's digest is later recomputable — a forged record fails.
+        record_executed_proof(repo, evidence.to_dict())
     next_actions = (
         ("ethos land",)
         if result_state == "proven"

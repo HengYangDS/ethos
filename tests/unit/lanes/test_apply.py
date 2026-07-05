@@ -16,9 +16,26 @@ def seed_proof(root: Path, head: str) -> None:
 
     evaluate_mutation now requires executed proof at the current HEAD before a
     merge; tests exercising the OTHER admission gates seed the proof so the proof
-    gate is satisfied and the intended gap is isolated.
+    gate is satisfied and the intended gap is isolated. The record is
+    self-authenticating (digest recomputed on read), so this seeds a REAL evidence
+    body — proof cannot be faked, in tests or production.
     """
-    record_executed_proof(root, head=head, evidence_digest="sha256:test", gate_count=1)
+    from ethos.repository.evidence.core import EvidenceSet
+    from ethos.repository.evidence.core import ProofRun
+
+    run = ProofRun.from_adapter_result(
+        action_id="python-tests",
+        command=("pytest",),
+        exit_code=0,
+        stdout="",
+        stderr="",
+        adapter_state="proven",
+        evidence_class="test",
+        trust_bearing=True,
+        diagnostics=(),
+    )
+    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    record_executed_proof(root, evidence)
 
 
 def git(root: Path, *args: str) -> str:

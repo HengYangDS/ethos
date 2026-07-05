@@ -225,7 +225,20 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "python-size",
             "npm-pack",
         )
-    return ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2")
+    # The default proof floor is the CODE-CORRECTNESS core (tests + lint + types)
+    # alongside the governance self-checks. "proven" must mean the code actually
+    # passes — a proof over only governance self-checks certifies a HEAD whose product
+    # code is broken (the identity-capability defect). `--full` adds the wider gate set.
+    return (
+        "repository-audit",
+        "claims",
+        "docs-registry",
+        "schemas",
+        "playbooks-v2",
+        "unit-architecture",
+        "ruff",
+        "python-types",
+    )
 
 
 def gate_graph(gate_ids: tuple[str, ...] = (), *, full: bool = False) -> ActionGraph:

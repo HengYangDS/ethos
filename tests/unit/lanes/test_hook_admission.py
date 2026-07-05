@@ -321,3 +321,51 @@ def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
     record_executed_proof(tmp_path, evidence)
     assert executed_proof_record(tmp_path, head) is not None
     assert _proof_gaps(tmp_path, head) == []
+
+
+def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
+    """The candidate-train invariant is un-bypassable: advancing the accepted branch to
+    a commit that candidate has not validated is blocked, so a raw `git merge --ff-only
+    work/x dev` cannot skip candidate. A candidate-contained advance passes containment
+    (proof is still separately required)."""
+    import subprocess
+
+    from ethos.adapters.admission.core import ref_move_admission_report
+
+    def g(*a: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False)
+
+    g("init", "-b", "dev")
+    g("config", "user.name", "t")
+    g("config", "user.email", "t@e.x")
+    (tmp_path / "a").write_text("1", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "base")
+    base = g("rev-parse", "HEAD").stdout.strip()
+    g("branch", "candidate/dev")
+    g("checkout", "-b", "work/x")
+    (tmp_path / "b").write_text("2", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "work")
+    work = g("rev-parse", "HEAD").stdout.strip()
+
+    # bypass: move dev to a work commit candidate never validated -> blocked
+    blocked = ref_move_admission_report(
+        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
+    )
+    assert blocked["ok"] is False
+    assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
+
+    # a move of a non-accepted (work) ref is admitted untouched
+    lane = ref_move_admission_report(
+        root=tmp_path, ref_name="refs/heads/work/x", old_value=base, new_value=work
+    )
+    assert lane["ok"] is True
+
+    # candidate-first: once candidate contains the commit, containment passes
+    g("checkout", "candidate/dev")
+    g("merge", "--ff-only", "work/x")
+    advanced = ref_move_admission_report(
+        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
+    )
+    assert "accepted_advance_not_candidate_validated" not in advanced["required_gaps"]

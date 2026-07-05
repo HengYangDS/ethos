@@ -186,6 +186,8 @@ def _write_admission_armed_gaps(root: Path) -> list[str]:
     gaps: list[str] = []
     if not (root / ".githooks" / "pre-push").exists():
         gaps.append("write_admission_not_armed:pre-push_script_missing")
+    if not (root / ".githooks" / "reference-transaction").exists():
+        gaps.append("write_admission_not_armed:reference-transaction_script_missing")
     completed = subprocess.run(
         ["git", "config", "--get", "core.hooksPath"],
         cwd=root,

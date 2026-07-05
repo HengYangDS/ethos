@@ -141,11 +141,14 @@ def install(
     repo = resolve_root(root)
     hook_path = repo / ".githooks" / "pre-commit"
     push_hook_path = repo / ".githooks" / "pre-push"
+    ref_hook_path = repo / ".githooks" / "reference-transaction"
     gaps: list[str] = []
     if not hook_path.exists():
         gaps.append("hook_script_missing:.githooks/pre-commit")
     if not push_hook_path.exists():
         gaps.append("hook_script_missing:.githooks/pre-push")
+    if not ref_hook_path.exists():
+        gaps.append("hook_script_missing:.githooks/reference-transaction")
     wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")

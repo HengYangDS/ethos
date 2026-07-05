@@ -143,6 +143,7 @@ def test_repository_audit_flags_unarmed_write_admission(tmp_path, monkeypatch) -
     hook.parent.mkdir(parents=True)
     hook.write_text("#!/bin/sh\n", encoding="utf-8")
     (tmp_path / ".githooks" / "pre-push").write_text("#!/bin/sh\n", encoding="utf-8")
+    (tmp_path / ".githooks" / "reference-transaction").write_text("#!/bin/sh\n", encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
 
     # hooksPath unset -> flagged

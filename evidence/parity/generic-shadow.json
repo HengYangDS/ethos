@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-closeout-runner-visibility",
+  "target": "/private/tmp/ethos-closeout-proof-target",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-closeout-runner-visibility --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-closeout-proof-target --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "f9958b6603e7cfd579c38fe2aac0428312efd110",
-    "target_head": "f9958b6603e7cfd579c38fe2aac0428312efd110",
-    "command_sha256": "1d9f17bf89d771603846c05c6721321c0c9a57f0b25c2ce6cdc6005a471dc220"
+    "product_head": "2dbeed47de1deb74084d730ddb125866158015b0",
+    "target_head": "2dbeed47de1deb74084d730ddb125866158015b0",
+    "command_sha256": "2e3e3382197a0c70eb6abad1b8da0d8721f248bdddaccc016d035b4e14b3b186"
   },
   "shadow": {
     "ok": true,

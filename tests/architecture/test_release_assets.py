@@ -86,6 +86,7 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / ".config/ci/scripts/run-import-linter.sh").exists()
     assert (ROOT / ".config/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
+    assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
     assert (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").exists()
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
@@ -130,8 +131,11 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "--cov=ethos" in runner
     assert "--cov=ethos_core" in runner
     assert "--cov-fail-under=95" in runner
+    assert 'COVERAGE_FILE="${coverage_dir}/.coverage"' in runner
     assert "--cov-report=term-missing" in runner
-    assert "--cov-config=.config/checks/coverage/coverage.ini" in runner
+    assert '--cov-report="xml:${coverage_dir}/coverage.xml"' in runner
+    assert '--cov-config="${coverage_dir}/coverage.ini"' in runner
+    assert "--cov-report=xml:coverage.xml" not in runner
     assert "fail_under = 95" in coverage
     assert "branch = True" in coverage
     assert "current_hard_floor = 95" in policy

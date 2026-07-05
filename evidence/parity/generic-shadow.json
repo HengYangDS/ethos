@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-proof-carry-boundary",
+  "target": "/private/tmp/ethos-dissolve-dead-cache-table",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-proof-carry-boundary --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-dissolve-dead-cache-table --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4f72e0c59465ff30e7906e81de7898ef85dbc318",
-    "target_head": "4f72e0c59465ff30e7906e81de7898ef85dbc318",
-    "command_sha256": "445b6a87e8e3dca33042c232e8afc4a4c69bd2090857b3034134d5d5d83a2708"
+    "product_head": "48901591f37bc0d03d289e9509dc56923bef0c6e",
+    "target_head": "48901591f37bc0d03d289e9509dc56923bef0c6e",
+    "command_sha256": "d2ac83c7d4a7ca3c2cf6bda522557810c64f7b8ca3f1a87d1d77846072000d31"
   },
   "shadow": {
     "ok": true,

@@ -52,6 +52,12 @@ config = ".config/checks/coverage/coverage.ini"
 profile = "product"
 
 [[tool]]
+concern = "python_docstrings"
+tool = "ethos-docstrings"
+config = ".config/checks/docstrings/policy.toml"
+profile = "product"
+
+[[tool]]
 concern = "dependency_hygiene"
 tool = "deptry"
 config = ".config/checks/deptry/"

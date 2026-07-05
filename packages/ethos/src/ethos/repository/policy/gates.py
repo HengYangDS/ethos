@@ -152,6 +152,20 @@ def gate_registry() -> dict[str, Gate]:
             tool_adapter="ruff",
             version_source="locked-toolchain",
         ),
+        "docstrings": Gate(
+            id="docstrings",
+            kind="docs",
+            profile="product-toolchain",
+            toolchain="uv-python",
+            command=(".config/ci/scripts/run-docstring-coverage.sh",),
+            asset_classes=("python-code",),
+            dimensions=("documentation", "intent"),
+            execution_mode="inprocess",
+            evidence_class="diagnostic",
+            trust_bearing=True,
+            tool_adapter="ethos-docstrings",
+            version_source="product",
+        ),
         "build": Gate(
             id="build",
             kind="package",
@@ -204,6 +218,7 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "unit-architecture",
             "ruff",
             "python-types",
+            "docstrings",
             "build",
             "markdown-links",
             "shell-lint",
@@ -230,6 +245,7 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
         "unit-architecture",
         "ruff",
         "python-types",
+        "docstrings",
     )
 
 

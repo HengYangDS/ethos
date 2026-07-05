@@ -638,8 +638,9 @@ def test_gate_registry_has_real_default_gates() -> None:
         "v2-strict",
         "--json",
     )
-    assert {"unit-architecture", "ruff", "build", "python-types"} <= set(registry)
+    assert {"unit-architecture", "ruff", "build", "python-types", "docstrings"} <= set(registry)
     assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
+    assert registry["docstrings"].command == (".config/ci/scripts/run-docstring-coverage.sh",)
     assert registry["python-types"].execution_mode == "inprocess"
 
 
@@ -650,7 +651,7 @@ def test_gate_registry_classifies_product_toolchain_profile() -> None:
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 
-    for gate_id in ("unit-architecture", "ruff", "build", "python-types"):
+    for gate_id in ("unit-architecture", "ruff", "build", "python-types", "docstrings"):
         assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
@@ -667,6 +668,7 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     nodes = {node.id: node for node in graph.nodes}
 
     assert "build" in nodes
+    assert "docstrings" in nodes
     assert nodes["build"].depends_on == ("unit-architecture", "ruff")
     assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()

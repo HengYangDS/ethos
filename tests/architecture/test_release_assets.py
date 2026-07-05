@@ -43,6 +43,7 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert ".config/ci/scripts/bootstrap-python.sh" in text
     assert ".config/ci/scripts/install-lychee.sh" in text
     assert ".config/ci/scripts/run-import-linter.sh" in text
+    assert ".config/ci/scripts/run-docstring-coverage.sh" in text
     assert (
         "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
         not in text
@@ -85,6 +86,11 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / ".config/ci/scripts/run-import-linter.sh").exists()
     assert (ROOT / ".config/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
+    assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
+    assert (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").exists()
+    assert 'config = ".config/checks/docstrings/policy.toml"' in tools
+    assert 'tool = "ethos-docstrings"' in tools
+    assert 'concern = "python_docstrings"' in tools
 
 
 def test_ci_lychee_installer_is_architecture_aware() -> None:
@@ -100,6 +106,20 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "--max-time" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
+
+
+def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
+    runner = (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
+    policy = (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
+    tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
+
+    assert "ethos quality docstrings" in runner
+    assert "--min-coverage" not in runner
+    assert "fail_under = 95" in policy
+    assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
+    assert "skip_private = true" in policy
+    assert 'concern = "python_docstrings"' in tools
+    assert 'config = ".config/checks/docstrings/policy.toml"' in tools
 
 
 def test_python_test_gate_enforces_coverage_floor() -> None:

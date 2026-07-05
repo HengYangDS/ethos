@@ -109,3 +109,38 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
     assert emitted[2]["next_actions"] == ["ethos quality release-attestation"]
     assert emitted[3]["summary"] == {"package_count": 1}
     assert emitted[4]["summary"] == {"tag": "v1"}
+
+
+def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    report = {
+        "ok": False,
+        "state": "blocked",
+        "coverage_percent": 50.0,
+        "fail_under": 95.0,
+        "documented_count": 1,
+        "public_count": 2,
+        "missing": [
+            {
+                "path": "pkg/mod.py",
+                "qualified_name": "mod.public",
+                "kind": "function",
+                "line": 3,
+            }
+        ],
+        "required_gaps": ["docstring_coverage_below_minimum:50.00<95.00"],
+    }
+    monkeypatch.setattr(q, "docstring_coverage_report", lambda _repo: report)
+
+    q.docstrings(root=tmp_path, json_output=True)
+
+    assert emitted[0]["command"] == "quality docstrings"
+    assert emitted[0]["ok"] is False
+    assert emitted[0]["state"] == "blocked"
+    assert emitted[0]["summary"] == {
+        "coverage_percent": 50.0,
+        "documented_count": 1,
+        "public_count": 2,
+    }
+    assert emitted[0]["required_gaps"] == ["docstring_coverage_below_minimum:50.00<95.00"]
+    assert emitted[0]["data"]["missing"][0]["qualified_name"] == "mod.public"

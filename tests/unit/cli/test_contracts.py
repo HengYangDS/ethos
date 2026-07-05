@@ -390,6 +390,7 @@ def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
     assert adapters["lychee"]["asset_classes"] == ["markdown-docs"]
     assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
     assert adapters["taplo"]["asset_classes"] == ["toml-config"]
+    assert adapters["ethos-docstrings"]["asset_classes"] == ["python-code"]
 
 
 def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:
@@ -1215,6 +1216,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "coupling-audit",
         "docs",
         "docs-registry",
+        "docstrings",
         "evidence-freshness",
         "format-policy",
         "gates",

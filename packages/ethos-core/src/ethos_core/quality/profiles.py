@@ -8,7 +8,7 @@ ASSET_CLASSES = (
         class_name="python-code",
         role="runtime source and tests",
         dimensions=("format", "lint", "type", "test", "complexity", "determinism"),
-        default_adapters=("ruff", "pytest", "ty"),
+        default_adapters=("ruff", "pytest", "ty", "ethos-docstrings"),
     ),
     QualityAssetClass(
         class_name="markdown-docs",
@@ -67,6 +67,13 @@ TOOL_ADAPTERS = (
         asset_classes=("python-code",),
         dimensions=("format", "lint"),
         boundary="adapter-executes-tool-quality-owns-verdict",
+    ),
+    ToolAdapterProfile(
+        id="ethos-docstrings",
+        standard="ETHOS public-surface docstring coverage",
+        asset_classes=("python-code",),
+        dimensions=("documentation", "intent"),
+        boundary="inprocess-policy-checks-public-surface-intent",
     ),
     ToolAdapterProfile(
         id="pytest",

@@ -26,6 +26,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.docstrings import docstring_coverage_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
@@ -259,6 +260,30 @@ def yaml_quality(
         data=report,
     )
     emit(result, json_output, enforce=False)
+
+
+@quality_app.command(name="docstrings")
+def docstrings(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report public product-surface docstring coverage."""
+    repo = resolve_root(root)
+    report = docstring_coverage_report(repo)
+    result = EthosResult(
+        command="quality docstrings",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "coverage_percent": report["coverage_percent"],
+            "documented_count": report["documented_count"],
+            "public_count": report["public_count"],
+        },
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        data=report,
+    )
+    emit(result, json_output)
 
 
 @quality_app.command(name="code-size")

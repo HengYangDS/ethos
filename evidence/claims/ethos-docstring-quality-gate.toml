@@ -1,0 +1,61 @@
+[claim]
+id = "ethos-docstring-quality-gate"
+subject = "ethos:docstring-quality-gate"
+state = "active"
+summary = "ETHOS gates public Python product-surface docstring coverage through repository-owned policy, CI script, quality command, and proof gate registration."
+
+[evidence]
+dated = "evidence/docstring-quality-gate-2026-07-05.md"
+sha256 = "1f97eaaf28110d3d318cb59bebad02ec1dbe4ee36d64ecad44fc394cfe0e1c52"
+evidence_ids = ["evidence:ethos-docstring-quality-gate"]
+binding = "semantic docstring quality gate evidence binding"
+verifier = "semantic"
+tests = [
+  ".config/ci/scripts/run-docstring-coverage.sh",
+  "uv run --group dev pytest tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries -q",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/docstrings.py packages/ethos/src/ethos/surface/cli/quality.py packages/ethos/src/ethos/repository/policy/gates.py packages/ethos-core/src/ethos_core/quality/gates.py packages/ethos-core/src/ethos_core/quality/profiles.py tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/docstrings.py packages/ethos/src/ethos/surface/cli/quality.py packages/ethos/src/ethos/repository/policy/gates.py packages/ethos-core/src/ethos_core/quality/gates.py packages/ethos-core/src/ethos_core/quality/profiles.py tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py",
+  "uv run --package ethos ethos quality gates --json",
+]
+
+[scope]
+packages = ["ethos-quality", "ethos-repository"]
+tests = [
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/cli/test_quality_surface_more.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/cli/test_contracts.py",
+]
+docs = [
+  ".config/README.md",
+  "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705/specs/ethos-quality/spec.md",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Public Python product-surface docstring coverage gate"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705"
+
+fallback = "Keep Ruff and tests as the existing quality floor while public-surface docstring coverage remains advisory."
+kill_signal = "A public ETHOS command, explicit export, or package boundary can lose its intent-bearing docstring while proof and CI remain green."
+
+[promotion]
+targets = [
+  "evidence/docstring-quality-gate-2026-07-05.md",
+  ".config/checks/docstrings/policy.toml",
+  ".config/ci/scripts/run-docstring-coverage.sh",
+  "packages/ethos/src/ethos/repository/policy/docstrings.py",
+  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "packages/ethos-core/src/ethos_core/quality/gates.py",
+  "packages/ethos-core/src/ethos_core/quality/profiles.py",
+  "system/tools.toml",
+  ".gitlab-ci.yml",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/cli/test_quality_surface_more.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/cli/test_contracts.py",
+  "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705/specs/ethos-quality/spec.md",
+]

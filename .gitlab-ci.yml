@@ -40,6 +40,12 @@ ethos:architecture:
   script:
     - .config/ci/scripts/run-import-linter.sh
 
+ethos:docstrings:
+  <<: *python_setup
+  stage: quality
+  script:
+    - .config/ci/scripts/run-docstring-coverage.sh
+
 ethos:security:
   <<: *python_setup
   stage: quality

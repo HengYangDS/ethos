@@ -4,9 +4,7 @@
 
 ETHOS SHALL define quality, determinism, documentation quality, proof policy,
 and asset-governance semantics as a first-class product family.
-
 ## Requirements
-
 ### Requirement: Quality Asset Model
 
 ETHOS SHALL model repository assets across code, docs, shell, configuration,
@@ -52,3 +50,22 @@ links, anchors, and command examples.
 - **WHEN** `ethos quality docs --json` runs
 - **THEN** ETHOS reports docs quality profile checks alongside current docs
   registry health
+
+### Requirement: Python Public-Surface Docstring Gate
+
+ETHOS SHALL gate intent-bearing docstrings for public Python product surfaces
+without requiring private helper docstrings to become a parallel documentation
+store.
+
+#### Scenario: Public docstring coverage is reported
+
+- **WHEN** `ethos quality docstrings --json` runs
+- **THEN** ETHOS reports configured source paths, minimum coverage, documented
+  public-surface count, total public-surface count, and missing symbols
+- **AND** the gate fails when public-surface coverage is below the configured
+  threshold
+- **AND** the gate scope is limited to product-visible Python surfaces such as
+  CLI command functions, explicit exports, and package boundary docstrings
+- **AND** hosted CI invokes the reusable docstring coverage script instead of
+  duplicating the policy inline.
+

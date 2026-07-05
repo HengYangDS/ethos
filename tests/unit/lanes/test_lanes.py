@@ -1208,3 +1208,61 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
             ],
         }
     ]
+
+
+def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: Path) -> None:
+    from ethos.adapters.repo import status as repo_status
+
+    def fail_git(_root: Path, *args: str) -> str:
+        assert args == ("status", "--porcelain", "--untracked-files=all")
+        raise subprocess.CalledProcessError(128, ["git", *args], stderr="fatal: not a git repo")
+
+    monkeypatch.setattr(repo_status, "_run_git", fail_git)
+
+    report = repo_status.dirty_provenance(tmp_path)
+
+    assert report["dirty"] is True
+    assert report["state"] == "unavailable"
+    assert report["entries"] == []
+    assert report["summary"] == {
+        "tracked": 0,
+        "untracked": 0,
+        "deleted": 0,
+        "conflicted": 0,
+        "unavailable": 1,
+    }
+    assert "fatal: not a git repo" in str(report["error"])
+
+
+def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
+    from ethos.adapters.repo.coordination import coordination_gaps
+    from ethos.adapters.repo.coordination import coordination_state
+
+    assert (
+        coordination_state(
+            current_role="work_lane",
+            current_path_scope=("packages/ethos/src",),
+            current_scope_state="bounded",
+            foreign_path_scope=(),
+            foreign_scope_state="unknown",
+        )
+        == "unknown"
+    )
+
+    required, advisory = coordination_gaps(
+        [
+            {
+                "branch": "work/unknown",
+                "lease_state": "leased",
+                "coordination_state": "unknown",
+            }
+        ],
+        current_role="work_lane",
+        current_scope_state="unknown",
+    )
+
+    assert required == [
+        "coordination_gap:current_scope_unknown",
+        "coordination_gap:foreign_scope_unknown:work/unknown",
+    ]
+    assert advisory == ["foreign_work_lane_present"]

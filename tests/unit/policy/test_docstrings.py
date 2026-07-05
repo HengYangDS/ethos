@@ -98,3 +98,33 @@ def test_docstring_helpers_parse_module_names_and_decorators() -> None:
         "ethos.repository"
     )
     assert docstrings._module_name("packages/ethos/src/ethos/cli.py") == "ethos.cli"
+
+
+def test_docstring_coverage_handles_file_paths_and_missing_roots(tmp_path: Path) -> None:
+    _write(
+        tmp_path / ".config/checks/docstrings/policy.toml",
+        """
+paths = ["packages/sample/src/sample/api.py", "packages/sample/src/missing"]
+fail_under = 100
+exclude_roots = []
+""".strip(),
+    )
+    _write(
+        tmp_path / "packages/sample/src/sample/api.py",
+        '''
+__all__ = ["exported"]
+
+def exported():
+    """Documented export."""
+''',
+    )
+
+    report = docstring_coverage_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["public_count"] == 1
+    assert report["documented_count"] == 1
+    assert report["paths"] == [
+        "packages/sample/src/sample/api.py",
+        "packages/sample/src/missing",
+    ]

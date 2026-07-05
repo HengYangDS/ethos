@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-docstring-quality-gate",
+  "target": "/Users/yheng/projects/ethos-work-self-healing-closeout-intelligence",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-docstring-quality-gate --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-self-healing-closeout-intelligence --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "43bc0e50c3b5b095dc400e357ef7aa076e835f0e",
-    "target_head": "43bc0e50c3b5b095dc400e357ef7aa076e835f0e",
-    "command_sha256": "44a778655498120f887cd867222cbe69c53a2cbe89617cb80bb46751f634aeb4"
+    "product_head": "7e035fa669ecc3628b47258cff324b43600dcaae",
+    "target_head": "7e035fa669ecc3628b47258cff324b43600dcaae",
+    "command_sha256": "960c744b4f87e49f09e394f03aedea23e9a85f66b0bad15aa3ecf0154fe3aea1"
   },
   "shadow": {
     "ok": true,

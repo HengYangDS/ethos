@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-dissolve-gitnexus-residue",
+  "target": "/private/tmp/ethos-close-sqlite-connections",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-dissolve-gitnexus-residue --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-close-sqlite-connections --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b17b4bb96ec9da8910706cc13a76c186ddc68ce2",
-    "target_head": "b17b4bb96ec9da8910706cc13a76c186ddc68ce2",
-    "command_sha256": "42417e1757be0ec46610bc36ea22ca63d738c521b4fc4ba2077fe680ac1512c8"
+    "product_head": "5cd4dc71b63af423a58bbd9b4c498608276b799f",
+    "target_head": "5cd4dc71b63af423a58bbd9b4c498608276b799f",
+    "command_sha256": "5c9c95cd0bdab93c9e770dfa89f5281828aec953ecdf9c2312ef2e21c8097219"
   },
   "shadow": {
     "ok": true,

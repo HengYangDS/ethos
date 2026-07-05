@@ -2267,6 +2267,18 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
 
     bootstrap = payload["data"]["closeout_bootstrap"]
     assert payload["ok"] is True
+    runner_binding = bootstrap["runner_binding"]
+    assert runner_binding["kind"] == "closeout_runner_binding"
+    assert runner_binding["accepted_root"] == repo.resolve().as_posix()
+    assert runner_binding["audit_root"] == candidate.resolve().as_posix()
+    assert runner_binding["runner_module_path"] == bootstrap["runner_module_path"]
+    assert runner_binding["runner_package_root"] == bootstrap["runner_package_root"]
+    assert runner_binding["runner_source_root"] == bootstrap["runner_source_root"]
+    assert (
+        runner_binding["runner_matches_accepted_root"] == bootstrap["runner_matches_accepted_root"]
+    )
+    assert runner_binding["runner_matches_audit_root"] == bootstrap["runner_matches_audit_root"]
+    assert runner_binding["advisory_gaps"] == bootstrap["runner_advisories"]
     assert bootstrap == {
         "kind": "closeout_bootstrap",
         "mode": "maintainer_break_glass_local",
@@ -2274,6 +2286,13 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
         "remote_state": "deferred",
         "remote_push": "not_performed",
         "uses_current_runner": True,
+        "runner_binding": runner_binding,
+        "runner_module_path": runner_binding["runner_module_path"],
+        "runner_package_root": runner_binding["runner_package_root"],
+        "runner_source_root": runner_binding["runner_source_root"],
+        "runner_matches_accepted_root": runner_binding["runner_matches_accepted_root"],
+        "runner_matches_audit_root": runner_binding["runner_matches_audit_root"],
+        "runner_advisories": runner_binding["advisory_gaps"],
         "state": "ready",
         "accepted_root": repo.resolve().as_posix(),
         "audit_root": candidate.resolve().as_posix(),

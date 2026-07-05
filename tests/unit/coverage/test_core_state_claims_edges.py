@@ -384,6 +384,12 @@ def test_land_publication_and_parity_head_edges(
     assert package["runner_mode"] == "current_runner_with_explicit_accepted_root"
     assert package["remote_state"] == "deferred"
     assert package["uses_current_runner"] is True
+    assert package["runner_binding"]["kind"] == "closeout_runner_binding"
+    assert package["runner_module_path"] == package["runner_binding"]["runner_module_path"]
+    assert package["runner_source_root"] == package["runner_binding"]["runner_source_root"]
+    assert isinstance(package["runner_matches_accepted_root"], bool)
+    assert isinstance(package["runner_matches_audit_root"], bool)
+    assert isinstance(package["runner_advisories"], list)
     assert (
         package["required_order"][-1] == "defer remote push until remote publication is available"
     )

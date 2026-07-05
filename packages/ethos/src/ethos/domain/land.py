@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.repository.adoption.evolution import campaign_report
@@ -177,6 +178,42 @@ def publication_readiness(
     }
 
 
+def _runner_source_root(module_path: Path) -> Path:
+    """Find the repository source root for a runner module when available."""
+    for parent in (module_path.parent, *module_path.parents):
+        if (parent / "pyproject.toml").exists() and (
+            parent / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+        ).exists():
+            return parent
+    return module_path.parent
+
+
+def runner_binding_report(*, accepted_root: Path, audit_root: Path) -> dict[str, object]:
+    """Expose which ETHOS source tree provides the current closeout runner."""
+    runner_module_path = Path(ethos.__file__).resolve()
+    runner_package_root = runner_module_path.parent
+    runner_source_root = _runner_source_root(runner_module_path)
+    accepted_root_resolved = accepted_root.resolve()
+    audit_root_resolved = audit_root.resolve()
+    runner_matches_accepted_root = runner_source_root == accepted_root_resolved
+    runner_matches_audit_root = runner_source_root == audit_root_resolved
+    state = "bound_to_accepted_root" if runner_matches_accepted_root else "external_current_runner"
+    return {
+        "kind": "closeout_runner_binding",
+        "state": state,
+        "runner_module_path": runner_module_path.as_posix(),
+        "runner_package_root": runner_package_root.as_posix(),
+        "runner_source_root": runner_source_root.as_posix(),
+        "accepted_root": accepted_root_resolved.as_posix(),
+        "audit_root": audit_root_resolved.as_posix(),
+        "runner_matches_accepted_root": runner_matches_accepted_root,
+        "runner_matches_audit_root": runner_matches_audit_root,
+        "advisory_gaps": []
+        if runner_matches_accepted_root
+        else ["closeout_runner_source_differs_from_accepted_root"],
+    }
+
+
 def closeout_bootstrap_package(
     *,
     repo: Path,
@@ -193,6 +230,7 @@ def closeout_bootstrap_package(
         "ethos land --closeout --apply --authorize "
         f"--expect-head {expect_head} --root {repo.resolve().as_posix()} --json"
     )
+    runner_binding = runner_binding_report(accepted_root=repo, audit_root=audit_root)
     return {
         "kind": "closeout_bootstrap",
         "mode": "maintainer_break_glass_local",
@@ -200,6 +238,13 @@ def closeout_bootstrap_package(
         "remote_state": "deferred",
         "remote_push": "not_performed",
         "uses_current_runner": True,
+        "runner_binding": runner_binding,
+        "runner_module_path": runner_binding["runner_module_path"],
+        "runner_package_root": runner_binding["runner_package_root"],
+        "runner_source_root": runner_binding["runner_source_root"],
+        "runner_matches_accepted_root": runner_binding["runner_matches_accepted_root"],
+        "runner_matches_audit_root": runner_binding["runner_matches_audit_root"],
+        "runner_advisories": runner_binding["advisory_gaps"],
         "state": "blocked" if required_gaps else "ready",
         "accepted_root": repo.resolve().as_posix(),
         "audit_root": audit_root.resolve().as_posix(),

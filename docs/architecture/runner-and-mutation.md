@@ -89,9 +89,12 @@ ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <
 The command audits the configured candidate worktree first, and only then
 fast-forwards the accepted branch from the candidate branch. The
 `closeout_bootstrap` package in `ethos land --closeout --json` records the
-accepted root, audit root, configured branches, heads, blocking gaps, and exact
-command so the handoff is product state rather than a host UI, assistant
-runtime, or shell convention. Its mode is `maintainer_break_glass_local`: a
+accepted root, audit root, configured branches, heads, blocking gaps, exact
+command, and `runner_binding` package so the handoff is product state rather
+than a host UI, assistant runtime, or shell convention. The runner binding
+exposes the current runner module path, package path, source root, and whether
+that source root matches the accepted or audit root; mismatches are advisory
+signals, not a second truth store. Its mode is `maintainer_break_glass_local`: a
 current ETHOS runner is allowed to execute the protected closeout with an
 explicit `--root <accepted-root>`, while remote push remains `deferred` and the
 candidate worktree is audited before accepted-root movement.

@@ -1,0 +1,61 @@
+[claim]
+id = "ethos-adapter-admission-boundary"
+subject = "ethos:adapter-admission-boundary"
+state = "active"
+summary = "ETHOS requires profile and adapter bindings to expose admission authority, truth boundary, and decision state before they can participate in the coupling registry, preventing undeclared provider surfaces from becoming repository truth."
+
+[evidence]
+dated = "evidence/adapter-admission-boundary-2026-07-05.md"
+sha256 = "8c1b4c7e1fcc8051827b222a1f83953237bc6327b285c8c5ae3064350cfb10e1"
+evidence_ids = ["evidence:ethos-adapter-admission-boundary"]
+binding = "semantic adapter admission boundary evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
+  "uv run --package ethos ethos quality coupling-audit --json",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/audit/test_coupling.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/audit/test_coupling.py",
+  "uv run --group dev ruff check .",
+  "uv run --group dev ruff format --check .",
+  ".config/ci/scripts/run-python-tests.sh",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[scope]
+packages = [
+  "ethos-repository",
+]
+schemas = [
+  "system/schemas/kernel/coupling-audit.schema.json",
+]
+tests = [
+  "tests/unit/audit/test_coupling.py",
+]
+docs = [
+  "docs/governance/product-design-contract.md",
+  "openspec/changes/ethos-adapter-admission-boundary-20260705/specs/ethos-repository/spec.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Adapter/profile admission metadata for coupling registry participation"
+
+[carriers]
+openspec = "openspec/changes/ethos-adapter-admission-boundary-20260705"
+
+fallback = "Keep undeclared providers outside the registry until an explicit adapter/profile admission decision exists."
+kill_signal = "A provider, model host, editor host, memory surface, or distribution adapter participates in repository governance without admission authority and profile_or_adapter truth boundary."
+
+[promotion]
+targets = [
+  "evidence/adapter-admission-boundary-2026-07-05.md",
+  "packages/ethos/src/ethos/repository/policy/coupling.py",
+  "system/schemas/kernel/coupling-audit.schema.json",
+  "tests/unit/audit/test_coupling.py",
+  "docs/governance/product-design-contract.md",
+  "openspec/changes/ethos-adapter-admission-boundary-20260705/specs/ethos-repository/spec.md",
+]

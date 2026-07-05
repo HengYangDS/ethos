@@ -136,6 +136,16 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     assert registry["gitlab_release_profile"]["layer"] == "profile_or_adapter_binding"
     assert registry["mcp_acp_protocol_adapters"]["layer"] == "profile_or_adapter_binding"
     assert registry["npm_launcher_distribution_adapter"]["layer"] == ("profile_or_adapter_binding")
+    for binding_id in (
+        "gitlab_release_profile",
+        "mcp_acp_protocol_adapters",
+        "npm_launcher_distribution_adapter",
+    ):
+        assert registry[binding_id]["admission"] == {
+            "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
+            "truth_boundary": "profile_or_adapter",
+            "decision_state": "admitted",
+        }
     assert report["release_product_files"] == [
         "README.md",
         "LICENSE",
@@ -228,6 +238,10 @@ def test_binding_registry_exposes_substantive_binding_contract_metadata() -> Non
         }
         assert entry["degradation_state"]
         assert entry["proof_gate"]
+        if entry["layer"] == "profile_or_adapter_binding":
+            assert entry["admission"]["authority_ref"]
+            assert entry["admission"]["truth_boundary"] == "profile_or_adapter"
+            assert entry["admission"]["decision_state"] == "admitted"
 
     registry = {entry["id"]: entry for entry in report["binding_registry"]}
     assert registry["git_repository_substrate"]["replaceability"] == "hard-bound"
@@ -389,6 +403,75 @@ def test_coupling_audit_flags_adapter_owning_product_semantics(
     assert (
         "binding_registry_ui_projection:npm_launcher_distribution_adapter:action"
         in (report["required_gaps"])
+    )
+
+
+def test_coupling_audit_schema_exposes_adapter_admission_contract() -> None:
+    schema = json.loads(
+        (Path.cwd() / "system/schemas/kernel/coupling-audit.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    admission = schema["$defs"]["bindingEntry"]["properties"]["admission"]
+
+    assert admission["required"] == ["authority_ref", "truth_boundary", "decision_state"]
+    assert admission["properties"]["truth_boundary"] == {"const": "profile_or_adapter"}
+    assert admission["properties"]["decision_state"] == {"const": "admitted"}
+    assert admission["additionalProperties"] is False
+
+
+def test_coupling_audit_flags_adapter_without_admission_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_with_unadmitted_adapter(root: Path) -> list[dict[str, object]]:
+        entries = original_registry(root)
+        for entry in entries:
+            if entry["id"] == "mcp_acp_protocol_adapters":
+                entry.pop("admission", None)
+        return entries
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_with_unadmitted_adapter)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert (
+        "binding_registry_adapter_admission_missing:mcp_acp_protocol_adapters"
+        in report["required_gaps"]
+    )
+
+
+def test_coupling_audit_flags_adapter_with_wrong_truth_boundary_or_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_registry = coupling._binding_registry
+
+    def registry_with_wrong_adapter_admission(root: Path) -> list[dict[str, object]]:
+        entries = original_registry(root)
+        for entry in entries:
+            if entry["id"] == "gitlab_release_profile":
+                entry["admission"] = {
+                    "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
+                    "truth_boundary": "repository_truth",
+                    "decision_state": "draft",
+                }
+        return entries
+
+    monkeypatch.setattr(coupling, "_binding_registry", registry_with_wrong_adapter_admission)
+
+    report = coupling_audit_report(Path.cwd())
+
+    assert report["ok"] is False
+    assert (
+        "binding_registry_adapter_truth_boundary:gitlab_release_profile:repository_truth"
+        in report["required_gaps"]
+    )
+    assert (
+        "binding_registry_adapter_decision_state:gitlab_release_profile:draft"
+        in report["required_gaps"]
     )
 
 

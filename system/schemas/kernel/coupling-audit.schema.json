@@ -165,7 +165,17 @@
         "formats": {"type": "array", "items": {"type": "string"}},
         "toolchains": {"type": "array", "items": {"type": "string"}},
         "gates": {"type": "array", "items": {"type": "string"}},
-        "provider": {"type": "string"}
+        "provider": {"type": "string"},
+        "admission": {
+          "type": "object",
+          "required": ["authority_ref", "truth_boundary", "decision_state"],
+          "properties": {
+            "authority_ref": {"type": "string", "minLength": 1},
+            "truth_boundary": {"const": "profile_or_adapter"},
+            "decision_state": {"const": "admitted"}
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     }

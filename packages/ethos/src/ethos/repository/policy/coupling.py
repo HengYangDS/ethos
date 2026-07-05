@@ -40,6 +40,7 @@ COUPLING_LAYERS: dict[str, str] = {
     "test_fixture": "Tests and fixtures that intentionally model a provider or adopter.",
 }
 BINDING_UI_PROJECTION_FIELDS = frozenset({"open_action", "open_label", "action", "label"})
+ADAPTER_ADMISSION_REQUIRED_FIELDS = frozenset({"authority_ref", "truth_boundary", "decision_state"})
 BRANCH_ROLE_CONFIG_SOURCE = ".ethos/workspace.toml"
 BRANCH_ROLE_CONFIG_KEYS = (
     "release_branch",
@@ -250,18 +251,33 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "replaceability": "replaceable-adapter",
         "degradation_state": "deferred:remote_publication_adapter_unavailable",
         "proof_gate": "ethos quality release-policy --json",
+        "admission": {
+            "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
+            "truth_boundary": "profile_or_adapter",
+            "decision_state": "admitted",
+        },
     },
     "mcp_acp_protocol_adapters": {
         "required_for": ["assistant projection adapters"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "deferred:assistant_adapter_unavailable",
         "proof_gate": "ethos assistants doctor --json",
+        "admission": {
+            "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
+            "truth_boundary": "profile_or_adapter",
+            "decision_state": "admitted",
+        },
     },
     "npm_launcher_distribution_adapter": {
         "required_for": ["npm launcher distribution"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "deferred:npm_distribution_unavailable",
         "proof_gate": "uv build --all-packages",
+        "admission": {
+            "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
+            "truth_boundary": "profile_or_adapter",
+            "decision_state": "admitted",
+        },
     },
     "historical_evidence_records": {
         "required_for": ["historical auditability"],
@@ -552,6 +568,27 @@ def _binding_taxonomy_gaps(
     return gaps
 
 
+def _adapter_admission_gaps(entry_id: str, entry: dict[str, object]) -> list[str]:
+    if entry.get("layer") != "profile_or_adapter_binding":
+        return []
+    admission = entry.get("admission")
+    if not isinstance(admission, dict):
+        return [f"binding_registry_adapter_admission_missing:{entry_id}"]
+    gaps = []
+    for field in sorted(ADAPTER_ADMISSION_REQUIRED_FIELDS):
+        if not admission.get(field):
+            gaps.append(f"binding_registry_adapter_admission_field:{entry_id}:{field}")
+    if admission.get("truth_boundary") != "profile_or_adapter":
+        gaps.append(
+            f"binding_registry_adapter_truth_boundary:{entry_id}:{admission.get('truth_boundary')}"
+        )
+    if admission.get("decision_state") != "admitted":
+        gaps.append(
+            f"binding_registry_adapter_decision_state:{entry_id}:{admission.get('decision_state')}"
+        )
+    return gaps
+
+
 def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
     gaps: list[str] = []
     entry_by_id: dict[str, dict[str, object]] = {}
@@ -568,6 +605,7 @@ def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
             gaps.append(f"binding_registry_unknown_layer:{entry_id}:{layer}")
         for field in sorted(BINDING_UI_PROJECTION_FIELDS & set(entry)):
             gaps.append(f"binding_registry_ui_projection:{entry_id}:{field}")
+        gaps.extend(_adapter_admission_gaps(entry_id, entry))
 
     for entry_id, expected in BINDING_CONTRACTS.items():
         entry = entry_by_id.get(entry_id)

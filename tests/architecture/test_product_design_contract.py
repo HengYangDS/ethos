@@ -57,6 +57,41 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     assert "not current scope" in text
 
 
+def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -> None:
+    tao = read("system/tao.md")
+    kernel = read("docs/concepts/kernel-model.md")
+    spec = read("openspec/specs/ethos-core/spec.md")
+
+    for phrase in (
+        "道隐无名", "几动于微", "法乎自然", "生一启元", "分二判势", "孕三冲和",
+        "万象昭幽", "度协畛域", "枢得环中", "物遂其性", "化育无穷", "玄德",
+    ):
+        assert phrase in tao
+        assert phrase in kernel
+
+    for anchor in (
+        "root generative constraint", "hidden authority", "one kernel",
+        "domain-fit measure", "boundary-preserving growth",
+        "future frameworks enter by contract",
+    ):
+        assert anchor in tao
+
+    for anchor in (
+        "Root Philosophy Derivation", "deeper than any named vendor",
+        "truth and projection", "product semantics and adapter boundary",
+        "local models", "future frameworks", "which kernel object it projects",
+    ):
+        assert anchor in kernel
+
+    for anchor in (
+        "compact root philosophy as a generative constraint",
+        "Root philosophy constrains future projections", "local model",
+        "tool framework", "new truth center",
+        "authority, subject, boundary, evidence, and projection role",
+    ):
+        assert anchor in spec
+
+
 def test_product_design_contract_operationalizes_root_philosophy() -> None:
     text = read("docs/governance/product-design-contract.md")
 

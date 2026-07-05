@@ -12,126 +12,68 @@ The repository contains the buildable product package homes.
 
 No active product migration host remains in `packages/`.
 
-The Python product package ontology is:
+The current Python product package ontology is:
 
 ```text
 packages/ethos-core
-packages/ethos-contracts
-packages/ethos-quality
-packages/ethos-repository
-packages/ethos-assistants
-packages/ethos-adapters
 packages/ethos
-packages/ethos-test
 ```
 
 Non-Python distribution adapters do not belong to the Python product package
-ontology. The Python product package ontology is limited to Python packages.
-Distribution adapters use a separate layout:
+ontology. Distribution adapters use a separate layout:
 
 ```text
 distributions/npm
-distributions/homebrew
-distributions/docker
-distributions/github-action
-distributions/gitlab-component
 ```
 
 ## Target Packages
 
 ### `ethos-core`
 
-Pure kernel algebra. Owns JudgmentSource, Subject, Commitment, Change,
-Evidence, Claim, Chronicle, action graph primitives, state machine primitives,
-and result envelope primitives.
+Pure kernel and product contracts. Owns JudgmentSource, Subject, Commitment,
+Change, Evidence, Claim, Chronicle, action graph primitives, state machine
+primitives, result envelope primitives, schema contracts, rule contracts,
+quality semantics, determinism semantics, gate semantics, and proof-policy
+semantics.
 
-Forbidden: Git, OpenSpec, MCP, SQLite implementation, CLI parsing, pytest, nox,
-Ruff, GitHub, GitLab, npm, dmgr, alphasim, and adopter-specific semantics.
-
-### `ethos-contracts`
-
-Provider-neutral contracts. Owns JSON Schema, TOML config schema, public result
-schema, adapter interfaces, attestation envelope contracts, evidence contracts,
-command registry contracts, assistant boundary contracts, and package ontology
-contracts.
-
-Forbidden: provider-specific execution.
-
-### `ethos-quality`
-
-Quality and determinism semantics. Owns asset quality classes, gate descriptors,
-proof policy lattice, documentation quality profile, format policy, evidence
-freshness semantics, and release artifact quality classification.
-
-It defines what quality evidence means and which mature tools can provide it.
-It does not execute tools, mutate repositories, parse hosted CI state as truth,
-own release lifecycle readiness, or contain adopter-specific domain contracts.
-
-### `ethos-repository`
-
-Git-native repository operation lifecycle semantics. Owns status, plan, prove,
-land, publish, intake, campaign, local state logical model, workspace/lane
-logical model, and branch-role/worktree semantics.
-
-It answers one question: how one human-agent repository change is planned,
-proved, landed, published, remembered, and evolved. It consumes quality and
-proof verdicts from `ethos-quality`; it does not own quality policy.
-
-It must not shell out to providers directly. Provider work is delegated through
-`ethos-adapters`.
-
-### `ethos-assistants`
-
-Assistant-facing repository operation boundary. Owns Playbooks, assistant
-surfaces, method packs, context providers, projection classification, truth
-boundaries, changed-scope routing to playbooks, and assistant doctor models.
-
-It is named `ethos-assistants` rather than `ethos-agent` because ETHOS governs
-assistant/context boundaries; it does not implement an agent.
-
-### `ethos-adapters`
-
-Provider-specific integrations. Owns adapters for Git command execution, SQLite,
-official OpenSpec, Backlog, GitHub, GitLab, MCP, ACP, Superpowers detection,
-Dagger, Pants, Bazel, Nx, SLSA, in-toto, Sigstore, pre-commit, Ruff, pytest,
-nox, pixi, and hosted CI.
-
-Adapters observe, execute, translate, and bind evidence. They do not own
-product semantics. Git semantics remain native to ETHOS; this package only owns
-execution and projection boundaries around those semantics.
+Forbidden: CLI parsing, public UX rendering, Git/OpenSpec/SQLite/process
+execution, hosted forge execution, MCP/ACP projection execution, repository
+mutation orchestration, pytest fixture hosting as runtime behavior,
+adopter-specific semantics, and provider-specific ownership.
 
 ### `ethos`
 
-Public CLI surface. Owns cyclopts command tree, UX composition, human-readable
-rendering, and JSON output routing.
+Public runtime and CLI package. Owns the command tree, UX composition,
+human-readable rendering, JSON output routing, repository lifecycle
+orchestration, adapters, assistant/context projections, maintainer surfaces,
+local proof execution, and product test fixtures.
 
-The CLI must remain a thin shell and must not become the semantic center.
-The CLI depends only on target product packages.
+The package is allowed to execute tools and adapt providers, but it must not
+become the semantic center. Product semantics still derive from `ethos-core`,
+tracked repository truth, system contracts, docs, OpenSpec records, evidence,
+and Git facts according to the authority order.
 
-### `ethos-test`
+### `distributions/npm`
 
-Conformance, parity, and proof host. Owns conformance fixtures, sample
-repositories, golden JSON outputs, adapter contract tests, schema compatibility
-tests, migration replay fixtures, and shadow parity harnesses.
+Thin npm launcher adapter over the Python command plane. It is not part of the
+Python product package ontology and must not own product semantics.
 
-## Migration State
+## Retired Product Package Families
 
-The external ETHOS product repository has retired the internal product
-migration-host packages. The current state is:
+Earlier product designs used separate Python package homes such as
+`ethos-contracts`, `ethos-quality`, `ethos-repository`, `ethos-assistants`,
+`ethos-adapters`, and `ethos-test`. Those names now describe semantic areas
+inside the two-package topology; they are not active package homes.
 
-- Python product packages: complete in `packages/ethos-*` and `packages/ethos`.
-- npm launcher: migrated to `distributions/npm`.
-- product package migration hosts: none.
+Historical references to those package names are stale unless explicitly marked
+as history. Current docs, tests, scorecards, and release checks should use the
+active topology above.
 
-This does not delete or decide the lifecycle of embedded ETHOS implementations
-inside adopter repositories such as alphasim-dmgr. Those adopters still follow
-the separate capability parity, external shadow parity, freeze, rollback window,
-and retirement decision process.
+## Boundary Rule
 
-Historical product family dispositions are retained only as retired-family
-explanations. `ethos-workspace` moved Git-native lifecycle semantics to
-`ethos-repository` and local command execution to `ethos-adapters`; it is not a
-generic VCS abstraction and is no longer an active product migration host.
+A new package is justified only when it owns a distinct semantic obligation that
+cannot be kept clearer inside `ethos-core` or `ethos`. Split for durable meaning,
+not for temporary implementation convenience.
 
 Status: see front matter.
 

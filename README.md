@@ -57,14 +57,8 @@ decisions, supersession, and current-state movement.
 ## Packages
 
 ```text
-packages/ethos/             thin CLI and UX composition
-packages/ethos-core/        pure kernel and action graph algebra
-packages/ethos-contracts/   provider-neutral contracts and schemas
-packages/ethos-quality/     quality, determinism, gate, and proof-policy semantics
-packages/ethos-repository/  repository lifecycle, governance, and proof orchestration
-packages/ethos-assistants/  context packs, playbooks, MCP/ACP projections
-packages/ethos-adapters/    Git, SQLite, process, OpenSpec, and distribution adapters
-packages/ethos-test/        conformance, parity, and sample proof fixtures
+packages/ethos-core/        pure kernel, contracts, and quality semantics
+packages/ethos/             runtime, CLI, repository orchestration, adapters, assistants, and testing
 distributions/npm/          npm launcher adapter
 ```
 

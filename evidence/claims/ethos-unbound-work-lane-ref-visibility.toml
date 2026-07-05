@@ -6,7 +6,7 @@ summary = "ETHOS status exposes unbound configured Work Lane refs as advisory Gi
 
 [evidence]
 dated = "evidence/unbound-work-lane-ref-visibility-2026-07-06.md"
-sha256 = "5102bf67d3465ba9f6af1a6ec510e54cb668751407a2fd20e9d5a28a4de9f57b"
+sha256 = "bbee381b2b833fa9bece846c8fa6c1a1ce602eb3025601b1aae497f7de890d52"
 evidence_ids = ["evidence:ethos-unbound-work-lane-ref-visibility"]
 binding = "semantic status and coordination contract evidence binding"
 verifier = "semantic"
@@ -43,6 +43,7 @@ targets = [
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/design.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/tasks.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/.openspec.yaml",
   "packages/ethos/src/ethos/adapters/repo/status.py",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "system/schemas/kernel/workspace-status.schema.json",

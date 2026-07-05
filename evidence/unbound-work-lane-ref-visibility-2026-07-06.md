@@ -53,6 +53,7 @@ Observed results:
   `foreign_work_lanes=[]` and `coordination.blocking=false`.
 
 The carrier was archived through official OpenSpec archive semantics as
-`openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs`. Further
+`openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs` with
+archive metadata `.openspec.yaml`. Further
 full proof is run after this claim digest is refreshed and the repository HEAD
 is finalized.

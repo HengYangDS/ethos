@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-quality-regime-hardening",
+  "target": "/Users/yheng/projects/ethos-work-break-glass-closeout",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-quality-regime-hardening --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-break-glass-closeout --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "a0f87a2497eea15630ea78d0b96c7f8dc728284b",
-    "target_head": "a0f87a2497eea15630ea78d0b96c7f8dc728284b",
-    "command_sha256": "cb6e37ddd71b262bdfb08768185b51e3d9beda7ba5e1dad7c8f0dc895745831f"
+    "product_head": "78bf0c5ae87221cadb7c99cbf5c6def4a3e66f6e",
+    "target_head": "78bf0c5ae87221cadb7c99cbf5c6def4a3e66f6e",
+    "command_sha256": "0cadab98f7f20ed83affc3ed8c3ba83fd00603f55d1ed17d6feae8acd9bc8891"
   },
   "shadow": {
     "ok": true,

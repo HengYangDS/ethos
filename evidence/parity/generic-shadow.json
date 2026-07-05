@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-self-healing-closeout-intelligence",
+  "target": "/Users/yheng/projects/ethos-work-quality-regime-hardening",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-self-healing-closeout-intelligence --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-quality-regime-hardening --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ed1e68e40225a291772ab250a24c6f3bbd35b885",
-    "target_head": "ed1e68e40225a291772ab250a24c6f3bbd35b885",
-    "command_sha256": "960c744b4f87e49f09e394f03aedea23e9a85f66b0bad15aa3ecf0154fe3aea1"
+    "product_head": "a0f87a2497eea15630ea78d0b96c7f8dc728284b",
+    "target_head": "a0f87a2497eea15630ea78d0b96c7f8dc728284b",
+    "command_sha256": "cb6e37ddd71b262bdfb08768185b51e3d9beda7ba5e1dad7c8f0dc895745831f"
   },
   "shadow": {
     "ok": true,

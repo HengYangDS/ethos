@@ -4,5 +4,5 @@
 - [x] Add regression tests for removed vs added obligations.
 - [x] Update product contract and accepted repository spec.
 - [x] Add claim and evidence carrier.
-- [ ] Run OpenSpec lifecycle validation.
-- [ ] Run executed proof and closeout gates.
+- [x] Run OpenSpec lifecycle validation.
+- [x] Run executed proof and closeout gates.

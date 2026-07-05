@@ -402,7 +402,9 @@ workflow prevents the invalid state before mutation when practical.
 
 ETHOS SHALL treat OpenSpec as the repository case and specification carrier,
 with accepted specs, active changes, archived changes, capability profiles,
-claims, and evidence refs serving distinct product duties.
+claims, and evidence refs serving distinct product duties. Archive closeout
+SHALL preserve accepted scenario obligations unless an explicit removal decision
+carries the deletion.
 
 #### Scenario: Archive closeout is a product gate
 
@@ -414,7 +416,7 @@ claims, and evidence refs serving distinct product duties.
 - **AND** accepted specification obligations are fused forward rather than
   deleted by a tool-applied archive delta
 - **AND** removing an accepted `WHEN`, `THEN`, or `AND` obligation requires an
-  explicit removal decision instead of silent replacement
+  explicit removal decision instead of silent replacement.
 - **AND** the campaign manifest records the lane as closed and retired before
   the next campaign step becomes active.
 

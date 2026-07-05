@@ -18,7 +18,7 @@ silently weakening accepted specs.
 - Added regression tests for deleted obligations and allowed added obligations.
 - Updated product contract and `ethos-repository` spec to require archive fusion
   rather than replacement.
-- Added OpenSpec carrier `openspec/changes/ethos-openspec-archive-fusion-guard-20260705`.
+- Archived OpenSpec carrier `openspec/changes/archive/2026-07-05-ethos-openspec-archive-fusion-guard-20260705` after the active change was applied.
 
 ## Verification
 
@@ -42,5 +42,12 @@ Observed results:
 - Report: `ok=true`, `score=16/max_score=16`, `governance_gap_count=0`, `parity_pending_count=0`.
 - Plan: `ok=true`, `state=planned`, `required_gaps=[]`.
 
-Full executed proof and OpenSpec lifecycle validation are run after the claim
-digest is refreshed and the repository HEAD is finalized.
+OpenSpec archive was executed with:
+
+```bash
+uv run openspec archive ethos-openspec-archive-fusion-guard-20260705 --yes --json
+```
+
+Observed archive result: `specsUpdated=true`, one accepted spec updated, and
+the carrier moved to the dated archive path. Full executed proof is run after
+the claim digest is refreshed and the repository HEAD is finalized.

@@ -70,6 +70,7 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
+    assert "error::ResourceWarning" in pytest
     assert "Separation of concerns" in config_readme
     assert "system/tools.toml" in config_readme
     assert 'config = "pytest.ini"' in tools
@@ -131,7 +132,7 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "--cov=ethos" in runner
     assert "--cov=ethos_core" in runner
     assert "--cov-fail-under=95" in runner
-    assert "-W error::ResourceWarning" in runner
+    assert "-W error::ResourceWarning" not in runner
     assert 'COVERAGE_FILE="${coverage_dir}/.coverage"' in runner
     assert "--cov-report=term-missing" in runner
     assert '--cov-report="xml:${coverage_dir}/coverage.xml"' in runner

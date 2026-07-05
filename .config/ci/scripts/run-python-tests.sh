@@ -19,5 +19,4 @@ uv run --group dev pytest \
   --cov-report=term-missing \
   --cov-report="xml:${coverage_dir}/coverage.xml" \
   --cov-fail-under=95 \
-  -W error::ResourceWarning \
   tests/unit tests/architecture -q

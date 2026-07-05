@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-candidate-proof-carry",
+  "target": "/private/tmp/ethos-proof-carry-boundary",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-candidate-proof-carry --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-proof-carry-boundary --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d3cecd99220cb62dafa24b138c7a79c82fc5150e",
-    "target_head": "d3cecd99220cb62dafa24b138c7a79c82fc5150e",
-    "command_sha256": "579c3e2088324c3970aaa6bdaf5f96ed14984a4012dd16032193c64cff8cf194"
+    "product_head": "4f72e0c59465ff30e7906e81de7898ef85dbc318",
+    "target_head": "4f72e0c59465ff30e7906e81de7898ef85dbc318",
+    "command_sha256": "445b6a87e8e3dca33042c232e8afc4a4c69bd2090857b3034134d5d5d83a2708"
   },
   "shadow": {
     "ok": true,

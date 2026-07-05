@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/pa6",
+  "target": "/private/tmp/pa7",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/pa6 --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/pa7 --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "c7b646ea680514f0904b0598bd0e096451155611",
-    "target_head": "c7b646ea680514f0904b0598bd0e096451155611",
-    "command_sha256": "6066fc897b82710df4aa91cd11cd358b1dd5f157f6614b9a636b97562392a6a8"
+    "product_head": "c94219edb5fe6f50212cff6811362b6270dd6635",
+    "target_head": "c94219edb5fe6f50212cff6811362b6270dd6635",
+    "command_sha256": "664cd0137a63fac2e3e0cbf4d45026af6e7f174079814e164de3040876450712"
   },
   "shadow": {
     "ok": true,

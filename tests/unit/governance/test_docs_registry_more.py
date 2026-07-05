@@ -75,7 +75,10 @@ custom-tool run
 
     assert normalized["env FOO=1 uv run --package ethos ethos prove --json"] == "ethos prove --json"
     assert normalized["python -m ethos.cli land --json"] == "ethos land --json"
-    assert "unknown_ethos_command_example:docs/guide.md:17:ethos unknown-surface" in report["required_gaps"]
+    assert (
+        "unknown_ethos_command_example:docs/guide.md:17:ethos unknown-surface"
+        in report["required_gaps"]
+    )
     assert "unknown_command_example:docs/guide.md:18:custom-tool" in report["required_gaps"]
     assert all("legacy-tool" not in gap for gap in report["required_gaps"])
 
@@ -83,7 +86,9 @@ custom-tool run
 def test_docs_registry_stable_paths_reports_invalid_and_missing_targets(tmp_path):
     meta = tmp_path / "docs" / "_meta"
     meta.mkdir(parents=True)
-    (meta / "stable_paths.toml").write_text("[[stable_path]\npath = 'docs/missing.md'\n", encoding="utf-8")
+    (meta / "stable_paths.toml").write_text(
+        "[[stable_path]\npath = 'docs/missing.md'\n", encoding="utf-8"
+    )
 
     invalid = docs._stable_paths_report(tmp_path)
     assert invalid == {"ok": False, "required_gaps": ["stable_paths_invalid_toml"]}
@@ -111,4 +116,6 @@ def test_docs_registry_glossary_and_visible_sections_boundaries(tmp_path):
         "missing_visible_section:docs/active.md:purpose",
         "missing_visible_section:docs/active.md:see also",
     ]
-    assert docs._glossary_report(tmp_path)["required_gaps"] == ["glossary_missing:docs/reference/glossary.md"]
+    assert docs._glossary_report(tmp_path)["required_gaps"] == [
+        "glossary_missing:docs/reference/glossary.md"
+    ]

@@ -1,3 +1,4 @@
+# ruff: noqa: TC003, FLY002
 from __future__ import annotations
 
 import json
@@ -11,15 +12,23 @@ from ethos_core.invalid_states import classify
 from ethos_core.invalid_states import invalid_state_categories
 
 
-def test_system_contracts_report_exposes_missing_invalid_schema_and_validation_gaps(tmp_path: Path) -> None:
+def test_system_contracts_report_exposes_missing_invalid_schema_and_validation_gaps(
+    tmp_path: Path,
+) -> None:
     system = tmp_path / "system"
     system.mkdir()
-    (system / "authority.toml").write_text('schema = "system/schemas/authority.json"\n', encoding="utf-8")
+    (system / "authority.toml").write_text(
+        'schema = "system/schemas/authority.json"\n', encoding="utf-8"
+    )
     (system / "formats.toml").write_text("not = [\n", encoding="utf-8")
-    (system / "routing.toml").write_text('schema = "system/schemas/routing.json"\nvalue = 1\n', encoding="utf-8")
+    (system / "routing.toml").write_text(
+        'schema = "system/schemas/routing.json"\nvalue = 1\n', encoding="utf-8"
+    )
     schema_dir = system / "schemas"
     schema_dir.mkdir()
-    (schema_dir / "routing.json").write_text(json.dumps({"type": "object", "required": ["missing"]}), encoding="utf-8")
+    (schema_dir / "routing.json").write_text(
+        json.dumps({"type": "object", "required": ["missing"]}), encoding="utf-8"
+    )
 
     report = system_contracts.system_contracts_report(tmp_path)
 
@@ -35,7 +44,9 @@ def test_system_contracts_report_exposes_missing_invalid_schema_and_validation_g
 
 def test_load_system_contract_returns_payload(tmp_path: Path) -> None:
     (tmp_path / "system").mkdir()
-    (tmp_path / "system" / "tools.toml").write_text('schema = "x"\nname = "tools"\n', encoding="utf-8")
+    (tmp_path / "system" / "tools.toml").write_text(
+        'schema = "x"\nname = "tools"\n', encoding="utf-8"
+    )
 
     assert system_contracts.load_system_contract(tmp_path, "tools")["name"] == "tools"
 
@@ -68,13 +79,17 @@ def test_workspace_package_config_report_edges(tmp_path: Path) -> None:
 
 
 def test_rule_attestation_gaps_cover_match_and_mismatch() -> None:
-    snapshot = rules.RuleEvalRequest(
-        phase="prewrite",
-        changed_paths=("README.md",),
-        mutation=True,
-        actor="agent",
-        scope="repo",
-    ).to_fact_snapshot(head="h1", source_refs=("status",)).to_dict()
+    snapshot = (
+        rules.RuleEvalRequest(
+            phase="prewrite",
+            changed_paths=("README.md",),
+            mutation=True,
+            actor="agent",
+            scope="repo",
+        )
+        .to_fact_snapshot(head="h1", source_refs=("status",))
+        .to_dict()
+    )
     evaluation = {
         "head": "h1",
         "digest": "eval-digest",
@@ -129,8 +144,20 @@ def test_rule_attestation_gaps_cover_match_and_mismatch() -> None:
         assert expected in gaps
 
     missing = rules.rule_attestation_gaps(
-        {"head": "h", "evaluation_digest": "d", "rule_set_digest": "r", "compiled_policy_digest": "p", "fact_snapshot_digest": "f"},
-        {"head": "h", "digest": "d", "rule_set_digest": "r", "compiled_policy_digest": "p", "fact_snapshot_digest": "f"},
+        {
+            "head": "h",
+            "evaluation_digest": "d",
+            "rule_set_digest": "r",
+            "compiled_policy_digest": "p",
+            "fact_snapshot_digest": "f",
+        },
+        {
+            "head": "h",
+            "digest": "d",
+            "rule_set_digest": "r",
+            "compiled_policy_digest": "p",
+            "fact_snapshot_digest": "f",
+        },
     )
     assert "rule_attestation_input_missing" in missing
     assert "rule_attestation_output_missing" in missing

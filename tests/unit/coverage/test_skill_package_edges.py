@@ -1,3 +1,4 @@
+# ruff: noqa: TC003, FLY002
 from __future__ import annotations
 
 from pathlib import Path
@@ -75,15 +76,35 @@ def test_skill_package_validates_manifest_digest_markdown_and_capabilities(tmp_p
 
 
 def test_skill_package_manifest_and_markdown_rejections(tmp_path: Path) -> None:
-    assert "skill_package_manifest_path_escape:.." in sp.validate_skill_package_manifest(tmp_path, "../skill-package.toml")["required_gaps"]
-    assert "skill_package_manifest_missing:missing" in sp.validate_skill_package_manifest(tmp_path, ".agents/skills/missing/skill-package.toml")["required_gaps"]
+    assert (
+        "skill_package_manifest_path_escape:.."
+        in sp.validate_skill_package_manifest(tmp_path, "../skill-package.toml")["required_gaps"]
+    )
+    assert (
+        "skill_package_manifest_missing:missing"
+        in sp.validate_skill_package_manifest(
+            tmp_path, ".agents/skills/missing/skill-package.toml"
+        )["required_gaps"]
+    )
     package = tmp_path / ".agents" / "skills" / "bad"
     package.mkdir(parents=True)
     (package / "skill-package.toml").write_text("[[bad]\n", encoding="utf-8")
-    assert "skill_package_manifest_invalid_toml:bad" in sp.validate_skill_package_manifest(tmp_path, ".agents/skills/bad/skill-package.toml")["required_gaps"]
+    assert (
+        "skill_package_manifest_invalid_toml:bad"
+        in sp.validate_skill_package_manifest(tmp_path, ".agents/skills/bad/skill-package.toml")[
+            "required_gaps"
+        ]
+    )
     manifest = write_skill(tmp_path)
-    manifest.write_text(manifest.read_text(encoding="utf-8").replace("sha256:", "sha256:0", 1), encoding="utf-8")
-    assert "skill_package_expected_digest_invalid:sample" in sp.validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())["required_gaps"]
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace("sha256:", "sha256:0", 1), encoding="utf-8"
+    )
+    assert (
+        "skill_package_expected_digest_invalid:sample"
+        in sp.validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())[
+            "required_gaps"
+        ]
+    )
     path = tmp_path / "SKILL.md"
     path.write_text("# No frontmatter\n\n## When to Use\nTBD\n", encoding="utf-8")
     gaps = sp.validate_skill_markdown(

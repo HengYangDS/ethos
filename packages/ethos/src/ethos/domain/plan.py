@@ -234,9 +234,7 @@ def rule_fact_snapshot(
         facts["host_readiness"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
     try:
         claims = claims_report(repo)
-        claim_gaps = [
-            str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))
-        ]
+        claim_gaps = [str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))]
         if audit_mode == "adopter":
             claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]
         claims_ok = bool(claims.get("ok", False)) or not claim_gaps

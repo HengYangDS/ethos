@@ -10,7 +10,9 @@ def test_path_matches_supports_prefix_and_glob_patterns():
     assert plan.path_matches("src/app.py", "src/*.py") is True
 
 
-def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(tmp_path, monkeypatch):
+def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(
         plan,
         "rules_config",
@@ -65,7 +67,9 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
         "command_registry_report",
         lambda _repo: {"ok": True, "required_gaps": [], "public_commands": ["ethos status"]},
     )
-    monkeypatch.setattr(plan, "projection_contract", lambda: {"truth": plan.ASSISTANT_TRUTH_BOUNDARY})
+    monkeypatch.setattr(
+        plan, "projection_contract", lambda: {"truth": plan.ASSISTANT_TRUTH_BOUNDARY}
+    )
 
     snapshot = plan.rule_fact_snapshot(
         tmp_path,
@@ -89,7 +93,12 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
             "required_gaps": [],
             "paths": [{"relative_path": "src/app.py"}],
         },
-        audit_payload={"mode": "adopter", "ok": True, "required_gaps": [], "openspec": {"ok": True}},
+        audit_payload={
+            "mode": "adopter",
+            "ok": True,
+            "required_gaps": [],
+            "openspec": {"ok": True},
+        },
     )
 
     assert snapshot.phase == "prewrite"
@@ -102,10 +111,18 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
 
 
 def test_rule_fact_snapshot_marks_missing_prewrite_guard_unavailable(tmp_path, monkeypatch):
-    monkeypatch.setattr(plan, "workspace_status", lambda _repo: {"branch": "dev", "role": "accepted_root"})
-    monkeypatch.setattr(plan, "audit_for_root", lambda _repo: {"mode": "product", "ok": True, "required_gaps": []})
+    monkeypatch.setattr(
+        plan, "workspace_status", lambda _repo: {"branch": "dev", "role": "accepted_root"}
+    )
+    monkeypatch.setattr(
+        plan, "audit_for_root", lambda _repo: {"mode": "product", "ok": True, "required_gaps": []}
+    )
     monkeypatch.setattr(plan, "claims_report", lambda _repo: {"ok": True, "required_gaps": []})
-    monkeypatch.setattr(plan, "command_registry_report", lambda _repo: {"ok": True, "required_gaps": [], "public_commands": []})
+    monkeypatch.setattr(
+        plan,
+        "command_registry_report",
+        lambda _repo: {"ok": True, "required_gaps": [], "public_commands": []},
+    )
     monkeypatch.setattr(plan, "projection_contract", lambda: {"truth": "wrong"})
 
     snapshot = plan.rule_fact_snapshot(tmp_path, phase="prewrite", head="head")
@@ -124,7 +141,9 @@ def test_rule_fact_snapshot_converts_adapter_failures_to_unavailable_facts(tmp_p
     monkeypatch.setattr(plan, "audit_for_root", explode)
     monkeypatch.setattr(plan, "claims_report", explode)
     monkeypatch.setattr(plan, "command_registry_report", explode)
-    monkeypatch.setattr(plan, "projection_contract", lambda: (_ for _ in ()).throw(RuntimeError("bad")))
+    monkeypatch.setattr(
+        plan, "projection_contract", lambda: (_ for _ in ()).throw(RuntimeError("bad"))
+    )
 
     snapshot = plan.rule_fact_snapshot(tmp_path, phase="plan", head="head")
 

@@ -6,7 +6,12 @@ from ethos_core.contracts.rules import RuleFactSnapshot
 
 
 def _fact(owner="test", value=None, *, fresh=True, available=True):
-    return {"owner": owner, "fresh": fresh, "available": available, "value": {} if value is None else value}
+    return {
+        "owner": owner,
+        "fresh": fresh,
+        "available": available,
+        "value": {} if value is None else value,
+    }
 
 
 def test_rules_compile_normalizes_legacy_rules_profiles_and_gates(tmp_path):
@@ -78,7 +83,9 @@ def test_rules_check_reports_parse_duplicate_unknown_gate_and_missing_owner(tmp_
     assert "unknown_rule_gate:dup:missing" in report["required_gaps"]
 
 
-def test_rules_evaluation_blocks_fact_gaps_authorization_and_nonwaivable_obligations(tmp_path, monkeypatch):
+def test_rules_evaluation_blocks_fact_gaps_authorization_and_nonwaivable_obligations(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(
         rules,
         "compile_rules",
@@ -113,14 +120,20 @@ def test_rules_evaluation_blocks_fact_gaps_authorization_and_nonwaivable_obligat
         "policy_exceptions_report",
         lambda _root, today=None: {"required_gaps": [], "exceptions": []},  # noqa: ARG005
     )
-    facts = {name: _fact(value={"ok": True, "required_gaps": []}) for name in rules.REQUIRED_CORE_FACTS}
+    facts = {
+        name: _fact(value={"ok": True, "required_gaps": []}) for name in rules.REQUIRED_CORE_FACTS
+    }
     facts["changed_paths"] = _fact(value=["src/app.py"])
     facts["mutation"] = _fact(value=True)
     facts["authorization"] = _fact(value=False)
     facts["actor"] = _fact(value="agent")
     facts["scope"] = _fact(value="repository")
-    facts["claim_state"] = _fact(value={"ok": False, "required_gaps": ["claim_gap"], "stale": ["claim"]})
-    facts["worktree"] = _fact(value={"ok": True, "timeout": True, "deterministic": False, "unresolved_conflicts": ["x"]})
+    facts["claim_state"] = _fact(
+        value={"ok": False, "required_gaps": ["claim_gap"], "stale": ["claim"]}
+    )
+    facts["worktree"] = _fact(
+        value={"ok": True, "timeout": True, "deterministic": False, "unresolved_conflicts": ["x"]}
+    )
     snapshot = RuleFactSnapshot(phase="land", head="abc", facts=facts, source_refs=("test",))
 
     report = rules.rules_evaluation_report(tmp_path, phase="land", fact_snapshot=snapshot)
@@ -133,14 +146,23 @@ def test_rules_evaluation_blocks_fact_gaps_authorization_and_nonwaivable_obligat
     assert "fact_timeout:worktree" in report["required_gaps"]
     assert "gate_required:blocking.rule:tests" in report["required_gaps"]
     assert "evidence_required:blocking.rule:proof" in report["required_gaps"]
-    assert {item["kind"] for item in report["obligations"]} >= {"require_authorization", "require_gate", "require_evidence"}
+    assert {item["kind"] for item in report["obligations"]} >= {
+        "require_authorization",
+        "require_gate",
+        "require_evidence",
+    }
 
 
 def test_rules_evaluation_applies_active_waiver_for_waivable_blocking_rule(tmp_path, monkeypatch):
     monkeypatch.setattr(
         rules,
         "compile_rules",
-        lambda _root: {"rule_set_digest": "r", "compiled_policy_digest": "p", "source_refs": [], "rules": []},
+        lambda _root: {
+            "rule_set_digest": "r",
+            "compiled_policy_digest": "p",
+            "source_refs": [],
+            "rules": [],
+        },
     )
     monkeypatch.setattr(rules, "rules_check_report", lambda _root: {"required_gaps": []})
 
@@ -166,13 +188,18 @@ def test_rules_evaluation_applies_active_waiver_for_waivable_blocking_rule(tmp_p
         "policy_exceptions_report",
         lambda _root, today=None: {  # noqa: ARG005
             "required_gaps": [],
-            "exceptions": [{"id": "ex1", "rule_id": "waived.rule", "scope": "path:src", "status": "active"}],
+            "exceptions": [
+                {"id": "ex1", "rule_id": "waived.rule", "scope": "path:src", "status": "active"}
+            ],
         },
     )
     snapshot = RuleFactSnapshot(
         phase="plan",
         head="abc",
-        facts={name: _fact(value={"ok": True, "required_gaps": []}) for name in rules.REQUIRED_CORE_FACTS}
+        facts={
+            name: _fact(value={"ok": True, "required_gaps": []})
+            for name in rules.REQUIRED_CORE_FACTS
+        }
         | {
             "changed_paths": _fact(value=["src/app.py"]),
             "mutation": _fact(value=False),
@@ -266,7 +293,11 @@ def test_explain_rules_target_for_gap_rule_path_and_skeleton(tmp_path, monkeypat
     )
 
     def fake_coverage_report(_root, *, changed_paths):
-        return {"matched_rules": [], "next_action_contract": [], "required_gaps": ["rules_uncovered_path:x"]}
+        return {
+            "matched_rules": [],
+            "next_action_contract": [],
+            "required_gaps": ["rules_uncovered_path:x"],
+        }
 
     monkeypatch.setattr(rules, "coverage_report", fake_coverage_report)
 

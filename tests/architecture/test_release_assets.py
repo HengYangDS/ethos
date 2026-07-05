@@ -77,7 +77,7 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert 'config = ".config/checks/lychee/"' in tools
     assert 'config = ".config/checks/coverage/coverage.ini"' in tools
     assert 'tool = "coverage.py + pytest-cov"' in tools
-    assert 'planned = true' not in tools.split('concern = "coverage"', 1)[1].split('[[tool]]', 1)[0]
+    assert "planned = true" not in tools.split('concern = "coverage"', 1)[1].split("[[tool]]", 1)[0]
     assert 'config = ".config/boundaries/"' not in tools
     assert 'config = ".config/docs/lychee.toml"' not in tools
     assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()

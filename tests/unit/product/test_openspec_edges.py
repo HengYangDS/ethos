@@ -51,12 +51,14 @@ def test_selection_and_validation_helper_edge_cases() -> None:
     )
     assert openspec._selected_change({}, "requested") == "requested"
     assert openspec._validation_failures({"items": "bad"}) == ["openspec_validation_unreadable"]
-    assert openspec._validation_failures({"items": [{"valid": False, "type": "change", "id": "x"}, "skip"]}) == [
-        "openspec_validation_failed:change:x"
-    ]
+    assert openspec._validation_failures(
+        {"items": [{"valid": False, "type": "change", "id": "x"}, "skip"]}
+    ) == ["openspec_validation_failed:change:x"]
 
 
-def test_completed_active_changes_report_handles_missing_cli_and_bad_list(tmp_path: Path, monkeypatch) -> None:
+def test_completed_active_changes_report_handles_missing_cli_and_bad_list(
+    tmp_path: Path, monkeypatch
+) -> None:
     root = tmp_path / "repo"
     (root / "openspec").mkdir(parents=True)
 
@@ -128,7 +130,9 @@ def test_archive_metadata_created_after_archive_and_delta_detail_gaps(tmp_path: 
     assert "openspec_archive_delta_scenario_missing:2026-07-01-sample" in gaps
 
 
-def test_proposal_protocol_accepts_multiline_metadata_and_reports_profile_fields(tmp_path: Path) -> None:
+def test_proposal_protocol_accepts_multiline_metadata_and_reports_profile_fields(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     change = root / "openspec" / "changes" / "sample-change"
     capability = root / "openspec" / "specs" / "sample-capability"
@@ -158,9 +162,17 @@ def test_proposal_protocol_accepts_multiline_metadata_and_reports_profile_fields
     assert report["out_of_scope"] is True
     assert report["capabilities"][0]["metadata"]["facet:surface"] == "openspec"
     gaps = set(report["required_gaps"])
-    assert "openspec_capability_profile_field_missing:sample-change:sample-capability:family" in gaps
-    assert "openspec_capability_profile_field_missing:sample-change:sample-capability:routing_question" in gaps
-    assert "openspec_capability_profile_field_missing:sample-change:sample-capability:owner.scope" in gaps
+    assert (
+        "openspec_capability_profile_field_missing:sample-change:sample-capability:family" in gaps
+    )
+    assert (
+        "openspec_capability_profile_field_missing:sample-change:sample-capability:routing_question"
+        in gaps
+    )
+    assert (
+        "openspec_capability_profile_field_missing:sample-change:sample-capability:owner.scope"
+        in gaps
+    )
     assert (
         "openspec_capability_profile_field_missing:sample-change:sample-capability:proof_profile.executed_command"
         in gaps
@@ -176,7 +188,9 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
 
     monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
 
-    def fake_run_json(_root: Path, _base: tuple[str, ...], args: tuple[str, ...]) -> dict[str, object]:
+    def fake_run_json(
+        _root: Path, _base: tuple[str, ...], args: tuple[str, ...]
+    ) -> dict[str, object]:
         payload: dict[str, object]
         exit_code = 0
         parse_error = ""

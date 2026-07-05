@@ -6,7 +6,10 @@ from ethos.domain import prove
 def test_role_for_classifies_tests_surface_and_logic():
     assert prove._role_for("tests/unit/test_sample.py", ()) == "test"
     assert prove._role_for("packages/pkg/tests/test_sample.py", ()) == "test"
-    assert prove._role_for("packages/ethos/src/ethos/surface/cli/rules.py", ("**/surface/**",)) == "surface"
+    assert (
+        prove._role_for("packages/ethos/src/ethos/surface/cli/rules.py", ("**/surface/**",))
+        == "surface"
+    )
     assert prove._role_for("packages/ethos/src/ethos/domain/plan.py", ("**/surface/**",)) == "logic"
 
 

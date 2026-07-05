@@ -93,13 +93,22 @@ sha256 = "wrong"
 
     report = claims_report(tmp_path)
     assert "inactive:evidence.sha256_mismatch" in report["required_gaps"]
-    assert report["claims"]["inactive"]["actual_sha256"] == hashlib.sha256(evidence.read_bytes()).hexdigest()
+    assert (
+        report["claims"]["inactive"]["actual_sha256"]
+        == hashlib.sha256(evidence.read_bytes()).hexdigest()
+    )
 
 
-def test_release_policy_reports_missing_files_versions_refs_surfaces_and_attestation(tmp_path: Path):
-    (tmp_path / "packages" / "ethos" ).mkdir(parents=True)
-    (tmp_path / "pyproject.toml").write_text('[project]\nname="ethos"\nversion="1.0.0"\n', encoding="utf-8")
-    (tmp_path / "packages" / "ethos" / "pyproject.toml").write_text('[project]\nname="ethos"\nversion="2.0.0"\n', encoding="utf-8")
+def test_release_policy_reports_missing_files_versions_refs_surfaces_and_attestation(
+    tmp_path: Path,
+):
+    (tmp_path / "packages" / "ethos").mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname="ethos"\nversion="1.0.0"\n', encoding="utf-8"
+    )
+    (tmp_path / "packages" / "ethos" / "pyproject.toml").write_text(
+        '[project]\nname="ethos"\nversion="2.0.0"\n', encoding="utf-8"
+    )
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "release.toml").write_text(
         """

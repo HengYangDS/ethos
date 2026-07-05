@@ -333,7 +333,9 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
     from ethos.adapters.admission.core import ref_move_admission_report
 
     def g(*a: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False)
+        return subprocess.run(
+            ["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False
+        )
 
     g("init", "-b", "dev")
     g("config", "user.name", "t")

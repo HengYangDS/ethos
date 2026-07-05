@@ -156,9 +156,7 @@ def route_playbook(
         "changed_paths": list(changed_paths),
         "selected": selected,
         "unmatched_paths": unmatched_paths,
-        "route_hints": {
-            "registry_digest": cast("dict[str, object]", report["registry"])["digest"]
-        },
+        "route_hints": {"registry_digest": cast("dict[str, object]", report["registry"])["digest"]},
         "required_gaps": _dedupe(gaps),
         "advisory_gaps": list(cast("list[str]", report["advisory_gaps"])),
         "skills_root": report["skills_root"],
@@ -272,11 +270,7 @@ def _coverage(records: list[dict[str, object]]) -> dict[str, object]:
         "record_count": len(records),
         "path_glob_count": sum(len(cast("list[str]", record["path_globs"])) for record in records),
         "subjects": sorted(
-            {
-                subject
-                for record in records
-                for subject in cast("list[str]", record["subjects"])
-            }
+            {subject for record in records for subject in cast("list[str]", record["subjects"])}
         ),
     }
 

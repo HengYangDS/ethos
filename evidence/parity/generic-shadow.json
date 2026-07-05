@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-skill-portfolio-governance",
+  "target": "/private/tmp/paDM",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-portfolio-governance --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paDM --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "f97a5d10322ca491541252008f945713a6c798a2",
-    "target_head": "f97a5d10322ca491541252008f945713a6c798a2",
-    "command_sha256": "ae81e379ac2f2bc7d50819629387444a2add051560367c638c3fa96754241ab8"
+    "product_head": "63fe13f7896e0f2045f70201bd39fdf3ed8c1813",
+    "target_head": "63fe13f7896e0f2045f70201bd39fdf3ed8c1813",
+    "command_sha256": "7bd90c11c05e7278c8f9bcc31c0f7356751686cd0f3f1ecdd45cd6730f0e1abf"
   },
   "shadow": {
     "ok": true,

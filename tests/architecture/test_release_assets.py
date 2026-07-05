@@ -78,3 +78,14 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert 'config = ".config/docs/lychee.toml"' not in tools
     assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()
     assert (ROOT / ".config/ci/scripts/install-lychee.sh").exists()
+    assert (ROOT / ".config/ci/scripts/run-import-linter.sh").exists()
+
+
+def test_ci_lychee_installer_is_architecture_aware() -> None:
+    installer = (ROOT / ".config/ci/scripts/install-lychee.sh").read_text(encoding="utf-8")
+
+    assert "uname -m" in installer
+    assert "aarch64-unknown-linux-gnu" in installer
+    assert "x86_64-unknown-linux-gnu" in installer
+    assert "find" in installer
+    assert "tar xz -C /usr/local/bin lychee" not in installer

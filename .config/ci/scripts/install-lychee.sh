@@ -3,33 +3,48 @@
 # a projection over reusable setup logic.
 set -euo pipefail
 
-apt-get update
-apt-get install -y curl
+if command -v lychee >/dev/null 2>&1; then
+  lychee --version
+  exit 0
+fi
 
-# The hosted runner is arm64 (aarch64); the previous script hard-coded the x86_64
-# asset name, so `tar` found no `lychee` member and the gate failed on every pipeline.
-# Resolve the asset by the actual machine architecture, and extract the binary
-# wherever it sits in the archive (recent lychee tarballs nest it) rather than
-# assuming a top-level member.
-arch="$(uname -m)"
-case "${arch}" in
-  x86_64 | amd64) asset="lychee-x86_64-unknown-linux-gnu.tar.gz" ;;
-  aarch64 | arm64) asset="lychee-aarch64-unknown-linux-gnu.tar.gz" ;;
-  *)
-    echo "unsupported architecture for lychee: ${arch}" >&2
-    exit 1
-    ;;
+if ! command -v curl >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y --no-install-recommends curl ca-certificates tar
+elif ! command -v tar >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y --no-install-recommends tar
+fi
+
+case "$(uname -m)" in
+  x86_64|amd64) target="x86_64-unknown-linux-gnu" ;;
+  aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
+  *) echo "Unsupported lychee architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-url="https://github.com/lycheeverse/lychee/releases/latest/download/${asset}"
-tmp="$(mktemp -d)"
-curl -sSL "${url}" | tar xz -C "${tmp}"
-# The binary may be at the archive root or one directory deep; find it either way.
-binary="$(find "${tmp}" -type f -name lychee | head -n 1)"
-if [ -z "${binary}" ]; then
-  echo "lychee binary not found in ${asset}" >&2
+version="${LYCHEE_VERSION:-latest}"
+archive="lychee-${target}.tar.gz"
+if [ "${version}" = "latest" ]; then
+  url="https://github.com/lycheeverse/lychee/releases/latest/download/${archive}"
+else
+  url="https://github.com/lycheeverse/lychee/releases/download/${version}/${archive}"
+fi
+
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "${tmpdir}"' EXIT
+
+echo "Installing lychee ${version} for ${target} from ${url}"
+curl --fail --location --show-error \
+  --connect-timeout 20 --max-time 180 \
+  --retry 5 --retry-delay 3 --retry-all-errors \
+  --output "${tmpdir}/${archive}" \
+  "${url}"
+tar xzf "${tmpdir}/${archive}" -C "${tmpdir}"
+lychee_bin="$(find "${tmpdir}" -type f -name lychee -perm /111 | head -n 1)"
+if [ -z "${lychee_bin}" ]; then
+  echo "lychee binary not found in ${archive}" >&2
+  tar tzf "${tmpdir}/${archive}" >&2
   exit 1
 fi
-install -m 0755 "${binary}" /usr/local/bin/lychee
-rm -rf "${tmp}"
+install -m 0755 "${lychee_bin}" /usr/local/bin/lychee
 lychee --version

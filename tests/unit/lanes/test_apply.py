@@ -8,6 +8,7 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
 
 
@@ -256,9 +257,12 @@ def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
 
     assert report["ok"] is True
     assert report["state"] == "candidate_validated"
+    assert report["proof_carry"]["state"] == "carried"
+    assert report["proof_carry"]["head"] == work_head
     assert git(repo, "rev-parse", "candidate/dev") == work_head
     assert git(candidate, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "dev") == dev_head
+    assert executed_proof_record(candidate, work_head) is not None
 
 
 def test_apply_land_to_candidate_reports_stale_candidate_base(tmp_path: Path) -> None:

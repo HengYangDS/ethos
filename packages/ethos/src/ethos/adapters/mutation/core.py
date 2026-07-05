@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -222,12 +223,16 @@ def apply_land_to_candidate(
             "remediation": remediation_for_gaps(["candidate_update_failed"]),
             "stderr": completed.stderr.strip(),
         }
+    proof_carry = carry_executed_proof_record(
+        source_root=root, target_root=candidate_path, head=current_head
+    )
     return {
         "ok": True,
         "state": "candidate_validated",
         "branch": policy.candidate_branch,
         "head": current_head,
         "path": candidate_path.as_posix(),
+        "proof_carry": proof_carry,
         "required_gaps": [],
     }
 

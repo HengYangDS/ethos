@@ -94,6 +94,28 @@ def test_mutation_proof_record_rejects_forgery_and_accepts_sealed(tmp_path: Path
     )
 
 
+def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+
+    missing = mutation_proof.carry_executed_proof_record(
+        source_root=source, target_root=target, head="h1"
+    )
+    assert missing["state"] == "skipped"
+    assert missing["required_gaps"] == ["proof_not_proven"]
+
+    mutation_proof.record_executed_proof(source, evidence_for("h1"))
+    carried = mutation_proof.carry_executed_proof_record(
+        source_root=source, target_root=target, head="h1"
+    )
+
+    assert carried["ok"] is True
+    assert carried["state"] == "carried"
+    assert mutation_proof.executed_proof_record(target, "h1") is not None
+
+
 def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
     monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])

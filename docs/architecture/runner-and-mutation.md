@@ -63,7 +63,13 @@ merge can accidentally let one agent overwrite another agent's obligation.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
-cannot be created from ambiguous local candidate state.
+cannot be created from ambiguous local candidate state. When a Work Lane lands
+to the candidate train, ETHOS carries the already verified HEAD-bound executed
+proof record into the candidate worktree's local proof state. This carry-forward
+is not a new proof minting path: the source record must verify before copying,
+and the target copy is re-verified after writing. It simply keeps Evidence with
+the same promoted HEAD so accepted-root closeout can prove the candidate head
+without requiring a redundant runner pass.
 The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
 and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
 when needed, `ethos lane refresh-base` replays a stale lane onto the configured

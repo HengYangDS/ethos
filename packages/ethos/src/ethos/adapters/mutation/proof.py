@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -110,3 +111,60 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     if not _runs_prove_head(evidence.get("runs")):
         return None
     return record
+
+
+def carry_executed_proof_record(
+    *, source_root: Path, target_root: Path, head: str
+) -> dict[str, Any]:
+    """Carry a verified HEAD-bound proof record between local roots.
+
+    This is a projection of an already self-authenticating proof record, not a new
+    proof minting path: the source record must verify first, and the target copy is
+    re-read through the same verifier after writing.
+    """
+    source_record = executed_proof_record(source_root, head)
+    source_path = source_root / _PROOF_DIR / f"{head}.json"
+    target_path = target_root / _PROOF_DIR / f"{head}.json"
+    if source_record is None:
+        return {
+            "ok": False,
+            "state": "skipped",
+            "reason": "source-proof-missing-or-invalid",
+            "head": head,
+            "source_root": source_root.resolve().as_posix(),
+            "target_root": target_root.resolve().as_posix(),
+            "required_gaps": ["proof_not_proven"],
+        }
+    try:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_path, target_path)
+    except OSError as exc:
+        return {
+            "ok": False,
+            "state": "failed",
+            "reason": exc.__class__.__name__,
+            "head": head,
+            "source_root": source_root.resolve().as_posix(),
+            "target_root": target_root.resolve().as_posix(),
+            "required_gaps": ["proof_not_proven"],
+        }
+    if executed_proof_record(target_root, head) is None:
+        return {
+            "ok": False,
+            "state": "failed",
+            "reason": "target-proof-invalid-after-copy",
+            "head": head,
+            "source_root": source_root.resolve().as_posix(),
+            "target_root": target_root.resolve().as_posix(),
+            "required_gaps": ["proof_not_proven"],
+        }
+    return {
+        "ok": True,
+        "state": "carried",
+        "head": head,
+        "source_root": source_root.resolve().as_posix(),
+        "target_root": target_root.resolve().as_posix(),
+        "source_path": source_path.as_posix(),
+        "target_path": target_path.as_posix(),
+        "required_gaps": [],
+    }

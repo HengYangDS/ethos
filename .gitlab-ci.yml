@@ -38,7 +38,11 @@ ethos:architecture:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --no-project --with import-linter lint-imports --config .config/checks/import-linter/contracts.ini
+    # Install the workspace packages (via --package ethos) so import-linter can
+    # actually import ethos_core/ethos to build the graph. --no-project left the
+    # packages off sys.path -> "Could not find package 'ethos_core'" and the gate
+    # passed vacuously... by erroring. A gate that cannot import the code is not a gate.
+    - uv run --package ethos --with import-linter lint-imports --config .config/checks/import-linter/contracts.ini
 
 ethos:security:
   <<: *python_setup

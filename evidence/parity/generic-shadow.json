@@ -5,8 +5,8 @@
   "generated_on": "2026-07-05",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-expose-unbound-work-lane-refs --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "01d3b937aa80aadfc2eef8e09391ee1247470c41",
-    "target_head": "01d3b937aa80aadfc2eef8e09391ee1247470c41",
+    "product_head": "4ddd48d59505ffbfc5f070eb2cb7fc7b28d09cfa",
+    "target_head": "4ddd48d59505ffbfc5f070eb2cb7fc7b28d09cfa",
     "command_sha256": "046560f196f45f0015dd8339c8414920db5692fcc5b0ab5ffd47b37539258c05"
   },
   "shadow": {

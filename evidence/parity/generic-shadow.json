@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/paGO",
+  "target": "/private/tmp/ethos-proof-gate-registry-convergence",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paGO --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-proof-gate-registry-convergence --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4b6b9db1d4c10c4fa661d3450fc8302d18789750",
-    "target_head": "4b6b9db1d4c10c4fa661d3450fc8302d18789750",
-    "command_sha256": "252849f75e447b1d05f62cfed3f43f54ce1f5cbb0aad3035d8de80a2d6149bfe"
+    "product_head": "12256ee0f6baba407fbee36885cb604fc14b1e14",
+    "target_head": "12256ee0f6baba407fbee36885cb604fc14b1e14",
+    "command_sha256": "1674b8cddaa133c5d2fa4350423ecdd355ef4eda533b713dcf8dcdc97ab7386d"
   },
   "shadow": {
     "ok": true,

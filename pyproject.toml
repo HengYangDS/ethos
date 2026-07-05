@@ -61,7 +61,6 @@ extend = ".config/checks/ruff/ruff.toml"
 "packages/ethos/src/ethos/assistants/skill_packages.py" = ["C901"]
 "packages/ethos/src/ethos/repository/registry/authority.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/claims.py" = ["C901"]
-"packages/ethos/src/ethos/repository/policy/coupling.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/core.py" = ["C901", "A002"]
 "packages/ethos/src/ethos/repository/adoption/evolution.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/parity.py" = ["C901"]

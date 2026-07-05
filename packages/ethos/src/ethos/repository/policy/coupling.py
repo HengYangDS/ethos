@@ -420,31 +420,19 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
     branch_role_metadata = _branch_role_policy_metadata(root)
     release_profile = _release_host_profile(root)
     product_toolchain = _product_toolchain()
-    entries = [
+    runtime_fields: list[dict[str, object]] = [
         {
             "id": "git_repository_substrate",
-            "layer": "product_semantic_hard_binding",
-            "required": True,
-            "owns_product_semantics": True,
-            "adapter_replaceable": False,
             "surfaces": ["commits", "refs", "branches", "worktrees", "HEAD"],
         },
         {
             "id": "branch_role_policy",
-            "layer": "product_semantic_hard_binding",
-            "required": True,
-            "owns_product_semantics": True,
-            "adapter_replaceable": False,
             **branch_role_metadata,
             "role_order": [str(record["role"]) for record in policy.semantic_order()],
             "configured_patterns": [str(record["pattern"]) for record in policy.semantic_order()],
         },
         {
             "id": "work_lane_lifecycle_command_contract",
-            "layer": "product_semantic_hard_binding",
-            "required": True,
-            "owns_product_semantics": True,
-            "adapter_replaceable": False,
             "commands": [
                 "ethos lane start",
                 "ethos lane prewrite",
@@ -458,19 +446,11 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
         },
         {
             "id": "openspec_workspace",
-            "layer": "mandatory_governance_dependency",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": False,
             "not_a_second_command_plane": True,
             "not_product_substrate": True,
         },
         {
             "id": "openspec_cli",
-            "layer": "mandatory_governance_dependency",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": False,
             "surfaces": [
                 "official OpenSpec status",
                 "official OpenSpec strict validation",
@@ -480,108 +460,96 @@ def _binding_registry(root: Path) -> list[dict[str, object]]:
         },
         {
             "id": "command_json_schema_protocol",
-            "layer": "native_protocol_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": False,
             "formats": ["command JSON", "JSON Schema"],
         },
         {
             "id": "claims_evidence_digest_protocol",
-            "layer": "native_protocol_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": False,
             "formats": ["TOML claims", "Markdown evidence", "SHA-256 digest"],
         },
         {
             "id": "sqlite_local_state_protocol",
-            "layer": "native_protocol_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": False,
             "formats": ["ignored SQLite local state"],
         },
         {
             "id": "uv_workspace_toolchain",
-            "layer": "product_toolchain_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "toolchains": ["uv workspace", "uv lock", "uv run", "uv build"],
             "gates": product_toolchain["gates"],
         },
         {
             "id": "hatchling_build_backend",
-            "layer": "product_toolchain_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "surfaces": ["PEP 517 build backend", "wheel", "sdist"],
         },
         {
             "id": "pytest_test_runner",
-            "layer": "product_toolchain_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "gates": ["unit-architecture"],
             "surfaces": ["pytest"],
         },
         {
             "id": "ruff_lint_runner",
-            "layer": "product_toolchain_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "gates": ["ruff"],
             "surfaces": ["Ruff"],
         },
         {
             "id": "gitlab_release_profile",
-            "layer": "profile_or_adapter_binding",
-            "required": True,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "provider": release_profile.get("provider", ""),
             "surfaces": release_profile.get("surfaces", {}),
         },
         {
             "id": "mcp_acp_protocol_adapters",
-            "layer": "profile_or_adapter_binding",
-            "required": False,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "surfaces": ["MCP", "ACP", "assistant context projections"],
         },
         {
             "id": "npm_launcher_distribution_adapter",
-            "layer": "profile_or_adapter_binding",
-            "required": False,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "surfaces": ["distributions/npm", "npm launcher"],
         },
         {
             "id": "historical_evidence_records",
-            "layer": "historical_evidence",
-            "required": False,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "surfaces": ["archived evidence", "migration oracle records"],
         },
         {
             "id": "provider_test_fixtures",
-            "layer": "test_fixture",
-            "required": False,
-            "owns_product_semantics": False,
-            "adapter_replaceable": True,
             "surfaces": ["hosted provider fixtures", "adopter fixtures"],
         },
     ]
-    for entry in entries:
-        entry.update(BINDING_METADATA[str(entry["id"])])
-    return entries
+    return [
+        {
+            **BINDING_CONTRACTS[str(entry["id"])],
+            **entry,
+            **BINDING_METADATA[str(entry["id"])],
+        }
+        for entry in runtime_fields
+    ]
+
+
+def _binding_taxonomy_gaps(
+    entry_id: str,
+    entry: dict[str, object],
+    expected: dict[str, object],
+) -> list[str]:
+    """Enforce layering taxonomy invariants for a single binding entry.
+
+    The 4 policy fields (layer/required/owns_product_semantics/adapter_replaceable)
+    are derived from BINDING_CONTRACTS in _binding_registry, so a normally built
+    entry can never disagree with its contract. These checks remain as genuine
+    taxonomy invariants that reject a registry whose entries have been corrupted
+    after construction (wrong layer, adapter claiming product semantics, or a
+    governance dependency masquerading as product substrate).
+    """
+    gaps: list[str] = []
+    if entry.get("layer") != expected["layer"]:
+        gaps.append(f"binding_registry_layer:{entry_id}:{entry.get('layer')}")
+    if expected["owns_product_semantics"] is False and entry.get("owns_product_semantics") is True:
+        gaps.append(f"binding_registry_product_semantics:{entry_id}")
+    if expected.get("not_product_substrate") and entry.get("not_product_substrate") is not True:
+        gaps.append(f"binding_registry_product_substrate:{entry_id}")
+    if (
+        entry.get("layer") != "product_semantic_hard_binding"
+        and entry.get("owns_product_semantics") is True
+    ):
+        gap = f"binding_registry_product_semantics:{entry_id}"
+        if gap not in gaps:
+            gaps.append(gap)
+    return gaps
 
 
 def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
@@ -606,31 +574,7 @@ def _binding_registry_gaps(entries: list[dict[str, object]]) -> list[str]:
         if entry is None:
             gaps.append(f"binding_registry_missing:{entry_id}")
             continue
-        for key in ("layer", "required", "owns_product_semantics", "adapter_replaceable"):
-            if entry.get(key) != expected[key]:
-                gaps.append(f"binding_registry_{key}:{entry_id}:{entry.get(key)}")
-                if key == "owns_product_semantics" and expected[key] is False:
-                    gaps.append(f"binding_registry_product_semantics:{entry_id}")
-        for key, expected_value in expected.items():
-            if key in {
-                "layer",
-                "required",
-                "owns_product_semantics",
-                "adapter_replaceable",
-                "not_product_substrate",
-            }:
-                continue
-            if entry.get(key) != expected_value:
-                gaps.append(f"binding_registry_{key}:{entry_id}:{entry.get(key)}")
-        if expected.get("not_product_substrate") and entry.get("not_product_substrate") is not True:
-            gaps.append(f"binding_registry_product_substrate:{entry_id}")
-        if (
-            entry.get("layer") != "product_semantic_hard_binding"
-            and entry.get("owns_product_semantics") is True
-        ):
-            gap = f"binding_registry_product_semantics:{entry_id}"
-            if gap not in gaps:
-                gaps.append(gap)
+        gaps.extend(_binding_taxonomy_gaps(entry_id, entry, expected))
     return gaps
 
 

@@ -23,14 +23,15 @@ def seed_proof(root: Path, head: str) -> None:
     from ethos.repository.evidence.core import EvidenceSet
     from ethos.repository.evidence.core import ProofRun
 
-    run = ProofRun.from_adapter_result(
+    run = ProofRun(
         action_id="python-tests",
         command=("pytest",),
         exit_code=0,
         stdout="",
         stderr="",
-        adapter_state="proven",
+        state="proven",
         evidence_class="test",
+        verdict="passed",
         trust_bearing=True,
         diagnostics=(),
     )

@@ -217,7 +217,14 @@ def prove(
         if expect_head is not None and expect_head != current_head
         else ()
     )
-    ok = bool(audit["ok"]) and runs_ok and graph.validate().ok and not proof_gaps and not head_gaps
+    ok = (
+        bool(audit["ok"])
+        and runs_ok
+        and graph.validate().ok
+        and not proof_gaps
+        and not trust_gaps
+        and not head_gaps
+    )
     result_state = "proven" if ok and execute else "ready" if ok else "gapped"
     if result_state == "proven":
         # Persist a HEAD-keyed, self-authenticating proof record so land/publish can

@@ -5,8 +5,8 @@
   "generated_on": "2026-07-05",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-concurrency-hardening --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "26368525cd2d96e52c8fe279ae66d28380919af7",
-    "target_head": "26368525cd2d96e52c8fe279ae66d28380919af7",
+    "product_head": "5a0deda334b9dd9f49cc5af0e3d6cfc2ab6e7279",
+    "target_head": "5a0deda334b9dd9f49cc5af0e3d6cfc2ab6e7279",
     "command_sha256": "86fd7be9ce4f7966244e356e200e81fa3e22333719dc7bb7e3977d3ea3b9c885"
   },
   "shadow": {

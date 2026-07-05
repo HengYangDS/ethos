@@ -40,6 +40,22 @@ def _evidence_digest(body: dict[str, Any]) -> str:
     return hashlib.sha256(_stable_json(canonical).encode("utf-8")).hexdigest()
 
 
+def _runs_prove_head(runs: object) -> bool:
+    if not isinstance(runs, list) or not runs:
+        return False
+    trust_bearing_count = 0
+    for run in runs:
+        if not isinstance(run, dict):
+            return False
+        if run.get("verdict") != "passed":
+            return False
+        if run.get("trust_bearing") is True:
+            trust_bearing_count += 1
+            if run.get("state") != "proven":
+                return False
+    return trust_bearing_count > 0
+
+
 def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
     """Persist the executed EvidenceSet body under .ethos/state/proof/<head>.json.
 
@@ -88,23 +104,9 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     sealed = str(evidence.get("digest", ""))
     if not sealed or _evidence_digest(evidence) != sealed:
         return None
-    # (c) There is at least one run; every run passed; and trust-bearing runs are
-    # proven. Non-trust diagnostic gates may be merely executed, but they cannot fail.
-    # This mirrors `ethos prove`: verdicts gate correctness, trust-bearing proven runs
-    # gate promotion authority.
-    runs = evidence.get("runs")
-    if not isinstance(runs, list) or not runs:
-        return None
-    trust_bearing_count = 0
-    for run in runs:
-        if not isinstance(run, dict):
-            return None
-        if run.get("verdict") != "passed":
-            return None
-        if run.get("trust_bearing") is True:
-            trust_bearing_count += 1
-            if run.get("state") != "proven":
-                return None
-    if trust_bearing_count == 0:
+    # (c) Mirror `ethos prove`: every run must pass, and at least one trust-bearing
+    # run must be proven. Non-trust diagnostic gates may be merely executed, but they
+    # cannot fail or stand alone as promotion evidence.
+    if not _runs_prove_head(evidence.get("runs")):
         return None
     return record

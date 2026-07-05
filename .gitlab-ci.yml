@@ -58,7 +58,7 @@ ethos:verify:
   stage: verify
   script:
     - openspec --version
-    - uv run --group dev pytest tests/unit tests/architecture -q
+    - .config/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
     - uv run --package ethos ethos audit --json
     - uv run --package ethos ethos report --json

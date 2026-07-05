@@ -38,7 +38,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm ci --ignore-scripts" in text
     assert "npm run ethos -- --version" in text
     assert "npm run test:npm" in text
-    assert "uv run --group dev pytest tests/unit tests/architecture -q" in text
+    assert ".config/ci/scripts/run-python-tests.sh" in text
+    assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert ".config/ci/scripts/bootstrap-python.sh" in text
     assert ".config/ci/scripts/install-lychee.sh" in text
     assert ".config/ci/scripts/run-import-linter.sh" in text
@@ -74,11 +75,16 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert 'config = "ruff.toml + .config/checks/ruff/"' in tools
     assert 'config = ".config/checks/import-linter/"' in tools
     assert 'config = ".config/checks/lychee/"' in tools
+    assert 'config = ".config/checks/coverage/coverage.ini"' in tools
+    assert 'tool = "coverage.py + pytest-cov"' in tools
+    assert 'planned = true' not in tools.split('concern = "coverage"', 1)[1].split('[[tool]]', 1)[0]
     assert 'config = ".config/boundaries/"' not in tools
     assert 'config = ".config/docs/lychee.toml"' not in tools
     assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()
     assert (ROOT / ".config/ci/scripts/install-lychee.sh").exists()
     assert (ROOT / ".config/ci/scripts/run-import-linter.sh").exists()
+    assert (ROOT / ".config/ci/scripts/run-python-tests.sh").exists()
+    assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
 
 
 def test_ci_lychee_installer_is_architecture_aware() -> None:
@@ -94,3 +100,16 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "--max-time" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
+
+
+def test_python_test_gate_enforces_coverage_floor() -> None:
+    runner = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
+
+    assert "--cov=ethos" in runner
+    assert "--cov=ethos_core" in runner
+    assert "--cov-fail-under=90" in runner
+    assert "--cov-report=term-missing" in runner
+    assert "--cov-config=.config/checks/coverage/coverage.ini" in runner
+    assert "fail_under = 90" in coverage
+    assert "branch = True" in coverage

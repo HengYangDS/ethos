@@ -20,9 +20,9 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="python-tests",
         kind="test",
-        command=("pytest", "tests", "-q"),
+        command=(".config/ci/scripts/run-python-tests.sh",),
         asset_classes=("python-code",),
-        dimensions=("test",),
+        dimensions=("test", "coverage"),
         execution_mode="adapter",
         evidence_class="proof",
         trust_bearing=True,

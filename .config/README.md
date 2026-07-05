@@ -10,6 +10,7 @@ configuration plane, not a truth center.
 - `ruff.toml` is the Ruff root source of truth because Ruff resolves path globs
   relative to the config file location.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
+- `.config/checks/coverage/coverage.ini` owns the 90% Python coverage floor.
 - `.config/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
 - `system/tools.toml` records why each gate exists, which profile owns it, and

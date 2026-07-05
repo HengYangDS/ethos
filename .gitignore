@@ -12,3 +12,6 @@ build/
 node_modules/
 npm-debug.log*
 .claude/skills/
+
+.coverage
+coverage.xml

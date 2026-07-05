@@ -47,10 +47,9 @@ profile = "product"
 
 [[tool]]
 concern = "coverage"
-tool = "coverage.py"
-config = ".config/checks/coverage/"
+tool = "coverage.py + pytest-cov"
+config = ".config/checks/coverage/coverage.ini"
 profile = "product"
-planned = true
 
 [[tool]]
 concern = "dependency_hygiene"

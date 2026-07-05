@@ -1352,12 +1352,47 @@ def test_prove_execute_can_select_real_gates() -> None:
     assert all(run["trust_bearing"] is True for run in payload["data"]["evidence"]["runs"])
 
 
-def test_prove_execute_preserves_non_trust_bearing_gate_classification() -> None:
+def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypatch) -> None:
+    import ethos.cli as ethos_cli
+    from ethos.adapters.gates.runner import ActionRunResult
+    from ethos.repository.policy.gates import Gate
+    from ethos_core.action_graph import ActionGraph
+
+    diagnostic_gate = Gate(
+        id="diagnostic-only",
+        kind="lint",
+        command=("diagnostic", "--check"),
+        evidence_class="diagnostic",
+        trust_bearing=False,
+    )
+    monkeypatch.setattr(ethos_cli, "gate_registry", lambda: {"diagnostic-only": diagnostic_gate})
+    monkeypatch.setattr(
+        ethos_cli,
+        "gate_graph",
+        lambda gate=(), full=False: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
+    )
+
+    class PassingDiagnosticRunner:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def run(self, node, *, root):
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                state="passed",
+                exit_code=0,
+                stdout="",
+                stderr="",
+            )
+
+    monkeypatch.setattr(ethos_cli, "LocalSubprocessRunner", PassingDiagnosticRunner)
+
     payload = run_ethos(
         "prove",
         "--execute",
         "--gate",
-        "ruff",
+        "diagnostic-only",
         "--json",
     )
 
@@ -1366,7 +1401,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification() -> None
     assert "trust_bearing_proof_missing" in payload["required_gaps"]
     assert payload["summary"]["gate_count"] == 1
     run = payload["data"]["evidence"]["runs"][0]
-    assert run["action_id"] == "ruff"
+    assert run["action_id"] == "diagnostic-only"
     assert run["state"] == "executed"
     assert run["verdict"] == "passed"
     assert run["evidence_class"] == "diagnostic"

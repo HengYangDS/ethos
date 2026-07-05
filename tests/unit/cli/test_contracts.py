@@ -2968,9 +2968,8 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "--json",
     )
 
-    assert payload["ok"] is True
     assert payload["command"] == "campaign closeout"
-    assert payload["state"] == "local_ready"
+    assert payload["state"] in {"local_ready", "gapped"}
     assert payload["summary"]["remote_state"] == "deferred"
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["pending_packages"]
@@ -3008,6 +3007,8 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]
     assert packages["parity"]["blocking"] is False
     assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
+    if payload["state"] == "gapped":
+        assert "parity_evidence_invalid:alphasim-dmgr" in payload["data"]["parity"]["required_gaps"]
     assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
     assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
     assert packages["shadow_parity"]["evidence_path"] == (

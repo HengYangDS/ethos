@@ -454,8 +454,12 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
                     "required_gaps": [],
                     "product_head": "product-head",
                     "current_product_head": "",
+                    "product_head_current": False,
+                    "product_head_accepted_by_relevant_tree": False,
                     "target_head": "target-head",
                     "current_target_head": "",
+                    "target_head_current": False,
+                    "target_head_accepted_by_relevant_tree": False,
                     "command_sha256": evidence["freshness"]["command_sha256"],
                 },
             },
@@ -491,8 +495,11 @@ def test_shadow_parity_report_accepts_current_commit_parent_product_head(
     assert payload["ok"] is True
     assert payload["state"] == "matched"
     assert payload["required_gaps"] == []
-    assert payload["provenance"]["freshness"]["product_head"] == "parent-product-head"
-    assert payload["provenance"]["freshness"]["current_product_head"] == "current-product-head"
+    freshness = payload["provenance"]["freshness"]
+    assert freshness["product_head"] == "parent-product-head"
+    assert freshness["current_product_head"] == "current-product-head"
+    assert freshness["product_head_current"] is False
+    assert freshness["product_head_accepted_by_relevant_tree"] is True
 
 
 def test_shadow_parity_report_accepts_current_commit_parent_target_head(
@@ -521,8 +528,11 @@ def test_shadow_parity_report_accepts_current_commit_parent_target_head(
     assert payload["ok"] is True
     assert payload["state"] == "matched"
     assert payload["required_gaps"] == []
-    assert payload["provenance"]["freshness"]["target_head"] == "parent-target-head"
-    assert payload["provenance"]["freshness"]["current_target_head"] == "current-target-head"
+    freshness = payload["provenance"]["freshness"]
+    assert freshness["target_head"] == "parent-target-head"
+    assert freshness["current_target_head"] == "current-target-head"
+    assert freshness["target_head_current"] is False
+    assert freshness["target_head_accepted_by_relevant_tree"] is True
 
 
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
@@ -569,6 +579,9 @@ def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:product_head" in payload["required_gaps"]
+    freshness = payload["evidence"]["provenance"]["freshness"]
+    assert freshness["product_head_current"] is False
+    assert freshness["product_head_accepted_by_relevant_tree"] is False
 
 
 def test_parity_gaps_accepts_evidence_updated_in_current_commit(tmp_path: Path) -> None:
@@ -693,8 +706,11 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:target_head" in payload["required_gaps"]
     assert payload["provenance"]["mode"] == "tracked_evidence"
-    assert payload["provenance"]["freshness"]["ok"] is False
-    assert payload["provenance"]["freshness"]["current_target_head"] == current_target_head
+    freshness = payload["provenance"]["freshness"]
+    assert freshness["ok"] is False
+    assert freshness["current_target_head"] == current_target_head
+    assert freshness["target_head_current"] is False
+    assert freshness["target_head_accepted_by_relevant_tree"] is False
     refresh = payload["execution_packages"][0]["refresh_package"]
     assert refresh == {
         "kind": "parity_evidence_refresh",

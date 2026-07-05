@@ -408,16 +408,36 @@ def _tracked_evidence_provenance(
 ) -> dict[str, object]:
     freshness_value = evidence.get("freshness")
     freshness = freshness_value if isinstance(freshness_value, dict) else {}
+    product_head = str(freshness.get("product_head") or "")
+    target_head = str(freshness.get("target_head") or "")
+    product_current = bool(current_product_head) and product_head == current_product_head
+    target_current = bool(current_target_head) and target_head == current_target_head
+    product_head_gap = any(str(gap).endswith(":product_head") for gap in required_gaps)
+    target_head_gap = any(str(gap).endswith(":target_head") for gap in required_gaps)
     return {
         "mode": "tracked_evidence",
         "evidence_path": str(evidence.get("path") or ""),
         "freshness": {
             "ok": not required_gaps,
             "required_gaps": list(required_gaps),
-            "product_head": str(freshness.get("product_head") or ""),
+            "product_head": product_head,
             "current_product_head": current_product_head,
-            "target_head": str(freshness.get("target_head") or ""),
+            "product_head_current": product_current,
+            "product_head_accepted_by_relevant_tree": bool(
+                current_product_head
+                and product_head
+                and product_head != current_product_head
+                and not product_head_gap
+            ),
+            "target_head": target_head,
             "current_target_head": current_target_head,
+            "target_head_current": target_current,
+            "target_head_accepted_by_relevant_tree": bool(
+                current_target_head
+                and target_head
+                and target_head != current_target_head
+                and not target_head_gap
+            ),
             "command_sha256": str(freshness.get("command_sha256") or ""),
         },
     }
@@ -461,10 +481,16 @@ def _parity_evidence(
         acceptable_product_heads=acceptable_product_heads,
         acceptable_target_heads=acceptable_target_heads,
     )
+    evidence_with_path = {"path": path.relative_to(root).as_posix(), **payload}
     return {
-        "path": path.relative_to(root).as_posix(),
-        **payload,
+        **evidence_with_path,
         "required_gaps": required_gaps,
+        "provenance": _tracked_evidence_provenance(
+            evidence_with_path,
+            required_gaps=required_gaps,
+            current_target_head=current_target_head,
+            current_product_head=current_product_head,
+        ),
     }
 
 

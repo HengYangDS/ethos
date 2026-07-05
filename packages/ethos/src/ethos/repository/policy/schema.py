@@ -345,8 +345,12 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
             "required_gaps": [],
             "product_head": "product-head",
             "current_product_head": "product-head",
+            "product_head_current": True,
+            "product_head_accepted_by_relevant_tree": False,
             "target_head": "target-head",
             "current_target_head": "target-head",
+            "target_head_current": True,
+            "target_head_accepted_by_relevant_tree": False,
             "command_sha256": "0" * 64,
         },
     }

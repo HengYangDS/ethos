@@ -254,8 +254,12 @@
             "required_gaps",
             "product_head",
             "current_product_head",
+            "product_head_current",
+            "product_head_accepted_by_relevant_tree",
             "target_head",
             "current_target_head",
+            "target_head_current",
+            "target_head_accepted_by_relevant_tree",
             "command_sha256"
           ],
           "properties": {
@@ -263,8 +267,12 @@
             "required_gaps": {"type": "array", "items": {"type": "string"}},
             "product_head": {"type": "string"},
             "current_product_head": {"type": "string"},
+            "product_head_current": {"type": "boolean"},
+            "product_head_accepted_by_relevant_tree": {"type": "boolean"},
             "target_head": {"type": "string"},
             "current_target_head": {"type": "string"},
+            "target_head_current": {"type": "boolean"},
+            "target_head_accepted_by_relevant_tree": {"type": "boolean"},
             "command_sha256": {"type": "string"}
           },
           "additionalProperties": false

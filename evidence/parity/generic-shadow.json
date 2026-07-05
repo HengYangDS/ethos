@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/paC",
+  "target": "/private/tmp/paGO",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paC --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paGO --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "300bc4ec68fb780e9558c0a683a7d6b308103614",
-    "target_head": "300bc4ec68fb780e9558c0a683a7d6b308103614",
-    "command_sha256": "9a43610093e5c18a69aefdcdf9369b2ec2cac4b24fc58450b045d0c69361ce0a"
+    "product_head": "4b6b9db1d4c10c4fa661d3450fc8302d18789750",
+    "target_head": "4b6b9db1d4c10c4fa661d3450fc8302d18789750",
+    "command_sha256": "252849f75e447b1d05f62cfed3f43f54ce1f5cbb0aad3035d8de80a2d6149bfe"
   },
   "shadow": {
     "ok": true,

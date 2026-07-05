@@ -5,7 +5,9 @@
   "title": "ETHOS Workflows Contract",
   "required": [
     "schema",
-    "lifecycle"
+    "lifecycle",
+    "transition",
+    "guards"
   ],
   "properties": {
     "schema": {
@@ -14,12 +16,67 @@
     "lifecycle": {
       "type": "object",
       "required": [
-        "states"
+        "states",
+        "initial"
       ],
       "properties": {
         "states": {
-          "type": "array"
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "initial": {
+          "type": "string"
         }
+      }
+    },
+    "transition": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "guard",
+          "invalid_state",
+          "invalid_states"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "guard": {
+            "type": "string"
+          },
+          "invalid_state": {
+            "type": "string"
+          },
+          "required_facts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "invalid_states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
       }
     }
   }

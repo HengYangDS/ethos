@@ -15,34 +15,60 @@ initial = "planned"
 from = "planned"
 to = "admitted"
 guard = "lane_prewrite_ok"
+invalid_state = "change_unbounded"
 required_facts = ["target_root", "branch_role", "editor_root", "target_paths"]
+# Admission can fail through ambiguous subject, unbounded change, or untrusted
+# substrate. All entries are top-level invalid-state categories.
+invalid_states = ["subject_ambiguous", "change_unbounded", "substrate_untrusted"]
 
 [[transition]]
 from = "admitted"
 to = "authored"
 guard = "tracked_write_in_owned_work_lane"
+invalid_state = "change_unbounded"
+# A tracked write must land in an owned, bounded Change carrier (work lane), never a
+# protected root.
+invalid_states = ["change_unbounded"]
 
 [[transition]]
 from = "authored"
 to = "proven"
 guard = "proof_evidence_bound_and_passing"
+invalid_state = "evidence_missing_or_stale"
 required_facts = ["evidence_digest", "gate_results"]
+# The Evidence must be executed and HEAD-bound.
+invalid_states = ["evidence_missing_or_stale"]
 
 [[transition]]
 from = "proven"
 to = "landed"
 guard = "land_to_candidate_ok"
+invalid_state = "change_unbounded"
+# Landing binds a Claim to the proven Change within a legal candidate train.
+invalid_states = ["change_unbounded", "claim_unbound_or_overreaching"]
 
 [[transition]]
 from = "landed"
 to = "closed"
 guard = "accepted_root_closeout_audited"
+invalid_state = "chronicle_missing"
+# Closeout records the judged outcome (archive/attestation) in the Chronicle.
+invalid_states = ["chronicle_missing"]
 
 [[transition]]
 from = "closed"
 to = "retired"
 guard = "work_lane_retired_after_merge"
+invalid_state = "chronicle_missing"
+# Retiring a fully-landed lane closes the Change carrier.
+invalid_states = ["change_unbounded", "chronicle_missing"]
 
+
+# Each transition declares the primary invalid-state category plus the full set of
+# top-level invalid-state categories it may block when its guard fails.
+# This links the five-state lifecycle to the nine-category failure taxonomy without
+# creating a second lifecycle or a new ontology.
+#
 # Guards are named; the generic evaluator resolves them against declared facts.
 [guards]
 lane_prewrite_ok = "ethos lane prewrite returns ok=true"

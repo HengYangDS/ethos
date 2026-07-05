@@ -273,3 +273,33 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
         field_names = {f.name for f in fields(model)}
         leaked = field_names & forbidden
         assert not leaked, f"{node_name} must not own downstream duties: {leaked}"
+
+
+def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
+    from ethos_core.invalid_states import NODE_ORDER
+
+    contract = load_system_contract(Path(), "workflows")
+    states = set(contract["lifecycle"]["states"])
+    guards = set(contract["guards"])
+    transitions = contract["transition"]
+
+    assert transitions
+    for transition in transitions:
+        assert transition["from"] in states
+        assert transition["to"] in states
+        assert transition["guard"] in guards
+        assert transition["invalid_state"] in NODE_ORDER
+        assert transition["invalid_state"] in transition["invalid_states"]
+        assert set(transition["invalid_states"]).issubset(set(NODE_ORDER))
+    assert {
+        invalid_state
+        for transition in transitions
+        for invalid_state in transition["invalid_states"]
+    } >= {
+        "subject_ambiguous",
+        "change_unbounded",
+        "evidence_missing_or_stale",
+        "claim_unbound_or_overreaching",
+        "chronicle_missing",
+        "substrate_untrusted",
+    }

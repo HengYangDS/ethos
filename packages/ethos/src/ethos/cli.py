@@ -6,7 +6,6 @@ from pathlib import Path
 from ethos.adapters.gates import tool as _qtool
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalSubprocessRunner
-from ethos.adapters.gates.signature import signature_policy_report
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
@@ -21,30 +20,19 @@ from ethos.adapters.openspec import openspec_governance_report
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import initialize_state
-from ethos.assistants.playbooks import playbooks_report
-from ethos.assistants.projections import projection_contract
 from ethos.domain import land as _land
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
-from ethos.repository.adoption.evolution import evolution_report
+from ethos.domain.report import scorecard_report
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.adoption.planner import adoption_scaffold_report
-from ethos.repository.adoption.planner import available_profiles
-from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity import parity_ledger_report
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs import build_docs_registry
-from ethos.repository.registry.docs import docs_health_report
-from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
@@ -58,11 +46,8 @@ from ethos_core.contracts.branch_roles import load_branch_role_policy
 # import time; importing them here wires those groups into the CLI. Each group
 # imports only its own domain deps, so a group's heavy dependencies load only when
 # that group is imported (lazy path for the common commands).
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
-from ethos_core.contracts.context_projection import context_projection_contract
 from ethos_core.invalid_states import UNCLASSIFIED
 from ethos_core.invalid_states import explain_gap
-from ethos_core.invalid_states import invalid_state_projection
 from ethos_core.result import EthosResult
 
 
@@ -608,180 +593,15 @@ def report(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit a concise scorecard."""
-    repo = resolve_root(root)
-    audit = _status.audit_for_root(repo, openspec_mode="shape")
-    docs_report = docs_health_report(repo)
-    claim_report = claims_report(repo)
-    command_report = command_registry_report(repo)
-    projection = projection_contract()
-    schemas_report = schema_validation_report(repo)
-    evolution = evolution_report(repo)
-    signature = signature_policy_report(repo)
-    audit_profile = str(audit["governance_context"]["profile"])
-    product_profile = audit_profile == "product"
-    playbooks = playbooks_report(repo, mode="v2-strict")
-    adoption_scaffold = adoption_scaffold_report()
-    parity_ledger = parity_ledger_report()
-    parity_gaps = parity_gaps_report(
-        root=repo,
-        current_product_head=_gitio.current_tracked_head(repo),
-        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, None),
-    )
-    context_projection = context_projection_contract()
-    context_projection_score = int(
-        context_projection["authority"] == "projection"
-        and not context_projection["can_close_required_gaps"]
-        and not context_projection["can_satisfy_proof"]
-    )
-    if not product_profile:
-        scores = {
-            "adopter_governance": int(bool(audit["ok"])),
-            "schemas": int(bool(audit["schemas"]["ok"])),
-            "claims": int(bool(audit["adopter"]["adopter"]["governance"]["claims"])),
-            "docs": int(bool(audit["adopter"]["adopter"]["governance"]["docs"])),
-            "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
-            "context_projection": context_projection_score,
-            "playbooks": int(bool(playbooks["ok"])),
-            "parity_ledger": int(bool(parity_ledger["ok"])),
-        }
-    else:
-        scores = {
-            "package_ontology": int(bool(audit["package_ontology"]["ok"])),
-            "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
-            "docs": int(bool(docs_report["ok"])),
-            "schemas": int(bool(audit["schemas"]["ok"])),
-            "schema_validation": int(bool(schemas_report["ok"])),
-            "claims": int(bool(claim_report["ok"])),
-            "command_registry": int(bool(command_report["ok"])),
-            "standards": int(
-                all(
-                    item["boundary"] and item["fallback"] and item["exit_strategy"]
-                    for item in standard_adapter_registry().values()
-                )
-            ),
-            "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
-            "context_projection": context_projection_score,
-            "evolution": int(bool(evolution["ok"])),
-            "signature_policy": int(bool(signature["ok"])),
-            "openspec": int(bool(audit["openspec"]["ok"])),
-            "playbooks": int(bool(playbooks["ok"])),
-            "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
-            "parity_ledger": int(bool(parity_ledger["ok"])),
-        }
-    ok = all(value == 1 for value in scores.values())
-    parity_pending_count = len(parity_gaps["required_gaps"])
-    result_required_gaps = tuple(audit["required_gaps"])
-    if product_profile:
-        result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
-    first_hour = {}
-    if not product_profile:
-        evidence_gap_count = len(result_required_gaps)
-        readiness = "local_readiness" if evidence_gap_count == 0 else "blocked"
-        first_hour = {
-            "proof_status": "ready" if evidence_gap_count == 0 else "gapped",
-            "evidence_gap_count": evidence_gap_count,
-            "land_readiness": readiness,
-            "publish_readiness": readiness,
-            "hosted_ci_truth": "external-evidence",
-            "next_action": "ethos prove" if evidence_gap_count == 0 else "resolve evidence gaps",
-        }
-    governance_invalid_states = invalid_state_projection(list(result_required_gaps))
-    parity_invalid_states = invalid_state_projection(list(parity_gaps["required_gaps"]))
-    playbook_invalid_states = invalid_state_projection(list(playbooks["required_gaps"]))
-    all_invalid_states = invalid_state_projection(
-        [
-            *list(result_required_gaps),
-            *list(parity_gaps["required_gaps"]),
-            *list(playbooks["required_gaps"]),
-        ]
-    )
-    gap_layers = {
-        "governance_audit": {
-            "scope": "governance_audit",
-            "blocking": True,
-            "ok": not result_required_gaps,
-            "required_gaps": list(result_required_gaps),
-            "gap_count": len(result_required_gaps),
-            "invalid_states": governance_invalid_states,
-        },
-        "capability_parity": {
-            "scope": "capability_parity",
-            "blocking": False,
-            "ok": bool(parity_gaps["ok"]),
-            "required_gaps": list(parity_gaps["required_gaps"]),
-            "gap_count": parity_pending_count,
-            "invalid_states": parity_invalid_states,
-        },
-        "playbook_projection": {
-            "scope": "skills-v2",
-            "blocking": True,
-            "ok": bool(playbooks["ok"]),
-            "required_gaps": list(playbooks["required_gaps"]),
-            "advisory_gaps": list(playbooks["advisory_gaps"]),
-            "gap_count": len(playbooks["required_gaps"]),
-            "invalid_states": playbook_invalid_states,
-        },
-    }
-    scorecards = [
-        {
-            "id": "skills-v2",
-            "scope": "playbook_projection",
-            "mode": playbooks["mode"],
-            "ok": bool(playbooks["ok"]),
-            "score": playbooks["v2_compliance"]["score"],
-            "max_score": playbooks["v2_compliance"]["max_score"],
-            "blocking": True,
-            "required_gaps": list(playbooks["required_gaps"]),
-            "advisory_gaps": list(playbooks["advisory_gaps"]),
-        }
-    ]
+    payload = scorecard_report(resolve_root(root))
     result = EthosResult(
         command="report",
-        ok=ok,
-        state="ready" if ok else "gapped",
-        summary={
-            "score": sum(scores.values()),
-            "max_score": len(scores),
-            "governance_gap_count": len(result_required_gaps),
-            "parity_pending_count": parity_pending_count,
-        },
-        required_gaps=result_required_gaps,
-        next_actions=(
-            ("ethos parity gaps --adopter <adopter>",)
-            if parity_pending_count
-            else ("ethos prove --full",)
-        ),
-        data={
-            "governance_context": audit["governance_context"],
-            "scores": scores,
-            "first_hour": first_hour,
-            "scorecards": scorecards,
-            "repository_audit": audit,
-            "docs": docs_report,
-            "claims": claim_report,
-            "assistant_projection": projection,
-            "context_projection": context_projection,
-            "schema_validation": schemas_report,
-            "evolution": evolution,
-            "signature_policy": signature,
-            "playbooks": playbooks,
-            "adoption_scaffold": adoption_scaffold,
-            "gap_layers": gap_layers,
-            "invalid_states": all_invalid_states,
-            "parity": {
-                "scope": {
-                    "generic_gap_count": parity_pending_count,
-                    "domain_profile_parity_closed": False,
-                    "note": (
-                        "Generic command parity does not claim domain profile parity "
-                        "or adopter-specific retirement readiness."
-                    ),
-                },
-                "ledger": parity_ledger,
-                "gaps": parity_gaps,
-            },
-            "profiles": list(available_profiles()),
-        },
+        ok=bool(payload["ok"]),
+        state="ready" if payload["ok"] else "gapped",
+        summary=payload["summary"],
+        required_gaps=tuple(payload["required_gaps"]),
+        next_actions=tuple(payload["next_actions"]),
+        data=payload["data"],
     )
     emit(result, json_output, enforce=False)
 

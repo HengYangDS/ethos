@@ -652,6 +652,8 @@ def test_gate_registry_has_real_default_gates() -> None:
         "--json",
     )
     assert {"unit-architecture", "ruff", "build", "python-types", "docstrings"} <= set(registry)
+    assert registry["ruff"].command == (".config/ci/scripts/run-python-lint.sh",)
+    assert registry["ruff"].dimensions == ("lint", "format", "ratchet")
     assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
     assert registry["docstrings"].command == (".config/ci/scripts/run-docstring-coverage.sh",)
     assert registry["python-types"].execution_mode == "inprocess"
@@ -676,6 +678,31 @@ def test_gate_graph_can_select_requested_gates() -> None:
     assert graph.validate().ok is True
 
 
+def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
+    graph = gate_graph()
+    node_ids = [node.id for node in graph.nodes]
+
+    assert node_ids == [
+        "repository-audit",
+        "claims",
+        "docs-registry",
+        "schemas",
+        "playbooks-v2",
+        "unit-architecture",
+        "ruff",
+        "python-types",
+        "docstrings",
+        "toml-config",
+        "yaml-config",
+        "shell-lint",
+        "format-policy",
+    ]
+    nodes = {node.id: node for node in graph.nodes}
+    assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
+    assert nodes["toml-config"].to_dict()["command"] == [".config/ci/scripts/run-config-lint.sh"]
+    assert nodes["shell-lint"].to_dict()["command"] == [".config/ci/scripts/run-shell-lint.sh"]
+
+
 def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     graph = gate_graph(full=True)
     nodes = {node.id: node for node in graph.nodes}
@@ -683,6 +710,7 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert "build" in nodes
     assert "docstrings" in nodes
     assert nodes["build"].depends_on == ("unit-architecture", "ruff")
+    assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
     assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()

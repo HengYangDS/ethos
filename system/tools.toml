@@ -14,7 +14,7 @@ concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/"
 profile = "minimal"
-gate = "ruff check + ruff format --check + .config/ci/scripts/run-ruff-ratchet.sh"
+gate = ".config/ci/scripts/run-python-lint.sh"
 
 [[tool]]
 concern = "tests"

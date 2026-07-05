@@ -373,7 +373,8 @@ def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
     config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
     assert "repo: local" in config
-    assert "uv run --group dev ruff check" in config
+    assert ".config/ci/scripts/run-python-lint.sh" in config
+    assert "uv run --group dev ruff check" not in config
     assert "github.com" not in config
 
 

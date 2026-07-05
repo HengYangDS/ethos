@@ -10,6 +10,7 @@ configuration plane, not a truth center.
 - `ruff.toml` is the Ruff root source of truth because Ruff resolves path globs
   relative to the config file location.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
+- `.config/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet.
 - `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `.config/ci/scripts/run-config-lint.sh` also enforces parseability, no trailing whitespace, and exactly one final newline.

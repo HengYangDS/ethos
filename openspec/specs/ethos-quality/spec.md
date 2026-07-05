@@ -23,9 +23,10 @@ frozen ignored-rule debt visible and non-increasing.
 
 #### Scenario: Ruff gate blocks current hard rules and ignored-rule growth
 
-- **WHEN** hosted CI runs the Python lint job
-- **THEN** ETHOS runs `ruff check .`, `ruff format --check .`, and the Ruff
-  ignored-rule ratchet script
+- **WHEN** hosted CI or `ethos prove --execute --json` runs the Python lint gate
+- **THEN** ETHOS invokes `.config/ci/scripts/run-python-lint.sh`
+- **AND** that owner script runs `ruff check .`, `ruff format --check .`, and the
+  Ruff ignored-rule ratchet script
 - **AND** each baseline in `.config/checks/ruff/ratchet.toml` is treated as a
   maximum, not a target
 - **AND** a rule baseline may be lowered when findings are removed, but may not
@@ -70,7 +71,8 @@ links, anchors, and command examples.
 ### Requirement: Configuration and Script Quality Gates
 
 ETHOS SHALL make configuration and runner-script quality executable through
-reusable owner scripts rather than provider-specific CI inline policy.
+reusable owner scripts rather than provider-specific CI inline policy, and the
+same owner scripts SHALL participate in the default ETHOS proof floor.
 
 #### Scenario: TOML and YAML configuration gates execute through owner scripts
 
@@ -95,6 +97,14 @@ reusable owner scripts rather than provider-specific CI inline policy.
 - **THEN** TOML, YAML, and shell concerns are marked active with their owning
   config path and reusable gate script
 - **AND** planned tool entries do not masquerade as active gates
+
+#### Scenario: Default proof consumes the active quality floor
+
+- **WHEN** `ethos prove --json` builds its default action graph
+- **THEN** the graph includes TOML, YAML, shell, Python lint, Python type,
+  docstring, unit/coverage, and format-policy gates
+- **AND** CI, pre-commit, and proof invoke reusable owner scripts instead of
+  copying tool command policy into provider projections
 
 ### Requirement: Python Public-Surface Docstring Gate
 

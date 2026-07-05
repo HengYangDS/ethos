@@ -21,9 +21,7 @@ ethos:lint:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --group dev ruff check .
-    - uv run --group dev ruff format --check .
-    - .config/ci/scripts/run-ruff-ratchet.sh
+    - .config/ci/scripts/run-python-lint.sh
 
 ethos:types:
   <<: *python_setup

@@ -143,9 +143,9 @@ def gate_registry() -> dict[str, Gate]:
             kind="lint",
             profile="product-toolchain",
             toolchain="uv-python",
-            command=("uv", "run", "--group", "dev", "ruff", "check", "."),
+            command=(".config/ci/scripts/run-python-lint.sh",),
             asset_classes=("python-code",),
-            dimensions=("lint", "format"),
+            dimensions=("lint", "format", "ratchet"),
             execution_mode="adapter",
             evidence_class="diagnostic",
             trust_bearing=False,
@@ -246,6 +246,10 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
         "ruff",
         "python-types",
         "docstrings",
+        "toml-config",
+        "yaml-config",
+        "shell-lint",
+        "format-policy",
     )
 
 

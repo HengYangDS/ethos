@@ -208,6 +208,11 @@ def prove(
         if execute
         else all(run.state == "planned" for run in proof_runs)
     )
+    failed_gate_gaps: tuple[str, ...] = (
+        tuple(f"gate_failed:{run.action_id}" for run in proof_runs if run.verdict != "passed")
+        if execute
+        else ()
+    )
     proof_gaps: tuple[str, ...] = ("full_proof_requires_execute",) if full and not execute else ()
     trust_gaps: tuple[str, ...] = (
         ("trust_bearing_proof_missing",) if execute and verdicts_ok and not trust_bearing_ok else ()
@@ -221,6 +226,7 @@ def prove(
         bool(audit["ok"])
         and runs_ok
         and graph.validate().ok
+        and not failed_gate_gaps
         and not proof_gaps
         and not trust_gaps
         and not head_gaps
@@ -250,6 +256,7 @@ def prove(
         required_gaps=(
             tuple(audit["required_gaps"])
             + tuple(graph.validate().gaps)
+            + failed_gate_gaps
             + proof_gaps
             + trust_gaps
             + head_gaps
@@ -325,10 +332,8 @@ def land(
             ok=ok,
             state=land_state,
             required_gaps=gaps,
-            next_actions=(
-                ("ethos lane retire-landed --branch <work-branch>",)
-                if ok
-                else ("ethos prove --json",)
+            next_actions=_land.closeout_next_actions(
+                ok=ok, gaps=gaps, current_head=_gitio.current_head(repo)
             ),
             data={
                 "repository_audit": audit,

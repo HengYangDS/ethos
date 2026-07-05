@@ -84,6 +84,28 @@ def test_pre_tool_hook_blocks_protected_root_before_mutation(tmp_path: Path) -> 
     assert "protected_lane_prewrite_blocked" in report["required_gaps"]
 
 
+def test_pre_tool_hook_blocks_protected_root_write_tool_without_declared_paths(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    report = hook_admission_report(
+        root=repo,
+        layer="pre-tool",
+        editor_root=repo,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["role"] == "accepted_root"
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "protected_root_pretool_paths_required",
+    }
+    assert "protected_root_pretool_paths_required" in report["required_gaps"]
+
+
 def test_pre_tool_hook_admits_owned_work_lane_with_editor_root(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-feature"

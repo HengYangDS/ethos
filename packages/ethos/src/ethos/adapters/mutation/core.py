@@ -187,6 +187,17 @@ def apply_candidate_to_accepted(
         }
     status = workspace_status(root)
     candidate_head = str(cast("dict[str, object]", status["candidate"])["head"])
+    if not _is_ancestor(root, current_head, candidate_head):
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.accepted_branch,
+            "source_branch": policy.candidate_branch,
+            "head": current_head,
+            "candidate_head": candidate_head,
+            "previous_head": current_head,
+            "required_gaps": ["candidate_diverged_from_accepted"],
+        }
     completed = _git(root, "merge", "--ff-only", policy.candidate_branch, check=False)
     if completed.returncode != 0:
         return {

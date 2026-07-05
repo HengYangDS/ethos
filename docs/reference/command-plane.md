@@ -125,6 +125,7 @@ Work Lane admission:
 ```bash
 ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
+ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim> --apply
 ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
@@ -179,6 +180,10 @@ dry-run output reports `state = "ready_to_refresh_base"` and apply mode requires
 candidate branch. `ethos land --json` uses the same check before apply: a stale
 lane returns `candidate_base_stale` and the exact `ethos lane refresh-base`
 command instead of waiting for `land --apply` to fail.
+`ethos lane candidate --refresh-from-accepted --json` checks whether a clean
+candidate train can be reset to the accepted root. Apply mode requires
+`--authorize` plus `--expect-head`; it is the recovery path when accepted-root
+closeout reports `candidate_diverged_from_accepted`.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree.

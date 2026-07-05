@@ -38,7 +38,11 @@ admitted Work Lane fast-forwards the candidate worktree without advancing the
 accepted root. `ethos land --json` checks the same ancestry before mutation; if
 the candidate train has advanced since the Work Lane started, it reports
 `candidate_base_stale` and points to `ethos lane refresh-base` instead of
-waiting for apply mode to discover the stale base.
+waiting for apply mode to discover the stale base. If the candidate train and
+accepted root diverge before accepted-root closeout, closeout reports
+`candidate_diverged_from_accepted` and points to
+`ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <head> --json`
+so the train can be reset deliberately before the Work Lane is replayed.
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
 release_root -> accepted_root -> candidate -> work_lane -> submit_lane.

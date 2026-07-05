@@ -5,12 +5,14 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
+from typing import cast
 
 from cyclopts import Parameter
 
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import bootstrap_candidate
+from ethos.adapters.mutation.lanes import refresh_candidate_from_accepted
 from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -59,12 +61,23 @@ def candidate(
     apply: bool = False,
     path: Annotated[Path | None, Parameter(name="--path")] = None,
     expect_head: str | None = None,
+    refresh_from_accepted: Annotated[bool, Parameter(name="--refresh-from-accepted")] = False,
+    authorize: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Bootstrap or inspect the local candidate train."""
+    """Bootstrap, inspect, or refresh the local candidate train."""
     repo = resolve_root(root)
-    report = bootstrap_candidate(root=repo, path=path, expect_head=expect_head, apply=apply)
+    if refresh_from_accepted:
+        report = refresh_candidate_from_accepted(
+            root=repo,
+            apply=apply,
+            authorized=authorize,
+            expect_head=expect_head,
+        )
+    else:
+        report = bootstrap_candidate(root=repo, path=path, expect_head=expect_head, apply=apply)
+    required_gaps = tuple(cast("tuple[str, ...] | list[str]", report["required_gaps"]))
     result = EthosResult(
         command="lane candidate",
         ok=bool(report["ok"]),
@@ -74,7 +87,7 @@ def candidate(
             "head": report["head"],
             "path": report["path"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=required_gaps,
         next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
         data=report,
     )

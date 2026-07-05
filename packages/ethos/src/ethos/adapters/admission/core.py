@@ -87,6 +87,8 @@ def hook_admission_report(
     if normalized_layer == "context":
         return _context_report(base, repo=repo, expected_root=expected_root)
     if normalized_layer == "pre-tool":
+        if status["role"] in PROTECTED_WRITE_ROLES and not target_paths:
+            return _blocked(base, "protected_root_pretool_paths_required")
         return _prewrite_report(
             base,
             repo=repo,

@@ -56,6 +56,23 @@ def land_next_actions(
     return ("ethos prove --json",)
 
 
+def closeout_next_actions(
+    *,
+    ok: bool,
+    gaps: tuple[str, ...],
+    current_head: str,
+) -> tuple[str, ...]:
+    """Derive recommended next commands after accepted-root closeout."""
+    if ok:
+        return ("ethos lane retire-landed --branch <work-branch>",)
+    if "candidate_diverged_from_accepted" in gaps:
+        return (
+            "ethos lane candidate --refresh-from-accepted "
+            f"--apply --authorize --expect-head {current_head} --json",
+        )
+    return ("ethos prove --json",)
+
+
 def closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
     """Resolve the root to audit after closeout (candidate worktree when accepted)."""
     if not decision.ok:

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-gitnexus-decision-revert",
+  "target": "/Users/yheng/projects/ethos-work-vendor-surface-decision-revert",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-gitnexus-decision-revert --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-vendor-surface-decision-revert --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "bb5d0216695c44e12983a8556de50ba3d2d8719e",
-    "target_head": "bb5d0216695c44e12983a8556de50ba3d2d8719e",
-    "command_sha256": "d42d170b49a88a29e8626379196e7348eb8d46ea6fada2c6aa7867b2e2ef7171"
+    "product_head": "3c80dcda33c532aece13ffe5dded2083ae3e0c46",
+    "target_head": "3c80dcda33c532aece13ffe5dded2083ae3e0c46",
+    "command_sha256": "1c763ace72bc97723d43ffa5d7c5c214f76559a3e07b20948aa96ae54f24af95"
   },
   "shadow": {
     "ok": true,

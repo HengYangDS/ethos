@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos",
+  "target": "/Users/yheng/projects/ethos-work-translink",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-translink --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "a3aaa83c51766730d777b80404bfe4c31d83005f",
-    "target_head": "a3aaa83c51766730d777b80404bfe4c31d83005f",
-    "command_sha256": "984ee42f8ebc75a401fb590a5a7f6d30914acf80142bf0ba8f0d759143f4de8a"
+    "product_head": "a7f086d3141bb132d8b21f0db0bc825df7edc110",
+    "target_head": "a7f086d3141bb132d8b21f0db0bc825df7edc110",
+    "command_sha256": "1da719e49e377fcd5e7f24e6948804bd471a83998685c3a32dba83130c3279dd"
   },
   "shadow": {
     "ok": true,

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-proof-gate-registry-convergence",
+  "target": "/private/tmp/ethos-skill-portfolio-governance",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-proof-gate-registry-convergence --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-portfolio-governance --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "a40cb7dfeccb506739bf10d07df3433cb47701ba",
-    "target_head": "a40cb7dfeccb506739bf10d07df3433cb47701ba",
-    "command_sha256": "1674b8cddaa133c5d2fa4350423ecdd355ef4eda533b713dcf8dcdc97ab7386d"
+    "product_head": "2a0d4a4d6841e1131054c0303a883a32e80524dc",
+    "target_head": "2a0d4a4d6841e1131054c0303a883a32e80524dc",
+    "command_sha256": "ae81e379ac2f2bc7d50819629387444a2add051560367c638c3fa96754241ab8"
   },
   "shadow": {
     "ok": true,

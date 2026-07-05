@@ -1,0 +1,49 @@
+[claim]
+id = "ethos-openspec-archive-fusion-guard"
+subject = "ethos:openspec-archive-fusion-guard"
+state = "active"
+summary = "ETHOS blocks silent deletion of accepted OpenSpec scenario obligations during archive closeout by surfacing removed WHEN, THEN, and AND obligation lines in the always-run shape audit."
+
+[evidence]
+dated = "evidence/openspec-archive-fusion-guard-2026-07-05.md"
+sha256 = "a4ac90e2daaf01a5f8a2c22211f4ee554ffab34de26a54b5679add7522b8a3d1"
+evidence_ids = ["evidence:ethos-openspec-archive-fusion-guard"]
+binding = "semantic OpenSpec archive fusion guard evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/audit/test_modes.py::test_openspec_shape_flags_removed_accepted_spec_obligations tests/unit/audit/test_modes.py::test_openspec_shape_allows_added_or_unchanged_spec_obligations -q",
+  "uv run --group dev pytest tests/unit/audit/test_modes.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_cache.py -q",
+  "uv run --group dev ruff check .",
+  "uv run --group dev ruff format --check .",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos plan --changed --json",
+]
+
+[scope]
+packages = ["ethos-repository"]
+tests = ["tests/unit/audit/test_modes.py"]
+docs = [
+  "docs/governance/product-design-contract.md",
+  "openspec/specs/ethos-repository/spec.md",
+  "openspec/changes/ethos-openspec-archive-fusion-guard-20260705/specs/ethos-repository/spec.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "OpenSpec archive closeout fusion guard for accepted scenario obligations"
+
+[carriers]
+openspec = "openspec/changes/ethos-openspec-archive-fusion-guard-20260705"
+
+fallback = "Restore or explicitly carry removal of accepted OpenSpec obligations before archive closeout proceeds."
+kill_signal = "An OpenSpec archive or manual spec edit can delete accepted WHEN, THEN, or AND obligations without a blocking repository audit gap."
+
+[promotion]
+targets = [
+  "evidence/openspec-archive-fusion-guard-2026-07-05.md",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "tests/unit/audit/test_modes.py",
+  "docs/governance/product-design-contract.md",
+  "openspec/specs/ethos-repository/spec.md",
+  "openspec/changes/ethos-openspec-archive-fusion-guard-20260705/specs/ethos-repository/spec.md",
+]

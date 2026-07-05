@@ -63,7 +63,6 @@ invalid_state = "chronicle_missing"
 # Retiring a fully-landed lane closes the Change carrier.
 invalid_states = ["change_unbounded", "chronicle_missing"]
 
-
 # Each transition declares the primary invalid-state category plus the full set of
 # top-level invalid-state categories it may block when its guard fails.
 # This links the five-state lifecycle to the nine-category failure taxonomy without

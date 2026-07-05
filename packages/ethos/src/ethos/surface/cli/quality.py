@@ -196,8 +196,8 @@ def shell_quality(
     report = _qtool.quality_tool_report(
         root=repo,
         gate_id="shell-lint",
-        tool="shellcheck",
-        command=["shellcheck", *files],
+        tool="bash",
+        command=["bash", ".config/ci/scripts/run-shell-lint.sh", *files],
         files=files,
     )
     result = EthosResult(
@@ -222,8 +222,8 @@ def toml_quality(
     report = _qtool.quality_tool_report(
         root=repo,
         gate_id="toml-config",
-        tool="taplo",
-        command=["taplo", "check", *files],
+        tool="bash",
+        command=["bash", ".config/ci/scripts/run-config-lint.sh", *files],
         files=files,
     )
     result = EthosResult(
@@ -248,8 +248,8 @@ def yaml_quality(
     report = _qtool.quality_tool_report(
         root=repo,
         gate_id="yaml-config",
-        tool="yamllint",
-        command=["yamllint", "-d", "{extends: relaxed, rules: {line-length: disable}}", *files],
+        tool="bash",
+        command=["bash", ".config/ci/scripts/run-config-lint.sh", *files],
         files=files,
     )
     result = EthosResult(

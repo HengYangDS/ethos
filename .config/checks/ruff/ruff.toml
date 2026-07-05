@@ -20,34 +20,67 @@ docstring-code-format = true
 # floor, make low-quality unrepresentable). Correctness + determinism + elegance +
 # security + exception hygiene + boolean-trap + private-access + logging.
 select = [
-    "E", "W", "F", "I", "UP", "B", "SIM",
-    "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF",
-    "C90",
-    "PL", "TRY", "FBT", "SLF", "ARG", "PGH", "FURB", "G", "DTZ", "EM", "LOG",
-    "BLE", "RSE", "SLOT", "PIE", "INP", "T20", "YTT", "ASYNC",
+  "E",
+  "W",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "C4",
+  "RET",
+  "PTH",
+  "PT",
+  "N",
+  "A",
+  "ISC",
+  "FLY",
+  "PERF",
+  "TC",
+  "TID",
+  "PIE",
+  "RUF",
+  "C90",
+  "PL",
+  "TRY",
+  "FBT",
+  "SLF",
+  "ARG",
+  "PGH",
+  "FURB",
+  "G",
+  "DTZ",
+  "EM",
+  "LOG",
+  "BLE",
+  "RSE",
+  "SLOT",
+  "PIE",
+  "INP",
+  "T20",
+  "YTT",
+  "ASYNC",
 ]
-# Ratchet: correctness rules enforced everywhere, zero tolerance. A small set of
-# pre-existing STYLE/idiom debt is frozen (not permanent — dissolves as modules are
-# rewritten during the surface split). New code gets the full set.
+# Ratchet: correctness rules are enforced everywhere. A bounded set of
+# pre-existing style/idiom debt is frozen here and must shrink as focused refactors
+# dissolve legacy report reducers and wide command handlers. New code gets the full set.
 ignore = [
-    "PERF401",  # manual list-comprehension: junk-drawer modules to be dissolved
-    "TRY003",   # long exception messages: pervasive, low-value to reflow now
-    "EM101",    # string-literal in exception: idiom churn, dissolves on rewrite
-    "EM102",    # f-string in exception: same
-    "PLR0913",  # too-many-arguments: some command handlers legitimately wide
-    "PLC0415",  # import-not-at-top: lazy imports are the perf design (surface split)
-    "PLR2004",  # magic-value-comparison: pervasive in report reducers; ratchet debt
-    "PLR0911",  # too-many-return-statements: report reducers branch by verdict
-    "PLR0912",  # too-many-branches: existing report reducers; dissolves on split
-    "PLR0915",  # too-many-statements: same; C90 complexity already caps the worst
-    "BLE001",   # blind-except: DELIBERATE defensive adapter boundaries (see plan.py
-                # rule_fact_snapshot — every source is isolated so one failure can't
-                # sink the snapshot; each is marked pragma: no cover)
-    "ARG001",   # unused-function-argument: cyclopts/adapter signatures need the arg
-    "ARG002",   # unused-method-argument: same (protocol conformance)
-    "FBT001",   # bool positional arg: the CLI flag idiom (emit(result, json_output),
-                # called 78x); FBT002/FBT003 stay armed for the worse cases
-    "DTZ011",   # date.today(): a calendar date (not a timestamp) needs no tz
+  "PERF401", # manual list-comprehension: junk-drawer modules to be dissolved
+  "TRY003",  # long exception messages: pervasive, low-value to reflow now
+  "EM101",   # string-literal in exception: idiom churn, dissolves on rewrite
+  "EM102",   # f-string in exception: same
+  "PLR0913", # too-many-arguments: some command handlers legitimately wide
+  "PLC0415", # import-not-at-top: lazy imports are the perf design (surface split)
+  "PLR2004", # magic-value-comparison: pervasive in report reducers; ratchet debt
+  "PLR0911", # too-many-return-statements: report reducers branch by verdict
+  "PLR0912", # too-many-branches: existing report reducers; dissolves on split
+  "PLR0915", # too-many-statements: same; C90 complexity already caps the worst
+  "BLE001",  # blind-except: temporary defensive adapter debt; reduce case-by-case
+  "ARG001",  # unused-function-argument: cyclopts/adapter signatures need the arg
+  "ARG002",  # unused-method-argument: same (protocol conformance)
+  "FBT001",  # bool positional arg: the CLI flag idiom (emit(result, json_output),
+  # called 78x); FBT002/FBT003 stay armed for the worse cases
+  "DTZ011", # date.today(): a calendar date (not a timestamp) needs no tz
 ]
 
 [lint.mccabe]
@@ -56,17 +89,17 @@ ignore = [
 max-complexity = 10
 
 [lint.isort]
-# Decision §4.3 (see .ethos/quality-regime-decision.md): one import per line, so
-# diffs and grep stay clean and import-churn is line-addressable. Absolute imports
-# only (TID enforces the ban on relative). All ethos packages are first-party.
+# One import per line keeps diffs and grep line-addressable. Absolute imports only
+# (TID enforces the ban on relative). All current and historical ethos package names
+# are treated as first-party so archived evidence and migration fixtures stay stable.
 force-single-line = true
 known-first-party = [
-    "ethos",
-    "ethos_adapters",
-    "ethos_assistants",
-    "ethos_contracts",
-    "ethos_core",
-    "ethos_quality",
-    "ethos_repository",
-    "ethos_test",
+  "ethos",
+  "ethos_adapters",
+  "ethos_assistants",
+  "ethos_contracts",
+  "ethos_core",
+  "ethos_quality",
+  "ethos_repository",
+  "ethos_test",
 ]

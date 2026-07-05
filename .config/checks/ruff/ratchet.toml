@@ -1,0 +1,23 @@
+# Ruff ignored-rule ratchet. These rules are intentionally selected in Ruff but
+# temporarily ignored in .config/checks/ruff/ruff.toml because the current codebase
+# still carries legacy debt. This file makes that debt visible and non-increasing.
+# Lower a baseline whenever a focused refactor removes findings. These maxima are
+# initialized from the current accepted root when the ratchet gate is introduced;
+# the quality lane must not increase them, and future work may only ratchet down.
+
+[ignored_rule_baseline]
+ARG001 = 87
+ARG002 = 4
+BLE001 = 7
+DTZ011 = 1
+EM101 = 10
+EM102 = 3
+FBT001 = 5
+PERF401 = 44
+PLC0415 = 92
+PLR0911 = 6
+PLR0912 = 10
+PLR0913 = 37
+PLR0915 = 5
+PLR2004 = 16
+TRY003 = 12

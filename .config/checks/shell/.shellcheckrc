@@ -1,0 +1,4 @@
+# ETHOS shell quality policy. Shell scripts are runner adapters, not hidden
+# product logic, so keep this small and portable.
+shell=bash
+severity=style

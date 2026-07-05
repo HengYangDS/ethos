@@ -36,4 +36,3 @@ command = ["ethos", "prove", "--json"]
 id = "ethos.report"
 kind = "command_readonly"
 command = ["ethos", "report", "--json"]
-

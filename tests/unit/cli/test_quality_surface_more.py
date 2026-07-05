@@ -37,9 +37,9 @@ def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_p
         "quality yaml",
     ]
     assert emitted[0]["data"]["tool"] == "lychee"
-    assert emitted[1]["data"]["command"][0] == "shellcheck"
-    assert emitted[2]["data"]["command"][0] == "taplo"
-    assert emitted[3]["data"]["command"][0] == "yamllint"
+    assert emitted[1]["data"]["command"][:2] == ["bash", ".config/ci/scripts/run-shell-lint.sh"]
+    assert emitted[2]["data"]["command"][:2] == ["bash", ".config/ci/scripts/run-config-lint.sh"]
+    assert emitted[3]["data"]["command"][:2] == ["bash", ".config/ci/scripts/run-config-lint.sh"]
 
 
 def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):

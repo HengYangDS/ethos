@@ -10,3 +10,26 @@ repos:
         entry: uv run --group dev ruff check
         language: system
         types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --group dev ruff format --check
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-ratchet
+        name: ruff ignored-rule ratchet
+        entry: .config/ci/scripts/run-ruff-ratchet.sh
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: config-lint
+        name: config lint
+        entry: .config/ci/scripts/run-config-lint.sh
+        language: system
+        files: \.(toml|ya?ml)$
+        pass_filenames: true
+      - id: shell-lint
+        name: shell lint
+        entry: .config/ci/scripts/run-shell-lint.sh
+        language: system
+        types: [shell]
+        pass_filenames: true

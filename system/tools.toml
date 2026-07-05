@@ -14,6 +14,7 @@ concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/"
 profile = "minimal"
+gate = "ruff check + ruff format --check + .config/ci/scripts/run-ruff-ratchet.sh"
 
 [[tool]]
 concern = "tests"
@@ -67,9 +68,9 @@ planned = true
 [[tool]]
 concern = "toml"
 tool = "taplo"
-config = ".config/checks/taplo/"
+config = ".config/checks/taplo/taplo.toml"
 profile = "minimal"
-planned = true
+gate = ".config/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "markdown_style"
@@ -87,10 +88,10 @@ planned = true
 
 [[tool]]
 concern = "yaml"
-tool = "yamllint,spectral"
-config = ".config/checks/yaml/"
-profile = "ecosystem"
-planned = true
+tool = "yamllint"
+config = ".config/checks/yaml/yamllint.yaml"
+profile = "minimal"
+gate = ".config/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "json_schema"
@@ -101,10 +102,10 @@ planned = true
 
 [[tool]]
 concern = "shell"
-tool = "shellcheck,shfmt"
-config = ".config/checks/shell/"
+tool = "shellcheck"
+config = ".config/checks/shell/.shellcheckrc"
 profile = "product"
-planned = true
+gate = ".config/ci/scripts/run-shell-lint.sh"
 
 [[tool]]
 concern = "docker"

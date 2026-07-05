@@ -58,7 +58,17 @@ path_globs = [
   "evidence/**",
   "claims/**",
 ]
-intent_tokens = ["status", "plan", "prove", "land", "publish", "readiness", "evidence", "change", "loop"]
+intent_tokens = [
+  "status",
+  "plan",
+  "prove",
+  "land",
+  "publish",
+  "readiness",
+  "evidence",
+  "change",
+  "loop",
+]
 pre_reads = ["AGENTS.md", "rules/mutation.md", "system/tao.md"]
 during_rules = [
   "read the decision verdict; never assume success",

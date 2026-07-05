@@ -1,0 +1,21 @@
+extends: default
+
+rules:
+  document-start: disable
+  indentation:
+    indent-sequences: consistent
+  line-length:
+    allow-non-breakable-words: true
+    max: 160
+  new-lines:
+    type: unix
+  trailing-spaces: enable
+  truthy:
+    allowed-values:
+      - "false"
+      - "no"
+      - "off"
+      - "on"
+      - "true"
+      - "yes"
+    check-keys: false

@@ -5,4 +5,4 @@
 - [x] Add regression coverage for advisory unbound Work Lane refs.
 - [x] Run focused tests for coordination and status contracts.
 - [x] Bind claim and evidence for the change.
-- [ ] Run executed proof and local closeout.
+- [x] Run executed proof and local closeout.

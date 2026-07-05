@@ -1,7 +1,7 @@
 ---
 subject: ethos:coordination-next-action
 role: evidence
-state: draft
+state: complete
 ---
 
 # Coordination Next Action Evidence — 2026-07-06
@@ -27,3 +27,7 @@ advisory coordination cleanup in `data.coordination.next_action`.
 
 This evidence supports a read-model precision change only. It does not claim
 remote publication, hosted CI success, or a new Work Lane ontology.
+
+## Closeout
+
+OpenSpec archive path: `openspec/changes/archive/2026-07-05-refine-coordination-next-action`.

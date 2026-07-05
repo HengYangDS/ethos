@@ -6,7 +6,7 @@ summary = "ETHOS status selects precise Work Lane coordination next actions so a
 
 [evidence]
 dated = "evidence/coordination-next-action-2026-07-06.md"
-sha256 = "6a2b97d78637f7103897d9fd4f303dc82610a033fb156b240b643f134c74bf2b"
+sha256 = "5265431f8e77fbf46745886a4aa17d0ab77233b59a06ccf889f769aea769b19d"
 evidence_ids = ["evidence:coordination-next-action"]
 binding = "semantic Work Lane coordination read-model evidence binding"
 verifier = "semantic"
@@ -30,7 +30,7 @@ owner = "ethos-repository"
 scope = "Workspace status Work Lane coordination next-action guidance"
 
 [carriers]
-openspec = "openspec/changes/refine-coordination-next-action"
+openspec = "openspec/changes/archive/2026-07-05-refine-coordination-next-action"
 
 fallback = "Keep existing coordination gap taxonomy and advisory behavior if next-action precision regresses."
 kill_signal = "Advisory-only Work Lane residue can direct agents to resolve overlap or unknown-scope blockers that are not present."
@@ -39,10 +39,10 @@ kill_signal = "Advisory-only Work Lane residue can direct agents to resolve over
 targets = [
   "evidence/claims/refine-coordination-next-action.toml",
   "evidence/coordination-next-action-2026-07-06.md",
-  "openspec/changes/refine-coordination-next-action/proposal.md",
-  "openspec/changes/refine-coordination-next-action/design.md",
-  "openspec/changes/refine-coordination-next-action/tasks.md",
-  "openspec/changes/refine-coordination-next-action/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-05-refine-coordination-next-action/proposal.md",
+  "openspec/changes/archive/2026-07-05-refine-coordination-next-action/design.md",
+  "openspec/changes/archive/2026-07-05-refine-coordination-next-action/tasks.md",
+  "openspec/changes/archive/2026-07-05-refine-coordination-next-action/specs/ethos-repository/spec.md",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts.py",

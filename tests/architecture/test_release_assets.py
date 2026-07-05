@@ -131,6 +131,7 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "--cov=ethos" in runner
     assert "--cov=ethos_core" in runner
     assert "--cov-fail-under=95" in runner
+    assert "-W error::ResourceWarning" in runner
     assert 'COVERAGE_FILE="${coverage_dir}/.coverage"' in runner
     assert "--cov-report=term-missing" in runner
     assert '--cov-report="xml:${coverage_dir}/coverage.xml"' in runner

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-refresh-coverage-readmodel-parity",
+  "target": "/private/tmp/ethos-refresh-generic-shadow-parity",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-refresh-coverage-readmodel-parity --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-refresh-generic-shadow-parity --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "8cd50981ff61fb1b1b52ef3cfb854a0c15b6a604",
-    "target_head": "8cd50981ff61fb1b1b52ef3cfb854a0c15b6a604",
-    "command_sha256": "8a748b5ab6083a79b5c7e8eb23b25ee3b73f8ad1912cae808bf9e78bebc3ccb3"
+    "product_head": "21fd49f98aee2b887d5ff5a3555e56144caba35a",
+    "target_head": "21fd49f98aee2b887d5ff5a3555e56144caba35a",
+    "command_sha256": "750f97c186b53bc364bf4a248c336c248fbd7965b5d63d0b67ecbd17d0c6a029"
   },
   "shadow": {
     "ok": true,

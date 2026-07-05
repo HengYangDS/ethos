@@ -31,3 +31,4 @@ remote publication, hosted CI success, or a new Work Lane ontology.
 ## Closeout
 
 OpenSpec archive path: `openspec/changes/archive/2026-07-05-refine-coordination-next-action`.
+- Archive metadata: `openspec/changes/archive/2026-07-05-refine-coordination-next-action/.openspec.yaml`.

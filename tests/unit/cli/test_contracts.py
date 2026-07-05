@@ -1322,6 +1322,12 @@ def test_full_gate_registry_includes_official_openspec_validation() -> None:
         "--strict",
         "--json",
     ]
+    assert payload["data"]["gates"]["python-types"]["command"] == [
+        "ethos",
+        "quality",
+        "types",
+        "--json",
+    ]
 
 
 def test_prove_execute_can_select_real_gates() -> None:
@@ -3179,6 +3185,7 @@ def test_quality_types_enforces_ty_policy_tiers() -> None:
     assert packages["packages/ethos-core"]["limit"] == 0
     assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
     assert packages["packages/ethos"]["tier"] == "ratchet"
-    assert packages["packages/ethos"]["limit"] > 0
+    assert packages["packages/ethos"]["limit"] == 307
+    assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
     # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
     assert completed.returncode == (0 if payload["ok"] else 1)

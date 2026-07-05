@@ -26,15 +26,18 @@ if TYPE_CHECKING:
 
 def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
     """Run an `ethos ... --json` action node in-process; None if not such a node."""
-    if not (len(node.command) >= 4 and node.command[1:3] == ("-m", "ethos.cli")):
-        return None
     if "--json" not in node.command:
+        return None
+    if len(node.command) >= 4 and node.command[1:3] == ("-m", "ethos.cli"):
+        command_args = list(node.command[3:])
+    elif len(node.command) >= 2 and node.command[0] == "ethos":
+        command_args = list(node.command[1:])
+    else:
         return None
     stdout = StringIO()
     stderr = StringIO()
     previous_cwd = Path.cwd()
     exit_code = 0
-    command_args = list(node.command[3:])
     try:
         os.chdir(root)
         with redirect_stdout(stdout), redirect_stderr(stderr):

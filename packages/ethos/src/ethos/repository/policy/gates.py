@@ -212,6 +212,7 @@ def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
             "openspec",
             "unit-architecture",
             "ruff",
+            "python-types",
             "build",
             "markdown-links",
             "shell-lint",

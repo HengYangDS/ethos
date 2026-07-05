@@ -638,7 +638,9 @@ def test_gate_registry_has_real_default_gates() -> None:
         "v2-strict",
         "--json",
     )
-    assert {"unit-architecture", "ruff", "build"} <= set(registry)
+    assert {"unit-architecture", "ruff", "build", "python-types"} <= set(registry)
+    assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
+    assert registry["python-types"].execution_mode == "inprocess"
 
 
 def test_gate_registry_classifies_product_toolchain_profile() -> None:
@@ -648,7 +650,7 @@ def test_gate_registry_classifies_product_toolchain_profile() -> None:
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 
-    for gate_id in ("unit-architecture", "ruff", "build"):
+    for gate_id in ("unit-architecture", "ruff", "build", "python-types"):
         assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
@@ -669,3 +671,4 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
+    assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]

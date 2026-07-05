@@ -155,12 +155,13 @@ The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap
 blocks closeout.
-The `data.coordination` object reports foreign Work Lanes as advisory
-coordination state. It carries `blocking=false`, an empty `required_gaps` list,
-and `advisory_gaps` such as `foreign_work_lane_present` or
-`work_lane_missing_lease:<branch>`. These gaps describe collaboration risk; they
-do not block the current clean lane unless the current lane's own
-`closeout_support.required_gaps` contains a blocking gap.
+The `data.coordination` object reports foreign Work Lanes with scope-aware
+coordination state. Plain presence remains advisory through `advisory_gaps` such
+as `foreign_work_lane_present` or `work_lane_missing_lease:<branch>`. Candidate
+integration from a Work Lane becomes blocking when a foreign lane's path scope
+overlaps the current lane, or when either side's scope cannot be computed; those
+conditions surface as `coordination_gap:*` in both `coordination.required_gaps`
+and `closeout_support.required_gaps`.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.

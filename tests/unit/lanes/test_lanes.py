@@ -123,6 +123,9 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "lease_state": "missing",
             "claim_id": "",
             "claim_binding": "missing",
+            "path_scope": [],
+            "scope_state": "empty",
+            "coordination_state": "advisory",
         }
     ]
     assert status["required_gaps"] == []
@@ -140,7 +143,9 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         ],
         "foreign_work_lane_count": 1,
         "missing_lease_count": 1,
-        "next_action": "coordinate foreign work lanes before local closeout if they overlap scope",
+        "overlap_count": 0,
+        "unknown_scope_count": 0,
+        "next_action": "resolve overlapping or unknown Work Lane scope before candidate integration",
     }
     assert status["closeout_support"] == {
         "supported": False,
@@ -440,6 +445,59 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
         "required_gaps": [],
     }
 
+
+
+def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    first = tmp_path / "repo-work-first"
+    second = tmp_path / "repo-work-second"
+    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
+    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+
+    (first / "README.md").write_text("# first\n", encoding="utf-8")
+    git(first, "add", "README.md")
+    git(
+        first,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "first change",
+    )
+    (second / "README.md").write_text("# second\n", encoding="utf-8")
+    git(second, "add", "README.md")
+    git(
+        second,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "second change",
+    )
+
+    status = workspace_status(second)
+
+    assert status["foreign_work_lanes"][0]["branch"] == "work/first"
+    assert status["foreign_work_lanes"][0]["path_scope"] == ["README.md"]
+    assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
+    assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
+    assert status["coordination"]["blocking"] is True
+    assert status["coordination"]["required_gaps"] == [
+        "coordination_gap:scope_overlap:work/first"
+    ]
+    assert status["coordination"]["overlap_count"] == 1
+    assert status["closeout_support"]["supported"] is False
+    assert status["closeout_support"]["required_gaps"] == [
+        "coordination_gap:scope_overlap:work/first"
+    ]
+    assert status["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
 
 def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")

@@ -7,6 +7,7 @@ from ethos.adapters.mutation import core as mutation
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
+from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.proof import record_executed_proof
 
 
@@ -57,6 +58,12 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
     return path
 
 
+def add_owned_work_lane(repo: Path, name: str, path: Path) -> Path:
+    report = start_work_lane(root=repo, name=name, path=path, owner="agent:test", apply=True)
+    assert report["ok"] is True
+    return path
+
+
 def test_mutation_requires_authorization_and_expected_head() -> None:
     request = MutationRequest(command="land", apply=True, authorized=False, expect_head=None)
 
@@ -78,8 +85,8 @@ def test_mutation_allows_dry_run_without_authorization() -> None:
 
 def test_mutation_apply_requires_matching_expected_head(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-apply"
-    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "dev")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = add_owned_work_lane(repo, "apply", tmp_path / "repo-work-apply")
     request = MutationRequest(
         command="publish",
         apply=True,
@@ -115,8 +122,8 @@ def test_mutation_apply_rejects_protected_root_even_with_authorization(
 
 def test_mutation_apply_rejects_dirty_work_lane(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-apply"
-    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "dev")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = add_owned_work_lane(repo, "apply", tmp_path / "repo-work-apply")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
     request = MutationRequest(
         command="land",
@@ -132,13 +139,81 @@ def test_mutation_apply_rejects_dirty_work_lane(tmp_path: Path) -> None:
     assert "work_lane_dirty" in result.gaps
 
 
+
+def test_mutation_apply_rejects_overlapping_foreign_work_lane_scope(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    first = tmp_path / "repo-work-first"
+    second = tmp_path / "repo-work-second"
+    git(repo, "worktree", "add", "-b", "work/first", first.as_posix(), "candidate/dev")
+    git(repo, "worktree", "add", "-b", "work/second", second.as_posix(), "candidate/dev")
+
+    (first / "README.md").write_text("# first\n", encoding="utf-8")
+    git(first, "add", "README.md")
+    git(
+        first,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "first change",
+    )
+    (second / "README.md").write_text("# second\n", encoding="utf-8")
+    git(second, "add", "README.md")
+    git(
+        second,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "second change",
+    )
+    head = git(second, "rev-parse", "HEAD")
+    seed_proof(second, head)
+    request = MutationRequest(
+        command="land",
+        apply=True,
+        authorized=True,
+        expect_head=head,
+    )
+
+    result = evaluate_mutation(request, root=second, current_head=head)
+
+    assert result.ok is False
+    assert result.state == "blocked"
+    assert "coordination_gap:scope_overlap:work/first" in result.gaps
+
+
+def test_mutation_apply_rejects_raw_work_lane_without_lease(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-raw"
+    git(repo, "worktree", "add", "-b", "work/raw", worktree.as_posix(), "candidate/dev")
+    head = git(worktree, "rev-parse", "HEAD")
+    seed_proof(worktree, head)
+    request = MutationRequest(
+        command="land",
+        apply=True,
+        authorized=True,
+        expect_head=head,
+    )
+
+    result = evaluate_mutation(request, root=worktree, current_head=head)
+
+    assert result.ok is False
+    assert result.state == "blocked"
+    assert "work_lane_missing_lease:work/raw" in result.gaps
+
 def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-apply"
-    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    worktree = add_owned_work_lane(repo, "apply", tmp_path / "repo-work-apply")
     (worktree / "README.md").write_text("# work lane change\n", encoding="utf-8")
     git(worktree, "add", "README.md")
     git(
@@ -171,8 +246,7 @@ def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
 def test_apply_land_to_candidate_reports_stale_candidate_base(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-apply"
-    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    worktree = add_owned_work_lane(repo, "apply", tmp_path / "repo-work-apply")
     (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
     git(candidate, "add", "README.md")
     git(
@@ -277,8 +351,7 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
 def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-apply"
-    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    worktree = add_owned_work_lane(repo, "apply", tmp_path / "repo-work-apply")
     (worktree / "README.md").write_text("# work lane change\n", encoding="utf-8")
     git(worktree, "add", "README.md")
     git(

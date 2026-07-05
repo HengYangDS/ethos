@@ -361,8 +361,10 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
             "advisory_gaps": [],
             "foreign_work_lane_count": 0,
             "missing_lease_count": 0,
+            "overlap_count": 0,
+            "unknown_scope_count": 0,
             "next_action": (
-                "coordinate foreign work lanes before local closeout if they overlap scope"
+                "resolve overlapping or unknown Work Lane scope before candidate integration"
             ),
         },
         "closeout_support": {
@@ -441,8 +443,10 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
             "advisory_gaps": [],
             "foreign_work_lane_count": 0,
             "missing_lease_count": 0,
+            "overlap_count": 0,
+            "unknown_scope_count": 0,
             "next_action": (
-                "coordinate foreign work lanes before local closeout if they overlap scope"
+                "resolve overlapping or unknown Work Lane scope before candidate integration"
             ),
         },
         "closeout_support": {

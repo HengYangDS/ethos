@@ -3,6 +3,11 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ethos.adapters.repo.coordination import branch_path_scope
+from ethos.adapters.repo.coordination import coordination_gaps as _scope_coordination_gaps
+from ethos.adapters.repo.coordination import coordination_package
+from ethos.adapters.repo.coordination import foreign_work_lane
+from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.store.state import active_leases
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
@@ -56,28 +61,39 @@ def workspace_status(root: Path) -> dict[str, object]:
         policy=policy,
         lease_by_branch=lease_by_branch,
     )
+    current_scope, current_scope_state = branch_path_scope(
+        repo, branch=branch, candidate_branch=policy.candidate_branch
+    )
+    foreign = _foreign_work_lanes(
+        worktrees,
+        current_path=current_path,
+        current_role=role,
+        current_path_scope=current_scope,
+        current_scope_state=current_scope_state,
+        candidate_branch=policy.candidate_branch,
+        lease_by_branch=lease_by_branch,
+        root=repo,
+    )
+    coordination_required_gaps, coordination_advisory_gaps = _scope_coordination_gaps(
+        foreign, current_role=role, current_scope_state=current_scope_state
+    )
+    coordination_gaps = coordination_required_gaps + coordination_advisory_gaps
+    coordination = coordination_package(
+        foreign,
+        required_gaps=coordination_required_gaps,
+        advisory_gaps=coordination_advisory_gaps,
+    )
     closeout_support = _closeout_support(
         branch=branch,
         role=role,
         dirty=bool(paths),
         candidate=candidate,
         lease_by_branch=lease_by_branch,
+        coordination_required_gaps=coordination_required_gaps,
     )
-    foreign = _foreign_work_lanes(
-        worktrees,
-        current_path=current_path,
-        lease_by_branch=lease_by_branch,
+    required_gaps = workspace_required_gaps(
+        closeout_support["required_gaps"], candidate=candidate
     )
-    coordination_gaps = _coordination_gaps(foreign)
-    coordination = _coordination_package(foreign, coordination_gaps)
-    required_gaps = []
-    missing_current_lease = f"work_lane_missing_lease:{branch}"
-    if missing_current_lease in closeout_support["required_gaps"]:
-        required_gaps.append(missing_current_lease)
-    if not candidate["exists"]:
-        required_gaps.append("candidate_branch_missing")
-    elif not candidate["worktree_exists"]:
-        required_gaps.append("candidate_worktree_missing")
     return {
         "root": str(root),
         "branch": branch,
@@ -124,7 +140,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         ),
         "foreign_work_lanes": [],
         "coordination_gaps": [],
-        "coordination": _coordination_package([], []),
+        "coordination": coordination_package([], required_gaps=[], advisory_gaps=[]),
         "closeout_support": {
             "supported": False,
             "branch": "",
@@ -187,9 +203,14 @@ def _foreign_work_lanes(
     worktrees: list[dict[str, str]],
     *,
     current_path: Path,
+    current_role: str,
+    current_path_scope: tuple[str, ...],
+    current_scope_state: str,
+    candidate_branch: str,
     lease_by_branch: dict[str, dict[str, object]],
-) -> list[dict[str, str]]:
-    foreign: list[dict[str, str]] = []
+    root: Path,
+) -> list[dict[str, object]]:
+    foreign: list[dict[str, object]] = []
     for worktree in worktrees:
         if worktree["role"] != ROLE_WORK_LANE:
             continue
@@ -197,49 +218,19 @@ def _foreign_work_lanes(
             continue
         branch = str(worktree["branch"])
         lease = lease_by_branch.get(branch, {})
-        owner = str(lease.get("owner") or "")
-        claim_id = _lease_claim_id(lease)
         foreign.append(
-            {
-                "path": worktree["path"],
-                "head": worktree["head"],
-                "branch": branch,
-                "role": worktree["role"],
-                "worktree_binding": worktree["worktree_binding"],
-                "lease_owner": owner,
-                "lease_state": "leased" if owner else "missing",
-                "claim_id": claim_id,
-                "claim_binding": "bound" if claim_id else "missing",
-            }
+            foreign_work_lane(
+                worktree,
+                current_role=current_role,
+                current_path_scope=current_path_scope,
+                current_scope_state=current_scope_state,
+                candidate_branch=candidate_branch,
+                lease=lease,
+                root=root,
+                claim_id=_lease_claim_id(lease),
+            )
         )
     return foreign
-
-
-def _coordination_gaps(foreign_work_lanes: list[dict[str, str]]) -> list[str]:
-    gaps: list[str] = []
-    if foreign_work_lanes:
-        gaps.append("foreign_work_lane_present")
-    for lane in foreign_work_lanes:
-        if lane["lease_state"] == "missing":
-            gaps.append(f"work_lane_missing_lease:{lane['branch']}")
-    return gaps
-
-
-def _coordination_package(
-    foreign_work_lanes: list[dict[str, str]],
-    coordination_gaps: list[str],
-) -> dict[str, object]:
-    return {
-        "kind": "work_lane_coordination",
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": list(coordination_gaps),
-        "foreign_work_lane_count": len(foreign_work_lanes),
-        "missing_lease_count": sum(
-            1 for lane in foreign_work_lanes if lane["lease_state"] == "missing"
-        ),
-        "next_action": "coordinate foreign work lanes before local closeout if they overlap scope",
-    }
 
 
 def _candidate_status(
@@ -417,6 +408,7 @@ def _closeout_support(
     dirty: bool,
     candidate: dict[str, object],
     lease_by_branch: dict[str, dict[str, object]],
+    coordination_required_gaps: list[str],
 ) -> dict[str, object]:
     gaps: list[str] = []
     if role != ROLE_WORK_LANE:
@@ -433,6 +425,8 @@ def _closeout_support(
         candidate_path = Path(str(candidate["worktree_path"]))
         if changed_paths(candidate_path):
             gaps.append("candidate_worktree_dirty")
+    if role == ROLE_WORK_LANE:
+        gaps.extend(coordination_required_gaps)
 
     is_work_lane = role == ROLE_WORK_LANE
     lease = lease_by_branch.get(branch, {}) if is_work_lane else {}

@@ -291,7 +291,10 @@
         "lease_owner",
         "lease_state",
         "claim_id",
-        "claim_binding"
+        "claim_binding",
+        "path_scope",
+        "scope_state",
+        "coordination_state"
       ],
       "properties": {
         "path": {
@@ -328,6 +331,27 @@
           "enum": [
             "bound",
             "missing"
+          ]
+        },
+        "path_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "scope_state": {
+          "enum": [
+            "bounded",
+            "empty",
+            "unknown"
+          ]
+        },
+        "coordination_state": {
+          "enum": [
+            "advisory",
+            "disjoint",
+            "overlap",
+            "unknown"
           ]
         }
       },
@@ -396,6 +420,8 @@
         "advisory_gaps",
         "foreign_work_lane_count",
         "missing_lease_count",
+        "overlap_count",
+        "unknown_scope_count",
         "next_action"
       ],
       "properties": {
@@ -403,11 +429,10 @@
           "const": "work_lane_coordination"
         },
         "blocking": {
-          "const": false
+          "type": "boolean"
         },
         "required_gaps": {
           "type": "array",
-          "maxItems": 0,
           "items": {
             "type": "string"
           }
@@ -423,6 +448,14 @@
           "minimum": 0
         },
         "missing_lease_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "overlap_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown_scope_count": {
           "type": "integer",
           "minimum": 0
         },

@@ -47,9 +47,11 @@ state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
 Foreign Work Lanes appear in `foreign_work_lanes` and in the `coordination`
-package. That package is non-blocking and advisory: it tells operators which
-lanes may need human coordination, while `required_gaps` remains reserved for
-the current checkout's own proof or mutation blockers.
+package. Presence is advisory when scopes are disjoint or the current checkout
+is observe-only. Candidate integration from a Work Lane is blocking when the
+current lane and a foreign lane have overlapping or unknown path scope; the
+status payload reports `coordination_gap:*` in `required_gaps` before a later
+merge can accidentally let one agent overwrite another agent's obligation.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane

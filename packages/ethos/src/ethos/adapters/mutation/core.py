@@ -60,6 +60,9 @@ def evaluate_mutation(
         gaps.append("protected_root_mutation")
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
+    else:
+        closeout = status.get("closeout_support", {})
+        gaps.extend(str(gap) for gap in closeout.get("required_gaps", []))
     gaps.extend(_proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))

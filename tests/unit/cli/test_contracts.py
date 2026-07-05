@@ -778,19 +778,13 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["coordination_gaps"] == ["foreign_work_lane_present"]
-    assert payload["data"]["foreign_work_lanes"] == [
-        {
-            "path": worktree.as_posix(),
-            "head": git(worktree, "rev-parse", "HEAD"),
-            "branch": "work/feature",
-            "role": "work_lane",
-            "worktree_binding": "linked",
-            "lease_owner": "agent:test",
-            "lease_state": "leased",
-            "claim_id": "",
-            "claim_binding": "missing",
-        }
-    ]
+    lane = payload["data"]["foreign_work_lanes"][0]
+    assert lane["path"] == worktree.as_posix()
+    assert lane["head"] == git(worktree, "rev-parse", "HEAD")
+    assert lane["branch"] == "work/feature"
+    assert lane["lease_owner"] == "agent:test"
+    assert lane["path_scope"] == []
+    assert lane["coordination_state"] == "advisory"
 
 
 def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> None:

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-refresh-generic-shadow-after-rule-links",
+  "target": "/private/tmp/ethos-refresh-generic-shadow-after-ruff-ratchet",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-refresh-generic-shadow-after-rule-links --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-refresh-generic-shadow-after-ruff-ratchet --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "613a9bb25a929516df72872a1e3db9e0b9acc5dc",
-    "target_head": "613a9bb25a929516df72872a1e3db9e0b9acc5dc",
-    "command_sha256": "8867e879f5658269b22a68489cbdff59ac60f3a45efdace1e16d67c6d8d92800"
+    "product_head": "73d5c2483b56243029165c496e382bf851f01d03",
+    "target_head": "73d5c2483b56243029165c496e382bf851f01d03",
+    "command_sha256": "43db743635f4aaeee16a554fbaae1b242402f23c39d35fd2bd4b985129125950"
   },
   "shadow": {
     "ok": true,

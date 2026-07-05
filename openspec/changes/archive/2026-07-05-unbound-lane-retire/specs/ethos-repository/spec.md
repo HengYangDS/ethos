@@ -1,10 +1,9 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Work Lane lifecycle
+### Requirement: Unbound Work Lane Ref Retirement
 
-ETHOS SHALL govern Work Lane creation, claim binding, base refresh, candidate
-landing, landed-lane retirement, and unbound local Work Lane ref cleanup through
-explicit command semantics rather than raw Git mutation.
+ETHOS SHALL govern local unbound Work Lane ref cleanup through explicit,
+head-bound command semantics rather than raw Git branch deletion.
 
 #### Scenario: unbound Work Lane ref retirement is head-bound
 

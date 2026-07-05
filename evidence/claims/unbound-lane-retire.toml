@@ -30,7 +30,7 @@ owner = "ethos-repository"
 scope = "Head-bound local retirement of unbound Work Lane refs"
 
 [carriers]
-openspec = "openspec/changes/unbound-lane-retire"
+openspec = "openspec/changes/archive/2026-07-05-unbound-lane-retire"
 
 fallback = "Keep unbound refs visible in status until a maintainer explicitly chooses raw Git cleanup outside ETHOS."
 kill_signal = "A local unbound Work Lane ref can only be removed by raw branch deletion without branch role, unbound-state, expected-head, or reason checks."
@@ -42,7 +42,7 @@ targets = [
   "docs/governance/product-design-contract.md",
   "evidence/claims/unbound-lane-retire.toml",
   "evidence/unbound-lane-retire-2026-07-06.md",
-  "openspec/changes/unbound-lane-retire",
+  "openspec/changes/archive/2026-07-05-unbound-lane-retire",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/surface/cli/lane.py",
   "packages/ethos/src/ethos/repository/registry/docs.py",

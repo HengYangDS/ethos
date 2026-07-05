@@ -499,15 +499,15 @@ when no linked Git worktree exists for the branch.
 ### Requirement: Work Lane Coordination Read Model
 
 ETHOS SHALL distinguish blocking Work Lane coordination gaps from advisory
-coordination signals in status command guidance.
+coordination signals in status command guidance, and SHALL expose unbound Work
+Lane refs as inspectable residue objects rather than count-only signals.
 
-#### Scenario: Advisory unbound refs do not imply overlap remediation
+#### Scenario: Advisory unbound refs expose subjects and relation
 
-- **GIVEN** a repository has an unbound `work/*` branch ref and no active
-  overlapping or unknown Work Lane scope
+- **GIVEN** a repository has an unbound `work/*` branch ref
 - **WHEN** `ethos status --json` reports `data.coordination`
-- **THEN** `blocking` is false
-- **AND** `advisory_gaps` includes `unbound_work_lane_ref_present`
-- **AND** `next_action` names unbound Work Lane ref cleanup rather than overlap
-  or unknown-scope resolution
+- **THEN** `unbound_work_lane_refs` includes the branch, head, claim binding,
+  relation to accepted truth, and next action
+- **AND** `unbound_work_lane_count` equals the number of emitted residue objects
+- **AND** the signal remains advisory unless another gate reports a required gap
 

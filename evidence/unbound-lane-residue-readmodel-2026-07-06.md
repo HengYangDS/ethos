@@ -23,3 +23,8 @@ residue objects rather than count-only advisory signals.
 
 This evidence supports read-model visibility only. It does not assert that the
 old branch can be deleted, merged, or superseded without a separate decision.
+
+## Closeout
+
+OpenSpec archive path: `openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel`.
+Archive metadata: `openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/.openspec.yaml`.

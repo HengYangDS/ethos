@@ -106,10 +106,11 @@ def apply_land_to_candidate(
     root: Path,
     authorized: bool,
     expect_head: str | None,
+    admitted_decision: MutationDecision | None = None,
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
-    decision = evaluate_mutation(
+    decision = admitted_decision or evaluate_mutation(
         MutationRequest(
             command="land",
             apply=True,

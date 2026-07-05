@@ -272,3 +272,44 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     assert report["previous_head"] == accepted_head
     assert git(repo, "rev-parse", "integration") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
+
+
+def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-apply"
+    git(repo, "worktree", "add", "-b", "work/apply", worktree.as_posix(), "candidate/dev")
+    (worktree / "README.md").write_text("# work lane change\n", encoding="utf-8")
+    git(worktree, "add", "README.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "work lane change",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    seed_proof(worktree, work_head)
+    admitted = evaluate_mutation(
+        MutationRequest(command="land", apply=True, authorized=True, expect_head=work_head),
+        root=worktree,
+        current_head=work_head,
+    )
+    assert admitted.ok is True
+    proof_dir = worktree / ".ethos" / "state" / "proof"
+    for path in proof_dir.glob("*.json"):
+        path.unlink()
+
+    report = apply_land_to_candidate(
+        root=worktree,
+        authorized=True,
+        expect_head=work_head,
+        admitted_decision=admitted,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "candidate_validated"
+    assert git(candidate, "rev-parse", "HEAD") == work_head

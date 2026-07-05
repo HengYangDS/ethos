@@ -387,6 +387,7 @@ def land(
             root=repo,
             authorized=authorize,
             expect_head=expect_head,
+            admitted_decision=decision,
         )
         gaps = gaps + tuple(candidate_update["required_gaps"])
         ok = bool(candidate_update["ok"])

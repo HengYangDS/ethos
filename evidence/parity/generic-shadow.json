@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-concurrency-hardening-rebased",
+  "target": "/Users/yheng/projects/ethos-work-gitnexus-decision-revert",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-concurrency-hardening-rebased --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-gitnexus-decision-revert --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ea78178843eef38ff3a71b2d3517d9f7f4d0e62b",
-    "target_head": "ea78178843eef38ff3a71b2d3517d9f7f4d0e62b",
-    "command_sha256": "e7584fc67181f7912001d7792fe24b8231b4500efb9124cddf557f7f071116f8"
+    "product_head": "bb5d0216695c44e12983a8556de50ba3d2d8719e",
+    "target_head": "bb5d0216695c44e12983a8556de50ba3d2d8719e",
+    "command_sha256": "d42d170b49a88a29e8626379196e7348eb8d46ea6fada2c6aa7867b2e2ef7171"
   },
   "shadow": {
     "ok": true,

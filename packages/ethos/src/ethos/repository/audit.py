@@ -128,6 +128,128 @@ REQUIRED_OPENSPEC_FAMILIES = (
 )
 
 
+DESIGN_INTEGRITY_DOCS = (
+    "docs/governance/product-design-contract.md",
+    "docs/concepts/kernel-model.md",
+    "docs/reference/command-plane.md",
+    "docs/architecture/runner-and-mutation.md",
+)
+
+DESIGN_INTEGRITY_REQUIRED_TERMS = {
+    "docs/governance/product-design-contract.md": (
+        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle",
+        "not an external slogan",
+        "single kernel",
+        "truth boundary",
+        "profile or adapter boundary",
+        "Configuration follows separation of concerns, MECE, SSOT, and DRY",
+        "OpenSpec remains mandatory governance, not a product substrate",
+        "not a generic VCS abstraction",
+        "status",
+        "plan",
+        "prove",
+        "land",
+        "publish",
+    ),
+    "docs/concepts/kernel-model.md": (
+        "Root Philosophy Derivation",
+        "truth and projection",
+        "product semantics and adapter boundary",
+        "which kernel object it projects",
+    ),
+    "docs/reference/command-plane.md": (
+        "status",
+        "plan",
+        "prove",
+        "land",
+        "publish",
+        "report",
+        "adapter UI text is not product state",
+    ),
+    "docs/architecture/runner-and-mutation.md": (
+        "target path",
+        "repository root",
+        "prewrite",
+        "post-write audit",
+        "ethos land --closeout",
+        'remote_push = "not_performed"',
+    ),
+}
+
+DESIGN_INTEGRITY_FORBIDDEN_TERMS = (
+    "GitNexus",
+    "product_self",
+    "adopter_repository",
+    "dual-posture",
+)
+
+DESIGN_INTEGRITY_VENDOR_TERMS = (
+    "PyCharm",
+    "Claude",
+    "Codex",
+    "OpenAI",
+    "GPT",
+    "IDE",
+    "JetBrains",
+    "Anthropic",
+    "Gemini",
+    "Copilot",
+    "Cursor",
+    "Windsurf",
+)
+
+
+def _design_integrity_report(root: Path) -> dict[str, object]:
+    """Audit canonical design docs for kernel and boundary regressions.
+
+    This is deliberately a projection over existing canonical docs, not a new
+    source of product truth. It catches small design drifts where the transition
+    loop, Tao/kernel constraint, configuration separation, or provider boundary
+    silently disappears while lower-level tests still pass.
+    """
+    required_gaps: list[str] = []
+    files: dict[str, dict[str, object]] = {}
+    for doc in DESIGN_INTEGRITY_DOCS:
+        path = root / doc
+        if not path.exists():
+            gap = f"design_integrity_doc_missing:{doc}"
+            required_gaps.append(gap)
+            files[doc] = {"ok": False, "missing": [gap], "forbidden": [], "vendor_terms": []}
+            continue
+        text = path.read_text(encoding="utf-8")
+        missing = [
+            f"design_integrity_anchor_missing:{doc}:{term}"
+            for term in DESIGN_INTEGRITY_REQUIRED_TERMS.get(doc, ())
+            if term not in text
+        ]
+        forbidden = [
+            f"design_integrity_forbidden_term:{doc}:{term}"
+            for term in DESIGN_INTEGRITY_FORBIDDEN_TERMS
+            if term in text
+        ]
+        vendor_terms = [
+            f"design_integrity_vendor_center_leak:{doc}:{term}"
+            for term in DESIGN_INTEGRITY_VENDOR_TERMS
+            if term in text
+        ]
+        doc_gaps = missing + forbidden + vendor_terms
+        required_gaps.extend(doc_gaps)
+        files[doc] = {
+            "ok": not doc_gaps,
+            "missing": missing,
+            "forbidden": forbidden,
+            "vendor_terms": vendor_terms,
+        }
+    return {
+        "ok": not required_gaps,
+        "scope": "canonical_product_design_docs",
+        "source_of_truth": "docs plus product-design-contract anchors",
+        "not_a_truth_store": True,
+        "files": files,
+        "required_gaps": required_gaps,
+    }
+
+
 def _front_matter_ok(path: Path) -> bool:
     if not path.exists():
         return False
@@ -319,6 +441,7 @@ def repository_audit(
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
     coupling = coupling_audit_report(root)
+    design_integrity = _design_integrity_report(root)
     if openspec_mode == "shape":
         openspec = _openspec_shape_report(root)
     elif openspec_reporter is None:
@@ -329,6 +452,9 @@ def repository_audit(
     schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]
     evolution_gaps = [str(gap) for gap in cast("list[str]", evolution["required_gaps"])]
     coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
+    design_integrity_gaps = [
+        str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
+    ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
     command_gaps = [str(gap) for gap in cast("list[str]", command_report["required_gaps"])]
     authority_graph_gaps = [str(gap) for gap in cast("list[str]", authority_graph["required_gaps"])]
@@ -354,6 +480,7 @@ def repository_audit(
         + schema_gaps
         + evolution_gaps
         + coupling_gaps
+        + design_integrity_gaps
         + openspec_gaps
         + command_gaps
         + authority_graph_gaps
@@ -428,6 +555,7 @@ def repository_audit(
         "claims": claim_report,
         "evolution": evolution,
         "coupling": coupling,
+        "design_integrity": design_integrity,
         "openspec": openspec,
         "system_contracts": system_contracts,
         "required_gaps": gaps,

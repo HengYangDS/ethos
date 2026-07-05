@@ -29,6 +29,10 @@ binds it to a linked worktree, and records a local lease. `ethos lane status`
 exposes linked worktrees and foreign Work Lanes from the accepted root without
 entering those foreign worktrees. `ethos lane prewrite` rejects tracked writes
 from protected roles and requires the editor root to match the owned Work Lane.
+The write boundary is deliberately ordered: target path, repository root,
+context refresh, status, prewrite, write, then post-write audit. This order keeps
+mutation bound to repository truth instead of a shell cwd, editor tab, or agent
+host assumption.
 
 The local candidate train is the configured candidate branch bound to its own
 linked worktree. `ethos lane candidate --apply` bootstraps that worktree from a

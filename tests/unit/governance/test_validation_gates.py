@@ -674,3 +674,76 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
+
+
+def test_repository_audit_reports_design_integrity_contract() -> None:
+    from ethos.repository.audit import repository_audit
+
+    report = repository_audit(Path.cwd(), openspec_mode="shape")
+    design = report["design_integrity"]
+
+    assert design["ok"] is True
+    assert design["not_a_truth_store"] is True
+    assert design["scope"] == "canonical_product_design_docs"
+    assert design["required_gaps"] == []
+    assert report["required_gaps"] == []
+
+
+def test_repository_audit_blocks_design_truth_center_regression(tmp_path: Path) -> None:
+    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
+    from ethos.repository.audit import repository_audit
+
+    for relative in DESIGN_INTEGRITY_DOCS:
+        source = Path.cwd() / relative
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+    product = tmp_path / "docs/governance/product-design-contract.md"
+    product.write_text(
+        product.read_text(encoding="utf-8") + "\nGitNexus becomes product_self.\n",
+        encoding="utf-8",
+    )
+
+    report = repository_audit(tmp_path, openspec_mode="shape")
+    gaps = report["design_integrity"]["required_gaps"]
+
+    assert report["design_integrity"]["ok"] is False
+    assert (
+        "design_integrity_forbidden_term:docs/governance/product-design-contract.md:GitNexus"
+        in gaps
+    )
+    assert (
+        "design_integrity_forbidden_term:docs/governance/product-design-contract.md:product_self"
+        in gaps
+    )
+    assert any(
+        str(gap).startswith("design_integrity_forbidden_term:") for gap in report["required_gaps"]
+    )
+
+
+def test_repository_audit_blocks_vendor_center_leak(tmp_path: Path) -> None:
+    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
+    from ethos.repository.audit import repository_audit
+
+    for relative in DESIGN_INTEGRITY_DOCS:
+        source = Path.cwd() / relative
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+    command_plane = tmp_path / "docs/reference/command-plane.md"
+    command_plane.write_text(
+        command_plane.read_text(encoding="utf-8") + "\nOpenAI owns the command plane.\n",
+        encoding="utf-8",
+    )
+
+    report = repository_audit(tmp_path, openspec_mode="shape")
+    gaps = report["design_integrity"]["required_gaps"]
+
+    assert report["design_integrity"]["ok"] is False
+    assert "design_integrity_vendor_center_leak:docs/reference/command-plane.md:OpenAI" in gaps
+    assert any(
+        str(gap).startswith("design_integrity_vendor_center_leak:")
+        for gap in report["required_gaps"]
+    )

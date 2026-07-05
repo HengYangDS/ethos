@@ -1,8 +1,24 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:49bf3534ced286a5a38930c092902d9a11b38e17a3e54b4ff97be40190d894f0"
-expected_generator_digest = "sha256:b322d06da239e3d931336cb51cf0737a6da38b03f1864be7cfa682e391c7f978"
+expected_registry_digest = "sha256:528268d73d05055df378d814d740394aaa023f4bf17241b9cf8d21306d7295b5"
+expected_generator_digest = "sha256:c92e643dd82dac45193b47f223fc3dd83b3fc8dfcf85d7219f1b83dd66d9b71e"
+
+[coverage]
+required_primary_subjects = [
+  "repository-governance",
+  "change-lifecycle",
+  "skill-portfolio",
+  "quality-gates",
+  "adoption-profile",
+]
+single_owner_subjects = [
+  "repository-governance",
+  "change-lifecycle",
+  "skill-portfolio",
+  "quality-gates",
+  "adoption-profile",
+]
 
 [[skill]]
 id = "ethos-repository-governance"

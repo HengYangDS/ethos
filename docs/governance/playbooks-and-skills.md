@@ -26,10 +26,10 @@ The canonical local layout is:
 
 `activation.toml` is the ETHOS activation registry input. It is not a
 provider-native skill file. It records route subjects, changed-path coverage,
-operation metadata, lifecycle, package manifest paths, proof obligations,
-co-activation hints, and command affordances. ETHOS normalizes this input into a
-provider-neutral Skills V2 registry. Inputs without the current registry shape
-are reported as required gaps, not compatibility routes.
+portfolio coverage, operation metadata, lifecycle, package manifest paths, proof
+obligations, co-activation hints, and command affordances. ETHOS normalizes this
+input into a provider-neutral Skills V2 registry. Inputs without the current
+registry shape are reported as required gaps, not compatibility routes.
 
 Each `.agents/skills/<skill-id>/SKILL.md` must still be a real loadable workflow
 package. The package must have official skill frontmatter, explicit trigger
@@ -55,9 +55,15 @@ The product skill portfolio is intentionally small and MECE:
 Do not add surface-specific skills for CLI, GitLab, MCP, editor hosts, or model
 providers unless a repeated repository-specific procedure cannot be represented
 by one of these subjects. Prefer references or scripts inside the existing skill
-package before adding a new skill. Use the skill portfolio audit helper to keep
-MECE coverage, package integrity, and projection drift visible without creating
-a parallel truth store.
+package before adding a new skill. Use the skill portfolio audit helper and the
+activation `[coverage]` contract to keep MECE ownership, package integrity, and
+projection drift visible without creating a parallel truth store.
+
+The activation `[coverage]` table declares `required_primary_subjects` and
+`single_owner_subjects`. `ethos playbooks check --mode v2-strict --json` fails
+closed when an active primary owner is missing or duplicated for those subjects.
+This makes portfolio shape a machine-visible contract while keeping each skill a
+thin procedure over repository truth.
 
 Playbook checks fail closed in strict mode:
 

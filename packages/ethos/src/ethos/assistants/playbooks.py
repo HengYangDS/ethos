@@ -85,6 +85,8 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
             )
         )
         v2_gaps.extend(_command_capability_gaps(record, package_report))
+    portfolio_coverage = _portfolio_coverage(registry.get("coverage", {}), records)
+    v2_gaps.extend(str(gap) for gap in cast("list[object]", portfolio_coverage["required_gaps"]))
     if skills_root.exists() and not (skills_root / "README.md").exists():
         required_gaps.append(".agents/skills/README.md")
     if not skills_root.exists():
@@ -101,6 +103,7 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         "records": records,
         "registry": registry,
         "coverage": _coverage(records),
+        "portfolio_coverage": portfolio_coverage,
         "package_quality": {
             "ok": not any(report["required_gaps"] for report in package_reports),
             "packages": package_reports,
@@ -273,6 +276,52 @@ def _coverage(records: list[dict[str, object]]) -> dict[str, object]:
             {subject for record in records for subject in cast("list[str]", record["subjects"])}
         ),
     }
+
+
+def _portfolio_coverage(
+    coverage_contract: object,
+    records: list[dict[str, object]],
+) -> dict[str, object]:
+    contract = coverage_contract if isinstance(coverage_contract, dict) else {}
+    required_subjects = _dedupe(_coverage_subjects(contract.get("required_primary_subjects")))
+    single_owner_subjects = _dedupe(
+        [
+            *required_subjects,
+            *_coverage_subjects(contract.get("single_owner_subjects")),
+        ]
+    )
+    owners: dict[str, list[str]] = {}
+    for record in records:
+        if str(record["authority"]) != "primary" or str(record["lifecycle"]) != "active":
+            continue
+        subject = str(record["primary_subject"])
+        skill_id = str(record["id"])
+        if not subject or not skill_id:
+            continue
+        owners.setdefault(subject, []).append(skill_id)
+    gaps: list[str] = []
+    for subject in required_subjects:
+        if not owners.get(subject):
+            gaps.append(f"skill_portfolio_subject_missing:{subject}")
+    for subject in single_owner_subjects:
+        subject_owners = owners.get(subject, [])
+        if len(subject_owners) > 1:
+            gaps.append(f"skill_portfolio_subject_duplicate:{subject}:{','.join(subject_owners)}")
+    return {
+        "ok": not gaps,
+        "contract": {
+            "required_primary_subjects": required_subjects,
+            "single_owner_subjects": single_owner_subjects,
+        },
+        "owners": {subject: list(ids) for subject, ids in sorted(owners.items())},
+        "required_gaps": gaps,
+    }
+
+
+def _coverage_subjects(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item)]
 
 
 def _select_for_changed_paths(

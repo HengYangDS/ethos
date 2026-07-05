@@ -1486,6 +1486,17 @@ def test_playbooks_commands_expose_repo_local_skills() -> None:
     } <= set(check["data"]["skills"])
     assert check["data"]["coverage"]["record_count"] == 5
     assert "skill-portfolio" in check["data"]["coverage"]["subjects"]
+    assert check["data"]["portfolio_coverage"]["ok"] is True
+    assert check["data"]["portfolio_coverage"]["contract"]["required_primary_subjects"] == [
+        "repository-governance",
+        "change-lifecycle",
+        "skill-portfolio",
+        "quality-gates",
+        "adoption-profile",
+    ]
+    assert check["data"]["portfolio_coverage"]["owners"]["skill-portfolio"] == [
+        "ethos-skill-portfolio-governance"
+    ]
     assert route["ok"] is True
     assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
 
@@ -1544,6 +1555,176 @@ command = ["ethos", "status", "--json"]
         encoding="utf-8",
     )
     return package_manifest.as_posix()
+
+
+def test_playbooks_portfolio_coverage_ignores_invalid_subject_list_type(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[coverage]
+required_primary_subjects = "repository-governance"
+single_owner_subjects = "repository-governance"
+
+[[skill]]
+id = "repository-governance"
+package_manifest = "{package_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["portfolio_coverage"]["contract"] == {
+        "required_primary_subjects": [],
+        "single_owner_subjects": [],
+    }
+
+
+def test_playbooks_strict_mode_requires_portfolio_primary_subjects(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[coverage]
+required_primary_subjects = ["repository-governance", "quality-gates"]
+single_owner_subjects = ["repository-governance", "quality-gates"]
+
+[[skill]]
+id = "repository-governance"
+package_manifest = "{package_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "skill_portfolio_subject_missing:quality-gates" in payload["required_gaps"]
+    assert payload["data"]["portfolio_coverage"]["ok"] is False
+    assert payload["data"]["portfolio_coverage"]["owners"] == {
+        "repository-governance": ["repository-governance"]
+    }
+
+
+def test_playbooks_strict_mode_rejects_duplicate_primary_subject_owner(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    skills_root = root / ".agents" / "skills"
+    skills_root.mkdir(parents=True)
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    first_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
+    second_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance-helper"))
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[coverage]
+required_primary_subjects = ["repository-governance"]
+single_owner_subjects = ["repository-governance"]
+
+[[skill]]
+id = "repository-governance"
+package_manifest = "{first_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "repository-governance-helper"
+package_manifest = "{second_manifest.relative_to(root).as_posix()}"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["rules/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "playbooks",
+        "check",
+        "--mode",
+        "v2-strict",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert (
+        "skill_portfolio_subject_duplicate:repository-governance:"
+        "repository-governance,repository-governance-helper"
+    ) in payload["required_gaps"]
+    assert payload["data"]["portfolio_coverage"]["owners"]["repository-governance"] == [
+        "repository-governance",
+        "repository-governance-helper",
+    ]
 
 
 def test_playbooks_accept_repo_local_activation_schema_with_path_globs(tmp_path: Path) -> None:

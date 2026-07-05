@@ -16,7 +16,14 @@
       },
       "additionalProperties": true
     },
-    "coverage": {"type": "object", "additionalProperties": true},
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "required_primary_subjects": {"type": "array", "items": {"type": "string"}},
+        "single_owner_subjects": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
     "retired": {"type": "object", "additionalProperties": true},
     "skill": {
       "type": "array",

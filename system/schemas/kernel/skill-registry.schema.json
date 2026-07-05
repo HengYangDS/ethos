@@ -9,7 +9,14 @@
     "source": {"type": "string", "minLength": 1},
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "meta": {"type": "object"},
-    "coverage": {"type": "object"},
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "required_primary_subjects": {"type": "array", "items": {"type": "string"}},
+        "single_owner_subjects": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
     "retired": {"type": "object"},
     "records": {
       "type": "array",

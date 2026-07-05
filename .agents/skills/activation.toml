@@ -1,8 +1,8 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:528268d73d05055df378d814d740394aaa023f4bf17241b9cf8d21306d7295b5"
-expected_generator_digest = "sha256:c92e643dd82dac45193b47f223fc3dd83b3fc8dfcf85d7219f1b83dd66d9b71e"
+expected_registry_digest = "sha256:a161eebb82c5908d7e97caaa85d74e830d63b6aa3434ac8e8ecf0002ec894379"
+expected_generator_digest = "sha256:e74a77452b525fcef03fbcabb7d9ebce628b5b4fe993d62838628a23b89f2f5b"
 
 [coverage]
 required_primary_subjects = [
@@ -33,19 +33,12 @@ path_globs = [
   "AGENTS.md",
   "CONTRIBUTING.md",
   "README.md",
-  ".gitlab-ci.yml",
   ".ethos/**",
-  ".agents/skills/**",
   "distributions/**",
-  "docs/**",
+  "docs/governance/product-design-contract.md",
   "evolution/**",
-  "openspec/**",
-  "claims/**",
-  "packages/**",
+  "rules/**",
   "schemas/**",
-  "tests/**",
-  "uv.lock",
-  "pyproject.toml",
 ]
 intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
 pre_reads = ["AGENTS.md", "docs/governance/playbooks-and-skills.md"]
@@ -130,7 +123,6 @@ path_globs = [
   ".agents/skills/**",
   "rules/skills.md",
   "docs/governance/playbooks-and-skills.md",
-  "docs/architecture/agent-projections.md",
   "system/schemas/kernel/skill-*.schema.json",
   "packages/ethos/src/ethos/assistants/**",
   "packages/ethos-core/src/ethos_core/contracts/skill_activation.py",

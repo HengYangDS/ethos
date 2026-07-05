@@ -357,3 +357,41 @@ command = ["ethos", "internal", "canonize"]
         "skill_package_capability_proof_invalid:sample-skill:ethos.internal-canonize"
         in result["required_gaps"]
     )
+
+
+def test_skill_markdown_rejects_non_trigger_description(tmp_path: Path) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(
+        OFFICIAL_SKILL.replace(
+            "description: Use when governing sample repositories with ETHOS.",
+            "description: Governs sample repositories with ETHOS.",
+        ),
+        encoding="utf-8",
+    )
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    manifest = _write_manifest(package_dir, digest)
+
+    result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
+
+    assert result["ok"] is False
+    assert "skill_quality_description_not_trigger:sample-skill" in result["required_gaps"]
+
+
+def test_skill_markdown_rejects_overlong_entrypoint_without_progressive_disclosure(
+    tmp_path: Path,
+) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    long_body = "\n".join(f"Extra line {index}." for index in range(100))
+    (package_dir / "SKILL.md").write_text(
+        OFFICIAL_SKILL.replace("## Evidence", f"{long_body}\n\n## Evidence"),
+        encoding="utf-8",
+    )
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    manifest = _write_manifest(package_dir, digest)
+
+    result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
+
+    assert result["ok"] is False
+    assert "skill_quality_progressive_disclosure_missing:sample-skill" in result["required_gaps"]

@@ -23,7 +23,8 @@ repository truth.
    Put longer explanation in `references/` and executable checks in `scripts/`.
 4. Use `references/portfolio-design.md` before creating a new skill; prefer
    strengthening the existing MECE portfolio unless a new repeated procedure has
-   a distinct owner.
+   a distinct owner. Treat route overlap, weak triggers, oversized entrypoints,
+   and stale digests as first-class disorder signals, not cosmetic issues.
 5. Update `.agents/skills/activation.toml` and `package.toml` together so route
    metadata, included files, required sections, capabilities, and digests stay
    aligned.

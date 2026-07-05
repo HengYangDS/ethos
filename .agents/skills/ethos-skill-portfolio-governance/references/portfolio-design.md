@@ -16,6 +16,9 @@ truth center.
   in `references/`; keep `SKILL.md` short.
 - SOLID: each skill owns one reason to change and exposes narrow commands,
   evidence, and trust boundary.
+- Route ownership is exact and visible: duplicate exact `path_globs`, weak
+  trigger descriptions, oversized entrypoints without `references/` or
+  `scripts/`, stale package digests, and missing `changed-scope` are hard gaps.
 
 ## Skill Creator Use
 
@@ -36,6 +39,11 @@ agent owns an overlapping dirty scope, preserve that lane and move to a disjoint
 improvement or wait for integration.
 
 ## Audit Loop
+
+Use `ethos playbooks check --mode v2-strict --json` to inspect
+`portfolio_coverage` and `portfolio_design`. The first proves the required
+primary subjects exist once; the second proves route ownership remains MECE and
+entrypoints stay loadable.
 
 Run the bundled audit before claiming portfolio readiness:
 

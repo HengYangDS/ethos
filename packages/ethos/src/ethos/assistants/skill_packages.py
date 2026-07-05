@@ -28,6 +28,8 @@ CAPABILITY_KINDS = frozenset(
     }
 )
 DEFAULT_REQUIRED_SECTIONS = ("When to Use", "Workflow", "Evidence", "Trust Boundary")
+_SKILL_SOFT_LINE_LIMIT = 160
+_SKILL_WORKFLOW_STEP_LIMIT = 8
 _SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 _MUTATING_ETHOS_COMMANDS = {"adopt", "land", "publish"}
 _MUTATING_FLAGS = {"--apply", "--authorized", "--authorize", "--execute"}
@@ -157,6 +159,8 @@ def validate_skill_markdown(
         return {"ok": False, "required_gaps": [f"skill_missing_file:{skill_id}"]}
     if not _frontmatter_ok(text):
         gaps.append(f"skill_quality_missing_frontmatter:{skill_id}")
+    gaps.extend(_frontmatter_gaps(skill_id, text))
+    gaps.extend(_progressive_disclosure_gaps(skill_id, text))
     for section in required_sections:
         if f"## {section}" not in text:
             gaps.append(f"skill_quality_missing_section:{skill_id}:{section}")
@@ -325,6 +329,55 @@ def _contained_package_path(package_dir: Path, relative: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _frontmatter_gaps(skill_id: str, text: str) -> list[str]:
+    header = _frontmatter_header(text)
+    if not header:
+        return []
+    fields: dict[str, str] = {}
+    for line in header.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        fields[key.strip()] = value.strip().strip('"')
+    gaps: list[str] = []
+    name = fields.get("name", "")
+    description = fields.get("description", "")
+    if name and name != skill_id:
+        gaps.append(f"skill_quality_name_mismatch:{skill_id}:{name}")
+    if description and not description.startswith("Use when"):
+        gaps.append(f"skill_quality_description_not_trigger:{skill_id}")
+    if description and len(description.split()) > 60:
+        gaps.append(f"skill_quality_description_too_long:{skill_id}")
+    return gaps
+
+
+def _progressive_disclosure_gaps(skill_id: str, text: str) -> list[str]:
+    gaps: list[str] = []
+    line_count = len(text.splitlines())
+    if line_count > _SKILL_SOFT_LINE_LIMIT:
+        gaps.append(f"skill_quality_entrypoint_too_long:{skill_id}:{line_count}")
+    workflow = _section_body(text, "Workflow")
+    step_count = sum(
+        1 for line in workflow.splitlines() if re.match(r"^\s*(?:\d+\.|[-*])\s+", line)
+    )
+    if step_count > _SKILL_WORKFLOW_STEP_LIMIT:
+        gaps.append(f"skill_quality_workflow_too_many_steps:{skill_id}:{step_count}")
+    has_references = "references/" in text
+    has_scripts = "scripts/" in text
+    if line_count > 90 and not (has_references or has_scripts):
+        gaps.append(f"skill_quality_progressive_disclosure_missing:{skill_id}")
+    return gaps
+
+
+def _frontmatter_header(text: str) -> str:
+    if not text.startswith("---\n"):
+        return ""
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return ""
+    return parts[1]
 
 
 def _frontmatter_ok(text: str) -> bool:

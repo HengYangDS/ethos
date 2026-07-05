@@ -1,6 +1,6 @@
 ---
 name: ethos-change-lifecycle
-description: Use when driving an ETHOS repository change through its main loop — status, plan, prove, land, publish — or when a user asks how to check readiness, compile a change plan, run proof, land a change, or publish. Use this whenever work touches the status/plan/prove/land/publish commands, evidence, or the accepted-root promotion path, even if the user does not name ETHOS explicitly.
+description: Use when driving an ETHOS change through status, plan, prove, land, publish, evidence, readiness, or accepted-root closeout.
 ---
 
 # ETHOS Change Lifecycle

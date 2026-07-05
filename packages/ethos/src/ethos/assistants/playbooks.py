@@ -86,7 +86,9 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         )
         v2_gaps.extend(_command_capability_gaps(record, package_report))
     portfolio_coverage = _portfolio_coverage(registry.get("coverage", {}), records)
+    portfolio_design = _portfolio_design(records, package_reports)
     v2_gaps.extend(str(gap) for gap in cast("list[object]", portfolio_coverage["required_gaps"]))
+    v2_gaps.extend(str(gap) for gap in cast("list[object]", portfolio_design["required_gaps"]))
     if skills_root.exists() and not (skills_root / "README.md").exists():
         required_gaps.append(".agents/skills/README.md")
     if not skills_root.exists():
@@ -104,6 +106,7 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         "registry": registry,
         "coverage": _coverage(records),
         "portfolio_coverage": portfolio_coverage,
+        "portfolio_design": portfolio_design,
         "package_quality": {
             "ok": not any(report["required_gaps"] for report in package_reports),
             "packages": package_reports,
@@ -314,6 +317,47 @@ def _portfolio_coverage(
             "single_owner_subjects": single_owner_subjects,
         },
         "owners": {subject: list(ids) for subject, ids in sorted(owners.items())},
+        "required_gaps": gaps,
+    }
+
+
+def _portfolio_design(
+    records: list[dict[str, object]],
+    package_reports: list[dict[str, Any]],
+) -> dict[str, object]:
+    gaps: list[str] = []
+    command_owners: dict[str, list[str]] = {}
+    path_owners: dict[str, list[str]] = {}
+    token_owners: dict[str, list[str]] = {}
+    package_by_id = {str(report.get("id") or ""): report for report in package_reports}
+    for record in records:
+        skill_id = str(record["id"])
+        subjects = [str(item) for item in cast("list[str]", record["subjects"])]
+        if str(record["primary_subject"]) not in subjects:
+            gaps.append(f"skill_portfolio_primary_subject_not_routed:{skill_id}")
+        if "changed-scope" not in subjects:
+            gaps.append(f"skill_portfolio_changed_scope_missing:{skill_id}")
+        for command in cast("list[str]", record["commands"]):
+            command_owners.setdefault(command, []).append(skill_id)
+        for pattern in cast("list[str]", record["path_globs"]):
+            path_owners.setdefault(pattern, []).append(skill_id)
+        for token in cast("list[str]", record["intent_tokens"]):
+            token_owners.setdefault(token, []).append(skill_id)
+        package = package_by_id.get(skill_id, {})
+        file_count = len(cast("list[object]", package.get("files", [])))
+        if file_count > 6:
+            gaps.append(f"skill_portfolio_package_overloaded:{skill_id}:{file_count}")
+    duplicate_paths = {key: ids for key, ids in path_owners.items() if len(ids) > 1}
+    duplicate_tokens = {key: ids for key, ids in token_owners.items() if len(ids) > 2}
+    for pattern, owners in sorted(duplicate_paths.items()):
+        gaps.append(f"skill_portfolio_path_glob_duplicate:{pattern}:{','.join(owners)}")
+    for token, owners in sorted(duplicate_tokens.items()):
+        gaps.append(f"skill_portfolio_intent_token_overclaimed:{token}:{','.join(owners)}")
+    return {
+        "ok": not gaps,
+        "command_owner_count": {key: len(ids) for key, ids in sorted(command_owners.items())},
+        "path_glob_owner_count": {key: len(ids) for key, ids in sorted(path_owners.items())},
+        "intent_token_owner_count": {key: len(ids) for key, ids in sorted(token_owners.items())},
         "required_gaps": gaps,
     }
 

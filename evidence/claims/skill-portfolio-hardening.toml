@@ -1,0 +1,58 @@
+[claim]
+id = "skill-portfolio-hardening"
+subject = "ethos:skill-portfolio-hardening"
+state = "active"
+summary = "ETHOS skill portfolio checks reject weak entrypoints and overlapping route ownership while preserving a five-skill MECE portfolio."
+
+head = "31842a226c5cc4c183f52527a6eb90fc484c0913"
+[evidence]
+dated = "evidence/skill-portfolio-hardening-2026-07-06.md"
+sha256 = "4295442d85663a1d084535214ff649168d35534ffeb53fdecd4d00376f652527"
+evidence_ids = ["evidence:skill-portfolio-hardening"]
+binding = "semantic skill portfolio hardening evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skill_packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
+  "uv run --group dev pytest tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py -q",
+  "uv run --package ethos ethos playbooks check --mode v2-strict --json",
+  "uv run --package ethos ethos quality projection-drift --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/assistants/test_skill_packages.py",
+  "tests/unit/assistants/test_playbooks.py",
+]
+docs = [
+  ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
+  ".agents/skills/ethos-skill-portfolio-governance/references/portfolio-design.md",
+  "openspec/changes/skill-portfolio-hardening/specs/ethos-assistants/spec.md",
+]
+
+[boundary]
+owner = "ethos-assistants"
+scope = "Repo-local skill portfolio route ownership, trigger quality, progressive disclosure, and digest-bound projection checks"
+
+[carriers]
+openspec = "openspec/changes/skill-portfolio-hardening"
+
+fallback = "Keep the existing five-skill portfolio and block new skills unless their route ownership is explicit."
+kill_signal = "A skill portfolio can pass strict checks while exact changed-path routes overlap, entrypoints are weak, or package digests drift."
+
+[promotion]
+targets = [
+  ".agents/skills/activation.toml",
+  ".agents/skills/ethos-change-lifecycle/SKILL.md",
+  ".agents/skills/ethos-change-lifecycle/package.toml",
+  ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
+  ".agents/skills/ethos-skill-portfolio-governance/package.toml",
+  ".agents/skills/ethos-skill-portfolio-governance/references/portfolio-design.md",
+  "evidence/claims/skill-portfolio-hardening.toml",
+  "evidence/skill-portfolio-hardening-2026-07-06.md",
+  "openspec/changes/skill-portfolio-hardening",
+  "packages/ethos/src/ethos/assistants/playbooks.py",
+  "packages/ethos/src/ethos/assistants/skill_packages.py",
+  "tests/unit/assistants/test_playbooks.py",
+  "tests/unit/assistants/test_skill_packages.py",
+]

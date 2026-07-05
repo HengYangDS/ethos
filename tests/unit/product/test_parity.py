@@ -1717,3 +1717,44 @@ def test_shadow_accepted_difference_has_stable_shape() -> None:
             "reason": "external product repository audit gap is not an embedded adopter parity gap",
         }
     ]
+
+
+def test_parity_freshness_tracks_relevant_tree_not_evidence_touch(tmp_path: Path) -> None:
+    """Parity currency follows the parity-relevant source tree, not a proxy touch of the
+    evidence file. A commit that changes only parity-irrelevant paths (tests, prose)
+    does NOT stale the evidence; a commit under packages/** does. This removes the
+    shared-evidence-file serialization bottleneck between concurrent lanes."""
+    from ethos.domain.land import acceptable_parity_product_heads
+
+    def g(*a: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@e.x", *a],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    g("init", "-b", "dev")
+    (tmp_path / "packages").mkdir()
+    (tmp_path / "packages" / "x.py").write_text("1\n", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "product source")
+    src_head = g("rev-parse", "HEAD").stdout.strip()
+
+    # a commit touching ONLY parity-irrelevant paths must NOT stale the src head
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "t.py").write_text("t\n", encoding="utf-8")
+    (tmp_path / "README.md").write_text("prose\n", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "tests + prose (parity-irrelevant)")
+    assert src_head in acceptable_parity_product_heads(tmp_path, "generic")
+
+    # a commit under packages/** DOES stale it (verdict could change)
+    (tmp_path / "packages" / "y.py").write_text("2\n", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "product source change")
+    assert src_head not in acceptable_parity_product_heads(tmp_path, "generic")
+
+    # a foreign / unrelated head is never accepted
+    assert ("f" * 40) not in acceptable_parity_product_heads(tmp_path, "generic")

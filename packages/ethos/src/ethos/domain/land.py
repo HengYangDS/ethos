@@ -285,20 +285,42 @@ def trust_closeout_package(
     }
 
 
+# The tree whose change can actually move a shadow-compared command output (status /
+# plan --changed / prove / report / quality command-surface / assistants doctor /
+# playbooks route / land / publish). Parity freshness is keyed on THIS tree, not on a
+# proxy touch of the evidence file: a commit that changes only parity-irrelevant paths
+# (tests, prose docs, other adopters' evidence, CI) leaves the parity verdict unchanged
+# and therefore does not stale the recorded evidence. Derived from the rules path_globs
+# and the report/land/audit reducer reads (see docs/governance product-design-contract).
+PARITY_RELEVANT_PATHS: tuple[str, ...] = (
+    "packages",  # product + adopter source — the reducers themselves
+    "system",  # contracts + kernel schemas
+    ".ethos",  # rules / workspace / release policy
+    ".agents/skills",  # assistant-surface projections
+    "openspec",  # governance carriers
+    "evidence/claims",  # claim / evidence reducers
+    "rules",  # rules/ethos
+    "pyproject.toml",
+    "uv.lock",
+    "docs/governance",  # PRODUCT_SEMANTIC_DOCS live here (report vendor-term gaps)
+)
+
+
 def acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:
-    """Compute product heads accepted as parity-evidence-current (head + parents)."""
+    """Product heads accepted as parity-evidence-current.
+
+    A recorded product_head is current when nothing under PARITY_RELEVANT_PATHS changed
+    between it and HEAD — commits that touched only parity-irrelevant paths do not stale
+    the evidence. This removes the shared-evidence-file serialization bottleneck: a lane
+    that changes no parity-relevant source need not re-touch the evidence file, and an
+    unrelated commit no longer forces a parity re-run.
+    """
     current_head = _gitio.current_tracked_head(root)
     if not current_head:
         return ()
-    accepted = [current_head]
-    evidence_path = Path("evidence") / "parity" / f"{adopter or 'generic'}-shadow.json"
-    last_change = _gitio.git_stdout(
-        root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
+    return _gitio.commits_equivalent_over_paths(
+        root, current_head, relevant_paths=PARITY_RELEVANT_PATHS
     )
-    if last_change == current_head:
-        parents_line = _gitio.git_stdout(root, "rev-list", "--parents", "-n", "1", current_head)
-        accepted.extend(parents_line.split()[1:])
-    return tuple(dict.fromkeys(head for head in accepted if head))
 
 
 def acceptable_parity_target_heads(
@@ -306,24 +328,21 @@ def acceptable_parity_target_heads(
     target: Path | None,
     adopter: str | None,
 ) -> tuple[str, ...]:
-    """Compute target heads accepted as parity-evidence-current for a shadow target."""
+    """Target heads accepted as parity-evidence-current for a shadow target.
+
+    Same parity-relevant-tree currency as the product heads, evaluated in the target's
+    own history — only meaningful when the target shares this repository's history.
+    """
     if target is None:
         return ()
     current_head = _gitio.current_tracked_head(target)
     if not current_head:
         return ()
-    accepted = [current_head]
-    if _gitio.same_git_repository(root, target):
-        evidence_path = Path("evidence") / "parity" / f"{adopter or 'generic'}-shadow.json"
-        last_change = _gitio.git_stdout(
-            root, "log", "-1", "--format=%H", "--", evidence_path.as_posix()
-        )
-        if last_change == current_head:
-            parents_line = _gitio.git_stdout(
-                target, "rev-list", "--parents", "-n", "1", current_head
-            )
-            accepted.extend(parents_line.split()[1:])
-    return tuple(dict.fromkeys(head for head in accepted if head))
+    if not _gitio.same_git_repository(root, target):
+        return (current_head,)
+    return _gitio.commits_equivalent_over_paths(
+        target, current_head, relevant_paths=PARITY_RELEVANT_PATHS
+    )
 
 
 def campaign_closeout_report(

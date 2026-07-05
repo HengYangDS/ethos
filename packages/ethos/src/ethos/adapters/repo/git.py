@@ -89,3 +89,41 @@ def git_files(root: Path, *patterns: str) -> list[str]:
     if completed.returncode != 0:
         return []
     return [line for line in completed.stdout.splitlines() if line]
+
+
+def commits_equivalent_over_paths(
+    root: Path,
+    head: str,
+    *,
+    relevant_paths: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Return the commits parity-equivalent to head over a set of relevant pathspecs.
+
+    A commit is "equivalent" to head when nothing under relevant_paths changed between
+    it and head — so head's parity/shadow verdict is unchanged from that commit. Git
+    cannot express "commits that did NOT touch a pathspec", so we find the boundary
+    (the most recent commit at-or-before head that DID touch a relevant path) and
+    return everything from that boundary (exclusive) up to head, plus head itself.
+
+    When no relevant path was ever touched in head's history the boundary is empty; we
+    then return just (head,) — the caller keeps its own parent handling for that case.
+    """
+    if not head:
+        return ()
+    boundary = git_stdout(root, "rev-list", "-1", head, "--", *relevant_paths)
+    if not boundary:
+        # No relevant path exists anywhere in head's history — nothing that could
+        # change the parity verdict was ever committed, so every reachable commit is
+        # parity-equivalent to head.
+        span = git_stdout(root, "rev-list", head)
+        return tuple(dict.fromkeys(line for line in span.splitlines() if line)) or (head,)
+    if boundary == head:
+        # head itself changed a relevant path — only head is current.
+        return (head,)
+    # boundary is the most recent commit that changed a relevant path; nothing relevant
+    # changed after it, so boundary's source state equals head's. Every commit from
+    # boundary (inclusive) up to head is therefore parity-equivalent to head.
+    span = git_stdout(root, "rev-list", f"{boundary}..{head}")
+    commits = [line for line in span.splitlines() if line]
+    return tuple(dict.fromkeys([head, *commits, boundary]))
+

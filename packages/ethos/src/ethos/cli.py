@@ -60,6 +60,9 @@ from ethos_core.contracts.branch_roles import load_branch_role_policy
 # that group is imported (lazy path for the common commands).
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context_projection import context_projection_contract
+from ethos_core.invalid_states import UNCLASSIFIED
+from ethos_core.invalid_states import explain_gap
+from ethos_core.invalid_states import invalid_state_projection
 from ethos_core.result import EthosResult
 
 
@@ -681,6 +684,16 @@ def report(
             "hosted_ci_truth": "external-evidence",
             "next_action": "ethos prove" if evidence_gap_count == 0 else "resolve evidence gaps",
         }
+    governance_invalid_states = invalid_state_projection(list(result_required_gaps))
+    parity_invalid_states = invalid_state_projection(list(parity_gaps["required_gaps"]))
+    playbook_invalid_states = invalid_state_projection(list(playbooks["required_gaps"]))
+    all_invalid_states = invalid_state_projection(
+        [
+            *list(result_required_gaps),
+            *list(parity_gaps["required_gaps"]),
+            *list(playbooks["required_gaps"]),
+        ]
+    )
     gap_layers = {
         "governance_audit": {
             "scope": "governance_audit",
@@ -688,6 +701,7 @@ def report(
             "ok": not result_required_gaps,
             "required_gaps": list(result_required_gaps),
             "gap_count": len(result_required_gaps),
+            "invalid_states": governance_invalid_states,
         },
         "capability_parity": {
             "scope": "capability_parity",
@@ -695,6 +709,7 @@ def report(
             "ok": bool(parity_gaps["ok"]),
             "required_gaps": list(parity_gaps["required_gaps"]),
             "gap_count": parity_pending_count,
+            "invalid_states": parity_invalid_states,
         },
         "playbook_projection": {
             "scope": "skills-v2",
@@ -703,6 +718,7 @@ def report(
             "required_gaps": list(playbooks["required_gaps"]),
             "advisory_gaps": list(playbooks["advisory_gaps"]),
             "gap_count": len(playbooks["required_gaps"]),
+            "invalid_states": playbook_invalid_states,
         },
     }
     scorecards = [
@@ -750,6 +766,7 @@ def report(
             "playbooks": playbooks,
             "adoption_scaffold": adoption_scaffold,
             "gap_layers": gap_layers,
+            "invalid_states": all_invalid_states,
             "parity": {
                 "scope": {
                     "generic_gap_count": parity_pending_count,
@@ -770,13 +787,16 @@ def report(
 
 @app.command(show=False)
 def explain(gap: str, *, json_output: JsonFlag = False) -> None:
-    """Explain a required gap."""
+    """Explain a required gap as a read-only invalid-state projection."""
+    data = explain_gap(gap)
+    category_id = str(data["invalid_state"]["id"])
     result = EthosResult(
         command="explain",
-        ok=True,
-        state="explained",
-        summary={"gap": gap},
-        data={"meaning": "A required gap names missing evidence, policy, schema, or action."},
+        ok=category_id != UNCLASSIFIED,
+        state="explained" if category_id != UNCLASSIFIED else "unclassified",
+        summary={"gap": gap, "invalid_state": category_id},
+        required_gaps=() if category_id != UNCLASSIFIED else (f"unclassified_invalid_state:{gap}",),
+        data=data,
     )
     emit(result, json_output, enforce=False)
 

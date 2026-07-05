@@ -57,6 +57,28 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     assert "not current scope" in text
 
 
+
+def test_product_design_contract_defines_invalid_state_taxonomy() -> None:
+    text = read("docs/governance/product-design-contract.md")
+
+    assert "## Invalid-State Taxonomy" in text
+    for category in (
+        "authority_gap",
+        "subject_ambiguous",
+        "commitment_missing",
+        "change_unbounded",
+        "carrier_invalid",
+        "evidence_missing_or_stale",
+        "claim_unbound_or_overreaching",
+        "chronicle_missing",
+        "substrate_untrusted",
+    ):
+        assert category in text
+    assert "not a new ontology" in text
+    assert "Projection drift" in text
+    assert "adapter bypass reduce" in text
+    assert "Seven obligations judge" in text
+
 def test_product_design_contract_keeps_git_native_not_generic_vcs() -> None:
     text = read("docs/governance/product-design-contract.md")
 

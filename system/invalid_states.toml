@@ -1,0 +1,196 @@
+schema = "system/schemas/contracts/invalid_states.schema.json"
+
+# ETHOS invalid-state taxonomy — the SSOT.
+#
+# First axiom (system/tao.md): a governance product is worth only the invalid states
+# it makes unreachable. ETHOS is therefore a repository trust-transition system: a
+# state transition is trustworthy iff every node of the kernel chain is satisfied —
+#
+#   Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+#
+# Every gap ETHOS emits is, by construction, a FAILED PRECONDITION of exactly one
+# node or boundary precondition. This file is the MECE taxonomy those gaps
+# classify into. It adds NO new entity — it names the failure classes the seven nodes already
+# imply, so gap strings, scores, repairs, proof, OpenSpec, and parity all reduce to
+# one vocabulary instead of ad-hoc strings.
+#
+# Rule: every gap string ETHOS emits MUST classify into exactly one category here
+# (enforced by ethos_core.invalid_states.classify + a coverage test). A gap that
+# matches no category is itself an invalid state — an ungoverned failure mode.
+
+[[category]]
+id = "authority_gap"
+node = "JudgmentSource"
+question = "Is the authority for this transition declared and ranked?"
+summary = "The judgment source / authority ordering that would sanction the transition is missing, unranked, or unresolved."
+match_prefixes = [
+  "authority_graph",
+  "governance_rule_gap",
+  "custom_rule_gap",
+  "rule_",
+  "rules_strict",
+  "protected_branches_policy_missing",
+  "protected_tags_policy_missing",
+  "signing_required",
+  "commit_signing",
+  "head_signature_not_good",
+]
+
+[[category]]
+id = "subject_ambiguous"
+node = "Subject"
+question = "Is the governed subject (repo / package / branch role / path) unambiguous?"
+summary = "The subject of the transition — which repository, package, branch role, editor root, or path — is missing or ambiguous."
+match_prefixes = [
+  "subject_ambiguous",
+  "accepted_root_required",
+  "editor_root_",
+  "path_not_allowed_source",
+  "git_repository_missing",
+  "git_user_name_mismatch",
+  "git_user_email_mismatch",
+  "package_version_mismatch",
+  "package_missing",
+  "target_package_missing",
+  "distribution_adapter_missing",
+  "head_subject_not_conventional",
+]
+
+[[category]]
+id = "commitment_missing"
+node = "Commitment"
+question = "Does a durable contract / spec / policy / rule commit to this transition?"
+summary = "The commitment — contract, spec, policy, capability profile, schema, or required doc/gate — that the transition must honor is absent or unsatisfied."
+match_prefixes = [
+  "commitment_missing",
+  "schema_contract_gap",
+  "schema_",
+  "tooling_contract_gap",
+  "ty_policy_missing",
+  "gate_required",
+  "docs_",
+  "required_doc",
+  "playbook",
+  "skill_",
+  "context_eval_suite_missing",
+]
+
+[[category]]
+id = "change_unbounded"
+node = "Change"
+question = "Is the in-flight change bounded and lifecycle-legal?"
+summary = "The Change — work-lane, candidate train, closeout, promotion, authorization, or admission scope — is missing, stale, or not lifecycle-legal."
+match_prefixes = [
+  "change_unbounded",
+  "work_lane_",
+  "candidate_",
+  "retire_branch",
+  "promotion_",
+  "authorization_required",
+  "protected_root_mutation",
+  "coordination_gap",
+  "hook_prerun_paths_required",
+  "prewrite_guard_not_supplied",
+  "expect_head_required",
+  "adoption_scaffold_missing",
+  "adopter_missing",
+]
+
+[[category]]
+id = "carrier_invalid"
+node = "Change"
+question = "Is the change carrier valid enough to bound the transition?"
+summary = "The carrier — OpenSpec workspace, change, archive, delta specs, metadata, or official validation surface — is absent, malformed, or insufficient to bound the transition."
+match_prefixes = [
+  "carrier_invalid",
+  "openspec_",
+  "official_openspec_",
+  "capability_profile_",
+  "capability_family_",
+]
+
+[[category]]
+id = "evidence_missing_or_stale"
+node = "Evidence"
+question = "Is the evidence present, fresh, HEAD-bound, and actually executed?"
+summary = "The Evidence — executed proof, gate result, digest, or freshness binding — is missing, stale, dry-run-only, or not bound to the pushed/expected HEAD."
+match_prefixes = [
+  "evidence_missing_or_stale",
+  "evidence_stale",
+  "evidence_required",
+  "evidence_gap",
+  "executed_proof_missing",
+  "trust_bearing_proof_missing",
+  "proof_not_proven",
+  "push_to_protected_role_not_proven",
+  "expect_head_mismatch",
+  "expected_head_mismatch",
+  "head_mismatch",
+  "digest_mismatch",
+  "compile_gaps",
+  "python_source_gap",
+  "python_test_gap",
+  "critical_stale_hits",
+  "rule_attestation_",
+  "parity_evidence_",
+  "parity_pending",
+  "stable_paths_invalid",
+]
+
+[[category]]
+id = "claim_unbound_or_overreaching"
+node = "Claim"
+question = "Does the claim stay bound to and within what its verifier and evidence prove?"
+summary = "A Claim is missing, unbound, or asserts beyond what its verifier and evidence prove."
+match_prefixes = [
+  "claim_unbound_or_overreaching",
+  "claim_overreach",
+  "claims_missing",
+  "trust_claim_missing",
+  "semantic_overclaim",
+  "binding_registry_",
+  "kill_signal_missing",
+  "fallback_missing",
+]
+
+[[category]]
+id = "chronicle_missing"
+node = "Chronicle"
+question = "Was the judged outcome recorded in durable history?"
+summary = "The Chronicle — judged history, release attestation, evolution ledger, or archive record — that must record the outcome is missing or invalid."
+match_prefixes = [
+  "chronicle_missing",
+  "evolution_ledger",
+  "release",
+  "publish",
+  "attestation",
+  "provenance",
+  "sbom",
+]
+
+[[category]]
+id = "substrate_untrusted"
+node = "boundary:substrate"
+question = "Is the truth, projection, and runtime substrate trustworthy enough to execute the chain?"
+summary = "The substrate the chain rides on — Git, hooks, worktrees, generated projections, command runtime, Python/uv/node launchers, or local state — is bypassable, drifted, hung, or otherwise untrusted."
+match_prefixes = [
+  "substrate_untrusted",
+  "adapter_bypass",
+  "adapter_missing",
+  "write_admission_not_armed",
+  "hook_context_root_mismatch",
+  "embedded_backend_missing",
+  "external_product_repository_audit_gap",
+  "projection_",
+  "assistant_projection",
+  "assistant_surface_projection_gap",
+  "docs_registry_drift",
+  "context_index_",
+  "skill_registry_",
+  "runtime_unresponsive",
+  "runtime_process_pressure",
+  "python_entrypoint_invalid",
+  "uv_interpreter_probe_stuck",
+  "command_timeout",
+  "command_no_output",
+]

@@ -186,6 +186,46 @@ Conformance, parity, golden output, migration replay, and sample repositories
 belong in an explicit proof host. They must not be scattered through runtime
 packages as accidental product behavior.
 
+
+## Invalid-State Taxonomy
+
+ETHOS reduces every emitted gap to one terminal invalid-state category. This is
+not a new ontology; it is the failure vocabulary implied by the kernel chain and
+the substrate the chain runs on:
+
+```text
+authority_gap
+subject_ambiguous
+commitment_missing
+change_unbounded
+carrier_invalid
+evidence_missing_or_stale
+claim_unbound_or_overreaching
+chronicle_missing
+substrate_untrusted
+```
+
+The first eight categories are failed preconditions of Authority, Subject,
+Commitment, Change, Evidence, Claim, and Chronicle. `carrier_invalid` is the
+Change-carrier boundary: an OpenSpec workspace, change, archive, delta, or
+metadata record is not valid enough to bound the transition.
+`substrate_untrusted` is the execution boundary: Git, hooks, worktrees, generated
+projections, command runtimes, Python/uv/node launchers, or local state cannot be
+trusted enough to execute the chain. Projection drift and adapter bypass reduce
+there; they do not become new truth centers.
+
+`system/invalid_states.toml` is the machine contract. `ethos report --json`
+projects the taxonomy over current gap layers so humans and agents see whether a
+failure is an authority, subject, commitment, change, carrier, evidence, claim,
+chronicle, or substrate problem before choosing a repair.
+
+```text
+Seven obligations judge.
+Five verbs transition.
+Three boundaries constrain.
+Nine invalid states block.
+```
+
 ## Truth Boundaries
 
 Repository truth includes source code, tests, schemas, current docs, OpenSpec

@@ -24,6 +24,7 @@ SYSTEM_CONTRACTS = (
     "tools",
     "workflows",
     "evidence_boundaries",
+    "invalid_states",
 )
 
 

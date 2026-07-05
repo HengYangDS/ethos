@@ -1,0 +1,142 @@
+"""The invalid-state taxonomy is load-bearing, not decorative: every gap ETHOS emits
+must reduce to exactly one node-derived category, and the classifier + contract must
+stay MECE. A gap that classifies nowhere is itself an ungoverned invalid state."""
+
+from __future__ import annotations
+
+import json
+import re
+import tomllib
+from pathlib import Path
+
+import jsonschema
+
+from ethos_core.invalid_states import NODE_ORDER
+from ethos_core.invalid_states import UNCLASSIFIED
+from ethos_core.invalid_states import classify
+from ethos_core.invalid_states import classify_all
+from ethos_core.invalid_states import invalid_state_categories
+from ethos_core.invalid_states import invalid_state_projection
+
+ROOT = Path(__file__).resolve().parents[3]
+
+# Field/aggregate names that look like gaps but are result-envelope keys, not emitted
+# gap strings (they carry gaps, they are not gaps).
+_NON_GAP_TOKENS = {
+    "required_gaps",
+    "advisory_gaps",
+    "waived_gaps",
+    "coordination_gaps",
+    "validation_gaps",
+    "blocking_gap_count",
+    "governance_gap_count",
+    "generic_gap_count",
+    "parity_gap_count",
+    "required_gap_closure",
+    "required_gap_kinds",
+    "can_close_required_gaps",
+    "unclassified_invalid_state",
+    *NODE_ORDER,  # the category ids themselves are not gaps
+    "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
+    "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted
+}
+
+_GAP_RE = re.compile(
+    r'"([a-z_]+(?:_gap|_missing|_stale|_mismatch|_invalid|_drift|_unbounded|'
+    r"_overreach|_required|_not_[a-z_]+|_bypass|_unarmed|_not_armed|_ambiguous)"
+    r'[a-z_]*)"'
+)
+
+
+def _emitted_gap_stems() -> set[str]:
+    stems: set[str] = set()
+    for src in (ROOT / "packages/ethos/src", ROOT / "packages/ethos-core/src"):
+        for path in src.rglob("*.py"):
+            for match in _GAP_RE.findall(path.read_text(encoding="utf-8")):
+                stem = match.split(":", 1)[0]
+                if stem not in _NON_GAP_TOKENS:
+                    stems.add(stem)
+    return stems
+
+
+
+def test_taxonomy_contract_validates_against_schema() -> None:
+    payload = tomllib.loads((ROOT / "system/invalid_states.toml").read_text(encoding="utf-8"))
+    schema = json.loads(
+        (ROOT / "system/schemas/contracts/invalid_states.schema.json").read_text(encoding="utf-8")
+    )
+    jsonschema.Draft202012Validator(schema).validate(payload)
+
+def test_taxonomy_is_mece_over_the_chain() -> None:
+    categories = invalid_state_categories()
+    # exactly the nine node-derived categories, in chain order.
+    assert tuple(c.id for c in categories) == NODE_ORDER
+    # every category names a chain node or an explicit boundary.
+    for category in categories:
+        assert category.node, category.id
+
+
+def test_every_emitted_gap_classifies_to_exactly_one_node() -> None:
+    unclassified = sorted(
+        stem for stem in _emitted_gap_stems() if classify(stem) == UNCLASSIFIED
+    )
+    assert unclassified == [], (
+        "gap strings that reduce to no kernel node (ungoverned invalid states) — "
+        f"add a match_prefix to system/invalid_states.toml: {unclassified}"
+    )
+
+
+def test_classify_all_groups_in_chain_order() -> None:
+    grouped = classify_all(
+        ("authority_graph_missing", "openspec_config_missing", "evidence_stale:x")
+    )
+    assert list(grouped) == ["authority_gap", "carrier_invalid", "evidence_missing_or_stale"]
+
+
+def test_longest_prefix_wins_on_overlap() -> None:
+    # a specific prefix beats a generic one sharing a stem
+    assert classify("write_admission_not_armed:core.hooksPath") == "substrate_untrusted"
+    assert classify("push_to_protected_role_not_proven") == "evidence_missing_or_stale"
+
+
+def test_runtime_and_projection_failures_reduce_to_substrate() -> None:
+    assert classify("python_entrypoint_invalid:.venv/bin/python") == "substrate_untrusted"
+    assert classify("uv_interpreter_probe_stuck") == "substrate_untrusted"
+    assert classify("projection_drift:skills") == "substrate_untrusted"
+
+
+def test_current_live_gaps_reduce_to_terminal_taxonomy() -> None:
+    gaps = (
+        "openspec_archive_delta_specs_missing:2026-07-05-ethos-two-package-collapse",
+        "openspec_archive_metadata_missing:2026-07-05-ethos-two-package-collapse",
+        "parity_pending:work-lane-lifecycle",
+        "parity_evidence_invalid:generic:product_head",
+        "protected_root_mutation",
+        "proof_not_proven",
+    )
+    grouped = classify_all(gaps)
+    assert grouped == {
+        "change_unbounded": ["protected_root_mutation"],
+        "carrier_invalid": [
+            "openspec_archive_delta_specs_missing:2026-07-05-ethos-two-package-collapse",
+            "openspec_archive_metadata_missing:2026-07-05-ethos-two-package-collapse",
+        ],
+        "evidence_missing_or_stale": [
+            "parity_pending:work-lane-lifecycle",
+            "parity_evidence_invalid:generic:product_head",
+            "proof_not_proven",
+        ],
+    }
+
+
+def test_projection_counts_grouped_gaps() -> None:
+    projection = invalid_state_projection(["openspec_config_missing", "proof_not_proven"])
+
+    assert projection == {
+        "categories": {
+            "carrier_invalid": ["openspec_config_missing"],
+            "evidence_missing_or_stale": ["proof_not_proven"],
+        },
+        "category_count": 2,
+        "gap_count": 2,
+    }

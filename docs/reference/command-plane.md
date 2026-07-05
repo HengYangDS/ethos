@@ -265,9 +265,21 @@ loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos report`. `ethos report --json` projects required gaps through
 repository-neutral layers: `governance_audit` for the active repository governance
 verdict, `capability_parity` for migration or adopter parity, and
-`playbook_projection` for assistant-facing projection proof. Its summary uses
-`governance_gap_count` for active repository governance gaps and
-`parity_pending_count` for capability parity backlog.
+`playbook_projection` for assistant-facing projection proof. Each layer exposes
+`invalid_states`, a reduction of its `required_gaps` onto the governed taxonomy in
+`system/invalid_states.toml`; the top-level `data.invalid_states` is the same
+projection across all reported layers. Its summary uses `governance_gap_count`
+for active repository governance gaps and `parity_pending_count` for capability
+parity backlog.
+
+The invalid-state taxonomy is not a second lifecycle and does not add a sixth
+transition command. It is a read-only explanation vocabulary for failed
+preconditions in the kernel chain and boundary substrate. `ethos explain <gap>
+--json` projects one gap into that taxonomy and returns the category id, node,
+question, summary, and taxonomy source. A gap that cannot classify is reported as
+`unclassified_invalid_state`, which means the command plane emitted an ungoverned
+failure mode that must be folded back into the taxonomy or renamed to an existing
+precondition.
 
 Repository governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes

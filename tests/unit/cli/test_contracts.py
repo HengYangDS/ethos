@@ -3094,6 +3094,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
         "ok": True,
         "required_gaps": [],
         "gap_count": 0,
+        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
     }
     assert payload["data"]["gap_layers"]["capability_parity"] == {
         "scope": "capability_parity",
@@ -3101,12 +3102,61 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
         "ok": True,
         "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
         "gap_count": payload["summary"]["parity_pending_count"],
+        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
+    }
+    assert payload["data"]["invalid_states"] == {
+        "categories": {},
+        "category_count": 0,
+        "gap_count": 0,
     }
     parity_note = payload["data"]["parity"]["scope"]["note"].lower()
     assert "raw/cache" not in parity_note
     assert "backend retirement" not in parity_note
     assert "domain profile parity" in parity_note
     assert payload["next_actions"] == ["ethos prove --full"]
+
+
+
+def test_explain_projects_gap_to_invalid_state_taxonomy() -> None:
+    payload = run_ethos("explain", "parity_evidence_invalid:generic:product_head", "--json")
+
+    assert payload["ok"] is True
+    assert payload["state"] == "explained"
+    assert payload["summary"] == {
+        "gap": "parity_evidence_invalid:generic:product_head",
+        "invalid_state": "evidence_missing_or_stale",
+    }
+    assert payload["data"]["invalid_state"] == {
+        "id": "evidence_missing_or_stale",
+        "node": "Evidence",
+        "question": "Is the evidence present, fresh, HEAD-bound, and actually executed?",
+        "summary": (
+            "The Evidence — executed proof, gate result, digest, or freshness "
+            "binding — is missing, stale, dry-run-only, or not bound to the "
+            "pushed/expected HEAD."
+        ),
+    }
+    assert payload["data"]["taxonomy"]["projection_only"] is True
+    assert payload["data"]["taxonomy"]["lifecycle_command"] is False
+
+
+def test_report_classifies_current_gap_layers_into_invalid_states() -> None:
+    payload = run_ethos("report", "--json")
+
+    parity_gaps = payload["data"]["gap_layers"]["capability_parity"]["required_gaps"]
+    invalid_states = payload["data"]["gap_layers"]["capability_parity"]["invalid_states"]
+    assert invalid_states["gap_count"] == len(parity_gaps)
+    if parity_gaps:
+        assert set(invalid_states["categories"]).issubset(
+            {
+                "evidence_missing_or_stale",
+                "carrier_invalid",
+                "change_unbounded",
+                "substrate_untrusted",
+            }
+        )
+        assert payload["data"]["invalid_states"]["gap_count"] >= len(parity_gaps)
+
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:

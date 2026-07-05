@@ -417,3 +417,62 @@ def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path
 
     assert report["ok"] is True
     assert merge_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
+
+
+def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path) -> None:
+    """The accepted-branch ref-move gate fails CLOSED: with no reachable ethos binary a
+    direct commit onto the accepted branch is BLOCKED (the hole that let a direct commit
+    bypass candidate while the CLI lagged its own command). Non-accepted branches fail
+    OPEN so an unavailable binary does not brick ordinary work-lane commits; the
+    sanctioned closeout escape (ETHOS_ALLOW_REF_MOVE=1) still advances the accepted
+    branch."""
+    import os
+    import shutil
+    from pathlib import Path
+
+    import pytest
+
+    hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
+    if not hook_src.exists():
+        pytest.skip("reference-transaction hook script not present")
+
+    def g(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=tmp_path, capture_output=True, text=True, check=False, env=env
+        )
+
+    g("init", "-b", "dev")
+    g("config", "user.name", "t")
+    g("config", "user.email", "t@e.x")
+    hooks = tmp_path / ".githooks"
+    hooks.mkdir()
+    shutil.copy(hook_src, hooks / "reference-transaction")
+    (hooks / "reference-transaction").chmod(0o755)
+    (tmp_path / "a").write_text("1", encoding="utf-8")
+    g("add", ".")
+    g("commit", "-m", "base")
+    g("branch", "candidate/dev")
+    g("config", "core.hooksPath", ".githooks")
+    g("config", "ethos.acceptedBranch", "dev")
+
+    no_binary = {**os.environ, "PATH": "/usr/bin:/bin"}
+
+    # (1) accepted branch, no ethos binary -> BLOCKED (fail-closed)
+    (tmp_path / "b").write_text("2", encoding="utf-8")
+    g("add", ".")
+    blocked = g("commit", "-m", "direct to dev", env=no_binary)
+    assert blocked.returncode != 0
+    dev_head = g("rev-parse", "dev").stdout.strip()
+
+    # (2) non-accepted branch, no ethos binary -> ALLOWED (fail-open)
+    g("checkout", "-b", "work/x")
+    (tmp_path / "w").write_text("w", encoding="utf-8")
+    g("add", ".")
+    work_commit = g("commit", "-m", "work commit", env=no_binary)
+    assert work_commit.returncode == 0
+
+    # (3) sanctioned closeout escape -> accepted branch advances
+    g("checkout", "dev")
+    closeout = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
+    assert closeout.returncode == 0
+    assert g("rev-parse", "dev").stdout.strip() != dev_head

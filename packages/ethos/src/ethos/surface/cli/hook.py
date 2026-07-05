@@ -16,6 +16,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.result import EthosResult
 
 
@@ -152,6 +153,11 @@ def install(
     wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")
+    if wired:
+        # Record the accepted branch so the reference-transaction hook knows which ref
+        # to fail-closed on (the hook runs as a plain shell script with no ETHOS import).
+        accepted = load_branch_role_policy(repo).accepted_branch
+        _gitio.set_config(repo, "ethos.acceptedBranch", accepted)
     result = EthosResult(
         command="hook install",
         ok=not gaps,

@@ -58,6 +58,18 @@ def set_hooks_path(root: Path, hooks_path: str) -> bool:
     return completed.returncode == 0
 
 
+def set_config(root: Path, key: str, value: str) -> bool:
+    """Set a local git config key (used to record ethos.acceptedBranch for the hooks)."""
+    completed = subprocess.run(
+        ["git", "config", key, value],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
 def git_common_dir(root: Path) -> str:
     """Return the resolved git common dir (shared across worktrees), or ''."""
     common_dir = git_stdout(root, "rev-parse", "--git-common-dir")

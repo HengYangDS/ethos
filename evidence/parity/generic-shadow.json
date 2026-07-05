@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-vendor-boundary-hardening",
+  "target": "/Users/yheng/projects/ethos",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-vendor-boundary-hardening --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b7dc2fa253054c597fe64a6e1c9b81ceb0cea59b",
-    "target_head": "b7dc2fa253054c597fe64a6e1c9b81ceb0cea59b",
-    "command_sha256": "a7d1eaa4e7ed265d93a9e1a9292e7211a35649f428f5c570a66eccdf7469c8ec"
+    "product_head": "0d79d707d8f475e038d8e96373826fb6946f7d7a",
+    "target_head": "0d79d707d8f475e038d8e96373826fb6946f7d7a",
+    "command_sha256": "984ee42f8ebc75a401fb590a5a7f6d30914acf80142bf0ba8f0d759143f4de8a"
   },
   "shadow": {
     "ok": true,

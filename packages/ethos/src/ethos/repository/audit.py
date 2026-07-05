@@ -175,6 +175,9 @@ def _write_admission_armed_gaps(root: Path) -> list[str]:
     if not hook_script.exists():
         # Not an ETHOS-admission repo (adopter without the hook script) — nothing to arm.
         return []
+    gaps: list[str] = []
+    if not (root / ".githooks" / "pre-push").exists():
+        gaps.append("write_admission_not_armed:pre-push_script_missing")
     completed = subprocess.run(
         ["git", "config", "--get", "core.hooksPath"],
         cwd=root,
@@ -184,8 +187,8 @@ def _write_admission_armed_gaps(root: Path) -> list[str]:
     )
     hooks_path = completed.stdout.strip() if completed.returncode == 0 else ""
     if hooks_path != ".githooks":
-        return ["write_admission_not_armed:core.hooksPath"]
-    return []
+        gaps.append("write_admission_not_armed:core.hooksPath")
+    return gaps
 
 
 def _openspec_shape_report(root: Path) -> dict[str, object]:

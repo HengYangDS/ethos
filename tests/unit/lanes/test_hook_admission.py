@@ -179,3 +179,38 @@ def test_post_write_hook_fuses_work_lane_dirty_state_without_expected_paths(
     assert report["changed_paths"] == ["README.md"]
     assert report["unexpected_paths"] == ["README.md"]
     assert "post_write_unexpected_path" in report["required_gaps"]
+
+
+def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None:
+    """The push tail: a push to an accepted/candidate ref requires an executed proof
+    bound to the pushed HEAD (same reducer as land). Work-lane pushes are admitted."""
+    import subprocess
+
+    from ethos.adapters.admission.core import push_admission_report
+
+    subprocess.run(["git", "init", "-q", "-b", "dev"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("x\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=T", "-c", "user.email=t@e.x", "commit", "-qm", "init"],
+        cwd=tmp_path,
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    # protected accepted root without proof -> blocked
+    protected = push_admission_report(
+        root=tmp_path, target_ref="refs/heads/dev", pushed_head=head
+    )
+    assert protected["ok"] is False
+    assert protected["state"] == "blocked"
+    assert any("not_proven" in str(g) or "proof" in str(g) for g in protected["required_gaps"])
+
+    # unprotected work lane -> admitted untouched
+    lane = push_admission_report(
+        root=tmp_path, target_ref="refs/heads/work/feature", pushed_head=head
+    )
+    assert lane["ok"] is True
+    assert lane["state"] == "admitted"

@@ -109,6 +109,51 @@ def hook_admission_report(
     return _fallback_report(base)
 
 
+def push_admission_report(
+    *,
+    root: Path,
+    target_ref: str,
+    pushed_head: str,
+) -> dict[str, object]:
+    """Admit or block a push whose destination is a protected role.
+
+    The push tail is the last place a raw `git push` can move an accepted/candidate
+    ref without the executed-proof precondition that `land` enforces. This binds the
+    same reducer to the pre-push boundary: pushing to a protected branch requires an
+    executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
+    lanes, feature branches) are admitted untouched.
+    """
+    from ethos.adapters.mutation.core import _proof_gaps
+    from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+    repo = root.resolve()
+    policy = load_branch_role_policy(repo)
+    branch = target_ref.removeprefix("refs/heads/")
+    role = policy.role_for_branch(branch)
+    base = {
+        "ok": True,
+        "state": "admitted",
+        "hook": "pre-push",
+        "target_ref": target_ref,
+        "target_branch": branch,
+        "role": role,
+        "pushed_head": pushed_head,
+        "decision": {"action": "allow", "reason": "push_admitted"},
+        "required_gaps": [],
+    }
+    if role not in PROTECTED_WRITE_ROLES:
+        return base
+    gaps = _proof_gaps(repo, pushed_head)
+    if gaps:
+        base.update(
+            ok=False,
+            state="blocked",
+            required_gaps=gaps,
+            decision={"action": "block", "reason": "push_to_protected_role_not_proven"},
+        )
+    return base
+
+
 def _normalize_layer(layer: str) -> str:
     normalized = layer.strip().lower().replace("_", "-")
     if normalized not in HOOK_LAYERS:

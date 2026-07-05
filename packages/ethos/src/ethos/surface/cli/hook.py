@@ -8,6 +8,7 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.adapters.admission.core import hook_admission_report
+from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.repo import git as _gitio
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -61,6 +62,42 @@ def admit(
 
 
 @hook_app.command
+def pre_push(
+    target_ref: str,
+    pushed_head: str,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Evaluate push admission before a ref is pushed to a protected role.
+
+    Pushing to an accepted/candidate ref requires an executed proof bound to the
+    pushed HEAD — the same precondition `land` enforces, now bound to the push tail so
+    a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
+    """
+    repo = resolve_root(root)
+    report = push_admission_report(root=repo, target_ref=target_ref, pushed_head=pushed_head)
+    decision = report.get("decision", {})
+    decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
+    result = EthosResult(
+        command="hook pre-push",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "target_branch": report["target_branch"],
+            "role": report["role"],
+            "decision": decision_action,
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=(
+            ("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()
+        ),
+        data=report,
+    )
+    emit(result, json_output, enforce=True)
+
+
+@hook_app.command
 def install(
     *,
     root: RootOption | None = None,
@@ -69,9 +106,12 @@ def install(
     """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
     repo = resolve_root(root)
     hook_path = repo / ".githooks" / "pre-commit"
+    push_hook_path = repo / ".githooks" / "pre-push"
     gaps: list[str] = []
     if not hook_path.exists():
         gaps.append("hook_script_missing:.githooks/pre-commit")
+    if not push_hook_path.exists():
+        gaps.append("hook_script_missing:.githooks/pre-push")
     wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")
@@ -82,11 +122,13 @@ def install(
         summary={"hooks_path": ".githooks", "wired": wired},
         required_gaps=tuple(gaps),
         next_actions=(
-            ("git commit — the pre-commit admission gate is now active",) if not gaps else ()
+            ("git commit — the pre-commit + pre-push admission gates are now active",)
+            if not gaps
+            else ()
         ),
         data={
             "hooks_path": ".githooks",
-            "hook_script": ".githooks/pre-commit",
+            "hook_scripts": [".githooks/pre-commit", ".githooks/pre-push"],
             "wired": wired,
         },
     )

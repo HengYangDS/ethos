@@ -1,0 +1,17 @@
+#!/bin/sh
+# ETHOS pre-push admission: a push to a protected role (accepted/candidate) requires
+# an executed proof bound to the pushed HEAD. Installed via `ethos hook install`.
+# git feeds "<local ref> <local sha> <remote ref> <remote sha>" lines on stdin.
+set -e
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$remote_ref" ] && continue
+    case "$local_sha" in
+        0000000000000000000000000000000000000000) continue ;;  # branch deletion
+    esac
+    if ! python -m ethos.cli hook pre-push "$remote_ref" "$local_sha" --json >/dev/null 2>&1; then
+        echo "ethos: push to $remote_ref blocked — not proven at $local_sha" >&2
+        echo "ethos: run 'ethos prove --execute --expect-head $local_sha' then retry" >&2
+        exit 1
+    fi
+done
+exit 0

@@ -583,6 +583,7 @@ def test_hook_install_wires_hooks_path(tmp_path: Path) -> None:
     hooks_dir = repo / ".githooks"
     hooks_dir.mkdir()
     (hooks_dir / "pre-commit").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    (hooks_dir / "pre-push").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
 
     payload = run_ethos(
         "hook",

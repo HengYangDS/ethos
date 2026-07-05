@@ -91,9 +91,12 @@ match_prefixes = [
   "coordination_gap",
   "hook_prerun_paths_required",
   "prewrite_guard_not_supplied",
+  "protected_root_pretool_paths_required",
   "expect_head_required",
   "adoption_scaffold_missing",
   "adopter_missing",
+  "accepted_advance_not_candidate_validated",
+  "accepted_ref_move_bypasses_candidate_train",
 ]
 
 [[category]]

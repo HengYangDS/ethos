@@ -6,7 +6,7 @@ summary = "ETHOS status exposes unbound configured Work Lane refs as advisory Gi
 
 [evidence]
 dated = "evidence/unbound-work-lane-ref-visibility-2026-07-06.md"
-sha256 = "3bb5c1f515a14f91bd2271766c471cf097027830b0149f0e5040dddec4093ca9"
+sha256 = "5102bf67d3465ba9f6af1a6ec510e54cb668751407a2fd20e9d5a28a4de9f57b"
 evidence_ids = ["evidence:ethos-unbound-work-lane-ref-visibility"]
 binding = "semantic status and coordination contract evidence binding"
 verifier = "semantic"
@@ -31,7 +31,7 @@ owner = "ethos-repository"
 scope = "Workspace status visibility for unbound configured Work Lane refs"
 
 [carriers]
-openspec = "openspec/changes/expose-unbound-work-lane-refs"
+openspec = "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs"
 fallback = "Keep linked Work Lane coordination checks while unbound Work Lane refs remain hidden from status."
 kill_signal = "A stale or absorbed work/* branch ref can persist without appearing in status, causing multi-agent integration to miss repository drift."
 
@@ -39,10 +39,10 @@ kill_signal = "A stale or absorbed work/* branch ref can persist without appeari
 targets = [
   "evidence/claims/ethos-unbound-work-lane-ref-visibility.toml",
   "evidence/unbound-work-lane-ref-visibility-2026-07-06.md",
-  "openspec/changes/expose-unbound-work-lane-refs/proposal.md",
-  "openspec/changes/expose-unbound-work-lane-refs/design.md",
-  "openspec/changes/expose-unbound-work-lane-refs/tasks.md",
-  "openspec/changes/expose-unbound-work-lane-refs/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/proposal.md",
+  "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/design.md",
+  "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/tasks.md",
+  "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/specs/ethos-repository/spec.md",
   "packages/ethos/src/ethos/adapters/repo/status.py",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "system/schemas/kernel/workspace-status.schema.json",

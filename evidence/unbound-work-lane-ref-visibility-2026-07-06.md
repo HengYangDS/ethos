@@ -14,7 +14,7 @@ configured Work Lane branch refs even when no linked Git worktree exists.
 ## Scope
 
 - Added an OpenSpec carrier at
-  `openspec/changes/expose-unbound-work-lane-refs`.
+  `openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs`.
 - Extended `ethos status --json` so `branch_bindings` includes unbound
   configured `work/*` refs with `role=work_lane` and
   `worktree_binding=unbound`.
@@ -52,5 +52,7 @@ Observed results:
   `work/dissolve-cache-table` ref in `branch_bindings`, while
   `foreign_work_lanes=[]` and `coordination.blocking=false`.
 
-Further full proof is run after this claim digest is bound and the repository
-HEAD is finalized.
+The carrier was archived through official OpenSpec archive semantics as
+`openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs`. Further
+full proof is run after this claim digest is refreshed and the repository HEAD
+is finalized.

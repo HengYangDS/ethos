@@ -9,6 +9,7 @@ from cyclopts import Parameter
 
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
+from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.repo import git as _gitio
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -90,6 +91,41 @@ def pre_push(
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
+        data=report,
+    )
+    emit(result, json_output, enforce=True)
+
+
+@hook_app.command
+def ref_transaction(
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Evaluate a LOCAL ref update before it is committed to the ref store.
+
+    Bound to git's reference-transaction hook, this closes the candidate-train bypass:
+    a raw `git merge --ff-only work/x dev` (or `git branch -f`/`reset`) can move the
+    accepted branch directly, skipping candidate validation. This blocks any accepted-
+    branch advance that is not both candidate-contained and proof-bound, so the
+    two-stage land->closeout path is the only reachable way to advance dev.
+    """
+    repo = resolve_root(root)
+    report = ref_move_admission_report(
+        root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
+    )
+    decision = report.get("decision", {})
+    decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
+    result = EthosResult(
+        command="hook ref-transaction",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={"branch": report["branch"], "decision": decision_action},
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=(("ethos land --closeout",) if not report["ok"] else ()),
         data=report,
     )
     emit(result, json_output, enforce=True)

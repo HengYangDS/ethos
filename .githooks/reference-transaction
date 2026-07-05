@@ -1,0 +1,41 @@
+#!/bin/sh
+# ETHOS reference-transaction admission — closes the candidate-train bypass.
+#
+# Installed by `ethos hook install`. git runs this hook for every ref update with the
+# transaction state as $1 (prepared | committed | aborted) and feeds
+# "<old-oid> <new-oid> <ref-name>" lines on stdin. Exiting non-zero during "prepared"
+# ABORTS the whole transaction — the surface that makes an out-of-band accepted-branch
+# move (git merge --ff-only work/x dev, git branch -f, git reset) unreachable.
+#
+# Only an accepted-branch advance that ETHOS explicitly BLOCKS aborts the transaction.
+# A missing/old `ethos` binary or any other CLI error fails OPEN (a governance gate must
+# not brick every local git operation on a stale install); the always-run audit
+# separately flags an unarmed/incoherent moat.
+state="$1"
+[ "$state" = "prepared" ] || exit 0
+[ "${ETHOS_ALLOW_REF_MOVE:-}" = "1" ] && exit 0
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+if command -v ethos >/dev/null 2>&1; then
+    runner="ethos"
+else
+    runner="python -m ethos.cli"
+fi
+
+while read -r old_value new_value ref_name; do
+    case "$ref_name" in
+        refs/heads/*) ;;
+        *) continue ;;
+    esac
+    # Only accepted-branch advances are candidate-gated; the CLI decides. We block
+    # ONLY on an explicit decision.action == "block" so a stale/missing binary cannot
+    # brick unrelated ref moves.
+    decision="$($runner hook ref-transaction "$ref_name" "$old_value" "$new_value" \
+        --root "$repo_root" --json 2>/dev/null | tr -d ' \n' | grep -o '"action":"block"' || true)"
+    if [ -n "$decision" ]; then
+        echo "ethos: blocked ref move on $ref_name — advances the accepted branch past" >&2
+        echo "ethos: candidate validation. Use 'ethos land --closeout'." >&2
+        exit 1
+    fi
+done
+exit 0

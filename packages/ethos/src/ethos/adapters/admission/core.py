@@ -156,6 +156,75 @@ def push_admission_report(
     return base
 
 
+def ref_move_admission_report(
+    *,
+    root: Path,
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+) -> dict[str, object]:
+    """Admit or block a LOCAL ref update (merge / branch -f / reset / ff / commit).
+
+    The candidate train's load-bearing invariant is that the accepted branch may only
+    ever advance to a commit the candidate branch already contains — work is validated
+    on candidate BEFORE it is accepted. `ethos land`/`land --closeout` enforce that
+    two-stage path, but a raw `git merge --ff-only work/x dev` (or `git branch -f dev
+    <sha>`, `git reset --hard`) moves the accepted ref directly, skipping candidate —
+    and nothing stopped it, because the commit/push hooks guard writes and pushes, not
+    local ref moves. That reachable-but-forbidden transition is the bug: ETHOS must make
+    an unvalidated accepted-branch advance UNREACHABLE, not merely discouraged.
+
+    Bound to git's reference-transaction hook (which fires on every ref change), this
+    enforces, for a move of the accepted branch:
+      (1) candidate-first: new_value must be contained in the candidate branch, and
+      (2) proven: an executed proof must bind new_value.
+    Deletions, creations, no-ops, and moves of non-accepted refs are admitted. The
+    sanctioned `ethos land --closeout` path satisfies (1)+(2) by construction, so only
+    out-of-band ref moves are blocked.
+    """
+    import subprocess
+
+    from ethos.adapters.mutation.core import _proof_gaps
+    from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+    repo = root.resolve()
+    policy = load_branch_role_policy(repo)
+    branch = ref_name.removeprefix("refs/heads/")
+    zero = "0" * 40
+    base = {
+        "ok": True,
+        "state": "admitted",
+        "hook": "reference-transaction",
+        "ref": ref_name,
+        "branch": branch,
+        "old_value": old_value,
+        "new_value": new_value,
+        "decision": {"action": "allow", "reason": "ref_move_admitted"},
+        "required_gaps": [],
+    }
+    if branch != policy.accepted_branch or new_value in (zero, "") or new_value == old_value:
+        return base
+
+    gaps: list[str] = []
+    contained = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", new_value, policy.candidate_branch],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+    )
+    if contained.returncode != 0:
+        gaps.append("accepted_advance_not_candidate_validated")
+    gaps.extend(_proof_gaps(repo, new_value))
+    if gaps:
+        base.update(
+            ok=False,
+            state="blocked",
+            required_gaps=gaps,
+            decision={"action": "block", "reason": "accepted_ref_move_bypasses_candidate_train"},
+        )
+    return base
+
+
 def _normalize_layer(layer: str) -> str:
     normalized = layer.strip().lower().replace("_", "-")
     if normalized not in HOOK_LAYERS:

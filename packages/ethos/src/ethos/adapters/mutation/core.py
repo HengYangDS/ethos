@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -198,7 +199,14 @@ def apply_candidate_to_accepted(
             "previous_head": current_head,
             "required_gaps": ["candidate_diverged_from_accepted"],
         }
-    completed = _git(root, "merge", "--ff-only", policy.candidate_branch, check=False)
+    completed = _git(
+        root,
+        "merge",
+        "--ff-only",
+        policy.candidate_branch,
+        check=False,
+        env={"ETHOS_ALLOW_REF_MOVE": "1"},
+    )
     if completed.returncode != 0:
         return {
             "ok": False,
@@ -279,11 +287,18 @@ def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return completed.returncode == 0
 
 
-def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    run_env = {**os.environ, **env} if env is not None else None
     return subprocess.run(
         ["git", *args],
         cwd=root,
         check=check,
         text=True,
         capture_output=True,
+        env=run_env,
     )

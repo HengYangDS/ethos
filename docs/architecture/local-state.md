@@ -11,7 +11,9 @@ relations:
 ETHOS stores host-local runtime state in `.ethos/state/state.sqlite`. The
 directory is ignored except for `.ethos/state/.gitignore`.
 
-SQLite records coordination and replay aids:
+SQLite records coordination and replay aids. It does not pre-create
+speculative cache stores; action cache keys stay in action-graph contracts
+until a concrete runtime cache earns its own owner and lifecycle.
 
 - `schema_migrations`
 - `events`
@@ -20,7 +22,6 @@ SQLite records coordination and replay aids:
 - `gate_runs`
 - `action_runs`
 - `evidence_index`
-- `cache_entries`
 
 Chronicle events may also be stored locally for fast inspection. Durable truth
 remains repository files, schemas, claims, and evidence records. Local state can

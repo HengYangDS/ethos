@@ -33,7 +33,6 @@ def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:
         "gate_runs",
         "action_runs",
         "evidence_index",
-        "cache_entries",
     } <= tables
 
 

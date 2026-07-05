@@ -99,14 +99,6 @@ SCHEMA = (
       payload_json text not null
     )
     """,
-    """
-    create table if not exists cache_entries (
-      cache_key text primary key,
-      action_id text not null,
-      created_at text not null,
-      payload_json text not null
-    )
-    """,
 )
 
 

@@ -292,6 +292,8 @@
         "lease_state",
         "claim_id",
         "claim_binding",
+        "dirty",
+        "dirty_paths",
         "path_scope",
         "scope_state",
         "coordination_state"
@@ -332,6 +334,15 @@
             "bound",
             "missing"
           ]
+        },
+        "dirty": {
+          "type": "boolean"
+        },
+        "dirty_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "path_scope": {
           "type": "array",

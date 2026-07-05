@@ -57,11 +57,14 @@ def foreign_work_lane(
     lease: dict[str, object],
     root: Path,
     claim_id: str,
+    dirty_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     branch = str(worktree["branch"])
-    path_scope, scope_state = branch_path_scope(
+    committed_scope, committed_state = branch_path_scope(
         root, branch=branch, candidate_branch=candidate_branch
     )
+    path_scope = tuple(dict.fromkeys((*committed_scope, *dirty_paths)))
+    scope_state = _combined_scope_state(committed_state, path_scope)
     owner = str(lease.get("owner") or "")
     return {
         "path": worktree["path"],
@@ -73,6 +76,8 @@ def foreign_work_lane(
         "lease_state": "leased" if owner else "missing",
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing",
+        "dirty": bool(dirty_paths),
+        "dirty_paths": list(dirty_paths),
         "path_scope": list(path_scope),
         "scope_state": scope_state,
         "coordination_state": coordination_state(
@@ -83,6 +88,12 @@ def foreign_work_lane(
             foreign_scope_state=scope_state,
         ),
     }
+
+
+def _combined_scope_state(committed_state: str, path_scope: tuple[str, ...]) -> str:
+    if committed_state == "unknown":
+        return "unknown"
+    return "bounded" if path_scope else "empty"
 
 
 def coordination_gaps(

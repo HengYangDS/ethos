@@ -123,6 +123,8 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "lease_state": "missing",
             "claim_id": "",
             "claim_binding": "missing",
+            "dirty": False,
+            "dirty_paths": [],
             "path_scope": [],
             "scope_state": "empty",
             "coordination_state": "advisory",
@@ -498,6 +500,48 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
         "coordination_gap:scope_overlap:work/first"
     ]
     assert status["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
+
+
+def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_overlaps(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    first = tmp_path / "repo-work-first"
+    second = tmp_path / "repo-work-second"
+    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
+    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+
+    (first / "packages").mkdir()
+    (first / "packages" / "core.py").write_text("# dirty foreign\n", encoding="utf-8")
+    (second / "packages").mkdir()
+    (second / "packages" / "core.py").write_text("# committed current\n", encoding="utf-8")
+    git(second, "add", "packages/core.py")
+    git(
+        second,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "second change",
+    )
+
+    status = workspace_status(second)
+    lane = status["foreign_work_lanes"][0]
+
+    assert lane["branch"] == "work/first"
+    assert lane["dirty"] is True
+    assert lane["dirty_paths"] == ["packages/core.py"]
+    assert lane["path_scope"] == ["packages/core.py"]
+    assert lane["coordination_state"] == "overlap"
+    assert status["coordination"]["required_gaps"] == [
+        "coordination_gap:scope_overlap:work/first"
+    ]
+    assert status["closeout_support"]["required_gaps"] == [
+        "coordination_gap:scope_overlap:work/first"
+    ]
 
 def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")

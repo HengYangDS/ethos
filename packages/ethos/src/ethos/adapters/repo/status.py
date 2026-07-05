@@ -228,6 +228,7 @@ def _foreign_work_lanes(
                 lease=lease,
                 root=root,
                 claim_id=_lease_claim_id(lease),
+                dirty_paths=changed_paths(Path(str(worktree["path"]))),
             )
         )
     return foreign

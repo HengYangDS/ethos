@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/paDM",
+  "target": "/private/tmp/ethos-skill-meta-coverage",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paDM --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-meta-coverage --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "63fe13f7896e0f2045f70201bd39fdf3ed8c1813",
-    "target_head": "63fe13f7896e0f2045f70201bd39fdf3ed8c1813",
-    "command_sha256": "7bd90c11c05e7278c8f9bcc31c0f7356751686cd0f3f1ecdd45cd6730f0e1abf"
+    "product_head": "acfa77cdbae223be94002739bf5a4ec170334df3",
+    "target_head": "acfa77cdbae223be94002739bf5a4ec170334df3",
+    "command_sha256": "6027e5e8aed991c39a995c65afeb8fd0e58d36250781f1ddb0abc246f2199fe7"
   },
   "shadow": {
     "ok": true,

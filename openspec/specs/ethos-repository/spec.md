@@ -38,8 +38,9 @@ OpenSpec remains mandatory governance, not a product substrate and not a second 
 ### Requirement: Coupling Binding Registry
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
 dependencies, native protocols, product toolchains, profile or adapter
-bindings, legacy evidence, and test fixtures through a machine-readable
-coupling registry.
+bindings, historical evidence, and test fixtures through a machine-readable
+coupling registry. Profile or adapter bindings SHALL carry explicit admission
+metadata before they can participate in the registry.
 
 #### Scenario: Binding registry is audited
 - **WHEN** `ethos quality coupling-audit --json` runs
@@ -51,15 +52,23 @@ coupling registry.
   patterns
 - **AND** the standard Work Lane lifecycle command contract is classified as a
   product-semantic hard binding
-- **AND** OpenSpec is classified as a mandatory governance dependency
-- **AND** the official OpenSpec CLI is classified as a mandatory governance
-  dependency rather than a product substrate
+- **AND** OpenSpec workspace and CLI are classified as mandatory governance
+  dependencies rather than product substrate
 - **AND** command JSON, JSON Schema, claims, evidence, and ignored local state
   are classified as native protocols
 - **AND** product proof tools and host projections do not own product
   semantics
+- **AND** profile or adapter bindings include admission authority, truth
+  boundary, and decision state
+- **AND** adapter or profile admission keeps `truth_boundary=profile_or_adapter`
+  and `decision_state=admitted`
 - **AND** host navigation labels in product semantic docs are reported as
   required gaps
+
+#### Scenario: Adapter binding lacks admission
+- **WHEN** a `profile_or_adapter_binding` lacks admission metadata
+- **THEN** coupling audit reports a required gap naming the binding
+- **AND** the adapter cannot silently become repository truth.
 
 ### Requirement: Standards Adapter Lifecycle
 ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,

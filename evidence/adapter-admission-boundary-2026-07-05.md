@@ -20,7 +20,7 @@ launchers from entering ETHOS as implicit truth centers.
   draft decision state.
 - Updated the product design contract to require admission authority, truth
   boundary, and decision state for adapter/profile bindings.
-- Added OpenSpec carrier `openspec/changes/ethos-adapter-admission-boundary-20260705`.
+- Added OpenSpec carrier `openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary-20260705`.
 
 ## Verification
 
@@ -59,6 +59,8 @@ Observed results:
 - Ruff format: `188 files already formatted`.
 - Python CI gate: `647 passed`; coverage `95.06%`; required `95%` reached.
 - OpenSpec lifecycle: `ok=true`, official validation `10` items passed, `0` failed, `required_gaps=[]`.
+- OpenSpec archive: archived as `2026-07-05-ethos-adapter-admission-boundary-20260705` with `specsUpdated=true`.
+- Accepted `ethos-repository` spec was manually reconciled to preserve existing coupling-registry constraints while adding adapter admission requirements.
 - Claims: `ok=true`, new claim digest trusted, `required_gaps=[]`.
 - Schema validation: `ok=true`; coupling-audit schema accepted adapter admission.
 - Report: `ok=true`, `score=16/max_score=16`, `governance_gap_count=0`, `parity_pending_count=0`.

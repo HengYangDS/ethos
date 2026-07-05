@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Binding Taxonomy
+### Requirement: Coupling Binding Registry
 
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
 dependencies, native protocols, product toolchains, profile or adapter

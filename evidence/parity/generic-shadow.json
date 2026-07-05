@@ -5,8 +5,8 @@
   "generated_on": "2026-07-05",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-self-healing-closeout-intelligence --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "7e035fa669ecc3628b47258cff324b43600dcaae",
-    "target_head": "7e035fa669ecc3628b47258cff324b43600dcaae",
+    "product_head": "dbb21be6c82abc7aae6def5bcaa5ad9f3c246d90",
+    "target_head": "dbb21be6c82abc7aae6def5bcaa5ad9f3c246d90",
     "command_sha256": "960c744b4f87e49f09e394f03aedea23e9a85f66b0bad15aa3ecf0154fe3aea1"
   },
   "shadow": {

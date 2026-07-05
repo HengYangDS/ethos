@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-closeout-proof-target",
+  "target": "/private/tmp/ethos-candidate-proof-carry",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-closeout-proof-target --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-candidate-proof-carry --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "2dbeed47de1deb74084d730ddb125866158015b0",
-    "target_head": "2dbeed47de1deb74084d730ddb125866158015b0",
-    "command_sha256": "2e3e3382197a0c70eb6abad1b8da0d8721f248bdddaccc016d035b4e14b3b186"
+    "product_head": "d3cecd99220cb62dafa24b138c7a79c82fc5150e",
+    "target_head": "d3cecd99220cb62dafa24b138c7a79c82fc5150e",
+    "command_sha256": "579c3e2088324c3970aaa6bdaf5f96ed14984a4012dd16032193c64cff8cf194"
   },
   "shadow": {
     "ok": true,

@@ -53,9 +53,9 @@ def adoption_mutation_gaps(
 
 
 def is_product_root(root: Path) -> bool:
-    """True when root is the ETHOS product repository (has packages/ethos + schemas)."""
+    """True when root is the ETHOS product repository (has packages/ethos + kernel schemas)."""
     return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "schemas" / "ethos"
+        root / "system" / "schemas" / "kernel"
     ).exists()
 
 

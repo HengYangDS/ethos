@@ -113,6 +113,22 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     return record
 
 
+def _proof_carry_package(
+    *, source_root: Path, target_root: Path, head: str, source_verified: bool
+) -> dict[str, Any]:
+    """Common proof-carry boundary fields."""
+    return {
+        "head": head,
+        "source_root": source_root.resolve().as_posix(),
+        "target_root": target_root.resolve().as_posix(),
+        "truth_boundary": "local-proof-state-projection",
+        "mints_proof": False,
+        "same_head_only": True,
+        "source_verified": source_verified,
+        "target_verified": False,
+    }
+
+
 def carry_executed_proof_record(
     *, source_root: Path, target_root: Path, head: str
 ) -> dict[str, Any]:
@@ -125,14 +141,18 @@ def carry_executed_proof_record(
     source_record = executed_proof_record(source_root, head)
     source_path = source_root / _PROOF_DIR / f"{head}.json"
     target_path = target_root / _PROOF_DIR / f"{head}.json"
+    base = _proof_carry_package(
+        source_root=source_root,
+        target_root=target_root,
+        head=head,
+        source_verified=source_record is not None,
+    )
     if source_record is None:
         return {
             "ok": False,
             "state": "skipped",
             "reason": "source-proof-missing-or-invalid",
-            "head": head,
-            "source_root": source_root.resolve().as_posix(),
-            "target_root": target_root.resolve().as_posix(),
+            **base,
             "required_gaps": ["proof_not_proven"],
         }
     try:
@@ -143,9 +163,7 @@ def carry_executed_proof_record(
             "ok": False,
             "state": "failed",
             "reason": exc.__class__.__name__,
-            "head": head,
-            "source_root": source_root.resolve().as_posix(),
-            "target_root": target_root.resolve().as_posix(),
+            **base,
             "required_gaps": ["proof_not_proven"],
         }
     if executed_proof_record(target_root, head) is None:
@@ -153,17 +171,14 @@ def carry_executed_proof_record(
             "ok": False,
             "state": "failed",
             "reason": "target-proof-invalid-after-copy",
-            "head": head,
-            "source_root": source_root.resolve().as_posix(),
-            "target_root": target_root.resolve().as_posix(),
+            **base,
             "required_gaps": ["proof_not_proven"],
         }
     return {
         "ok": True,
         "state": "carried",
-        "head": head,
-        "source_root": source_root.resolve().as_posix(),
-        "target_root": target_root.resolve().as_posix(),
+        **base,
+        "target_verified": True,
         "source_path": source_path.as_posix(),
         "target_path": target_path.as_posix(),
         "required_gaps": [],

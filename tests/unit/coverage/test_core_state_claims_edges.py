@@ -104,6 +104,11 @@ def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> 
         source_root=source, target_root=target, head="h1"
     )
     assert missing["state"] == "skipped"
+    assert missing["truth_boundary"] == "local-proof-state-projection"
+    assert missing["mints_proof"] is False
+    assert missing["same_head_only"] is True
+    assert missing["source_verified"] is False
+    assert missing["target_verified"] is False
     assert missing["required_gaps"] == ["proof_not_proven"]
 
     mutation_proof.record_executed_proof(source, evidence_for("h1"))
@@ -113,6 +118,11 @@ def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> 
 
     assert carried["ok"] is True
     assert carried["state"] == "carried"
+    assert carried["truth_boundary"] == "local-proof-state-projection"
+    assert carried["mints_proof"] is False
+    assert carried["same_head_only"] is True
+    assert carried["source_verified"] is True
+    assert carried["target_verified"] is True
     assert mutation_proof.executed_proof_record(target, "h1") is not None
 
 

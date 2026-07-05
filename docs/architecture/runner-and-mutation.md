@@ -67,9 +67,11 @@ cannot be created from ambiguous local candidate state. When a Work Lane lands
 to the candidate train, ETHOS carries the already verified HEAD-bound executed
 proof record into the candidate worktree's local proof state. This carry-forward
 is not a new proof minting path: the source record must verify before copying,
-and the target copy is re-verified after writing. It simply keeps Evidence with
-the same promoted HEAD so accepted-root closeout can prove the candidate head
-without requiring a redundant runner pass.
+and the target copy is re-verified after writing. The reported `proof_carry`
+package exposes `truth_boundary = "local-proof-state-projection"`,
+`mints_proof = false`, `same_head_only = true`, and source/target verification
+flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
+closeout can prove the candidate head without requiring a redundant runner pass.
 The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
 and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
 when needed, `ethos lane refresh-base` replays a stale lane onto the configured

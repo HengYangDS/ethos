@@ -95,7 +95,6 @@ commands = [
 ]
 boundary = "workflow-package-projection"
 
-
 [[skill]]
 id = "ethos-skill-portfolio-governance"
 path = ".agents/skills/ethos-skill-portfolio-governance/SKILL.md"

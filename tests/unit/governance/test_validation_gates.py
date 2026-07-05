@@ -747,3 +747,22 @@ def test_repository_audit_blocks_vendor_center_leak(tmp_path: Path) -> None:
         str(gap).startswith("design_integrity_vendor_center_leak:")
         for gap in report["required_gaps"]
     )
+
+
+def test_repository_audit_blocks_vendor_projection_files(tmp_path: Path) -> None:
+    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
+    from ethos.repository.audit import repository_audit
+
+    for relative in DESIGN_INTEGRITY_DOCS:
+        source = Path.cwd() / relative
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("vendor projection", encoding="utf-8")
+
+    report = repository_audit(tmp_path, openspec_mode="shape")
+    gaps = report["design_integrity"]["required_gaps"]
+
+    assert report["design_integrity"]["ok"] is False
+    assert "design_integrity_forbidden_projection_path:CLAUDE.md" in gaps
+    assert "design_integrity_forbidden_projection_path:CLAUDE.md" in report["required_gaps"]

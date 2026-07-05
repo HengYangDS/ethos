@@ -183,6 +183,12 @@ DESIGN_INTEGRITY_FORBIDDEN_TERMS = (
     "dual-posture",
 )
 
+DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS = (
+    "CLAUDE.md",
+    ".claude",
+    ".gitnexus",
+)
+
 DESIGN_INTEGRITY_VENDOR_TERMS = (
     "PyCharm",
     "Claude",
@@ -208,6 +214,12 @@ def _design_integrity_report(root: Path) -> dict[str, object]:
     silently disappears while lower-level tests still pass.
     """
     required_gaps: list[str] = []
+    forbidden_paths = [
+        f"design_integrity_forbidden_projection_path:{path}"
+        for path in DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
+        if (root / path).exists()
+    ]
+    required_gaps.extend(forbidden_paths)
     files: dict[str, dict[str, object]] = {}
     for doc in DESIGN_INTEGRITY_DOCS:
         path = root / doc
@@ -245,6 +257,7 @@ def _design_integrity_report(root: Path) -> dict[str, object]:
         "scope": "canonical_product_design_docs",
         "source_of_truth": "docs plus product-design-contract anchors",
         "not_a_truth_store": True,
+        "forbidden_projection_paths": forbidden_paths,
         "files": files,
         "required_gaps": required_gaps,
     }

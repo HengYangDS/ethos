@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:5681529f8a6f12f940eec781024f22d63d3c02487faef0f2a387c66e07401a1a"
+expected_registry_digest = "sha256:49bf3534ced286a5a38930c092902d9a11b38e17a3e54b4ff97be40190d894f0"
 expected_generator_digest = "sha256:b322d06da239e3d931336cb51cf0737a6da38b03f1864be7cfa682e391c7f978"
 
 [[skill]]
@@ -140,6 +140,7 @@ during_rules = [
   "keep SKILL.md narrow and put executable checks in scripts",
 ]
 post_checks = [
+  ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
   "ethos playbooks check --mode v2-strict --json",
   "ethos quality projection-drift --json",
 ]

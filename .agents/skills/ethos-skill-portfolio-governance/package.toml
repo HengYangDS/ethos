@@ -4,10 +4,14 @@ entrypoint = "SKILL.md"
 boundary = "repository-skill-source"
 truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
-include = ["SKILL.md"]
+include = [
+  "SKILL.md",
+  "scripts/portfolio_audit.py",
+  "references/portfolio-design.md",
+]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:337c32135c8b0d25c7026104f9dcd093af6d9f63fecf6284f084ccdbafb3cacd"
+expected_digest = "sha256:886ae4005bed5fc9d4b046616ecd826ef6632f3babeba98ebd1c053a828a827c"
 
 [quality]
 placeholder_allowed = false

@@ -21,18 +21,22 @@ repository truth.
    docs, rules, tests, or scripts instead.
 3. Keep `SKILL.md` narrow: trigger, workflow, evidence, and trust boundary.
    Put longer explanation in `references/` and executable checks in `scripts/`.
-4. Update `.agents/skills/activation.toml` and `package.toml` together so route
+4. Use `references/portfolio-design.md` before creating a new skill; prefer
+   strengthening the existing MECE portfolio unless a new repeated procedure has
+   a distinct owner.
+5. Update `.agents/skills/activation.toml` and `package.toml` together so route
    metadata, included files, required sections, capabilities, and digests stay
    aligned.
-5. Run `ethos playbooks check --mode v2-strict --json` and
-   `ethos quality projection-drift --json` before claiming the projection is
-   fresh.
+6. Run the bundled portfolio audit plus `ethos playbooks check --mode v2-strict
+   --json` and `ethos quality projection-drift --json` before claiming the
+   projection is fresh.
 
 ## Evidence
 
 Use these commands as machine evidence:
 
 ```bash
+.agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .
 ethos playbooks check --mode v2-strict --json
 ethos playbooks route --changed --json
 ethos quality projection-drift --json

@@ -47,7 +47,7 @@ The product skill portfolio is intentionally small and MECE:
 - `ethos-change-lifecycle` owns the transition loop.
 - `ethos-repository-governance` owns repository authority and governance routing.
 - `ethos-skill-portfolio-governance` owns meta-skill creation, validation,
-  projection drift, and retirement.
+  projection drift, retirement, and portfolio audit.
 - `ethos-quality-gate-governance` owns quality gate and provider-projection
   convergence.
 - `ethos-adoption-profile-governance` owns product/adopter profile isomorphism.
@@ -55,7 +55,9 @@ The product skill portfolio is intentionally small and MECE:
 Do not add surface-specific skills for CLI, GitLab, MCP, editor hosts, or model
 providers unless a repeated repository-specific procedure cannot be represented
 by one of these subjects. Prefer references or scripts inside the existing skill
-package before adding a new skill.
+package before adding a new skill. Use the skill portfolio audit helper to keep
+MECE coverage, package integrity, and projection drift visible without creating
+a parallel truth store.
 
 Playbook checks fail closed in strict mode:
 

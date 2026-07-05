@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos-work-break-glass-closeout",
+  "target": "/private/tmp/paC",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-break-glass-closeout --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/paC --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "78bf0c5ae87221cadb7c99cbf5c6def4a3e66f6e",
-    "target_head": "78bf0c5ae87221cadb7c99cbf5c6def4a3e66f6e",
-    "command_sha256": "0cadab98f7f20ed83affc3ed8c3ba83fd00603f55d1ed17d6feae8acd9bc8891"
+    "product_head": "300bc4ec68fb780e9558c0a683a7d6b308103614",
+    "target_head": "300bc4ec68fb780e9558c0a683a7d6b308103614",
+    "command_sha256": "9a43610093e5c18a69aefdcdf9369b2ec2cac4b24fc58450b045d0c69361ce0a"
   },
   "shadow": {
     "ok": true,

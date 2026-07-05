@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import fnmatch
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.config import code_size_policy
 from ethos.adapters.repo import git as _git
@@ -33,17 +34,23 @@ def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
 def code_size_report(root: Path) -> dict[str, object]:
     """Derive the code-size gate verdict against the role-based ratchet policy."""
     policy = code_size_policy(root)
-    default_limit = int(policy.get("default_effective_max_lines") or 400)
-    test_limit = int(policy.get("test_effective_max_lines") or default_limit)
-    surface_limit = int(policy.get("surface_effective_max_lines") or default_limit)
-    global_hard = int(policy.get("global_hard_effective_max_lines") or 0)
+    default_limit = int(cast("int | None", policy.get("default_effective_max_lines")) or 400)
+    test_limit = int(cast("int | None", policy.get("test_effective_max_lines")) or default_limit)
+    surface_limit = int(
+        cast("int | None", policy.get("surface_effective_max_lines")) or default_limit
+    )
+    global_hard = int(cast("int | None", policy.get("global_hard_effective_max_lines")) or 0)
     surface_globs = tuple(
-        str(pattern) for pattern in policy.get("surface_path_globs", []) if pattern
+        str(pattern)
+        for pattern in cast("list[object]", policy.get("surface_path_globs", []))
+        if pattern
     )
     role_limits = {"test": test_limit, "surface": surface_limit, "logic": default_limit}
     exception_limits = {
-        str(item.get("path")): int(item.get("effective_max_lines") or default_limit)
-        for item in policy.get("exception", [])
+        str(item.get("path")): int(
+            cast("int | None", item.get("effective_max_lines")) or default_limit
+        )
+        for item in cast("list[object]", policy.get("exception", []))
         if isinstance(item, dict) and item.get("path")
     }
     records: list[dict[str, object]] = []
@@ -100,7 +107,7 @@ def command_data_validation(
         "target": "data",
         "schema": schema_name,
         "ok": bool(validation["ok"]),
-        "required_gaps": list(validation["required_gaps"]),
+        "required_gaps": list(cast("list[object]", validation["required_gaps"])),
     }
 
 
@@ -113,4 +120,7 @@ def workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[
 
 def workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:
     """Prefix workspace-status schema gaps for surfacing in required_gaps."""
-    return tuple(f"workspace_status_schema:{gap}" for gap in validation["required_gaps"])
+    return tuple(
+        f"workspace_status_schema:{gap}"
+        for gap in cast("list[object]", validation["required_gaps"])
+    )

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import cast
 
 import ethos.assistants.playbooks as playbooks_module
 import ethos.repository.audit as repository_audit_module
@@ -62,7 +63,7 @@ def asset_policy(
         command="quality asset-policy",
         ok=True,
         state="clean",
-        summary={"asset_class_count": len(profile["asset_classes"])},
+        summary={"asset_class_count": len(cast("list[object]", profile["asset_classes"]))},
         data=profile,
     )
     emit(result, json_output, enforce=False)
@@ -81,8 +82,8 @@ def quality_types(
         command="quality types",
         ok=bool(report["ok"]),
         state=str(report["state"]),
-        summary={"package_count": len(report["packages"])},
-        required_gaps=tuple(report["required_gaps"]),
+        summary={"package_count": len(cast("dict[str, object]", report["packages"]))},
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output)
@@ -102,7 +103,7 @@ def quality_docs(
         command="quality docs",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data={
             "profile": profile,
             "style_goals": profile["style_goals"],
@@ -123,7 +124,7 @@ def proof_policy(
         command="quality proof-policy",
         ok=True,
         state="clean",
-        summary={"state_count": len(lattice["states"])},
+        summary={"state_count": len(cast("list[object]", lattice["states"]))},
         data=lattice,
     )
     emit(result, json_output, enforce=False)
@@ -140,7 +141,7 @@ def tool_profiles_command(
         command="quality tool-profiles",
         ok=True,
         state="clean",
-        summary={"tool_adapter_count": len(profiles["tool_adapters"])},
+        summary={"tool_adapter_count": len(cast("list[object]", profiles["tool_adapters"]))},
         data=profiles,
     )
     emit(result, json_output, enforce=False)
@@ -176,7 +177,7 @@ def markdown_links(
         command="quality markdown-links",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -202,7 +203,7 @@ def shell_quality(
         command="quality shell",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -228,7 +229,7 @@ def toml_quality(
         command="quality toml",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -254,7 +255,7 @@ def yaml_quality(
         command="quality yaml",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -273,7 +274,7 @@ def code_size(
         command="quality code-size",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -299,7 +300,7 @@ def npm_quality(
         command="quality npm",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -318,7 +319,7 @@ def command_surface(
         command="quality command-surface",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -365,15 +366,16 @@ def projection_drift(
     repo = resolve_root(root)
     contract = projection_contract()
     playbooks = playbooks_report(repo, mode="v2-strict")
-    registry_meta = playbooks["registry"]["meta"]
-    registry_digest = str(playbooks["registry"]["digest"])
+    registry = cast("dict[str, object]", playbooks["registry"])
+    registry_meta = cast("dict[str, object]", registry["meta"])
+    registry_digest = str(registry["digest"])
     expected_registry_digest = str(registry_meta.get("expected_registry_digest") or "")
     generator_digest = _sha256_file(Path(playbooks_module.__file__))
     expected_generator_digest = str(registry_meta.get("expected_generator_digest") or "")
     activation_digest = _sha256_file(repo / ".agents" / "skills" / "activation.toml")
     drift = [
         {"kind": "skill_package", "gap": gap}
-        for gap in playbooks["required_gaps"]
+        for gap in cast("list[str]", playbooks["required_gaps"])
         if str(gap).startswith("skill_package_")
     ]
     if not expected_registry_digest:
@@ -447,26 +449,32 @@ def package_ontology(
     """Report target package ontology and migration-host state."""
     repo = resolve_root(root)
     contract = package_ontology_report()
+    target_packages = cast("list[str]", contract["target_packages"])
+    migration_hosts = cast("list[str]", contract["migration_hosts"])
+    target_distributions = cast("list[str]", contract["target_distributions"])
+    migration_distributions = cast("dict[str, object]", contract["migration_distributions"])
     target_missing = [
         f"packages/{package}"
-        for package in contract["target_packages"]
+        for package in target_packages
         if not (repo / "packages" / str(package)).exists()
     ]
     host_missing = [
         f"packages/{package}"
-        for package in contract["migration_hosts"]
+        for package in migration_hosts
         if not (repo / "packages" / str(package)).exists()
     ]
     distribution_missing = [
         distribution
-        for distribution in contract["target_distributions"]
+        for distribution in target_distributions
         if not (repo / str(distribution)).exists()
     ]
     workspace_config = workspace_package_config_report(repo)
-    workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
-    migration_complete = not contract["migration_hosts"] and all(
+    workspace_config_gaps = [
+        str(gap) for gap in cast("list[str]", workspace_config["required_gaps"])
+    ]
+    migration_complete = not migration_hosts and all(
         item.get("state") == "migrated"
-        for item in contract["migration_distributions"].values()
+        for item in migration_distributions.values()
         if isinstance(item, dict)
     )
     physical_missing = target_missing + host_missing + distribution_missing
@@ -476,7 +484,7 @@ def package_ontology(
         "migration_complete": migration_complete,
         "migration_status": "complete" if migration_complete else "in_progress",
         "missing": physical_missing + workspace_config_gaps,
-        "distribution_status": contract["migration_distributions"],
+        "distribution_status": migration_distributions,
         "workspace_config": workspace_config,
     }
     result = EthosResult(
@@ -484,8 +492,8 @@ def package_ontology(
         ok=not data["missing"],
         state="tracked" if not data["missing"] else "gapped",
         summary={
-            "target_package_count": len(contract["target_packages"]),
-            "migration_host_count": len(contract["migration_hosts"]),
+            "target_package_count": len(target_packages),
+            "migration_host_count": len(migration_hosts),
             "migration_status": data["migration_status"],
         },
         required_gaps=tuple(
@@ -511,7 +519,7 @@ def schemas(
         command="quality schemas",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -569,14 +577,16 @@ def coupling_audit(
         schema_name="coupling-audit.schema.json",
         payload=report,
     )
-    validation_gaps = tuple(f"coupling_audit_schema:{gap}" for gap in validation["required_gaps"])
+    validation_gaps = tuple(
+        f"coupling_audit_schema:{gap}" for gap in cast("list[str]", validation["required_gaps"])
+    )
     ok = bool(report["ok"]) and bool(validation["ok"])
     result = EthosResult(
         command="quality coupling-audit",
         ok=ok,
         state="clean" if ok else "blocked",
         diagnostics=(validation,),
-        required_gaps=tuple(report["required_gaps"]) + validation_gaps,
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])) + validation_gaps,
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -592,7 +602,7 @@ def commits(
     """Report commit naming and signature policy."""
     repo = resolve_root(root)
     report = signature_policy_report(repo)
-    gaps = list(report["required_gaps"])
+    gaps = list(cast("list[str]", report["required_gaps"]))
     if enforce_head and not report["head_subject_ok"]:
         gaps.append("head_subject_not_conventional")
     if enforce_head and not report["head_signature_ok"]:
@@ -621,7 +631,7 @@ def release(
         command="quality release",
         ok=bool(release_files["ok"]),
         state="ready" if release_files["ok"] else "blocked",
-        required_gaps=tuple(release_files["missing"]),
+        required_gaps=tuple(cast("list[str]", release_files["missing"])),
         next_actions=("uv build --all-packages",),
         data={
             "release_files": release_files,
@@ -644,7 +654,7 @@ def release_policy(
         command="quality release-policy",
         ok=bool(report["ok"]),
         state="ready" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos quality release-attestation",),
         data=report,
     )
@@ -707,7 +717,7 @@ def command_registry(
         command="quality command-registry",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos repository audit",),
         data=report,
     )
@@ -728,7 +738,7 @@ def evidence_freshness(
         ok=bool(claim_report["ok"]),
         state="clean" if claim_report["ok"] else "blocked",
         summary={"evidence_roots": ["evidence"]},
-        required_gaps=tuple(claim_report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", claim_report["required_gaps"])),
         next_actions=("ethos prove --json",),
         data={"stale": [], "claims": claim_report},
     )
@@ -748,7 +758,7 @@ def claims(
         command="quality claims",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos prove --json",),
         data=report,
     )
@@ -768,7 +778,7 @@ def docs_registry(
         command="quality docs-registry",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos docs",),
         data=report,
     )
@@ -788,7 +798,7 @@ def command_examples(
         command="quality command-examples",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)

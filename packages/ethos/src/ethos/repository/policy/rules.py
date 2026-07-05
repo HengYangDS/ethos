@@ -5,6 +5,7 @@ import tomllib
 from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema import validate_schema_instance
@@ -243,11 +244,13 @@ def _is_legacy_rule_item(item: dict[str, Any]) -> bool:
 
 def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     validation = validate_schema_instance("rule.schema.json", rule)
-    return [str(gap) for gap in validation["required_gaps"]] if not validation["ok"] else []
+    if validation["ok"]:
+        return []
+    return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
 
 
 def _gate_definitions(root: Path) -> dict[str, dict[str, object]]:
-    definitions = {
+    definitions: dict[str, dict[str, object]] = {
         gate_id: {
             "id": gate_id,
             "command": " ".join(gate.command),
@@ -256,7 +259,10 @@ def _gate_definitions(root: Path) -> dict[str, dict[str, object]]:
         for gate_id, gate in gate_registry().items()
     }
     config = _load_rules_config(root)
-    configured = config.get("gates") if isinstance(config.get("gates"), dict) else {}
+    configured = cast(
+        "dict[str, object]",
+        config.get("gates") if isinstance(config.get("gates"), dict) else {},
+    )
     for gate_id, gate in configured.items():
         if not isinstance(gate, dict):
             continue
@@ -352,15 +358,21 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
     matched_rules: list[dict[str, object]] = []
     gate_definitions = {
         str(gate_id): dict(gate)
-        for gate_id, gate in dict(compiled["gate_definitions"]).items()
+        for gate_id, gate in cast("dict[str, object]", compiled["gate_definitions"]).items()
         if isinstance(gate, dict)
     }
-    rules = [rule for rule in compiled["rules"] if isinstance(rule, dict)]
+    rules = [
+        rule
+        for rule in cast("list[dict[str, object]]", compiled["rules"])
+        if isinstance(rule, dict)
+    ]
     for path in changed_paths:
         path_matches = [
             rule
             for rule in rules
-            if _matches(path, [str(pattern) for pattern in rule.get("path_globs", [])])
+            if _matches(
+                path, [str(pattern) for pattern in cast("list[object]", rule.get("path_globs", []))]
+            )
         ]
         if path_matches:
             covered_paths.append(path)
@@ -374,15 +386,19 @@ def coverage_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[
                         "authority_ref": rule["authority_ref"],
                         "contract_ref": rule["contract_ref"],
                         "severity": rule["severity"],
-                        "required_gates": list(rule.get("required_gates", [])),
+                        "required_gates": list(
+                            cast("list[object]", rule.get("required_gates", []))
+                        ),
                         "required_gates_detail": [
                             gate_definitions.get(
                                 str(gate),
                                 {"id": str(gate), "command": "", "blocking": True},
                             )
-                            for gate in rule.get("required_gates", [])
+                            for gate in cast("list[object]", rule.get("required_gates", []))
                         ],
-                        "evidence_requirements": list(rule.get("evidence_requirements", [])),
+                        "evidence_requirements": list(
+                            cast("list[object]", rule.get("evidence_requirements", []))
+                        ),
                         "blocking": rule.get("severity") == "blocking",
                         "stop_condition": rule["stop_condition"],
                         "non_waivable": bool(rule.get("non_waivable", False)),
@@ -411,10 +427,10 @@ def rules_check_report(root: Path) -> dict[str, object]:
     required_gaps: list[str] = []
     if "_parse_error" in config:
         required_gaps.append(f"rules_config_parse_error:{config['_parse_error']}")
-    required_gaps.extend(str(gap) for gap in compiled["compile_gaps"])
+    required_gaps.extend(str(gap) for gap in cast("list[object]", compiled["compile_gaps"]))
     rule_ids: set[str] = set()
-    gate_definitions = dict(compiled["gate_definitions"])
-    for rule in compiled["rules"]:
+    gate_definitions = cast("dict[str, object]", compiled["gate_definitions"])
+    for rule in cast("list[dict[str, object]]", compiled["rules"]):
         if not isinstance(rule, dict):
             continue
         rule_id = str(rule.get("id", ""))
@@ -423,7 +439,7 @@ def rules_check_report(root: Path) -> dict[str, object]:
         rule_ids.add(rule_id)
         if not rule.get("owner"):
             required_gaps.append(f"rule_missing_owner:{rule_id}")
-        for gate in rule.get("required_gates", []):
+        for gate in cast("list[object]", rule.get("required_gates", [])):
             if str(gate) not in gate_definitions:
                 required_gaps.append(f"unknown_rule_gate:{rule_id}:{gate}")
     return {
@@ -431,7 +447,11 @@ def rules_check_report(root: Path) -> dict[str, object]:
         "profile_stack": compiled["profile_stack"],
         "coverage_tier": compiled["coverage_tier"],
         "strict_enabled_source": "profile" if compiled["coverage_tier"] == "strict" else "",
-        "resolved_rules": [rule["id"] for rule in compiled["rules"] if isinstance(rule, dict)],
+        "resolved_rules": [
+            rule["id"]
+            for rule in cast("list[dict[str, object]]", compiled["rules"])
+            if isinstance(rule, dict)
+        ],
         "rule_set_digest": compiled["rule_set_digest"],
         "compiled_policy_digest": compiled["compiled_policy_digest"],
         "source_refs": compiled["source_refs"],
@@ -515,7 +535,7 @@ def _active_valid_exceptions(exceptions: dict[str, object]) -> list[dict[str, ob
     if exceptions["required_gaps"]:
         return []
     active: list[dict[str, object]] = []
-    for item in exceptions["exceptions"]:
+    for item in cast("list[dict[str, object]]", exceptions["exceptions"]):
         if isinstance(item, dict) and item.get("status") == "active":
             active.append(item)
     return active
@@ -560,7 +580,7 @@ def rules_evaluation_report(
     )
     snapshot = fact_snapshot or request.to_fact_snapshot(
         head=head,
-        source_refs=tuple(str(ref) for ref in compiled["source_refs"]),
+        source_refs=tuple(str(ref) for ref in cast("list[object]", compiled["source_refs"])),
     )
     mutation = bool(_fact_value(snapshot, "mutation", mutation))
     authorized = bool(_fact_value(snapshot, "authorization", authorized))
@@ -574,15 +594,17 @@ def rules_evaluation_report(
     waivers_applied: list[dict[str, object]] = []
     if phase not in VALID_PHASES:
         required_gaps.append(f"invalid_rule_phase:{phase}")
-    required_gaps.extend(str(gap) for gap in check["required_gaps"])
+    required_gaps.extend(str(gap) for gap in cast("list[object]", check["required_gaps"]))
     required_gaps.extend(_fact_gaps(snapshot))
-    required_gaps.extend(str(gap) for gap in coverage["required_gaps"])
-    required_gaps.extend(f"policy_exception:{gap}" for gap in exceptions["required_gaps"])
+    required_gaps.extend(str(gap) for gap in cast("list[object]", coverage["required_gaps"]))
+    required_gaps.extend(
+        f"policy_exception:{gap}" for gap in cast("list[object]", exceptions["required_gaps"])
+    )
     if mutation and phase in {"land", "publish"} and not authorized:
         required_gaps.append("authorization_required")
     valid_exceptions = _active_valid_exceptions(exceptions)
     blocking_obligations: list[dict[str, object]] = []
-    for match in coverage["matched_rules"]:
+    for match in cast("list[dict[str, object]]", coverage["matched_rules"]):
         if not match.get("blocking"):
             continue
         rule_id = str(match.get("rule_id", ""))
@@ -590,12 +612,13 @@ def rules_evaluation_report(
         match_gaps: list[str] = []
         if phase != "prove":
             match_gaps.extend(
-                f"gate_required:{rule_id}:{gate}" for gate in match.get("required_gates", [])
+                f"gate_required:{rule_id}:{gate}"
+                for gate in cast("list[object]", match.get("required_gates", []))
             )
         if phase in {"land", "publish"}:
             match_gaps.extend(
                 f"evidence_required:{rule_id}:{evidence}"
-                for evidence in match.get("evidence_requirements", [])
+                for evidence in cast("list[object]", match.get("evidence_requirements", []))
             )
         waiver = None
         if not match.get("non_waivable"):
@@ -611,7 +634,7 @@ def rules_evaluation_report(
             )
             continue
         required_gaps.extend(match_gaps)
-        for gate in match.get("required_gates", []):
+        for gate in cast("list[object]", match.get("required_gates", [])):
             blocking_obligations.append(
                 {
                     "id": str(gate),
@@ -621,7 +644,7 @@ def rules_evaluation_report(
                     "blocking": True,
                 }
             )
-        for evidence in match.get("evidence_requirements", []):
+        for evidence in cast("list[object]", match.get("evidence_requirements", [])):
             blocking_obligations.append(
                 {
                     "id": str(evidence),
@@ -676,7 +699,7 @@ def rules_evaluation_report(
             )
     obligations.extend(blocking_obligations)
     deduped_gaps = list(dict.fromkeys(required_gaps))
-    matched = list(coverage["matched_rules"])
+    matched = list(cast("list[dict[str, object]]", coverage["matched_rules"]))
     state = "block" if deduped_gaps else ("advisory" if matched else "allow")
     evaluation_base = {
         "schema_version": 1,
@@ -684,19 +707,31 @@ def rules_evaluation_report(
         "head": snapshot.head,
         "rule_set_digest": compiled["rule_set_digest"],
         "compiled_policy_digest": compiled["compiled_policy_digest"],
-        "source_refs": list(compiled["source_refs"]),
+        "source_refs": list(cast("list[object]", compiled["source_refs"])),
         "fact_snapshot_digest": snapshot.digest,
         "input_snapshot": snapshot.to_dict(),
         "surface_matches": matched,
-        "effective_rules": [rule["id"] for rule in compiled["rules"] if isinstance(rule, dict)],
+        "effective_rules": [
+            rule["id"]
+            for rule in cast("list[dict[str, object]]", compiled["rules"])
+            if isinstance(rule, dict)
+        ],
         "decisions": decisions,
         "obligations": list(_dedupe_records(obligations)),
         "required_gates": sorted(
-            {str(gate) for match in matched for gate in match.get("required_gates", [])}
+            {
+                str(gate)
+                for match in matched
+                for gate in cast("list[object]", match.get("required_gates", []))
+            }
         ),
         "required_gates_detail": _required_gate_details(matched),
         "evidence_requirements": sorted(
-            {str(req) for match in matched for req in match.get("evidence_requirements", [])}
+            {
+                str(req)
+                for match in matched
+                for req in cast("list[object]", match.get("evidence_requirements", []))
+            }
         ),
         "stops": [gap.split(":", 1)[0] for gap in deduped_gaps],
         "waivers_applied": waivers_applied,
@@ -711,7 +746,7 @@ def rules_evaluation_report(
 def _required_gate_details(matches: list[dict[str, object]]) -> list[dict[str, object]]:
     details: dict[str, dict[str, object]] = {}
     for match in matches:
-        for gate in match.get("required_gates_detail", []):
+        for gate in cast("list[dict[str, object]]", match.get("required_gates_detail", [])):
             if isinstance(gate, dict) and gate.get("id"):
                 details[str(gate["id"])] = dict(gate)
     return [details[key] for key in sorted(details)]
@@ -733,13 +768,17 @@ def rules_layer_report(root: Path) -> dict[str, object]:
     check = rules_check_report(root)
     exceptions = policy_exceptions_report(root)
     docs_manifest = rules_docs_manifest_report(root)
-    required_gaps = list(check["required_gaps"])
-    required_gaps.extend(f"policy_exception:{gap}" for gap in exceptions["required_gaps"])
-    required_gaps.extend(f"rules_docs_manifest:{gap}" for gap in docs_manifest["required_gaps"])
+    required_gaps = list(cast("list[str]", check["required_gaps"]))
+    required_gaps.extend(
+        f"policy_exception:{gap}" for gap in cast("list[object]", exceptions["required_gaps"])
+    )
+    required_gaps.extend(
+        f"rules_docs_manifest:{gap}" for gap in cast("list[object]", docs_manifest["required_gaps"])
+    )
     strict = check["coverage_tier"] == "strict"
     subjects = {
         str(rule.get("subject", ""))
-        for rule in compile_rules(root)["rules"]
+        for rule in cast("list[object]", compile_rules(root)["rules"])
         if isinstance(rule, dict)
     }
     depth_tiers = {
@@ -813,7 +852,7 @@ def _legacy_state(root: Path) -> dict[str, object]:
 
 def migrate_legacy_rules(root: Path, *, apply: bool = False) -> dict[str, object]:
     legacy = _legacy_state(root)
-    target_profiles = {"active": _profile_stack(root)}
+    target_profiles: dict[str, object] = {"active": _profile_stack(root)}
     target_gates = _configured_gate_tables(root)
     target_rules = _configured_rules(root)
     target_text = _rules_toml_text(
@@ -844,16 +883,20 @@ def migrate_legacy_rules(root: Path, *, apply: bool = False) -> dict[str, object
 
 def _configured_gate_tables(root: Path) -> dict[str, dict[str, object]]:
     config = _load_rules_config(root)
-    configured = config.get("gates") if isinstance(config.get("gates"), dict) else {}
+    configured = cast(
+        "dict[str, object]",
+        config.get("gates") if isinstance(config.get("gates"), dict) else {},
+    )
     gates: dict[str, dict[str, object]] = {}
     for gate_id, gate in configured.items():
         if not isinstance(gate, dict):
             continue
+        gate_table = cast("dict[str, object]", gate)
         payload: dict[str, object] = {}
-        if "command" in gate:
-            payload["command"] = str(gate["command"])
-        if "blocking" in gate:
-            payload["blocking"] = gate["blocking"] is not False
+        if "command" in gate_table:
+            payload["command"] = str(gate_table["command"])
+        if "blocking" in gate_table:
+            payload["blocking"] = gate_table["blocking"] is not False
         if payload:
             gates[str(gate_id)] = payload
     return gates
@@ -865,11 +908,8 @@ def _rules_toml_text(
     profiles: dict[str, object] | None = None,
     gates: dict[str, dict[str, object]] | None = None,
 ) -> str:
-    active_profiles = (
-        profiles.get("active")
-        if isinstance(profiles, dict) and isinstance(profiles.get("active"), list)
-        else ["generic"]
-    )
+    profiles_active = profiles.get("active") if isinstance(profiles, dict) else None
+    active_profiles = profiles_active if isinstance(profiles_active, list) else ["generic"]
     lines = ["[profiles]", f"active = {_toml_string_array(active_profiles)}", ""]
     for gate_id, gate in sorted((gates or {}).items()):
         lines.append(f"[gates.{_toml_table_key(gate_id)}]")
@@ -960,7 +1000,7 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
         exceptions = []
     known_rules = {
         str(rule.get("id")): rule
-        for rule in compile_rules(root)["rules"]
+        for rule in cast("list[object]", compile_rules(root)["rules"])
         if isinstance(rule, dict) and rule.get("id")
     }
     known_rule_ids = set(known_rules)
@@ -990,7 +1030,7 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
         if not validation["ok"]:
             gaps.extend(
                 f"policy_exception_schema_invalid:{record['id']}:{gap}"
-                for gap in validation["required_gaps"]
+                for gap in cast("list[object]", validation["required_gaps"])
             )
         expected = PolicyException(
             id=str(record["id"]),
@@ -1057,7 +1097,7 @@ def rules_docs_manifest_report(root: Path) -> dict[str, object]:
     refs = sorted(
         {
             str(ref)
-            for rule in compile_rules(root)["rules"]
+            for rule in cast("list[object]", compile_rules(root)["rules"])
             if isinstance(rule, dict) and (product_root or rule.get("owner") != "ethos")
             for ref in (rule.get("authority_ref"), rule.get("contract_ref"))
             if isinstance(ref, str) and ref.endswith(".md")
@@ -1081,7 +1121,7 @@ def _is_product_root(root: Path) -> bool:
 
 def explain_rules_target(root: Path, target: str) -> dict[str, object]:
     compiled = compile_rules(root)
-    rules = [rule for rule in compiled["rules"] if isinstance(rule, dict)]
+    rules = [rule for rule in cast("list[object]", compiled["rules"]) if isinstance(rule, dict)]
     if ":" in target:
         path = target.split(":", 1)[1]
         return {

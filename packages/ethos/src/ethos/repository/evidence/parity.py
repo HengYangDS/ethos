@@ -6,6 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos_core.contracts.capability_parity import capability_parity_records
 
@@ -48,7 +49,9 @@ def parity_gaps_report(
         acceptable_target_heads=acceptable_target_heads,
     )
     evidence_valid = not evidence.get("required_gaps")
-    evidence_gaps = [str(gap) for gap in evidence.get("required_gaps", [])]
+    evidence_gaps = [
+        str(gap) for gap in cast("Iterable[object]", evidence.get("required_gaps", []))
+    ]
     if not evidence:
         evidence = {
             "refresh_package": parity_evidence_refresh_package(
@@ -68,14 +71,15 @@ def parity_gaps_report(
                 required_gaps=evidence_gaps,
             ),
         }
-    verified = set(evidence.get("verified_capabilities", []))
+    verified = set(cast("Iterable[object]", evidence.get("verified_capabilities", [])))
     pending_packages = [
         _pending_package(record)
         for record in records
         if record["disposition"] in {"migrate-to-product", "split"}
         and (not evidence_valid or record["capability"] not in verified)
     ]
-    shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
+    shadow_value = evidence.get("shadow")
+    shadow = shadow_value if isinstance(shadow_value, dict) else {}
     if adopter and not (shadow.get("ok") is True and not shadow.get("required_gaps")):
         pending_packages.append(_shadow_pending_package(adopter))
     required_gaps = [str(package["gap"]) for package in pending_packages]
@@ -102,6 +106,7 @@ def build_tracked_parity_evidence(
 ) -> dict[str, object]:
     target = target.resolve()
     accepted_summary = shadow.get("accepted_summary")
+    shadow_required_gaps = shadow.get("required_gaps")
     command = _shadow_evidence_command(
         adopter=adopter,
         target=target,
@@ -121,8 +126,8 @@ def build_tracked_parity_evidence(
         "shadow": {
             "ok": bool(shadow.get("ok")),
             "state": str(shadow.get("state") or "matched"),
-            "required_gaps": list(shadow.get("required_gaps", []))
-            if isinstance(shadow.get("required_gaps"), list)
+            "required_gaps": list(shadow_required_gaps)
+            if isinstance(shadow_required_gaps, list)
             else [],
             "comparison_count": len(SHADOW_PARITY_COMMANDS),
             "commands": list(SHADOW_PARITY_COMMANDS),
@@ -196,7 +201,7 @@ def _pending_package(record: dict[str, object]) -> dict[str, object]:
         "source_location": record["source_location"],
         "target_home": record["target_home"],
         "disposition": record["disposition"],
-        "required_tests": list(record["required_tests"]),
+        "required_tests": list(cast("Iterable[object]", record["required_tests"])),
         "parity_criterion": record["parity_criterion"],
         "rollback_impact": record["rollback_impact"],
     }
@@ -272,10 +277,11 @@ def shadow_parity_report(
             acceptable_target_heads=acceptable_target_heads,
         )
         if evidence:
-            evidence_gaps = list(evidence.get("required_gaps", []))
+            evidence_gaps = list(cast("Iterable[str]", evidence.get("required_gaps", [])))
             if evidence.get("target") != target.as_posix():
                 evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
-            shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else {}
+            shadow_value = evidence.get("shadow")
+            shadow = shadow_value if isinstance(shadow_value, dict) else {}
             provenance = _tracked_evidence_provenance(
                 evidence,
                 required_gaps=evidence_gaps,
@@ -292,7 +298,9 @@ def shadow_parity_report(
                     "state": str(shadow.get("state") or "matched"),
                     "target": target.as_posix(),
                     "evidence_path": str(evidence.get("path")),
-                    "comparison_count": int(shadow.get("comparison_count") or len(commands)),
+                    "comparison_count": int(
+                        cast("int", shadow.get("comparison_count")) or len(commands)
+                    ),
                     "commands": commands,
                     "semantic_dimensions": dimensions,
                     "blocking": False,
@@ -398,7 +406,8 @@ def _tracked_evidence_provenance(
     current_target_head: str,
     current_product_head: str = "",
 ) -> dict[str, object]:
-    freshness = evidence.get("freshness") if isinstance(evidence.get("freshness"), dict) else {}
+    freshness_value = evidence.get("freshness")
+    freshness = freshness_value if isinstance(freshness_value, dict) else {}
     return {
         "mode": "tracked_evidence",
         "evidence_path": str(evidence.get("path") or ""),

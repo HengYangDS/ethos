@@ -7,6 +7,8 @@ decorators run. Imports only what this group needs.
 
 from __future__ import annotations
 
+from typing import cast
+
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.domain import plan as _plan
@@ -39,10 +41,10 @@ def rules_check(
         state="clean" if report["ok"] else "blocked",
         summary={
             "coverage_tier": report["coverage_tier"],
-            "rule_count": len(report["resolved_rules"]),
+            "rule_count": len(cast("list[object]", report["resolved_rules"])),
         },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -93,8 +95,8 @@ def rules_eval(
             "digest": report["digest"],
             "attestation": attestation,
         },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
     emit(result, json_output)
@@ -110,18 +112,22 @@ def rules_coverage(
 ) -> None:
     """Report changed-path rule coverage."""
     repo = resolve_root(root)
-    paths = tuple(workspace_status(repo)["changed_paths"]) if changed else tuple(changed_path)
+    paths = (
+        tuple(cast("list[str]", workspace_status(repo)["changed_paths"]))
+        if changed
+        else tuple(changed_path)
+    )
     report = coverage_report(repo, changed_paths=paths)
     result = EthosResult(
         command="rules coverage",
         ok=bool(report["ok"]),
         state="covered" if report["ok"] else "gapped",
         summary={
-            "covered_path_count": len(report["covered_paths"]),
-            "uncovered_path_count": len(report["uncovered_paths"]),
+            "covered_path_count": len(cast("list[object]", report["covered_paths"])),
+            "uncovered_path_count": len(cast("list[object]", report["uncovered_paths"])),
         },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=tuple(report["next_action_contract"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -140,7 +146,7 @@ def rules_compile(
         command="rules compile",
         ok=True,
         state="compiled",
-        summary={"rule_count": len(report["rules"])},
+        summary={"rule_count": len(cast("list[object]", report["rules"]))},
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -161,7 +167,7 @@ def rules_explain(
         ok=True,
         state="explained",
         summary={"target": target},
-        next_actions=tuple(report["next_action_contract"]),
+        next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
     emit(result, json_output, enforce=False)
@@ -179,7 +185,7 @@ def rules_exceptions(
         command="rules exceptions",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
     emit(result, json_output, enforce=False)

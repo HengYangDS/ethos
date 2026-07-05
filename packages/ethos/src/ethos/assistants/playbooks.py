@@ -5,6 +5,7 @@ import shlex
 import tomllib
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 from ethos.assistants.skill_packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skill_packages import validate_skill_markdown
@@ -129,7 +130,7 @@ def route_playbook(
     changed = subject == "changed-scope"
     selected = [
         record
-        for record in report["records"]
+        for record in cast("list[dict[str, object]]", report["records"])
         if _matches_route_subject(
             record,
             normalized,
@@ -142,7 +143,7 @@ def route_playbook(
             selected, unmatched_paths = _select_for_changed_paths(selected, changed_paths)
         else:
             selected = []
-    gaps = list(report["required_gaps"])
+    gaps = list(cast("list[str]", report["required_gaps"]))
     if not selected and not (changed and not changed_paths):
         gaps.append(f"playbook_route_missing:{subject}")
     gaps.extend(f"playbook_changed_path_unmatched:{path}" for path in unmatched_paths)
@@ -155,9 +156,11 @@ def route_playbook(
         "changed_paths": list(changed_paths),
         "selected": selected,
         "unmatched_paths": unmatched_paths,
-        "route_hints": {"registry_digest": report["registry"]["digest"]},
+        "route_hints": {
+            "registry_digest": cast("dict[str, object]", report["registry"])["digest"]
+        },
         "required_gaps": _dedupe(gaps),
-        "advisory_gaps": list(report["advisory_gaps"]),
+        "advisory_gaps": list(cast("list[str]", report["advisory_gaps"])),
         "skills_root": report["skills_root"],
     }
 
@@ -258,7 +261,7 @@ def _matches_route_subject(
     *,
     require_explicit_subject: bool,
 ) -> bool:
-    subjects = [str(item).strip().lower() for item in record["subjects"]]
+    subjects = [str(item).strip().lower() for item in cast("list[str]", record["subjects"])]
     if require_explicit_subject:
         return normalized in subjects
     return normalized in str(record["id"]).lower() or any(normalized in item for item in subjects)
@@ -267,8 +270,14 @@ def _matches_route_subject(
 def _coverage(records: list[dict[str, object]]) -> dict[str, object]:
     return {
         "record_count": len(records),
-        "path_glob_count": sum(len(record["path_globs"]) for record in records),
-        "subjects": sorted({subject for record in records for subject in record["subjects"]}),
+        "path_glob_count": sum(len(cast("list[str]", record["path_globs"])) for record in records),
+        "subjects": sorted(
+            {
+                subject
+                for record in records
+                for subject in cast("list[str]", record["subjects"])
+            }
+        ),
     }
 
 
@@ -279,7 +288,7 @@ def _select_for_changed_paths(
     selected: list[dict[str, object]] = []
     matched_paths: set[str] = set()
     for record in records:
-        path_globs = [str(item) for item in record["path_globs"]]
+        path_globs = [str(item) for item in cast("list[str]", record["path_globs"])]
         matches = [
             path
             for path in changed_paths

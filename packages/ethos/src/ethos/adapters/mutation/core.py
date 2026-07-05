@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status import workspace_status
@@ -61,8 +62,8 @@ def evaluate_mutation(
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
     else:
-        closeout = status.get("closeout_support", {})
-        gaps.extend(str(gap) for gap in closeout.get("required_gaps", []))
+        closeout = cast("dict[str, object]", status.get("closeout_support", {}))
+        gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
     gaps.extend(_proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
@@ -89,7 +90,7 @@ def evaluate_closeout_mutation(
         gaps.append("accepted_root_required")
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
-    candidate = status["candidate"]
+    candidate = cast("dict[str, object]", status["candidate"])
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
     elif not candidate["worktree_exists"]:
@@ -185,7 +186,7 @@ def apply_candidate_to_accepted(
             "required_gaps": list(decision.gaps),
         }
     status = workspace_status(root)
-    candidate_head = str(status["candidate"]["head"])
+    candidate_head = str(cast("dict[str, object]", status["candidate"])["head"])
     completed = _git(root, "merge", "--ff-only", policy.candidate_branch, check=False)
     if completed.returncode != 0:
         return {
@@ -213,7 +214,7 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
     status = workspace_status(root)
-    if not status["candidate"]["exists"]:
+    if not cast("dict[str, object]", status["candidate"])["exists"]:
         return {
             "ok": False,
             "state": "blocked",
@@ -221,7 +222,7 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
             "head": current_head,
             "required_gaps": ["candidate_branch_missing"],
         }
-    if not status["candidate"]["worktree_exists"]:
+    if not cast("dict[str, object]", status["candidate"])["worktree_exists"]:
         return {
             "ok": False,
             "state": "blocked",
@@ -229,7 +230,7 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
             "head": current_head,
             "required_gaps": ["candidate_worktree_missing"],
         }
-    candidate_path = Path(str(status["candidate"]["worktree_path"]))
+    candidate_path = Path(str(cast("dict[str, object]", status["candidate"])["worktree_path"]))
     candidate_status = workspace_status(candidate_path)
     if candidate_status["dirty"]:
         return {
@@ -240,7 +241,7 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_worktree_dirty"],
         }
-    candidate_head = str(status["candidate"]["head"])
+    candidate_head = str(cast("dict[str, object]", status["candidate"])["head"])
     if not _is_ancestor(root, candidate_head, current_head):
         return {
             "ok": False,

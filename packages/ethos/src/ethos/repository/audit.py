@@ -4,6 +4,7 @@ import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
@@ -21,17 +22,24 @@ from ethos_core.contracts.system_contracts import system_contracts_report
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 
 _PACKAGE_ONTOLOGY = package_ontology_report()
-TARGET_PRODUCT_PACKAGES = tuple(str(item) for item in _PACKAGE_ONTOLOGY["target_packages"])
-MIGRATION_HOST_PACKAGES = tuple(str(item) for item in _PACKAGE_ONTOLOGY["migration_hosts"])
+TARGET_PRODUCT_PACKAGES = tuple(
+    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["target_packages"])
+)
+MIGRATION_HOST_PACKAGES = tuple(
+    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["migration_hosts"])
+)
 MIGRATION_HOST_LIFECYCLE = {
-    str(key): str(value) for key, value in _PACKAGE_ONTOLOGY["migration_host_lifecycle"].items()
+    str(key): str(value)
+    for key, value in cast("dict[str, str]", _PACKAGE_ONTOLOGY["migration_host_lifecycle"]).items()
 }
 TARGET_DISTRIBUTION_ADAPTERS = tuple(
-    str(item) for item in _PACKAGE_ONTOLOGY["target_distributions"]
+    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["target_distributions"])
 )
 DISTRIBUTION_MIGRATION_HOSTS = tuple(
     str(item["migration_host"])
-    for item in _PACKAGE_ONTOLOGY["migration_distributions"].values()
+    for item in cast(
+        "dict[str, dict[str, str]]", _PACKAGE_ONTOLOGY["migration_distributions"]
+    ).values()
     if "migration_host" in item
 )
 
@@ -258,7 +266,7 @@ def repository_audit(
         if not (root / "system" / "schemas" / "kernel" / schema).exists()
     ]
     release_files = release_files_report(root)
-    release_files_missing = list(release_files["missing"])
+    release_files_missing = list(cast("list[str]", release_files["missing"]))
     playbooks_missing = [path for path in REQUIRED_PLAYBOOK_FILES if not (root / path).exists()]
     openspec_family_missing = [
         f"openspec/specs/{family}/spec.md"
@@ -278,18 +286,22 @@ def repository_audit(
         openspec = _openspec_provider_missing_report(root)
     else:
         openspec = openspec_reporter(root)
-    claim_gaps = [str(gap) for gap in claim_report["required_gaps"]]
-    schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
-    evolution_gaps = [str(gap) for gap in evolution["required_gaps"]]
+    claim_gaps = [str(gap) for gap in cast("list[str]", claim_report["required_gaps"])]
+    schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]
+    evolution_gaps = [str(gap) for gap in cast("list[str]", evolution["required_gaps"])]
     coupling_gaps = [str(gap) for gap in coupling["required_gaps"]]
-    openspec_gaps = [str(gap) for gap in openspec["required_gaps"]]
-    command_gaps = [str(gap) for gap in command_report["required_gaps"]]
-    authority_graph_gaps = [str(gap) for gap in authority_graph["required_gaps"]]
-    workspace_config_gaps = [str(gap) for gap in workspace_config["required_gaps"]]
+    openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
+    command_gaps = [str(gap) for gap in cast("list[str]", command_report["required_gaps"])]
+    authority_graph_gaps = [str(gap) for gap in cast("list[str]", authority_graph["required_gaps"])]
+    workspace_config_gaps = [
+        str(gap) for gap in cast("list[str]", workspace_config["required_gaps"])
+    ]
     playbook_report = playbooks_report(root, mode="v2-strict")
-    playbook_gaps = [str(gap) for gap in playbook_report["required_gaps"]]
+    playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
     system_contracts = system_contracts_report(root)
-    system_contract_gaps = [str(gap) for gap in system_contracts["required_gaps"]]
+    system_contract_gaps = [
+        str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
+    ]
     gaps = (
         package_missing
         + [f"distribution_adapter_missing:{adapter}" for adapter in distribution_missing]
@@ -340,7 +352,9 @@ def repository_audit(
             "target_packages": list(TARGET_PRODUCT_PACKAGES),
             "migration_hosts": list(MIGRATION_HOST_PACKAGES),
             "target_distribution_adapters": list(TARGET_DISTRIBUTION_ADAPTERS),
-            "distribution_status": dict(_PACKAGE_ONTOLOGY["migration_distributions"]),
+            "distribution_status": dict(
+                cast("dict[str, dict[str, str]]", _PACKAGE_ONTOLOGY["migration_distributions"])
+            ),
             "distribution_migration_hosts": list(DISTRIBUTION_MIGRATION_HOSTS),
             "missing": target_package_missing,
             "adapter_missing": target_distribution_missing,

@@ -5,6 +5,7 @@ import re
 import tomllib
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 CAPABILITY_KINDS = frozenset(
     {
@@ -113,8 +114,9 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         DEFAULT_REQUIRED_SECTIONS
     )
     if _contained_package_path(package_dir, entrypoint):
-        quality_policy = (
-            manifest.get("quality") if isinstance(manifest.get("quality"), dict) else {}
+        quality_policy = cast(
+            "dict[str, Any]",
+            manifest.get("quality") if isinstance(manifest.get("quality"), dict) else {},
         )
         quality = validate_skill_markdown(
             root,
@@ -212,6 +214,7 @@ def _capability_records(
         if not isinstance(item, dict):
             gaps.append(f"skill_package_capability_invalid:{skill_id}:{index}")
             continue
+        item = cast("dict[str, Any]", item)
         kind = str(item.get("kind") or "")
         if kind not in CAPABILITY_KINDS:
             gaps.append(f"skill_package_capability_kind_unknown:{skill_id}:{kind}")

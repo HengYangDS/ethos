@@ -9,6 +9,7 @@ ethos_core.contracts), keeping the surface→domain→... layering acyclic.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.openspec import openspec_governance_report
 from ethos.repository import audit as repository_audit_module
@@ -89,7 +90,11 @@ def adopter_audit(root: Path) -> dict[str, object]:
     schemas = schema_validation_report(root)
     claims = claims_report(root)
     docs = docs_health_report(root)
-    gaps = list(adopter["required_gaps"]) + [f"schema:{gap}" for gap in schemas["required_gaps"]]
+    gaps = list(cast("list[str]", adopter["required_gaps"])) + [
+        f"schema:{gap}" for gap in cast("list[str]", schemas["required_gaps"])
+    ]
+    adopter_governance = cast("dict[str, dict[str, bool]]", adopter["adopter"])["governance"]
+    adopter_openspec = bool(adopter_governance["openspec"])
     return {
         "ok": not gaps,
         "mode": "repository",
@@ -107,11 +112,9 @@ def adopter_audit(root: Path) -> dict[str, object]:
         "claims": claims,
         "docs": docs,
         "openspec": {
-            "ok": bool(adopter["adopter"]["governance"]["openspec"]),
+            "ok": adopter_openspec,
             "mode": "adopter-shape",
-            "required_gaps": []
-            if adopter["adopter"]["governance"]["openspec"]
-            else ["adopter_missing:openspec"],
+            "required_gaps": [] if adopter_openspec else ["adopter_missing:openspec"],
         },
     }
 
@@ -120,14 +123,14 @@ def status_worktree_gaps(status: dict[str, object]) -> list[str]:
     """Collect blocking gaps from a workspace-status payload (drop lease-only noise)."""
     gaps = [
         str(gap)
-        for gap in status.get("required_gaps", [])
+        for gap in cast("list[object]", status.get("required_gaps", []))
         if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
     ]
     closeout = status.get("closeout_support")
     if isinstance(closeout, dict):
         gaps.extend(
             str(gap)
-            for gap in closeout.get("required_gaps", [])
+            for gap in cast("list[object]", closeout.get("required_gaps", []))
             if str(gap) and not str(gap).startswith("work_lane_missing_lease:")
         )
     return list(dict.fromkeys(gaps))

@@ -10,6 +10,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
@@ -183,7 +184,7 @@ def closeout_bootstrap_package(
         "accepted_branch": policy.accepted_branch,
         "candidate_branch": policy.candidate_branch,
         "accepted_head": accepted_head,
-        "candidate_head": str(candidate.get("head") or ""),
+        "candidate_head": str(cast("dict[str, object]", candidate).get("head") or ""),
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "command": command,
@@ -201,18 +202,21 @@ def trust_closeout_package(
     closeout = closeout_support if isinstance(closeout_support, dict) else {}
     trust_claims = [
         claim
-        for claim in claims.get("claims", {}).values()
+        for claim in cast("dict[str, object]", claims.get("claims", {})).values()
         if isinstance(claim, dict) and claim.get("trust_envelope")
     ]
-    envelopes = [
-        claim["trust_envelope"]
-        for claim in trust_claims
-        if isinstance(claim.get("trust_envelope"), dict)
-    ]
+    envelopes = cast(
+        "list[dict[str, object]]",
+        [
+            cast("dict[str, object]", claim)["trust_envelope"]
+            for claim in trust_claims
+            if isinstance(claim.get("trust_envelope"), dict)
+        ],
+    )
     envelope_gaps = [
         gap
         for envelope in envelopes
-        for gap in envelope.get("required_gaps", [])
+        for gap in cast("list[object]", envelope.get("required_gaps", []))
         if isinstance(envelope, dict)
     ]
     promotion_ready = (
@@ -220,7 +224,7 @@ def trust_closeout_package(
         and not envelope_gaps
         and all(
             isinstance(envelope.get("promotion"), dict)
-            and envelope["promotion"].get("ready") is True
+            and cast("dict[str, object]", envelope["promotion"]).get("ready") is True
             for envelope in envelopes
         )
     )
@@ -228,11 +232,14 @@ def trust_closeout_package(
         command_is_executed_proof(command)
         for envelope in envelopes
         if isinstance(envelope.get("evidence"), dict)
-        for command in envelope["evidence"].get("commands", [])
+        for command in cast(
+            "list[object]",
+            cast("dict[str, object]", envelope["evidence"]).get("commands", []),
+        )
     )
     gaps: list[str] = []
     if not claims.get("ok"):
-        gaps.extend(str(gap) for gap in claims.get("required_gaps", []))
+        gaps.extend(str(gap) for gap in cast("list[object]", claims.get("required_gaps", [])))
     if not envelopes:
         gaps.append("trust_claim_missing")
     if not promotion_ready:
@@ -356,7 +363,7 @@ def campaign_closeout_report(
             "remote_state": remote_publication["state"],
         },
     }
-    local_closeout = dict(status_payload["closeout_support"])
+    local_closeout = dict(cast("dict[str, object]", status_payload["closeout_support"]))
     local_closeout["kind"] = "local_closeout_plan"
     local_closeout["blocking"] = bool(local_closeout["required_gaps"])
 
@@ -374,17 +381,17 @@ def campaign_closeout_report(
         "parity": {
             "kind": "parity_backlog",
             "adopter": parity["adopter"],
-            "pending_count": len(parity["pending_packages"]),
-            "required_gaps": list(parity["required_gaps"]),
+            "pending_count": len(cast("list[object]", parity["pending_packages"])),
+            "required_gaps": list(cast("list[object]", parity["required_gaps"])),
             "blocking": False,
         },
-        "shadow_parity": shadow["execution_packages"][0],
+        "shadow_parity": cast("list[object]", shadow["execution_packages"])[0],
         "campaign": {
             "kind": "campaign_closeout",
             "ok": bool(campaign["ok"]),
-            "active_count": int(campaign["active_count"]),
-            "campaign_count": int(campaign["campaign_count"]),
-            "required_gaps": list(campaign["required_gaps"]),
+            "active_count": int(cast("int", campaign["active_count"])),
+            "campaign_count": int(cast("int", campaign["campaign_count"])),
+            "required_gaps": list(cast("list[object]", campaign["required_gaps"])),
             "campaigns": campaign["campaigns"],
         },
     }

@@ -5,7 +5,11 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 READ_ONLY_COMMANDS = (
     ("status",),
@@ -319,7 +323,7 @@ def _accepted_semantic_differences(*args: Any) -> list[dict[str, Any]]:
     return accepted
 
 
-def _accepted_summary(differences: object) -> dict[str, Any]:
+def _accepted_summary(differences: Iterable[object]) -> dict[str, Any]:
     items = list(differences) if not isinstance(differences, list) else differences
     kind_counts: dict[str, int] = {}
     for item in items:
@@ -432,8 +436,10 @@ def _command_label(command: object) -> str:
 
 
 def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> dict[str, Any]:
-    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
-    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    summary_value = payload.get("summary")
+    summary = summary_value if isinstance(summary_value, dict) else {}
+    data_value = payload.get("data")
+    data = data_value if isinstance(data_value, dict) else {}
     command_name = _command_name(command, payload, summary)
     state = _semantic_state(payload, summary=summary, command=command_name)
     projection: dict[str, Any] = {
@@ -596,10 +602,10 @@ def _without_product_repository_audit_gaps(
     payload: dict[str, Any],
     gaps: list[str],
 ) -> tuple[list[str], list[str]]:
-    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
-    repository_audit = (
-        data.get("repository_audit") if isinstance(data.get("repository_audit"), dict) else {}
-    )
+    data_value = payload.get("data")
+    data = data_value if isinstance(data_value, dict) else {}
+    repository_audit_value = data.get("repository_audit")
+    repository_audit = repository_audit_value if isinstance(repository_audit_value, dict) else {}
     audit_gaps = {
         gap
         for gap in _gap_list(repository_audit.get("required_gaps"))
@@ -655,8 +661,10 @@ def _is_changed_route_noop(
     embedded: dict[str, Any],
     gaps: list[str],
 ) -> bool:
-    external_data = external.get("data") if isinstance(external.get("data"), dict) else {}
-    embedded_summary = embedded.get("summary") if isinstance(embedded.get("summary"), dict) else {}
+    external_data_value = external.get("data")
+    external_data = external_data_value if isinstance(external_data_value, dict) else {}
+    embedded_summary_value = embedded.get("summary")
+    embedded_summary = embedded_summary_value if isinstance(embedded_summary_value, dict) else {}
     return (
         (external.get("command") or external_data.get("command")) == "playbooks route"
         and external_data.get("subject") == "changed-scope"
@@ -673,7 +681,8 @@ def _report_parity_evidence_refresh_bootstrap_gaps(
     external_projection: dict[str, Any],
     embedded_projection: dict[str, Any],
 ) -> list[str]:
-    external_summary = external.get("summary") if isinstance(external.get("summary"), dict) else {}
+    external_summary_value = external.get("summary")
+    external_summary = external_summary_value if isinstance(external_summary_value, dict) else {}
     parity_pending_count = external_summary.get("parity_pending_count")
     governance_gap_count = external_summary.get("governance_gap_count")
     if not isinstance(parity_pending_count, int) or parity_pending_count <= 0:

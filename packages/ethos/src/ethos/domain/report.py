@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.adapters.repo import git as _gitio
@@ -38,7 +39,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
-    audit_profile = str(audit["governance_context"]["profile"])
+    audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
     product_profile = audit_profile == "product"
     playbooks = playbooks_report(repo, mode="v2-strict")
     adoption_scaffold = adoption_scaffold_report()
@@ -72,10 +73,12 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             context_projection_score,
         )
     )
-    result_required_gaps = tuple(audit["required_gaps"])
+    result_required_gaps = tuple(cast("list[str]", audit["required_gaps"]))
     if product_profile:
-        result_required_gaps = result_required_gaps + tuple(claim_report["required_gaps"])
-    parity_pending_count = len(parity_gaps["required_gaps"])
+        result_required_gaps = result_required_gaps + tuple(
+            cast("list[str]", claim_report["required_gaps"])
+        )
+    parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
     gap_layers = _gap_layers(result_required_gaps, parity_gaps, playbooks)
     return {
         "ok": all(value == 1 for value in scores.values()),
@@ -131,10 +134,14 @@ def _adopter_scores(
     context_projection_score: int,
     playbooks: dict[str, object],
 ) -> dict[str, int]:
-    adopter = audit["adopter"]["adopter"]["governance"]
+    audit_adopter = cast("dict[str, object]", audit["adopter"])
+    adopter = cast(
+        "dict[str, object]",
+        cast("dict[str, object]", audit_adopter["adopter"])["governance"],
+    )
     return {
         "adopter_governance": int(bool(audit["ok"])),
-        "schemas": int(bool(audit["schemas"]["ok"])),
+        "schemas": int(bool(cast("dict[str, object]", audit["schemas"])["ok"])),
         "claims": int(bool(adopter["claims"])),
         "docs": int(bool(adopter["docs"])),
         "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
@@ -158,11 +165,12 @@ def _product_scores(
     parity_ledger: dict[str, object],
     context_projection_score: int,
 ) -> dict[str, int]:
+    package_ontology = cast("dict[str, object]", audit["package_ontology"])
     return {
-        "package_ontology": int(bool(audit["package_ontology"]["ok"])),
-        "distribution_adapter": int(not audit["package_ontology"]["adapter_missing"]),
+        "package_ontology": int(bool(package_ontology["ok"])),
+        "distribution_adapter": int(not package_ontology["adapter_missing"]),
         "docs": int(bool(docs_report["ok"])),
-        "schemas": int(bool(audit["schemas"]["ok"])),
+        "schemas": int(bool(cast("dict[str, object]", audit["schemas"])["ok"])),
         "schema_validation": int(bool(schemas_report["ok"])),
         "claims": int(bool(claim_report["ok"])),
         "command_registry": int(bool(command_report["ok"])),
@@ -176,7 +184,7 @@ def _product_scores(
         "context_projection": context_projection_score,
         "evolution": int(bool(evolution["ok"])),
         "signature_policy": int(bool(signature["ok"])),
-        "openspec": int(bool(audit["openspec"]["ok"])),
+        "openspec": int(bool(cast("dict[str, object]", audit["openspec"])["ok"])),
         "playbooks": int(bool(playbooks["ok"])),
         "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
         "parity_ledger": int(bool(parity_ledger["ok"])),
@@ -214,16 +222,16 @@ def _gap_layers(
             scope="capability_parity",
             blocking=False,
             ok=bool(parity_gaps["ok"]),
-            gaps=list(parity_gaps["required_gaps"]),
+            gaps=list(cast("list[str]", parity_gaps["required_gaps"])),
         ),
         "playbook_projection": {
             **_gap_layer(
                 scope="skills-v2",
                 blocking=True,
                 ok=bool(playbooks["ok"]),
-                gaps=list(playbooks["required_gaps"]),
+                gaps=list(cast("list[str]", playbooks["required_gaps"])),
             ),
-            "advisory_gaps": list(playbooks["advisory_gaps"]),
+            "advisory_gaps": list(cast("list[object]", playbooks["advisory_gaps"])),
         },
     }
 
@@ -247,21 +255,22 @@ def _all_invalid_states(
     return invalid_state_projection(
         [
             *list(result_required_gaps),
-            *list(parity_gaps["required_gaps"]),
-            *list(playbooks["required_gaps"]),
+            *list(cast("list[str]", parity_gaps["required_gaps"])),
+            *list(cast("list[str]", playbooks["required_gaps"])),
         ]
     )
 
 
 def _skills_scorecard(playbooks: dict[str, object]) -> dict[str, object]:
+    v2_compliance = cast("dict[str, object]", playbooks["v2_compliance"])
     return {
         "id": "skills-v2",
         "scope": "playbook_projection",
         "mode": playbooks["mode"],
         "ok": bool(playbooks["ok"]),
-        "score": playbooks["v2_compliance"]["score"],
-        "max_score": playbooks["v2_compliance"]["max_score"],
+        "score": v2_compliance["score"],
+        "max_score": v2_compliance["max_score"],
         "blocking": True,
-        "required_gaps": list(playbooks["required_gaps"]),
-        "advisory_gaps": list(playbooks["advisory_gaps"]),
+        "required_gaps": list(cast("list[object]", playbooks["required_gaps"])),
+        "advisory_gaps": list(cast("list[object]", playbooks["advisory_gaps"])),
     }

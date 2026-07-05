@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import fnmatch
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.config import rules_config
 from ethos.adapters.repo.status import workspace_status
@@ -48,7 +49,7 @@ def matching_rule_gates(
     matched_rules: list[dict[str, object]] = []
     required_gates: list[dict[str, object]] = []
     rules = config.get("rule") if isinstance(config.get("rule"), list) else []
-    for raw_rule in rules:
+    for raw_rule in cast("list[object]", rules):
         if not isinstance(raw_rule, dict):
             continue
         matched_paths = [
@@ -61,7 +62,7 @@ def matching_rule_gates(
         rule_gates: list[dict[str, object]] = []
         for gate_id in string_list(raw_rule.get("requires")):
             gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
-            gate = {
+            gate: dict[str, object] = {
                 "id": gate_id,
                 "command": (
                     str(gate_config.get("command", "")) if isinstance(gate_config, dict) else ""
@@ -233,7 +234,9 @@ def rule_fact_snapshot(
         facts["host_readiness"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
     try:
         claims = claims_report(repo)
-        claim_gaps = [str(gap) for gap in claims.get("required_gaps", [])]
+        claim_gaps = [
+            str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))
+        ]
         if audit_mode == "adopter":
             claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]
         claims_ok = bool(claims.get("ok", False)) or not claim_gaps
@@ -301,11 +304,11 @@ def rule_attestation_for_evaluation(
         actor=actor,
         scope=scope,
         runner_identity="ethos-cli",
-        input=dict(evaluation["input_snapshot"]),
+        input=dict(cast("dict[str, object]", evaluation["input_snapshot"])),
         output={
             "state": evaluation["state"],
-            "required_gaps": list(evaluation["required_gaps"]),
-            "required_gates": list(evaluation["required_gates"]),
+            "required_gaps": list(cast("list[object]", evaluation["required_gaps"])),
+            "required_gates": list(cast("list[object]", evaluation["required_gates"])),
         },
     )
     return attestation.to_dict()

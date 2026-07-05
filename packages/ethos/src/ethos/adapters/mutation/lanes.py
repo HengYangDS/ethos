@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.repo.status import changed_paths
 from ethos.adapters.repo.status import workspace_status
@@ -57,7 +58,7 @@ def start_work_lane(
             "dirty": status["dirty"],
             "required_gaps": ["lane_start_requires_clean_accepted_root"],
         }
-    candidate = status["candidate"]
+    candidate = cast("dict[str, object]", status["candidate"])
     if not candidate["exists"]:
         return {
             "ok": False,
@@ -165,7 +166,7 @@ def bind_work_lane_claim(
             "owner": str(lease.get("owner") or "") if lease else "",
             "required_gaps": sorted(set(gaps)),
         }
-    owner = str(lease["owner"])
+    owner = str(cast("dict[str, object]", lease)["owner"])
     if not apply:
         return {
             "ok": True,
@@ -217,7 +218,7 @@ def bootstrap_candidate(
             "path": target.as_posix(),
             "required_gaps": gaps,
         }
-    candidate = status["candidate"]
+    candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
         return {
             "ok": True,
@@ -296,7 +297,7 @@ def refresh_work_lane_base(
     status = workspace_status(root)
     current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
     branch = str(status.get("branch") or "")
-    candidate = status["candidate"]
+    candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
     candidate_path = str(candidate.get("worktree_path") or "")
     gaps: list[str] = []
@@ -388,7 +389,7 @@ def retire_landed_work_lanes(
     status = workspace_status(repo)
     lanes = [
         _retirement_lane(repo, lane)
-        for lane in status["worktrees"]
+        for lane in cast("list[dict[str, object]]", status["worktrees"])
         if lane["role"] == ROLE_WORK_LANE
     ]
     selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
@@ -399,7 +400,7 @@ def retire_landed_work_lanes(
         gaps.append("retire_branch_required")
     if branch:
         for lane in selected:
-            gaps.extend(str(gap) for gap in lane["required_gaps"])
+            gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
     if gaps:
         return {
             "ok": False,
@@ -483,7 +484,7 @@ def _status_work_lane(
         if not isinstance(worktree, dict):
             continue
         if worktree.get("branch") == branch and worktree.get("role") == ROLE_WORK_LANE:
-            return worktree
+            return cast("dict[str, object]", worktree)
     return None
 
 
@@ -494,7 +495,7 @@ def _state_root(status: dict[str, object], fallback: Path) -> Path:
             if not isinstance(worktree, dict):
                 continue
             if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
-                return Path(str(worktree["path"]))
+                return Path(str(cast("dict[str, object]", worktree)["path"]))
     return fallback
 
 

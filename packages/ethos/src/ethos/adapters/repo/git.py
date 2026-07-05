@@ -126,4 +126,3 @@ def commits_equivalent_over_paths(
     span = git_stdout(root, "rev-list", f"{boundary}..{head}")
     commits = [line for line in span.splitlines() if line]
     return tuple(dict.fromkeys([head, *commits, boundary]))
-

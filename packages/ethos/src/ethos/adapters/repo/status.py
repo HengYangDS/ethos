@@ -146,15 +146,15 @@ def workspace_status(root: Path) -> dict[str, object]:
     coordination_required_gaps, coordination_advisory_gaps = _scope_coordination_gaps(
         foreign, current_role=role, current_scope_state=current_scope_state
     )
-    unbound_work_lane_count = _unbound_work_lane_count(branch_bindings)
-    if unbound_work_lane_count:
+    unbound_work_lane_refs = _unbound_work_lane_refs(repo, branch_bindings, policy=policy)
+    if unbound_work_lane_refs:
         coordination_advisory_gaps.append("unbound_work_lane_ref_present")
     coordination_gaps = coordination_required_gaps + coordination_advisory_gaps
     coordination = coordination_package(
         foreign,
         required_gaps=coordination_required_gaps,
         advisory_gaps=coordination_advisory_gaps,
-        unbound_work_lane_count=unbound_work_lane_count,
+        unbound_work_lane_refs=unbound_work_lane_refs,
     )
     closeout_support = _closeout_support(
         branch=branch,
@@ -428,12 +428,56 @@ def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, 
     return refs
 
 
-def _unbound_work_lane_count(branch_bindings: list[dict[str, str]]) -> int:
-    return sum(
-        1
-        for binding in branch_bindings
-        if binding["role"] == ROLE_WORK_LANE and binding["worktree_binding"] == "unbound"
+def _unbound_work_lane_refs(
+    root: Path,
+    branch_bindings: list[dict[str, str]],
+    *,
+    policy: BranchRolePolicy,
+) -> list[dict[str, object]]:
+    refs = []
+    for binding in branch_bindings:
+        if binding["role"] != ROLE_WORK_LANE or binding["worktree_binding"] != "unbound":
+            continue
+        branch = str(binding["branch"])
+        refs.append(
+            {
+                "branch": branch,
+                "head": str(binding["head"]),
+                "claim_id": str(binding["claim_id"]),
+                "claim_binding": str(binding["claim_binding"]),
+                "relation_to_accepted": _ref_relation(root, branch, policy.accepted_branch),
+                "next_action": _unbound_ref_next_action(root, branch, policy.accepted_branch),
+            }
+        )
+    return refs
+
+
+def _ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
+    if _is_ancestor(root, branch, accepted_branch):
+        return "ancestor_of_accepted"
+    if _is_ancestor(root, accepted_branch, branch):
+        return "descendant_of_accepted"
+    return "diverged_from_accepted"
+
+
+def _unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
+    relation = _ref_relation(root, branch, accepted_branch)
+    if relation == "ancestor_of_accepted":
+        return "retire unbound Work Lane ref after confirming no external owner depends on it"
+    if relation == "descendant_of_accepted":
+        return "bind a lease or land the unbound Work Lane ref before cleanup"
+    return "inspect diverged unbound Work Lane ref before merge, supersede, or deletion"
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    completed = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
     )
+    return completed.returncode == 0
 
 
 def _unbound_work_lane_binding(

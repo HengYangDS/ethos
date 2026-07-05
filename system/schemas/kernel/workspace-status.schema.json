@@ -435,6 +435,7 @@
         "advisory_gaps",
         "foreign_work_lane_count",
         "unbound_work_lane_count",
+        "unbound_work_lane_refs",
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
@@ -468,6 +469,12 @@
           "type": "integer",
           "minimum": 0
         },
+        "unbound_work_lane_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unboundWorkLaneRef"
+          }
+        },
         "missing_lease_count": {
           "type": "integer",
           "minimum": 0
@@ -489,6 +496,38 @@
           "items": {
             "$ref": "#/$defs/migrationRecommendation"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "unboundWorkLaneRef": {
+      "type": "object",
+      "required": [
+        "branch",
+        "head",
+        "claim_id",
+        "claim_binding",
+        "relation_to_accepted",
+        "next_action"
+      ],
+      "properties": {
+        "branch": {"type": "string"},
+        "head": {"type": "string"},
+        "claim_id": {"type": "string"},
+        "claim_binding": {
+          "enum": ["bound", "missing", "unbound"]
+        },
+        "relation_to_accepted": {
+          "enum": [
+            "ancestor_of_accepted",
+            "descendant_of_accepted",
+            "diverged_from_accepted",
+            "unknown"
+          ]
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false

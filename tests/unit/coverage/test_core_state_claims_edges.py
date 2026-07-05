@@ -334,13 +334,25 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         package["next_action"]
         == "resolve required Work Lane coordination gaps before candidate integration"
     )
+    unbound_package = coordination.coordination_package(
+        [],
+        required_gaps=[],
+        advisory_gaps=["unbound_work_lane_ref_present"],
+        unbound_work_lane_refs=[
+            {
+                "branch": "work/stale",
+                "head": "abc123",
+                "claim_id": "",
+                "claim_binding": "missing",
+                "relation_to_accepted": "diverged_from_accepted",
+                "next_action": "inspect diverged unbound Work Lane ref before merge, supersede, or deletion",
+            }
+        ],
+    )
+    assert unbound_package["unbound_work_lane_count"] == 1
+    assert unbound_package["unbound_work_lane_refs"][0]["branch"] == "work/stale"
     assert (
-        coordination.coordination_package(
-            [],
-            required_gaps=[],
-            advisory_gaps=["unbound_work_lane_ref_present"],
-            unbound_work_lane_count=1,
-        )["next_action"]
+        unbound_package["next_action"]
         == "inspect or retire unbound Work Lane refs during coordination cleanup"
     )
     assert coordination.workspace_required_gaps(

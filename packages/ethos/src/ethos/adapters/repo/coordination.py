@@ -132,6 +132,7 @@ def coordination_package(
     *,
     required_gaps: list[str],
     advisory_gaps: list[str],
+    unbound_work_lane_refs: list[dict[str, object]] | None = None,
     unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
     overlap_lanes = [
@@ -141,13 +142,17 @@ def coordination_package(
         1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
     )
     missing_lease_count = sum(1 for lane in foreign_work_lanes if lane["lease_state"] == "missing")
+    unbound_refs = list(unbound_work_lane_refs or ())
+    if not unbound_refs and unbound_work_lane_count:
+        unbound_refs = [_unknown_unbound_ref() for _ in range(unbound_work_lane_count)]
     return {
         "kind": "work_lane_coordination",
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "advisory_gaps": list(advisory_gaps),
         "foreign_work_lane_count": len(foreign_work_lanes),
-        "unbound_work_lane_count": unbound_work_lane_count,
+        "unbound_work_lane_count": len(unbound_refs),
+        "unbound_work_lane_refs": unbound_refs,
         "missing_lease_count": missing_lease_count,
         "overlap_count": len(overlap_lanes),
         "unknown_scope_count": unknown_scope_count,
@@ -157,9 +162,20 @@ def coordination_package(
             unknown_scope_count=unknown_scope_count,
             missing_lease_count=missing_lease_count,
             foreign_work_lane_count=len(foreign_work_lanes),
-            unbound_work_lane_count=unbound_work_lane_count,
+            unbound_work_lane_count=len(unbound_refs),
         ),
         "migration_recommendations": [_migration_recommendation(lane) for lane in overlap_lanes],
+    }
+
+
+def _unknown_unbound_ref() -> dict[str, object]:
+    return {
+        "branch": "",
+        "head": "",
+        "claim_id": "",
+        "claim_binding": "unbound",
+        "relation_to_accepted": "unknown",
+        "next_action": "inspect unbound Work Lane ref before cleanup",
     }
 
 

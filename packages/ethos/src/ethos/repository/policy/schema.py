@@ -624,12 +624,11 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "advisory_gaps": [],
             "foreign_work_lane_count": 0,
             "unbound_work_lane_count": 0,
+            "unbound_work_lane_refs": [],
             "missing_lease_count": 0,
             "overlap_count": 0,
             "unknown_scope_count": 0,
-            "next_action": (
-                "resolve overlapping or unknown Work Lane scope before candidate integration"
-            ),
+            "next_action": ("no Work Lane coordination action required"),
             "migration_recommendations": [],
         },
         "closeout_support": {

@@ -868,6 +868,18 @@ def test_status_reports_unbound_work_lane_ref_as_advisory_signal(tmp_path: Path)
     assert payload["data"]["coordination_gaps"] == ["unbound_work_lane_ref_present"]
     assert payload["data"]["coordination"]["blocking"] is False
     assert payload["data"]["coordination"]["unbound_work_lane_count"] == 1
+    assert payload["data"]["coordination"]["unbound_work_lane_refs"] == [
+        {
+            "branch": "work/stale-ref",
+            "head": git(repo, "rev-parse", "dev"),
+            "claim_id": "",
+            "claim_binding": "missing",
+            "relation_to_accepted": "ancestor_of_accepted",
+            "next_action": (
+                "retire unbound Work Lane ref after confirming no external owner depends on it"
+            ),
+        }
+    ]
     assert (
         payload["data"]["coordination"]["next_action"]
         == "inspect or retire unbound Work Lane refs during coordination cleanup"

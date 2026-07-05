@@ -35,7 +35,7 @@ owner = "ethos-assistants"
 scope = "Repo-local skill portfolio route ownership, trigger quality, progressive disclosure, and digest-bound projection checks"
 
 [carriers]
-openspec = "openspec/changes/skill-portfolio-hardening"
+openspec = "openspec/changes/archive/2026-07-05-skill-portfolio-hardening"
 
 fallback = "Keep the existing five-skill portfolio and block new skills unless their route ownership is explicit."
 kill_signal = "A skill portfolio can pass strict checks while exact changed-path routes overlap, entrypoints are weak, or package digests drift."
@@ -50,7 +50,7 @@ targets = [
   ".agents/skills/ethos-skill-portfolio-governance/references/portfolio-design.md",
   "evidence/claims/skill-portfolio-hardening.toml",
   "evidence/skill-portfolio-hardening-2026-07-06.md",
-  "openspec/changes/skill-portfolio-hardening",
+  "openspec/changes/archive/2026-07-05-skill-portfolio-hardening",
   "packages/ethos/src/ethos/assistants/playbooks.py",
   "packages/ethos/src/ethos/assistants/skill_packages.py",
   "tests/unit/assistants/test_playbooks.py",

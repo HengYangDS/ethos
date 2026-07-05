@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/Users/yheng/projects/ethos",
+  "target": "/private/tmp/pa6",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/pa6 --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "a134b2d877ec55b16b76e25adcb03228c42c6918",
-    "target_head": "a134b2d877ec55b16b76e25adcb03228c42c6918",
-    "command_sha256": "984ee42f8ebc75a401fb590a5a7f6d30914acf80142bf0ba8f0d759143f4de8a"
+    "product_head": "c7b646ea680514f0904b0598bd0e096451155611",
+    "target_head": "c7b646ea680514f0904b0598bd0e096451155611",
+    "command_sha256": "6066fc897b82710df4aa91cd11cd358b1dd5f157f6614b9a636b97562392a6a8"
   },
   "shadow": {
     "ok": true,

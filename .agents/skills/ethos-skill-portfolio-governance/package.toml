@@ -1,0 +1,34 @@
+schema_version = 2
+id = "ethos-skill-portfolio-governance"
+entrypoint = "SKILL.md"
+boundary = "repository-skill-source"
+truth = "repository-source-docs-rules-and-evidence"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+expected_digest = "sha256:337c32135c8b0d25c7026104f9dcd093af6d9f63fecf6284f084ccdbafb3cacd"
+
+[quality]
+placeholder_allowed = false
+host_projection = false
+
+[[capability]]
+id = "ethos.playbooks.check"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
+
+[[capability]]
+id = "ethos.playbooks.route"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "route", "--changed", "--json"]
+
+[[capability]]
+id = "ethos.quality.projection-drift"
+kind = "command_readonly"
+command = ["ethos", "quality", "projection-drift", "--json"]
+
+[[capability]]
+id = "ethos.prove.playbooks-v2"
+kind = "command_proof"
+command = ["ethos", "prove", "--execute", "--gate", "playbooks-v2", "--json"]

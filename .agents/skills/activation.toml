@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:e6e9305b95af9b04e5fada84e5e2ee728bbd8ee6b8b776b3ae2bb4058841a91d"
+expected_registry_digest = "sha256:5681529f8a6f12f940eec781024f22d63d3c02487faef0f2a387c66e07401a1a"
 expected_generator_digest = "sha256:b322d06da239e3d931336cb51cf0737a6da38b03f1864be7cfa682e391c7f978"
 
 [[skill]]
@@ -37,7 +37,10 @@ during_rules = [
   "treat skills as projections over repository truth",
   "use ETHOS command JSON as machine evidence",
 ]
-post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+post_checks = [
+  "ethos playbooks check --mode v2-strict --json",
+  "ethos report --json",
+]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
 boundary = "workflow-package-projection"
 
@@ -49,7 +52,15 @@ subject = "change-lifecycle"
 operation = "prove"
 authority = "primary"
 lifecycle = "active"
-subjects = ["change-lifecycle", "status", "plan", "prove", "land", "publish", "evidence"]
+subjects = [
+  "change-lifecycle",
+  "status",
+  "plan",
+  "prove",
+  "land",
+  "publish",
+  "evidence",
+]
 path_globs = [
   "packages/**",
   "docs/**",
@@ -75,5 +86,189 @@ during_rules = [
   "dry-run readiness is not executed proof",
 ]
 post_checks = ["ethos status --json", "ethos report --json"]
-commands = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"]
+commands = [
+  "ethos status",
+  "ethos plan",
+  "ethos prove",
+  "ethos land",
+  "ethos publish",
+]
+boundary = "workflow-package-projection"
+
+
+[[skill]]
+id = "ethos-skill-portfolio-governance"
+path = ".agents/skills/ethos-skill-portfolio-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-skill-portfolio-governance/package.toml"
+subject = "skill-portfolio"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = [
+  "skill-portfolio",
+  "skills",
+  "meta-skills",
+  "activation",
+  "projection-drift",
+]
+path_globs = [
+  ".agents/skills/**",
+  "rules/skills.md",
+  "docs/governance/playbooks-and-skills.md",
+  "docs/architecture/agent-projections.md",
+  "system/schemas/kernel/skill-*.schema.json",
+  "packages/ethos/src/ethos/assistants/**",
+  "packages/ethos-core/src/ethos_core/contracts/skill_activation.py",
+  "tests/unit/assistants/**",
+  "tests/unit/cli/test_contracts.py",
+]
+intent_tokens = [
+  "skill",
+  "skills",
+  "meta-skill",
+  "playbook",
+  "activation",
+  "projection",
+  "skill creator",
+]
+pre_reads = [
+  "AGENTS.md",
+  "rules/skills.md",
+  "docs/governance/playbooks-and-skills.md",
+]
+during_rules = [
+  "add a skill only for repeated repository-specific procedure",
+  "keep SKILL.md narrow and put executable checks in scripts",
+]
+post_checks = [
+  "ethos playbooks check --mode v2-strict --json",
+  "ethos quality projection-drift --json",
+]
+may_coactivate = ["ethos-repository-governance"]
+commands = [
+  "ethos playbooks check",
+  "ethos playbooks route",
+  "ethos quality projection-drift",
+  "ethos prove",
+]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-quality-gate-governance"
+path = ".agents/skills/ethos-quality-gate-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-quality-gate-governance/package.toml"
+subject = "quality-gates"
+operation = "prove"
+authority = "primary"
+lifecycle = "active"
+subjects = [
+  "quality-gates",
+  "ci",
+  "lint",
+  "format",
+  "types",
+  "docstrings",
+  "coverage",
+  "config",
+]
+path_globs = [
+  ".config/**",
+  ".gitlab-ci.yml",
+  ".pre-commit-config.yaml",
+  "pyproject.toml",
+  "pytest.ini",
+  "ruff.toml",
+  "system/tools.toml",
+  "system/quality-*.toml",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "tests/unit/governance/**",
+  "tests/architecture/**",
+]
+intent_tokens = [
+  "quality",
+  "gate",
+  "ci",
+  "lint",
+  "format",
+  "ruff",
+  "ty",
+  "coverage",
+  "docstring",
+]
+pre_reads = [
+  "AGENTS.md",
+  "rules/evidence.md",
+  "docs/governance/product-design-contract.md",
+]
+during_rules = [
+  "provider files invoke owner scripts instead of copying policy",
+  "proof default floor must include the active quality floor",
+]
+post_checks = [
+  ".config/ci/scripts/run-python-lint.sh",
+  ".config/ci/scripts/run-config-lint.sh",
+  ".config/ci/scripts/run-shell-lint.sh",
+  "ethos prove --json",
+]
+may_coactivate = ["ethos-change-lifecycle"]
+commands = ["ethos quality", "ethos prove", "ethos report"]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-adoption-profile-governance"
+path = ".agents/skills/ethos-adoption-profile-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-adoption-profile-governance/package.toml"
+subject = "adoption-profile"
+operation = "adopt"
+authority = "primary"
+lifecycle = "active"
+subjects = [
+  "adoption-profile",
+  "adoption",
+  "profile",
+  "adapter",
+  "external-repository",
+  "fleet",
+]
+path_globs = [
+  "docs/architecture/adoption-profiles.md",
+  "docs/architecture/fleet-and-adopters.md",
+  "packages/ethos/src/ethos/repository/adoption/**",
+  "packages/ethos/src/ethos/repository/profile*.py",
+  "system/capability-profiles/**",
+  "openspec/specs/ethos-adapters/**",
+  "openspec/specs/ethos-repository/**",
+  "tests/unit/adoption/**",
+  "tests/unit/product/test_parity.py",
+]
+intent_tokens = [
+  "adopt",
+  "adoption",
+  "profile",
+  "adapter",
+  "fleet",
+  "other repository",
+  "external repo",
+]
+pre_reads = [
+  "AGENTS.md",
+  "docs/architecture/adoption-profiles.md",
+  "docs/architecture/fleet-and-adopters.md",
+]
+during_rules = [
+  "profile changes proof depth and adapters, not command semantics",
+  "durable adopter truth must be promoted into tracked repository surfaces",
+]
+post_checks = [
+  "ethos playbooks check --mode v2-strict --json",
+  "ethos report --json",
+]
+may_coactivate = ["ethos-repository-governance"]
+commands = [
+  "ethos adopt",
+  "ethos status",
+  "ethos playbooks check",
+  "ethos report",
+  "ethos prove",
+]
 boundary = "workflow-package-projection"

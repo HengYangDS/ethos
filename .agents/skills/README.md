@@ -21,8 +21,11 @@ not replace those surfaces as authority.
 
 | Skill | Use when |
 | --- | --- |
-| [ethos-repository-governance](ethos-repository-governance/SKILL.md) | Governing ETHOS repository changes, proof, Work Lanes, rules, skills, docs, or adoption. |
+| [ethos-repository-governance](ethos-repository-governance/SKILL.md) | Governing repository truth, authority boundaries, proof, Work Lanes, rules, docs, and adoption. |
 | [ethos-change-lifecycle](ethos-change-lifecycle/SKILL.md) | Driving a change through the main loop: status, plan, prove, land, publish. |
+| [ethos-skill-portfolio-governance](ethos-skill-portfolio-governance/SKILL.md) | Creating, updating, routing, validating, projecting, or retiring repo-local skills. |
+| [ethos-quality-gate-governance](ethos-quality-gate-governance/SKILL.md) | Changing quality gates, CI, hooks, lint, format, types, docstrings, coverage, or config checks. |
+| [ethos-adoption-profile-governance](ethos-adoption-profile-governance/SKILL.md) | Applying ETHOS to other repositories and keeping adoption profiles isomorphic with the product kernel. |
 
 ## Projection Boundary
 

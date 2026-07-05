@@ -1450,7 +1450,15 @@ def test_playbooks_commands_expose_repo_local_skills() -> None:
 
     assert check["ok"] is True
     assert check["data"]["skills_root"] == ".agents/skills"
-    assert "ethos-repository-governance" in check["data"]["skills"]
+    assert {
+        "ethos-repository-governance",
+        "ethos-change-lifecycle",
+        "ethos-skill-portfolio-governance",
+        "ethos-quality-gate-governance",
+        "ethos-adoption-profile-governance",
+    } <= set(check["data"]["skills"])
+    assert check["data"]["coverage"]["record_count"] == 5
+    assert "skill-portfolio" in check["data"]["coverage"]["subjects"]
     assert route["ok"] is True
     assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
 

@@ -383,12 +383,19 @@ def test_repo_local_skills_are_thin_playbook_projection() -> None:
 
     assert (skills_root / "README.md").exists()
     assert (skills_root / "activation.toml").exists()
-    assert (skills_root / "ethos-repository-governance" / "SKILL.md").exists()
-    skill_text = (skills_root / "ethos-repository-governance" / "SKILL.md").read_text(
-        encoding="utf-8"
-    )
-    assert "ethos " in skill_text
-    assert "source of truth" in skill_text
+    expected = {
+        "ethos-repository-governance",
+        "ethos-change-lifecycle",
+        "ethos-skill-portfolio-governance",
+        "ethos-quality-gate-governance",
+        "ethos-adoption-profile-governance",
+    }
+    assert expected <= {path.name for path in skills_root.iterdir() if path.is_dir()}
+    for skill_id in expected:
+        skill_text = (skills_root / skill_id / "SKILL.md").read_text(encoding="utf-8")
+        assert "## Workflow" in skill_text
+        assert "## Evidence" in skill_text
+        assert "source of truth" in skill_text or "repository truth" in skill_text
 
 
 def test_product_packages_have_canonical_readmes() -> None:

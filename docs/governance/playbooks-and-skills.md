@@ -39,6 +39,24 @@ sections, expected digest, and declared capability classes. The manifest is
 package inventory and integrity metadata; activation authority stays in the
 ETHOS activation registry.
 
+
+## Portfolio Shape
+
+The product skill portfolio is intentionally small and MECE:
+
+- `ethos-change-lifecycle` owns the transition loop.
+- `ethos-repository-governance` owns repository authority and governance routing.
+- `ethos-skill-portfolio-governance` owns meta-skill creation, validation,
+  projection drift, and retirement.
+- `ethos-quality-gate-governance` owns quality gate and provider-projection
+  convergence.
+- `ethos-adoption-profile-governance` owns product/adopter profile isomorphism.
+
+Do not add surface-specific skills for CLI, GitLab, MCP, editor hosts, or model
+providers unless a repeated repository-specific procedure cannot be represented
+by one of these subjects. Prefer references or scripts inside the existing skill
+package before adding a new skill.
+
 Playbook checks fail closed in strict mode:
 
 - `v2-strict` fails closed for product proof when activation metadata, package

@@ -42,6 +42,10 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
         ".agents/skills/ethos-repository-governance/package.toml",
+        ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
+        ".agents/skills/ethos-skill-portfolio-governance/package.toml",
+        ".agents/skills/ethos-adoption-profile-governance/SKILL.md",
+        ".agents/skills/ethos-adoption-profile-governance/package.toml",
         "AGENTS.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
@@ -94,6 +98,9 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         'package_manifest = ".agents/skills/ethos-repository-governance/package.toml"' in activation
     )
     assert 'expected_digest = "sha256:' not in activation
+    assert 'id = "ethos-skill-portfolio-governance"' in activation
+    assert 'id = "ethos-adoption-profile-governance"' in activation
+    assert 'expected_registry_digest = "sha256:' in activation
     assert 'entrypoint = "SKILL.md"' in package_manifest
     assert 'expected_digest = "sha256:' in package_manifest
     assert 'kind = "command_readonly"' in package_manifest
@@ -101,6 +108,8 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "## Workflow" in skill_text
     assert "## Evidence" in skill_text
     assert "## Trust Boundary" in skill_text
+    assert (tmp_path / ".agents/skills/ethos-skill-portfolio-governance/SKILL.md").exists()
+    assert (tmp_path / ".agents/skills/ethos-adoption-profile-governance/SKILL.md").exists()
     assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")

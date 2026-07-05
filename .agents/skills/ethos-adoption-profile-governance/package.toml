@@ -1,0 +1,40 @@
+schema_version = 2
+id = "ethos-adoption-profile-governance"
+entrypoint = "SKILL.md"
+boundary = "repository-skill-source"
+truth = "repository-source-docs-rules-and-evidence"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+expected_digest = "sha256:d157b4aa46abb3fd1a181b1d086fe0a8e138f12d2701e6383a05201cde859864"
+
+[quality]
+placeholder_allowed = false
+host_projection = false
+
+[[capability]]
+id = "ethos.adopt"
+kind = "command_mutation_guarded"
+command = ["ethos", "adopt", "--json"]
+guard = "read-only unless --apply and --authorize are present; apply requires explicit head-bound authorization"
+
+[[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
+id = "ethos.playbooks.check"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
+
+[[capability]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+
+[[capability]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]

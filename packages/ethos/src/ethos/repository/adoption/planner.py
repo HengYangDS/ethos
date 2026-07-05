@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tomllib
 from pathlib import Path
+
+from ethos_core.contracts.skill_activation import normalize_skill_activation
+from ethos_core.contracts.skill_activation import skill_registry_digest
 
 PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
 PROFILE_READ_FILES = {
@@ -53,6 +57,10 @@ BASE_ADOPTION_FILES = (
     ".agents/skills/activation.toml",
     ".agents/skills/ethos-repository-governance/SKILL.md",
     ".agents/skills/ethos-repository-governance/package.toml",
+    ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
+    ".agents/skills/ethos-skill-portfolio-governance/package.toml",
+    ".agents/skills/ethos-adoption-profile-governance/SKILL.md",
+    ".agents/skills/ethos-adoption-profile-governance/package.toml",
     "openspec/config.yaml",
     "openspec/README.md",
     "openspec/specs/README.md",
@@ -326,13 +334,22 @@ def _skills_readme() -> str:
 Repo-local skills are workflow package projections over ETHOS repository truth.
 They route agents toward tracked ETHOS commands, docs, schemas, claims, and
 evidence; they are not an independent source of truth.
+
+## Available Skills
+
+| Skill | Use when |
+| --- | --- |
+| ethos-repository-governance | Governing repository truth, authority, proof, docs, and adoption. |
+| ethos-skill-portfolio-governance | Creating, routing, validating, or retiring repo-local skills. |
+| ethos-adoption-profile-governance | Applying profiles and preserving command isomorphism. |
 """
 
 
-def _skills_activation(package_digest: str) -> str:
-    return """[meta]
+def _skills_activation(registry_digest: str) -> str:
+    return f"""[meta]
 version = 2
 source_of_truth = "repository"
+expected_registry_digest = "{registry_digest}"
 
 [[skill]]
 id = "ethos-repository-governance"
@@ -342,7 +359,7 @@ subject = "repository-governance"
 operation = "govern"
 authority = "primary"
 lifecycle = "active"
-subjects = ["repository-governance", "ethos", "repository governance", "adoption", "changed-scope"]
+subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
 path_globs = [
   "AGENTS.md",
   ".ethos/**",
@@ -366,7 +383,58 @@ during_rules = [
 post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
 boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-skill-portfolio-governance"
+path = ".agents/skills/ethos-skill-portfolio-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-skill-portfolio-governance/package.toml"
+subject = "skill-portfolio"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["skill-portfolio", "skills", "activation", "projection-drift", "changed-scope"]
+path_globs = [".agents/skills/**", "AGENTS.md", "docs/**"]
+intent_tokens = ["skill", "skills", "meta-skill", "playbook", "activation", "projection"]
+pre_reads = ["AGENTS.md", ".agents/skills/README.md"]
+during_rules = [
+  "add a skill only for repeated repository-specific procedure",
+  "keep SKILL.md narrow and evidence-bound",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+may_coactivate = ["ethos-repository-governance"]
+commands = ["ethos playbooks check", "ethos playbooks route", "ethos report"]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-adoption-profile-governance"
+path = ".agents/skills/ethos-adoption-profile-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-adoption-profile-governance/package.toml"
+subject = "adoption-profile"
+operation = "adopt"
+authority = "primary"
+lifecycle = "active"
+subjects = ["adoption-profile", "adoption", "profile", "adapter", "changed-scope"]
+path_globs = [".ethos/**", "docs/governance/**", "openspec/**", ".gitlab-ci.yml", ".github/**"]
+intent_tokens = ["adopt", "adoption", "profile", "adapter", "other repository"]
+pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
+during_rules = [
+  "profile changes proof depth and adapters, not command semantics",
+  "durable adopter truth must be promoted into tracked repository surfaces",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+may_coactivate = ["ethos-repository-governance"]
+commands = ["ethos adopt", "ethos status", "ethos playbooks check", "ethos report", "ethos prove"]
+boundary = "workflow-package-projection"
 """
+
+
+def _skills_activation_with_digest() -> str:
+    placeholder = "sha256:" + ("0" * 64)
+    activation = _skills_activation(placeholder)
+    registry = normalize_skill_activation(
+        tomllib.loads(activation), source=".agents/skills/activation.toml"
+    )
+    return _skills_activation(skill_registry_digest(registry))
 
 
 def _governance_skill() -> str:
@@ -411,9 +479,93 @@ OpenSpec records, claims, evidence, and ETHOS command JSON remain the source of 
 """
 
 
-def _governance_skill_package(package_digest: str) -> str:
+def _skill_portfolio_skill() -> str:
+    return """---
+name: ethos-skill-portfolio-governance
+description: Use when governing repo-local ETHOS skills.
+---
+
+# ETHOS Skill Portfolio Governance
+
+## When to Use
+
+Use this skill when changing repo-local skills, activation routing, package
+manifests, or provider projections. It is a meta-skill over skill procedures,
+not a replacement for repository truth.
+
+## Workflow
+
+1. Read `AGENTS.md` and `.agents/skills/README.md`.
+2. Add or update a skill only when a repeated repository-specific procedure would
+   otherwise be missed.
+3. Keep `SKILL.md` narrow: trigger, workflow, evidence, and trust boundary.
+4. Update activation and package manifest metadata together.
+5. Run strict playbook checks before claiming readiness.
+
+## Evidence
+
+Use ETHOS command JSON:
+
+```bash
+ethos playbooks check --mode v2-strict --json
+ethos playbooks route --changed --json
+ethos report --json
+```
+
+## Trust Boundary
+
+Repository truth remains the source of truth. Skills are workflow projections
+over tracked source, tests, schemas, docs, OpenSpec records, claims, evidence,
+and ETHOS command JSON.
+"""
+
+
+def _adoption_profile_skill() -> str:
+    return """---
+name: ethos-adoption-profile-governance
+description: Use when applying ETHOS profiles or adapter boundaries.
+---
+
+# ETHOS Adoption Profile Governance
+
+## When to Use
+
+Use this skill when ETHOS governs this repository through an adoption profile,
+changes scaffolded governance, or checks product/adopter command isomorphism.
+
+## Workflow
+
+1. Treat the governed subject as a Git repository.
+2. Use `ethos status --json`, `ethos report --json`, and profile-appropriate
+   proof to expose the current boundary.
+3. Keep provider state in adapters and projections.
+4. Promote durable truth into tracked source, docs, schemas, OpenSpec, claims,
+   or evidence.
+5. Validate strict playbooks before claiming adoption readiness.
+
+## Evidence
+
+Use shared ETHOS commands:
+
+```bash
+ethos status --json
+ethos playbooks check --mode v2-strict --json
+ethos report --json
+ethos prove --json
+```
+
+## Trust Boundary
+
+Repository truth remains the source of truth. This skill routes adoption work;
+hosted forges, CI, MCP, editor state, and generated assistant surfaces are
+adapters or projections.
+"""
+
+
+def _skill_package(skill_id: str, package_digest: str, capabilities: tuple[str, ...]) -> str:
+    capability_blocks = "\n".join(capabilities)
     return f"""schema_version = 2
-id = "ethos-repository-governance"
+id = "{skill_id}"
 entrypoint = "SKILL.md"
 boundary = "workflow-package-projection"
 truth = "repository-source-and-contracts"
@@ -427,26 +579,84 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 official_codex_loadable = true
 placeholder_allowed = false
 
-[[capability]]
-id = "ethos.status"
-kind = "command_readonly"
-command = ["ethos", "status", "--json"]
-
-[[capability]]
-id = "ethos.plan"
-kind = "command_readonly"
-command = ["ethos", "plan", "--changed", "--json"]
-
-[[capability]]
-id = "ethos.report"
-kind = "command_readonly"
-command = ["ethos", "report", "--json"]
-
-[[capability]]
-id = "ethos.prove"
-kind = "command_proof"
-command = ["ethos", "prove", "--json"]
+{capability_blocks}
 """
+
+
+def _governance_skill_package(package_digest: str) -> str:
+    return _skill_package(
+        "ethos-repository-governance",
+        package_digest,
+        (
+            _command_capability("ethos.status", "command_readonly", ["ethos", "status", "--json"]),
+            _command_capability(
+                "ethos.plan", "command_readonly", ["ethos", "plan", "--changed", "--json"]
+            ),
+            _command_capability("ethos.report", "command_readonly", ["ethos", "report", "--json"]),
+            _command_capability("ethos.prove", "command_proof", ["ethos", "prove", "--json"]),
+        ),
+    )
+
+
+def _skill_portfolio_skill_package(package_digest: str) -> str:
+    return _skill_package(
+        "ethos-skill-portfolio-governance",
+        package_digest,
+        (
+            _command_capability(
+                "ethos.playbooks.check",
+                "command_readonly",
+                ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"],
+            ),
+            _command_capability(
+                "ethos.playbooks.route",
+                "command_readonly",
+                ["ethos", "playbooks", "route", "--changed", "--json"],
+            ),
+            _command_capability("ethos.report", "command_readonly", ["ethos", "report", "--json"]),
+        ),
+    )
+
+
+def _adoption_profile_skill_package(package_digest: str) -> str:
+    return _skill_package(
+        "ethos-adoption-profile-governance",
+        package_digest,
+        (
+            _command_capability(
+                "ethos.adopt",
+                "command_mutation_guarded",
+                ["ethos", "adopt", "--json"],
+                guard=(
+                    "read-only unless --apply and --authorize are present; "
+                    "apply requires explicit head-bound authorization"
+                ),
+            ),
+            _command_capability("ethos.status", "command_readonly", ["ethos", "status", "--json"]),
+            _command_capability(
+                "ethos.playbooks.check",
+                "command_readonly",
+                ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"],
+            ),
+            _command_capability("ethos.report", "command_readonly", ["ethos", "report", "--json"]),
+            _command_capability("ethos.prove", "command_proof", ["ethos", "prove", "--json"]),
+        ),
+    )
+
+
+def _command_capability(
+    capability_id: str, kind: str, command: list[str], *, guard: str = ""
+) -> str:
+    rendered = ", ".join(json.dumps(part) for part in command)
+    block = (
+        "[[capability]]\n"
+        f"id = {json.dumps(capability_id)}\n"
+        f"kind = {json.dumps(kind)}\n"
+        f"command = [{rendered}]"
+    )
+    if guard:
+        block += f"\nguard = {json.dumps(guard)}"
+    return block + "\n"
 
 
 def _docs_index(root: Path) -> str:
@@ -640,7 +850,11 @@ def _gitlab_ci() -> str:
 def _default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
     governance_skill = _governance_skill()
-    package_digest = _package_digest_from_content({"SKILL.md": governance_skill})
+    skill_portfolio_skill = _skill_portfolio_skill()
+    adoption_profile_skill = _adoption_profile_skill()
+    governance_digest = _package_digest_from_content({"SKILL.md": governance_skill})
+    skill_portfolio_digest = _package_digest_from_content({"SKILL.md": skill_portfolio_skill})
+    adoption_profile_digest = _package_digest_from_content({"SKILL.md": adoption_profile_skill})
     files = {
         "AGENTS.md": _agents_doc(),
         "CONTRIBUTING.md": _contributing_doc(),
@@ -656,10 +870,18 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "openspec/changes/README.md": _openspec_changes_readme(),
         "openspec/changes/template.md": _openspec_change_template(),
         ".agents/skills/README.md": _skills_readme(),
-        ".agents/skills/activation.toml": _skills_activation(package_digest),
+        ".agents/skills/activation.toml": _skills_activation_with_digest(),
         ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,
         ".agents/skills/ethos-repository-governance/package.toml": (
-            _governance_skill_package(package_digest)
+            _governance_skill_package(governance_digest)
+        ),
+        ".agents/skills/ethos-skill-portfolio-governance/SKILL.md": skill_portfolio_skill,
+        ".agents/skills/ethos-skill-portfolio-governance/package.toml": (
+            _skill_portfolio_skill_package(skill_portfolio_digest)
+        ),
+        ".agents/skills/ethos-adoption-profile-governance/SKILL.md": adoption_profile_skill,
+        ".agents/skills/ethos-adoption-profile-governance/package.toml": (
+            _adoption_profile_skill_package(adoption_profile_digest)
         ),
         "docs/index.md": _docs_index(root),
         "docs/start/quickstart.md": _quickstart(),

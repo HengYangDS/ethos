@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -602,7 +603,7 @@ def test_workspace_status_ignores_retired_state_lease_schema(tmp_path: Path) -> 
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     state_db = repo / ".ethos" / "state" / "state.sqlite"
     expires_at = datetime.now(UTC) + timedelta(hours=1)
-    with sqlite3.connect(state_db) as connection:
+    with closing(sqlite3.connect(state_db)) as connection:
         connection.execute(
             """
             create table leases (

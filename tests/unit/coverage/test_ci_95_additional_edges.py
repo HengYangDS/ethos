@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -468,7 +469,7 @@ def test_retrieval_secret_tombstone_and_dirty_search(
     secret.write_text("OPENAI_API_KEY=sk-" + "x" * 40, encoding="utf-8")
     db = tmp_path / ".ethos" / "state" / "retrieval.sqlite"
     retrieval.initialize_context_index(db)
-    with sqlite3.connect(db) as connection:
+    with closing(sqlite3.connect(db)) as connection:
         connection.execute(
             "insert into index_manifests(id, root, head, schema_version, policy_digest, created_at, payload_json) values (?, ?, ?, ?, ?, ?, ?)",
             ("m1", tmp_path.as_posix(), "h1", 1, "p", "now", "{}"),

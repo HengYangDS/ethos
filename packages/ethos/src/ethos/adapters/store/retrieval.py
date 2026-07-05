@@ -7,6 +7,7 @@ import re
 import sqlite3
 import subprocess
 import uuid
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -165,7 +166,7 @@ def default_retrieval_db_path(root: Path) -> Path:
 
 def initialize_context_index(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma journal_mode = wal")
         connection.execute("pragma foreign_keys = on")
         for statement in SCHEMA:
@@ -227,7 +228,7 @@ def rebuild_context_index(
     source_manifest_digest = _source_manifest_digest(repo, sources, head)
     now = _now()
     counts = {"source_count": 0, "span_count": 0, "chunk_count": 0, "symbol_count": 0}
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             """
@@ -879,7 +880,7 @@ def _kind_for(rel: str, source: Path) -> str:
 
 
 def _latest_manifest_id(db_path: Path) -> str:
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         row = connection.execute(
             "select id from index_manifests order by created_at desc limit 1"
         ).fetchone()
@@ -887,7 +888,7 @@ def _latest_manifest_id(db_path: Path) -> str:
 
 
 def _latest_manifest_head(db_path: Path) -> str:
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         row = connection.execute(
             "select head from index_manifests order by created_at desc limit 1"
         ).fetchone()
@@ -899,7 +900,7 @@ def _query_candidates(db_path: Path, query: str, *, limit: int) -> list[dict[str
     if not fts_query:
         return []
     candidates: list[dict[str, Any]] = []
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             """

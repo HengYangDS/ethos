@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store.retrieval import default_retrieval_db_path
@@ -17,7 +18,7 @@ def test_context_index_initialization_creates_retrieval_tables(tmp_path: Path) -
     initialize_context_index(db_path)
     initialize_context_index(db_path)
 
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         tables = {
             row[0]
             for row in connection.execute(

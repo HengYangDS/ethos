@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -244,7 +245,7 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert state.delete_lease(db, subject="work/x") == 1
     assert state.active_leases(db) == []
 
-    with sqlite3.connect(db) as connection:
+    with closing(sqlite3.connect(db)) as connection:
         connection.execute(
             "insert into leases(id, subject, owner, expires_at, payload_json) values ('badtime','s','o','not-date','{}')"
         )

@@ -5,6 +5,7 @@ import ast
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -267,7 +268,7 @@ def test_retrieval_helpers_context_eval_and_index_source(monkeypatch, tmp_path: 
 
     db2 = tmp_path / "retrieval.sqlite"
     retrieval.initialize_context_index(db2)
-    with sqlite3.connect(db2) as connection:
+    with closing(sqlite3.connect(db2)) as connection:
         connection.execute(
             "insert into index_manifests(id, root, head, schema_version, policy_digest, created_at, payload_json) values (?, ?, ?, ?, ?, ?, ?)",
             ("m1", tmp_path.as_posix(), "h1", 1, "p", "now", "{}"),

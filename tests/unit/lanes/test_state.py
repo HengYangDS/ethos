@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store.state import active_leases
@@ -19,7 +20,7 @@ def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:
 
     initialize_state(db_path)
 
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         tables = {
             row[0]
             for row in connection.execute("select name from sqlite_master where type = 'table'")
@@ -73,7 +74,7 @@ def test_event_append_is_transactional(tmp_path: Path) -> None:
 def test_active_leases_ignores_retired_lease_table_shape(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute(
             """
             create table leases (
@@ -95,7 +96,7 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
 ) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute(
             """
             create table leases (

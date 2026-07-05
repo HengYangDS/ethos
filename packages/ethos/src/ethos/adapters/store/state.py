@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -108,7 +109,7 @@ def _now() -> str:
 
 def initialize_state(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma journal_mode = wal")
         connection.execute("pragma foreign_keys = on")
         for statement in SCHEMA:
@@ -167,7 +168,7 @@ def acquire_lease(
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=ttl_seconds)
     payload_json = json.dumps(payload or {}, sort_keys=True)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             """
@@ -199,7 +200,7 @@ def update_lease_payload(
     lease = matching[-1]
     merged_payload = dict(lease["payload"])
     merged_payload.update(payload)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             """
@@ -224,7 +225,7 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
     """
     if not db_path.exists():
         return 0
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         cursor = connection.execute(
             "delete from leases where subject = ?",  # nosec B608 - fixed query, param bound
@@ -238,7 +239,7 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []
     now = datetime.now(UTC)
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         columns = _table_columns(connection, "leases")
         if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
             return []
@@ -290,7 +291,7 @@ def _append_event_row(
     subject: str,
     payload: dict[str, Any],
 ) -> None:
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
             f"""
@@ -313,7 +314,7 @@ def list_events(db_path: Path) -> list[dict[str, Any]]:
 def _list_event_rows(db_path: Path, *, table: str) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         rows = connection.execute(
             f"""
             select id, created_at, event_type, subject, payload_json

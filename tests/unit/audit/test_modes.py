@@ -131,6 +131,67 @@ def test_openspec_shape_allows_in_progress_and_archived_changes(tmp_path: Path) 
     assert not any("unarchived" in gap for gap in report["required_gaps"])
 
 
+def test_openspec_shape_flags_removed_accepted_spec_obligations(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from ethos.repository import audit
+
+    openspec = tmp_path / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+
+    class Completed:
+        returncode = 0
+        stdout = (
+            "diff --git a/openspec/specs/ethos-repository/spec.md "
+            "b/openspec/specs/ethos-repository/spec.md\n"
+            "+++ b/openspec/specs/ethos-repository/spec.md\n"
+            "@@ -1 +0,0 @@\n"
+            "- **AND** existing branch role obligations remain visible\n"
+            "- plain explanatory sentence"
+        )
+        stderr = ""
+
+    monkeypatch.setattr(audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
+
+    report = audit._openspec_shape_report(tmp_path)
+
+    assert report["ok"] is False
+    assert (
+        "openspec_spec_obligation_removed:openspec/specs/ethos-repository/spec.md:"
+        "**AND** existing branch role obligations remain visible" in report["required_gaps"]
+    )
+    assert not any("plain explanatory sentence" in gap for gap in report["required_gaps"])
+
+
+def test_openspec_shape_allows_added_or_unchanged_spec_obligations(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from ethos.repository import audit
+
+    openspec = tmp_path / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+
+    class Completed:
+        returncode = 0
+        stdout = (
+            "diff --git a/openspec/specs/ethos-repository/spec.md "
+            "b/openspec/specs/ethos-repository/spec.md\n"
+            "+++ b/openspec/specs/ethos-repository/spec.md\n"
+            "@@ -1,0 +1 @@\n"
+            "+ **AND** new obligations are fine"
+        )
+        stderr = ""
+
+    monkeypatch.setattr(audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
+
+    report = audit._openspec_shape_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+
+
 def test_repository_audit_flags_unarmed_write_admission(tmp_path, monkeypatch) -> None:
     """The write-admission moat must be armed (git core.hooksPath -> .githooks) for the
     always-run audit to pass. An ETHOS-admission repo (has .githooks/pre-commit) whose

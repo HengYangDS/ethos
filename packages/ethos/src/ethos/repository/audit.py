@@ -170,6 +170,42 @@ def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
     return unarchived
 
 
+OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
+
+
+def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
+    """Detect accepted OpenSpec spec obligations removed in the current change.
+
+    OpenSpec archives are projections until their deltas are fused into accepted
+    specs. A tool-applied MODIFIED delta can accidentally replace a requirement
+    and delete existing scenario obligations. The always-run shape audit treats
+    removed WHEN/THEN/AND lines in accepted specs as a blocking small signal so
+    humans/agents must either restore/fuse them or carry an explicit removal
+    decision in a separate semantic change.
+    """
+    completed = subprocess.run(
+        ["git", "diff", "--unified=0", "--", "openspec/specs/**/*.md"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode not in {0, 1}:
+        return ["openspec_spec_obligation_diff_unavailable"]
+    gaps: list[str] = []
+    current_file = ""
+    for line in completed.stdout.splitlines():
+        if line.startswith("+++ b/"):
+            current_file = line.removeprefix("+++ b/")
+            continue
+        if not line.startswith("-") or line.startswith("---"):
+            continue
+        removed = line[1:].strip()
+        if OPENSPEC_SPEC_OBLIGATION_PATTERN.match(removed):
+            gaps.append(f"openspec_spec_obligation_removed:{current_file}:{removed}")
+    return gaps
+
+
 def _write_admission_armed_gaps(root: Path) -> list[str]:
     """Gap when the write-admission moat is NOT armed for this checkout.
 
@@ -211,6 +247,7 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
     required_gaps.extend(_completed_unarchived_changes(openspec_root))
+    required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
     return {
         "ok": not required_gaps,
         "mode": "shape",

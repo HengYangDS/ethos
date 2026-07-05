@@ -158,7 +158,9 @@ ACP, Superpowers, GitHub, GitLab, Dagger, Pants, SLSA, pytest, Ruff, pixi, and
 similar systems are adapters, providers, profiles, method packs, or
 product-toolchain tools; they are not ontology anchors.
 OpenSpec remains mandatory governance, not a product substrate and not a
-second command plane.
+second command plane. Archive closeout must fuse accepted specification
+obligations forward; a tool-applied delta may not silently delete existing
+`WHEN`, `THEN`, or `AND` obligations without an explicit removal decision.
 
 ### Git-native repository substrate
 

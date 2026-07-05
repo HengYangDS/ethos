@@ -411,6 +411,10 @@ claims, and evidence refs serving distinct product duties.
   path before downstream campaign steps depend on it
 - **AND** claims that refer to the carrier point at the dated archive path after
   archive closeout
+- **AND** accepted specification obligations are fused forward rather than
+  deleted by a tool-applied archive delta
+- **AND** removing an accepted `WHEN`, `THEN`, or `AND` obligation requires an
+  explicit removal decision instead of silent replacement
 - **AND** the campaign manifest records the lane as closed and retired before
   the next campaign step becomes active.
 

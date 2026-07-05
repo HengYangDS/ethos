@@ -157,7 +157,7 @@ def test_mutation_apply_rejects_dirty_work_lane(tmp_path: Path) -> None:
     assert "work_lane_dirty" in result.gaps
 
 
-def test_mutation_apply_rejects_overlapping_foreign_work_lane_scope(tmp_path: Path) -> None:
+def test_mutation_apply_admits_overlapping_foreign_work_lane_scope(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
@@ -200,9 +200,9 @@ def test_mutation_apply_rejects_overlapping_foreign_work_lane_scope(tmp_path: Pa
 
     result = evaluate_mutation(request, root=second, current_head=head)
 
-    assert result.ok is False
-    assert result.state == "blocked"
-    assert "coordination_gap:scope_overlap:work/first" in result.gaps
+    # scope_overlap is same-file-only and git's ff-only land backstops a real conflict,
+    # so an overlapping foreign lane no longer BLOCKS the mutation — it is advisory.
+    assert "coordination_gap:scope_overlap:work/first" not in result.gaps
 
 
 def test_mutation_apply_rejects_raw_work_lane_without_lease(tmp_path: Path) -> None:

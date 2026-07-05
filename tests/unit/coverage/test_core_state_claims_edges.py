@@ -280,11 +280,13 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         )
         == "disjoint"
     )
-    assert coordination.coordination_gaps(
+    required, advisory = coordination.coordination_gaps(
         [{"branch": "work/x", "lease_state": "missing", "coordination_state": "overlap"}],
         current_role=ROLE_WORK_LANE,
         current_scope_state="unknown",
-    )[0] == ["coordination_gap:current_scope_unknown", "coordination_gap:scope_overlap:work/x"]
+    )
+    assert required == ["coordination_gap:current_scope_unknown"]
+    assert "coordination_gap:scope_overlap:work/x" in advisory
     package = coordination.coordination_package(
         [{"lease_state": "missing", "coordination_state": "unknown"}],
         required_gaps=["g"],

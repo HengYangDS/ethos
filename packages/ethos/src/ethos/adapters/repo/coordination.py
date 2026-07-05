@@ -118,7 +118,12 @@ def coordination_gaps(
         if state == "unknown":
             required.append(f"coordination_gap:foreign_scope_unknown:{branch}")
         elif state == "overlap":
-            required.append(f"coordination_gap:scope_overlap:{branch}")
+            # Same-file conflict only (path_overlaps is a same-file/ancestor oracle:
+            # two different files in one directory do NOT overlap). Git's ff-only land
+            # already refuses a genuine same-file conflict, so this is advisory, not a
+            # blocking gate — surfacing the contention (万象昭幽) without serializing
+            # every concurrent lane that merely shares a directory.
+            advisory.append(f"coordination_gap:scope_overlap:{branch}")
     return required, advisory
 
 

@@ -490,14 +490,16 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     assert status["foreign_work_lanes"][0]["path_scope"] == ["README.md"]
     assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
     assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
-    assert status["coordination"]["blocking"] is True
-    assert status["coordination"]["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
+    # scope_overlap is same-file-only (git's ff-only land backstops a genuine conflict),
+    # so it is advisory, not blocking: concurrent lanes sharing a directory no longer
+    # serialize.
+    assert status["coordination"]["blocking"] is False
+    assert "coordination_gap:scope_overlap:work/first" in status["coordination"]["advisory_gaps"]
+    assert status["coordination"]["required_gaps"] == []
     assert status["coordination"]["overlap_count"] == 1
-    assert status["closeout_support"]["supported"] is False
-    assert status["closeout_support"]["required_gaps"] == [
-        "coordination_gap:scope_overlap:work/first"
-    ]
-    assert status["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
+    assert status["closeout_support"]["supported"] is True
+    assert status["closeout_support"]["required_gaps"] == []
+    assert "coordination_gap:scope_overlap:work/first" not in status["required_gaps"]
 
 
 def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_overlaps(
@@ -534,10 +536,9 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_over
     assert lane["dirty_paths"] == ["packages/core.py"]
     assert lane["path_scope"] == ["packages/core.py"]
     assert lane["coordination_state"] == "overlap"
-    assert status["coordination"]["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
-    assert status["closeout_support"]["required_gaps"] == [
-        "coordination_gap:scope_overlap:work/first"
-    ]
+    assert status["coordination"]["required_gaps"] == []
+    assert "coordination_gap:scope_overlap:work/first" in status["coordination"]["advisory_gaps"]
+    assert status["closeout_support"]["required_gaps"] == []
 
 
 def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:

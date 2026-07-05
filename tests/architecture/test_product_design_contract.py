@@ -57,6 +57,39 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     assert "not current scope" in text
 
 
+def test_product_design_contract_operationalizes_root_philosophy() -> None:
+    text = read("docs/governance/product-design-contract.md")
+
+    assert "## Root Philosophy" in text
+    for phrase in (
+        "道隐无名",
+        "几动于微",
+        "法乎自然",
+        "生一启元",
+        "分二判势",
+        "孕三冲和",
+        "万象昭幽",
+        "度协畛域",
+        "枢得环中",
+        "物遂其性",
+        "化育无穷",
+        "玄德",
+    ):
+        assert phrase in text
+
+    for operational_anchor in (
+        "not an external slogan",
+        "JudgmentSource",
+        "single kernel",
+        "truth boundary",
+        "profile or adapter boundary",
+        "binding taxonomy",
+        "command JSON",
+        "evidence",
+        "adapters remain adapters",
+    ):
+        assert operational_anchor in text
+
 
 def test_product_design_contract_defines_invalid_state_taxonomy() -> None:
     text = read("docs/governance/product-design-contract.md")

@@ -60,6 +60,27 @@ ethos explain
 ethos docs
 ```
 
+## Root Philosophy
+
+ETHOS encodes this compact root philosophy:
+
+> 道隐无名，几动于微，法乎自然；
+> 生一启元，分二判势，孕三冲和；
+> 万象昭幽，度协畛域，枢得环中；
+> 物遂其性，化育无穷，是谓玄德。
+
+This is not an external slogan. It is the operational constraint behind the
+product model: keep the root authority deeper than any named surface, detect
+small repository signals before they become disorder, and let governance follow
+the repository's natural shape instead of imposing a provider ontology.
+
+| Compact line | ETHOS reading | Product consequence |
+| --- | --- | --- |
+| 道隐无名，几动于微，法乎自然 | The real authority is not a tool name, UI surface, vendor, or adapter. Small gaps matter because they reveal drift early. | `JudgmentSource` anchors decisions; `ethos status`, `ethos plan`, and `ethos prove` expose small authority, subject, evidence, claim, and substrate gaps before mutation. |
+| 生一启元，分二判势，孕三冲和 | Start from one kernel, then discriminate the necessary pairs, then reconcile through a third binding. | ETHOS keeps a single kernel; it separates truth boundary from projection, product semantics from profile or adapter boundary, and read-only observation from mutation; it reconciles through Change, evidence, Claim, and Chronicle. |
+| 万象昭幽，度协畛域，枢得环中 | Hidden state must become visible; measures must fit their domain; the pivot must remain centered. | Command JSON, schemas, digests, HEAD binding, evidence, and scorecards make repository state auditable. The binding taxonomy keeps measures domain-appropriate while the kernel chain remains the center. |
+| 物遂其性，化育无穷，是谓玄德 | Each thing should fulfill its own nature without being absorbed into a false center. | Git remains Git, OpenSpec remains governance, local state remains local state, protocols remain protocols, and adapters remain adapters. ETHOS enables growth by governing boundaries and promotion without owning every tool or domain identity. |
+
 ## Kernel Chain
 
 ETHOS is kernel-first. The product model is:

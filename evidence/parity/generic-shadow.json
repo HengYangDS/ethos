@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-close-sqlite-connections",
+  "target": "/private/tmp/ethos-expose-unbound-work-lane-refs",
   "generated_on": "2026-07-05",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-close-sqlite-connections --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-expose-unbound-work-lane-refs --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5cd4dc71b63af423a58bbd9b4c498608276b799f",
-    "target_head": "5cd4dc71b63af423a58bbd9b4c498608276b799f",
-    "command_sha256": "5c9c95cd0bdab93c9e770dfa89f5281828aec953ecdf9c2312ef2e21c8097219"
+    "product_head": "01d3b937aa80aadfc2eef8e09391ee1247470c41",
+    "target_head": "01d3b937aa80aadfc2eef8e09391ee1247470c41",
+    "command_sha256": "046560f196f45f0015dd8339c8414920db5692fcc5b0ab5ffd47b37539258c05"
   },
   "shadow": {
     "ok": true,

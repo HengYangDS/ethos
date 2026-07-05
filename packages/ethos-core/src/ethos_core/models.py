@@ -115,5 +115,3 @@ class EvidenceClaim:
             "binding": self.binding,
             "verifier": self.verifier,
         }
-
-

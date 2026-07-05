@@ -1755,12 +1755,10 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
     assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
     assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "generic"
     assert (
-        payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"]
-        == "repository"
+        payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"] == "repository"
     )
-    assert (
-        payload["data"]["repository_audit"]["governance_context"]["subject"]["id"]
-        == str(tmp_path.resolve())
+    assert payload["data"]["repository_audit"]["governance_context"]["subject"]["id"] == str(
+        tmp_path.resolve()
     )
     assert payload["data"]["repository_audit"]["governance_context"]["shared_commands"] == [
         "ethos status",
@@ -3123,7 +3121,6 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert "backend retirement" not in parity_note
     assert "domain profile parity" in parity_note
     assert payload["next_actions"] == ["ethos prove --full"]
-
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:

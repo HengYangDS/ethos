@@ -91,9 +91,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         lease_by_branch=lease_by_branch,
         coordination_required_gaps=coordination_required_gaps,
     )
-    required_gaps = workspace_required_gaps(
-        closeout_support["required_gaps"], candidate=candidate
-    )
+    required_gaps = workspace_required_gaps(closeout_support["required_gaps"], candidate=candidate)
     return {
         "root": str(root),
         "branch": branch,

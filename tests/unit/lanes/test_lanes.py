@@ -448,7 +448,6 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
     }
 
 
-
 def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     tmp_path: Path,
 ) -> None:
@@ -491,9 +490,7 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
     assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
     assert status["coordination"]["blocking"] is True
-    assert status["coordination"]["required_gaps"] == [
-        "coordination_gap:scope_overlap:work/first"
-    ]
+    assert status["coordination"]["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
     assert status["coordination"]["overlap_count"] == 1
     assert status["closeout_support"]["supported"] is False
     assert status["closeout_support"]["required_gaps"] == [
@@ -536,12 +533,11 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_over
     assert lane["dirty_paths"] == ["packages/core.py"]
     assert lane["path_scope"] == ["packages/core.py"]
     assert lane["coordination_state"] == "overlap"
-    assert status["coordination"]["required_gaps"] == [
-        "coordination_gap:scope_overlap:work/first"
-    ]
+    assert status["coordination"]["required_gaps"] == ["coordination_gap:scope_overlap:work/first"]
     assert status["closeout_support"]["required_gaps"] == [
         "coordination_gap:scope_overlap:work/first"
     ]
+
 
 def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")

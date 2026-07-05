@@ -156,7 +156,6 @@ def test_mutation_apply_rejects_dirty_work_lane(tmp_path: Path) -> None:
     assert "work_lane_dirty" in result.gaps
 
 
-
 def test_mutation_apply_rejects_overlapping_foreign_work_lane_scope(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
@@ -224,6 +223,7 @@ def test_mutation_apply_rejects_raw_work_lane_without_lease(tmp_path: Path) -> N
     assert result.ok is False
     assert result.state == "blocked"
     assert "work_lane_missing_lease:work/raw" in result.gaps
+
 
 def test_apply_land_to_candidate_advances_candidate_without_advancing_dev(
     tmp_path: Path,

@@ -710,7 +710,6 @@ def openspec(
     emit(result, json_output, enforce=False)
 
 
-
 def main() -> None:
     import sys
 

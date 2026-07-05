@@ -52,7 +52,6 @@ JsonFlag = Annotated[bool, Parameter(name="--json")]
 RootOption = Annotated[Path, Parameter(name="--root")]
 
 
-
 # ---- cross-group helpers ----
 def resolve_root(root: Path | None) -> Path:
     """Resolve the target repository root (cwd when unspecified)."""

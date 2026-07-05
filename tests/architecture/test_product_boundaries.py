@@ -130,12 +130,12 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
     }
     for source_rel, forbidden in forbidden_by_source.items():
         source = ROOT / source_rel
-        assert source.is_dir(), f"terminal source tree missing (scan would be vacuous): {source_rel}"
+        assert source.is_dir(), (
+            f"terminal source tree missing (scan would be vacuous): {source_rel}"
+        )
         assert any(source.rglob("*.py")), f"no modules under {source_rel} — vacuous scan"
         for path in source.rglob("*.py"):
             assert imported_modules(path).isdisjoint(forbidden), path
-
-
 
 
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
@@ -190,8 +190,6 @@ def test_target_packages_do_not_import_migration_hosts() -> None:
         source = ROOT / "packages" / package / "src"
         for path in source.rglob("*.py"):
             assert imported_modules(path).isdisjoint(migration_imports), path
-
-
 
 
 def test_product_workspace_has_no_migration_host_packages() -> None:

@@ -138,8 +138,7 @@ def explain_gap(gap: str) -> dict[str, object]:
     return {
         "gap": gap,
         "meaning": (
-            "A required gap names a failed precondition in the ETHOS "
-            "trust-transition chain."
+            "A required gap names a failed precondition in the ETHOS trust-transition chain."
         ),
         "invalid_state": invalid_state,
         "taxonomy": {

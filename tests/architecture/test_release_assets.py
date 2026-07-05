@@ -39,5 +39,26 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm run ethos -- --version" in text
     assert "npm run test:npm" in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" in text
+    assert ".config/ci/scripts/bootstrap-python.sh" in text
+    assert ".config/ci/scripts/install-lychee.sh" in text
+    assert "pip install uv" not in text
+    assert "curl -sSL https://github.com/lycheeverse/lychee" not in text
     assert "wt " not in text
     assert "proof " not in text
+
+
+def test_configuration_layout_is_separated_by_concern() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    ruff = (ROOT / "ruff.toml").read_text(encoding="utf-8")
+    pytest = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+
+    assert "[project]" in pyproject
+    assert "[tool.uv.workspace]" in pyproject
+    assert "[tool.pytest" not in pyproject
+    assert "[tool.ruff" not in pyproject
+    assert 'extend = ".config/checks/ruff/ruff.toml"' in ruff
+    assert "[lint.per-file-ignores]" in ruff
+    assert "[pytest]" in pytest
+    assert "pythonpath" in pytest
+    assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()
+    assert (ROOT / ".config/ci/scripts/install-lychee.sh").exists()

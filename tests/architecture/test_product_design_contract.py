@@ -112,6 +112,7 @@ def test_product_design_contract_defines_invalid_state_taxonomy() -> None:
     assert "adapter bypass reduce" in text
     assert "Seven obligations judge" in text
 
+
 def test_product_design_contract_keeps_git_native_not_generic_vcs() -> None:
     text = read("docs/governance/product-design-contract.md")
 

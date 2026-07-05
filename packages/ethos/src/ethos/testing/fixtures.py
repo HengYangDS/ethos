@@ -54,10 +54,16 @@ def complete_governance_lifecycle() -> dict[str, object]:
         },
         "primary_invariant": "repository truth is promoted through claims and evidence",
         "routing_question": "Does this change alter repository trust admission?",
+        "decision_axes": ["lifecycle", "surface", "authority"],
         "boundary_rules": [
             "OpenSpec records are specification carriers, not truth owners",
             "intake provider state remains projection evidence",
         ],
+        "recommended_facets": {
+            "lifecycle": ["authoring", "validation", "archive"],
+            "surface": ["docs", "openspec", "schema"],
+            "authority": ["docs", "openspec", "claim", "evidence"],
+        },
         "proof_profile": {
             "default_command": "ethos prove --json",
             "executed_command": "ethos prove --full --execute --json",

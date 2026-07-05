@@ -720,8 +720,7 @@ digest = "0"
     assert "policy_exception_digest_mismatch:expired" in report["required_gaps"]
     assert "policy_exception_ttl_exceeded:expired" in report["required_gaps"]
     assert (
-        "policy_exception_evidence_missing:expired:evidence/example.md"
-        in report["required_gaps"]
+        "policy_exception_evidence_missing:expired:evidence/example.md" in report["required_gaps"]
     )
 
 
@@ -751,7 +750,7 @@ def test_policy_exceptions_block_invalid_dates_and_non_waivable_rules(
         reason="temporary",
         evidence_ref="evidence/example.md",
         created_at="2026-07-01",
-        expires_at="2026-07-02",
+        expires_at="2026-07-31",
     ).to_dict()
     exceptions = tmp_path / "rules" / "ethos" / "policy-exceptions.toml"
     exceptions.parent.mkdir(parents=True)
@@ -809,7 +808,7 @@ def test_policy_exceptions_block_empty_path_scope(tmp_path: Path) -> None:
         reason="temporary",
         evidence_ref="evidence/example.md",
         created_at="2026-07-01",
-        expires_at="2026-07-02",
+        expires_at="2026-07-31",
     ).to_dict()
     exceptions = tmp_path / "rules" / "ethos" / "policy-exceptions.toml"
     exceptions.parent.mkdir(parents=True)
@@ -856,7 +855,7 @@ stop_condition = "docs_gap"
 """.lstrip(),
         encoding="utf-8",
     )
-    evidence = tmp_path / "docs" / "evidence" / "exception.md"
+    evidence = tmp_path / "evidence" / "exception.md"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("temporary waiver\n", encoding="utf-8")
     waiver = PolicyException(
@@ -868,7 +867,7 @@ stop_condition = "docs_gap"
         reason="temporary docs gate migration",
         evidence_ref="evidence/exception.md",
         created_at="2026-07-01",
-        expires_at="2026-07-02",
+        expires_at="2026-07-31",
     ).to_dict()
     exceptions = tmp_path / "rules" / "ethos" / "policy-exceptions.toml"
     exceptions.parent.mkdir(parents=True)
@@ -883,7 +882,7 @@ approver = "maintainer"
 reason = "temporary docs gate migration"
 evidence_ref = "evidence/exception.md"
 created_at = "2026-07-01"
-expires_at = "2026-07-02"
+expires_at = "2026-07-31"
 status = "active"
 digest = "{waiver["digest"]}"
 """.lstrip(),
@@ -956,7 +955,7 @@ approver = "maintainer"
 reason = "temporary docs gate migration"
 evidence_ref = "evidence/exception.md"
 created_at = "2026-07-01"
-expires_at = "2026-07-02"
+expires_at = "2026-07-31"
 status = "active"
 digest = "{waiver["digest"]}"
 """.lstrip(),

@@ -201,9 +201,7 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     ).stdout.strip()
 
     # protected accepted root without proof -> blocked
-    protected = push_admission_report(
-        root=tmp_path, target_ref="refs/heads/dev", pushed_head=head
-    )
+    protected = push_admission_report(root=tmp_path, target_ref="refs/heads/dev", pushed_head=head)
     assert protected["ok"] is False
     assert protected["state"] == "blocked"
     assert any("not_proven" in str(g) or "proof" in str(g) for g in protected["required_gaps"])

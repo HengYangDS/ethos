@@ -12,7 +12,7 @@ schema = "system/schemas/contracts/tools.schema.json"
 [[tool]]
 concern = "python_format_lint"
 tool = "ruff"
-config = ".config/checks/ruff/"
+config = "ruff.toml + .config/checks/ruff/"
 profile = "minimal"
 
 [[tool]]
@@ -25,7 +25,7 @@ profile = "product"
 [[tool]]
 concern = "tests"
 tool = "pytest"
-config = "pyproject.toml"
+config = "pytest.ini"
 profile = "minimal"
 
 [[tool]]

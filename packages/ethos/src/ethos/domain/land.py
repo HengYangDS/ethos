@@ -66,9 +66,7 @@ def closeout_audit_root(repo: Path, decision: MutationDecision) -> Path:
     return Path(candidate_path) if candidate_path else repo
 
 
-def repository_audit_after_admission(
-    repo: Path, decision: MutationDecision
-) -> dict[str, object]:
+def repository_audit_after_admission(repo: Path, decision: MutationDecision) -> dict[str, object]:
     """Run the shape audit after admission, or skip when the mutation was blocked."""
     from ethos.domain.status import audit_for_root
 

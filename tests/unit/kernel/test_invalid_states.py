@@ -59,13 +59,13 @@ def _emitted_gap_stems() -> set[str]:
     return stems
 
 
-
 def test_taxonomy_contract_validates_against_schema() -> None:
     payload = tomllib.loads((ROOT / "system/invalid_states.toml").read_text(encoding="utf-8"))
     schema = json.loads(
         (ROOT / "system/schemas/contracts/invalid_states.schema.json").read_text(encoding="utf-8")
     )
     jsonschema.Draft202012Validator(schema).validate(payload)
+
 
 def test_taxonomy_is_mece_over_the_chain() -> None:
     categories = invalid_state_categories()
@@ -77,9 +77,7 @@ def test_taxonomy_is_mece_over_the_chain() -> None:
 
 
 def test_every_emitted_gap_classifies_to_exactly_one_node() -> None:
-    unclassified = sorted(
-        stem for stem in _emitted_gap_stems() if classify(stem) == UNCLASSIFIED
-    )
+    unclassified = sorted(stem for stem in _emitted_gap_stems() if classify(stem) == UNCLASSIFIED)
     assert unclassified == [], (
         "gap strings that reduce to no kernel node (ungoverned invalid states) — "
         f"add a match_prefix to system/invalid_states.toml: {unclassified}"

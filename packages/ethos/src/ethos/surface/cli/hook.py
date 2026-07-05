@@ -89,9 +89,7 @@ def pre_push(
             "decision": decision_action,
         },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=(
-            ("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()
-        ),
+        next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
         data=report,
     )
     emit(result, json_output, enforce=True)

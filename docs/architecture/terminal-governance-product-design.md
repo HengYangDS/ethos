@@ -985,11 +985,21 @@ Terminal ETHOS must treat bypassable guidance as an incomplete control.
 `system/tools.toml` declares tool identity, maturity, profiles, gate mapping,
 config path, install strategy, and evidence output.
 
+Configuration follows separation of concerns:
+
+- `pyproject.toml` is Python packaging, dependency groups, and uv workspace metadata.
+- Tool runtime configuration uses tool-native SSOT files (`pytest.ini`, `ruff.toml`).
+- Reusable gate policy payloads live under `.config/checks/<tool>/`.
+- Hosted CI files are provider projections over those commands, not another policy store.
+
+This keeps configuration MECE: package metadata, tool runtime behavior, gate policy,
+and hosted execution projection do not own each other's semantics.
+
 | Concern | Default tool | Config carrier | Profile |
 | --- | --- | --- | --- |
-| Python format/lint | `ruff` | `.config/checks/ruff/` | minimal |
+| Python format/lint | `ruff` | `ruff.toml` + `.config/checks/ruff/` | minimal |
 | Python typing | `ty`; optional `mypy` strict | `.config/checks/ty/`, `.config/checks/mypy/` | product |
-| Tests | `pytest` | `pyproject.toml` | minimal |
+| Tests | `pytest` | `pytest.ini` | minimal |
 | Coverage | `coverage.py` | `.config/checks/coverage/` | product |
 | Import boundaries | `import-linter` | `.config/boundaries/` | product |
 | Dependency hygiene | `deptry` | `.config/checks/deptry/` | product |

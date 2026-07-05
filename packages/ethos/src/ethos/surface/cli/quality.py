@@ -826,4 +826,3 @@ def provenance(
         data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
     )
     emit(result, json_output, enforce=False)
-

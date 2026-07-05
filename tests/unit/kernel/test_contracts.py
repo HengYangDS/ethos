@@ -55,6 +55,8 @@ def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
             binding="semantic truth is proven",
             verifier="digest_only",
         )
+
+
 def test_action_graph_is_deterministic_and_digest_bound() -> None:
     first = ActionNode(
         id="prove",
@@ -207,9 +209,7 @@ def test_system_contract_schema_violation_blocks() -> None:
 
     schema_path = Path("system/schemas/contracts/authority.schema.json")
     # An authority contract missing its required `order` violates the schema.
-    gaps = _schema_validation_gaps(
-        "authority", {"schema": str(schema_path)}, schema_path
-    )
+    gaps = _schema_validation_gaps("authority", {"schema": str(schema_path)}, schema_path)
 
     assert any("schema_violation" in g for g in gaps)
 

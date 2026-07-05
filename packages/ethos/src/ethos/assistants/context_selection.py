@@ -16,7 +16,6 @@ FORBIDDEN_RESULT_FIELDS = {
 QUERY_REDACTION_MARKER = "<redacted-query>"
 
 
-
 def sanitize_selection_result(result: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in result.items() if key not in FORBIDDEN_RESULT_FIELDS}
 

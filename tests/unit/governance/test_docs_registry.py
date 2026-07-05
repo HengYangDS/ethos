@@ -78,9 +78,7 @@ TERM=xterm-256color codex doctor --json
     assert report["ok"] is True
     assert report["required_gaps"] == []
     assert {
-        example["command"]
-        for example in report["examples"]
-        if example["path"] == "evidence/run.md"
+        example["command"] for example in report["examples"] if example["path"] == "evidence/run.md"
     } == {
         "openspec validate --all --strict --json",
         "codex --version",

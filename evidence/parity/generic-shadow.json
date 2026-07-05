@@ -5,8 +5,8 @@
   "generated_on": "2026-07-05",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-proof-gate-registry-convergence --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "12256ee0f6baba407fbee36885cb604fc14b1e14",
-    "target_head": "12256ee0f6baba407fbee36885cb604fc14b1e14",
+    "product_head": "a40cb7dfeccb506739bf10d07df3433cb47701ba",
+    "target_head": "a40cb7dfeccb506739bf10d07df3433cb47701ba",
     "command_sha256": "1674b8cddaa133c5d2fa4350423ecdd355ef4eda533b713dcf8dcdc97ab7386d"
   },
   "shadow": {

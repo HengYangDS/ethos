@@ -1,5 +1,5 @@
 """Lane command group — Work Lane lifecycle: status, start, candidate, land,
-refresh-base, bind-claim, retire-landed."""
+refresh-base, bind-claim, retire-landed, retire-unbound."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from ethos.adapters.mutation.lanes import bootstrap_candidate
 from ethos.adapters.mutation.lanes import refresh_candidate_from_accepted
 from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status import workspace_status
 from ethos.domain import prove as _prove
@@ -226,6 +227,43 @@ def lane_bind_claim(
         data=report,
     )
     emit(result, json_output)
+
+
+@lane_app.command(name="retire-unbound")
+def lane_retire_unbound(
+    *,
+    branch: Annotated[str, Parameter(name="--branch")],
+    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None,
+    reason: Annotated[str, Parameter(name="--reason")] = "",
+    authorize: bool = False,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Retire an unbound local Work Lane ref with head-bound authorization."""
+    repo = resolve_root(root)
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch=branch,
+        expect_head=expect_head,
+        reason=reason,
+        apply=apply,
+        authorized=authorize,
+    )
+    result = EthosResult(
+        command="lane retire-unbound",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "head": report["head"],
+            "relation_to_accepted": report["relation_to_accepted"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
+        data=report,
+    )
+    emit(result, json_output, enforce=apply)
 
 
 @lane_app.command(name="retire-landed")

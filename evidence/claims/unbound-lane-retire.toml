@@ -1,0 +1,52 @@
+[claim]
+id = "unbound-lane-retire"
+subject = "ethos:unbound-lane-retire"
+state = "active"
+summary = "ETHOS provides a head-bound, reason-bound, authorized maintainer command for retiring local unbound Work Lane refs without deleting linked worktrees or bypassing land semantics."
+
+[evidence]
+dated = "evidence/unbound-lane-retire-2026-07-06.md"
+sha256 = "f8e42208ed48dfa4307d3fb54e03c4adddd967276ac7a8e1c9ed91481ce9d3ab"
+evidence_ids = ["evidence:unbound-lane-retire"]
+binding = "semantic unbound Work Lane ref retirement evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lanes.py packages/ethos/src/ethos/surface/cli/lane.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_blocks_head_mismatch tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_blocks_linked_worktree tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head tests/unit/cli/test_contracts.py::test_lane_retire_unbound_apply_removes_matching_ref tests/unit/cli/test_contracts.py::test_lane_retire_unbound_apply_requires_authorization -q",
+]
+
+[scope]
+packages = ["ethos"]
+tests = ["tests/unit/lanes/test_lanes.py", "tests/unit/cli/test_contracts.py"]
+docs = [
+  "docs/reference/command-plane.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/governance/product-design-contract.md",
+  "openspec/changes/unbound-lane-retire/specs/ethos-repository/spec.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Head-bound local retirement of unbound Work Lane refs"
+
+[carriers]
+openspec = "openspec/changes/unbound-lane-retire"
+
+fallback = "Keep unbound refs visible in status until a maintainer explicitly chooses raw Git cleanup outside ETHOS."
+kill_signal = "A local unbound Work Lane ref can only be removed by raw branch deletion without branch role, unbound-state, expected-head, or reason checks."
+
+[promotion]
+targets = [
+  "docs/reference/command-plane.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/governance/product-design-contract.md",
+  "evidence/claims/unbound-lane-retire.toml",
+  "evidence/unbound-lane-retire-2026-07-06.md",
+  "openspec/changes/unbound-lane-retire",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/surface/cli/lane.py",
+  "packages/ethos/src/ethos/repository/registry/docs.py",
+  "packages/ethos/src/ethos/repository/policy/coupling.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/cli/test_contracts.py",
+]

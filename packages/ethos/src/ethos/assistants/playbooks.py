@@ -335,8 +335,6 @@ def _portfolio_design(
         subjects = [str(item) for item in cast("list[str]", record["subjects"])]
         if str(record["primary_subject"]) not in subjects:
             gaps.append(f"skill_portfolio_primary_subject_not_routed:{skill_id}")
-        if "changed-scope" not in subjects:
-            gaps.append(f"skill_portfolio_changed_scope_missing:{skill_id}")
         for command in cast("list[str]", record["commands"]):
             command_owners.setdefault(command, []).append(skill_id)
         for pattern in cast("list[str]", record["path_globs"]):

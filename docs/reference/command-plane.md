@@ -131,6 +131,7 @@ ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --apply
+ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
 ```
 
 `ethos status --json` and `ethos lane status --json` expose the configured role
@@ -187,11 +188,18 @@ closeout reports `candidate_diverged_from_accepted`.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree.
+`ethos lane retire-unbound` is the maintainer cleanup path for local unbound
+Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
+It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
+and a non-empty `--reason`, then deletes `refs/heads/<branch>` with a
+head-bound Git ref transaction. It does not replace `ethos land` or
+`retire-landed`, and it does not remove linked worktrees.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
-through `ethos lane refresh-base`, land only through `ethos land`, and retire
-only through `ethos lane retire-landed`. Raw Git
+through `ethos lane refresh-base`, land only through `ethos land`, retire
+landed lanes through `ethos lane retire-landed`, and retire unbound residue refs
+through `ethos lane retire-unbound`. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary.

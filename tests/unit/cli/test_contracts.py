@@ -1548,7 +1548,9 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 def write_v2_playbook_package(skills_root: Path, skill_id: str) -> str:
     package_dir = skills_root / skill_id
     package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_PLAYBOOK_SKILL, encoding="utf-8")
+    (package_dir / "SKILL.md").write_text(
+        OFFICIAL_PLAYBOOK_SKILL.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
+    )
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     package_manifest = package_dir / "package.toml"
     package_manifest.write_text(
@@ -2945,8 +2947,13 @@ def test_product_playbook_activation_routes_evolution_campaigns() -> None:
         item for item in activation["skill"] if item["id"] == "ethos-repository-governance"
     )
 
+    skill_record = next(
+        item for item in activation["skill"] if item["id"] == "ethos-skill-portfolio-governance"
+    )
+
     assert "evolution/**" in record["path_globs"]
-    assert ".agents/skills/**" in record["path_globs"]
+    assert ".agents/skills/**" not in record["path_globs"]
+    assert ".agents/skills/**" in skill_record["path_globs"]
 
 
 def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path) -> None:
@@ -3569,3 +3576,83 @@ def test_quality_types_enforces_ty_policy_tiers() -> None:
     assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
     # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
     assert completed.returncode == (0 if payload["ok"] else 1)
+
+
+def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    git(repo, "branch", "work/stale-ref", "dev")
+    head = git(repo, "rev-parse", "work/stale-ref")
+
+    payload = run_ethos(
+        "lane",
+        "retire-unbound",
+        "--branch",
+        "work/stale-ref",
+        "--expect-head",
+        head,
+        "--reason",
+        "superseded by accepted root",
+        "--authorize",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire-unbound"
+    assert payload["ok"] is True
+    assert payload["state"] == "retired_unbound"
+    assert payload["data"]["retired_ref"] == "refs/heads/work/stale-ref"
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 1
+    )
+
+
+def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    git(repo, "branch", "work/stale-ref", "dev")
+    head = git(repo, "rev-parse", "work/stale-ref")
+
+    payload = run_ethos_blocked(
+        "lane",
+        "retire-unbound",
+        "--branch",
+        "work/stale-ref",
+        "--expect-head",
+        head,
+        "--reason",
+        "superseded by accepted root",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire-unbound"
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["authorization_required"]

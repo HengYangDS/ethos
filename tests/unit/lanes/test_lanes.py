@@ -1333,3 +1333,130 @@ def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
         "coordination_gap:foreign_scope_unknown:work/unknown",
     ]
     assert advisory == ["foreign_work_lane_present"]
+
+
+def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(tmp_path: Path) -> None:
+    from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+    head = git(repo, "rev-parse", "work/stale-ref")
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch="work/stale-ref",
+        expect_head=head,
+        reason="superseded by accepted root",
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "ready_to_retire_unbound"
+    assert report["head"] == head
+    assert report["mutation"] == {
+        "apply": False,
+        "authorized": False,
+        "expect_head": head,
+        "ref": "refs/heads/work/stale-ref",
+    }
+    assert git(repo, "rev-parse", "--verify", "work/stale-ref") == head
+
+
+def test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref(tmp_path: Path) -> None:
+    from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+    head = git(repo, "rev-parse", "work/stale-ref")
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch="work/stale-ref",
+        expect_head=head,
+        reason="superseded by accepted root",
+        apply=True,
+        authorized=True,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "retired_unbound"
+    assert report["retired_ref"] == "refs/heads/work/stale-ref"
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 1
+    )
+
+
+def test_retire_unbound_work_lane_ref_blocks_head_mismatch(tmp_path: Path) -> None:
+    from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch="work/stale-ref",
+        expect_head="0" * 40,
+        reason="superseded by accepted root",
+        apply=True,
+        authorized=True,
+    )
+
+    assert report["ok"] is False
+    assert "expect_head_mismatch" in report["required_gaps"]
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def test_retire_unbound_work_lane_ref_blocks_linked_worktree(tmp_path: Path) -> None:
+    from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-linked"
+    git(repo, "worktree", "add", "-b", "work/linked", worktree.as_posix(), "dev")
+    head = git(repo, "rev-parse", "work/linked")
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch="work/linked",
+        expect_head=head,
+        reason="superseded by accepted root",
+        apply=True,
+        authorized=True,
+    )
+
+    assert report["ok"] is False
+    assert "unbound_retire_ref_not_unbound" in report["required_gaps"]
+    assert worktree.exists()
+
+
+def test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head(
+    tmp_path: Path,
+) -> None:
+    from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+
+    report = retire_unbound_work_lane_ref(root=repo, branch="work/stale-ref", apply=True)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        "authorization_required",
+        "expect_head_required",
+        "retire_reason_required",
+    ]

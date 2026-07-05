@@ -77,8 +77,11 @@ and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
 when needed, `ethos lane refresh-base` replays a stale lane onto the configured
 candidate branch, `ethos land` advances the configured candidate branch, and
 `ethos lane retire-landed` removes only an explicitly named landed Work Lane.
-Raw Git worktree creation can exist as a repository fact, but it is not standard
-ETHOS workflow state.
+`ethos lane retire-unbound` removes only an explicitly named unbound Work Lane
+ref that status already exposed, and only when `--expect-head`, `--reason`, and
+`--authorize` prove the maintainer intended that exact ref deletion. Raw Git
+worktree creation can exist as a repository fact, but it is not standard ETHOS
+workflow state.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release

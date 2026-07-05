@@ -379,14 +379,24 @@ def test_land_publication_and_parity_head_edges(
     )
     assert package["blocking"] is True and "--expect-head h1" in package["command"]
 
-    monkeypatch.setattr(
-        land._gitio,
-        "git_stdout",
-        lambda root, *args: "h1 p1 p2" if args[:2] == ("rev-list", "--parents") else "h1",
-    )
-    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ("h1", "p1", "p2")
+    # Parity currency now derives from the parity-relevant tree via
+    # commits_equivalent_over_paths: the boundary (last relevant-path commit) plus every
+    # commit up to head. Mock that helper's git calls: rev-list -1 <head> -- <paths>
+    # returns the boundary "b0"; rev-list b0..h1 returns the intervening commits.
+    def _stub_git_stdout(root: object, *args: str) -> str:
+        if args[:2] == ("rev-list", "-1"):
+            return "b0"  # boundary commit for the relevant pathspec
+        if len(args) == 2 and args[0] == "rev-list" and args[1] == "b0..h1":
+            return "h1\np1"  # commits after the boundary, up to head
+        if args[:1] == ("rev-list",):
+            return "h1\np1\nb0"
+        return "h1"
+
+    monkeypatch.setattr(land._gitio, "current_tracked_head", lambda root: "h1")
+    monkeypatch.setattr(land._gitio, "git_stdout", _stub_git_stdout)
+    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ("h1", "p1", "b0")
     monkeypatch.setattr(land._gitio, "same_git_repository", lambda left, right: True)
-    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ("h1", "p1", "p2")
+    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ("h1", "p1", "b0")
     monkeypatch.setattr(land._gitio, "current_tracked_head", lambda root: "")
     assert land.acceptable_parity_product_heads(tmp_path, "generic") == ()
     assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ()

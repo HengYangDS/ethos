@@ -4,9 +4,6 @@ import hashlib
 from typing import Any
 
 from ethos_core.contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
-from ethos_core.contracts.context_projection import (
-    default_context_policy as _default_context_policy,
-)
 
 FORBIDDEN_RESULT_FIELDS = {
     "instruction_role",
@@ -18,9 +15,6 @@ FORBIDDEN_RESULT_FIELDS = {
 }
 QUERY_REDACTION_MARKER = "<redacted-query>"
 
-
-def default_context_policy() -> dict[str, Any]:
-    return _default_context_policy()
 
 
 def sanitize_selection_result(result: dict[str, Any]) -> dict[str, Any]:

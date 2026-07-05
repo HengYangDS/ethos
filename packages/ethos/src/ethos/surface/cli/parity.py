@@ -13,9 +13,9 @@ from ethos.repository.evidence.parity import shadow_parity_report
 from ethos.repository.evidence.parity import write_tracked_parity_evidence
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import parity_app
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
@@ -31,7 +31,7 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos parity gaps --adopter <adopter>",),
         data={"records": report["records"]},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @parity_app.command(name="gaps")
@@ -43,7 +43,7 @@ def parity_gaps(
     json_output: JsonFlag = False,
 ) -> None:
     """Report remaining product/adopter parity gaps."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = parity_gaps_report(
         adopter=adopter,
         root=repo,
@@ -77,7 +77,7 @@ def parity_gaps(
         ),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @parity_app.command(name="shadow")
@@ -92,7 +92,7 @@ def parity_shadow(
     json_output: JsonFlag = False,
 ) -> None:
     """Plan an external shadow parity comparison for an adopter."""
-    repo = _root(root)
+    repo = resolve_root(root)
     adopter_name = adopter or "generic"
     if execute:
         from ethos.adapters.shadow import run_shadow_parity
@@ -139,4 +139,4 @@ def parity_shadow(
         next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)

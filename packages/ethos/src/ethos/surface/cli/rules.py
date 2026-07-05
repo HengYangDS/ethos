@@ -18,8 +18,8 @@ from ethos.repository.policy.rules import rules_check_report
 from ethos.repository.policy.rules import rules_evaluation_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._base import rules_app
 from ethos_core.result import EthosResult
 
@@ -31,7 +31,7 @@ def rules_check(
     json_output: JsonFlag = False,
 ) -> None:
     """Check Rules Product Kernel readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = rules_check_report(repo)
     result = EthosResult(
         command="rules check",
@@ -45,7 +45,7 @@ def rules_check(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="eval")
@@ -61,7 +61,7 @@ def rules_eval(
     json_output: JsonFlag = False,
 ) -> None:
     """Evaluate repository rules for a phase."""
-    repo = _root(root)
+    repo = resolve_root(root)
     current_head = _gitio.current_head(repo)
     report = rules_evaluation_report(
         repo,
@@ -97,7 +97,7 @@ def rules_eval(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)
 
 
 @rules_app.command(name="coverage")
@@ -109,7 +109,7 @@ def rules_coverage(
     json_output: JsonFlag = False,
 ) -> None:
     """Report changed-path rule coverage."""
-    repo = _root(root)
+    repo = resolve_root(root)
     paths = tuple(workspace_status(repo)["changed_paths"]) if changed else tuple(changed_path)
     report = coverage_report(repo, changed_paths=paths)
     result = EthosResult(
@@ -124,7 +124,7 @@ def rules_coverage(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="compile")
@@ -134,7 +134,7 @@ def rules_compile(
     json_output: JsonFlag = False,
 ) -> None:
     """Compile repository rules deterministically."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = compile_rules(repo)
     result = EthosResult(
         command="rules compile",
@@ -143,7 +143,7 @@ def rules_compile(
         summary={"rule_count": len(report["rules"])},
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="explain")
@@ -154,7 +154,7 @@ def rules_explain(
     json_output: JsonFlag = False,
 ) -> None:
     """Explain a rule, gap, or path."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = explain_rules_target(repo, target)
     result = EthosResult(
         command="rules explain",
@@ -164,7 +164,7 @@ def rules_explain(
         next_actions=tuple(report["next_action_contract"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @rules_app.command(name="exceptions")
@@ -174,7 +174,7 @@ def rules_exceptions(
     json_output: JsonFlag = False,
 ) -> None:
     """List policy exceptions."""
-    report = policy_exceptions_report(_root(root))
+    report = policy_exceptions_report(resolve_root(root))
     result = EthosResult(
         command="rules exceptions",
         ok=bool(report["ok"]),
@@ -182,4 +182,4 @@ def rules_exceptions(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)

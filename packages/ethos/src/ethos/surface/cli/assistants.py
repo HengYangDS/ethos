@@ -19,8 +19,8 @@ from ethos.assistants.server import mcp_server_descriptor
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import assistants_app
-from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
 from ethos_core.result import EthosResult
@@ -33,7 +33,7 @@ def assistants_doctor(
     json_output: JsonFlag = False,
 ) -> None:
     """Report assistant projection readiness."""
-    _root(root)
+    resolve_root(root)
     contract = projection_contract()
     result = EthosResult(
         command="assistants doctor",
@@ -43,7 +43,7 @@ def assistants_doctor(
         next_actions=("ethos assistants mcp-manifest",),
         data={"contract": contract},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command
@@ -57,7 +57,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos quality projection-drift",),
         data={"contract": contract},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-manifest")
@@ -75,7 +75,7 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants check-projections",),
         data={"manifest": manifest},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-server")
@@ -90,7 +90,7 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants mcp-manifest",),
         data={"server": descriptor},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context")
@@ -102,7 +102,7 @@ def assistants_context(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit the ETHOS agentic context bundle."""
-    repo = _root(root)
+    repo = resolve_root(root)
     retrieval = search_context_index(repo, query) if query else None
     selection = retrieval["selection"] if retrieval else None
     bundle = context_bundle(query=query, selection=selection, scope=scope)
@@ -117,7 +117,7 @@ def assistants_context(
         required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
         data={"context": bundle},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="search")
@@ -129,7 +129,7 @@ def assistants_search(
     json_output: JsonFlag = False,
 ) -> None:
     """Search the local source-verified context projection."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = search_context_index(repo, query, limit=limit)
     result = EthosResult(
         command="assistants search",
@@ -139,7 +139,7 @@ def assistants_search(
         required_gaps=tuple(report["required_gaps"]),
         data={"selection": report["selection"]},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-index")
@@ -151,7 +151,7 @@ def assistants_context_index(
     json_output: JsonFlag = False,
 ) -> None:
     """Build the local context projection index."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = rebuild_context_index(repo, apply=apply, authorized=authorize)
     result = EthosResult(
         command="assistants context-index",
@@ -164,7 +164,7 @@ def assistants_context_index(
         else (),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-purge")
@@ -176,7 +176,7 @@ def assistants_context_purge(
     json_output: JsonFlag = False,
 ) -> None:
     """Purge the local context projection index."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = purge_context_index(repo, apply=apply, authorized=authorize)
     result = EthosResult(
         command="assistants context-purge",
@@ -186,7 +186,7 @@ def assistants_context_purge(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @assistants_app.command(name="context-eval")
@@ -197,7 +197,7 @@ def assistants_context_eval(
     json_output: JsonFlag = False,
 ) -> None:
     """Evaluate the local context projection index."""
-    repo = _root(root)
+    repo = resolve_root(root)
     fixtures = context_retrieval_smoke_queries() if suite == "smoke" else ()
     report = context_eval_report(repo, suite=suite, fixtures=fixtures)
     result = EthosResult(
@@ -208,4 +208,4 @@ def assistants_context_eval(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)

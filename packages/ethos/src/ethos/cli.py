@@ -48,9 +48,9 @@ from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import load_command_groups as _load_command_groups
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate as _run_inprocess_cli_gate
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
@@ -110,7 +110,7 @@ def status(
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect repository state."""
-    repo = _root(root)
+    repo = resolve_root(root)
     status_payload = workspace_status(repo)
     validation = _prove.workspace_status_validation(repo, status_payload)
     validation_gaps = _prove.workspace_status_validation_gaps(validation)
@@ -129,7 +129,7 @@ def status(
         next_actions=("ethos plan --changed",),
         data=status_payload,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -140,7 +140,7 @@ def plan(
     json_output: JsonFlag = False,
 ) -> None:
     """Plan deterministic action graph."""
-    repo = _root(root)
+    repo = resolve_root(root)
     status_payload = workspace_status(repo)
     paths = tuple(status_payload["changed_paths"]) if changed else ()
     graph = _plan.graph_for_paths(paths)
@@ -163,7 +163,7 @@ def plan(
             "action_graph": graph.to_dict(),
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -178,7 +178,7 @@ def prove(
     json_output: JsonFlag = False,
 ) -> None:
     """Produce a local proof-readiness summary."""
-    repo = _root(root)
+    repo = resolve_root(root)
     current_head = _gitio.current_head(repo)
     audit = _status.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
@@ -277,7 +277,7 @@ def prove(
             },
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -291,7 +291,7 @@ def land(
     json_output: JsonFlag = False,
 ) -> None:
     """Report land readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     if closeout:
         decision = evaluate_closeout_mutation(
             MutationRequest(
@@ -354,7 +354,7 @@ def land(
                 },
             },
         )
-        _emit(result, json_output, enforce=apply)
+        emit(result, json_output, enforce=apply)
         return
     status_payload = workspace_status(repo)
     closeout_support = dict(status_payload.get("closeout_support", {}))
@@ -420,7 +420,7 @@ def land(
             },
         },
     )
-    _emit(result, json_output, enforce=apply)
+    emit(result, json_output, enforce=apply)
 
 
 @app.command
@@ -433,7 +433,7 @@ def publish(
     json_output: JsonFlag = False,
 ) -> None:
     """Report publish readiness without pushing."""
-    repo = _root(root)
+    repo = resolve_root(root)
     decision = evaluate_mutation(
         MutationRequest(
             command="publish",
@@ -471,7 +471,7 @@ def publish(
             },
         },
     )
-    _emit(result, json_output, enforce=apply)
+    emit(result, json_output, enforce=apply)
 
 
 @app.command(show=False)
@@ -482,7 +482,7 @@ def doctor(
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect local host readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     if init_state:
         initialize_state(db_path)
@@ -494,7 +494,7 @@ def doctor(
         next_actions=("ethos status",),
         data={"state_db": str(db_path), "initialized": init_state},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command
@@ -509,7 +509,7 @@ def init(
     json_output: JsonFlag = False,
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
-    target = _root(root)
+    target = resolve_root(root)
     current_head = _gitio.current_head(target)
     mutation_gaps = _status.adoption_mutation_gaps(
         apply=apply,
@@ -545,7 +545,7 @@ def init(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    _emit(result, json_output, enforce=apply)
+    emit(result, json_output, enforce=apply)
 
 
 @app.command
@@ -560,7 +560,7 @@ def adopt(
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
-    target = _root(root)
+    target = resolve_root(root)
     current_head = _gitio.current_head(target)
     mutation_gaps = _status.adoption_mutation_gaps(
         apply=apply,
@@ -594,7 +594,7 @@ def adopt(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    _emit(result, json_output, enforce=apply)
+    emit(result, json_output, enforce=apply)
 
 
 @app.command
@@ -604,7 +604,7 @@ def report(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit a concise scorecard."""
-    repo = _root(root)
+    repo = resolve_root(root)
     audit = _status.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
@@ -765,7 +765,7 @@ def report(
             "profiles": list(available_profiles()),
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -778,7 +778,7 @@ def explain(gap: str, *, json_output: JsonFlag = False) -> None:
         summary={"gap": gap},
         data={"meaning": "A required gap names missing evidence, policy, schema, or action."},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -789,7 +789,7 @@ def docs(
     json_output: JsonFlag = False,
 ) -> None:
     """Locate documentation for a topic."""
-    repo = _root(root)
+    repo = resolve_root(root)
     normalized = topic.removeprefix("ethos:").removeprefix("docs:")
     matches = [
         entry
@@ -810,7 +810,7 @@ def docs(
         required_gaps=() if path else (f"docs_topic_missing:{topic}",),
         data={"path": path, "matches": matches},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -821,7 +821,7 @@ def audit(
     json_output: JsonFlag = False,
 ) -> None:
     """Audit repository governance against the active profile."""
-    repo = _root(root)
+    repo = resolve_root(root)
     if mode not in {"shape", "deep"}:
         result = EthosResult(
             command="audit",
@@ -831,7 +831,7 @@ def audit(
             next_actions=("ethos audit --mode shape", "ethos audit --mode deep"),
             data={"mode": mode, "allowed_modes": ["shape", "deep"]},
         )
-        _emit(result, json_output, enforce=False)
+        emit(result, json_output, enforce=False)
         return
     audit_payload = _status.audit_for_root(repo, openspec_mode=mode)
     result = EthosResult(
@@ -843,7 +843,7 @@ def audit(
         next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -855,7 +855,7 @@ def openspec(
     json_output: JsonFlag = False,
 ) -> None:
     """Audit official OpenSpec governance state."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = openspec_governance_report(repo, change=change, lifecycle=lifecycle)
     result = EthosResult(
         command="openspec",
@@ -870,7 +870,7 @@ def openspec(
         next_actions=("ethos audit",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 

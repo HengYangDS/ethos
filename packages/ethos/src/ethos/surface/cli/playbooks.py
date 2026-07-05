@@ -7,9 +7,9 @@ from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.playbooks import route_playbook
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import playbooks_app
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
@@ -21,7 +21,7 @@ def playbooks_check(
     json_output: JsonFlag = False,
 ) -> None:
     """Check repo-local ETHOS playbook projection."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = playbooks_report(repo, mode=mode)
     result = EthosResult(
         command="playbooks check",
@@ -31,7 +31,7 @@ def playbooks_check(
         next_actions=("ethos playbooks route",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @playbooks_app.command(name="route")
@@ -44,7 +44,7 @@ def playbooks_route(
     json_output: JsonFlag = False,
 ) -> None:
     """Route a subject to repo-local ETHOS playbooks."""
-    repo = _root(root)
+    repo = resolve_root(root)
     route_subject = "changed-scope" if changed else subject
     changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
     report = route_playbook(
@@ -61,4 +61,4 @@ def playbooks_route(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)

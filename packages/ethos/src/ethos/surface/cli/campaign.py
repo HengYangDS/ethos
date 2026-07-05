@@ -13,8 +13,8 @@ from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import campaign_app
-from ethos.surface.cli._base import emit as _emit
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
@@ -26,7 +26,7 @@ def campaign_status(
     json_output: JsonFlag = False,
 ) -> None:
     """Report canonical campaign model."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = campaign_report(repo, campaign_id=campaign)
     result = EthosResult(
         command="campaign status",
@@ -40,7 +40,7 @@ def campaign_status(
         next_actions=("ethos campaign closeout --json",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @campaign_app.command
@@ -55,7 +55,7 @@ def hypotheses(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos audit --mode shape",),
         data=ledger,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @campaign_app.command(name="closeout")
@@ -67,7 +67,7 @@ def campaign_closeout(
     json_output: JsonFlag = False,
 ) -> None:
     """Report the local campaign closeout package without publishing remotely."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = _land.campaign_closeout_report(
         repo=repo,
         adopter=adopter,
@@ -88,4 +88,4 @@ def campaign_closeout(
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)

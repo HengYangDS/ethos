@@ -18,9 +18,9 @@ from ethos.adapters.repo.status import workspace_status
 from ethos.domain import prove as _prove
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_app
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
@@ -31,7 +31,7 @@ def lane_status(
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect Work Lane topology and foreign lanes."""
-    repo = _root(root)
+    repo = resolve_root(root)
     status_payload = workspace_status(repo)
     validation = _prove.workspace_status_validation(repo, status_payload)
     validation_gaps = _prove.workspace_status_validation_gaps(validation)
@@ -50,7 +50,7 @@ def lane_status(
         next_actions=("ethos lane prewrite <path>",),
         data=status_payload,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @lane_app.command
@@ -63,7 +63,7 @@ def candidate(
     json_output: JsonFlag = False,
 ) -> None:
     """Bootstrap or inspect the local candidate train."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = bootstrap_candidate(root=repo, path=path, expect_head=expect_head, apply=apply)
     result = EthosResult(
         command="lane candidate",
@@ -78,7 +78,7 @@ def candidate(
         next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
         data=report,
     )
-    _emit(result, json_output, enforce=apply)
+    emit(result, json_output, enforce=apply)
 
 
 @lane_app.command
@@ -91,7 +91,7 @@ def prewrite(
     json_output: JsonFlag = False,
 ) -> None:
     """Check tracked write admission before editing files."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = prewrite_guard(
         root=repo,
         paths=[path if path.is_absolute() else repo / path for path in paths],
@@ -110,7 +110,7 @@ def prewrite(
         next_actions=("ethos lane start <name>",) if not report["ok"] else (),
         data=report,
     )
-    _emit(result, json_output, enforce=True)
+    emit(result, json_output, enforce=True)
 
 
 @lane_app.command
@@ -125,7 +125,7 @@ def start(
     json_output: JsonFlag = False,
 ) -> None:
     """Start an owned Work Lane and acquire a local lease."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = start_work_lane(
         root=repo,
         name=name,
@@ -146,7 +146,7 @@ def start(
         next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)
 
 
 @lane_app.command(name="refresh-base")
@@ -159,7 +159,7 @@ def lane_refresh_base(
     json_output: JsonFlag = False,
 ) -> None:
     """Replay the current Work Lane onto the configured candidate branch."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = refresh_work_lane_base(
         root=repo,
         apply=apply,
@@ -180,7 +180,7 @@ def lane_refresh_base(
         next_actions=("ethos land --json",) if report["ok"] else ("ethos status --json",),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)
 
 
 @lane_app.command(name="bind-claim")
@@ -193,7 +193,7 @@ def lane_bind_claim(
     json_output: JsonFlag = False,
 ) -> None:
     """Bind an existing Work Lane lease to a trust-bearing claim."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = bind_work_lane_claim(
         root=repo,
         branch=branch,
@@ -212,7 +212,7 @@ def lane_bind_claim(
         next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)
 
 
 @lane_app.command(name="retire-landed")
@@ -224,7 +224,7 @@ def lane_retire_landed(
     json_output: JsonFlag = False,
 ) -> None:
     """Retire a landed Work Lane after it is merged into the accepted root."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = retire_landed_work_lanes(root=repo, branch=branch, apply=apply)
     result = EthosResult(
         command="lane retire-landed",
@@ -238,4 +238,4 @@ def lane_retire_landed(
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)

@@ -11,9 +11,9 @@ from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.repo import git as _gitio
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
@@ -30,7 +30,7 @@ def admit(
     json_output: JsonFlag = False,
 ) -> None:
     """Evaluate hook-time write admission before a host mutates tracked files."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = hook_admission_report(
         root=repo,
         layer=layer,
@@ -57,7 +57,7 @@ def admit(
         next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
         data=report,
     )
-    _emit(result, json_output, enforce=True)
+    emit(result, json_output, enforce=True)
 
 
 @hook_app.command
@@ -67,7 +67,7 @@ def install(
     json_output: JsonFlag = False,
 ) -> None:
     """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
-    repo = _root(root)
+    repo = resolve_root(root)
     hook_path = repo / ".githooks" / "pre-commit"
     gaps: list[str] = []
     if not hook_path.exists():
@@ -90,4 +90,4 @@ def install(
             "wired": wired,
         },
     )
-    _emit(result, json_output, enforce=True)
+    emit(result, json_output, enforce=True)

@@ -37,9 +37,9 @@ from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import release_policy_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit as _emit
+from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import quality_app
-from ethos.surface.cli._base import resolve_root as _root
+from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._base import sha256_file as _sha256_file
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.package_ontology import package_ontology_report
@@ -65,7 +65,7 @@ def asset_policy(
         summary={"asset_class_count": len(profile["asset_classes"])},
         data=profile,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="types")
@@ -75,7 +75,7 @@ def quality_types(
     json_output: JsonFlag = False,
 ) -> None:
     """Enforce the ty type-check policy tiers (zero-tolerance + ratchet baselines)."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = ty_gate_report(repo)
     result = EthosResult(
         command="quality types",
@@ -85,7 +85,7 @@ def quality_types(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output)
+    emit(result, json_output)
 
 
 @quality_app.command(name="docs")
@@ -95,7 +95,7 @@ def quality_docs(
     json_output: JsonFlag = False,
 ) -> None:
     """Report documentation quality profile and registry health."""
-    repo = _root(root)
+    repo = resolve_root(root)
     profile = docs_quality_profile()
     report = docs_quality_report(repo)
     result = EthosResult(
@@ -109,7 +109,7 @@ def quality_docs(
             "health": report,
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -126,7 +126,7 @@ def proof_policy(
         summary={"state_count": len(lattice["states"])},
         data=lattice,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="tool-profiles")
@@ -143,7 +143,7 @@ def tool_profiles_command(
         summary={"tool_adapter_count": len(profiles["tool_adapters"])},
         data=profiles,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="markdown-links")
@@ -153,7 +153,7 @@ def markdown_links(
     json_output: JsonFlag = False,
 ) -> None:
     """Run markdown link checks through the configured adapter."""
-    repo = _root(root)
+    repo = resolve_root(root)
     files = [
         path
         for path in _gitio.git_files(repo, "*.md")
@@ -179,7 +179,7 @@ def markdown_links(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="shell")
@@ -189,7 +189,7 @@ def shell_quality(
     json_output: JsonFlag = False,
 ) -> None:
     """Run shell script lint checks through ShellCheck."""
-    repo = _root(root)
+    repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.sh")
     report = _qtool.quality_tool_report(
         root=repo,
@@ -205,7 +205,7 @@ def shell_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="toml")
@@ -215,7 +215,7 @@ def toml_quality(
     json_output: JsonFlag = False,
 ) -> None:
     """Run TOML syntax and format checks through Taplo."""
-    repo = _root(root)
+    repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.toml")
     report = _qtool.quality_tool_report(
         root=repo,
@@ -231,7 +231,7 @@ def toml_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="yaml")
@@ -241,7 +241,7 @@ def yaml_quality(
     json_output: JsonFlag = False,
 ) -> None:
     """Run YAML projection checks through yamllint."""
-    repo = _root(root)
+    repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.yml", "*.yaml")
     report = _qtool.quality_tool_report(
         root=repo,
@@ -257,7 +257,7 @@ def yaml_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="code-size")
@@ -267,7 +267,7 @@ def code_size(
     json_output: JsonFlag = False,
 ) -> None:
     """Check effective source-file size against ratchet limits."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = _prove.code_size_report(repo)
     result = EthosResult(
         command="quality code-size",
@@ -276,7 +276,7 @@ def code_size(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="npm")
@@ -286,7 +286,7 @@ def npm_quality(
     json_output: JsonFlag = False,
 ) -> None:
     """Run npm distribution pack smoke checks without publishing."""
-    repo = _root(root)
+    repo = resolve_root(root)
     files = ["package.json"] if (repo / "package.json").exists() else []
     report = _qtool.quality_tool_report(
         root=repo,
@@ -302,7 +302,7 @@ def npm_quality(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -312,7 +312,7 @@ def command_surface(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command surface vocabulary."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = command_registry_report(repo)
     result = EthosResult(
         command="quality command-surface",
@@ -321,7 +321,7 @@ def command_surface(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -331,7 +331,7 @@ def format_policy(
     json_output: JsonFlag = False,
 ) -> None:
     """Report format-policy readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     policy_path = repo / ".ethos" / "rules.toml"
     if policy_path.exists():
         policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
@@ -352,7 +352,7 @@ def format_policy(
             "standards": policy.get("standards", {}),
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -362,7 +362,7 @@ def projection_drift(
     json_output: JsonFlag = False,
 ) -> None:
     """Report projection drift readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     contract = projection_contract()
     playbooks = playbooks_report(repo, mode="v2-strict")
     registry_meta = playbooks["registry"]["meta"]
@@ -419,7 +419,7 @@ def projection_drift(
             ],
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -435,7 +435,7 @@ def standards(
         state="clean",
         data={"adapters": registry},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="package-ontology")
@@ -445,7 +445,7 @@ def package_ontology(
     json_output: JsonFlag = False,
 ) -> None:
     """Report target package ontology and migration-host state."""
-    repo = _root(root)
+    repo = resolve_root(root)
     contract = package_ontology_report()
     target_missing = [
         f"packages/{package}"
@@ -495,7 +495,7 @@ def package_ontology(
         next_actions=("ethos repository audit",),
         data=data,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -505,7 +505,7 @@ def schemas(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate ETHOS JSON Schemas."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = schema_validation_report(repo)
     result = EthosResult(
         command="quality schemas",
@@ -514,7 +514,7 @@ def schemas(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -552,7 +552,7 @@ def gates(
             }
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="coupling-audit")
@@ -562,7 +562,7 @@ def coupling_audit(
     json_output: JsonFlag = False,
 ) -> None:
     """Report product, profile, adapter, and product-toolchain coupling boundaries."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = coupling_audit_report(repo)
     validation = _prove.command_data_validation(
         repo,
@@ -579,7 +579,7 @@ def coupling_audit(
         required_gaps=tuple(report["required_gaps"]) + validation_gaps,
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -590,7 +590,7 @@ def commits(
     json_output: JsonFlag = False,
 ) -> None:
     """Report commit naming and signature policy."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = signature_policy_report(repo)
     gaps = list(report["required_gaps"])
     if enforce_head and not report["head_subject_ok"]:
@@ -604,7 +604,7 @@ def commits(
         required_gaps=tuple(gaps),
         data={**report, "enforce_head": enforce_head},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -614,7 +614,7 @@ def release(
     json_output: JsonFlag = False,
 ) -> None:
     """Report product release surface and host-profile readiness."""
-    repo = _root(root)
+    repo = resolve_root(root)
     release_files = repository_audit_module.release_files_report(repo)
     policy = release_policy_report(repo)
     result = EthosResult(
@@ -628,7 +628,7 @@ def release(
             "host_profile": policy["host_profile"],
         },
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -638,7 +638,7 @@ def release_policy(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate release version, host profile, protection, and attestation policy."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = release_policy_report(repo)
     result = EthosResult(
         command="quality release-policy",
@@ -648,7 +648,7 @@ def release_policy(
         next_actions=("ethos quality release-attestation",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -658,7 +658,7 @@ def sbom(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit an SPDX-lite SBOM projection from workspace metadata."""
-    repo = _root(root)
+    repo = resolve_root(root)
     projection = sbom_projection(repo)
     result = EthosResult(
         command="quality sbom",
@@ -667,7 +667,7 @@ def sbom(
         summary={"package_count": len(projection["packages"])},
         data={"sbom": projection},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command(name="release-attestation")
@@ -678,7 +678,7 @@ def release_attestation_command(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit release attestation envelope without publishing it."""
-    repo = _root(root)
+    repo = resolve_root(root)
     attestation = release_attestation(
         root=repo,
         head=_gitio.current_head(repo),
@@ -691,7 +691,7 @@ def release_attestation_command(
         summary={"tag": attestation["predicate"]["tag"]},
         data={"attestation": attestation},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -701,7 +701,7 @@ def command_registry(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command registry."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = command_registry_report(repo)
     result = EthosResult(
         command="quality command-registry",
@@ -711,7 +711,7 @@ def command_registry(
         next_actions=("ethos repository audit",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -721,7 +721,7 @@ def evidence_freshness(
     json_output: JsonFlag = False,
 ) -> None:
     """Check declared evidence roots and claim digests."""
-    repo = _root(root)
+    repo = resolve_root(root)
     claim_report = claims_report(repo)
     result = EthosResult(
         command="quality evidence-freshness",
@@ -732,7 +732,7 @@ def evidence_freshness(
         next_actions=("ethos prove --json",),
         data={"stale": [], "claims": claim_report},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -742,7 +742,7 @@ def claims(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate claim evidence digests."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = claims_report(repo)
     result = EthosResult(
         command="quality claims",
@@ -752,7 +752,7 @@ def claims(
         next_actions=("ethos prove --json",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -762,7 +762,7 @@ def docs_registry(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate documentation metadata registry."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = docs_health_report(repo)
     result = EthosResult(
         command="quality docs-registry",
@@ -772,7 +772,7 @@ def docs_registry(
         next_actions=("ethos docs",),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -782,7 +782,7 @@ def command_examples(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate documented command examples."""
-    repo = _root(root)
+    repo = resolve_root(root)
     report = command_examples_report(repo)
     result = EthosResult(
         command="quality command-examples",
@@ -791,7 +791,7 @@ def command_examples(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 
 
 @quality_app.command
@@ -802,7 +802,7 @@ def provenance(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit a provenance envelope for a planned ETHOS proof."""
-    repo = _root(root)
+    repo = resolve_root(root)
     run = ProofRun(
         action_id="planned-proof",
         command=("ethos", "prove", "--json"),
@@ -825,5 +825,5 @@ def provenance(
         next_actions=("ethos prove --json",),
         data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
     )
-    _emit(result, json_output, enforce=False)
+    emit(result, json_output, enforce=False)
 

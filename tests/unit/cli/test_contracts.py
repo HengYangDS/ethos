@@ -404,7 +404,7 @@ def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> Non
 def test_emit_handles_closed_pipes(monkeypatch) -> None:
     import builtins
 
-    from ethos.cli import _emit
+    from ethos.surface.cli._base import emit
     from ethos_core.result import EthosResult
 
     def closed_pipe(*args, **kwargs) -> None:
@@ -412,7 +412,7 @@ def test_emit_handles_closed_pipes(monkeypatch) -> None:
 
     monkeypatch.setattr(builtins, "print", closed_pipe)
 
-    _emit(EthosResult(command="status", ok=True, state="ready"), json_output=True)
+    emit(EthosResult(command="status", ok=True, state="ready"), json_output=True)
 
 
 def test_quality_package_ontology_rejects_retired_workspace_config(

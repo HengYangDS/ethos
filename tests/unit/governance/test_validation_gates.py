@@ -297,6 +297,18 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
         "branch": "dev",
         "dirty": False,
         "changed_paths": [],
+        "dirty_provenance": {
+            "dirty": False,
+            "state": "clean",
+            "entries": [],
+            "summary": {
+                "tracked": 0,
+                "untracked": 0,
+                "deleted": 0,
+                "conflicted": 0,
+                "unavailable": 0,
+            },
+        },
         "role": "accepted_root",
         "role_policy": ROLE_POLICY_SAMPLE,
         "candidate": {
@@ -366,6 +378,7 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
             "next_action": (
                 "resolve overlapping or unknown Work Lane scope before candidate integration"
             ),
+            "migration_recommendations": [],
         },
         "closeout_support": {
             "supported": False,

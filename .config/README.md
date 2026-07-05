@@ -10,7 +10,7 @@ configuration plane, not a truth center.
 - `ruff.toml` is the Ruff root source of truth because Ruff resolves path globs
   relative to the config file location.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
-- `.config/checks/coverage/coverage.ini` owns the 95% Python coverage floor.
+- `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.

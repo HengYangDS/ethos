@@ -128,6 +128,9 @@ def coordination_package(
     required_gaps: list[str],
     advisory_gaps: list[str],
 ) -> dict[str, object]:
+    overlap_lanes = [
+        lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
+    ]
     return {
         "kind": "work_lane_coordination",
         "blocking": bool(required_gaps),
@@ -137,15 +140,34 @@ def coordination_package(
         "missing_lease_count": sum(
             1 for lane in foreign_work_lanes if lane["lease_state"] == "missing"
         ),
-        "overlap_count": sum(
-            1 for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
-        ),
+        "overlap_count": len(overlap_lanes),
         "unknown_scope_count": sum(
             1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
         ),
         "next_action": (
             "resolve overlapping or unknown Work Lane scope before candidate integration"
         ),
+        "migration_recommendations": [_migration_recommendation(lane) for lane in overlap_lanes],
+    }
+
+
+def _migration_recommendation(lane: dict[str, object]) -> dict[str, object]:
+    branch = str(lane.get("branch") or "")
+    owner = str(lane.get("lease_owner") or "")
+    return {
+        "kind": "overlap_resolution",
+        "overlapping_branch": branch,
+        "owner": owner,
+        "recommendation": "preserve_legitimate_lane_and_replay_or_move_verified_head",
+        "next_actions": [
+            "do not land a temporary overlapping lane directly",
+            (
+                f"refresh or move the leased lane {branch} after review"
+                if branch
+                else "refresh the leased lane after review"
+            ),
+            "delete the temporary lane after the legitimate lane carries the verified head",
+        ],
     }
 
 

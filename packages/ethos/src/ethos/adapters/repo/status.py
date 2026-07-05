@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps as _scope_coordination_gaps
@@ -32,13 +33,79 @@ def current_branch(root: Path) -> str:
 
 
 def changed_paths(root: Path) -> tuple[str, ...]:
-    output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
-    paths: list[str] = []
-    for line in output.splitlines():
-        if not line:
-            continue
-        paths.append(line[3:] if len(line) > 3 and line[2] == " " else line[2:].strip())
-    return tuple(paths)
+    entries = cast("list[dict[str, str]]", dirty_provenance(root)["entries"])
+    return tuple(item["path"] for item in entries)
+
+
+def dirty_provenance(root: Path) -> dict[str, object]:
+    """Structured local dirty-state provenance from Git porcelain v1.
+
+    The old status payload only exposed path strings. Closeout repair needs the
+    reason a path is dirty: tracked edit vs deletion vs untracked residue vs index
+    conflict. Keep this Git-native and lightweight so it can run inside status,
+    hooks, and failed-mutation diagnostics without a second state store.
+    """
+    try:
+        output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
+    except subprocess.CalledProcessError as exc:
+        return {
+            "dirty": True,
+            "state": "unavailable",
+            "entries": [],
+            "summary": {
+                "tracked": 0,
+                "untracked": 0,
+                "deleted": 0,
+                "conflicted": 0,
+                "unavailable": 1,
+            },
+            "error": (exc.stderr or str(exc)).strip(),
+        }
+    entries = [_dirty_entry(line) for line in output.splitlines() if line]
+    summary = {
+        "tracked": sum(1 for entry in entries if entry["kind"] == "tracked"),
+        "untracked": sum(1 for entry in entries if entry["kind"] == "untracked"),
+        "deleted": sum(1 for entry in entries if entry["kind"] == "deleted"),
+        "conflicted": sum(1 for entry in entries if entry["kind"] == "conflicted"),
+        "unavailable": 0,
+    }
+    return {
+        "dirty": bool(entries),
+        "state": "dirty" if entries else "clean",
+        "entries": entries,
+        "summary": summary,
+    }
+
+
+def _dirty_entry(line: str) -> dict[str, str]:
+    index = line[0] if line else " "
+    worktree = line[1] if len(line) > 1 else " "
+    raw_path = line[3:] if len(line) > 3 and line[2] == " " else line[2:].strip()
+    path = _porcelain_path(raw_path)
+    return {
+        "path": path,
+        "index": index,
+        "worktree": worktree,
+        "kind": _dirty_kind(index, worktree),
+    }
+
+
+def _porcelain_path(raw: str) -> str:
+    # Git rename/copy porcelain uses "old -> new". The new path is what closeout
+    # commands need to clean or stage.
+    if " -> " in raw:
+        return raw.rsplit(" -> ", 1)[1].strip('"')
+    return raw.strip('"')
+
+
+def _dirty_kind(index: str, worktree: str) -> str:
+    if index == "?" and worktree == "?":
+        return "untracked"
+    if "U" in {index, worktree} or (index, worktree) in {("A", "A"), ("D", "D")}:
+        return "conflicted"
+    if index == "D" or worktree == "D":
+        return "deleted"
+    return "tracked"
 
 
 def workspace_status(root: Path) -> dict[str, object]:
@@ -47,7 +114,9 @@ def workspace_status(root: Path) -> dict[str, object]:
     except subprocess.CalledProcessError:
         return _non_git_status(root)
     current_path = repo
-    paths = changed_paths(root)
+    provenance = dirty_provenance(root)
+    entries = cast("list[dict[str, str]]", provenance["entries"])
+    paths = tuple(str(entry["path"]) for entry in entries)
     branch = current_branch(root)
     policy = load_branch_role_policy(repo)
     role = policy.role_for_branch(branch)
@@ -91,12 +160,14 @@ def workspace_status(root: Path) -> dict[str, object]:
         lease_by_branch=lease_by_branch,
         coordination_required_gaps=coordination_required_gaps,
     )
-    required_gaps = workspace_required_gaps(closeout_support["required_gaps"], candidate=candidate)
+    closeout_gaps = cast("list[str]", closeout_support["required_gaps"])
+    required_gaps = workspace_required_gaps(closeout_gaps, candidate=candidate)
     return {
         "root": str(root),
         "branch": branch,
         "dirty": bool(paths),
         "changed_paths": list(paths),
+        "dirty_provenance": provenance,
         "role": role,
         "role_policy": policy.as_status_policy(),
         "candidate": candidate,
@@ -125,6 +196,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "branch": "untracked",
         "dirty": False,
         "changed_paths": [],
+        "dirty_provenance": {"dirty": False, "state": "non_git", "entries": [], "summary": {}},
         "role": "other",
         "role_policy": policy.as_status_policy(),
         "candidate": candidate,

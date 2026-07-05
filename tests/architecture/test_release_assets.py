@@ -125,6 +125,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
 def test_python_test_gate_enforces_coverage_floor() -> None:
     runner = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
+    policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 
     assert "--cov=ethos" in runner
     assert "--cov=ethos_core" in runner
@@ -133,3 +134,5 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "--cov-config=.config/checks/coverage/coverage.ini" in runner
     assert "fail_under = 95" in coverage
     assert "branch = True" in coverage
+    assert "current_hard_floor = 95" in policy
+    assert "aspirational_floor = 95" in policy

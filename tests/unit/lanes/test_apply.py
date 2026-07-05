@@ -404,3 +404,26 @@ def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_pat
     assert report["ok"] is True
     assert report["state"] == "candidate_validated"
     assert git(candidate, "rev-parse", "HEAD") == work_head
+
+
+def test_mutation_remediation_explains_dirty_stale_overlap_and_accepted_residue() -> None:
+    from ethos.adapters.mutation.core import remediation_for_gaps
+
+    hints = remediation_for_gaps(
+        [
+            "work_lane_dirty",
+            "candidate_base_stale",
+            "coordination_gap:scope_overlap:work/base",
+            "accepted_update_failed",
+        ]
+    )
+
+    assert [hint["kind"] for hint in hints] == [
+        "dirty_state",
+        "stale_base",
+        "lane_overlap",
+        "accepted_update_residue",
+    ]
+    assert "dirty_provenance" in " ".join(hints[0]["next_actions"])
+    assert "work/base" in " ".join(hints[2]["next_actions"])
+    assert "git reset --hard HEAD" in " ".join(hints[3]["next_actions"])

@@ -371,3 +371,48 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
         root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
     )
     assert "accepted_advance_not_candidate_validated" not in advanced["required_gaps"]
+
+
+def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path) -> None:
+    """Official closeout is the narrow admitted path through the ref-transaction hook.
+
+    Raw accepted-ref movement remains blocked elsewhere; the internal closeout merge must
+    carry the scoped environment that the hook recognizes so ETHOS does not deadlock by
+    telling users to run the command it then blocks.
+    """
+    import subprocess
+    from types import SimpleNamespace
+
+    from ethos.adapters.mutation import core
+
+    policy = SimpleNamespace(accepted_branch="dev", candidate_branch="candidate/dev")
+    merge_envs: list[dict[str, str] | None] = []
+
+    def fake_git(root, *args, check=True, env=None):
+        if args == ("rev-parse", "HEAD"):
+            return subprocess.CompletedProcess(["git"], 0, "old\n", "")
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            return subprocess.CompletedProcess(["git"], 0, "", "")
+        if args == ("merge", "--ff-only", "candidate/dev"):
+            merge_envs.append(env)
+            return subprocess.CompletedProcess(["git"], 0, "", "")
+        return subprocess.CompletedProcess(["git"], 0, "", "")
+
+    def fake_policy(_root):
+        return policy
+
+    monkeypatch.setattr(core, "load_branch_role_policy", fake_policy)
+    monkeypatch.setattr(core, "_git", fake_git)
+    def fake_closeout_decision(_request=None, *, root=None, current_head=None):
+        return core.MutationDecision(ok=True, state="closeout_ready")
+
+    def fake_workspace_status(_root):
+        return {"candidate": {"head": "new", "worktree_path": tmp_path.as_posix()}}
+
+    monkeypatch.setattr(core, "evaluate_closeout_mutation", fake_closeout_decision)
+    monkeypatch.setattr(core, "workspace_status", fake_workspace_status)
+
+    report = core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="old")
+
+    assert report["ok"] is True
+    assert merge_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]

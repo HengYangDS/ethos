@@ -8,6 +8,7 @@
     "branch",
     "dirty",
     "changed_paths",
+    "dirty_provenance",
     "role",
     "role_policy",
     "candidate",
@@ -79,6 +80,9 @@
       "items": {
         "type": "string"
       }
+    },
+    "dirty_provenance": {
+      "$ref": "#/$defs/dirtyProvenance"
     }
   },
   "additionalProperties": false,
@@ -433,7 +437,8 @@
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
-        "next_action"
+        "next_action",
+        "migration_recommendations"
       ],
       "properties": {
         "kind": {
@@ -473,6 +478,110 @@
         "next_action": {
           "type": "string",
           "minLength": 1
+        },
+        "migration_recommendations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/migrationRecommendation"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "dirtyEntry": {
+      "type": "object",
+      "required": [
+        "path",
+        "index",
+        "worktree",
+        "kind"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "index": {
+          "type": "string"
+        },
+        "worktree": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "tracked",
+            "untracked",
+            "deleted",
+            "conflicted"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "dirtyProvenance": {
+      "type": "object",
+      "required": [
+        "dirty",
+        "state",
+        "entries",
+        "summary"
+      ],
+      "properties": {
+        "dirty": {
+          "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "clean",
+            "dirty",
+            "unavailable",
+            "non_git"
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dirtyEntry"
+          }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "migrationRecommendation": {
+      "type": "object",
+      "required": [
+        "kind",
+        "overlapping_branch",
+        "owner",
+        "recommendation",
+        "next_actions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "overlap_resolution"
+        },
+        "overlapping_branch": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "next_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

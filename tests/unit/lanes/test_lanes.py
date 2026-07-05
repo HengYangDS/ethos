@@ -148,6 +148,7 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "overlap_count": 0,
         "unknown_scope_count": 0,
         "next_action": "resolve overlapping or unknown Work Lane scope before candidate integration",
+        "migration_recommendations": [],
     }
     assert status["closeout_support"] == {
         "supported": False,
@@ -1153,3 +1154,57 @@ def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> Non
     status = workspace_status(repo)
 
     assert status["candidate"]["behind_accepted"] == 2
+
+
+def test_workspace_status_reports_dirty_provenance(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    (worktree / "README.md").write_text("# edited\n", encoding="utf-8")
+    (worktree / "new.txt").write_text("new\n", encoding="utf-8")
+
+    status = workspace_status(worktree)
+
+    provenance = status["dirty_provenance"]
+    assert provenance["dirty"] is True
+    assert provenance["summary"]["tracked"] == 1
+    assert provenance["summary"]["untracked"] == 1
+    entries = {entry["path"]: entry for entry in provenance["entries"]}
+    assert entries["README.md"]["kind"] == "tracked"
+    assert entries["new.txt"]["kind"] == "untracked"
+
+
+def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    first = tmp_path / "repo-work-first"
+    second = tmp_path / "repo-work-second"
+    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
+    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+
+    (first / "README.md").write_text("# first\n", encoding="utf-8")
+    git(first, "add", "README.md")
+    git(first, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "first")
+    (second / "README.md").write_text("# second\n", encoding="utf-8")
+    git(second, "add", "README.md")
+    git(second, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "second")
+
+    status = workspace_status(second)
+
+    recommendations = status["coordination"]["migration_recommendations"]
+    assert recommendations == [
+        {
+            "kind": "overlap_resolution",
+            "overlapping_branch": "work/first",
+            "owner": "agent:first",
+            "recommendation": "preserve_legitimate_lane_and_replay_or_move_verified_head",
+            "next_actions": [
+                "do not land a temporary overlapping lane directly",
+                "refresh or move the leased lane work/first after review",
+                "delete the temporary lane after the legitimate lane carries the verified head",
+            ],
+        }
+    ]

@@ -506,6 +506,18 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
         "branch": "dev",
         "dirty": False,
         "changed_paths": [],
+        "dirty_provenance": {
+            "dirty": False,
+            "state": "clean",
+            "entries": [],
+            "summary": {
+                "tracked": 0,
+                "untracked": 0,
+                "deleted": 0,
+                "conflicted": 0,
+                "unavailable": 0,
+            },
+        },
         "role": "accepted_root",
         "role_policy": {
             "release_branch": "main",
@@ -613,6 +625,7 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "next_action": (
                 "resolve overlapping or unknown Work Lane scope before candidate integration"
             ),
+            "migration_recommendations": [],
         },
         "closeout_support": {
             "supported": False,

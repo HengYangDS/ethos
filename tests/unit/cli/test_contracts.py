@@ -2011,6 +2011,16 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
         "candidate_head": candidate_head,
         "path": candidate.as_posix(),
         "required_gaps": ["candidate_base_stale"],
+        "remediation": [
+            {
+                "gap": "candidate_base_stale",
+                "kind": "stale_base",
+                "next_actions": [
+                    "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
+                    "rerun proof after the lane is replayed onto candidate/dev",
+                ],
+            }
+        ],
     }
 
 

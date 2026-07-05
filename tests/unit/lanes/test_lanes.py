@@ -1187,10 +1187,28 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
 
     (first / "README.md").write_text("# first\n", encoding="utf-8")
     git(first, "add", "README.md")
-    git(first, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "first")
+    git(
+        first,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "first",
+    )
     (second / "README.md").write_text("# second\n", encoding="utf-8")
     git(second, "add", "README.md")
-    git(second, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "second")
+    git(
+        second,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "second",
+    )
 
     status = workspace_status(second)
 

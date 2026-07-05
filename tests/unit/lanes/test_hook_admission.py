@@ -403,6 +403,7 @@ def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path
 
     monkeypatch.setattr(core, "load_branch_role_policy", fake_policy)
     monkeypatch.setattr(core, "_git", fake_git)
+
     def fake_closeout_decision(_request=None, *, root=None, current_head=None):
         return core.MutationDecision(ok=True, state="closeout_ready")
 

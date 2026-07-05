@@ -108,8 +108,8 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
 
     assert "--cov=ethos" in runner
     assert "--cov=ethos_core" in runner
-    assert "--cov-fail-under=90" in runner
+    assert "--cov-fail-under=95" in runner
     assert "--cov-report=term-missing" in runner
     assert "--cov-config=.config/checks/coverage/coverage.ini" in runner
-    assert "fail_under = 90" in coverage
+    assert "fail_under = 95" in coverage
     assert "branch = True" in coverage

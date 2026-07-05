@@ -11,5 +11,5 @@ uv run --group dev pytest \
   --cov=ethos_core \
   --cov-report=term-missing \
   --cov-report=xml:coverage.xml \
-  --cov-fail-under=90 \
+  --cov-fail-under=95 \
   tests/unit tests/architecture -q

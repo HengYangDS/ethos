@@ -86,18 +86,21 @@ the ETHOS command plane from a current ETHOS runner:
 ethos land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root> --json
 ```
 
-The command audits the configured candidate worktree first, and only then
-fast-forwards the accepted branch from the candidate branch. The
-`closeout_bootstrap` package in `ethos land --closeout --json` records the
-accepted root, audit root, configured branches, heads, blocking gaps, exact
-command, and `runner_binding` package so the handoff is product state rather
-than a host UI, assistant runtime, or shell convention. The runner binding
-exposes the current runner module path, package path, source root, and whether
-that source root matches the accepted or audit root; mismatches are advisory
-signals, not a second truth store. Its mode is `maintainer_break_glass_local`: a
-current ETHOS runner is allowed to execute the protected closeout with an
-explicit `--root <accepted-root>`, while remote push remains `deferred` and the
-candidate worktree is audited before accepted-root movement.
+The command audits the configured candidate worktree first, requires executed
+proof for the candidate head being promoted, and only then fast-forwards the
+accepted branch from the candidate branch. The accepted root's `--expect-head`
+remains a substrate freshness guard; it is not the semantic proof target of the
+closeout change. The `closeout_bootstrap` package in
+`ethos land --closeout --json` records the accepted root, audit root, configured
+branches, heads, `proof_target`, blocking gaps, exact command, and
+`runner_binding` package so the handoff is product state rather than a host UI,
+assistant runtime, or shell convention. The runner binding exposes the current
+runner module path, package path, source root, and whether that source root
+matches the accepted or audit root; mismatches are advisory signals, not a
+second truth store. Its mode is `maintainer_break_glass_local`: a current ETHOS
+runner is allowed to execute the protected closeout with an explicit
+`--root <accepted-root>`, while remote push remains `deferred` and the candidate
+worktree is audited and proven before accepted-root movement.
 
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"` and a

@@ -348,7 +348,7 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
-    seed_proof(repo, accepted_head)
+    seed_proof(candidate, candidate_head)
 
     report = mutation.apply_candidate_to_accepted(
         root=repo,
@@ -364,6 +364,40 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     assert report["previous_head"] == accepted_head
     assert git(repo, "rev-parse", "integration") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
+
+
+def test_accepted_root_closeout_requires_candidate_head_proof(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_proof(repo, accepted_head)
+
+    report = mutation.apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=accepted_head,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["head"] == accepted_head
+    assert report["previous_head"] == accepted_head
+    assert report["required_gaps"] == ["proof_not_proven"]
+    assert git(candidate, "rev-parse", "HEAD") == candidate_head
+    assert git(repo, "rev-parse", "HEAD") == accepted_head
 
 
 def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_path: Path) -> None:

@@ -27,6 +27,28 @@ def _proof_gaps(root: Path, current_head: str) -> list[str]:
     return []
 
 
+def _candidate_proof_gaps(candidate_path: Path, candidate_head: str) -> list[str]:
+    """Blocking gaps when closeout lacks proof for the head being promoted."""
+    return _proof_gaps(candidate_path, candidate_head)
+
+
+def _closeout_candidate_gaps(
+    root: Path, candidate: dict[str, object], current_head: str
+) -> list[str]:
+    """Candidate-side closeout blockers, ordered by lifecycle before evidence."""
+    if not candidate["exists"]:
+        return ["candidate_branch_missing"]
+    if not candidate["worktree_exists"]:
+        return ["candidate_worktree_missing"]
+    candidate_path = Path(str(candidate["worktree_path"]))
+    if workspace_status(candidate_path)["dirty"]:
+        return ["candidate_worktree_dirty"]
+    candidate_head = str(candidate.get("head") or "")
+    if not _is_ancestor(root, current_head, candidate_head):
+        return ["candidate_diverged_from_accepted"]
+    return _candidate_proof_gaps(candidate_path, candidate_head)
+
+
 @dataclass(frozen=True)
 class MutationRequest:
     command: str
@@ -150,15 +172,7 @@ def evaluate_closeout_mutation(
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
     candidate = cast("dict[str, object]", status["candidate"])
-    if not candidate["exists"]:
-        gaps.append("candidate_branch_missing")
-    elif not candidate["worktree_exists"]:
-        gaps.append("candidate_worktree_missing")
-    else:
-        candidate_path = Path(str(candidate["worktree_path"]))
-        if workspace_status(candidate_path)["dirty"]:
-            gaps.append("candidate_worktree_dirty")
-    gaps.extend(_proof_gaps(root, current_head))
+    gaps.extend(_closeout_candidate_gaps(root, candidate, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
     return MutationDecision(ok=True, state=f"{request.command}_ready")

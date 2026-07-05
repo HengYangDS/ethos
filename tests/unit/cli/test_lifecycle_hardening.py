@@ -177,6 +177,8 @@ def test_land_closeout_reports_actionable_candidate_divergence(
     assert payload["next_actions"] == [
         f"ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head {accepted_head} --json"
     ]
-    assert payload["data"]["accepted_update"]["required_gaps"] == [
+    assert payload["data"]["accepted_update"] == {}
+    assert payload["data"]["mutation"]["decision"] == "blocked"
+    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == [
         "candidate_diverged_from_accepted"
     ]

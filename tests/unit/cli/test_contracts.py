@@ -2160,7 +2160,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
-    seed_executed_proof(repo, accepted_head)
+    seed_executed_proof(candidate, candidate_head)
 
     payload = run_ethos(
         "land",
@@ -2212,7 +2212,8 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
         "candidate change",
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
-    seed_executed_proof(repo, accepted_head)
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(candidate, candidate_head)
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
         if root.resolve() == candidate.resolve():
@@ -2300,6 +2301,13 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
         "candidate_branch": "candidate/dev",
         "accepted_head": accepted_head,
         "candidate_head": candidate_head,
+        "proof_target": {
+            "kind": "closeout_proof_target",
+            "role": "candidate",
+            "root": candidate.resolve().as_posix(),
+            "head": candidate_head,
+            "reason": "accepted-root closeout promotes the candidate head",
+        },
         "blocking": False,
         "required_gaps": [],
         "command": (
@@ -2310,10 +2318,57 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
             "run closeout command with a current ETHOS runner",
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
+            "prove the configured candidate head before accepted-root movement",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],
         "next_action": "run closeout with a current ETHOS runner against accepted_root",
+    }
+
+
+def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos_blocked(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    bootstrap = payload["data"]["closeout_bootstrap"]
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["proof_not_proven"]
+    assert bootstrap["audit_root"] == repo.resolve().as_posix()
+    assert bootstrap["proof_target"] == {
+        "kind": "closeout_proof_target",
+        "role": "candidate",
+        "root": candidate.resolve().as_posix(),
+        "head": candidate_head,
+        "reason": "accepted-root closeout promotes the candidate head",
     }
 
 
@@ -2483,6 +2538,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
     assert land_payload["data"]["candidate_update"]["branch"] == "stage/integration"
     assert git(candidate_path, "rev-parse", "HEAD") == work_head
     assert git(repo, "rev-parse", "integration") == accepted_head
+    seed_executed_proof(candidate_path, work_head)
 
     closeout_payload = run_ethos(
         "land",

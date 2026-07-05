@@ -231,6 +231,17 @@ def closeout_bootstrap_package(
         f"--expect-head {expect_head} --root {repo.resolve().as_posix()} --json"
     )
     runner_binding = runner_binding_report(accepted_root=repo, audit_root=audit_root)
+    candidate_data = cast("dict[str, object]", candidate)
+    candidate_head = str(candidate_data.get("head") or "")
+    candidate_path = str(candidate_data.get("worktree_path") or "")
+    proof_target_root = Path(candidate_path).resolve() if candidate_path else audit_root.resolve()
+    proof_target = {
+        "kind": "closeout_proof_target",
+        "role": "candidate",
+        "root": proof_target_root.as_posix(),
+        "head": candidate_head,
+        "reason": "accepted-root closeout promotes the candidate head",
+    }
     return {
         "kind": "closeout_bootstrap",
         "mode": "maintainer_break_glass_local",
@@ -251,7 +262,8 @@ def closeout_bootstrap_package(
         "accepted_branch": policy.accepted_branch,
         "candidate_branch": policy.candidate_branch,
         "accepted_head": accepted_head,
-        "candidate_head": str(cast("dict[str, object]", candidate).get("head") or ""),
+        "candidate_head": candidate_head,
+        "proof_target": proof_target,
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "command": command,
@@ -259,6 +271,7 @@ def closeout_bootstrap_package(
             "run closeout command with a current ETHOS runner",
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
+            "prove the configured candidate head before accepted-root movement",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],

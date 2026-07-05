@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+import json
+import os
+import shutil
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from ethos.adapters.admission.core import hook_admission_report
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos.adapters.admission.core import push_admission_report
+from ethos.adapters.admission.core import ref_move_admission_report
+from ethos.adapters.mutation import core
+from ethos.adapters.mutation.core import _proof_gaps
+from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
 
 
 def git(root: Path, *args: str) -> str:
@@ -206,10 +217,6 @@ def test_post_write_hook_fuses_work_lane_dirty_state_without_expected_paths(
 def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None:
     """The push tail: a push to an accepted/candidate ref requires an executed proof
     bound to the pushed HEAD (same reducer as land). Work-lane pushes are admitted."""
-    import subprocess
-
-    from ethos.adapters.admission.core import push_admission_report
-
     subprocess.run(["git", "init", "-q", "-b", "dev"], cwd=tmp_path, check=True)
     (tmp_path / "a.txt").write_text("x\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
@@ -241,14 +248,6 @@ def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
     an executed proof is rejected, so the write-admission moat cannot be minted with
     `echo`. Only a record whose digest recomputes from its own sealed evidence body,
     with every run proven, is accepted."""
-    import json
-
-    from ethos.adapters.mutation.core import _proof_gaps
-    from ethos.adapters.mutation.proof import executed_proof_record
-    from ethos.adapters.mutation.proof import record_executed_proof
-    from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
-
     head = "a" * 40
     proof_dir = tmp_path / ".ethos" / "state" / "proof"
     proof_dir.mkdir(parents=True)
@@ -328,9 +327,6 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
     a commit that candidate has not validated is blocked, so a raw `git merge --ff-only
     work/x dev` cannot skip candidate. A candidate-contained advance passes containment
     (proof is still separately required)."""
-    import subprocess
-
-    from ethos.adapters.admission.core import ref_move_admission_report
 
     def g(*a: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -380,11 +376,6 @@ def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path
     carry the scoped environment that the hook recognizes so ETHOS does not deadlock by
     telling users to run the command it then blocks.
     """
-    import subprocess
-    from types import SimpleNamespace
-
-    from ethos.adapters.mutation import core
-
     policy = SimpleNamespace(accepted_branch="dev", candidate_branch="candidate/dev")
     merge_envs: list[dict[str, str] | None] = []
 
@@ -426,12 +417,6 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path) ->
     OPEN so an unavailable binary does not brick ordinary work-lane commits; the
     sanctioned closeout escape (ETHOS_ALLOW_REF_MOVE=1) still advances the accepted
     branch."""
-    import os
-    import shutil
-    from pathlib import Path
-
-    import pytest
-
     hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
     if not hook_src.exists():
         pytest.skip("reference-transaction hook script not present")

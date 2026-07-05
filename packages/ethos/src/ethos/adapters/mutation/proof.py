@@ -88,11 +88,23 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     sealed = str(evidence.get("digest", ""))
     if not sealed or _evidence_digest(evidence) != sealed:
         return None
-    # (c) there is at least one run, and every run's verdict is proven — a proof over
-    # zero runs or with any un-proven run is not a proof.
+    # (c) There is at least one run; every run passed; and trust-bearing runs are
+    # proven. Non-trust diagnostic gates may be merely executed, but they cannot fail.
+    # This mirrors `ethos prove`: verdicts gate correctness, trust-bearing proven runs
+    # gate promotion authority.
     runs = evidence.get("runs")
     if not isinstance(runs, list) or not runs:
         return None
-    if any(not isinstance(run, dict) or run.get("verdict") != "proven" for run in runs):
+    trust_bearing_count = 0
+    for run in runs:
+        if not isinstance(run, dict):
+            return None
+        if run.get("verdict") != "passed":
+            return None
+        if run.get("trust_bearing") is True:
+            trust_bearing_count += 1
+            if run.get("state") != "proven":
+                return None
+    if trust_bearing_count == 0:
         return None
     return record

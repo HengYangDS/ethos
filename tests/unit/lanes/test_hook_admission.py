@@ -258,19 +258,44 @@ def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
     )
     assert executed_proof_record(tmp_path, head) is None
 
-    # a genuine executed proof IS accepted (round-trip)
-    run = ProofRun.from_adapter_result(
+    # Non-trust-bearing executed/proven-looking records are rejected: a diagnostic pass
+    # without any trust-bearing proven gate cannot promote a HEAD.
+    non_trust_run = ProofRun(
+        action_id="ruff",
+        command=("ruff", "check", "."),
+        exit_code=0,
+        stdout="",
+        stderr="",
+        state="executed",
+        evidence_class="diagnostic",
+        verdict="passed",
+        trust_bearing=False,
+        diagnostics=(),
+    )
+    non_trust_evidence = EvidenceSet.from_runs(
+        id="proof", head=head, runs=(non_trust_run,)
+    ).to_dict()
+    record_executed_proof(tmp_path, non_trust_evidence)
+    assert executed_proof_record(tmp_path, head) is None
+
+    # Real CLI proof records may combine non-trust diagnostic passes with
+    # trust-bearing proven gates. Lock that shape so land accepts valid executed proof
+    # without confusing state with verdict.
+    trust_run = ProofRun(
         action_id="python-tests",
         command=("pytest",),
         exit_code=0,
         stdout="",
         stderr="",
-        adapter_state="proven",
+        state="proven",
         evidence_class="test",
+        verdict="passed",
         trust_bearing=True,
         diagnostics=(),
     )
-    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    evidence = EvidenceSet.from_runs(
+        id="proof", head=head, runs=(non_trust_run, trust_run)
+    ).to_dict()
     record_executed_proof(tmp_path, evidence)
     assert executed_proof_record(tmp_path, head) is not None
     assert _proof_gaps(tmp_path, head) == []

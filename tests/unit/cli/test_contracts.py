@@ -868,6 +868,10 @@ def test_status_reports_unbound_work_lane_ref_as_advisory_signal(tmp_path: Path)
     assert payload["data"]["coordination_gaps"] == ["unbound_work_lane_ref_present"]
     assert payload["data"]["coordination"]["blocking"] is False
     assert payload["data"]["coordination"]["unbound_work_lane_count"] == 1
+    assert (
+        payload["data"]["coordination"]["next_action"]
+        == "inspect or retire unbound Work Lane refs during coordination cleanup"
+    )
     assert bindings["work/stale-ref"]["role"] == "work_lane"
     assert bindings["work/stale-ref"]["worktree_binding"] == "unbound"
     assert bindings["work/stale-ref"]["worktree_path"] == ""

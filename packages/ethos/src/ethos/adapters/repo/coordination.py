@@ -137,6 +137,10 @@ def coordination_package(
     overlap_lanes = [
         lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
     ]
+    unknown_scope_count = sum(
+        1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
+    )
+    missing_lease_count = sum(1 for lane in foreign_work_lanes if lane["lease_state"] == "missing")
     return {
         "kind": "work_lane_coordination",
         "blocking": bool(required_gaps),
@@ -144,18 +148,43 @@ def coordination_package(
         "advisory_gaps": list(advisory_gaps),
         "foreign_work_lane_count": len(foreign_work_lanes),
         "unbound_work_lane_count": unbound_work_lane_count,
-        "missing_lease_count": sum(
-            1 for lane in foreign_work_lanes if lane["lease_state"] == "missing"
-        ),
+        "missing_lease_count": missing_lease_count,
         "overlap_count": len(overlap_lanes),
-        "unknown_scope_count": sum(
-            1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
-        ),
-        "next_action": (
-            "resolve overlapping or unknown Work Lane scope before candidate integration"
+        "unknown_scope_count": unknown_scope_count,
+        "next_action": coordination_next_action(
+            required_gaps=required_gaps,
+            overlap_count=len(overlap_lanes),
+            unknown_scope_count=unknown_scope_count,
+            missing_lease_count=missing_lease_count,
+            foreign_work_lane_count=len(foreign_work_lanes),
+            unbound_work_lane_count=unbound_work_lane_count,
         ),
         "migration_recommendations": [_migration_recommendation(lane) for lane in overlap_lanes],
     }
+
+
+def coordination_next_action(
+    *,
+    required_gaps: list[str],
+    overlap_count: int,
+    unknown_scope_count: int,
+    missing_lease_count: int,
+    foreign_work_lane_count: int,
+    unbound_work_lane_count: int,
+) -> str:
+    if required_gaps:
+        return "resolve required Work Lane coordination gaps before candidate integration"
+    if unknown_scope_count:
+        return "inspect unknown Work Lane scope before candidate integration"
+    if overlap_count:
+        return "review overlapping Work Lane scope before candidate integration"
+    if missing_lease_count:
+        return "bind or inspect Work Lane leases before candidate integration"
+    if foreign_work_lane_count:
+        return "review advisory Work Lane coordination signals before candidate integration"
+    if unbound_work_lane_count:
+        return "inspect or retire unbound Work Lane refs during coordination cleanup"
+    return "no Work Lane coordination action required"
 
 
 def _migration_recommendation(lane: dict[str, object]) -> dict[str, object]:

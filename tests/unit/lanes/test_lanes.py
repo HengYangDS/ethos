@@ -149,7 +149,7 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "missing_lease_count": 1,
         "overlap_count": 0,
         "unknown_scope_count": 0,
-        "next_action": "resolve overlapping or unknown Work Lane scope before candidate integration",
+        "next_action": "bind or inspect Work Lane leases before candidate integration",
         "migration_recommendations": [],
     }
     assert status["closeout_support"] == {
@@ -192,6 +192,10 @@ def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(
     assert status["coordination"]["foreign_work_lane_count"] == 0
     assert status["coordination"]["unbound_work_lane_count"] == 1
     assert status["coordination"]["advisory_gaps"] == ["unbound_work_lane_ref_present"]
+    assert (
+        status["coordination"]["next_action"]
+        == "inspect or retire unbound Work Lane refs during coordination cleanup"
+    )
     assert_no_ui_projection(status)
 
 

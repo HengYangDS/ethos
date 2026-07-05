@@ -330,6 +330,19 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         and package["missing_lease_count"] == 1
         and package["unknown_scope_count"] == 1
     )
+    assert (
+        package["next_action"]
+        == "resolve required Work Lane coordination gaps before candidate integration"
+    )
+    assert (
+        coordination.coordination_package(
+            [],
+            required_gaps=[],
+            advisory_gaps=["unbound_work_lane_ref_present"],
+            unbound_work_lane_count=1,
+        )["next_action"]
+        == "inspect or retire unbound Work Lane refs during coordination cleanup"
+    )
     assert coordination.workspace_required_gaps(
         ["work_lane_missing_lease:work/x", "other"], candidate={"exists": False}
     ) == ["work_lane_missing_lease:work/x", "candidate_branch_missing"]

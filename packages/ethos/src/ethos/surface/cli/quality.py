@@ -26,6 +26,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.coverage import coverage_quality_report
 from ethos.repository.policy.docstrings import docstring_coverage_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema import schema_validation_report
@@ -260,6 +261,33 @@ def yaml_quality(
         data=report,
     )
     emit(result, json_output, enforce=False)
+
+
+@quality_app.command(name="coverage")
+def coverage(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Report Python coverage policy and latest artifact state."""
+    repo = resolve_root(root)
+    report = coverage_quality_report(repo)
+    result = EthosResult(
+        command="quality coverage",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "current_hard_floor": cast("dict[str, object]", report["policy"]).get(
+                "current_hard_floor"
+            ),
+            "latest_line_percent": cast("dict[str, object]", report["latest_artifact"]).get(
+                "line_percent"
+            ),
+        },
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        data=report,
+    )
+    emit(result, json_output)
 
 
 @quality_app.command(name="docstrings")

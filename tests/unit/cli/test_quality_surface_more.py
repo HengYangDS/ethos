@@ -111,6 +111,28 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
     assert emitted[4]["summary"] == {"tag": "v1"}
 
 
+def test_quality_coverage_reports_policy_and_latest_artifact(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    report = {
+        "ok": True,
+        "state": "clean",
+        "policy": {"current_hard_floor": 95.0},
+        "latest_artifact": {"line_percent": 96.0},
+        "required_gaps": [],
+    }
+    monkeypatch.setattr(q, "coverage_quality_report", lambda _repo: report)
+
+    q.coverage(root=tmp_path, json_output=True)
+
+    assert emitted[0]["command"] == "quality coverage"
+    assert emitted[0]["ok"] is True
+    assert emitted[0]["summary"] == {
+        "current_hard_floor": 95.0,
+        "latest_line_percent": 96.0,
+    }
+    assert emitted[0]["data"] == report
+
+
 def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path):
     emitted = _capture(monkeypatch)
     report = {

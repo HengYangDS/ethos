@@ -28,6 +28,7 @@ _NON_GAP_TOKENS = {
     "waived_gaps",
     "coordination_gaps",
     "validation_gaps",
+    "branch_coverage_required",
     "blocking_gap_count",
     "governance_gap_count",
     "generic_gap_count",

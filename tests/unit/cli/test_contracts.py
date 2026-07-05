@@ -1241,6 +1241,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "command-surface",
         "commits",
         "coupling-audit",
+        "coverage",
         "docs",
         "docs-registry",
         "docstrings",

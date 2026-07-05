@@ -67,7 +67,6 @@ links, anchors, and command examples.
 - **THEN** ETHOS reports docs quality profile checks alongside current docs
   registry health
 
-
 ### Requirement: Configuration and Script Quality Gates
 
 ETHOS SHALL make configuration and runner-script quality executable through
@@ -105,6 +104,19 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
   docstring, unit/coverage, and format-policy gates
 - **AND** CI, pre-commit, and proof invoke reusable owner scripts instead of
   copying tool command policy into provider projections
+
+#### Scenario: Coverage quality read model reports the active floor
+
+- **WHEN** `ethos quality coverage --json` runs
+- **THEN** ETHOS reports the coverage policy source, hard floor, aspirational
+  floor, branch coverage requirement, configured source paths, configured
+  `fail_under`, owner script, and latest coverage artifact summary when present
+- **AND** the command reports required gaps when policy or config is missing,
+  `fail_under` diverges from the hard floor, branch coverage is disabled while
+  required, the latest artifact is missing or malformed, or latest coverage is
+  below the hard floor
+- **AND** the command remains read-only and does not replace the reusable Python
+  test gate owner script
 
 ### Requirement: Python Public-Surface Docstring Gate
 

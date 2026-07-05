@@ -26,6 +26,7 @@ from ethos.domain import prove as _prove
 from ethos.domain import status as _status
 from ethos.domain.report import scorecard_report
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.evidence.core import AdapterProofResult
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
@@ -180,15 +181,17 @@ def prove(
     )
     proof_runs = tuple(
         ProofRun.from_adapter_result(
-            action_id=run_result.action_id,
-            command=run_result.command,
-            exit_code=run_result.exit_code,
-            stdout=trim_output(run_result.stdout),
-            stderr=trim_output(run_result.stderr),
-            adapter_state=run_result.state,
-            evidence_class=gates_by_id[run_result.action_id].evidence_class,
-            trust_bearing=gates_by_id[run_result.action_id].trust_bearing,
-            diagnostics=run_result.diagnostics,
+            AdapterProofResult(
+                action_id=run_result.action_id,
+                command=run_result.command,
+                exit_code=run_result.exit_code,
+                stdout=trim_output(run_result.stdout),
+                stderr=trim_output(run_result.stderr),
+                adapter_state=run_result.state,
+                evidence_class=gates_by_id[run_result.action_id].evidence_class,
+                trust_bearing=gates_by_id[run_result.action_id].trust_bearing,
+                diagnostics=run_result.diagnostics,
+            )
         )
         for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
     )

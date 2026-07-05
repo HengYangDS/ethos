@@ -14,6 +14,9 @@ from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest
 
 PLAYBOOK_MODES = ("v2-strict",)
+PLAYBOOK_ACTIVATION_VERSION = 2
+SKILL_PACKAGE_FILE_LIMIT = 6
+INTENT_TOKEN_OWNER_LIMIT = 2
 
 
 def _skills_root(root: Path) -> Path:
@@ -48,7 +51,7 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
     package_reports: list[dict[str, Any]] = []
     package_capabilities: list[dict[str, Any]] = []
     activation_version = int(registry.get("meta", {}).get("version") or 1)
-    if activation_version < 2:
+    if activation_version < PLAYBOOK_ACTIVATION_VERSION:
         v2_gaps.append(f"playbook_activation_unsupported_version:{activation_version}")
     for record in registry["records"]:
         playbook_record = _playbook_record(record)
@@ -303,9 +306,11 @@ def _portfolio_coverage(
             continue
         owners.setdefault(subject, []).append(skill_id)
     gaps: list[str] = []
-    for subject in required_subjects:
-        if not owners.get(subject):
-            gaps.append(f"skill_portfolio_subject_missing:{subject}")
+    gaps.extend(
+        f"skill_portfolio_subject_missing:{subject}"
+        for subject in required_subjects
+        if not owners.get(subject)
+    )
     for subject in single_owner_subjects:
         subject_owners = owners.get(subject, [])
         if len(subject_owners) > 1:
@@ -343,10 +348,12 @@ def _portfolio_design(
             token_owners.setdefault(token, []).append(skill_id)
         package = package_by_id.get(skill_id, {})
         file_count = len(cast("list[object]", package.get("files", [])))
-        if file_count > 6:
+        if file_count > SKILL_PACKAGE_FILE_LIMIT:
             gaps.append(f"skill_portfolio_package_overloaded:{skill_id}:{file_count}")
     duplicate_paths = {key: ids for key, ids in path_owners.items() if len(ids) > 1}
-    duplicate_tokens = {key: ids for key, ids in token_owners.items() if len(ids) > 2}
+    duplicate_tokens = {
+        key: ids for key, ids in token_owners.items() if len(ids) > INTENT_TOKEN_OWNER_LIMIT
+    }
     for pattern, owners in sorted(duplicate_paths.items()):
         gaps.append(f"skill_portfolio_path_glob_duplicate:{pattern}:{','.join(owners)}")
     for token, owners in sorted(duplicate_tokens.items()):

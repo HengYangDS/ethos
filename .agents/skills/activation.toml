@@ -2,7 +2,7 @@
 version = 2
 source_of_truth = "repository"
 expected_registry_digest = "sha256:a161eebb82c5908d7e97caaa85d74e830d63b6aa3434ac8e8ecf0002ec894379"
-expected_generator_digest = "sha256:90b201ccf076828ad168c5780b2ca5f3d0a07de97a8c40bd636d391f274732b4"
+expected_generator_digest = "sha256:b8ae66cdc4e72c5e29ac24737e0fa61611064319905f175f3fa7c33a373a131b"
 
 [coverage]
 required_primary_subjects = [

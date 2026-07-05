@@ -37,19 +37,23 @@ class BranchRolePolicy:
     submit_branch_prefix: str = "submit/"
 
     def role_for_branch(self, branch: str) -> str:
-        if branch == ROLE_DETACHED:
-            return ROLE_DETACHED
-        if branch == self.release_branch:
-            return ROLE_RELEASE_ROOT
-        if branch == self.accepted_branch:
-            return ROLE_ACCEPTED_ROOT
-        if branch == self.candidate_branch:
-            return ROLE_CANDIDATE
-        if self.work_branch_prefix and branch.startswith(self.work_branch_prefix):
-            return ROLE_WORK_LANE
-        if self.submit_branch_prefix and branch.startswith(self.submit_branch_prefix):
-            return ROLE_SUBMIT_LANE
-        return ROLE_OTHER
+        exact_roles = (
+            (ROLE_DETACHED, ROLE_DETACHED),
+            (self.release_branch, ROLE_RELEASE_ROOT),
+            (self.accepted_branch, ROLE_ACCEPTED_ROOT),
+            (self.candidate_branch, ROLE_CANDIDATE),
+        )
+        for branch_name, role in exact_roles:
+            if branch == branch_name:
+                return role
+        prefix_roles = (
+            (self.work_branch_prefix, ROLE_WORK_LANE),
+            (self.submit_branch_prefix, ROLE_SUBMIT_LANE),
+        )
+        return next(
+            (role for prefix, role in prefix_roles if prefix and branch.startswith(prefix)),
+            ROLE_OTHER,
+        )
 
     def work_branch(self, slug: str) -> str:
         return f"{self.work_branch_prefix}{slug}"

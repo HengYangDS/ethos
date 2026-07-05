@@ -30,6 +30,19 @@ def trim_output(text: str, *, limit: int = 4000) -> str:
 
 
 @dataclass(frozen=True)
+class AdapterProofResult:
+    action_id: str
+    command: tuple[str, ...]
+    exit_code: int | None
+    stdout: str
+    stderr: str
+    adapter_state: str
+    evidence_class: str = "proof"
+    trust_bearing: bool = False
+    diagnostics: tuple[dict[str, Any], ...] = ()
+
+
+@dataclass(frozen=True)
 class ProofRun:
     action_id: str
     command: tuple[str, ...]
@@ -54,34 +67,22 @@ class ProofRun:
             raise ValueError(f"{self.state} proof run requires governance_ref")
 
     @classmethod
-    def from_adapter_result(
-        cls,
-        *,
-        action_id: str,
-        command: tuple[str, ...],
-        exit_code: int | None,
-        stdout: str,
-        stderr: str,
-        adapter_state: str,
-        evidence_class: str = "proof",
-        trust_bearing: bool = False,
-        diagnostics: tuple[dict[str, Any], ...] = (),
-    ) -> ProofRun:
+    def from_adapter_result(cls, result: AdapterProofResult) -> ProofRun:
         classification = run_state_for_adapter_state(
-            adapter_state,
-            trust_bearing_capable=trust_bearing,
+            result.adapter_state,
+            trust_bearing_capable=result.trust_bearing,
         )
         return cls(
-            action_id=action_id,
-            command=command,
-            exit_code=exit_code,
-            stdout=stdout,
-            stderr=stderr,
+            action_id=result.action_id,
+            command=result.command,
+            exit_code=result.exit_code,
+            stdout=result.stdout,
+            stderr=result.stderr,
             state=str(classification["state"]),
-            evidence_class=evidence_class,
+            evidence_class=result.evidence_class,
             verdict=str(classification["verdict"]),
             trust_bearing=bool(classification["trust_bearing"]),
-            diagnostics=diagnostics,
+            diagnostics=result.diagnostics,
         )
 
     def to_dict(self) -> dict[str, Any]:

@@ -362,11 +362,9 @@ lifecycle = "active"
 subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
 path_globs = [
   "AGENTS.md",
-  ".ethos/**",
-  ".agents/skills/**",
-  "docs/**",
+  "docs/index.md",
+  "docs/start/**",
   "evolution/**",
-  "openspec/**",
   "evidence/claims/**",
   "packages/**",
   "schemas/**",
@@ -393,7 +391,7 @@ operation = "govern"
 authority = "primary"
 lifecycle = "active"
 subjects = ["skill-portfolio", "skills", "activation", "projection-drift", "changed-scope"]
-path_globs = [".agents/skills/**", "AGENTS.md", "docs/**"]
+path_globs = [".agents/skills/**"]
 intent_tokens = ["skill", "skills", "meta-skill", "playbook", "activation", "projection"]
 pre_reads = ["AGENTS.md", ".agents/skills/README.md"]
 during_rules = [

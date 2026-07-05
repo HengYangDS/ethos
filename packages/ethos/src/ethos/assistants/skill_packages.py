@@ -3,10 +3,16 @@ from __future__ import annotations
 import hashlib
 import re
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from typing import cast
 
+SKILL_PACKAGE_SCHEMA_VERSION = 2
+MIN_ETHOS_COMMAND_PARTS = 2
+FRONTMATTER_PART_COUNT = 3
+SKILL_DESCRIPTION_WORD_LIMIT = 60
+PROGRESSIVE_DISCLOSURE_LINE_THRESHOLD = 90
 CAPABILITY_KINDS = frozenset(
     {
         "resource_read",
@@ -50,6 +56,19 @@ _READONLY_ETHOS_COMMANDS = {
 }
 
 
+@dataclass(frozen=True)
+class SkillPackageResult:
+    skill_id: str
+    manifest_path: str
+    digest: str = ""
+    expected_digest: str = ""
+    required_gaps: tuple[str, ...] = ()
+    capabilities: tuple[dict[str, Any], ...] = ()
+    files: tuple[str, ...] = ()
+    entrypoint: str = ""
+    required_sections: tuple[str, ...] = ()
+
+
 def compute_skill_package_digest(package_dir: Path, include: list[str]) -> str:
     digest = hashlib.sha256()
     for relative in sorted(include):
@@ -67,9 +86,11 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
     skill_id = relative_manifest.parent.name or relative_manifest.stem
     if relative_manifest.is_absolute() or not _contained_root_path(root, relative_manifest):
         return _manifest_result(
-            skill_id=skill_id,
-            manifest_path=manifest_path,
-            required_gaps=[f"skill_package_manifest_path_escape:{skill_id}"],
+            SkillPackageResult(
+                skill_id=skill_id,
+                manifest_path=manifest_path,
+                required_gaps=(f"skill_package_manifest_path_escape:{skill_id}",),
+            )
         )
     absolute_manifest = (root / relative_manifest).resolve()
     package_dir = absolute_manifest.parent
@@ -78,15 +99,19 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         manifest = tomllib.loads(absolute_manifest.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return _manifest_result(
-            skill_id=skill_id,
-            manifest_path=manifest_path,
-            required_gaps=[f"skill_package_manifest_missing:{skill_id}"],
+            SkillPackageResult(
+                skill_id=skill_id,
+                manifest_path=manifest_path,
+                required_gaps=(f"skill_package_manifest_missing:{skill_id}",),
+            )
         )
     except tomllib.TOMLDecodeError:
         return _manifest_result(
-            skill_id=skill_id,
-            manifest_path=manifest_path,
-            required_gaps=[f"skill_package_manifest_invalid_toml:{skill_id}"],
+            SkillPackageResult(
+                skill_id=skill_id,
+                manifest_path=manifest_path,
+                required_gaps=(f"skill_package_manifest_invalid_toml:{skill_id}",),
+            )
         )
 
     skill_id = str(manifest.get("id") or relative_manifest.parent.name)
@@ -131,15 +156,17 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
     capability_gaps, capabilities = _capability_records(skill_id, manifest.get("capability"))
     gaps.extend(capability_gaps)
     return _manifest_result(
-        skill_id=skill_id,
-        manifest_path=manifest_path,
-        digest=digest,
-        expected_digest=str(manifest.get("expected_digest") or ""),
-        required_gaps=gaps,
-        capabilities=capabilities,
-        files=safe_include,
-        entrypoint=entrypoint,
-        required_sections=required_sections,
+        SkillPackageResult(
+            skill_id=skill_id,
+            manifest_path=manifest_path,
+            digest=digest,
+            expected_digest=str(manifest.get("expected_digest") or ""),
+            required_gaps=tuple(gaps),
+            capabilities=tuple(capabilities),
+            files=tuple(safe_include),
+            entrypoint=entrypoint,
+            required_sections=tuple(required_sections),
+        )
     )
 
 
@@ -179,29 +206,18 @@ def validate_skill_markdown(
     return {"ok": not gaps, "required_gaps": gaps}
 
 
-def _manifest_result(
-    *,
-    skill_id: str,
-    manifest_path: str,
-    digest: str = "",
-    expected_digest: str = "",
-    required_gaps: list[str] | None = None,
-    capabilities: list[dict[str, Any]] | None = None,
-    files: list[str] | None = None,
-    entrypoint: str = "",
-    required_sections: list[str] | tuple[str, ...] = (),
-) -> dict[str, Any]:
-    gaps = required_gaps or []
+def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
+    gaps = list(result.required_gaps)
     return {
         "ok": not gaps,
-        "id": skill_id,
-        "manifest": manifest_path,
-        "digest": digest,
-        "expected_digest": expected_digest,
-        "entrypoint": entrypoint,
-        "files": files or [],
-        "required_sections": list(required_sections),
-        "capabilities": capabilities or [],
+        "id": result.skill_id,
+        "manifest": result.manifest_path,
+        "digest": result.digest,
+        "expected_digest": result.expected_digest,
+        "entrypoint": result.entrypoint,
+        "files": list(result.files),
+        "required_sections": list(result.required_sections),
+        "capabilities": list(result.capabilities),
         "required_gaps": gaps,
     }
 
@@ -249,7 +265,7 @@ def _capability_records(
 
 def _manifest_schema_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
     gaps: list[str] = []
-    if manifest.get("schema_version") != 2:
+    if manifest.get("schema_version") != SKILL_PACKAGE_SCHEMA_VERSION:
         gaps.append(f"skill_package_schema_version_invalid:{skill_id}")
     if manifest.get("digest_algorithm") != "sha256":
         gaps.append(f"skill_package_digest_algorithm_invalid:{skill_id}")
@@ -299,17 +315,23 @@ def _is_mutating_command(command: list[str]) -> bool:
         return False
     if any(part in _MUTATING_FLAGS for part in command):
         return True
-    return len(command) >= 2 and command[0] == "ethos" and command[1] in _MUTATING_ETHOS_COMMANDS
+    return (
+        len(command) >= MIN_ETHOS_COMMAND_PARTS
+        and command[0] == "ethos"
+        and command[1] in _MUTATING_ETHOS_COMMANDS
+    )
 
 
 def _is_trusted_readonly_command(command: list[str]) -> bool:
-    if len(command) < 2 or command[0] != "ethos":
+    if len(command) < MIN_ETHOS_COMMAND_PARTS or command[0] != "ethos":
         return False
     return command[1] in _READONLY_ETHOS_COMMANDS
 
 
 def _is_proof_command(command: list[str]) -> bool:
-    return len(command) >= 2 and command[0] == "ethos" and command[1] == "prove"
+    return (
+        len(command) >= MIN_ETHOS_COMMAND_PARTS and command[0] == "ethos" and command[1] == "prove"
+    )
 
 
 def _contained_root_path(root: Path, relative: Path) -> bool:
@@ -348,7 +370,7 @@ def _frontmatter_gaps(skill_id: str, text: str) -> list[str]:
         gaps.append(f"skill_quality_name_mismatch:{skill_id}:{name}")
     if description and not description.startswith("Use when"):
         gaps.append(f"skill_quality_description_not_trigger:{skill_id}")
-    if description and len(description.split()) > 60:
+    if description and len(description.split()) > SKILL_DESCRIPTION_WORD_LIMIT:
         gaps.append(f"skill_quality_description_too_long:{skill_id}")
     return gaps
 
@@ -366,7 +388,7 @@ def _progressive_disclosure_gaps(skill_id: str, text: str) -> list[str]:
         gaps.append(f"skill_quality_workflow_too_many_steps:{skill_id}:{step_count}")
     has_references = "references/" in text
     has_scripts = "scripts/" in text
-    if line_count > 90 and not (has_references or has_scripts):
+    if line_count > PROGRESSIVE_DISCLOSURE_LINE_THRESHOLD and not (has_references or has_scripts):
         gaps.append(f"skill_quality_progressive_disclosure_missing:{skill_id}")
     return gaps
 
@@ -375,7 +397,7 @@ def _frontmatter_header(text: str) -> str:
     if not text.startswith("---\n"):
         return ""
     parts = text.split("---", 2)
-    if len(parts) < 3:
+    if len(parts) < FRONTMATTER_PART_COUNT:
         return ""
     return parts[1]
 
@@ -384,7 +406,7 @@ def _frontmatter_ok(text: str) -> bool:
     if not text.startswith("---\n"):
         return False
     parts = text.split("---", 2)
-    if len(parts) < 3:
+    if len(parts) < FRONTMATTER_PART_COUNT:
         return False
     header = parts[1]
     return "name:" in header and "description:" in header

@@ -5,6 +5,7 @@ from typing import Any
 
 UNTRUSTED_CONTEXT_LABEL = "UNTRUSTED CONTEXT"
 CONTEXT_PROJECTION_AUTHORITY = "projection"
+ASSISTANT_TRUTH_BOUNDARY = "repository-source-and-contracts"
 CONTEXT_PRIVACY_CEILING = "repo_local"
 FORBIDDEN_CONTEXT_USES = ("proof", "required_gap_closure", "workflow_ruling")
 CONTEXT_RETRIEVAL_SMOKE_QUERIES: tuple[dict[str, object], ...] = (

@@ -45,12 +45,6 @@ from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs import build_docs_registry
 from ethos.repository.registry.docs import docs_health_report
 from ethos.repository.registry.standards import standard_adapter_registry
-
-# Command-group modules register their commands onto the shared *_app objects at
-# import time; importing them here wires those groups into the CLI. Each group
-# imports only its own domain deps, so a group's heavy dependencies load only when
-# that group is imported (lazy path for the common commands).
-from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
@@ -59,6 +53,12 @@ from ethos.surface.cli._base import load_command_groups as _load_command_groups
 from ethos.surface.cli._base import resolve_root as _root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate as _run_inprocess_cli_gate
 from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+# Command-group modules register their commands onto the shared *_app objects at
+# import time; importing them here wires those groups into the CLI. Each group
+# imports only its own domain deps, so a group's heavy dependencies load only when
+# that group is imported (lazy path for the common commands).
+from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context_projection import context_projection_contract
 from ethos_core.result import EthosResult
 

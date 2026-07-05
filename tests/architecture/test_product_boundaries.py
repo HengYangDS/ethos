@@ -118,28 +118,20 @@ def test_target_product_packages_exist_with_build_metadata() -> None:
 
 
 def test_semantic_target_packages_do_not_import_provider_execution() -> None:
-    forbidden_by_package = {
-        # ethos-core absorbs ethos-contracts (which parses TOML system contracts), so
-        # tomllib is legitimate here — the same read-only TOML-parse the pure kernel
-        # already did in ethos_core.measure. Still no subprocess/sqlite/shell.
-        "ethos-core": {"subprocess", "sqlite3", "shutil"},
-        "ethos-contracts": {"subprocess", "sqlite3", "shutil"},
-        "ethos-repository": {
-            "ethos.adapters",
-            "subprocess",
-            "sqlite3",
-            "shutil",
-        },
-        "ethos-quality": {
-            "ethos.adapters",
-            "ethos.repository",
-            "subprocess",
-            "sqlite3",
-            "shutil",
-        },
+    # Keyed on the REAL terminal source trees (2-package world + intra-ethos
+    # sub-packages), each asserted to exist so this scan can never silently go
+    # vacuous again if a future move deletes a directory.
+    forbidden_by_source = {
+        # ethos-core absorbs contracts (TOML parse) — tomllib ok; no subprocess/sqlite/shell.
+        "packages/ethos-core/src/ethos_core": {"subprocess", "sqlite3", "shutil"},
+        # The repository layer holds read-only governance reports; it must not reach
+        # UP into the adapters layer (surface>domain>adapters>repository).
+        "packages/ethos/src/ethos/repository": {"ethos.adapters", "sqlite3"},
     }
-    for package, forbidden in forbidden_by_package.items():
-        source = ROOT / "packages" / package / "src"
+    for source_rel, forbidden in forbidden_by_source.items():
+        source = ROOT / source_rel
+        assert source.is_dir(), f"terminal source tree missing (scan would be vacuous): {source_rel}"
+        assert any(source.rglob("*.py")), f"no modules under {source_rel} — vacuous scan"
         for path in source.rglob("*.py"):
             assert imported_modules(path).isdisjoint(forbidden), path
 

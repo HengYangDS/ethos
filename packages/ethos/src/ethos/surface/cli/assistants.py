@@ -16,12 +16,12 @@ from ethos.assistants.context import context_bundle
 from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.projections import projection_contract
 from ethos.assistants.server import mcp_server_descriptor
-from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import assistants_app
 from ethos.surface.cli._base import emit as _emit
 from ethos.surface.cli._base import resolve_root as _root
+from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
 from ethos_core.result import EthosResult
 

@@ -35,13 +35,13 @@ from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import release_policy_report
-from ethos.surface.cli._base import ASSISTANT_TRUTH_BOUNDARY
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit as _emit
 from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root as _root
 from ethos.surface.cli._base import sha256_file as _sha256_file
+from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.package_ontology import package_ontology_report
 from ethos_core.contracts.package_ontology import workspace_package_config_report
 from ethos_core.quality.docs_profile import docs_quality_profile

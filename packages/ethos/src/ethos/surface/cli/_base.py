@@ -51,7 +51,6 @@ for _sub in (
 JsonFlag = Annotated[bool, Parameter(name="--json")]
 RootOption = Annotated[Path, Parameter(name="--root")]
 
-ASSISTANT_TRUTH_BOUNDARY = "repository-source-and-contracts"
 
 
 # ---- cross-group helpers ----

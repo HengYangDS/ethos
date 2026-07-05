@@ -29,7 +29,7 @@ Delete, demote, or move rules that cannot fill this record.
 | Module layout, visibility, imports | [Module Layout Rules](module_layout.md) |
 | Proof and claims | [Evidence Rules](evidence.md) |
 | Release work | [Release Rules](release.md) |
-| Skills | [Skill Rules](skills.md) and [Skills](../skills/README.md) |
+| Skills | [Skill Rules](skills.md) and [Skills](../.agents/skills/README.md) |
 | Hosts and tooling | [Agent Entry Points](../AGENTS.md) |
 
 ## Placement
@@ -38,7 +38,7 @@ Delete, demote, or move rules that cannot fill this record.
 - Put machine contracts and routing under `system/` when the terminal layout is
   implemented.
 - Put concise operational rules in `rules/`.
-- Put reusable agent procedures in `skills/`.
+- Put reusable repo-local agent procedures in `.agents/skills/`.
 - Put host-specific projections in host-native directories only as generated or
   declared projections.
 - Put OpenSpec change carriers under `openspec/`.

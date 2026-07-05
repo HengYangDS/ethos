@@ -434,6 +434,7 @@
         "required_gaps",
         "advisory_gaps",
         "foreign_work_lane_count",
+        "unbound_work_lane_count",
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
@@ -460,6 +461,10 @@
           }
         },
         "foreign_work_lane_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unbound_work_lane_count": {
           "type": "integer",
           "minimum": 0
         },

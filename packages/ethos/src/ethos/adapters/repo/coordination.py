@@ -132,6 +132,7 @@ def coordination_package(
     *,
     required_gaps: list[str],
     advisory_gaps: list[str],
+    unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
     overlap_lanes = [
         lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
@@ -142,6 +143,7 @@ def coordination_package(
         "required_gaps": list(required_gaps),
         "advisory_gaps": list(advisory_gaps),
         "foreign_work_lane_count": len(foreign_work_lanes),
+        "unbound_work_lane_count": unbound_work_lane_count,
         "missing_lease_count": sum(
             1 for lane in foreign_work_lanes if lane["lease_state"] == "missing"
         ),

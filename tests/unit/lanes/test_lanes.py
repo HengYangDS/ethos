@@ -145,6 +145,7 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "work_lane_missing_lease:work/foreign",
         ],
         "foreign_work_lane_count": 1,
+        "unbound_work_lane_count": 0,
         "missing_lease_count": 1,
         "overlap_count": 0,
         "unknown_scope_count": 0,
@@ -162,6 +163,35 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "claim_binding": "unbound",
         "required_gaps": ["protected_root_mutation"],
     }
+    assert_no_ui_projection(status)
+
+
+def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+
+    status = workspace_status(repo)
+
+    bindings = {binding["branch"]: binding for binding in status["branch_bindings"]}
+    assert bindings["work/stale-ref"] == {
+        "branch": "work/stale-ref",
+        "role": "work_lane",
+        "head": git(repo, "rev-parse", "dev"),
+        "worktree_path": "",
+        "worktree_binding": "unbound",
+        "claim_id": "",
+        "claim_binding": "missing",
+    }
+    assert status["foreign_work_lanes"] == []
+    assert status["required_gaps"] == []
+    assert status["coordination_gaps"] == ["unbound_work_lane_ref_present"]
+    assert status["coordination"]["blocking"] is False
+    assert status["coordination"]["foreign_work_lane_count"] == 0
+    assert status["coordination"]["unbound_work_lane_count"] == 1
+    assert status["coordination"]["advisory_gaps"] == ["unbound_work_lane_ref_present"]
     assert_no_ui_projection(status)
 
 

@@ -1,0 +1,54 @@
+[claim]
+id = "ethos-unbound-work-lane-ref-visibility"
+subject = "ethos:unbound-work-lane-ref-visibility"
+state = "active"
+summary = "ETHOS status exposes unbound configured Work Lane refs as advisory Git facts without treating them as active foreign worktrees."
+
+[evidence]
+dated = "evidence/unbound-work-lane-ref-visibility-2026-07-06.md"
+sha256 = "3bb5c1f515a14f91bd2271766c471cf097027830b0149f0e5040dddec4093ca9"
+evidence_ids = ["evidence:ethos-unbound-work-lane-ref-visibility"]
+binding = "semantic status and coordination contract evidence binding"
+verifier = "semantic"
+tests = [
+  "openspec status --change expose-unbound-work-lane-refs --json",
+  "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/lanes/test_lanes.py::test_workspace_status_reports_branch_worktree_bindings_without_ui_actions tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/governance/test_validation_gates.py::test_workspace_status_payload_validates_worktree_bindings -q",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status.py packages/ethos/src/ethos/adapters/repo/coordination.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/test_validation_gates.py",
+]
+
+[scope]
+packages = ["ethos-repository", "ethos-adapters"]
+tests = [
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/governance/test_validation_gates.py",
+]
+docs = ["docs/architecture/terminal-governance-product-design.md"]
+schemas = ["system/schemas/kernel/workspace-status.schema.json"]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Workspace status visibility for unbound configured Work Lane refs"
+
+[carriers]
+openspec = "openspec/changes/expose-unbound-work-lane-refs"
+fallback = "Keep linked Work Lane coordination checks while unbound Work Lane refs remain hidden from status."
+kill_signal = "A stale or absorbed work/* branch ref can persist without appearing in status, causing multi-agent integration to miss repository drift."
+
+[promotion]
+targets = [
+  "evidence/claims/ethos-unbound-work-lane-ref-visibility.toml",
+  "evidence/unbound-work-lane-ref-visibility-2026-07-06.md",
+  "openspec/changes/expose-unbound-work-lane-refs/proposal.md",
+  "openspec/changes/expose-unbound-work-lane-refs/design.md",
+  "openspec/changes/expose-unbound-work-lane-refs/tasks.md",
+  "openspec/changes/expose-unbound-work-lane-refs/specs/ethos-repository/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/status.py",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "docs/architecture/terminal-governance-product-design.md",
+]

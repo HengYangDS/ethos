@@ -846,6 +846,33 @@ def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> No
     ]
 
 
+def test_status_reports_unbound_work_lane_ref_as_advisory_signal(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    git(repo, "branch", "work/stale-ref", "dev")
+
+    payload = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    bindings = {binding["branch"]: binding for binding in payload["data"]["branch_bindings"]}
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["foreign_work_lanes"] == []
+    assert payload["data"]["coordination_gaps"] == ["unbound_work_lane_ref_present"]
+    assert payload["data"]["coordination"]["blocking"] is False
+    assert payload["data"]["coordination"]["unbound_work_lane_count"] == 1
+    assert bindings["work/stale-ref"]["role"] == "work_lane"
+    assert bindings["work/stale-ref"]["worktree_binding"] == "unbound"
+    assert bindings["work/stale-ref"]["worktree_path"] == ""
+
+
 def test_lane_candidate_apply_creates_candidate_branch(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     candidate_path = tmp_path / "repo-candidate-dev"

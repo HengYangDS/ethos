@@ -251,6 +251,12 @@ admission, worktree-first coordination, claim/projection separation, and
 topic-scoped closeout evidence. These mechanisms are subordinate to ETHOS
 repository truth, Work Lane admission, and the public `ethos ...` command plane.
 
+Work Lane coordination distinguishes Git refs from active worktrees. Status uses
+`branch_bindings` to expose configured branch refs, including unbound `work/*`
+refs, and uses `foreign_work_lanes` only for linked worktrees whose dirty paths
+and leases can be inspected. Unbound Work Lane refs are advisory signals, not
+mutation-capable active lanes and not blocking closeout gaps by themselves.
+
 ### Agent Invocation Envelope
 
 Mutation-capable agent work is admitted through an invocation envelope:

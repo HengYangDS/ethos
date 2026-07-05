@@ -146,11 +146,15 @@ def workspace_status(root: Path) -> dict[str, object]:
     coordination_required_gaps, coordination_advisory_gaps = _scope_coordination_gaps(
         foreign, current_role=role, current_scope_state=current_scope_state
     )
+    unbound_work_lane_count = _unbound_work_lane_count(branch_bindings)
+    if unbound_work_lane_count:
+        coordination_advisory_gaps.append("unbound_work_lane_ref_present")
     coordination_gaps = coordination_required_gaps + coordination_advisory_gaps
     coordination = coordination_package(
         foreign,
         required_gaps=coordination_required_gaps,
         advisory_gaps=coordination_advisory_gaps,
+        unbound_work_lane_count=unbound_work_lane_count,
     )
     closeout_support = _closeout_support(
         branch=branch,
@@ -183,7 +187,7 @@ def workspace_status(root: Path) -> dict[str, object]:
 
 def _non_git_status(root: Path) -> dict[str, object]:
     policy = load_branch_role_policy(root)
-    candidate = {
+    candidate: dict[str, object] = {
         "branch": policy.candidate_branch,
         "exists": False,
         "head": "",
@@ -379,20 +383,76 @@ def _branch_bindings(
     role_order = {
         str(record["role"]): index for index, record in enumerate(policy.semantic_order())
     }
-    remaining_worktrees = sorted(
-        worktrees,
-        key=lambda worktree: (
-            role_order.get(str(worktree["role"]), len(role_order)),
-            str(worktree["branch"]),
-        ),
+    remaining: list[dict[str, str]] = [
+        _worktree_branch_binding(worktree, lease=lease_by_branch.get(str(worktree["branch"]), {}))
+        for worktree in worktrees
+        if str(worktree["branch"]) != "detached" and str(worktree["branch"]) not in seen
+    ]
+    remaining.extend(
+        _unbound_work_lane_binding(
+            root, branch=branch, head=head, lease=lease_by_branch.get(branch, {})
+        )
+        for branch, head in _work_lane_refs(root, policy=policy)
+        if branch not in seen and branch not in worktree_by_branch
     )
-    for worktree in remaining_worktrees:
-        branch = str(worktree["branch"])
-        if branch == "detached" or branch in seen:
+    for binding in sorted(
+        remaining,
+        key=lambda item: (
+            role_order.get(str(item["role"]), len(role_order)),
+            str(item["branch"]),
+        ),
+    ):
+        branch = str(binding["branch"])
+        if branch in seen:
             continue
-        bindings.append(_worktree_branch_binding(worktree, lease=lease_by_branch.get(branch, {})))
+        bindings.append(binding)
         seen.add(branch)
     return bindings
+
+
+def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, str]]:
+    try:
+        output = _run_git(
+            root,
+            "for-each-ref",
+            "--format=%(refname:short) %(objectname)",
+            "refs/heads",
+        )
+    except subprocess.CalledProcessError:
+        return []
+    refs: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        branch, _, head = line.partition(" ")
+        if policy.role_for_branch(branch) == ROLE_WORK_LANE:
+            refs.append((branch, head))
+    return refs
+
+
+def _unbound_work_lane_count(branch_bindings: list[dict[str, str]]) -> int:
+    return sum(
+        1
+        for binding in branch_bindings
+        if binding["role"] == ROLE_WORK_LANE and binding["worktree_binding"] == "unbound"
+    )
+
+
+def _unbound_work_lane_binding(
+    root: Path,
+    *,
+    branch: str,
+    head: str,
+    lease: dict[str, object],
+) -> dict[str, str]:
+    claim_id = _lease_claim_id(lease)
+    return {
+        "branch": branch,
+        "role": ROLE_WORK_LANE,
+        "head": head or _ref_head(root, branch),
+        "worktree_path": "",
+        "worktree_binding": "unbound",
+        "claim_id": claim_id,
+        "claim_binding": "bound" if claim_id else "missing",
+    }
 
 
 def _configured_branch_binding(

@@ -623,6 +623,7 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "required_gaps": [],
             "advisory_gaps": [],
             "foreign_work_lane_count": 0,
+            "unbound_work_lane_count": 0,
             "missing_lease_count": 0,
             "overlap_count": 0,
             "unknown_scope_count": 0,

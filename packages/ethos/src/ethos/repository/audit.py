@@ -177,7 +177,7 @@ DESIGN_INTEGRITY_REQUIRED_TERMS = {
 }
 
 DESIGN_INTEGRITY_FORBIDDEN_TERMS = (
-    "GitNexus",
+    "VendorTruthCenter",
     "product_self",
     "adopter_repository",
     "dual-posture",

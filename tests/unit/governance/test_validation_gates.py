@@ -742,7 +742,7 @@ def test_repository_audit_blocks_design_truth_center_regression(tmp_path: Path) 
 
     product = tmp_path / "docs/governance/product-design-contract.md"
     product.write_text(
-        product.read_text(encoding="utf-8") + "\nGitNexus becomes product_self.\n",
+        product.read_text(encoding="utf-8") + "\nVendorTruthCenter becomes product_self.\n",
         encoding="utf-8",
     )
 
@@ -751,7 +751,7 @@ def test_repository_audit_blocks_design_truth_center_regression(tmp_path: Path) 
 
     assert report["design_integrity"]["ok"] is False
     assert (
-        "design_integrity_forbidden_term:docs/governance/product-design-contract.md:GitNexus"
+        "design_integrity_forbidden_term:docs/governance/product-design-contract.md:VendorTruthCenter"
         in gaps
     )
     assert (

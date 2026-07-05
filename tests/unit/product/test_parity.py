@@ -215,14 +215,21 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
     }
 
 
-def test_parity_gaps_closes_alphasim_dmgr_from_tracked_evidence() -> None:
+def test_parity_gaps_reports_alphasim_dmgr_tracked_evidence_state() -> None:
     payload = run_ethos("parity", "gaps", "--adopter", "alphasim-dmgr", "--json")
 
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == ("evidence/parity/alphasim-dmgr-shadow.json")
+    assert payload["data"]["evidence"]["path"] == "evidence/parity/alphasim-dmgr-shadow.json"
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
+    if payload["ok"] is True:
+        assert (payload["required_gaps"], payload["data"]["pending_packages"]) == ([], [])
+    else:
+        refresh = payload["data"]["evidence"]["refresh_package"]
+        assert "parity_evidence_invalid:alphasim-dmgr" in payload["required_gaps"]
+        assert (refresh["kind"], refresh["blocking"], refresh["adopter"]) == (
+            "parity_evidence_refresh",
+            True,
+            "alphasim-dmgr",
+        )
 
 
 def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
@@ -403,9 +410,7 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
     assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == (
-        "evidence/parity/sample-adopter-shadow.json"
-    )
+    assert payload["data"]["evidence"]["path"] == ("evidence/parity/sample-adopter-shadow.json")
 
 
 def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> None:

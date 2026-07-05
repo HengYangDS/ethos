@@ -21,11 +21,12 @@ if [ "${#staged[@]}" -eq 0 ]; then
   exit 0
 fi
 
-# Prefer an installed `ethos` binary; fall back to module invocation.
-if command -v ethos >/dev/null 2>&1; then
-  ethos hook admit pre-tool "${staged[@]}" \
-    --root "$repo_root" --editor-root "$repo_root" --json
+if [ -x "$repo_root/.venv/bin/python" ]; then
+  ethos_python="$repo_root/.venv/bin/python"
 else
-  python -m ethos.cli hook admit pre-tool "${staged[@]}" \
-    --root "$repo_root" --editor-root "$repo_root" --json
+  ethos_python="${PYTHON:-python}"
 fi
+ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
+PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+  "$ethos_python" -m ethos.cli hook admit pre-tool "${staged[@]}" \
+  --root "$repo_root" --editor-root "$repo_root" --json

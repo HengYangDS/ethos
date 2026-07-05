@@ -5,8 +5,8 @@
   "generated_on": "2026-07-05",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-portfolio-governance --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "2a0d4a4d6841e1131054c0303a883a32e80524dc",
-    "target_head": "2a0d4a4d6841e1131054c0303a883a32e80524dc",
+    "product_head": "f97a5d10322ca491541252008f945713a6c798a2",
+    "target_head": "f97a5d10322ca491541252008f945713a6c798a2",
     "command_sha256": "ae81e379ac2f2bc7d50819629387444a2add051560367c638c3fa96754241ab8"
   },
   "shadow": {

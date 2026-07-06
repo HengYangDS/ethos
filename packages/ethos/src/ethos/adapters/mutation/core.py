@@ -34,7 +34,11 @@ def _candidate_proof_gaps(candidate_path: Path, candidate_head: str) -> list[str
 
 
 def _closeout_candidate_gaps(
-    root: Path, candidate: dict[str, object], current_head: str
+    root: Path,
+    candidate: dict[str, object],
+    current_head: str,
+    *,
+    require_proof: bool = True,
 ) -> list[str]:
     """Candidate-side closeout blockers, ordered by lifecycle before evidence."""
     if not candidate["exists"]:
@@ -47,6 +51,8 @@ def _closeout_candidate_gaps(
     candidate_head = str(candidate.get("head") or "")
     if not _is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
+    if not require_proof:
+        return []
     return _candidate_proof_gaps(candidate_path, candidate_head)
 
 
@@ -158,13 +164,12 @@ def evaluate_closeout_mutation(
     root: Path,
     current_head: str,
 ) -> MutationDecision:
-    if not request.apply:
-        return MutationDecision(ok=True, state="dry_run")
     gaps: list[str] = []
-    if not request.authorized:
+    if request.apply and not request.authorized:
         gaps.append("authorization_required")
     if request.expect_head is None:
-        gaps.append("expect_head_required")
+        if request.apply:
+            gaps.append("expect_head_required")
     elif request.expect_head != current_head:
         gaps.append("expect_head_mismatch")
     status = workspace_status(root)
@@ -173,9 +178,13 @@ def evaluate_closeout_mutation(
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
     candidate = cast("dict[str, object]", status["candidate"])
-    gaps.extend(_closeout_candidate_gaps(root, candidate, current_head))
+    gaps.extend(
+        _closeout_candidate_gaps(root, candidate, current_head, require_proof=request.apply)
+    )
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
+    if not request.apply:
+        return MutationDecision(ok=True, state="dry_run")
     return MutationDecision(ok=True, state=f"{request.command}_ready")
 
 

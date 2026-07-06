@@ -459,6 +459,70 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
+def test_land_closeout_dry_run_reports_expect_head_mismatch(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
+    git(candidate, "add", "README.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "candidate change",
+    )
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "land",
+        "--closeout",
+        "--expect-head",
+        candidate_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["expect_head_mismatch"]
+    assert payload["data"]["mutation"]["decision"] == "blocked"
+    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["expect_head_mismatch"]
+
+
+def test_land_closeout_dry_run_reports_accepted_root_required(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    accepted_head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "land",
+        "--closeout",
+        "--root",
+        candidate.as_posix(),
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["accepted_root_required"]
+    assert payload["data"]["mutation"]["decision"] == "blocked"
+    assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["accepted_root_required"]
+
+
 def test_land_closeout_exposes_bootstrap_package_for_current_runner(
     tmp_path: Path,
 ) -> None:

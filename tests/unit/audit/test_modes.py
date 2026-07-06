@@ -111,6 +111,31 @@ def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path) ->
     assert "openspec_completed_change_unarchived:done-change" in report["required_gaps"]
 
 
+def test_openspec_shape_flags_metadata_keys_before_editor_parse(tmp_path: Path) -> None:
+    from ethos.repository.audit import _openspec_shape_report
+
+    openspec = tmp_path / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+    change = openspec / "changes" / "active-change"
+    change.mkdir(parents=True)
+    (change / ".openspec.yaml").write_text(
+        "schema: spec-driven\ngoal: should fail before PyCharm parses it\n",
+        encoding="utf-8",
+    )
+
+    report = _openspec_shape_report(tmp_path)
+
+    assert report["ok"] is False
+    assert (
+        "openspec_metadata_key_unsupported:goal:"
+        "openspec/changes/active-change/.openspec.yaml" in report["required_gaps"]
+    )
+    metadata = report["metadata_compatibility"]
+    assert metadata["ok"] is False
+    assert metadata["summary"]["issue_count"] == 1
+
+
 def test_openspec_shape_allows_in_progress_and_archived_changes(tmp_path: Path) -> None:
     from ethos.repository.audit import _openspec_shape_report
 

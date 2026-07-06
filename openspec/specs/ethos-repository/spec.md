@@ -440,6 +440,14 @@ complete governance.
 - **AND** it includes family vocabulary and capability profile templates
 - **AND** active changes remain case carriers rather than promoted truth.
 
+#### Scenario: OpenSpec metadata compatibility is checked upstream
+
+- **WHEN** ETHOS performs the always-run OpenSpec shape audit
+- **THEN** it checks active and archived `.openspec.yaml` metadata for keys
+  accepted by the official OpenSpec editor model
+- **AND** unsupported metadata keys are reported as repository governance gaps
+  before an IDE or host projection attempts to parse the workspace.
+
 ### Requirement: Agent Invocation Admission Boundary
 
 ETHOS SHALL describe mutation-capable agent invocation as an explicit admission

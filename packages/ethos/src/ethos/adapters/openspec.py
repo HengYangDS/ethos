@@ -24,9 +24,9 @@ VALID_CHANGE_DIRECTIONS = {"add", "modify", "remove", "rename", "retire"}
 ARCHIVE_NAME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
 DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
-ARCHIVE_METADATA_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
+OPENSPEC_METADATA_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
 REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
-ALLOWED_ARCHIVE_METADATA_KEYS = frozenset({"schema", "created", "status"})
+ALLOWED_OPENSPEC_METADATA_KEYS = frozenset({"schema", "created", "status"})
 
 
 def _openspec_base_command() -> tuple[str, ...] | None:
@@ -170,6 +170,50 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
     )
 
 
+def openspec_metadata_compatibility_report(root: Path) -> dict[str, Any]:
+    """Report `.openspec.yaml` metadata keys incompatible with the official IDE model.
+
+    JetBrains' OpenSpec parser treats change metadata as a closed shape. ETHOS
+    therefore checks every active and archived `.openspec.yaml` on the always-run
+    product path instead of discovering unknown keys only after an editor opens
+    the workspace.
+    """
+    changes_root = root / "openspec" / "changes"
+    metadata_paths = (
+        tuple(sorted(changes_root.rglob(".openspec.yaml"))) if changes_root.exists() else ()
+    )
+    issues: list[dict[str, str]] = []
+    for path in metadata_paths:
+        metadata = _read_openspec_metadata(path)
+        for key in sorted(set(metadata) - ALLOWED_OPENSPEC_METADATA_KEYS):
+            relative = (
+                path.relative_to(root).as_posix()
+                if _is_relative_to(path, root)
+                else path.as_posix()
+            )
+            issues.append(
+                {
+                    "code": "openspec_metadata_key_unsupported",
+                    "key": key,
+                    "path": relative,
+                    "gap": f"openspec_metadata_key_unsupported:{key}:{relative}",
+                }
+            )
+    required_gaps = sorted({issue["gap"] for issue in issues})
+    return {
+        "ok": not required_gaps,
+        "state": "blocked" if required_gaps else "clean",
+        "allowed_keys": sorted(ALLOWED_OPENSPEC_METADATA_KEYS),
+        "metadata_files": [path.relative_to(root).as_posix() for path in metadata_paths],
+        "issues": sorted(issues, key=lambda issue: (issue["path"], issue["key"])),
+        "required_gaps": required_gaps,
+        "summary": {
+            "metadata_file_count": len(metadata_paths),
+            "issue_count": len(issues),
+        },
+    }
+
+
 def _completed_active_change_names(list_payload: dict[str, Any]) -> list[str]:
     changes = list_payload.get("changes", [])
     if not isinstance(changes, list):
@@ -275,9 +319,9 @@ def _archive_metadata_issues(
     archive_name: str,
     root: Path,
 ) -> list[dict[str, str]]:
-    metadata = _read_archive_metadata(path)
+    metadata = _read_openspec_metadata(path)
     issues: list[dict[str, str]] = []
-    for key in sorted(set(metadata) - ALLOWED_ARCHIVE_METADATA_KEYS):
+    for key in sorted(set(metadata) - ALLOWED_OPENSPEC_METADATA_KEYS):
         issues.append(
             _archive_issue(
                 f"openspec_archive_metadata_key_unsupported:{key}",
@@ -317,13 +361,13 @@ def _archive_metadata_issues(
     return issues
 
 
-def _read_archive_metadata(path: Path) -> dict[str, str]:
+def _read_openspec_metadata(path: Path) -> dict[str, str]:
     metadata: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        match = ARCHIVE_METADATA_PATTERN.fullmatch(line)
+        match = OPENSPEC_METADATA_PATTERN.fullmatch(line)
         if match is not None:
             metadata[match.group(1)] = match.group(2).strip().strip("\"'")
     return metadata

@@ -4,6 +4,8 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec import openspec_metadata_compatibility_report
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -80,10 +82,13 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
     required_gaps.extend(_completed_unarchived_changes(openspec_root))
+    metadata_compatibility = openspec_metadata_compatibility_report(root)
+    required_gaps.extend(metadata_compatibility["required_gaps"])
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
     return {
         "ok": not required_gaps,
         "mode": "shape",
+        "metadata_compatibility": metadata_compatibility,
         "required_gaps": required_gaps,
     }
 

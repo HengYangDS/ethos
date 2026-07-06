@@ -110,6 +110,34 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
     assert "openspec_archive_delta_specs_missing:bad_name" in gaps
 
 
+def test_openspec_metadata_compatibility_checks_active_and_archived_changes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    active = root / "openspec" / "changes" / "active-change"
+    archived = root / "openspec" / "changes" / "archive" / "2026-07-05-done-change"
+    active.mkdir(parents=True)
+    archived.mkdir(parents=True)
+    (active / ".openspec.yaml").write_text(
+        "schema: spec-driven\ngoal: active IDE failure\n",
+        encoding="utf-8",
+    )
+    (archived / ".openspec.yaml").write_text(
+        "schema: spec-driven\ncreated: 2026-07-05\nowner: archive IDE failure\n",
+        encoding="utf-8",
+    )
+
+    report = openspec.openspec_metadata_compatibility_report(root)
+
+    assert report["ok"] is False
+    assert report["allowed_keys"] == ["created", "schema", "status"]
+    assert {
+        "openspec_metadata_key_unsupported:goal:openspec/changes/active-change/.openspec.yaml",
+        "openspec_metadata_key_unsupported:owner:"
+        "openspec/changes/archive/2026-07-05-done-change/.openspec.yaml",
+    } == set(report["required_gaps"])
+
+
 def test_archive_metadata_created_after_archive_and_delta_detail_gaps(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     archive = root / "openspec" / "changes" / "archive" / "2026-07-01-sample"

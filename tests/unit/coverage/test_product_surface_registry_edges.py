@@ -160,7 +160,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     assert openspec._completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
-    assert openspec._read_archive_metadata(archive / ".openspec.yaml")["schema"] == "other"
+    assert openspec._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
     assert openspec._is_relative_to(tmp_path / "x", tmp_path) is True
     assert openspec._is_relative_to(tmp_path.parent, tmp_path) is False
 

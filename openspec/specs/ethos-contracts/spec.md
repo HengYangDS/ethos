@@ -73,9 +73,10 @@ proof, and report payloads.
 - **WHEN** ETHOS emits `governance_context`
 - **THEN** the context identifies the subject as a repository
 - **AND** the context records the profile, kernel
-  chain, and transition and scorecard command semantics
+  chain, and transition, reader-view, and scorecard command semantics
 - **AND** `shared_commands` and `transition_commands` contain the five transition
   commands
+- **AND** `reader_view_commands` contains `ethos orient`
 - **AND** `scorecard_commands` contains `ethos report`
 - **AND** provider, host, editor, model, and toolchain choices remain outside
   product semantics

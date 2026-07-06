@@ -174,6 +174,8 @@ ETHOS SHALL govern repositories through one governed repository semantic model.
 - **AND** the context identifies the subject as a repository
 - **AND** every profile uses the same transition command semantics for status,
   plan, prove, land, and publish
+- **AND** every profile classifies orient as a separate read-only reader-view
+  command
 - **AND** every profile classifies report as a separate read-only scorecard command
 - **AND** profile or adapter differences do not create a second product command
   plane

@@ -537,6 +537,7 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
         "ethos land",
         "ethos publish",
     ]
+    assert context["reader_view_commands"] == ["ethos orient"]
     assert context["scorecard_commands"] == ["ethos report"]
     assert context["truth_boundary"] == "repository"
     assert context["profile_boundary"] == "profile_or_adapter"
@@ -1501,6 +1502,9 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
         "ethos prove",
         "ethos land",
         "ethos publish",
+    ]
+    assert payload["data"]["repository_audit"]["governance_context"]["reader_view_commands"] == [
+        "ethos orient"
     ]
     assert payload["data"]["repository_audit"]["governance_context"]["scorecard_commands"] == [
         "ethos report",

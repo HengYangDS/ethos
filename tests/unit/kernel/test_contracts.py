@@ -248,6 +248,7 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     # The authority order is surfaced (head-of-chain hole filled).
     assert "user_instruction" in context["judgment_source"]["policy_refs"]
     assert context["subject"]["kind"] == "repository"
+    assert context["reader_view_commands"] == ["ethos orient"]
 
 
 def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:

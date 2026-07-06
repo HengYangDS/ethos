@@ -34,6 +34,11 @@ ethos land
 ethos publish
 ```
 
+`ethos orient` is a read-only first-glance reader view over `status` and
+`report`. It helps humans and agents see where they are, what they may do, who
+else is present, what remains gapped, and what should run next. It is not a
+transition verb and does not mint repository truth.
+
 `ethos report` is a read-only scorecard. It is a payoff view over readiness,
 proof, parity, and release policy; it is not a sixth transition verb.
 
@@ -130,12 +135,14 @@ the subject kind or the command semantics.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
-single-kernel flag, kernel chain, shared transition commands, scorecard
-commands, repository truth boundary, and profile or adapter boundary.
+single-kernel flag, kernel chain, shared transition commands, reader-view
+commands, scorecard commands, repository truth boundary, and profile or adapter
+boundary.
 The shared transition semantics are exposed as `shared_commands` and
 `transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
-`ethos land`, and `ethos publish`. Read-only scorecard semantics are exposed as
-`scorecard_commands`: `ethos report`. `ethos audit --mode shape` and
+`ethos land`, and `ethos publish`. Read-only first-glance semantics are exposed
+as `reader_view_commands`: `ethos orient`. Read-only scorecard semantics are
+exposed as `scorecard_commands`: `ethos report`. `ethos audit --mode shape` and
 `ethos audit --mode deep` select proof depth for the same governed repository
 contract.
 

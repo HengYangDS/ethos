@@ -239,14 +239,17 @@ def test_product_design_contract_defines_governed_repository() -> None:
 
     assert "do not create separate command planes" in product
     assert "`transition_commands`" in product
+    assert "`reader_view_commands`" in product
     assert "`scorecard_commands`" in product
     assert "`transition_commands`" in command_plane
+    assert "`reader_view_commands`" in command_plane
     assert "`scorecard_commands`" in command_plane
     assert "governance_audit" in command_plane
     assert "capability_parity" in command_plane
     assert "same transition command semantics" in repository_spec
+    assert "read-only reader-view" in repository_spec
     assert "read-only scorecard command" in repository_spec
-    assert "transition and scorecard command semantics" in contracts_spec
+    assert "transition, reader-view, and scorecard command semantics" in contracts_spec
     assert "shared governance context contract" in contracts_spec
 
 

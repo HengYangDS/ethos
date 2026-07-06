@@ -295,11 +295,12 @@ ETHOS report and audit payloads use a governed repository contract. Every
 governed repository exposes `governance_context` so consumers can read the same
 command semantics without inferring product truth from a special branch or
 private command plane. The context records the profile, repository subject,
-kernel chain, shared transition commands, scorecard commands, repository truth
-boundary, and profile or adapter boundary.
+kernel chain, shared transition commands, reader-view commands, scorecard
+commands, repository truth boundary, and profile or adapter boundary.
 `shared_commands` and `transition_commands` list the five-command transition
 loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
-`ethos publish`. `scorecard_commands` lists the read-only payoff view:
+`ethos publish`. `reader_view_commands` lists the read-only first-glance view:
+`ethos orient`. `scorecard_commands` lists the read-only payoff view:
 `ethos report`. `ethos report --json` projects required gaps through
 repository-neutral layers: `governance_audit` for the active repository governance
 verdict, `capability_parity` for migration or adopter parity, and

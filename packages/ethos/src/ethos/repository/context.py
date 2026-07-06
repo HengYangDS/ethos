@@ -18,6 +18,7 @@ TRANSITION_COMMANDS = (
     "ethos publish",
 )
 
+READER_VIEW_COMMANDS = ("ethos orient",)
 SCORECARD_COMMANDS = ("ethos report",)
 
 
@@ -66,6 +67,7 @@ def governance_context(root: Path, *, profile: str) -> dict[str, object]:
         "kernel_chain": list(KERNEL_CHAIN),
         "shared_commands": list(TRANSITION_COMMANDS),
         "transition_commands": list(TRANSITION_COMMANDS),
+        "reader_view_commands": list(READER_VIEW_COMMANDS),
         "scorecard_commands": list(SCORECARD_COMMANDS),
         "truth_boundary": "repository",
         "profile_boundary": "profile_or_adapter",

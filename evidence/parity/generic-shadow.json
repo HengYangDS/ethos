@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "587993981433f219ef31d3b84580f12b3750b832",
-    "target_head": "587993981433f219ef31d3b84580f12b3750b832",
-    "product_semantic_sha256": "efd377783c9a33f2562fdd4d58f105f6c99af179fcebd387a526d4e50db6d97d",
-    "target_semantic_sha256": "efd377783c9a33f2562fdd4d58f105f6c99af179fcebd387a526d4e50db6d97d",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "1adedd5c18acc3706b566abbfaed4b67d99d9eb8",
+    "target_head": "1adedd5c18acc3706b566abbfaed4b67d99d9eb8",
+    "product_semantic_sha256": "ba27993c7f7d22626dc1e3e415893b81053e12353e28171696e43201f8e3d8ae",
+    "target_semantic_sha256": "ba27993c7f7d22626dc1e3e415893b81053e12353e28171696e43201f8e3d8ae",
+    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression",
-    "target_head": "587993981433f219ef31d3b84580f12b3750b832",
-    "product_head": "587993981433f219ef31d3b84580f12b3750b832",
+    "target_root": "/private/tmp/paDD",
+    "target_head": "1adedd5c18acc3706b566abbfaed4b67d99d9eb8",
+    "product_head": "1adedd5c18acc3706b566abbfaed4b67d99d9eb8",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paDD --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paDD --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c95e36088ab82933d04912e4f9648fec987e5ed405e8c3e62377436594b913be"
+        "sha256": "3956d68f095d90efc9161b7c147160ece5b76c4b644f861f68707062dd135503"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "b8a62cb2ad9bde8fad42567c4f94f456a98173bac7a6067f0be28a77bfc5b67f"
+        "sha256": "9577ad6de932a41370d3d22509f4b0c1d4ea4c7d667e65db13b757f0b1105e74"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "e815fd7883071b8d87a016625528d5d01b77b2593189f8e13bee1a747d08d801"
+        "sha256": "d3027c29f3ac4d7920ec533481ad3c338a9415bc238b70e2363ac32700573e3a"
       },
       {
         "path": "rules",

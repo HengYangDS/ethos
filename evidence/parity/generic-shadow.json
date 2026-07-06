@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
-    "target_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
-    "product_semantic_sha256": "344d2d95c6c8f3c984906d58662119d47063d3544338625f353159802bd2ed22",
-    "target_semantic_sha256": "344d2d95c6c8f3c984906d58662119d47063d3544338625f353159802bd2ed22",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "883806644f38c485a2a3014bf8254ffe017b43db",
+    "target_head": "883806644f38c485a2a3014bf8254ffe017b43db",
+    "product_semantic_sha256": "65d046124945e0fff52579cc1bf6846c817dd2ced265129ea4d4a3824a733e30",
+    "target_semantic_sha256": "65d046124945e0fff52579cc1bf6846c817dd2ced265129ea4d4a3824a733e30",
+    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate",
-    "target_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
-    "product_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line",
+    "target_head": "883806644f38c485a2a3014bf8254ffe017b43db",
+    "product_head": "883806644f38c485a2a3014bf8254ffe017b43db",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
-      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
+      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,7 +76,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e107ec27216846fc726feda0c3fbb7c06dc4ab69d10a90eb7f6389ee99658d8c"
+        "sha256": "e05668183f774219e7e41d9d969b5875ea1db98651717056afd3ce94db7be6c9"
       },
       {
         "path": "evidence/claims",
@@ -86,7 +86,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "2d08d2f4d86dddedbede78b0b8ee9a647bdac4223f259a76c267c3f24fc34248"
+        "sha256": "0ff0ef7b6c02225e5db73f1d9ca43cd779c5d41ea7e4a8fe155137bb506943d7"
       },
       {
         "path": "rules",

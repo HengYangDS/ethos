@@ -151,6 +151,7 @@ def test_cli_wrappers_emit_expected_results(
     assert emitted[-1].summary["role"] == ""
     assert emitted[-1].summary["foreign_work_lane_count"] == 0
     assert emitted[-1].summary["unbound_work_lane_count"] == 0
+    assert emitted[-1].summary["coordination_blocking"] is False
 
     monkeypatch.setattr(
         cli._prove,

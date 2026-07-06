@@ -502,6 +502,7 @@ Lane refs as inspectable residue objects rather than count-only signals.
   `data.coordination.foreign_work_lane_count`
 - **AND** `summary.unbound_work_lane_count` equals
   `data.coordination.unbound_work_lane_count`
+- **AND** `summary.coordination_blocking` equals `data.coordination.blocking`
 - **AND** those summary fields remain derived visibility signals and do not grant
   write, land, retire, or cleanup authority over another Work Lane or ref
 

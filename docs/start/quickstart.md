@@ -80,9 +80,10 @@ ethos publish
 
 For scripts and agents, `ethos status --json` exposes the safe first-glance
 fields in `summary`: current role, dirty state, changed-path count, visible
-foreign Work Lane count, and visible unbound Work Lane ref count. Treat those
-counts as visibility only; inspect `data.coordination` before any handoff,
-merge, land, retirement, or cleanup decision.
+foreign Work Lane count, visible unbound Work Lane ref count, and whether
+coordination is currently blocking. Treat those fields as visibility only;
+inspect `data.coordination` before any handoff, merge, land, retirement, or
+cleanup decision.
 
 Use `--json` for stable machine output. report is the payoff view, not a
 transition:

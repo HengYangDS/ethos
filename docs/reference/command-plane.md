@@ -168,11 +168,12 @@ Both commands include a `schema_validation` diagnostic for the live
 workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
 so the workspace-status object remains schema-valid.
-`ethos status --json` also lifts first-glance coordination counts into
-`summary.foreign_work_lane_count` and `summary.unbound_work_lane_count`. Those
-summary fields are derived visibility signals for humans and agents; they do
-not replace `data.coordination`, do not add cleanup authority, and do not change
-whether a coordination signal is advisory or required.
+`ethos status --json` also lifts first-glance coordination state into
+`summary.foreign_work_lane_count`, `summary.unbound_work_lane_count`, and
+`summary.coordination_blocking`. Those summary fields are derived visibility
+signals for humans and agents; they do not replace `data.coordination`, do not
+add cleanup authority, and do not change whether a coordination signal is
+advisory or required.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap

@@ -41,6 +41,7 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         payload["summary"]["unbound_work_lane_count"]
         == orientation["coordination"]["unbound_work_lane_count"]
     )
+    assert payload["summary"]["coordination_blocking"] == orientation["coordination"]["blocking"]
     assert payload["next_actions"] == orientation["next_actions"]
 
 
@@ -67,6 +68,7 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["dirty"] == data["dirty"]
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"]
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"]
+    assert summary["coordination_blocking"] == coordination["blocking"]
 
 
 def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path: Path) -> None:
@@ -131,6 +133,7 @@ def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
     assert orientation["capability"]["can_mutate_tracked_files"] is False
     assert "unbound ref(s) visible" in orientation["human_summary"]
     assert status["summary"]["unbound_work_lane_count"] == 1
+    assert status["summary"]["coordination_blocking"] is False
     assert (
         status["summary"]["unbound_work_lane_count"]
         == status["data"]["coordination"]["unbound_work_lane_count"]

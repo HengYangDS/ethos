@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-full-proof-convergence",
+  "target": "/private/tmp/ethos-terminal-boundary-finalization",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-full-proof-convergence --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-terminal-boundary-finalization --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "26fd423f52a59b205a6593ac626fa4581efb5e1b",
-    "target_head": "26fd423f52a59b205a6593ac626fa4581efb5e1b",
-    "command_sha256": "c7c68321e7e0578c1225078949484de120894aa10c473ad0355847fbd3f62983"
+    "product_head": "2f42dd5e5509d5f5afd0e3cc15114d9273e6fc79",
+    "target_head": "2f42dd5e5509d5f5afd0e3cc15114d9273e6fc79",
+    "command_sha256": "3ad1124783c66bc9f7b241e775dc96bf54459e5dd7a9ecb01862652440279d68"
   },
   "shadow": {
     "ok": true,

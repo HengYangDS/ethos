@@ -42,3 +42,20 @@ def test_report_classifies_current_gap_layers_into_invalid_states() -> None:
             }
         )
         assert payload["data"]["invalid_states"]["gap_count"] >= len(parity_gaps)
+
+
+def test_explain_projects_advisory_signal_without_required_gap_overclaim() -> None:
+    signal = (
+        "openspec_protected_branch_active_change_unarchived:"
+        "main:release_root:ethos-release-hardening"
+    )
+    payload = run_ethos("explain", signal, "--json")
+
+    assert payload["ok"] is True
+    assert payload["state"] == "explained"
+    assert payload["summary"] == {"gap": signal, "invalid_state": "carrier_invalid"}
+    assert payload["data"]["signal"] == signal
+    assert payload["data"]["kind"] == "invalid_state_projection"
+    assert "required gap" not in payload["data"]["meaning"]
+    assert "signal" in payload["data"]["meaning"]
+    assert payload["data"]["taxonomy"]["projection_only"] is True

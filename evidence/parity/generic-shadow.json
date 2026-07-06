@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "e2e1164059161879926e5aab73f2f36c46f19476",
-    "target_head": "e2e1164059161879926e5aab73f2f36c46f19476",
-    "product_semantic_sha256": "c570f580dab22b372f673398043d8393613df0d333b3c2fe7c02ae273519f16f",
-    "target_semantic_sha256": "c570f580dab22b372f673398043d8393613df0d333b3c2fe7c02ae273519f16f",
+    "product_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
+    "target_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
+    "product_semantic_sha256": "7f9ca3391f04df5f826c1b7dcdc3bf41fbd3efe6893e6db8b9026bb782720cae",
+    "target_semantic_sha256": "7f9ca3391f04df5f826c1b7dcdc3bf41fbd3efe6893e6db8b9026bb782720cae",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/advisory-next-action",
-    "target_head": "e2e1164059161879926e5aab73f2f36c46f19476",
-    "product_head": "e2e1164059161879926e5aab73f2f36c46f19476",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/explain-signal-language",
+    "target_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
+    "product_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json",
-      "/Users/yheng/projects/ethos-worktrees/advisory-next-action/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/advisory-next-action --json"
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "11e0859c985fbbbe7a2bc9d331efbc9b713506a64a8529d3f8fc0367ec9fd982"
+        "sha256": "45c934ed42f2c621114747ddceac38fa898825b6caac001ccc701305a31d4f7b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "224636ea64440c86235ce1482c7cea3c32e0f0169a961f4fb0e94d815552e841"
+        "sha256": "3212b2232e80bc3d390ae0d62ff458f23998428bcc1a15889f6b27d935c4f35b"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "69c9172fd21186ebceeef6855f6d8be760a9d253bb0c7a67690dd0f30dd2e05b"
+        "sha256": "d1b354961112ff46ec1d4190217eb21436adfccdc36e1b30651bb57e2b2534da"
       },
       {
         "path": "rules",

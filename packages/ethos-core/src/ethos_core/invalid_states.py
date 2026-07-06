@@ -137,8 +137,11 @@ def explain_gap(gap: str) -> dict[str, object]:
     )
     return {
         "gap": gap,
+        "signal": gap,
+        "kind": "invalid_state_projection",
         "meaning": (
-            "A required gap names a failed precondition in the ETHOS trust-transition chain."
+            "A governance gap or advisory signal names a failed or weakened "
+            "precondition in the ETHOS trust-transition chain."
         ),
         "invalid_state": invalid_state,
         "taxonomy": {
@@ -148,7 +151,7 @@ def explain_gap(gap: str) -> dict[str, object]:
             "lifecycle_command": False,
         },
         "next_action": (
-            "Repair the failed precondition named by invalid_state.node, "
+            "Inspect or repair the precondition named by invalid_state.node, "
             "then rerun the governing command."
         ),
     }

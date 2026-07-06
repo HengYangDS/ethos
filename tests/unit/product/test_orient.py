@@ -175,3 +175,102 @@ def test_orient_reports_current_head_from_status_branch_binding() -> None:
     binding = next(item for item in status["data"]["branch_bindings"] if item["branch"] == branch)
     assert orientation["where"]["head"] == binding["head"]
     assert orientation["where"]["head"]
+
+
+def _orientation_line_packet(**overrides: object) -> dict[str, object]:
+    packet: dict[str, object] = {
+        "human_summary": "ready: custom",
+        "where": {
+            "role": "work_lane",
+            "branch": "work/demo",
+            "head": "abcdef1234567890",
+            "changed_path_count": 0,
+        },
+        "capability": {
+            "current_actor_capability": "write_lane",
+            "reason": "owned Work Lane; run prewrite before tracked mutation",
+        },
+        "readiness": {
+            "max_score": 16,
+            "score": 16,
+            "governance_gap_count": 0,
+            "parity_pending_count": 0,
+        },
+        "runtime_binding": {"advisory_items": []},
+        "landing_readiness": {"required_items": []},
+        "coordination": {
+            "foreign_work_lane_count": 0,
+            "unbound_work_lane_count": 0,
+            "blocking": False,
+            "required_items": [],
+            "next_action": "",
+        },
+        "next_actions": [],
+    }
+    packet.update(overrides)
+    return packet
+
+
+def test_human_orientation_lines_renders_status_only_runtime_landing_and_no_coordination() -> None:
+    from ethos.domain.orient import human_orientation_lines
+
+    lines = human_orientation_lines(
+        _orientation_line_packet(
+            where={
+                "role": "submit_lane",
+                "branch": "submit/demo",
+                "head": "abcdef1234567890",
+                "changed_path_count": 0,
+            },
+            capability={
+                "current_actor_capability": "observe",
+                "reason": "checkout role is not admitted for mutation",
+            },
+            readiness={"max_score": 0},
+            runtime_binding={
+                "state": "degraded",
+                "advisory_items": ["runner_mismatch"],
+                "next_action": "align runner and audit root",
+            },
+            landing_readiness={
+                "state": "blocked",
+                "required_items": ["candidate_not_current"],
+                "next_action": "refresh candidate base",
+            },
+        )
+    )
+
+    assert "readiness: status-only view; run ethos report --json for scorecard" in lines
+    assert "runtime: degraded; align runner and audit root" in lines
+    assert "landing: blocked; refresh candidate base" in lines
+    assert not any(line.startswith("coordination:") for line in lines)
+    assert not any(line.startswith("next:") for line in lines)
+
+
+def test_human_orientation_lines_marks_blocking_coordination_without_next_action() -> None:
+    from ethos.domain.orient import human_orientation_lines
+
+    lines = human_orientation_lines(
+        _orientation_line_packet(
+            where={"role": "work_lane", "branch": "work/demo", "head": "", "changed_path_count": 2},
+            readiness={
+                "max_score": 16,
+                "score": 12,
+                "governance_gap_count": 2,
+                "parity_pending_count": 1,
+            },
+            coordination={
+                "foreign_work_lane_count": 2,
+                "unbound_work_lane_count": 1,
+                "blocking": True,
+                "required_items": ["scope_overlap"],
+                "next_action": "",
+            },
+            next_actions=["ethos explain scope_overlap --json", "ethos report --json"],
+        )
+    )
+
+    assert "where: work_lane on work/demo (2 changed paths)" in lines
+    assert "readiness: score 12/16, governance gaps 2, parity pending 1" in lines
+    assert "coordination: 2 foreign lane(s), 1 unbound ref(s), blocking" in lines
+    assert lines[-1] == "next: ethos explain scope_overlap --json | ethos report --json"

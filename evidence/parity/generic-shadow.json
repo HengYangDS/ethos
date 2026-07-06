@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
-    "target_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
-    "product_semantic_sha256": "59c6a6a7c6070ce75460b037ea3bbe4515cb8d3363d31571cae7c9e674ad5278",
-    "target_semantic_sha256": "59c6a6a7c6070ce75460b037ea3bbe4515cb8d3363d31571cae7c9e674ad5278",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "3cf9df8d2ea6ed55b6b4806b9a911cc9f491d37c",
+    "target_head": "3cf9df8d2ea6ed55b6b4806b9a911cc9f491d37c",
+    "product_semantic_sha256": "30fcc51498025605968d29c65f5f302a1e6ae8843638703acb78e0d2fae898af",
+    "target_semantic_sha256": "30fcc51498025605968d29c65f5f302a1e6ae8843638703acb78e0d2fae898af",
+    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot",
-    "target_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
-    "product_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
+    "target_root": "/private/tmp/paP0ref",
+    "target_head": "3cf9df8d2ea6ed55b6b4806b9a911cc9f491d37c",
+    "product_head": "3cf9df8d2ea6ed55b6b4806b9a911cc9f491d37c",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paP0ref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paP0ref --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0f96f0bad390704177fc09699827a18c5586c88b1fbd5e5346548b5e8e273890"
+        "sha256": "9f0b74b29cdf93810f37ed592130a5f20a247c195a291a3e168ca047e477f297"
       },
       {
         "path": "evidence/claims",

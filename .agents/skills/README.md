@@ -17,6 +17,30 @@ not replace those surfaces as authority.
 - `activation.toml` maps paths and intents to candidate skills.
 - Skills should be concise and point to rules or docs instead of copying them.
 
+## First-Glance Skill Routing
+
+Always start from repository state, then select the smallest matching skill:
+
+```bash
+ethos orient --json
+ethos status --json
+```
+
+- Repository truth, adoption, proof, or Work Lane question: use
+  `ethos-repository-governance`.
+- Change lifecycle, readiness, land, publish, or closeout: use
+  `ethos-change-lifecycle`.
+- Skills, activation, meta-skills, projection drift, or skill creator work: use
+  `ethos-skill-portfolio-governance`.
+- CI, lint, format, type, docstring, coverage, or config gates: use
+  `ethos-quality-gate-governance`.
+- Governing another repository with the same kernel: use
+  `ethos-adoption-profile-governance`.
+
+Foreign Work Lanes visible in command JSON are coordination signals, not write
+authority. Skill procedures may observe them; they may not absorb, land, or
+retire them without owner handoff or maintainer break-glass evidence.
+
 ## Available Skills
 
 | Skill | Use when |

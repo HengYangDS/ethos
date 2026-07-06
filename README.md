@@ -44,6 +44,24 @@ Start read-only. Choose an adoption profile, review the planned files with a
 dry run, apply only when the generated file list and rollback path are clear,
 then use the five-command loop above.
 
+## Human And Agent Discovery
+
+Use one discovery path, then branch by audience:
+
+```text
+README / docs index / AGENTS.md -> ethos orient -> status -> plan -> prove -> land -> publish
+```
+
+- Humans start from this README, then the [docs index](docs/index.md) and
+  [quickstart](docs/start/quickstart.md).
+- Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
+  then run `ethos orient --json` before planning mutation.
+- Both treat `ethos orient` as a reader view: it makes role, capability, foreign
+  Work Lanes, gaps, and next commands visible without minting truth.
+- Foreign Work Lanes are observe-only unless the owner hands them off or a
+  maintainer records break-glass evidence. Visibility is collaboration, not
+  authority.
+
 ## Kernel
 
 ETHOS product truth is judged from one source and projected through one canonical

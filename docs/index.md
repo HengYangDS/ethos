@@ -38,6 +38,19 @@ The documentation system uses Subject, Role, State, and Relation metadata so
 humans and agents can navigate without treating historical material as current
 truth.
 
+## Discovery By Audience
+
+| Audience | Start here | Then run | Boundary |
+| --- | --- | --- | --- |
+| Human operator | [Quickstart](start/quickstart.md) | `ethos orient` | Reader view first; mutation only after an explicit Work Lane or authorized apply path. |
+| Coding agent | [AGENTS.md](../AGENTS.md) and the matching [rule](../rules/README.md) | `ethos orient --json` | Repository truth outranks host memory, chat context, and generated projections. |
+| Maintainer | [Command Plane](reference/command-plane.md) | `ethos report --json` and HEAD-bound `ethos prove` | Scorecards explain readiness; executed proof supports claims. |
+| Adopter | [Adoption Profiles](architecture/adoption-profiles.md) | `ethos adopt --dry-run --json` | Profiles change gates and adapters, not the governed repository kind. |
+
+In multi-agent work, visible foreign Work Lanes are read models over Git, lease,
+claim, and evidence facts. Use them to coordinate, not to write, land, or retire
+another lane without owner handoff or maintainer break-glass evidence.
+
 ## Maps
 
 - Start: [Quickstart](start/quickstart.md)

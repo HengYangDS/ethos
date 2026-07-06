@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "8656528ff824c95ac6a3d20dd3489f73b7e84e50",
-    "target_head": "8656528ff824c95ac6a3d20dd3489f73b7e84e50",
-    "product_semantic_sha256": "558526f33b1ff960e176e8284cd80358d7dd36a225cbcf95272fee13282666d3",
-    "target_semantic_sha256": "558526f33b1ff960e176e8284cd80358d7dd36a225cbcf95272fee13282666d3",
+    "product_head": "15770742c9f58ffdaca5e16d6cdc71ae94985e99",
+    "target_head": "15770742c9f58ffdaca5e16d6cdc71ae94985e99",
+    "product_semantic_sha256": "acf1cf2a3c0a55ace044f7610569df444fd5896bbb4390303d9f45dce8815e7a",
+    "target_semantic_sha256": "acf1cf2a3c0a55ace044f7610569df444fd5896bbb4390303d9f45dce8815e7a",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory",
-    "target_head": "8656528ff824c95ac6a3d20dd3489f73b7e84e50",
-    "product_head": "8656528ff824c95ac6a3d20dd3489f73b7e84e50",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification",
+    "target_head": "15770742c9f58ffdaca5e16d6cdc71ae94985e99",
+    "product_head": "15770742c9f58ffdaca5e16d6cdc71ae94985e99",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/openspec-lifecycle-protected-advisory --json"
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/advisory-invalid-state-classification --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "dbac9831d2bb9eb90218a8e3bb7eee761d2d787af50971007a91cbd2b3f403c9"
+        "sha256": "f05b4580e676dcef204e951423bb84b13319feccfb8265835e90a3c1e4d77dff"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "76b224ae273eb5ab795f64550328ee7afffffeee21f55432ef6e64bbd45c9a54"
+        "sha256": "482bdf8a6890dd9463ae818ff4675475b150d00ef7a435ed072de539a4fb7a21"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "59575f92de6e352769af669a4d46cae704d6cc4d6f41364fbfe09a2e51e72c45"
+        "sha256": "d1105fe983b3e6b7389c3c235dd501d8c1b6335380a997ab0cb7793cb11f8e95"
       },
       {
         "path": "rules",

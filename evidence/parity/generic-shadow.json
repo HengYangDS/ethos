@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
-    "target_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
-    "product_semantic_sha256": "173af83568ec5112abc455cc0ec0893ef8fbcd643d9495119e5664ebca41cbd9",
-    "target_semantic_sha256": "173af83568ec5112abc455cc0ec0893ef8fbcd643d9495119e5664ebca41cbd9",
-    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
+    "product_head": "a605b54e36d5c0e1d05dda8d26f4f2571f43b3e6",
+    "target_head": "a605b54e36d5c0e1d05dda8d26f4f2571f43b3e6",
+    "product_semantic_sha256": "497240b04df95c649082d61b26dc9290e2d363add09c99f808f2d3735f200ed1",
+    "target_semantic_sha256": "497240b04df95c649082d61b26dc9290e2d363add09c99f808f2d3735f200ed1",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paDHP",
-    "target_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
-    "product_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard",
+    "target_head": "a605b54e36d5c0e1d05dda8d26f4f2571f43b3e6",
+    "product_head": "a605b54e36d5c0e1d05dda8d26f4f2571f43b3e6",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paDHP --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paDHP --json"
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/openspec-active-carrier-closeout-guard --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "cc03f72d7d158709f9883930aa62b76e03a02966c59dc198a1f8b3e531afdbb1"
+        "sha256": "f47504abca23c45409075b689f60346dd42db7987cc6566cbb286abe93aedf9b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "da908c44a957a794c1e7b481442b3fd5d4f4f8e405b177445a32c7c63d0cdc20"
+        "sha256": "15f3de4b72cf3f775a2e6f9036621381769f0a0669de2acd1329f70c917df490"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d5bbc373fa0be605b13053ce6d4d1b911db3677a33ab2e37812d6dd2eeb1a14a"
+        "sha256": "d9de6478b44c0daa80a060d363aa427d8d952e736b870b070280e38b2693727f"
       },
       {
         "path": "rules",

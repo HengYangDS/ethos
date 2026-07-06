@@ -34,7 +34,7 @@ owner = "repository-governance"
 scope = "physical evidence layout and topic-scoped chronicle boundary"
 
 [carriers]
-openspec = "openspec/changes/evidence-topic-scoped-chronicle"
+openspec = "openspec/changes/archive/2026-07-07-evidence-topic-scoped-chronicle"
 
 fallback = "Keep claim records and parity JSON in their existing owner roots while reverting only the chronicle relocation if digest verification fails."
 kill_signal = "Loose root Markdown proof or flat chronicle Markdown reappears as current ETHOS product evidence."
@@ -44,9 +44,9 @@ targets = [
   "evidence/README.md",
   "evidence/chronicle/evidence-topic-scoped-chronicle/2026-07-07.md",
   "evidence/claims/evidence-topic-scoped-chronicle.toml",
-  "openspec/changes/evidence-topic-scoped-chronicle/proposal.md",
-  "openspec/changes/evidence-topic-scoped-chronicle/design.md",
-  "openspec/changes/evidence-topic-scoped-chronicle/tasks.md",
-  "openspec/changes/evidence-topic-scoped-chronicle/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-07-evidence-topic-scoped-chronicle/proposal.md",
+  "openspec/changes/archive/2026-07-07-evidence-topic-scoped-chronicle/design.md",
+  "openspec/changes/archive/2026-07-07-evidence-topic-scoped-chronicle/tasks.md",
+  "openspec/changes/archive/2026-07-07-evidence-topic-scoped-chronicle/specs/repository-governance/spec.md",
   "tests/architecture/test_evidence_layout.py",
 ]

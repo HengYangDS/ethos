@@ -5,6 +5,9 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
+from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
+from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,6 +16,47 @@ OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 
 
 OpenSpecReporter = object
+
+
+def _active_change_names(openspec_root: Path) -> list[str]:
+    """Return active OpenSpec change directory names, excluding archive/templates."""
+    changes_root = openspec_root / "changes"
+    if not changes_root.exists():
+        return []
+    return [
+        change_dir.name
+        for change_dir in sorted(changes_root.iterdir())
+        if change_dir.is_dir() and change_dir.name != "archive"
+    ]
+
+
+def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
+    """Block active OpenSpec carriers on accepted and candidate roles.
+
+    Active changes are legal authoring carriers in Work Lanes. Once a change is
+    promoted to candidate or accepted-root truth, any remaining active carrier is
+    stale state and must be archived so current truth lives in source, specs,
+    claims, evidence, and chronicle rather than in `openspec/changes/<id>`.
+    """
+    if role not in {ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE}:
+        return []
+    return [
+        f"openspec_active_change_unarchived:{name}:{role}"
+        for name in _active_change_names(openspec_root)
+    ]
+
+
+def _current_branch_role(root: Path) -> str:
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if branch.returncode != 0:
+        return "other"
+    return load_branch_role_policy(root).role_for_branch(branch.stdout.strip())
 
 
 def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
@@ -81,6 +125,9 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
         required_gaps.append("openspec_config_missing")
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
+    required_gaps.extend(
+        _active_change_violations_for_role(openspec_root, _current_branch_role(root))
+    )
     required_gaps.extend(_completed_unarchived_changes(openspec_root))
     metadata_compatibility = openspec_metadata_compatibility_report(root)
     required_gaps.extend(metadata_compatibility["required_gaps"])

@@ -264,6 +264,13 @@ def test_audit_coupling_config_and_misc_edges(
     assert audit._completed_unarchived_changes(tmp_path / "openspec") == [
         "openspec_completed_change_unarchived:done"
     ]
+    assert audit._active_change_violations_for_role(tmp_path / "openspec", "work_lane") == []
+    assert audit._active_change_violations_for_role(tmp_path / "openspec", "accepted_root") == [
+        "openspec_active_change_unarchived:done:accepted_root"
+    ]
+    assert audit._active_change_violations_for_role(tmp_path / "openspec", "candidate") == [
+        "openspec_active_change_unarchived:done:candidate"
+    ]
     (tmp_path / ".githooks").mkdir()
     (tmp_path / ".githooks" / "pre-commit").write_text("", encoding="utf-8")
     monkeypatch.setattr(

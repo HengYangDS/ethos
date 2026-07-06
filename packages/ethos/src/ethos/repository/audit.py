@@ -16,6 +16,7 @@ from ethos.repository.audit_design import DESIGN_INTEGRITY_REQUIRED_TERMS
 from ethos.repository.audit_design import DESIGN_INTEGRITY_VENDOR_TERMS
 from ethos.repository.audit_design import _design_integrity_report
 from ethos.repository.audit_design import _front_matter_ok
+from ethos.repository.audit_openspec import _active_change_violations_for_role
 from ethos.repository.audit_openspec import _completed_unarchived_changes
 from ethos.repository.audit_openspec import _openspec_provider_missing_report
 from ethos.repository.audit_openspec import _openspec_shape_report as _openspec_shape_report_impl
@@ -38,6 +39,7 @@ __all__ = (
     "DESIGN_INTEGRITY_FORBIDDEN_TERMS",
     "DESIGN_INTEGRITY_REQUIRED_TERMS",
     "DESIGN_INTEGRITY_VENDOR_TERMS",
+    "_active_change_violations_for_role",
     "_completed_unarchived_changes",
 )
 

@@ -178,7 +178,8 @@ advisory or required.
 `data.orientation.coordination.next_action` for first-glance coordination
 guidance. That field is distinct from the top-level transition `next_actions`:
 it explains how to inspect coordination signals, not which transition command
-must run next.
+must run next. Human `ethos orient` output renders coordination as one concise
+line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap

@@ -525,6 +525,8 @@ Lane refs as inspectable residue objects rather than count-only signals.
   `status.data.coordination.next_action` as coordination guidance
 - **AND** `summary.unbound_work_lane_count` equals
   `data.orientation.coordination.unbound_work_lane_count`
+- **AND** human `ethos orient` output renders coordination guidance as at most
+  one concise coordination line
 - **AND** the orientation view does not grant write, land, retire, or cleanup
   authority over that ref
 

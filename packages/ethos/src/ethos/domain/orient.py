@@ -168,22 +168,31 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     landing_items = _strings(landing.get("required_items"))
     if landing_items:
         lines.append(f"landing: {landing.get('state')}; {landing.get('next_action')}")
-    if int(coordination.get("foreign_work_lane_count") or 0):
-        lines.append(
-            "coordination: "
-            f"{coordination.get('foreign_work_lane_count')} foreign lane(s), "
-            "observe-only unless owner/handoff/break-glass"
-        )
-    if int(coordination.get("unbound_work_lane_count") or 0):
-        lines.append(
-            "coordination: "
-            f"{coordination.get('unbound_work_lane_count')} unbound Work Lane ref(s), "
-            "inspect before merge, supersede, or retirement"
-        )
+    coordination_line = _coordination_line(coordination)
+    if coordination_line:
+        lines.append(coordination_line)
     next_actions = _strings(packet.get("next_actions"))
     if next_actions:
         lines.append("next: " + " | ".join(next_actions))
     return tuple(lines)
+
+
+def _coordination_line(coordination: Mapping[str, Any]) -> str:
+    parts: list[str] = []
+    foreign_count = int(coordination.get("foreign_work_lane_count") or 0)
+    unbound_count = int(coordination.get("unbound_work_lane_count") or 0)
+    required_items = _strings(coordination.get("required_items"))
+    if foreign_count:
+        parts.append(f"{foreign_count} foreign lane(s)")
+    if unbound_count:
+        parts.append(f"{unbound_count} unbound ref(s)")
+    if bool(coordination.get("blocking")) or required_items:
+        parts.append("blocking")
+    if not parts:
+        return ""
+    next_action = str(coordination.get("next_action") or "")
+    suffix = f"; {next_action}" if next_action else ""
+    return f"coordination: {', '.join(parts)}{suffix}"
 
 
 def _dict(value: object) -> dict[str, Any]:

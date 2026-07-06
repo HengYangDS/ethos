@@ -156,6 +156,13 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
     head = json_payload["data"]["orientation"]["where"]["head"]
     assert f"@ {head[:12]}" in where_line
     assert any(line.startswith("can:") for line in lines)
+    coordination_lines = [line for line in lines if line.startswith("coordination:")]
+    assert len(coordination_lines) <= 1
+    if coordination_lines:
+        assert (
+            json_payload["data"]["orientation"]["coordination"]["next_action"]
+            in (coordination_lines[0])
+        )
     assert any(line.startswith("next:") for line in lines)
 
 

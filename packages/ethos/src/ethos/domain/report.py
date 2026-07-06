@@ -83,7 +83,8 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             cast("list[str]", claim_report["required_gaps"])
         )
     parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
-    gap_layers = _gap_layers(result_required_gaps, parity_gaps, playbooks)
+    advisory_gaps = _advisory_gaps(audit, claim_report, playbooks)
+    gap_layers = _gap_layers(result_required_gaps, parity_gaps, playbooks, advisory_gaps)
     return {
         "ok": all(value == 1 for value in scores.values()),
         "summary": {
@@ -91,6 +92,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             "max_score": len(scores),
             "governance_gap_count": len(result_required_gaps),
             "parity_pending_count": parity_pending_count,
+            "advisory_gap_count": len(advisory_gaps),
         },
         "required_gaps": result_required_gaps,
         "next_actions": (
@@ -115,6 +117,11 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             "adoption_scaffold": adoption_scaffold,
             "gap_layers": gap_layers,
             "invalid_states": _all_invalid_states(result_required_gaps, parity_gaps, playbooks),
+            "advisory_signals": {
+                "blocking": False,
+                "advisory_gaps": list(advisory_gaps),
+                "gap_count": len(advisory_gaps),
+            },
             "parity": {
                 "scope": {
                     "generic_gap_count": parity_pending_count,
@@ -211,10 +218,39 @@ def _first_hour(product_profile: bool, required_gaps: tuple[str, ...]) -> dict[s
     }
 
 
+def _advisory_gaps(
+    audit: dict[str, object],
+    claim_report: dict[str, object],
+    playbooks: dict[str, object],
+) -> tuple[str, ...]:
+    """Collect non-blocking small signals that should stay visible in report.
+
+    Required gaps remain the blocking transition vocabulary. Advisory gaps are
+    early disorder signals: visible to humans and agents, but not proof-closing
+    blockers by themselves. Keep the collection explicit so the scorecard does
+    not recursively reinterpret arbitrary nested provider payloads as product
+    truth.
+    """
+    openspec = cast("dict[str, object]", audit.get("openspec") or {})
+    values = [
+        *_strings(openspec.get("advisory_gaps")),
+        *_strings(claim_report.get("advisory_gaps")),
+        *_strings(playbooks.get("advisory_gaps")),
+    ]
+    return tuple(dict.fromkeys(values))
+
+
+def _strings(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value if str(item)]
+
+
 def _gap_layers(
     result_required_gaps: tuple[str, ...],
     parity_gaps: dict[str, object],
     playbooks: dict[str, object],
+    advisory_gaps: tuple[str, ...],
 ) -> dict[str, dict[str, object]]:
     return {
         "governance_audit": _gap_layer(
@@ -237,6 +273,15 @@ def _gap_layers(
                 gaps=list(cast("list[str]", playbooks["required_gaps"])),
             ),
             "advisory_gaps": list(cast("list[object]", playbooks["advisory_gaps"])),
+        },
+        "advisory_signals": {
+            "scope": "advisory_signals",
+            "blocking": False,
+            "ok": True,
+            "required_gaps": [],
+            "advisory_gaps": list(advisory_gaps),
+            "gap_count": len(advisory_gaps),
+            "invalid_states": invalid_state_projection([]),
         },
     }
 

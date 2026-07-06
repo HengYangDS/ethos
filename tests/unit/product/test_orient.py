@@ -33,6 +33,13 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     assert orientation["runtime_binding"]["state"]
     assert orientation["landing_readiness"]["state"]
     assert isinstance(orientation["runtime_binding"]["advisory_items"], list)
+    assert (
+        orientation["readiness"]["advisory_gap_count"] == payload["summary"]["advisory_gap_count"]
+    )
+    assert (
+        "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
+        in orientation["readiness"]["advisory_items"]
+    )
     assert payload["summary"]["role"] == orientation["where"]["role"]
     assert (
         payload["summary"]["foreign_work_lane_count"]
@@ -151,6 +158,7 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
     lines = completed.stdout.splitlines()
     assert 4 <= len(lines) <= 8
     assert lines[0].startswith(("ready:", "dirty:", "gapped:"))
+    assert "advisory" in lines[0]
     where_line = next(line for line in lines if line.startswith("where:"))
     json_payload = run_ethos("orient", "--json")
     head = json_payload["data"]["orientation"]["where"]["head"]
@@ -204,6 +212,8 @@ def _orientation_line_packet(**overrides: object) -> dict[str, object]:
             "score": 16,
             "governance_gap_count": 0,
             "parity_pending_count": 0,
+            "advisory_gap_count": 0,
+            "advisory_items": [],
         },
         "runtime_binding": {"advisory_items": []},
         "landing_readiness": {"required_items": []},

@@ -2172,6 +2172,14 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["summary"]["parity_pending_count"] == 0
     assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
     assert payload["summary"]["governance_gap_count"] == 0
+    assert payload["summary"]["advisory_gap_count"] >= 1
+    advisory_layer = payload["data"]["gap_layers"]["advisory_signals"]
+    assert advisory_layer["blocking"] is False
+    assert advisory_layer["gap_count"] == payload["summary"]["advisory_gap_count"]
+    assert (
+        "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
+        in advisory_layer["advisory_gaps"]
+    )
     assert "self_audit" not in payload["data"]
     assert (
         payload["data"]["governance_context"]

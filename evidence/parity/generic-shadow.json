@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "962f361a6ae076cdedfad36c7c9728b464c59103",
-    "target_head": "962f361a6ae076cdedfad36c7c9728b464c59103",
-    "product_semantic_sha256": "21efca7aa400e2223e43f0c23f861e3fc7e8c312a6d7f0df2e80840a667b27bc",
-    "target_semantic_sha256": "21efca7aa400e2223e43f0c23f861e3fc7e8c312a6d7f0df2e80840a667b27bc",
+    "product_head": "b2f57b695a5ccccfda67a97e32b22420aaf97acb",
+    "target_head": "b2f57b695a5ccccfda67a97e32b22420aaf97acb",
+    "product_semantic_sha256": "04ede758097e9bba2452987b463ebe842641b3bacc1d533b352978f50e03d649",
+    "target_semantic_sha256": "04ede758097e9bba2452987b463ebe842641b3bacc1d533b352978f50e03d649",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate",
-    "target_head": "962f361a6ae076cdedfad36c7c9728b464c59103",
-    "product_head": "962f361a6ae076cdedfad36c7c9728b464c59103",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel",
+    "target_head": "b2f57b695a5ccccfda67a97e32b22420aaf97acb",
+    "product_head": "b2f57b695a5ccccfda67a97e32b22420aaf97acb",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/protected-openspec-residue-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/advisory-signal-readmodel --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "af01abf7fe01cca760d9984700afae2aca852f58b5216cb7c6b686f2ac493db1"
+        "sha256": "89e0caa4b871db1f6df5924cb4612aebe16f6decb859a10f1c147d647c8d8538"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "3384d61933e184bb6d3dc711ff196b4251c784f377bee4a45844ed5665bd4653"
+        "sha256": "45fa9e408bc4c7ecf8130b20d6f8a18da63f7bed2dcaa82ce382bef4a85cc2c6"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "2f616dc93a48f441fa98685bcf6e8a70e83e3da1266500c35f0f2694ceefeae5"
+        "sha256": "7e31276157f7156169ef6a02e991d113d6f1ba2463dc0002cdc9280286b27e59"
       },
       {
         "path": "rules",

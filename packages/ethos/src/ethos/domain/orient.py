@@ -43,6 +43,7 @@ def orientation_packet(
     required_gaps = _strings(status_payload.get("required_gaps"))
     report_summary = _dict(report_payload.get("summary") if report_payload else None)
     report_required = _strings(report_payload.get("required_gaps") if report_payload else None)
+    report_advisory = _report_advisory_items(report_payload)
     gaps = _dedupe([*required_gaps, *report_required])
     capability = _capability(role=role, dirty=dirty, closeout=closeout)
     next_actions = _next_actions(
@@ -107,6 +108,10 @@ def orientation_packet(
             "report_items": report_required,
             "governance_gap_count": int(report_summary.get("governance_gap_count") or 0),
             "parity_pending_count": int(report_summary.get("parity_pending_count") or 0),
+            "advisory_gap_count": int(
+                report_summary.get("advisory_gap_count") or len(report_advisory)
+            ),
+            "advisory_items": report_advisory,
             "score": int(report_summary.get("score") or 0),
             "max_score": int(report_summary.get("max_score") or 0),
         },
@@ -120,6 +125,9 @@ def orientation_packet(
                 "foreign_count": len(foreign_lanes),
                 "unbound_count": len(unbound_refs),
                 "gaps": gaps,
+                "advisory_count": int(
+                    report_summary.get("advisory_gap_count") or len(report_advisory)
+                ),
                 "next_actions": next_actions,
             }
         ),
@@ -154,11 +162,14 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     ]
     max_score = int(readiness.get("max_score") or 0)
     if max_score:
+        advisory_count = int(readiness.get("advisory_gap_count") or 0)
+        advisory_text = f", advisory signals {advisory_count}" if advisory_count else ""
         lines.append(
             "readiness: "
             f"score {readiness.get('score')}/{max_score}, "
             f"governance gaps {readiness.get('governance_gap_count')}, "
             f"parity pending {readiness.get('parity_pending_count')}"
+            f"{advisory_text}"
         )
     else:
         lines.append("readiness: status-only view; run ethos report --json for scorecard")
@@ -193,6 +204,19 @@ def _coordination_line(coordination: Mapping[str, Any]) -> str:
     next_action = str(coordination.get("next_action") or "")
     suffix = f"; {next_action}" if next_action else ""
     return f"coordination: {', '.join(parts)}{suffix}"
+
+
+def _report_advisory_items(report_payload: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(report_payload, dict):
+        return []
+    data = _dict(report_payload.get("data"))
+    layers = _dict(data.get("gap_layers"))
+    advisory_layer = _dict(layers.get("advisory_signals"))
+    items = _strings(advisory_layer.get("advisory_gaps"))
+    if items:
+        return items
+    signals = _dict(data.get("advisory_signals"))
+    return _strings(signals.get("advisory_gaps"))
 
 
 def _dict(value: object) -> dict[str, Any]:
@@ -315,10 +339,12 @@ def _human_summary(context: Mapping[str, Any]) -> str:
     actor = capability.get("current_actor_capability")
     foreign_count = int(context["foreign_count"])
     unbound_count = int(context["unbound_count"])
+    advisory_count = int(context.get("advisory_count") or 0)
     foreign = f", {foreign_count} foreign lane(s) visible" if foreign_count else ""
     unbound = f", {unbound_count} unbound ref(s) visible" if unbound_count else ""
+    advisory = f", {advisory_count} advisory signal(s)" if advisory_count else ""
     next_action = f"; next: {next_actions[0]}" if next_actions else ""
     return (
         f"{state}: {context['role']}, {context['changed_count']} changed path(s), "
-        f"capability={actor}{foreign}{unbound}{next_action}"
+        f"capability={actor}{foreign}{unbound}{advisory}{next_action}"
     )

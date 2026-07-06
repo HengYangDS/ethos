@@ -34,6 +34,7 @@ _NON_GAP_TOKENS = {
     "args_missing",
     "args_extra",
     "governance_gap_count",
+    "advisory_gap_count",
     "generic_gap_count",
     "parity_gap_count",
     "required_gap_closure",

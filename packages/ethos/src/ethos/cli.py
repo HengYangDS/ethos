@@ -171,6 +171,7 @@ def orient(
             "coordination_blocking": coordination["blocking"],
             "governance_gap_count": readiness["governance_gap_count"],
             "parity_pending_count": readiness["parity_pending_count"],
+            "advisory_gap_count": readiness["advisory_gap_count"],
         },
         next_actions=tuple(packet_actions),
         data={"orientation": packet},

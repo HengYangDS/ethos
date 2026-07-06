@@ -17,11 +17,11 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 ETHOS command output and kernel protocols are JSON-first and schema-governed.
 
 `ethos quality schemas --json` validates tracked JSON Schemas with the
-Draft 2020-12 validator. Command payloads use `schemas/ethos/result.schema.json`
+Draft 2020-12 validator. Command payloads use `system/schemas/kernel/result.schema.json`
 as the stable envelope.
 
 Workspace topology data is governed by
-`schemas/ethos/workspace-status.schema.json`. The schema fixes the role
+`system/schemas/kernel/workspace-status.schema.json`. The schema fixes the role
 vocabulary, candidate fields, linked worktree entries, configured `role_policy`,
 and role-policy `branch_bindings`. Release root and accepted root are separate
 semantic roles. The role order is
@@ -38,7 +38,7 @@ the raw workspace-status payload so existing consumers can continue to read
 `data.closeout_support` directly.
 
 Coupling audit output is governed by
-`schemas/ethos/coupling-audit.schema.json`. It exposes `binding_registry` as
+`system/schemas/kernel/coupling-audit.schema.json`. It exposes `binding_registry` as
 the product classification vocabulary for hard bindings, mandatory
 dependencies, native protocols, product-toolchain tools, adapters, historical evidence,
 and fixtures. The branch role entry carries its configuration source, config

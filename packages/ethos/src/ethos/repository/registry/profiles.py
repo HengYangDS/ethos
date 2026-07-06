@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ethos_core.kernel import KERNEL_CHAIN
+
 CAPABILITY_GRAPH = (
     "source_truth",
     "source_verified_context_projection",
@@ -11,16 +13,6 @@ CAPABILITY_GRAPH = (
     "campaign_review",
     "assistant_mcp_projection",
     "ignored_local_state_projection",
-)
-
-KERNEL_CHAIN = (
-    "JudgmentSource",
-    "Subject",
-    "Commitment",
-    "Change",
-    "Evidence",
-    "Claim",
-    "Chronicle",
 )
 
 TRUST_LIFECYCLE = (

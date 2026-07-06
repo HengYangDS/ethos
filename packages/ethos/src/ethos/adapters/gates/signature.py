@@ -4,7 +4,9 @@ import re
 import subprocess
 from pathlib import Path
 
-EXPECTED_AUTHOR = "Yang HENG <heng.yang.ds@hotmail.com>"
+EXPECTED_NAME = "Yang HENG"
+EXPECTED_EMAIL = "heng.yang.ds@hotmail.com"
+EXPECTED_AUTHOR = f"{EXPECTED_NAME} <{EXPECTED_EMAIL}>"
 CONVENTIONAL_RE = re.compile(
     r"^(feat|fix|docs|test|refactor|perf|build|ci|chore|revert)(\([a-z0-9-]+\))?: .+"
 )
@@ -34,7 +36,7 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     signing_key = _git(repo, "config", "--get", "user.signingkey")
     subject = _git(repo, "log", "-1", "--pretty=%s")
     signature = _git(repo, "log", "-1", "--pretty=%G?")
-    expected_name, expected_email = "Yang HENG", "heng.yang.ds@hotmail.com"
+    expected_name, expected_email = EXPECTED_NAME, EXPECTED_EMAIL
     gaps: list[str] = []
     if name != expected_name:
         gaps.append("git_user_name_mismatch")

@@ -31,8 +31,9 @@ ethos publish
 Work Lanes and unbound Work Lane refs are visible, what remains gapped, and
 which command should run next. It is a projection (`truth_boundary =
 repository-reader-view`, `mints_truth = false`), not a transition verb and not a
-truth store. Its current HEAD field is derived from workspace-status branch
-bindings when the status payload does not carry a direct top-level head.
+truth store. Its current HEAD field is the repository HEAD that `status` reports at
+the top level (resolved via `git rev-parse HEAD`, so it is correct even on a detached
+HEAD); a workspace-status branch binding is only a legacy fallback.
 
 `ethos report` is the read-only scorecard over that workflow. It is not a
 transition command:

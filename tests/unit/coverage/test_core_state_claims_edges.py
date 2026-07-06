@@ -207,12 +207,14 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         mutation_core,
         "_git",
         lambda root, *args, check=True, **kwargs: cp(
-            stdout="h1\n", stderr="ff failed", returncode=1 if args[:1] == ("merge",) else 0
+            stdout="h1\n",
+            stderr="cannot lock ref",
+            returncode=1 if args[:1] == ("update-ref",) else 0,
         ),
     )
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
-    )["required_gaps"] == ["accepted_update_failed"]
+    )["required_gaps"] == ["accepted_advanced_concurrently"]
     monkeypatch.setattr(
         mutation_core,
         "_git",

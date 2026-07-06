@@ -377,15 +377,21 @@ def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path
     telling users to run the command it then blocks.
     """
     policy = SimpleNamespace(accepted_branch="dev", candidate_branch="candidate/dev")
-    merge_envs: list[dict[str, str] | None] = []
+    advance_envs: list[dict[str, str] | None] = []
 
     def fake_git(root, *args, check=True, env=None):
         if args == ("rev-parse", "HEAD"):
             return subprocess.CompletedProcess(["git"], 0, "old\n", "")
+        if args == ("rev-parse", "--verify", "refs/heads/dev"):
+            return subprocess.CompletedProcess(["git"], 0, "old\n", "")
         if args[:2] == ("merge-base", "--is-ancestor"):
             return subprocess.CompletedProcess(["git"], 0, "", "")
-        if args == ("merge", "--ff-only", "candidate/dev"):
-            merge_envs.append(env)
+        # The accepted-ref advance is now a git-native compare-and-swap (update-ref
+        # <ref> <new> <old>) plus the worktree sync (reset --keep); both must carry the
+        # scoped ETHOS_ALLOW_REF_MOVE env the reference-transaction hook recognizes, so
+        # official closeout is admitted through the very moat that blocks raw ref moves.
+        if args[0] in ("update-ref", "reset"):
+            advance_envs.append(env)
             return subprocess.CompletedProcess(["git"], 0, "", "")
         return subprocess.CompletedProcess(["git"], 0, "", "")
 
@@ -407,7 +413,7 @@ def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path
     report = core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="old")
 
     assert report["ok"] is True
-    assert merge_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
+    assert advance_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}, {"ETHOS_ALLOW_REF_MOVE": "1"}]
 
 
 def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path) -> None:

@@ -98,15 +98,15 @@ def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, ob
                     ],
                 }
             )
-        elif gap == "accepted_update_failed":
+        elif gap == "accepted_advanced_concurrently":
             hints.append(
                 {
                     "gap": gap,
-                    "kind": "accepted_update_residue",
+                    "kind": "accepted_advanced_concurrently",
                     "next_actions": [
-                        "inspect accepted-root dirty_provenance after the failed Git transaction",
-                        "back up partial index/worktree changes before git reset --hard HEAD",
-                        "retry ethos land --closeout after the accepted root is clean",
+                        "a concurrent landing advanced accepted after this proof was bound",
+                        "re-read the accepted head and rebase candidate onto it",
+                        "rerun ethos land --closeout --expect-head <new-head> after re-proving",
                     ],
                 }
             )
@@ -288,11 +288,23 @@ def apply_candidate_to_accepted(
             "previous_head": current_head,
             "required_gaps": ["candidate_diverged_from_accepted"],
         }
+    # Atomic compare-and-swap: advance the accepted ref to candidate_head ONLY IF the
+    # accepted ref is still exactly what it was when the proof was bound. git's
+    # update-ref <ref> <newvalue> <oldvalue> is the native CAS primitive. The oldvalue
+    # must be the accepted REF's own resolved value (not HEAD, which need not coincide
+    # with refs/heads/<accepted> in every root) so the swap compares like-with-like: a
+    # concurrent agent that advanced the accepted ref after we read it makes the oldvalue
+    # mismatch, so the swap fails cleanly rather than overwriting their landing (Axiom 1
+    # held: the proof always covers exactly the tree that becomes accepted; the
+    # check-time / use-time TOCTOU window is eliminated).
+    accepted_ref = f"refs/heads/{policy.accepted_branch}"
+    accepted_old = _git(root, "rev-parse", "--verify", accepted_ref).stdout.strip()
     completed = _git(
         root,
-        "merge",
-        "--ff-only",
-        policy.candidate_branch,
+        "update-ref",
+        accepted_ref,
+        candidate_head,
+        accepted_old,
         check=False,
         env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
@@ -304,10 +316,21 @@ def apply_candidate_to_accepted(
             "source_branch": policy.candidate_branch,
             "head": current_head,
             "previous_head": current_head,
-            "required_gaps": ["accepted_update_failed"],
-            "remediation": remediation_for_gaps(["accepted_update_failed"]),
+            "required_gaps": ["accepted_advanced_concurrently"],
+            "remediation": remediation_for_gaps(["accepted_advanced_concurrently"]),
             "stderr": completed.stderr.strip(),
         }
+    # CAS won: sync the accepted worktree to the ref it now points at. This is a
+    # fast-forward (candidate_head descends from current_head, checked above), so
+    # --keep advances the tree without discarding any tracked local state.
+    _git(
+        root,
+        "reset",
+        "--keep",
+        candidate_head,
+        check=False,
+        env={"ETHOS_ALLOW_REF_MOVE": "1"},
+    )
     return {
         "ok": True,
         "state": "accepted_validated",

@@ -1,0 +1,26 @@
+schema_version = 1
+id = "land-role-boundary"
+summary = "Normal land dry-run respects Work Lane versus protected-root boundaries."
+state = "accepted"
+subject = "repository-governance:land-role-boundary"
+evidence = "evidence/chronicle/land-role-boundary/2026-07-07.md"
+
+[bindings]
+head = "c94188f7e46910b94def3fd38713c35d00d46c9f"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-land-role-boundary"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts_closeout.py::test_land_dry_run_blocks_accepted_root_without_closeout"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts_closeout.py::test_land_dry_run_blocks_candidate_root_without_closeout"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/adapters/mutation/core.py"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/domain/land_support.py"

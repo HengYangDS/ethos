@@ -135,14 +135,12 @@ def evaluate_mutation(
     root: Path,
     current_head: str,
 ) -> MutationDecision:
-    if not request.apply:
-        return MutationDecision(ok=True, state="dry_run")
     gaps: list[str] = []
-    if not request.authorized:
+    if request.apply and not request.authorized:
         gaps.append("authorization_required")
-    if request.expect_head is None:
+    if request.apply and request.expect_head is None:
         gaps.append("expect_head_required")
-    elif request.expect_head != current_head:
+    elif request.expect_head is not None and request.expect_head != current_head:
         gaps.append("expect_head_mismatch")
     status = workspace_status(root)
     if status["role"] != ROLE_WORK_LANE:
@@ -152,9 +150,12 @@ def evaluate_mutation(
     else:
         closeout = cast("dict[str, object]", status.get("closeout_support", {}))
         gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
-    gaps.extend(_proof_gaps(root, current_head))
+    if request.apply:
+        gaps.extend(_proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
+    if not request.apply:
+        return MutationDecision(ok=True, state="dry_run")
     return MutationDecision(ok=True, state=f"{request.command}_ready")
 
 

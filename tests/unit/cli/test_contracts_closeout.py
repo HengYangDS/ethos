@@ -459,6 +459,34 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
+def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+
+    payload = run_ethos("land", "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "protected_root_mutation" in payload["required_gaps"]
+    assert payload["next_actions"] == ["ethos land --closeout --json"]
+
+
+def test_land_dry_run_blocks_candidate_root_without_closeout(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+
+    payload = run_ethos("land", "--root", candidate.as_posix(), "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert "protected_root_mutation" in payload["required_gaps"]
+    assert payload["next_actions"] == ["ethos land --closeout --json"]
+
+
 def test_land_closeout_dry_run_reports_expect_head_mismatch(
     tmp_path: Path,
 ) -> None:

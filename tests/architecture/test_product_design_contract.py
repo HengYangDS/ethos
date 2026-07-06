@@ -401,6 +401,9 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
         "docs/architecture/package-ontology.md",
         "docs/governance/product-boundary-convergence.md",
         "docs/governance/capability-parity-ledger.md",
+        "docs/governance/repository-profile-contract.md",
+        "docs/governance/config-boundary-model.md",
+        "docs/governance/adopter-boundary-and-retirement.md",
     ):
         assert doc in REQUIRED_DOCS
 

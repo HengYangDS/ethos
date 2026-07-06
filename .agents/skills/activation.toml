@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:6d008fb95d8907c13b1c79c0bcd0e02436abd8564c8191604d14bd0cb402edf8"
+expected_registry_digest = "sha256:e5cfb109ec9f103ae30f252a73550e0a2d71bf41e00dc571df46b488291048ef"
 expected_generator_digest = "sha256:72252a0caee5f2dd2aeec0a299e484d365b7e321196b4f8996fe25f307ca2088"
 
 [coverage]
@@ -36,6 +36,8 @@ path_globs = [
   ".ethos/**",
   "distributions/**",
   "docs/governance/product-design-contract.md",
+  "packages/ethos/src/ethos/repository/audit*.py",
+  "tests/unit/audit/**",
   "evolution/**",
   "rules/**",
   "schemas/**",
@@ -77,6 +79,7 @@ path_globs = [
   "openspec/**",
   "evidence/**",
   "claims/**",
+  "tests/**",
 ]
 intent_tokens = [
   "status",

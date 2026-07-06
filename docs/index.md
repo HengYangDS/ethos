@@ -23,6 +23,9 @@ Start with [Start](start/quickstart.md), then read
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
+[Repository Profile Contract](governance/repository-profile-contract.md),
+[Config Boundary Model](governance/config-boundary-model.md),
+[Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
 [Action Graph](architecture/action-graph.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
@@ -48,6 +51,9 @@ truth.
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
+- Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
+- Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
+- Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
 - Current package migration state: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)

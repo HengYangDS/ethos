@@ -8,10 +8,11 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
-COVERAGE_DIR = Path(".config/checks/coverage")
-POLICY_PATH = COVERAGE_DIR / "policy.toml"
-CONFIG_PATH = COVERAGE_DIR / "coverage.ini"
-ARTIFACT_PATH = COVERAGE_DIR / "coverage.xml"
+COVERAGE_CONFIG_DIR = Path(".config/checks/coverage")
+COVERAGE_EVIDENCE_DIR = Path("build/evidence/quality/tests/coverage")
+POLICY_PATH = COVERAGE_CONFIG_DIR / "policy.toml"
+CONFIG_PATH = COVERAGE_CONFIG_DIR / "coverage.ini"
+ARTIFACT_PATH = COVERAGE_EVIDENCE_DIR / "coverage.xml"
 OWNER_SCRIPT = ".config/ci/scripts/run-python-tests.sh"
 
 

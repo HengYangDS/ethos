@@ -103,3 +103,9 @@ known-first-party = [
   "ethos_repository",
   "ethos_test",
 ]
+
+[lint.pydocstyle]
+# Google style is the admitted structured-docstring convention. The dedicated
+# ETHOS docstring gate owns coverage and signature checks so Ruff does not become
+# a second truth center.
+convention = "google"

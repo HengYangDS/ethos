@@ -17,7 +17,7 @@ owner = "ethos-repository"
 scope = "Standalone ETHOS product bootstrap and canonical governance surfaces"
 
 [carriers]
-openspec = "openspec/specs/ethos-core/spec.md"
+openspec = "openspec/specs/kernel/spec.md"
 
 fallback = "Retain bootstrap evidence and core package contracts as the rollback baseline."
 kill_signal = "ETHOS bootstrap requires adopter-private source to be considered product truth."
@@ -26,5 +26,5 @@ kill_signal = "ETHOS bootstrap requires adopter-private source to be considered 
 targets = [
   "evidence/bootstrap-2026-06-30.md",
   "packages/ethos-core/src/ethos_core/__init__.py",
-  "openspec/specs/ethos-core/spec.md",
+  "openspec/specs/kernel/spec.md",
 ]

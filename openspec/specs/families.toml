@@ -1,20 +1,20 @@
 [families.kernel]
-description = "Capabilities that govern pure ETHOS kernel contracts, result envelopes, action graphs, and provider-neutral semantics."
+description = "Pure ETHOS kernel contracts, result envelopes, action graphs, and provider-neutral semantics."
 
 [families.contracts]
-description = "Capabilities that govern schemas, TOML contracts, evidence envelopes, projection contracts, and command JSON contracts."
+description = "Schemas, TOML contracts, evidence envelopes, projection contracts, and command JSON contracts."
 
 [families.repository-governance]
-description = "Capabilities that govern repository lifecycle, Work Lanes, claims, evidence, campaigns, release readiness, and OpenSpec case carriers."
+description = "Repository lifecycle, Work Lanes, claims, evidence, chronicle, evolution, release readiness, and OpenSpec case carriers."
 
 [families.adapters]
-description = "Capabilities that connect ETHOS semantics to Git, process, OpenSpec, hosted CI, package managers, MCP, and other providers without making providers truth owners."
+description = "Provider and protocol adapters for Git, process execution, OpenSpec, hosted CI, MCP, and host surfaces."
 
 [families.surfaces]
-description = "Capabilities that govern CLI, MCP, SDK, skill, assistant, host, and distribution surfaces over the same product contracts."
+description = "CLI, MCP, SDK, skill, assistant, host, and distribution surfaces over the same product contracts."
 
 [families.quality]
-description = "Capabilities that govern quality policy, deterministic proof, docs-code consistency, gates, and asset classification."
+description = "Quality policy, deterministic proof, docs-code consistency, gates, and asset classification."
 
 [families.proof]
-description = "Capabilities that govern conformance, fixtures, parity, topic-scoped closeout evidence, and proof-host behavior."
+description = "Conformance, fixtures, parity, replay, closeout evidence, and proof-host behavior."

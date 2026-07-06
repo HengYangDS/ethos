@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 
 from ethos.repository.adoption.scaffold import BASE_ADOPTION_FILES
-from ethos.repository.adoption.scaffold import OPENSPEC_FAMILIES
+from ethos.repository.adoption.scaffold import OPENSPEC_CAPABILITIES
 from ethos.repository.adoption.scaffold import _default_files
 
 PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
@@ -168,8 +168,8 @@ def adoption_plan(
 
 def adoption_scaffold_report() -> dict[str, object]:
     required = set(BASE_ADOPTION_FILES)
-    required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_FAMILIES)
-    required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_FAMILIES)
+    required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_CAPABILITIES)
+    required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_CAPABILITIES)
     planned = set(_default_files(Path("sample"), "gitlab"))
     missing = sorted(required - planned)
     return {
@@ -177,5 +177,5 @@ def adoption_scaffold_report() -> dict[str, object]:
         "required_files": sorted(required),
         "missing": missing,
         "profiles": list(PROFILES),
-        "openspec_families": list(OPENSPEC_FAMILIES),
+        "openspec_capabilities": list(OPENSPEC_CAPABILITIES),
     }

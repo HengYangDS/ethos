@@ -56,15 +56,15 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "openspec/specs/capability.template.toml",
         "openspec/changes/README.md",
         "openspec/changes/template.md",
-        "openspec/specs/ethos-core/spec.md",
-        "openspec/specs/ethos-contracts/spec.md",
-        "openspec/specs/ethos-repository/spec.md",
-        "openspec/specs/ethos-repository/capability.toml",
-        "openspec/specs/ethos-adapters/spec.md",
-        "openspec/specs/ethos-assistants/spec.md",
-        "openspec/specs/ethos-cli/spec.md",
-        "openspec/specs/ethos-distribution/spec.md",
-        "openspec/specs/ethos-test/spec.md",
+        "openspec/specs/kernel/spec.md",
+        "openspec/specs/contracts/spec.md",
+        "openspec/specs/repository-governance/spec.md",
+        "openspec/specs/repository-governance/capability.toml",
+        "openspec/specs/adapters/spec.md",
+        "openspec/specs/assistant-projections/spec.md",
+        "openspec/specs/command-plane/spec.md",
+        "openspec/specs/distribution/spec.md",
+        "openspec/specs/proof-hosts/spec.md",
         "openspec/changes/.gitkeep",
         "openspec/changes/archive/.gitkeep",
         "docs/index.md",
@@ -115,11 +115,11 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(encoding="utf-8")
     assert "primary_invariant" in (
-        tmp_path / "openspec/specs/ethos-repository/capability.toml"
+        tmp_path / "openspec/specs/repository-governance/capability.toml"
     ).read_text(encoding="utf-8")
-    repository_profile = (tmp_path / "openspec/specs/ethos-repository/capability.toml").read_text(
-        encoding="utf-8"
-    )
+    repository_profile = (
+        tmp_path / "openspec/specs/repository-governance/capability.toml"
+    ).read_text(encoding="utf-8")
     assert "decision_axes" in repository_profile
     assert "[recommended_facets]" in repository_profile
     assert "OpenSpec Workspace" in (tmp_path / "openspec/README.md").read_text(encoding="utf-8")

@@ -131,7 +131,7 @@ def _trust_envelope_contract_sample() -> dict[str, Any]:
                 },
                 {
                     "kind": "openspec",
-                    "path": "openspec/specs/ethos-repository/spec.md",
+                    "path": "openspec/specs/repository-governance/spec.md",
                 },
             ],
             "ready": True,

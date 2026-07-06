@@ -1,12 +1,27 @@
-# Docstring coverage policy for ETHOS public product surfaces.
+# Docstring policy for ETHOS Python product surfaces.
 # Owned by .config/checks/docstrings/; CI invokes the ETHOS quality command.
 
 paths = ["packages/ethos/src", "packages/ethos-core/src"]
 fail_under = 95
 skip_private = true
 skip_init = false
+style = "google"
+allow_short_docstrings = true
+check_structured_signature = true
+forbid_legacy_sections = true
 
-# Keep the first gate intentional and non-noisy: product-visible commands,
-# explicit public exports, and package boundary docstrings must explain intent.
+# Product-visible commands, explicit public exports, and package boundary
+# docstrings must explain intent. Private helpers must not become a parallel docs
+# store, but any structured docstring that exists must follow Google style.
 surface_kinds = ["cli_command", "explicit_export", "package_boundary"]
 exclude_roots = ["tests", "examples", "docs", "var", "build", "dist", ".venv"]
+weak_summary_prefixes = ["TODO", "TBD", "Helper", "Utility"]
+legacy_section_headings = [
+  "Arguments",
+  "Keyword Arguments",
+  "Parameters",
+  "Return",
+  "Returns",
+  "Raises",
+  "Yields",
+]

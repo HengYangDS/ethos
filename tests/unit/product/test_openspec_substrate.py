@@ -34,7 +34,7 @@ def test_live_capability_profiles_declare_facets_and_validate() -> None:
 
 def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "repo"
-    for capability in ("ethos-repository", "ethos-contracts"):
+    for capability in ("repository-governance", "contracts"):
         spec_dir = root / "openspec" / "specs" / capability
         spec_dir.mkdir(parents=True, exist_ok=True)
         (spec_dir / "spec.md").write_text(f"# {capability}\n", encoding="utf-8")
@@ -70,8 +70,8 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
         encoding="utf-8",
     )
     for change, capability in (
-        ("change-one", "ethos-repository"),
-        ("change-two", "ethos-contracts"),
+        ("change-one", "repository-governance"),
+        ("change-two", "contracts"),
     ):
         change_root = root / "openspec" / "changes" / change
         (change_root / "specs" / capability).mkdir(parents=True, exist_ok=True)

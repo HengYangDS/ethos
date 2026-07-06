@@ -69,6 +69,7 @@ match_prefixes = [
   "ty_policy_missing",
   "gate_required",
   "docs_",
+  "docstring_style",
   "required_doc",
   "playbook",
   "skill_",

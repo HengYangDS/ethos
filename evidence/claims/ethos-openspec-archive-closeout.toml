@@ -58,8 +58,8 @@ targets = [
   "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/tasks.md",
   "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/specs/ethos-adapters/spec.md",
   "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/specs/ethos-repository/spec.md",
-  "openspec/specs/ethos-adapters/spec.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/openspec.py",
   "tests/unit/product/test_openspec_cache.py",
 ]

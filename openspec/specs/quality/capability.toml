@@ -1,0 +1,24 @@
+family = "quality"
+primary_invariant = "The quality capability protects quality policy, determinism, docs profile, proof policy, and gate descriptors."
+routing_question = "Does this change alter quality policy, proof state semantics, docs checks, or gate descriptors?"
+decision_axes = ["lifecycle", "surface", "authority"]
+boundary_rules = [
+  "Capability IDs name stable product semantics, not implementation package names.",
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider, adopter, or host-specific state remains in adapters, profiles, or evidence.",
+]
+aliases = []
+
+[owner]
+package = "ethos-core"
+scope = "quality policy, determinism, docs profile, proof policy, and gate descriptors"
+
+[recommended_facets]
+lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
+surface = ["cli", "docs", "schema", "openspec", "evidence", "skill", "scaffold", "ci", "package"]
+authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

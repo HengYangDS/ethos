@@ -40,7 +40,7 @@ owner = "ethos-repository"
 scope = "Repository platform scaffold, playbooks, fleet inspection, OpenSpec families, and standards adapters"
 
 [carriers]
-openspec = "openspec/specs/ethos-repository/spec.md"
+openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Keep official OpenSpec validation, local repository-audit, and standards adapter checks as proof gates."
 kill_signal = "Repository platform readiness depends on a second command plane or lifecycle store."
@@ -50,5 +50,5 @@ targets = [
   "evidence/governance-platform-2026-06-30.md",
   "docs/governance/openspec-governance.md",
   "docs/governance/standards-adoption-policy.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]

@@ -1,0 +1,57 @@
+[claim]
+id = "openspec-semantic-capability-layout"
+subject = "ethos:openspec-semantic-capability-layout"
+state = "active"
+change_id = "openspec-semantic-capability-layout-20260706"
+summary = "ETHOS binds the active OpenSpec semantic capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred."
+
+[evidence]
+dated = "evidence/openspec-semantic-capability-layout-2026-07-06.md"
+sha256 = "8a51c1414f75cf1c25210bf6b8ed31534114492a9aa9e6703b0aaa814a415a93"
+evidence_ids = ["evidence:openspec-semantic-capability-layout"]
+binding = "active OpenSpec change carrier binding for semantic capability layout"
+verifier = "semantic"
+tests = [
+  "openspec validate --all --strict --json",
+  "ethos openspec --lifecycle --json",
+  ".config/ci/scripts/run-python-lint.sh",
+  ".config/ci/scripts/run-config-lint.sh",
+  ".config/ci/scripts/run-shell-lint.sh",
+  ".config/ci/scripts/run-docstring-coverage.sh",
+  ".config/ci/scripts/run-repository-hygiene.sh",
+  ".config/ci/scripts/run-python-tests.sh",
+  "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = [
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/audit/test_depth.py",
+  "tests/unit/product/test_openspec_substrate.py",
+  "tests/architecture/test_product_boundaries.py",
+]
+
+[boundary]
+owner = "ethos"
+scope = "OpenSpec accepted capability identity and scaffold/audit defaults"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout-20260706"
+
+fallback = "Keep official OpenSpec flat capability shape while preserving old IDs until semantic layout tests pass."
+kill_signal = "Accepted OpenSpec capability IDs must mirror implementation package names or old package ontology for validation to work."
+
+[promotion]
+targets = [
+  "openspec/specs/README.md",
+  "openspec/specs/families.toml",
+  "openspec/specs/capability.template.toml",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/repository/adoption/scaffold.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold_openspec.py",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout-20260706",
+  "evidence/claims/openspec-semantic-capability-layout.toml",
+  "evidence/openspec-semantic-capability-layout-2026-07-06.md",
+]

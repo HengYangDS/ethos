@@ -1,0 +1,24 @@
+family = "surfaces"
+primary_invariant = "The assistant-projections capability protects assistant, skill, context, and host projection boundaries."
+routing_question = "Does this change alter assistant-facing projection surfaces or agent context routing?"
+decision_axes = ["lifecycle", "surface", "authority"]
+boundary_rules = [
+  "Capability IDs name stable product semantics, not implementation package names.",
+  "OpenSpec records are specification carriers, not truth owners.",
+  "Provider, adopter, or host-specific state remains in adapters, profiles, or evidence.",
+]
+aliases = []
+
+[owner]
+package = "ethos"
+scope = "assistant, skill, context, and host projection boundaries"
+
+[recommended_facets]
+lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
+surface = ["cli", "docs", "schema", "openspec", "evidence", "skill", "scaffold", "ci", "package"]
+authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
+
+[proof_profile]
+default_command = "ethos prove --json"
+executed_command = "ethos prove --execute --json"
+required_gates = ["claims", "schemas"]

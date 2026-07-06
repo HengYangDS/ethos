@@ -21,10 +21,25 @@ gate = ".config/ci/scripts/run-python-lint.sh"
 
 [[tool]]
 concern = "tests"
-tool = "pytest"
-config = "pytest.ini"
+tool = "pytest + pytest-xdist + pytest-timeout"
+config = "pytest.ini + .config/checks/pytest/policy.toml"
+artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
 gate = ".config/ci/scripts/run-python-tests.sh"
+
+[[tool]]
+concern = "test_performance"
+tool = "pytest-benchmark"
+config = ".config/checks/pytest/policy.toml"
+profile = "product"
+planned = true
+
+[[tool]]
+concern = "test_reporting"
+tool = "allure-pytest"
+config = ".config/checks/pytest/policy.toml"
+profile = "product"
+planned = true
 
 [[tool]]
 concern = "python_typing"
@@ -55,12 +70,13 @@ profile = "product"
 concern = "coverage"
 tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
+artifacts = "build/evidence/quality/tests/coverage/"
 profile = "product"
 gate = ".config/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "python_docstrings"
-tool = "ethos-docstrings"
+tool = "ethos-docstrings-google"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
 gate = ".config/ci/scripts/run-docstring-coverage.sh"
@@ -71,6 +87,13 @@ tool = "deptry"
 config = ".config/checks/deptry/"
 profile = "product"
 planned = true
+
+[[tool]]
+concern = "repository_hygiene"
+tool = "python stdlib + git ls-files"
+config = ".config/ci/scripts/run-repository-hygiene.sh"
+profile = "minimal"
+gate = ".config/ci/scripts/run-repository-hygiene.sh"
 
 [[tool]]
 concern = "toml"
@@ -97,6 +120,13 @@ planned = true
 concern = "yaml"
 tool = "yamllint"
 config = ".config/checks/yaml/yamllint.yaml"
+profile = "minimal"
+gate = ".config/ci/scripts/run-config-lint.sh"
+
+[[tool]]
+concern = "json_syntax"
+tool = "python json"
+config = ".config/ci/scripts/run-config-lint.sh"
 profile = "minimal"
 gate = ".config/ci/scripts/run-config-lint.sh"
 

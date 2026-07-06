@@ -307,6 +307,11 @@ def docstrings(
             "coverage_percent": report["coverage_percent"],
             "documented_count": report["documented_count"],
             "public_count": report["public_count"],
+            "style_issue_count": report.get("style_issue_count", 0),
+            "advisory_missing_count": cast(
+                "dict[str, object]",
+                report.get("advisory_public_definition_inventory", {"missing_count": 0}),
+            )["missing_count"],
         },
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,

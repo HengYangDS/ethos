@@ -16,7 +16,7 @@ Explain the problem and why existing capabilities are insufficient.
 
 ## Capabilities
 
-- `ethos-repository`: subject=<stable-subject>; reuse=<reuse|extend|extract|new>; change=<add|modify|remove|rename|retire>; facet:lifecycle=<authoring|validation|runtime|archive|release>; facet:surface=<cli|docs|schema|openspec|evidence|skill|mcp|scaffold|ci|package>; facet:authority=<source|test|schema|docs|openspec|claim|evidence>
+- `repository-governance`: subject=<stable-subject>; reuse=<reuse|extend|extract|new>; change=<add|modify|remove|rename|retire>; facet:lifecycle=<authoring|validation|runtime|archive|release>; facet:surface=<cli|docs|schema|openspec|evidence|skill|mcp|scaffold|ci|package>; facet:authority=<source|test|schema|docs|openspec|claim|evidence>
 
 ## Out Of Scope
 

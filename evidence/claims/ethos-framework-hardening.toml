@@ -37,7 +37,7 @@ owner = "ethos-repository"
 scope = "Framework proof, evidence, docs, assistants, and mutation contracts"
 
 [carriers]
-openspec = "openspec/specs/ethos-repository/spec.md"
+openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Keep local deterministic proof gates and schema validation as the rollback path."
 kill_signal = "Framework proof depends on untracked host or assistant state."
@@ -47,5 +47,5 @@ targets = [
   "evidence/hardening-2026-06-30.md",
   "system/schemas/kernel/proof-run.schema.json",
   "system/schemas/kernel/evidence-set.schema.json",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]

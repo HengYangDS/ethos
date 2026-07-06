@@ -46,8 +46,8 @@ docs = [
   "docs/governance/evolution-campaign.md",
   "docs/architecture/adoption-profiles.md",
   "docs/reference/command-plane.md",
-  "openspec/specs/ethos-contracts/spec.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]
 
 [boundary]
@@ -55,7 +55,7 @@ owner = "ethos-contracts"
 scope = "Shared governed repository context contract, product profile, adoption profiles, and repository-neutral report layers"
 
 [carriers]
-openspec = "openspec/specs/ethos-contracts/spec.md"
+openspec = "openspec/specs/contracts/spec.md"
 
 fallback = "Use one repository subject model and distinguish governance intensity through profile, capability set, and proof depth."
 kill_signal = "ETHOS requires a separate private command plane or role-specific ontology to explain repository proof."
@@ -74,6 +74,6 @@ targets = [
   "docs/governance/evolution-campaign.md",
   "docs/architecture/adoption-profiles.md",
   "docs/reference/command-plane.md",
-  "openspec/specs/ethos-contracts/spec.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]

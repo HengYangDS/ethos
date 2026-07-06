@@ -8,7 +8,7 @@ ASSET_CLASSES = (
         class_name="python-code",
         role="runtime source and tests",
         dimensions=("format", "lint", "type", "test", "complexity", "determinism"),
-        default_adapters=("ruff", "pytest", "ty", "ethos-docstrings"),
+        default_adapters=("ruff", "pytest", "ty", "ethos-docstrings-google"),
     ),
     QualityAssetClass(
         class_name="markdown-docs",
@@ -69,8 +69,8 @@ TOOL_ADAPTERS = (
         boundary="adapter-executes-tool-quality-owns-verdict",
     ),
     ToolAdapterProfile(
-        id="ethos-docstrings",
-        standard="ETHOS public-surface docstring coverage",
+        id="ethos-docstrings-google",
+        standard="ETHOS public-surface Google docstring coverage and style",
         asset_classes=("python-code",),
         dimensions=("documentation", "intent"),
         boundary="inprocess-policy-checks-public-surface-intent",

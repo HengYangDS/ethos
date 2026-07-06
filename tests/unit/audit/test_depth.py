@@ -14,11 +14,6 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
     for package in (
         "ethos",
         "ethos-core",
-        "ethos-contracts",
-        "ethos-repository",
-        "ethos-adapters",
-        "ethos-assistants",
-        "ethos-test",
     ):
         write(tmp_path / "packages" / package / "README.md")
     write(tmp_path / "distributions" / "npm" / "README.md")
@@ -91,7 +86,7 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
         ".gitlab/issue_templates/task.md",
         "docs/governance/evolution-ledger.toml",
         "openspec/config.yaml",
-        "openspec/specs/ethos-core/spec.md",
+        "openspec/specs/kernel/spec.md",
     ):
         write(tmp_path / path)
 
@@ -103,7 +98,7 @@ def test_repository_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None
 
     assert report["ok"] is False
     assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
-    assert "openspec/specs/ethos-contracts/spec.md" in report["openspec_families"]["missing"]
+    assert "openspec/specs/contracts/spec.md" in report["openspec_capabilities"]["missing"]
     assert "adoption_scaffold_missing:.agents/skills/activation.toml" in report["required_gaps"]
 
 
@@ -125,13 +120,13 @@ def test_repository_audit_surfaces_retired_command_mentions_as_required_gaps(
         ".agents/skills/README.md",
         ".agents/skills/activation.toml",
         ".agents/skills/ethos-repository-governance/SKILL.md",
-        "openspec/specs/ethos-assistants/spec.md",
-        "openspec/specs/ethos-cli/spec.md",
-        "openspec/specs/ethos-contracts/spec.md",
-        "openspec/specs/ethos-distribution/spec.md",
-        "openspec/specs/ethos-repository/spec.md",
-        "openspec/specs/ethos-adapters/spec.md",
-        "openspec/specs/ethos-test/spec.md",
+        "openspec/specs/assistant-projections/spec.md",
+        "openspec/specs/command-plane/spec.md",
+        "openspec/specs/contracts/spec.md",
+        "openspec/specs/distribution/spec.md",
+        "openspec/specs/repository-governance/spec.md",
+        "openspec/specs/adapters/spec.md",
+        "openspec/specs/proof-hosts/spec.md",
     ):
         write(tmp_path / path)
     write(

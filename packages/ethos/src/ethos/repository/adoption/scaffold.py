@@ -35,19 +35,19 @@ from ethos_core.contracts.skill_activation import skill_registry_digest
 if TYPE_CHECKING:
     from pathlib import Path
 
-OPENSPEC_FAMILIES = (
-    "ethos-core",
-    "ethos-contracts",
-    "ethos-quality",
-    "ethos-repository",
-    "ethos-adapters",
-    "ethos-assistants",
-    "ethos-cli",
-    "ethos-distribution",
-    "ethos-test",
+OPENSPEC_CAPABILITIES = (
+    "kernel",
+    "contracts",
+    "repository-governance",
+    "adapters",
+    "command-plane",
+    "assistant-projections",
+    "distribution",
+    "quality",
+    "proof-hosts",
 )
-if len(OPENSPEC_FAMILIES) != len(set(OPENSPEC_FAMILIES)):
-    msg = "OPENSPEC_FAMILIES contains duplicate entries"
+if len(OPENSPEC_CAPABILITIES) != len(set(OPENSPEC_CAPABILITIES)):
+    msg = "OPENSPEC_CAPABILITIES contains duplicate entries"
     raise ValueError(msg)
 BASE_ADOPTION_FILES = (
     "AGENTS.md",
@@ -305,7 +305,7 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "docs/governance/ethos.md": _governance_doc(),
         **STATIC_DEFAULT_FILES,
     }
-    for family in OPENSPEC_FAMILIES:
+    for family in OPENSPEC_CAPABILITIES:
         files[f"openspec/specs/{family}/spec.md"] = _openspec_spec(family)
         files[f"openspec/specs/{family}/capability.toml"] = _capability_profile(family)
     if profile == "gitlab":

@@ -37,7 +37,7 @@ targets = [
   "docs/governance/product-design-contract.md",
   "docs/architecture/package-ontology.md",
   "README.md",
-  "openspec/specs/ethos-core/spec.md",
+  "openspec/specs/kernel/spec.md",
   "tests/architecture/test_product_design_contract.py",
   "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/proposal.md",
   "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/design.md",

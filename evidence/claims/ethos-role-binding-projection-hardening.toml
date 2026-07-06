@@ -48,8 +48,8 @@ docs = [
   "docs/reference/command-plane.md",
   "docs/architecture/runner-and-mutation.md",
   "docs/architecture/schema-validation.md",
-  "openspec/specs/ethos-adapters/spec.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]
 
 [boundary]
@@ -57,7 +57,7 @@ owner = "ethos-repository"
 scope = "Configured branch roles, standard Work Lane lifecycle binding, coupling schema, and host projection vocabulary boundaries"
 
 [carriers]
-openspec = "openspec/specs/ethos-repository/spec.md"
+openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Keep branch-role names configurable through .ethos/workspace.toml and keep host presentation outside product truth."
 kill_signal = "ETHOS workflow state can be created by host UI labels or raw worktree creation without ETHOS lease, claim, and configured role provenance."
@@ -70,6 +70,6 @@ targets = [
   "tests/unit/audit/test_coupling.py",
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",
-  "openspec/specs/ethos-repository/spec.md",
-  "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/adapters/spec.md",
 ]

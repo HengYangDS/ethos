@@ -31,7 +31,7 @@ tests = [
   "tests/unit/kernel/test_invalid_states.py",
 ]
 docs = [
-  "openspec/specs/ethos-quality/spec.md",
+  "openspec/specs/quality/spec.md",
 ]
 
 [boundary]

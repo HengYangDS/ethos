@@ -168,9 +168,9 @@ def test_openspec_shape_flags_removed_accepted_spec_obligations(
     class Completed:
         returncode = 0
         stdout = (
-            "diff --git a/openspec/specs/ethos-repository/spec.md "
-            "b/openspec/specs/ethos-repository/spec.md\n"
-            "+++ b/openspec/specs/ethos-repository/spec.md\n"
+            "diff --git a/openspec/specs/repository-governance/spec.md "
+            "b/openspec/specs/repository-governance/spec.md\n"
+            "+++ b/openspec/specs/repository-governance/spec.md\n"
             "@@ -1 +0,0 @@\n"
             "- **AND** existing branch role obligations remain visible\n"
             "- plain explanatory sentence"
@@ -183,7 +183,7 @@ def test_openspec_shape_flags_removed_accepted_spec_obligations(
 
     assert report["ok"] is False
     assert (
-        "openspec_spec_obligation_removed:openspec/specs/ethos-repository/spec.md:"
+        "openspec_spec_obligation_removed:openspec/specs/repository-governance/spec.md:"
         "**AND** existing branch role obligations remain visible" in report["required_gaps"]
     )
     assert not any("plain explanatory sentence" in gap for gap in report["required_gaps"])
@@ -201,9 +201,9 @@ def test_openspec_shape_allows_added_or_unchanged_spec_obligations(
     class Completed:
         returncode = 0
         stdout = (
-            "diff --git a/openspec/specs/ethos-repository/spec.md "
-            "b/openspec/specs/ethos-repository/spec.md\n"
-            "+++ b/openspec/specs/ethos-repository/spec.md\n"
+            "diff --git a/openspec/specs/repository-governance/spec.md "
+            "b/openspec/specs/repository-governance/spec.md\n"
+            "+++ b/openspec/specs/repository-governance/spec.md\n"
             "@@ -1,0 +1 @@\n"
             "+ **AND** new obligations are fine"
         )

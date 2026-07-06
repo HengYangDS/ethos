@@ -163,6 +163,8 @@ def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path)
         "coverage_percent": 50.0,
         "documented_count": 1,
         "public_count": 2,
+        "style_issue_count": 0,
+        "advisory_missing_count": 0,
     }
     assert emitted[0]["required_gaps"] == ["docstring_coverage_below_minimum:50.00<95.00"]
     assert emitted[0]["data"]["missing"][0]["qualified_name"] == "mod.public"

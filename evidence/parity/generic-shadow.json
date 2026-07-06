@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
-    "target_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
-    "product_semantic_sha256": "01b65d1a65e135570f285929c34ca4271124be1dc2cb07cd9c5218d184d0e772",
-    "target_semantic_sha256": "01b65d1a65e135570f285929c34ca4271124be1dc2cb07cd9c5218d184d0e772",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "f199eaa25724f11ce4d10037326d3999a8c1f0bb",
+    "target_head": "f199eaa25724f11ce4d10037326d3999a8c1f0bb",
+    "product_semantic_sha256": "b460d9b318f9fbde2ba70e1dd6d5349ec49c640b9f8de919d85d9634119de0f4",
+    "target_semantic_sha256": "b460d9b318f9fbde2ba70e1dd6d5349ec49c640b9f8de919d85d9634119de0f4",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate",
-    "target_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
-    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout",
+    "target_head": "f199eaa25724f11ce4d10037326d3999a8c1f0bb",
+    "product_head": "f199eaa25724f11ce4d10037326d3999a8c1f0bb",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/openspec-semantic-capability-layout --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "9ceacffea61e258695c72638159e27e1f130a9d645aeeec8d6fa12677bc30736"
+        "sha256": "76bdd63b1d0b51bf067d02913b85d6e52463bacac53af6877fb8418c2c3491e3"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "802ecd645326dd11238919aa6c2a3c24ab34a4a4ec208eabc30a98137d0942b9"
+        "sha256": "6364742153e01e0e2765e7675663126ade5acde6852f71966044c4fd51d939be"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "9cfd3752c3eb7341e1eee96ab91b103588b0318cf21b250ae13ab4e63ea08849"
+        "sha256": "47f29d9399b1ed9afb49a4302d364cf457883863af30125adb2a26850d2d0b32"
       },
       {
         "path": "rules",

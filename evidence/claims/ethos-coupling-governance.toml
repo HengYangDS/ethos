@@ -42,8 +42,8 @@ docs = [
   "docs/architecture/gate-runner.md",
   "docs/architecture/package-ontology.md",
   "docs/reference/command-plane.md",
-  "openspec/specs/ethos-adapters/spec.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]
 
 [boundary]
@@ -51,7 +51,7 @@ owner = "ethos-repository"
 scope = "Git-native repository semantics and provider boundary classification"
 
 [carriers]
-openspec = "openspec/specs/ethos-repository/spec.md"
+openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Keep provider-specific coupling as evidence or adapter metadata, not product truth."
 kill_signal = "A provider-specific runtime becomes required for local ETHOS proof."
@@ -61,5 +61,5 @@ targets = [
   "evidence/coupling-governance-2026-07-01.md",
   "docs/governance/product-design-contract.md",
   "docs/architecture/gate-runner.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]

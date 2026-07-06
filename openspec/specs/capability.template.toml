@@ -1,15 +1,17 @@
 # Copy into openspec/specs/<capability>/capability.toml and replace examples.
+# The directory name is a semantic capability ID, not a package name.
 family = "repository-governance"
 primary_invariant = "State the one behavior this capability protects."
 routing_question = "Ask the question that selects this capability over peers."
 decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "Name what this capability must not absorb.",
+  "Capability IDs name stable product semantics, not implementation package names.",
 ]
 aliases = []
 
 [owner]
-package = "ethos-repository"
+package = "ethos"
 scope = "repository lifecycle governance"
 
 [recommended_facets]

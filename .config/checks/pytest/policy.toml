@@ -1,0 +1,16 @@
+# Pytest execution policy owned by .config/checks/pytest/.
+# pytest.ini remains at repo root because pytest discovers it natively.
+workers_env = "ETHOS_TEST_WORKERS"
+default_workers = "auto"
+durations_env = "ETHOS_TEST_DURATIONS"
+default_durations = 20
+timeout_seconds = 120
+basetemp_env = "ETHOS_TEST_BASETEMP"
+default_basetemp = "${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$"
+evidence_root_env = "ETHOS_TEST_EVIDENCE_DIR"
+default_evidence_root = "build/evidence/quality/tests"
+junit_xml = "build/evidence/quality/tests/pytest/junit.xml"
+coverage_xml = "build/evidence/quality/tests/coverage/coverage.xml"
+benchmark_default = "disabled"
+benchmark_gate = "planned"
+allure_gate = "planned"

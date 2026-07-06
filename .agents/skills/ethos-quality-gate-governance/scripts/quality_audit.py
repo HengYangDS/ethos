@@ -14,6 +14,7 @@ REQUIRED_FILES = (
     ".config/ci/scripts/run-config-lint.sh",
     ".config/ci/scripts/run-shell-lint.sh",
     ".config/ci/scripts/run-docstring-coverage.sh",
+    ".config/ci/scripts/run-repository-hygiene.sh",
     ".config/checks/coverage/coverage.ini",
     ".config/checks/coverage/policy.toml",
     ".config/checks/docstrings/policy.toml",
@@ -35,6 +36,8 @@ ACTIVE_CONCERNS = {
     "toml": ".config/ci/scripts/run-config-lint.sh",
     "yaml": ".config/ci/scripts/run-config-lint.sh",
     "shell": ".config/ci/scripts/run-shell-lint.sh",
+    "repository_hygiene": ".config/ci/scripts/run-repository-hygiene.sh",
+    "json_syntax": ".config/ci/scripts/run-config-lint.sh",
 }
 
 
@@ -149,14 +152,28 @@ def _python_test_runner_gaps(root: Path) -> list[str]:
     python_tests = (root / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     required_needles = (
         "--cov-fail-under=95",
+        '--cov-config="${coverage_config_dir}/coverage.ini"',
+        '--cov-report="xml:${coverage_evidence_dir}/coverage.xml"',
+        'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"',
+        "ETHOS_TEST_BASETEMP",
+    )
+    forbidden_needles = (
         '--cov-config="${coverage_dir}/coverage.ini"',
         '--cov-report="xml:${coverage_dir}/coverage.xml"',
+        'COVERAGE_FILE="${coverage_dir}/.coverage"',
+        'pytest_tmp_dir="build/runtime/pytest"',
     )
-    return [
+    gaps = [
         f"quality_python_tests_missing:{needle}"
         for needle in required_needles
         if needle not in python_tests
     ]
+    gaps.extend(
+        f"quality_python_tests_forbidden:{needle}"
+        for needle in forbidden_needles
+        if needle in python_tests
+    )
+    return gaps
 
 
 def main() -> int:

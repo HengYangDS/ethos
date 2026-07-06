@@ -46,7 +46,7 @@ owner = "ethos-contracts"
 scope = "Closed product topology migration and target package/distribution contracts"
 
 [carriers]
-openspec = "openspec/specs/ethos-contracts/spec.md"
+openspec = "openspec/specs/contracts/spec.md"
 
 fallback = "Use migration evidence and parity reports as rollback anchors without reviving migration-host packages."
 kill_signal = "Active migration-host packages reappear in product topology."
@@ -56,5 +56,5 @@ targets = [
   "evidence/product-migration-closure-2026-07-01.md",
   "docs/architecture/package-ontology.md",
   "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
-  "openspec/specs/ethos-contracts/spec.md",
+  "openspec/specs/contracts/spec.md",
 ]

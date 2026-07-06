@@ -128,3 +128,87 @@ def exported():
         "packages/sample/src/sample/api.py",
         "packages/sample/src/missing",
     ]
+
+
+def test_docstring_gate_rejects_legacy_and_mismatched_structured_docstrings(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path / ".config/checks/docstrings/policy.toml",
+        """
+paths = ["packages/sample/src"]
+fail_under = 100
+style = "google"
+check_structured_signature = true
+exclude_roots = []
+""".strip(),
+    )
+    _write(tmp_path / "packages/sample/src/sample/__init__.py", '"""Sample package."""\n')
+    _write(
+        tmp_path / "packages/sample/src/sample/api.py",
+        '''
+__all__ = ["bad", "legacy"]
+
+
+def bad(value, *, mode):
+    """Do something structured.
+
+    Args:
+        value: Input value.
+        extra: Unknown argument.
+    """
+    return value
+
+
+def legacy(value):
+    """Legacy function.
+
+    Parameters
+    ----------
+    value
+        Input value.
+    """
+    return value
+''',
+    )
+
+    report = docstring_coverage_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["coverage_percent"] == 100.0
+    assert report["style_issue_count"] == 3
+    codes = {item["code"] for item in report["style_issues"]}
+    assert {"args_missing", "args_extra", "legacy_style"} <= codes
+    assert any("sample.api.bad:args_missing" in gap for gap in report["required_gaps"])
+
+
+def test_docstring_gate_accepts_short_google_summary_without_structured_sections(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path / ".config/checks/docstrings/policy.toml",
+        """
+paths = ["packages/sample/src"]
+fail_under = 100
+style = "google"
+check_structured_signature = true
+exclude_roots = []
+""".strip(),
+    )
+    _write(tmp_path / "packages/sample/src/sample/__init__.py", '"""Sample package."""\n')
+    _write(
+        tmp_path / "packages/sample/src/sample/api.py",
+        '''
+__all__ = ["concise"]
+
+
+def concise(value):
+    """Return the governed value."""
+    return value
+''',
+    )
+
+    report = docstring_coverage_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["style_issue_count"] == 0

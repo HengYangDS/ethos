@@ -45,6 +45,12 @@ ethos:config:
   script:
     - .config/ci/scripts/run-config-lint.sh
 
+ethos:hygiene:
+  <<: *python_setup
+  stage: quality
+  script:
+    - .config/ci/scripts/run-repository-hygiene.sh
+
 ethos:shell:
   <<: *python_setup
   stage: quality

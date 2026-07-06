@@ -8,15 +8,34 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-coverage_dir=".config/checks/coverage"
-mkdir -p "${coverage_dir}"
-export COVERAGE_FILE="${coverage_dir}/.coverage"
+coverage_config_dir=".config/checks/coverage"
+evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
+coverage_evidence_dir="${evidence_root}/coverage"
+pytest_evidence_dir="${evidence_root}/pytest"
+pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
+mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
+export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 
-uv run --group dev pytest \
-  --cov-config="${coverage_dir}/coverage.ini" \
-  --cov=ethos \
-  --cov=ethos_core \
-  --cov-report=term-missing \
-  --cov-report="xml:${coverage_dir}/coverage.xml" \
-  --cov-fail-under=95 \
-  tests/unit tests/architecture -q
+workers="${ETHOS_TEST_WORKERS:-auto}"
+durations="${ETHOS_TEST_DURATIONS:-20}"
+pytest_args=(
+  --cov-config="${coverage_config_dir}/coverage.ini"
+  --cov=ethos
+  --cov=ethos_core
+  --cov-report=term-missing
+  --cov-report="xml:${coverage_evidence_dir}/coverage.xml"
+  --cov-fail-under=95
+  --junitxml="${pytest_evidence_dir}/junit.xml"
+  --basetemp="${pytest_tmp_dir}"
+  --durations="${durations}"
+  --dist=loadscope
+  tests/unit
+  tests/architecture
+  -q
+)
+
+if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then
+  pytest_args=( -n "${workers}" "${pytest_args[@]}" )
+fi
+
+uv run --group dev pytest "${pytest_args[@]}"

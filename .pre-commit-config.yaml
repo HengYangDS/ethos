@@ -15,8 +15,13 @@ repos:
         name: config lint
         entry: .config/ci/scripts/run-config-lint.sh
         language: system
-        files: \.(toml|ya?ml)$
+        files: \.(toml|ya?ml|json)$
         pass_filenames: true
+      - id: repository-hygiene
+        name: repository hygiene
+        entry: .config/ci/scripts/run-repository-hygiene.sh
+        language: system
+        pass_filenames: false
       - id: shell-lint
         name: shell lint
         entry: .config/ci/scripts/run-shell-lint.sh

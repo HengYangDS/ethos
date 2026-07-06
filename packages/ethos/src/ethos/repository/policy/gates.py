@@ -163,7 +163,7 @@ def gate_registry() -> dict[str, Gate]:
             execution_mode="inprocess",
             evidence_class="diagnostic",
             trust_bearing=True,
-            tool_adapter="ethos-docstrings",
+            tool_adapter="ethos-docstrings-google",
             version_source="product",
         ),
         "build": Gate(

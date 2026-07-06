@@ -39,7 +39,7 @@ source = ".config/checks/coverage/coverage.ini and .config/ci/scripts/run-python
 
 
 def write_coverage_xml(root: Path, *, line_rate: float = 0.96, branch_rate: float = 0.95) -> None:
-    coverage_dir = root / ".config" / "checks" / "coverage"
+    coverage_dir = root / "build" / "evidence" / "quality" / "tests" / "coverage"
     coverage_dir.mkdir(parents=True, exist_ok=True)
     (coverage_dir / "coverage.xml").write_text(
         (
@@ -92,11 +92,11 @@ def test_coverage_quality_report_reports_missing_latest_artifact(tmp_path: Path)
 
     assert report["ok"] is False
     assert report["latest_artifact"] == {
-        "path": ".config/checks/coverage/coverage.xml",
+        "path": "build/evidence/quality/tests/coverage/coverage.xml",
         "present": False,
     }
     assert report["required_gaps"] == [
-        "coverage_artifact_missing:.config/checks/coverage/coverage.xml"
+        "coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml"
     ]
 
 
@@ -133,19 +133,24 @@ def test_coverage_quality_report_reports_invalid_policy_config_and_artifact(
     coverage_dir.mkdir(parents=True)
     (coverage_dir / "policy.toml").write_text("current_hard_floor = [\n", encoding="utf-8")
     (coverage_dir / "coverage.ini").write_text("[report]\nfail_under = 95\n", encoding="utf-8")
-    (coverage_dir / "coverage.xml").write_text("<coverage", encoding="utf-8")
+    (tmp_path / "build" / "evidence" / "quality" / "tests" / "coverage").mkdir(
+        parents=True, exist_ok=True
+    )
+    (
+        tmp_path / "build" / "evidence" / "quality" / "tests" / "coverage" / "coverage.xml"
+    ).write_text("<coverage", encoding="utf-8")
 
     report = coverage_quality_report(tmp_path)
 
     assert report["ok"] is False
     assert report["latest_artifact"] == {
-        "path": ".config/checks/coverage/coverage.xml",
+        "path": "build/evidence/quality/tests/coverage/coverage.xml",
         "present": True,
     }
     assert report["required_gaps"] == [
         "coverage_policy_invalid_toml:.config/checks/coverage/policy.toml",
         "coverage_config_missing_section:run",
-        "coverage_artifact_malformed:.config/checks/coverage/coverage.xml",
+        "coverage_artifact_malformed:build/evidence/quality/tests/coverage/coverage.xml",
     ]
 
 
@@ -170,7 +175,12 @@ fail_under = strict
 """,
         encoding="utf-8",
     )
-    (coverage_dir / "coverage.xml").write_text(
+    (tmp_path / "build" / "evidence" / "quality" / "tests" / "coverage").mkdir(
+        parents=True, exist_ok=True
+    )
+    (
+        tmp_path / "build" / "evidence" / "quality" / "tests" / "coverage" / "coverage.xml"
+    ).write_text(
         '<coverage line-rate="n/a" branch-rate="n/a" lines-covered="many" lines-valid="all" />',
         encoding="utf-8",
     )

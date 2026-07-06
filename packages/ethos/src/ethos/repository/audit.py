@@ -138,16 +138,16 @@ REQUIRED_PLAYBOOK_FILES = (
     ".agents/skills/ethos-repository-governance/SKILL.md",
 )
 
-REQUIRED_OPENSPEC_FAMILIES = (
-    "ethos-assistants",
-    "ethos-cli",
-    "ethos-contracts",
-    "ethos-core",
-    "ethos-distribution",
-    "ethos-quality",
-    "ethos-repository",
-    "ethos-adapters",
-    "ethos-test",
+REQUIRED_OPENSPEC_CAPABILITIES = (
+    "kernel",
+    "contracts",
+    "repository-governance",
+    "adapters",
+    "command-plane",
+    "assistant-projections",
+    "distribution",
+    "quality",
+    "proof-hosts",
 )
 
 
@@ -235,9 +235,9 @@ def repository_audit(
     release_files = release_files_report(root)
     release_files_missing = list(cast("list[str]", release_files["missing"]))
     playbooks_missing = [path for path in REQUIRED_PLAYBOOK_FILES if not (root / path).exists()]
-    openspec_family_missing = [
+    openspec_capability_missing = [
         f"openspec/specs/{family}/spec.md"
-        for family in REQUIRED_OPENSPEC_FAMILIES
+        for family in REQUIRED_OPENSPEC_CAPABILITIES
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
     command_report = command_registry_report(root)
@@ -281,7 +281,7 @@ def repository_audit(
         + schemas_missing
         + release_files_missing
         + [f"adoption_scaffold_missing:{path}" for path in playbooks_missing]
-        + [f"openspec_family_missing:{path}" for path in openspec_family_missing]
+        + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
         + claim_gaps
         + schema_gaps
         + evolution_gaps
@@ -350,10 +350,10 @@ def repository_audit(
             "missing": playbooks_missing,
             "validation": playbook_report,
         },
-        "openspec_families": {
-            "ok": not openspec_family_missing,
-            "expected": list(REQUIRED_OPENSPEC_FAMILIES),
-            "missing": openspec_family_missing,
+        "openspec_capabilities": {
+            "ok": not openspec_capability_missing,
+            "expected": list(REQUIRED_OPENSPEC_CAPABILITIES),
+            "missing": openspec_capability_missing,
         },
         "command_registry": command_report,
         "authority_graph": authority_graph,

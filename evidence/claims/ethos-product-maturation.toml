@@ -36,7 +36,7 @@ owner = "ethos-repository"
 scope = "Schema-validated command plane, executed gates, release readiness, and host profiles"
 
 [carriers]
-openspec = "openspec/specs/ethos-repository/spec.md"
+openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Use local unit, architecture, schema, and release-policy gates without hosted assumptions."
 kill_signal = "Maturation proof reports success without executed gate evidence."
@@ -46,5 +46,5 @@ targets = [
   "evidence/maturation-2026-06-30.md",
   "docs/architecture/gate-runner.md",
   ".ethos/release.toml",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
 ]

@@ -544,7 +544,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
                 },
                 {
                     "kind": "openspec",
-                    "path": "openspec/specs/ethos-repository/spec.md",
+                    "path": "openspec/specs/repository-governance/spec.md",
                 },
             ],
             "ready": True,

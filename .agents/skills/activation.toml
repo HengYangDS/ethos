@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:e5cfb109ec9f103ae30f252a73550e0a2d71bf41e00dc571df46b488291048ef"
+expected_registry_digest = "sha256:ef060e14f2fa1ab6f4ea41b8dbe6644a89901d1561b356c4137d9628950633be"
 expected_generator_digest = "sha256:eb3b84583ee7cc26a50336a0384fe7bb4745e04c38d1ec23770c56d6a47f235a"
 
 [coverage]
@@ -248,8 +248,8 @@ path_globs = [
   "packages/ethos/src/ethos/repository/adoption/**",
   "packages/ethos/src/ethos/repository/profile*.py",
   "system/capability-profiles/**",
-  "openspec/specs/ethos-adapters/**",
-  "openspec/specs/ethos-repository/**",
+  "openspec/specs/adapters/**",
+  "openspec/specs/repository-governance/**",
   "tests/unit/adoption/**",
   "tests/unit/product/test_parity.py",
 ]

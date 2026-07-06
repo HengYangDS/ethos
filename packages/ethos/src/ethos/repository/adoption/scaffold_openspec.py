@@ -29,8 +29,9 @@ def _openspec_specs_readme() -> str:
     return """# OpenSpec Capability Specs
 
 Each capability directory contains accepted behavior in `spec.md` and ETHOS
-routing metadata in `capability.toml`. Proposal capability entries must name
-live capability directories exactly; aliases are diagnostic only.
+routing metadata in `capability.toml`. Capability directory names are stable
+product semantics, not package names. Proposal capability entries must name live
+capability directories exactly; aliases are diagnostic only.
 """
 
 
@@ -79,7 +80,7 @@ boundary_rules = ["Name what this capability must not absorb."]
 aliases = []
 
 [owner]
-package = "ethos-repository"
+package = "ethos"
 scope = "repository lifecycle governance"
 
 [recommended_facets]
@@ -116,15 +117,15 @@ facet:authority=<source|test|schema|docs|openspec|claim|evidence>
 
 def _openspec_spec(family: str) -> str:
     titles = {
-        "ethos-core": "Pure Kernel",
-        "ethos-contracts": "Provider-neutral Contracts",
-        "ethos-quality": "Quality And Determinism",
-        "ethos-repository": "Repository Lifecycle Governance",
-        "ethos-adapters": "Provider Adapters",
-        "ethos-assistants": "Assistant And Context Boundaries",
-        "ethos-cli": "Public Command Plane",
-        "ethos-distribution": "Distribution Adapters",
-        "ethos-test": "Conformance And Parity Proof",
+        "kernel": "Pure Kernel",
+        "contracts": "Provider-neutral Contracts",
+        "repository-governance": "Repository Lifecycle Governance",
+        "adapters": "Provider Adapters",
+        "command-plane": "Public Command Plane",
+        "assistant-projections": "Assistant And Context Boundaries",
+        "distribution": "Distribution Adapters",
+        "quality": "Quality And Determinism",
+        "proof-hosts": "Conformance And Parity Proof",
     }
     title = titles[family]
     return f"""# {family}
@@ -148,40 +149,47 @@ The {family} family SHALL describe one bounded product concern.
 
 def _capability_profile(family: str) -> str:
     scopes = {
-        "ethos-core": "pure kernel result and action graph semantics",
-        "ethos-contracts": "provider-neutral repository contracts",
-        "ethos-quality": "quality, determinism, docs profile, and proof policy",
-        "ethos-repository": "repository lifecycle governance",
-        "ethos-adapters": "provider and projection adapters",
-        "ethos-assistants": "assistant and context projection boundaries",
-        "ethos-cli": "public ETHOS command plane",
-        "ethos-distribution": "distribution and host package surfaces",
-        "ethos-test": "conformance, fixture, and parity proof hosts",
+        "kernel": "pure kernel result and action graph semantics",
+        "contracts": "provider-neutral repository contracts",
+        "repository-governance": "repository lifecycle governance",
+        "adapters": "provider and projection adapters",
+        "command-plane": "public ETHOS command plane",
+        "assistant-projections": "assistant and context projection boundaries",
+        "distribution": "distribution and host package surfaces",
+        "quality": "quality, determinism, docs profile, and proof policy",
+        "proof-hosts": "conformance, fixture, and parity proof hosts",
     }
     profile_families = {
-        "ethos-core": "kernel",
-        "ethos-contracts": "contracts",
-        "ethos-quality": "quality",
-        "ethos-repository": "repository-governance",
-        "ethos-adapters": "adapters",
-        "ethos-assistants": "surfaces",
-        "ethos-cli": "surfaces",
-        "ethos-distribution": "surfaces",
-        "ethos-test": "proof",
+        "kernel": "kernel",
+        "contracts": "contracts",
+        "repository-governance": "repository-governance",
+        "adapters": "adapters",
+        "command-plane": "surfaces",
+        "assistant-projections": "surfaces",
+        "distribution": "surfaces",
+        "quality": "quality",
+        "proof-hosts": "proof",
+    }
+    owners = {
+        "kernel": "ethos-core",
+        "contracts": "ethos-core",
+        "quality": "ethos-core",
     }
     scope = scopes[family]
+    owner = owners.get(family, "ethos")
     return f'''family = "{profile_families[family]}"
-primary_invariant = "The {family} family keeps {scope} cohesive and provider-neutral."
+primary_invariant = "The {family} capability keeps {scope} cohesive and provider-neutral."
 routing_question = "Does this change alter {scope}?"
 decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
+  "Capability IDs name stable product semantics, not implementation package names.",
   "OpenSpec records are specification carriers, not truth owners.",
   "Provider or adopter-specific state remains in adapters, profiles, or evidence.",
 ]
 aliases = []
 
 [owner]
-package = "{family}"
+package = "{owner}"
 scope = "{scope}"
 
 [recommended_facets]

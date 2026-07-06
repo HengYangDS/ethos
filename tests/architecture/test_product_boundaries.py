@@ -280,7 +280,7 @@ def test_package_roots_do_not_reexport_module_surfaces() -> None:
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:
     assert (ROOT / "openspec" / "config.yaml").exists()
-    assert (ROOT / "openspec" / "specs" / "ethos-core" / "spec.md").exists()
+    assert (ROOT / "openspec" / "specs" / "kernel" / "spec.md").exists()
 
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert "openspec =" not in pyproject
@@ -288,15 +288,15 @@ def test_openspec_is_official_governance_surface_not_command_root() -> None:
 
 def test_openspec_specs_are_mece_product_families() -> None:
     expected = {
-        "ethos-adapters",
-        "ethos-assistants",
-        "ethos-cli",
-        "ethos-contracts",
-        "ethos-core",
-        "ethos-distribution",
-        "ethos-quality",
-        "ethos-repository",
-        "ethos-test",
+        "adapters",
+        "assistant-projections",
+        "command-plane",
+        "contracts",
+        "kernel",
+        "distribution",
+        "quality",
+        "repository-governance",
+        "proof-hosts",
     }
     actual = {path.parent.name for path in (ROOT / "openspec" / "specs").glob("*/spec.md")}
 
@@ -305,15 +305,15 @@ def test_openspec_specs_are_mece_product_families() -> None:
 
 def test_active_openspec_change_deltas_use_target_product_families() -> None:
     expected = {
-        "ethos-adapters",
-        "ethos-assistants",
-        "ethos-cli",
-        "ethos-contracts",
-        "ethos-core",
-        "ethos-distribution",
-        "ethos-quality",
-        "ethos-repository",
-        "ethos-test",
+        "adapters",
+        "assistant-projections",
+        "command-plane",
+        "contracts",
+        "kernel",
+        "distribution",
+        "quality",
+        "repository-governance",
+        "proof-hosts",
     }
     changes_root = ROOT / "openspec" / "changes"
     active_spec_files = [

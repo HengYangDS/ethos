@@ -33,7 +33,7 @@ owner = "ethos-adapters"
 scope = "Work Lane admission, prewrite, foreign lane visibility, and lease-backed starts"
 
 [carriers]
-openspec = "openspec/specs/ethos-adapters/spec.md"
+openspec = "openspec/specs/adapters/spec.md"
 
 fallback = "Block protected-root mutation and require local Work Lane admission before tracked writes."
 kill_signal = "A protected root can perform trust-bearing mutation without Work Lane admission."
@@ -43,5 +43,5 @@ targets = [
   "evidence/work-lane-admission-2026-06-30.md",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/adapters/admission/prewrite.py",
-  "openspec/specs/ethos-adapters/spec.md",
+  "openspec/specs/adapters/spec.md",
 ]

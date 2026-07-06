@@ -60,7 +60,7 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
 def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -> None:
     tao = read("system/tao.md")
     kernel = read("docs/concepts/kernel-model.md")
-    spec = read("openspec/specs/ethos-core/spec.md")
+    spec = read("openspec/specs/kernel/spec.md")
 
     for phrase in (
         "道隐无名",
@@ -208,8 +208,8 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     product = read("docs/governance/product-design-contract.md")
     command_plane = read("docs/reference/command-plane.md")
     schema = read("docs/architecture/schema-validation.md")
-    repository_spec = read("openspec/specs/ethos-repository/spec.md")
-    adapters_spec = read("openspec/specs/ethos-adapters/spec.md")
+    repository_spec = read("openspec/specs/repository-governance/spec.md")
+    adapters_spec = read("openspec/specs/adapters/spec.md")
 
     for text in (product, command_plane, schema):
         assert "release_root -> accepted_root -> candidate -> work_lane -> submit_lane" in text
@@ -227,8 +227,8 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
 def test_product_design_contract_defines_governed_repository() -> None:
     product = read("docs/governance/product-design-contract.md")
     command_plane = read("docs/reference/command-plane.md")
-    repository_spec = read("openspec/specs/ethos-repository/spec.md")
-    contracts_spec = read("openspec/specs/ethos-contracts/spec.md")
+    repository_spec = read("openspec/specs/repository-governance/spec.md")
+    contracts_spec = read("openspec/specs/contracts/spec.md")
 
     for text in (product, command_plane, repository_spec, contracts_spec):
         assert "governed repository" in text
@@ -314,7 +314,7 @@ def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
         "docs/architecture/package-ontology.md",
         "docs/reference/glossary.md",
         "packages/ethos-core/README.md",
-        "openspec/specs/ethos-core/spec.md",
+        "openspec/specs/kernel/spec.md",
     )
 
     for surface in canonical_surfaces:

@@ -39,7 +39,7 @@ def complete_governance_lifecycle() -> dict[str, object]:
             "targets": [
                 {"kind": "source", "path": "packages/ethos/src/ethos/cli.py"},
                 {"kind": "tests", "path": "tests/unit/test_cli_contracts.py"},
-                {"kind": "openspec", "path": "openspec/specs/ethos-cli/spec.md"},
+                {"kind": "openspec", "path": "openspec/specs/command-plane/spec.md"},
                 {"kind": "evidence", "path": "evidence/sample.md"},
             ],
             "ready": True,

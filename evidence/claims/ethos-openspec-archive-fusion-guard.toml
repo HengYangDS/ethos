@@ -24,7 +24,7 @@ packages = ["ethos-repository"]
 tests = ["tests/unit/audit/test_modes.py"]
 docs = [
   "docs/governance/product-design-contract.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
   "openspec/changes/archive/2026-07-05-ethos-openspec-archive-fusion-guard-20260705/specs/ethos-repository/spec.md",
 ]
 
@@ -44,6 +44,6 @@ targets = [
   "packages/ethos/src/ethos/repository/audit.py",
   "tests/unit/audit/test_modes.py",
   "docs/governance/product-design-contract.md",
-  "openspec/specs/ethos-repository/spec.md",
+  "openspec/specs/repository-governance/spec.md",
   "openspec/changes/archive/2026-07-05-ethos-openspec-archive-fusion-guard-20260705/specs/ethos-repository/spec.md",
 ]

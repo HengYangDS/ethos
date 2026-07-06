@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5b63acce75dd82f888816b73d03628cf652a346a",
-    "target_head": "5b63acce75dd82f888816b73d03628cf652a346a",
-    "product_semantic_sha256": "3e99ccf408753b42e0e21142227ae283c73d8dc0d155752074ec19f9668e1a71",
-    "target_semantic_sha256": "3e99ccf408753b42e0e21142227ae283c73d8dc0d155752074ec19f9668e1a71",
+    "product_head": "3a4a99b794e1c5c24e1f8195d66fbcd0ec9b71f1",
+    "target_head": "3a4a99b794e1c5c24e1f8195d66fbcd0ec9b71f1",
+    "product_semantic_sha256": "73cbc9cdb8d6966b489df5760c64d2d2a56679ec5e56c37ba6a84dcb4baa44c4",
+    "target_semantic_sha256": "73cbc9cdb8d6966b489df5760c64d2d2a56679ec5e56c37ba6a84dcb4baa44c4",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/explain-projection-language",
-    "target_head": "5b63acce75dd82f888816b73d03628cf652a346a",
-    "product_head": "5b63acce75dd82f888816b73d03628cf652a346a",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/explain-metavar-language",
+    "target_head": "3a4a99b794e1c5c24e1f8195d66fbcd0ec9b71f1",
+    "product_head": "3a4a99b794e1c5c24e1f8195d66fbcd0ec9b71f1",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json"
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-metavar-language/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/explain-metavar-language --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "de507b7681975bef22d610fe9f5966d816b902d59792ec4ca1476cf968caf0d0"
+        "sha256": "be6753255a724a3c0e22ed73b1f0305bd45db566300ce566a5a1ee184ecc4d90"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "0fc1b14188fff419479931f17b68a82b9d4f09bcb6ae9fa0786b79e22b732a5d"
+        "sha256": "2a0dddca7bda0c986e108e7b1d97f6d458c5c8229a2fc2b13aab76295e33d82c"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "a55c424825847201167c9a934af968b16f292b662b7b7c018e23fd7fe0816584"
+        "sha256": "19989ba7336153977b808fb5bc1310dea0d203af9819db91a9f9da4e47404938"
       },
       {
         "path": "rules",

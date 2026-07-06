@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
-    "target_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
-    "product_semantic_sha256": "1a8e867f58c5cdc56829ad0bb1b10e6bc7cccd17c2356e85e7bd40319f457168",
-    "target_semantic_sha256": "1a8e867f58c5cdc56829ad0bb1b10e6bc7cccd17c2356e85e7bd40319f457168",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
+    "target_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
+    "product_semantic_sha256": "98ebd340c4fb20545589e3fff76ea9e1f0070a3016fbbf7a8af7058c329bce5d",
+    "target_semantic_sha256": "98ebd340c4fb20545589e3fff76ea9e1f0070a3016fbbf7a8af7058c329bce5d",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate",
-    "target_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
-    "product_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
+    "target_root": "/Users/yheng/projects/ethos-root-binding-fail-closed",
+    "target_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
+    "product_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json"
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
+      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-root-binding-fail-closed --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,7 +76,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "febccc228f68c1561799b7b962de6d79f4b35ff6eb7361667685ed2f639bd5c8"
+        "sha256": "60acad25b733ac4e93b16ba4f017c55748b6fadca4a5d2c126f5684722ec944e"
       },
       {
         "path": "evidence/claims",
@@ -86,12 +86,12 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "cceca1b46f8f601269f0807df09a6d34e22d73e5eebe4cad1a8490139ab86633"
+        "sha256": "92b93093bee94b2e3c4024172dcab761f96e60ad531b5bf78b6429ee0db1231d"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "8e0e4e0ea8b63fd60842f682052b31f6894984d26b51184a405abc40da7c4e44"
+        "sha256": "70098ec7835955125f5582b41e7fe54e03e29dff7a87d2e5483ba70641a7c167"
       }
     ]
   },

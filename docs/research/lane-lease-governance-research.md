@@ -457,3 +457,176 @@ insufficient.
 - No dashboard before command JSON is correct.
 - No blanket ADR/RFC requirement for routine changes.
 - No conservative ban on destructive change.
+
+## Design intake for implementation
+
+This research intake should drive implementation in four layers. The order is
+intentional: make state visible before making enforcement stricter, then permit
+higher-risk change only after ownership and evidence are reliable.
+
+### Layer 1: observation before enforcement
+
+Implement or refine read models before adding new hard blocks. A correct status
+surface should answer four questions for both humans and agents:
+
+1. What lane or root am I in?
+2. What authority do I currently have?
+3. Which foreign lanes, stale leases, unknown scopes, or overlaps affect me?
+4. What is the next legal command?
+
+The minimum useful output is not a dashboard; it is stable JSON plus a concise
+human rendering. If the JSON is correct, IDE badges and dashboards can remain
+projections.
+
+### Layer 2: lease and fencing
+
+Extend local lease semantics so every mutation-capable Work Lane has holder,
+heartbeat, scope, and epoch. The epoch is the fencing token. Any command that
+can write, land, retire, adopt, or move protected refs must compare the supplied
+or resolved epoch with the current lease epoch. Adoption increments epoch.
+
+This should first be enforced in ETHOS commands. Git hooks remain the fallback
+substrate guard for raw ref operations.
+
+### Layer 3: lane log and event profile
+
+Use a CloudEvents-compatible ETHOS lane event profile, not a separate mailbox.
+The event subject is the lane. The actor is the holder or maintainer. Event
+types should be sparse and lifecycle-oriented:
+
+- `lane.created`
+- `lane.heartbeat`
+- `lane.scope.declared`
+- `lane.note.added`
+- `lane.handoff.requested`
+- `lane.adopted`
+- `lane.proof.executed`
+- `lane.land.requested`
+- `lane.landed`
+- `lane.retired`
+- `lane.blocked`
+
+This gives Codex, Claude, humans, and future tools a shared coordination trail
+without introducing agent-to-agent chat as a truth source.
+
+### Layer 4: net-gain destructive change
+
+After lane ownership is enforceable, add change classification:
+
+- `routine`: normal local proof is enough.
+- `material`: requires ADR-style rationale.
+- `destructive`: requires RFC-style proposal, net-gain hypothesis, blast radius,
+  rollback, abort condition, and evidence archive.
+
+A destructive change should be allowed to delete, replace, or reshape old
+structures inside its declared scope. The system should not reject it because it
+is disruptive; it should reject it only if the disruption is unbounded,
+unowned, unobservable, unprovable, or irreversible.
+
+## Minimal implementation slices
+
+### Slice A: status and UX read model
+
+Goal: make current authority visible.
+
+Candidate changes:
+
+- extend `ethos lane status --json` with `actor_role`, `allowed_actions`,
+  `forbidden_actions`, and `next_commands`;
+- ensure root/editor-root ambiguity is explicit;
+- make foreign lanes show observe-only authority;
+- keep all output derived from current repo state and lease state.
+
+Acceptance evidence:
+
+- unit tests for accepted root, owned lane, foreign lane, stale lease, and
+  protected root;
+- golden JSON checks for next commands;
+- no new runtime dependency.
+
+### Slice B: lease epoch and adoption
+
+Goal: prevent stale holders from mutating after adoption.
+
+Candidate changes:
+
+- add `epoch` to local lane lease;
+- make adoption increment epoch;
+- make prewrite and closeout compare current epoch;
+- add invalid states `lease_epoch_stale`, `lease_holder_mismatch`, and
+  `stale_lane_without_adoption` if not already present.
+
+Acceptance evidence:
+
+- old holder fails prewrite after adoption;
+- new holder succeeds after epoch bump;
+- stale heartbeat alone does not permit deletion.
+
+### Slice C: lane event profile
+
+Goal: make coordination visible without adding a mailbox entity.
+
+Candidate changes:
+
+- append lane events under Git common-dir runtime state;
+- use CloudEvents-compatible fields: `id`, `source`, `type`, `subject`, `time`,
+  `data`;
+- expose `ethos lane events <lane> --json` or include recent event summaries in
+  lane status only if command surface remains small.
+
+Acceptance evidence:
+
+- lane start writes `lane.created`;
+- heartbeat writes or updates heartbeat without noisy event spam;
+- handoff/adoption/blocked events are visible;
+- events never outrank lease state or proof.
+
+### Slice D: destructive change admission
+
+Goal: encourage creative destruction with net-gain discipline.
+
+Candidate changes:
+
+- extend claim/evidence or add a small destructive-change record schema;
+- add ADR/RFC templates only for material/destructive classes;
+- add checks for hypothesis, blast radius, rollback, abort condition, and
+  evidence target;
+- connect destructive class to scope and lane lease.
+
+Acceptance evidence:
+
+- routine change not forced through ADR/RFC;
+- destructive change missing rollback or blast radius is blocked;
+- destructive change with full record is admitted inside owned lane;
+- failed bounded experiment can be archived without being treated as silent
+  success.
+
+### Slice E: protected ref fallback
+
+Goal: prevent raw Git bypass of work/candidate/accepted refs.
+
+Candidate changes:
+
+- harden `reference-transaction` checks for work lanes, candidate, and accepted
+  root;
+- allow sanctioned ETHOS operations with expected head and authorization;
+- fail closed when the command context cannot be proven.
+
+Acceptance evidence:
+
+- raw delete/move of active work lane is rejected;
+- official retire-landed is accepted;
+- raw accepted-root move is rejected;
+- official closeout remains possible.
+
+## Sequencing rule
+
+Do not implement Slice D before Slice A and Slice B. Net-gain destructive change
+requires clear ownership and visible authority. Otherwise the policy would
+encourage powerful mutation before the system can tell who is responsible.
+
+Do not implement dashboard or IDE projection before Slice A. Projection without
+correct command JSON would create a second truth store.
+
+Do not harden ref hooks before command-level remedies are clear. Hooks should be
+the last guardrail, not the first user experience.

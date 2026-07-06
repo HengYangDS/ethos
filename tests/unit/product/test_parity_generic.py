@@ -794,6 +794,27 @@ def test_parity_validation_boundary_gaps() -> None:
     )
 
 
+def test_parity_validation_accepts_repository_target_command_alias() -> None:
+    assert (
+        _command_matches_identity(
+            "uv run --package ethos ethos parity shadow --adopter generic "
+            "--target . --execute --timeout-seconds 30 --json",
+            adopter="generic",
+            target="<repo>",
+        )
+        is True
+    )
+    assert (
+        _command_matches_identity(
+            "uv run --package ethos ethos parity shadow --adopter generic "
+            "--execute --timeout-seconds 30 --json",
+            adopter="generic",
+            target="<repo>",
+        )
+        is False
+    )
+
+
 def test_parity_validation_accepts_equivalent_heads_and_rejects_bad_capability_basis() -> None:
     payload = _complete_parity_evidence("generic")
     capabilities = payload["verified_capabilities"]

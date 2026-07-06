@@ -352,11 +352,19 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
 
     evidence_path = product / "evidence" / "parity" / "generic-shadow.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    expected_target = "<repo>"
+    expected_command = (
+        "uv run --package ethos ethos parity shadow --adopter generic "
+        "--target . --execute --timeout-seconds 30 --json"
+    )
 
     assert payload["ok"] is True
     assert evidence["adopter"] == "generic"
+    assert evidence["target"] == expected_target
+    assert evidence["command"] == expected_command
     assert evidence["freshness"]["product_head"] == _git_head(product)
     assert evidence["freshness"]["target_head"] == _git_head(product)
+    assert evidence["freshness"]["command_sha256"] == _sha256_text(expected_command)
 
 
 def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:

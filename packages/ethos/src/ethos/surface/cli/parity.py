@@ -123,6 +123,7 @@ def parity_shadow(
                 current_product_head=_gitio.current_tracked_head(repo),
                 current_target_head=_gitio.current_tracked_head(target),
                 timeout_seconds=timeout_seconds,
+                root=repo,
             )
             written = write_tracked_parity_evidence(
                 root=repo,

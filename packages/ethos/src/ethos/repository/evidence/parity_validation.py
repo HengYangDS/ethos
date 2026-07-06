@@ -224,7 +224,13 @@ def _command_matches_identity(command: str, *, adopter: str, target: object) -> 
         return False
     if f"--adopter {adopter}" not in command:
         return False
-    if isinstance(target, str) and target and f"--target {target}" not in command:
+    if isinstance(target, str) and target:
+        target_matches = f"--target {target}" in command or (
+            target == "<repo>" and "--target ." in command
+        )
+        if not target_matches:
+            return False
+    elif "--target " not in command:
         return False
     return "--execute" in command and "--json" in command
 

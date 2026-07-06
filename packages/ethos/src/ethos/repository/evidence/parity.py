@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo import git as _gitio
 from ethos.repository.evidence.parity_validation import SHADOW_PARITY_COMMANDS
 from ethos.repository.evidence.parity_validation import _command_matches_identity
 from ethos.repository.evidence.parity_validation import _migratable_capability_list
@@ -24,6 +25,8 @@ __all__ = (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+REPOSITORY_TARGET = "<repo>"
 
 
 def parity_ledger_report() -> dict[str, object]:
@@ -115,19 +118,21 @@ def build_tracked_parity_evidence(
     current_product_head: str,
     current_target_head: str,
     timeout_seconds: int,
+    root: Path | None = None,
 ) -> dict[str, object]:
     target = target.resolve()
+    target_identity = _target_identity(root=root, adopter=adopter, target=target)
     accepted_summary = shadow.get("accepted_summary")
     shadow_required_gaps = shadow.get("required_gaps")
     command = _shadow_evidence_command(
         adopter=adopter,
-        target=target,
+        target=_target_command_argument(target_identity),
         timeout_seconds=timeout_seconds,
     )
     return {
         "schema_version": 1,
         "adopter": adopter,
-        "target": target.as_posix(),
+        "target": target_identity,
         "generated_on": datetime.now(tz=UTC).date().isoformat(),
         "command": command,
         "freshness": {
@@ -179,15 +184,20 @@ def parity_evidence_refresh_package(
     target: Path | None,
     required_gaps: Iterable[str] = (),
 ) -> dict[str, object]:
-    target_text = target.resolve().as_posix() if target is not None else "<repo>"
+    target_identity = (
+        _target_identity(root=root, adopter=adopter, target=target.resolve())
+        if target is not None
+        else REPOSITORY_TARGET
+    )
+    target_arg = _target_command_argument(target_identity)
     return {
         "kind": "parity_evidence_refresh",
         "adopter": adopter,
         "root": root.resolve().as_posix(),
-        "target": target_text,
+        "target": target_identity,
         "blocking": True,
         "required_gaps": [str(gap) for gap in required_gaps],
-        "command": _shadow_refresh_command(adopter=adopter, target=target_text),
+        "command": _shadow_refresh_command(adopter=adopter, target=target_arg),
         "next_action": "refresh tracked shadow parity evidence",
     }
 
@@ -199,11 +209,21 @@ def _shadow_refresh_command(*, adopter: str, target: str) -> str:
     )
 
 
-def _shadow_evidence_command(*, adopter: str, target: Path, timeout_seconds: int) -> str:
+def _shadow_evidence_command(*, adopter: str, target: str, timeout_seconds: int) -> str:
     return (
         f"uv run --package ethos ethos parity shadow --adopter {adopter} "
-        f"--target {target.as_posix()} --execute --timeout-seconds {timeout_seconds} --json"
+        f"--target {target} --execute --timeout-seconds {timeout_seconds} --json"
     )
+
+
+def _target_identity(*, root: Path | None, adopter: str, target: Path) -> str:
+    if adopter == "generic" and root is not None and _gitio.same_git_repository(root, target):
+        return REPOSITORY_TARGET
+    return target.resolve().as_posix()
+
+
+def _target_command_argument(target_identity: str) -> str:
+    return "." if target_identity == REPOSITORY_TARGET else target_identity
 
 
 def _pending_package(record: dict[str, object]) -> dict[str, object]:
@@ -267,6 +287,7 @@ def shadow_parity_report(
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
+        target_identity = _target_identity(root=root or Path.cwd(), adopter=adopter, target=target)
         evidence = _parity_evidence(
             root or Path.cwd(),
             adopter,
@@ -278,7 +299,7 @@ def shadow_parity_report(
         )
         if evidence:
             evidence_gaps = list(cast("Iterable[str]", evidence.get("required_gaps", [])))
-            if evidence.get("target") != target.as_posix():
+            if evidence.get("target") != target_identity:
                 evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
             shadow_value = evidence.get("shadow")
             shadow = shadow_value if isinstance(shadow_value, dict) else {}

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-skill-script-capability",
+  "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-script-capability --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "f35b4ef5e8ef0ab93d108a4094e2b5c0ed1bc0fa",
-    "target_head": "f35b4ef5e8ef0ab93d108a4094e2b5c0ed1bc0fa",
-    "command_sha256": "e597a233e312bf28eaf47e96cbc76a78cef207617ffb75682626d9a352d2d346"
+    "product_head": "25b1171c0684f22ccb92f9e11919e2836b70392d",
+    "target_head": "25b1171c0684f22ccb92f9e11919e2836b70392d",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,

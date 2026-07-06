@@ -242,6 +242,38 @@ def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
     assert report["checks"]["product_boundary"]["ok"] is True
 
 
+def test_retirement_readiness_next_actions_follow_current_stage(tmp_path: Path) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _write_profile(
+        adopter,
+        external_state="adoption_preview",
+        embedded_state="active_until_external_ge_embedded",
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["state"] == "external_not_default"
+    assert not any("parity shadow" in action for action in report["next_actions"])
+    assert report["next_actions"][:3] == [
+        "switch adopter default backend to external under a reversible control",
+        "freeze embedded backend as fallback/reference during rollback window",
+        (
+            f"ethos fleet retirement-readiness --target {adopter.as_posix()} "
+            f"--root {product.as_posix()} --json"
+        ),
+    ]
+
+
 def test_retirement_readiness_rejects_product_core_adopter_directories(
     tmp_path: Path,
 ) -> None:

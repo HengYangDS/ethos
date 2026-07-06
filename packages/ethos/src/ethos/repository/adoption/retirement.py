@@ -462,16 +462,19 @@ def _lifecycle_stage(
 def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> list[str]:
     if not gaps:
         return ["record separate Retirement Decision before removing embedded backend"]
-    actions = [
-        (
+
+    actions: list[str] = []
+    if _has_any_gap(
+        gaps,
+        "retirement_parity",
+        "retirement_shadow",
+        "retirement_lifecycle_incomplete:parity_open",
+        "retirement_lifecycle_incomplete:shadow_open",
+    ):
+        actions.append(
             "ethos parity shadow --adopter "
             f"{adopter} --target {repo.as_posix()} --execute --write-evidence --json"
-        ),
-        (
-            f"ethos fleet retirement-readiness --target {repo.as_posix()} "
-            f"--root {product.as_posix()} --json"
-        ),
-    ]
+        )
     if any(gap.startswith("retirement_external_backend_not_default") for gap in gaps):
         actions.append("switch adopter default backend to external under a reversible control")
     if any(gap.startswith("retirement_embedded_backend_not_frozen") for gap in gaps):
@@ -486,7 +489,15 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
             "record rollback-window evidence for proof/report, Work Lane, domain gate, "
             "and playbook paths"
         )
-    return actions
+    actions.append(
+        f"ethos fleet retirement-readiness --target {repo.as_posix()} "
+        f"--root {product.as_posix()} --json"
+    )
+    return list(dict.fromkeys(actions))
+
+
+def _has_any_gap(gaps: list[str], *prefixes: str) -> bool:
+    return any(gap.startswith(prefix) for gap in gaps for prefix in prefixes)
 
 
 def _string_list(value: object) -> list[str]:

@@ -1059,3 +1059,61 @@ def test_shadow_small_parsers_cover_invalid_shapes(tmp_path: Path) -> None:
     }
     with pytest.raises(TypeError):
         shadow._semantic_args(({}, {}, {}, {}))
+
+
+def test_shadow_projection_marks_accepted_ready_states() -> None:
+    cases = [
+        ("prove", "proof_ready", "proven"),
+        ("assistants doctor", "assistant_ready", "ready"),
+        ("playbooks route", "route_ready", "routed"),
+        ("land", "readiness", "ready_to_land"),
+        ("publish", "readiness", "ready_to_publish"),
+    ]
+    for command_name, ready_key, ready_state in cases:
+        external = {
+            "ok": False,
+            "command": command_name,
+            "state": "gapped",
+            "summary": {"governance_gap_count": 0, "parity_pending_count": 1},
+            "required_gaps": [],
+        }
+        embedded = {"ok": True, "command": "report", "state": "ready", "required_gaps": []}
+        projection, _embedded, _accepted = shadow._normalized_semantic_projections(
+            tuple(command_name.split()), external, embedded
+        )
+        shadow._mark_projection_ready(projection)
+        assert projection[ready_key] is True
+        assert shadow._ready_state_for_command(command_name) == ready_state
+
+
+def test_shadow_report_refresh_bootstrap_rejects_non_matching_shapes() -> None:
+    base_external = {
+        "ok": False,
+        "command": "report",
+        "state": "gapped",
+        "summary": {"governance_gap_count": 0, "parity_pending_count": 1},
+        "required_gaps": [],
+    }
+    base_embedded = {"ok": True, "command": "report", "state": "ready", "required_gaps": []}
+    cases = [
+        ({"summary": {"governance_gap_count": 1, "parity_pending_count": 1}}, {}),
+        ({"summary": {"governance_gap_count": 0, "parity_pending_count": 0}}, {}),
+        ({"command": "status"}, {}),
+        ({}, {"command": "status"}),
+        ({"required_gaps": ["gap"]}, {}),
+        ({"ok": True}, {}),
+        ({"state": "ready"}, {}),
+        ({}, {"state": "gapped"}),
+    ]
+    for external_patch, embedded_patch in cases:
+        external = {**base_external, **external_patch}
+        embedded = {**base_embedded, **embedded_patch}
+        projection, embedded_projection, _accepted = shadow._normalized_semantic_projections(
+            ("report",), external, embedded
+        )
+        assert (
+            shadow._report_parity_evidence_refresh_bootstrap_gaps(
+                external, embedded, projection, embedded_projection
+            )
+            == []
+        )

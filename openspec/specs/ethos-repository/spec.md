@@ -125,36 +125,18 @@ matches.
   presence alone
 
 ### Requirement: Executable Capability Parity Ledger
+
 ETHOS SHALL expose product migration parity as machine-readable command output.
 
-#### Scenario: Parity ledger is emitted
-- **WHEN** `ethos parity ledger --json` runs
-- **THEN** every tracked capability has source location, target home,
-  disposition, required tests, parity criterion, and rollback impact
-- **AND** the unclassified capability count is zero
+#### Scenario: Shadow parity records input identity
 
-#### Scenario: Adopter parity gaps are reported
-- **WHEN** `ethos parity gaps --adopter <name> --json` runs
-- **THEN** ETHOS reports pending product migration gaps and an adopter shadow
-  parity gap without mutating the adopter repository
-
-#### Scenario: Tracked shadow evidence closes adopter parity gaps
-- **GIVEN** `docs/evidence/parity/<adopter>-shadow.json` exists
-- **AND** the evidence reports `shadow.ok=true` with no required gaps
-- **AND** the evidence names migrated or split capabilities in
-  `verified_capabilities`
-- **AND** the evidence includes traceability fields for schema version,
-  adopter, target, generation date, and comparison count
-- **WHEN** `ethos parity gaps --adopter <adopter> --json` runs
-- **THEN** ETHOS omits parity gaps for those verified capabilities
-- **AND** changing a ledger disposition alone does not close the gap
-
-#### Scenario: Incomplete shadow evidence does not close adopter parity gaps
-- **GIVEN** `docs/evidence/parity/<adopter>-shadow.json` omits required
-  traceability fields
-- **WHEN** `ethos parity gaps --adopter <adopter> --json` runs
-- **THEN** ETHOS reports a parity evidence gap
-- **AND** unresolved rows remain in `data.pending_packages`
+- **WHEN** `ethos parity shadow --adopter <adopter> --target <repo> --execute --json` runs
+- **THEN** the shadow parity report includes an `identity` envelope with target
+  root, target HEAD, product HEAD, changed paths, compared command identities,
+  and evidence input digests
+- **AND** tracked parity evidence persists that identity envelope
+- **AND** the shadow parity schema rejects reports that omit the identity
+  envelope.
 
 ### Requirement: Fast Daily Governance Checks
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
@@ -546,3 +528,4 @@ head-bound command semantics rather than raw Git branch deletion.
   has a mismatched expected head, lacks a reason, or apply lacks authorization
 - **THEN** ETHOS refuses deletion and reports deterministic required gaps
 - **AND** the branch ref remains present
+

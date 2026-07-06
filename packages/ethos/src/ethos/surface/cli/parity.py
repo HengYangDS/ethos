@@ -97,7 +97,9 @@ def parity_shadow(
     if execute:
         from ethos.adapters.shadow import run_shadow_parity
 
-        report = run_shadow_parity(target=target, timeout_seconds=timeout_seconds)
+        report = run_shadow_parity(
+            target=target, timeout_seconds=timeout_seconds, product_root=repo
+        )
     else:
         report = shadow_parity_report(
             target=target,

@@ -27,7 +27,7 @@ Each row must include source location, target home, migration disposition,
 required tests, parity criterion, and rollback impact.
 
 `ethos parity gaps` is evidence-driven. A migration or split row remains a
-required gap until tracked parity evidence under `docs/evidence/parity/` names
+required gap until tracked parity evidence under `evidence/parity/` names
 that capability in `verified_capabilities` and the adopter shadow report has
 `shadow.ok=true` with no required gaps. Changing the ledger disposition alone
 does not close a parity gap.
@@ -48,7 +48,7 @@ ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alpha
 ```
 
 The tracked evidence file is
-`docs/evidence/parity/alphasim-dmgr-shadow.json`.
+`evidence/parity/alphasim-dmgr-shadow.json`.
 
 Reference adopters are evidence and profile fixtures, not product ontology.
 Adopter-private terms may appear in parity evidence, profile fixtures, and this
@@ -69,7 +69,7 @@ evidence as matched.
 
 Campaign closeout reports the source of the shadow verdict through provenance
 modes rather than through vendor-specific workflow state. `tracked_evidence`
-means the verdict came from `docs/evidence/parity/`; `planned_shadow_run` means
+means the verdict came from `evidence/parity/`; `planned_shadow_run` means
 no matching evidence has been consumed and the report is only planning a local
 run; `live_shadow_run` is reserved for a closeout package that embeds a fresh
 in-process shadow run. Remote publication remains a separate deferred package

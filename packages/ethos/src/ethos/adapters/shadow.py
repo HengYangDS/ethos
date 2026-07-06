@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -48,8 +49,14 @@ SEMANTIC_DIMENSIONS = [
 ]
 
 
-def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, Any]:
+def run_shadow_parity(
+    target: Path,
+    *,
+    timeout_seconds: int = 30,
+    product_root: Path | None = None,
+) -> dict[str, Any]:
     target = target.resolve()
+    product_root = (product_root or Path.cwd()).resolve()
     comparisons = []
     required_gaps: list[str] = []
     for command in READ_ONLY_COMMANDS:
@@ -83,10 +90,17 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
                 "accepted_differences": accepted_differences,
             }
         )
+    identity = _identity_envelope(
+        target,
+        READ_ONLY_COMMANDS,
+        product_root=product_root,
+        comparisons=comparisons,
+    )
     return {
         "ok": not required_gaps,
         "state": "matched" if not required_gaps else "different",
         "target": target.as_posix(),
+        "identity": identity,
         "required_gaps": required_gaps,
         "accepted_summary": _accepted_summary(
             difference
@@ -104,6 +118,177 @@ def run_shadow_parity(target: Path, *, timeout_seconds: int = 30) -> dict[str, A
             for gap in required_gaps
         ],
     }
+
+
+def _identity_envelope(
+    target: Path,
+    commands: Iterable[tuple[str, ...]],
+    *,
+    product_root: Path,
+    comparisons: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    target = target.resolve()
+    product_root = product_root.resolve()
+    return {
+        "target_root": target.as_posix(),
+        "target_head": _git_head(target),
+        "product_head": _git_head(product_root),
+        "changed_paths": _changed_paths(target),
+        "commands": [_command_label_from_tuple(command) for command in commands],
+        "external_commands": [_external_command_label(target, command) for command in commands],
+        "embedded_commands": _embedded_command_labels(target, commands, comparisons),
+        "evidence_inputs": _evidence_inputs(target),
+    }
+
+
+def _command_label_from_tuple(command: tuple[str, ...]) -> str:
+    return "ethos " + " ".join(command) + " --json"
+
+
+def _external_command_label(target: Path, command: tuple[str, ...]) -> str:
+    if command not in ROOT_OPTION_COMMANDS:
+        return " ".join([sys.executable, "-m", "ethos.cli", *command, "--json"])
+    return " ".join(
+        [
+            sys.executable,
+            "-m",
+            "ethos.cli",
+            *command,
+            "--root",
+            target.resolve().as_posix(),
+            "--json",
+        ]
+    )
+
+
+def _embedded_command_labels(
+    target: Path,
+    commands: Iterable[tuple[str, ...]],
+    comparisons: list[dict[str, Any]] | None,
+) -> list[str]:
+    labels: list[str] = []
+    if comparisons is not None:
+        for comparison in comparisons:
+            embedded = comparison.get("embedded") if isinstance(comparison, dict) else None
+            backend = embedded.get("backend") if isinstance(embedded, dict) else None
+            command = backend.get("command") if isinstance(backend, dict) else None
+            if isinstance(command, str) and command:
+                labels.append(command)
+        if labels:
+            return labels
+    for command in commands:
+        backend = _embedded_backend(target, command)
+        label = backend.get("command")
+        if isinstance(label, str) and label:
+            labels.append(label)
+    return labels
+
+
+def _git_head(root: Path) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return ""
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _changed_paths(root: Path) -> list[str]:
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain=v1", "-uall"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return []
+    paths: list[str] = []
+    for line in completed.stdout.splitlines():
+        if not line:
+            continue
+        raw = line[3:] if len(line) > 3 else line
+        if " -> " in raw:
+            raw = raw.split(" -> ", 1)[1]
+        if raw:
+            paths.append(raw.strip())
+    return sorted(dict.fromkeys(paths))
+
+
+def _evidence_inputs(target: Path) -> list[dict[str, Any]]:
+    candidates = _evidence_root_candidates(target)
+    return [item for item in (_evidence_input(target, path) for path in candidates) if item]
+
+
+def _evidence_root_candidates(target: Path) -> list[str]:
+    profile_path = target / ".ethos" / "profile.toml"
+    candidates = [
+        ".ethos/profile.toml",
+        "rules",
+        "claims",
+        "evidence/claims",
+        "openspec",
+        "docs/evidence",
+        "evidence",
+    ]
+    if profile_path.exists():
+        try:
+            profile = tomllib.loads(profile_path.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError:
+            profile = {}
+        roots = profile.get("roots") if isinstance(profile, dict) else None
+        if isinstance(roots, dict):
+            for key in ("rules", "claims", "openspec", "durable_evidence", "docs"):
+                value = roots.get(key)
+                if isinstance(value, str) and value:
+                    candidates.append(value)
+        evidence = profile.get("evidence") if isinstance(profile, dict) else None
+        if isinstance(evidence, dict):
+            for key in ("durable_roots", "generated_roots", "host_local_roots"):
+                value = evidence.get(key)
+                if isinstance(value, list):
+                    candidates.extend(str(item) for item in value if str(item))
+    return sorted(dict.fromkeys(candidates))
+
+
+def _evidence_input(target: Path, relative: str) -> dict[str, Any] | None:
+    path = target / relative
+    if not path.exists():
+        return None
+    if path.is_file():
+        digest = _file_sha256(path)
+        kind = "file"
+    elif path.is_dir():
+        digest = _tree_sha256(path)
+        kind = "directory"
+    else:
+        return None
+    return {"path": relative, "kind": kind, "sha256": digest}
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _tree_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    for file_path in sorted(p for p in path.rglob("*") if p.is_file()):
+        if ".git" in file_path.parts:
+            continue
+        rel = file_path.relative_to(path).as_posix()
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(file_path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _execution_package(
@@ -346,7 +531,8 @@ def _semantic_args(args: tuple[Any, ...]) -> tuple[tuple[str, ...], dict[str, An
     if len(args) == 2:
         command_name = str(args[0].get("command") or args[1].get("command") or "")
         return tuple(command_name.split()), args[0], args[1]
-    raise TypeError("_semantic_diff expects external/embedded or command/external/embedded")
+    message = "_semantic_diff expects external/embedded or command/external/embedded"
+    raise TypeError(message)
 
 
 def _normalized_semantic_projections(

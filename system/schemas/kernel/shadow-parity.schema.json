@@ -7,28 +7,54 @@
     "ok",
     "state",
     "target",
+    "identity",
     "required_gaps",
     "accepted_summary",
     "comparisons",
     "execution_packages"
   ],
   "properties": {
-    "ok": {"type": "boolean"},
-    "state": {"enum": ["planned", "matched", "different"]},
-    "target": {"type": "string", "minLength": 1},
-    "required_gaps": {"type": "array", "items": {"type": "string"}},
-    "accepted_summary": {"$ref": "#/$defs/acceptedSummaryWithCommands"},
+    "ok": {
+      "type": "boolean"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "matched",
+        "different"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "required_gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "accepted_summary": {
+      "$ref": "#/$defs/acceptedSummaryWithCommands"
+    },
     "comparisons": {
       "type": "array",
-      "items": {"$ref": "#/$defs/comparison"}
+      "items": {
+        "$ref": "#/$defs/comparison"
+      }
     },
     "execution_packages": {
       "type": "array",
-      "items": {"type": "object"}
+      "items": {
+        "type": "object"
+      }
+    },
+    "identity": {
+      "$ref": "#/$defs/identityEnvelope"
     }
   },
   "additionalProperties": false,
-    "$defs": {
+  "$defs": {
     "acceptedKind": {
       "enum": [
         "external_product_repository_audit_gap",
@@ -45,69 +71,159 @@
     },
     "acceptedSummary": {
       "type": "object",
-      "required": ["total_count", "kind_counts"],
+      "required": [
+        "total_count",
+        "kind_counts"
+      ],
       "properties": {
-        "total_count": {"type": "integer", "minimum": 0},
+        "total_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "kind_counts": {
           "type": "object",
-          "propertyNames": {"$ref": "#/$defs/acceptedKind"},
-          "additionalProperties": {"type": "integer", "minimum": 1}
+          "propertyNames": {
+            "$ref": "#/$defs/acceptedKind"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "additionalProperties": false
     },
     "acceptedSummaryWithCommands": {
       "type": "object",
-      "required": ["total_count", "command_count", "kind_counts"],
+      "required": [
+        "total_count",
+        "command_count",
+        "kind_counts"
+      ],
       "properties": {
-        "total_count": {"type": "integer", "minimum": 0},
-        "command_count": {"type": "integer", "minimum": 0},
+        "total_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_count": {
+          "type": "integer",
+          "minimum": 0
+        },
         "kind_counts": {
           "type": "object",
-          "propertyNames": {"$ref": "#/$defs/acceptedKind"},
-          "additionalProperties": {"type": "integer", "minimum": 1}
+          "propertyNames": {
+            "$ref": "#/$defs/acceptedKind"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "additionalProperties": false
     },
     "acceptedDifference": {
       "type": "object",
-      "required": ["kind", "classification", "scope", "commands", "gaps", "reason"],
+      "required": [
+        "kind",
+        "classification",
+        "scope",
+        "commands",
+        "gaps",
+        "reason"
+      ],
       "properties": {
-        "kind": {"$ref": "#/$defs/acceptedKind"},
-        "classification": {"const": "accepted"},
-        "scope": {"$ref": "#/$defs/acceptedScope"},
+        "kind": {
+          "$ref": "#/$defs/acceptedKind"
+        },
+        "classification": {
+          "const": "accepted"
+        },
+        "scope": {
+          "$ref": "#/$defs/acceptedScope"
+        },
         "commands": {
           "type": "array",
           "minItems": 1,
-          "items": {"type": "string", "pattern": "^ethos .+"}
+          "items": {
+            "type": "string",
+            "pattern": "^ethos .+"
+          }
         },
-        "gaps": {"type": "array", "items": {"type": "string"}},
-        "reason": {"type": "string", "minLength": 1}
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "additionalProperties": false
     },
     "commandResult": {
       "type": "object",
-      "required": ["exit_code", "stdout", "stderr", "json"],
+      "required": [
+        "exit_code",
+        "stdout",
+        "stderr",
+        "json"
+      ],
       "properties": {
-        "exit_code": {"type": "integer"},
-        "stdout": {"type": "string"},
-        "stderr": {"type": "string"},
-        "json": {"type": "object"},
-        "backend": {"$ref": "#/$defs/embeddedBackend"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}}
+        "exit_code": {
+          "type": "integer"
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "json": {
+          "type": "object"
+        },
+        "backend": {
+          "$ref": "#/$defs/embeddedBackend"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": true
     },
     "embeddedBackend": {
       "type": "object",
-      "required": ["kind", "command", "blocking", "required_gaps"],
+      "required": [
+        "kind",
+        "command",
+        "blocking",
+        "required_gaps"
+      ],
       "properties": {
-        "kind": {"enum": ["pixi", "uv-workspace", "missing"]},
-        "command": {"type": "string"},
-        "blocking": {"type": "boolean"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}}
+        "kind": {
+          "enum": [
+            "pixi",
+            "uv-workspace",
+            "missing"
+          ]
+        },
+        "command": {
+          "type": "string"
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -122,14 +238,111 @@
         "accepted_differences"
       ],
       "properties": {
-        "command": {"type": "string", "pattern": "^ethos .+"},
-        "external": {"$ref": "#/$defs/commandResult"},
-        "embedded": {"$ref": "#/$defs/commandResult"},
-        "semantic_diff": {"type": "object"},
-        "accepted_summary": {"$ref": "#/$defs/acceptedSummary"},
+        "command": {
+          "type": "string",
+          "pattern": "^ethos .+"
+        },
+        "external": {
+          "$ref": "#/$defs/commandResult"
+        },
+        "embedded": {
+          "$ref": "#/$defs/commandResult"
+        },
+        "semantic_diff": {
+          "type": "object"
+        },
+        "accepted_summary": {
+          "$ref": "#/$defs/acceptedSummary"
+        },
         "accepted_differences": {
           "type": "array",
-          "items": {"$ref": "#/$defs/acceptedDifference"}
+          "items": {
+            "$ref": "#/$defs/acceptedDifference"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "identityEnvelope": {
+      "type": "object",
+      "required": [
+        "target_root",
+        "target_head",
+        "product_head",
+        "changed_paths",
+        "commands",
+        "external_commands",
+        "embedded_commands",
+        "evidence_inputs"
+      ],
+      "properties": {
+        "target_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_head": {
+          "type": "string"
+        },
+        "product_head": {
+          "type": "string"
+        },
+        "changed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^ethos .+ --json$"
+          }
+        },
+        "external_commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "embedded_commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceInput"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceInput": {
+      "type": "object",
+      "required": [
+        "path",
+        "kind",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "directory"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       },
       "additionalProperties": false

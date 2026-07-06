@@ -1,0 +1,63 @@
+[claim]
+id = "shadow-identity-envelope"
+subject = "ethos:shadow-parity-identity-envelope"
+state = "active"
+summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume semantic diff results."
+
+[evidence]
+dated = "evidence/shadow-identity-envelope-2026-07-06.md"
+sha256 = "a89b354d840d028b8634d139e907765c4f10761511345ded6ea63183ac3cc523"
+evidence_ids = ["evidence:shadow-identity-envelope"]
+binding = "semantic shadow parity identity envelope evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/product/test_parity.py tests/unit/product/test_parity_generic.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_command_registry.py -q",
+  ".config/ci/scripts/run-python-lint.sh",
+  ".config/ci/scripts/run-config-lint.sh",
+  "npx --yes @fission-ai/openspec@1.5.0 validate --all --strict",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[scope]
+packages = ["ethos"]
+schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
+tests = [
+  "tests/unit/product/test_parity.py",
+  "tests/unit/product/test_parity_generic.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/cli/test_command_registry.py",
+]
+docs = [
+  "docs/governance/capability-parity-ledger.md",
+  "docs/governance/adopter-boundary-and-retirement.md",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Shadow parity identity envelope for external-vs-embedded adopter comparison evidence"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-06-shadow-identity-envelope"
+
+fallback = "Treat shadow parity evidence without an identity envelope as stale planning input, not retirement evidence."
+kill_signal = "Adopter retirement readiness can consume semantic shadow diff results without same-root, same-head, same-changed-path, command-identity, and evidence-input binding."
+
+[promotion]
+targets = [
+  "evidence/claims/shadow-identity-envelope.toml",
+  "openspec/changes/archive/2026-07-06-shadow-identity-envelope/proposal.md",
+  "openspec/changes/archive/2026-07-06-shadow-identity-envelope/design.md",
+  "openspec/changes/archive/2026-07-06-shadow-identity-envelope/tasks.md",
+  "openspec/changes/archive/2026-07-06-shadow-identity-envelope/specs/ethos-repository/spec.md",
+  "packages/ethos/src/ethos/adapters/shadow.py",
+  "packages/ethos/src/ethos/repository/evidence/parity.py",
+  "packages/ethos/src/ethos/repository/policy/schema_samples.py",
+  "packages/ethos/src/ethos/surface/cli/parity.py",
+  "system/schemas/kernel/shadow-parity.schema.json",
+  "tests/unit/product/test_parity.py",
+  "tests/unit/product/test_parity_generic.py",
+  "docs/governance/capability-parity-ledger.md",
+  "docs/governance/adopter-boundary-and-retirement.md",
+]

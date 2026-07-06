@@ -246,7 +246,9 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     product = _init_git_repo(tmp_path / "product")
     target = _init_git_repo(tmp_path / "sample-adopter")
 
-    def fake_shadow(*, target: Path, timeout_seconds: int) -> dict[str, object]:
+    def fake_shadow(
+        *, target: Path, timeout_seconds: int, product_root: Path | None = None
+    ) -> dict[str, object]:
         return {
             "ok": True,
             "state": "matched",
@@ -318,6 +320,16 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
         },
         "command_count": 2,
     }
+    assert evidence["identity"] == {
+        "target_root": target.resolve().as_posix(),
+        "target_head": _git_head(target),
+        "product_head": _git_head(product),
+        "changed_paths": [],
+        "commands": SHADOW_COMMANDS,
+        "external_commands": [],
+        "embedded_commands": [],
+        "evidence_inputs": [],
+    }
     assert evidence["verified_capabilities"] == MIGRATED_CAPABILITIES
     assert set(evidence["capability_basis"]) == set(MIGRATED_CAPABILITIES)
 
@@ -328,7 +340,9 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
 ) -> None:
     product = _init_git_repo(tmp_path / "product")
 
-    def fake_shadow(*, target: Path, timeout_seconds: int) -> dict[str, object]:
+    def fake_shadow(
+        *, target: Path, timeout_seconds: int, product_root: Path | None = None
+    ) -> dict[str, object]:
         return {
             "ok": True,
             "state": "matched",

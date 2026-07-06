@@ -181,6 +181,12 @@ def build_tracked_parity_evidence(
             if isinstance(accepted_summary, dict)
             else {"total_count": 0, "kind_counts": {}, "command_count": 0},
         },
+        "identity": _shadow_identity(
+            shadow=shadow,
+            target=target,
+            current_target_head=current_target_head,
+            current_product_head=current_product_head,
+        ),
         "verified_capabilities": _migratable_capability_list(),
         "semantic_dimensions": _string_list(shadow.get("semantic_dimensions"))
         or list(SHADOW_PARITY_DIMENSIONS),
@@ -189,6 +195,52 @@ def build_tracked_parity_evidence(
             for capability in _migratable_capability_list()
         },
     }
+
+
+def _shadow_identity(
+    *,
+    shadow: dict[str, object],
+    target: Path,
+    current_target_head: str,
+    current_product_head: str,
+) -> dict[str, object]:
+    value = shadow.get("identity")
+    if isinstance(value, dict):
+        return {
+            "target_root": str(value.get("target_root") or target.resolve().as_posix()),
+            "target_head": str(value.get("target_head") or current_target_head),
+            "product_head": str(value.get("product_head") or current_product_head),
+            "changed_paths": _string_list(value.get("changed_paths")),
+            "commands": _string_list(value.get("commands")) or list(SHADOW_PARITY_COMMANDS),
+            "external_commands": _string_list(value.get("external_commands")),
+            "embedded_commands": _string_list(value.get("embedded_commands")),
+            "evidence_inputs": _identity_evidence_inputs(value.get("evidence_inputs")),
+        }
+    return {
+        "target_root": target.resolve().as_posix(),
+        "target_head": current_target_head,
+        "product_head": current_product_head,
+        "changed_paths": [],
+        "commands": list(SHADOW_PARITY_COMMANDS),
+        "external_commands": [],
+        "embedded_commands": [],
+        "evidence_inputs": [],
+    }
+
+
+def _identity_evidence_inputs(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    result: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        path = str(item.get("path") or "")
+        kind = str(item.get("kind") or "")
+        sha256 = str(item.get("sha256") or "")
+        if path and kind and sha256:
+            result.append({"path": path, "kind": kind, "sha256": sha256})
+    return result
 
 
 def write_tracked_parity_evidence(

@@ -38,6 +38,18 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
         "ok": True,
         "state": "matched",
         "target": "/repo",
+        "identity": {
+            "target_root": "/repo",
+            "target_head": "a" * 40,
+            "product_head": "b" * 40,
+            "changed_paths": [],
+            "commands": ["ethos prove --json"],
+            "external_commands": ["python -m ethos.cli prove --root /repo --json"],
+            "embedded_commands": ["pixi run ethos prove --json"],
+            "evidence_inputs": [
+                {"path": ".ethos/profile.toml", "kind": "file", "sha256": "c" * 64}
+            ],
+        },
         "required_gaps": [],
         "accepted_summary": {
             "total_count": 1,

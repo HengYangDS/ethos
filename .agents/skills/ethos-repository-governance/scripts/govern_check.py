@@ -8,7 +8,8 @@ not run deep OpenSpec validation. It is a lens over the public command plane; th
 live command JSON remains authoritative.
 
 Usage:
-    python govern_check.py [--root PATH]
+    govern_check.py [ROOT]
+    govern_check.py [--root PATH]
 
 Exit status: 0 when status+audit+report are all ok, 1 when any reports a gap, 2 on a
 harness error.
@@ -44,12 +45,14 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="ETHOS governance-health summary")
-    parser.add_argument("--root", default=".")
+    parser.add_argument("root_arg", nargs="?", help="Repository root (positional convenience).")
+    parser.add_argument("--root", dest="root_option", help="Repository root.")
     options = parser.parse_args()
+    root = options.root_option or options.root_arg or "."
 
     all_ok = True
     for name, args in STEPS:
-        payload = _run(args, options.root)
+        payload = _run(args, root)
         ok = bool(payload.get("ok"))
         gaps = list(payload.get("required_gaps", []))
         marker = "ok" if ok else "GAP"

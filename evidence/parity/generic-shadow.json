@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
-    "target_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
-    "product_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
-    "target_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
-    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
+    "product_head": "bfcb9c89111050205130d15ab8879dde6b3b5a5e",
+    "target_head": "bfcb9c89111050205130d15ab8879dde6b3b5a5e",
+    "product_semantic_sha256": "fad17974fe798c72e0d4c937a84dd1f430489cd2c57a1ed080123530fd4c618b",
+    "target_semantic_sha256": "fad17974fe798c72e0d4c937a84dd1f430489cd2c57a1ed080123530fd4c618b",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paT",
-    "target_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
-    "product_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/skill-script-executability",
+    "target_head": "bfcb9c89111050205130d15ab8879dde6b3b5a5e",
+    "product_head": "bfcb9c89111050205130d15ab8879dde6b3b5a5e",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paT --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paT --json"
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-script-executability/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/skill-script-executability --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c551aca2305be573ec71a922947fdda2273496739826588570df9e15ccee6999"
+        "sha256": "f874347b3dd35cc453ecfeefdb1c708411e6d2d5bb6578effd4f27c62ad83e61"
       },
       {
         "path": "evidence/claims",

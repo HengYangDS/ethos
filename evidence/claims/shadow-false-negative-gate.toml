@@ -36,7 +36,7 @@ owner = "ethos-repository"
 scope = "Runtime and tracked-evidence false-negative protection for external-vs-embedded shadow parity"
 
 [carriers]
-openspec = "openspec/changes/shadow-false-negative-gate"
+openspec = "openspec/changes/archive/2026-07-06-shadow-false-negative-gate"
 
 fallback = "Keep embedded fallback active for any adopter whose external shadow evidence omits false-negative coverage or reports nonzero false negatives."
 kill_signal = "Tracked parity evidence can close adopter retirement while external output misses embedded blocking required gaps."
@@ -46,10 +46,10 @@ targets = [
   "evidence/claims/shadow-false-negative-gate.toml",
   "evidence/shadow-false-negative-gate-2026-07-06.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/shadow-false-negative-gate/proposal.md",
-  "openspec/changes/shadow-false-negative-gate/design.md",
-  "openspec/changes/shadow-false-negative-gate/tasks.md",
-  "openspec/changes/shadow-false-negative-gate/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/proposal.md",
+  "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/design.md",
+  "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/tasks.md",
+  "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/specs/ethos-repository/spec.md",
   "packages/ethos/src/ethos/adapters/shadow.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/repository/evidence/parity_validation.py",

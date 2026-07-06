@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "883806644f38c485a2a3014bf8254ffe017b43db",
-    "target_head": "883806644f38c485a2a3014bf8254ffe017b43db",
-    "product_semantic_sha256": "65d046124945e0fff52579cc1bf6846c817dd2ced265129ea4d4a3824a733e30",
-    "target_semantic_sha256": "65d046124945e0fff52579cc1bf6846c817dd2ced265129ea4d4a3824a733e30",
+    "product_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
+    "target_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
+    "product_semantic_sha256": "1a8e867f58c5cdc56829ad0bb1b10e6bc7cccd17c2356e85e7bd40319f457168",
+    "target_semantic_sha256": "1a8e867f58c5cdc56829ad0bb1b10e6bc7cccd17c2356e85e7bd40319f457168",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line",
-    "target_head": "883806644f38c485a2a3014bf8254ffe017b43db",
-    "product_head": "883806644f38c485a2a3014bf8254ffe017b43db",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate",
+    "target_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
+    "product_head": "4280f50e7aa159f9f9b55b69a92d301da68c0642",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json",
-      "/Users/yheng/projects/ethos-worktrees/human-orient-coordination-line/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/human-orient-coordination-line --json"
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/archive-shadow-false-negative-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e05668183f774219e7e41d9d969b5875ea1db98651717056afd3ce94db7be6c9"
+        "sha256": "febccc228f68c1561799b7b962de6d79f4b35ff6eb7361667685ed2f639bd5c8"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "2783fba2c6eaeded1cfa89361bf1e3cbdccf8bc0c06cac9d14e41776b6c21714"
+        "sha256": "802ecd645326dd11238919aa6c2a3c24ab34a4a4ec208eabc30a98137d0942b9"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "0ff0ef7b6c02225e5db73f1d9ca43cd779c5d41ea7e4a8fe155137bb506943d7"
+        "sha256": "cceca1b46f8f601269f0807df09a6d34e22d73e5eebe4cad1a8490139ab86633"
       },
       {
         "path": "rules",

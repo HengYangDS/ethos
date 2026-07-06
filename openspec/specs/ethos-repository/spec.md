@@ -138,6 +138,15 @@ ETHOS SHALL expose product migration parity as machine-readable command output.
 - **AND** the shadow parity schema rejects reports that omit the identity
   envelope.
 
+#### Scenario: Shadow parity rejects external false negatives
+
+- **GIVEN** an embedded fallback command reports a blocking required gap
+- **WHEN** the external ETHOS product omits that required gap or only reports it
+  as advisory
+- **THEN** shadow parity reports a blocking `shadow_false_negative:<command>` gap
+- **AND** tracked parity evidence cannot close adopter retirement parity unless
+  it records zero false negatives
+
 ### Requirement: Fast Daily Governance Checks
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
 deep OpenSpec validation.

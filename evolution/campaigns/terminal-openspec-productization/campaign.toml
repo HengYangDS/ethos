@@ -18,7 +18,7 @@ claim_id = "ethos-campaign-orchestration"
 state = "retired"
 accepted_head = "45ae8ec8f2b98218b4637122fa3d82974d1874c8"
 candidate_head = "45ae8ec8f2b98218b4637122fa3d82974d1874c8"
-evidence = ["docs/evidence/campaign-orchestration-2026-07-02.md"]
+evidence = ["evidence/chronicle/campaign-orchestration/2026-07-02.md"]
 
 [[step]]
 id = "openspec-product-protocol"
@@ -34,7 +34,7 @@ claim_id = "ethos-openspec-product-protocol"
 state = "retired"
 accepted_head = "811ced50a9ff25c3d748256a0d6e13e593d95a63"
 candidate_head = "811ced50a9ff25c3d748256a0d6e13e593d95a63"
-evidence = ["docs/evidence/openspec-product-protocol-2026-07-02.md"]
+evidence = ["evidence/chronicle/openspec-product-protocol/2026-07-02.md"]
 
 [[step]]
 id = "openspec-archive-closeout"
@@ -50,7 +50,7 @@ claim_id = "ethos-openspec-archive-closeout"
 state = "retired"
 accepted_head = "25b5be2e9973008ca57c22a3dae6d09689b89060"
 candidate_head = "25b5be2e9973008ca57c22a3dae6d09689b89060"
-evidence = ["docs/evidence/openspec-archive-closeout-2026-07-02.md"]
+evidence = ["evidence/chronicle/openspec-archive-closeout/2026-07-02.md"]
 
 [[step]]
 id = "hooked-write-admission"
@@ -66,7 +66,7 @@ claim_id = "ethos-hooked-write-admission"
 state = "planned"
 accepted_head = ""
 candidate_head = ""
-evidence = ["docs/evidence/hooked-write-admission-2026-07-02.md"]
+evidence = ["evidence/chronicle/hooked-write-admission/2026-07-02.md"]
 
 [[step]]
 id = "adopter-openspec-scaffold"

@@ -6,7 +6,7 @@ change_id = "remote-local-ci-fallback-20260707"
 summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote publication is unavailable."
 
 [evidence]
-dated = "evidence/remote-local-ci-fallback-2026-07-07.md"
+dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md"
 sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515"
 evidence_ids = ["evidence:remote-local-ci-fallback"]
 binding = "Remote availability probe and local-ci fallback binding"
@@ -53,5 +53,5 @@ targets = [
   "docs/governance/product-design-contract.md",
   "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707",
   "evidence/claims/remote-local-ci-fallback.toml",
-  "evidence/remote-local-ci-fallback-2026-07-07.md",
+  "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md",
 ]

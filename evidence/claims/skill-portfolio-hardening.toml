@@ -6,7 +6,7 @@ summary = "ETHOS skill portfolio checks reject weak entrypoints and overlapping 
 
 head = "31842a226c5cc4c183f52527a6eb90fc484c0913"
 [evidence]
-dated = "evidence/skill-portfolio-hardening-2026-07-06.md"
+dated = "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md"
 sha256 = "4295442d85663a1d084535214ff649168d35534ffeb53fdecd4d00376f652527"
 evidence_ids = ["evidence:skill-portfolio-hardening"]
 binding = "semantic skill portfolio hardening evidence binding"
@@ -49,7 +49,7 @@ targets = [
   ".agents/skills/ethos-skill-portfolio-governance/package.toml",
   ".agents/skills/ethos-skill-portfolio-governance/references/portfolio-design.md",
   "evidence/claims/skill-portfolio-hardening.toml",
-  "evidence/skill-portfolio-hardening-2026-07-06.md",
+  "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-hardening",
   "packages/ethos/src/ethos/assistants/playbooks.py",
   "packages/ethos/src/ethos/assistants/skill_packages.py",

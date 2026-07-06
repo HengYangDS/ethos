@@ -111,7 +111,7 @@ Executed reports include `accepted_summary` at report level and per comparison
 so closeout can see accepted counts, affected command count, and counts by kind
 without scanning every raw payload. The `shadow-parity.schema.json` contract
 validates the accepted-difference record shape, allowed kinds, command context,
-and summary counters. Dated evidence under `docs/evidence/` records the current
+and summary counters. Dated evidence under `evidence/chronicle/` records the current
 accepted classification boundary without treating it as remote publication.
 
 Tracked shadow evidence is closeout input only when its identity is fresh. The

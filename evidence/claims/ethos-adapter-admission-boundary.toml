@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS requires profile and adapter bindings to expose admission authority, truth boundary, and decision state before they can participate in the coupling registry, preventing undeclared provider surfaces from becoming repository truth."
 
 [evidence]
-dated = "evidence/adapter-admission-boundary-2026-07-05.md"
+dated = "evidence/chronicle/adapter-admission-boundary/2026-07-05.md"
 sha256 = "a96684b044d4d42b6be338bc1bc46d8632e83cb0e3be6eaa42e29a358acea4da"
 evidence_ids = ["evidence:ethos-adapter-admission-boundary"]
 binding = "semantic adapter admission boundary evidence binding"
@@ -52,7 +52,7 @@ kill_signal = "A provider, model host, editor host, memory surface, or distribut
 
 [promotion]
 targets = [
-  "evidence/adapter-admission-boundary-2026-07-05.md",
+  "evidence/chronicle/adapter-admission-boundary/2026-07-05.md",
   "packages/ethos/src/ethos/repository/policy/coupling.py",
   "system/schemas/kernel/coupling-audit.schema.json",
   "tests/unit/audit/test_coupling.py",

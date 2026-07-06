@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS exposes hook-time write admission that binds pre-tool and mutation-risk pre-run decisions to Work Lane prewrite and fuses protected-root or unexpected-path post-write drift."
 
 [evidence]
-dated = "evidence/hooked-write-admission-2026-07-02.md"
+dated = "evidence/chronicle/hooked-write-admission/2026-07-02.md"
 sha256 = "a7d68184093c2c6be19f56799996924bcc36e6177749db48e1fef22656f78aad"
 evidence_ids = ["evidence:ethos-hooked-write-admission"]
 binding = "semantic hooked write admission evidence binding"
@@ -49,7 +49,7 @@ kill_signal = "A normal tracked write path can mutate an accepted root without p
 [promotion]
 targets = [
   "evidence/claims/ethos-hooked-write-admission.toml",
-  "evidence/hooked-write-admission-2026-07-02.md",
+  "evidence/chronicle/hooked-write-admission/2026-07-02.md",
   "docs/reference/command-plane.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-03-ethos-hooked-write-admission",

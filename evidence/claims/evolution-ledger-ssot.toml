@@ -6,7 +6,7 @@ change_id = "evolution-ledger-ssot-20260707"
 summary = "ETHOS uses evolution/ledger.toml as the single repository-truth evolution ledger and keeps docs explanatory."
 
 [evidence]
-dated = "evidence/evolution-ledger-ssot-2026-07-07.md"
+dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md"
 sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6"
 evidence_ids = ["evidence:evolution-ledger-ssot"]
 binding = "Evolution ledger SSOT binding"
@@ -55,5 +55,5 @@ targets = [
   ".config/ci/scripts/run-config-lint.sh",
   "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",
   "evidence/claims/evolution-ledger-ssot.toml",
-  "evidence/evolution-ledger-ssot-2026-07-07.md",
+  "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md",
 ]

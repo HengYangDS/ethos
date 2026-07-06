@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS terminal final design productizes OpenSpec substrate, capability routing, invocation admission, and evidence closeout guidance."
 
 [evidence]
-dated = "evidence/terminal-final-design-2026-07-02.md"
+dated = "evidence/chronicle/terminal-final-design/2026-07-02.md"
 sha256 = "a157f00c5687d00e5c3097d5a39e75f59f8780866b6edf8ceccd3fa36601cc93"
 evidence_ids = ["evidence:ethos-terminal-final-design"]
 binding = "digest-bound terminal final design evidence"
@@ -45,7 +45,7 @@ kill_signal = "OpenSpec workspaces can validate officially while lacking product
 [promotion]
 targets = [
   "evidence/claims/ethos-terminal-final-design.toml",
-  "evidence/terminal-final-design-2026-07-02.md",
+  "evidence/chronicle/terminal-final-design/2026-07-02.md",
   "openspec/README.md",
   "openspec/specs/README.md",
   "openspec/specs/families.toml",

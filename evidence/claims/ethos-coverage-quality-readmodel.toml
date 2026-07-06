@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS exposes the active Python coverage floor through a read-only quality command while preserving the owner script as the proof producer."
 
 [evidence]
-dated = "evidence/coverage-quality-readmodel-2026-07-06.md"
+dated = "evidence/chronicle/coverage-quality-readmodel/2026-07-06.md"
 sha256 = "1c4a68b644017aa5cc16433f882fc00bc68c295a55136795698d93de43740da9"
 evidence_ids = ["evidence:ethos-coverage-quality-readmodel"]
 binding = "semantic coverage quality read-model evidence binding"
@@ -47,7 +47,7 @@ kill_signal = "Coverage policy can be active in system/tools.toml and proof whil
 [promotion]
 targets = [
   "evidence/claims/ethos-coverage-quality-readmodel.toml",
-  "evidence/coverage-quality-readmodel-2026-07-06.md",
+  "evidence/chronicle/coverage-quality-readmodel/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/proposal.md",
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/design.md",
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/tasks.md",

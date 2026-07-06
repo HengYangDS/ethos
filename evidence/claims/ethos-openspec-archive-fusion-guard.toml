@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS blocks silent deletion of accepted OpenSpec scenario obligations during archive closeout by surfacing removed WHEN, THEN, and AND obligation lines in the always-run shape audit."
 
 [evidence]
-dated = "evidence/openspec-archive-fusion-guard-2026-07-05.md"
+dated = "evidence/chronicle/openspec-archive-fusion-guard/2026-07-05.md"
 sha256 = "b7fa3de9818828b9bbcf3269215c00e896aa46cf5c1f8ca79619fa7325ea81ce"
 evidence_ids = ["evidence:ethos-openspec-archive-fusion-guard"]
 binding = "semantic OpenSpec archive fusion guard evidence binding"
@@ -40,7 +40,7 @@ kill_signal = "An OpenSpec archive or manual spec edit can delete accepted WHEN,
 
 [promotion]
 targets = [
-  "evidence/openspec-archive-fusion-guard-2026-07-05.md",
+  "evidence/chronicle/openspec-archive-fusion-guard/2026-07-05.md",
   "packages/ethos/src/ethos/repository/audit.py",
   "tests/unit/audit/test_modes.py",
   "docs/governance/product-design-contract.md",

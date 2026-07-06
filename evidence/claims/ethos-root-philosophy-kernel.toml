@@ -6,7 +6,7 @@ state = "active"
 summary = "ETHOS carries the compact root philosophy as an operational Tao and kernel constraint for future projections, tools, local models, adapters, and frameworks."
 
 [evidence]
-dated = "evidence/root-philosophy-kernel-2026-07-05.md"
+dated = "evidence/chronicle/root-philosophy-kernel/2026-07-05.md"
 sha256 = "5f2eb18fd2a4e0c887b428a933daddc2ace274e6df8caacd915734c620e875b8"
 evidence_ids = ["evidence:ethos-root-philosophy-kernel"]
 binding = "semantic root philosophy kernel evidence binding"
@@ -31,7 +31,7 @@ kill_signal = "Future tools, models, assistants, hosts, or frameworks become tru
 [promotion]
 targets = [
   "evidence/claims/ethos-root-philosophy-kernel.toml",
-  "evidence/root-philosophy-kernel-2026-07-05.md",
+  "evidence/chronicle/root-philosophy-kernel/2026-07-05.md",
   "system/tao.md",
   "docs/concepts/kernel-model.md",
   "docs/governance/product-design-contract.md",

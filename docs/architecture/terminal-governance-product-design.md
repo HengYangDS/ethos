@@ -274,19 +274,18 @@ evidence.
 
 ### Topic-scoped Evidence
 
-Terminal closeout evidence should be topic-scoped:
+Terminal closeout evidence is topic-scoped:
 
 ```text
-evidence/chronicle/<topic>/
-evidence/manifests/<topic>.toml
-evidence/attestations/<topic>/
+evidence/chronicle/<topic>/<date>.md
+evidence/parity/<adopter>-shadow.json
+evidence/claims/<claim>.toml
 ```
 
 Each topic records lane, proof class, commands, return codes, retained artifacts,
-HEAD binding, digest, and proof boundary. Transitional dated summaries under
-`docs/evidence/` remain valid until the terminal `evidence/` root migration
-lands, but generated raw streams stay ignored unless summarized into tracked
-evidence.
+HEAD binding, digest, and proof boundary. The ETHOS product root no longer uses
+`docs/evidence/` or a top-level `claims/` root for proof truth. Generated raw
+streams stay ignored unless summarized into tracked evidence.
 
 ### OpenSpec Product Substrate
 

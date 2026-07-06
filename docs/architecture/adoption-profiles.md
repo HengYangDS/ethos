@@ -41,12 +41,12 @@ surfaces instead of replacing them. A typical adopted repository may expose:
 rules/
 openspec/
 docs/
-docs/evidence/
-claims/
+evidence/
+evidence/claims/
 .agents/skills/
 ```
 
-The exact set is profile-driven and repository-owned. `.config/` remains the
+The exact set is profile-driven and repository-owned; adopters may map an existing `docs/evidence/` root through their profile, but ETHOS product truth uses `evidence/`. `.config/` remains the
 execution/config layer; `.ethos/profile.toml` is only the ETHOS binding manifest.
 ETHOS must not require `packages/`, `tools/`, `skills/`, `system/`, a monorepo
 workspace, or any language-specific layout as the universal adopter shape.

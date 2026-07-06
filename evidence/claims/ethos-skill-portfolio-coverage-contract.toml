@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS validates repo-local skill portfolio MECE ownership through an activation-level coverage contract and strict playbook gaps."
 
 [evidence]
-dated = "evidence/skill-portfolio-coverage-contract-2026-07-06.md"
+dated = "evidence/chronicle/skill-portfolio-coverage-contract/2026-07-06.md"
 sha256 = "6dd207228065c75ed4adb20538a59a0de21c9062c9cbe650f613469edb05f7ea"
 evidence_ids = ["evidence:ethos-skill-portfolio-coverage-contract"]
 binding = "semantic skill portfolio coverage evidence binding"
@@ -51,7 +51,7 @@ targets = [
   ".agents/skills/activation.toml",
   "docs/governance/playbooks-and-skills.md",
   "evidence/claims/ethos-skill-portfolio-coverage-contract.toml",
-  "evidence/skill-portfolio-coverage-contract-2026-07-06.md",
+  "evidence/chronicle/skill-portfolio-coverage-contract/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-coverage-contract/proposal.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-coverage-contract/design.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-coverage-contract/tasks.md",

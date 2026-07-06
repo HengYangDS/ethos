@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "10d1eb6eb3174879f6db52b0968ee336c03e4058",
-    "target_head": "10d1eb6eb3174879f6db52b0968ee336c03e4058",
-    "product_semantic_sha256": "fad17974fe798c72e0d4c937a84dd1f430489cd2c57a1ed080123530fd4c618b",
-    "target_semantic_sha256": "fad17974fe798c72e0d4c937a84dd1f430489cd2c57a1ed080123530fd4c618b",
-    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
+    "product_head": "a530a40f930b419b691d6415473db0b06cd9ee51",
+    "target_head": "a530a40f930b419b691d6415473db0b06cd9ee51",
+    "product_semantic_sha256": "5c4fd259e1648a887dea6b478ca42b98765b3cf1ae0f8b8b46b307b425042d03",
+    "target_semantic_sha256": "5c4fd259e1648a887dea6b478ca42b98765b3cf1ae0f8b8b46b307b425042d03",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paD",
-    "target_head": "10d1eb6eb3174879f6db52b0968ee336c03e4058",
-    "product_head": "10d1eb6eb3174879f6db52b0968ee336c03e4058",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup",
+    "target_head": "a530a40f930b419b691d6415473db0b06cd9ee51",
+    "product_head": "a530a40f930b419b691d6415473db0b06cd9ee51",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paD --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paD --json"
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-chronicle-root-cleanup --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "fc5b5dbb8c3b48761942ba4ef978f13f3d539e64090f81ac66e3cc0cddd537d2"
+        "sha256": "5dac1757c3091acf4ae6c8c4624c06504f0dbf3d6c19c5f3eb0b3c198a06e340"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "555f696e23da983ac7058be678e0dbc6287e81921c5898da3bedb5d50a3384fa"
+        "sha256": "334cf2adeafa3d8d381ef62b4ca97ec66d38784608c82ddf4fdb12c18b2a62b2"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "e43a2d71e9a0f3899b43057f2dab2012d6ba86c51cd1c735353e00224855844b"
+        "sha256": "da908c44a957a794c1e7b481442b3fd5d4f4f8e405b177445a32c7c63d0cdc20"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d2445c870ff9c72292508014559cbd8da9d809d8268f556739a039a25d095a08"
+        "sha256": "d5bbc373fa0be605b13053ce6d4d1b911db3677a33ab2e37812d6dd2eeb1a14a"
       },
       {
         "path": "rules",

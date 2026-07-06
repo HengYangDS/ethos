@@ -5,7 +5,7 @@ state = "active"
 summary = "Records digest-bound evidence for product migration state reporting, diagnosable adopter scaffold, command example checks, and package ontology command exposure."
 
 [evidence]
-dated = "evidence/product-truth-closure-2026-07-01.md"
+dated = "evidence/chronicle/product-truth-closure/2026-07-01.md"
 sha256 = "0f1d7b3b04232e4a915051486a907d6913ed7cd03fed039460499302f32b20fd"
 evidence_ids = ["evidence:ethos-product-truth-closure"]
 binding = "digest-bound product truth evidence binding"
@@ -48,7 +48,7 @@ kill_signal = "Command or package truth can pass through docs-only declarations 
 
 [promotion]
 targets = [
-  "evidence/product-truth-closure-2026-07-01.md",
+  "evidence/chronicle/product-truth-closure/2026-07-01.md",
   "docs/reference/command-plane.md",
   "docs/architecture/product-ontology.md",
   "openspec/specs/repository-governance/spec.md",

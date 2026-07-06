@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS exposes source-verified assistant context projection as an advisory retrieval aid over repository truth, backed by ignored local SQLite/FTS state and guarded by path, HEAD, digest, dirty-source, and secret-quarantine checks."
 
 [evidence]
-dated = "evidence/chronicle/context-projection-2026-07-01.md"
+dated = "evidence/chronicle/context-projection/2026-07-01.md"
 sha256 = "deedf0fc854e3ca34f099580638c9b02a49dc1815bad1561613a93b2e1fb19be"
 evidence_ids = ["evidence:ethos-context-projection-source-retrieval"]
 binding = "semantic source-verified context projection evidence binding"
@@ -52,6 +52,6 @@ kill_signal = "A projection is presented as authoritative over repository source
 [promotion]
 targets = [
   "evidence/claims/ethos-context-projection-source-retrieval.toml",
-  "evidence/chronicle/context-projection-2026-07-01.md",
+  "evidence/chronicle/context-projection/2026-07-01.md",
   "openspec/changes/archive/2026-07-02-land-context-projection-source-retrieval",
 ]

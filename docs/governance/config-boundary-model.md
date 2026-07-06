@@ -47,7 +47,7 @@ unless the profile explicitly requires it.
 ## Evidence Boundaries
 
 Durable evidence belongs in the repository's durable evidence roots, commonly
-`docs/evidence/` or a declared equivalent. Generated evidence belongs in generated
+`evidence/` or a profile-declared adopter equivalent. Generated evidence belongs in generated
 artifact roots, commonly `build/evidence/`. Host-local state belongs under
 ignored state roots such as `.ethos/state/` or `.cache/local-state/`.
 

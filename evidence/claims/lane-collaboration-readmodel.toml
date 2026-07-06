@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS exposes foreign Work Lanes as observe-only current-actor subjects and admits creative or destructive change only when net gain is evidenced."
 
 [evidence]
-dated = "evidence/lane-collaboration-readmodel-2026-07-06.md"
+dated = "evidence/chronicle/lane-collaboration-readmodel/2026-07-06.md"
 sha256 = "5b1865a0927183545142d00ef6dc58c75fff154610480f7d38c0fd9d7630532d"
 evidence_ids = ["evidence:lane-collaboration-readmodel"]
 binding = "semantic Work Lane collaboration read-model evidence binding"
@@ -47,7 +47,7 @@ kill_signal = "An agent can write, land, or retire a foreign Work Lane merely be
 [promotion]
 targets = [
   "evidence/claims/lane-collaboration-readmodel.toml",
-  "evidence/lane-collaboration-readmodel-2026-07-06.md",
+  "evidence/chronicle/lane-collaboration-readmodel/2026-07-06.md",
   "evidence/parity/generic-shadow.json",
   "openspec/changes/archive/2026-07-06-lane-collaboration-readmodel/proposal.md",
   "openspec/changes/archive/2026-07-06-lane-collaboration-readmodel/design.md",

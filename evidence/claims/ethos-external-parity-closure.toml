@@ -5,7 +5,7 @@ state = "active"
 summary = "External ETHOS can interpret the alphasim-dmgr reference adopter through evidence-driven parity gaps and shadow comparison without using embedded ETHOS as product truth."
 
 [evidence]
-dated = "evidence/external-parity-closure-2026-07-01.md"
+dated = "evidence/chronicle/external-parity-closure/2026-07-01.md"
 sha256 = "5a0ecafd3ff13c023af220a2b255e84f2f374323f8fb8ffdf3d3e2e282ed4434"
 evidence_ids = ["evidence:ethos-external-parity-closure"]
 binding = "digest-bound external comparison evidence binding"
@@ -40,7 +40,7 @@ kill_signal = "ETHOS core requires alphasim-dmgr private terms to prove generic 
 
 [promotion]
 targets = [
-  "evidence/external-parity-closure-2026-07-01.md",
+  "evidence/chronicle/external-parity-closure/2026-07-01.md",
   "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/capability-parity-ledger.md",
   "openspec/specs/repository-governance/spec.md",

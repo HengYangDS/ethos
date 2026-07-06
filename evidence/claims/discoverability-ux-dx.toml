@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS provides a thin orientation reader view for human and agent discoverability over status and report payloads."
 
 [evidence]
-dated = "evidence/discoverability-ux-dx-2026-07-06.md"
+dated = "evidence/chronicle/discoverability-ux-dx/2026-07-06.md"
 sha256 = "3dbfbeaa41be68fcd6fded2cd5d6f659459e8fb88c95299bb9d4b9f957d74ea0"
 evidence_ids = ["evidence:discoverability-ux-dx"]
 binding = "orientation reader view command and test output binding"
@@ -40,6 +40,6 @@ targets = [
   "openspec/changes/archive/2026-07-06-discoverability-ux-dx/design.md",
   "openspec/changes/archive/2026-07-06-discoverability-ux-dx/tasks.md",
   "openspec/changes/archive/2026-07-06-discoverability-ux-dx/specs/ethos-repository/spec.md",
-  "evidence/discoverability-ux-dx-2026-07-06.md",
+  "evidence/chronicle/discoverability-ux-dx/2026-07-06.md",
   "evidence/claims/discoverability-ux-dx.toml",
 ]

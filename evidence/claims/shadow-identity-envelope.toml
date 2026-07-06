@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume semantic diff results."
 
 [evidence]
-dated = "evidence/shadow-identity-envelope-2026-07-06.md"
+dated = "evidence/chronicle/shadow-identity-envelope/2026-07-06.md"
 sha256 = "a89b354d840d028b8634d139e907765c4f10761511345ded6ea63183ac3cc523"
 evidence_ids = ["evidence:shadow-identity-envelope"]
 binding = "semantic shadow parity identity envelope evidence binding"

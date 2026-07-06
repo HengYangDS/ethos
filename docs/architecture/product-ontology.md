@@ -3,7 +3,8 @@ subject: ethos:package-ontology
 role: decision
 state: canonical
 relations:
-  canonical_for: package topology
+  canonical_for: package topology summary
+  derives_from: docs/architecture/package-ontology.md
 ---
 
 # Product Ontology
@@ -11,35 +12,34 @@ relations:
 Status: canonical.
 
 Purpose: summarize the current physical product packages and distribution
-adapters.
+adapters. The detailed package boundary is [Package Ontology](package-ontology.md).
 
-See also: [Package Ontology](package-ontology.md) and
-[Command Plane](../reference/command-plane.md).
-
-This page summarizes the current product package state. The detailed ontology
-is [Package Ontology](package-ontology.md).
-
-Current product packages are:
+Current Python product packages are:
 
 ```text
 ethos-core
-ethos-contracts
-ethos-quality
-ethos-repository
-ethos-assistants
-ethos-adapters
 ethos
-ethos-test
 ```
 
-No active product migration host remains in `packages/`. `ethos` is the public
-CLI package and composes the target packages without importing retired host
-modules.
+`ethos-core` owns pure kernel, contract, quality, and proof-policy semantics.
+`ethos` owns the public runtime, command plane, repository orchestration,
+adapters, assistant projections, and product test fixtures.
+
+Retired names such as `ethos-contracts`, `ethos-quality`, `ethos-repository`,
+`ethos-assistants`, `ethos-adapters`, and `ethos-test` now describe semantic
+areas inside the two package homes; they are not active package homes.
+
+Non-Python distribution adapters are separate projections:
+
+```text
+distributions/npm
+```
+
+Distribution adapters are not truth centers; they forward to the Python command
+plane.
 
 Adopter-specific semantics stay in adopter profiles and repositories. Product
 packages may expose adapters, but they do not hardcode adopter private names.
-Distribution adapters are not new truth centers; they forward to the Python
-command plane.
 
 Status: see front matter.
 

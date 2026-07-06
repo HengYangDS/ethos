@@ -5,7 +5,7 @@ state = "active"
 summary = "Records digest-bound evidence for Work Lane admission, foreign lane visibility, protected-root mutation blocking, and lease-backed lane start."
 
 [evidence]
-dated = "evidence/work-lane-admission-2026-06-30.md"
+dated = "evidence/chronicle/work-lane-admission/2026-06-30.md"
 sha256 = "d871787f4fb3e33543168dcb9655ef28d1e0b41ad4845e80a955e66e8e20bf5a"
 evidence_ids = ["evidence:ethos-work-lane-admission"]
 binding = "digest-bound lane admission evidence binding"
@@ -40,7 +40,7 @@ kill_signal = "A protected root can perform trust-bearing mutation without Work 
 
 [promotion]
 targets = [
-  "evidence/work-lane-admission-2026-06-30.md",
+  "evidence/chronicle/work-lane-admission/2026-06-30.md",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "openspec/specs/adapters/spec.md",

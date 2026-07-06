@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS gates public Python product-surface docstring coverage through repository-owned policy, CI script, quality command, and proof gate registration."
 
 [evidence]
-dated = "evidence/docstring-quality-gate-2026-07-05.md"
+dated = "evidence/chronicle/docstring-quality-gate/2026-07-05.md"
 sha256 = "1f97eaaf28110d3d318cb59bebad02ec1dbe4ee36d64ecad44fc394cfe0e1c52"
 evidence_ids = ["evidence:ethos-docstring-quality-gate"]
 binding = "semantic docstring quality gate evidence binding"
@@ -43,7 +43,7 @@ kill_signal = "A public ETHOS command, explicit export, or package boundary can 
 
 [promotion]
 targets = [
-  "evidence/docstring-quality-gate-2026-07-05.md",
+  "evidence/chronicle/docstring-quality-gate/2026-07-05.md",
   ".config/checks/docstrings/policy.toml",
   ".config/ci/scripts/run-docstring-coverage.sh",
   "packages/ethos/src/ethos/repository/policy/docstrings.py",

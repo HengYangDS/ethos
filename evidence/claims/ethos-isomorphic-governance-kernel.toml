@@ -5,7 +5,7 @@ state = "active"
 summary = "Governed-repository and product-adopter are two profile forms of one ETHOS governance kernel, sharing the same kernel chain, trust lifecycle, capability graph, truth sources, run steps, and advisory projection boundaries."
 
 [evidence]
-dated = "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md"
+dated = "evidence/chronicle/isomorphic-governance-kernel/2026-07-01.md"
 sha256 = "19f694edd428ddf65758fedcba3bd87e52ddc00923a5aec7e99f8fbd593b79ed"
 evidence_ids = ["evidence:ethos-isomorphic-governance-kernel"]
 binding = "digest-bound dual-form governance evidence binding"
@@ -30,7 +30,7 @@ docs = [
   "docs/governance/product-design-contract.md",
   "docs/architecture/adoption-profiles.md",
   "docs/architecture/schema-validation.md",
-  "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md",
+  "evidence/chronicle/isomorphic-governance-kernel/2026-07-01.md",
 ]
 schemas = [
   "system/schemas/kernel/governance-profile.schema.json",
@@ -48,7 +48,7 @@ kill_signal = "Governed-repository and product-adopter profiles diverge in kerne
 
 [promotion]
 targets = [
-  "evidence/chronicle/isomorphic-governance-kernel-2026-07-01.md",
+  "evidence/chronicle/isomorphic-governance-kernel/2026-07-01.md",
   "system/schemas/kernel/governance-profile.schema.json",
   "packages/ethos/src/ethos/repository/registry/profiles.py",
   "packages/ethos/src/ethos/repository/policy/schema.py",

@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS schema-governs configured branch-role provenance, standard Work Lane lifecycle command binding, and host projection vocabulary boundaries without binding the product to a host, model provider, or OpenSpec as product substrate."
 
 [evidence]
-dated = "evidence/role-binding-projection-hardening-2026-07-01.md"
+dated = "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md"
 sha256 = "4fefd58896dba324159fddec67443d313c3265ddb3f08e3cbd9c8ad3642954fa"
 evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
 binding = "semantic role-binding projection hardening evidence binding"
@@ -43,7 +43,7 @@ tests = [
   "tests/architecture/test_product_design_contract.py",
 ]
 docs = [
-  "evidence/role-binding-projection-hardening-2026-07-01.md",
+  "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md",
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",
   "docs/architecture/runner-and-mutation.md",
@@ -64,7 +64,7 @@ kill_signal = "ETHOS workflow state can be created by host UI labels or raw work
 
 [promotion]
 targets = [
-  "evidence/role-binding-projection-hardening-2026-07-01.md",
+  "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md",
   "packages/ethos/src/ethos/repository/policy/coupling.py",
   "system/schemas/kernel/coupling-audit.schema.json",
   "tests/unit/audit/test_coupling.py",

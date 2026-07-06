@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS treats OpenSpec archive state as a product closeout gate and archives completed campaign carriers through official OpenSpec semantics."
 
 [evidence]
-dated = "evidence/openspec-archive-closeout-2026-07-02.md"
+dated = "evidence/chronicle/openspec-archive-closeout/2026-07-02.md"
 sha256 = "3f299596fead108b0924efdcef023863095a98795f4515f5106207ac653d9b95"
 evidence_ids = ["evidence:ethos-openspec-archive-closeout"]
 binding = "semantic OpenSpec archive closeout evidence binding"
@@ -47,7 +47,7 @@ targets = [
   "evidence/claims/ethos-campaign-orchestration.toml",
   "evidence/claims/ethos-openspec-archive-closeout.toml",
   "evidence/claims/ethos-openspec-product-protocol.toml",
-  "evidence/openspec-archive-closeout-2026-07-02.md",
+  "evidence/chronicle/openspec-archive-closeout/2026-07-02.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration",
   "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol",

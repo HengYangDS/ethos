@@ -15,13 +15,7 @@ PYTHONPATH = os.pathsep.join(
     str(ROOT / package / "src")
     for package in (
         "packages/ethos",
-        "packages/ethos-adapters",
-        "packages/ethos-assistants",
-        "packages/ethos-contracts",
         "packages/ethos-core",
-        "packages/ethos-quality",
-        "packages/ethos-repository",
-        "packages/ethos-test",
     )
 )
 

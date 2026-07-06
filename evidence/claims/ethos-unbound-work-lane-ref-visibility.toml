@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS status exposes unbound configured Work Lane refs as advisory Git facts without treating them as active foreign worktrees."
 
 [evidence]
-dated = "evidence/unbound-work-lane-ref-visibility-2026-07-06.md"
+dated = "evidence/chronicle/unbound-work-lane-ref-visibility/2026-07-06.md"
 sha256 = "bbee381b2b833fa9bece846c8fa6c1a1ce602eb3025601b1aae497f7de890d52"
 evidence_ids = ["evidence:ethos-unbound-work-lane-ref-visibility"]
 binding = "semantic status and coordination contract evidence binding"
@@ -38,7 +38,7 @@ kill_signal = "A stale or absorbed work/* branch ref can persist without appeari
 [promotion]
 targets = [
   "evidence/claims/ethos-unbound-work-lane-ref-visibility.toml",
-  "evidence/unbound-work-lane-ref-visibility-2026-07-06.md",
+  "evidence/chronicle/unbound-work-lane-ref-visibility/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/proposal.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/design.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/tasks.md",

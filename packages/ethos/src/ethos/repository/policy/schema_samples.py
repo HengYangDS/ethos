@@ -26,7 +26,7 @@ def _campaign_contract_sample() -> dict[str, Any]:
                     "state": "retired",
                     "accepted_head": "a" * 40,
                     "candidate_head": "a" * 40,
-                    "evidence": ["evidence/campaign-orchestration-2026-07-02.md"],
+                    "evidence": ["evidence/chronicle/campaign-orchestration/2026-07-02.md"],
                 },
             }
         ],
@@ -127,7 +127,7 @@ def _trust_envelope_contract_sample() -> dict[str, Any]:
             "targets": [
                 {
                     "kind": "source",
-                    "path": "packages/ethos-repository/src/ethos.repository/claims.py",
+                    "path": "packages/ethos/src/ethos/repository/evidence/claims.py",
                 },
                 {
                     "kind": "openspec",

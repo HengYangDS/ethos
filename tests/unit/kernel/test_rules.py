@@ -375,7 +375,7 @@ def test_starter_docs_cover_package_and_distribution_readmes(tmp_path: Path) -> 
     report = coverage_report(
         tmp_path,
         changed_paths=(
-            "packages/ethos-quality/README.md",
+            "packages/ethos-core/README.md",
             "distributions/npm/README.md",
         ),
     )

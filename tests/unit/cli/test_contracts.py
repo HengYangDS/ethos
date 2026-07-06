@@ -2207,7 +2207,7 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
-    path = Path("evidence/shadow-parity-accepted-classification-2026-07-01.md")
+    path = Path("evidence/chronicle/shadow-parity-accepted-classification/2026-07-01.md")
 
     text = path.read_text(encoding="utf-8")
 

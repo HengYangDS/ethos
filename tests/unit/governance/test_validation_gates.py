@@ -200,7 +200,7 @@ def test_campaign_schema_accepts_lane_closeout_steps() -> None:
                     "state": "retired",
                     "accepted_head": "a" * 40,
                     "candidate_head": "a" * 40,
-                    "evidence": ["evidence/campaign-orchestration-2026-07-02.md"],
+                    "evidence": ["evidence/chronicle/campaign-orchestration/2026-07-02.md"],
                 },
             }
         ],
@@ -540,7 +540,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
             "targets": [
                 {
                     "kind": "source",
-                    "path": "packages/ethos-repository/src/ethos.repository/claims.py",
+                    "path": "packages/ethos/src/ethos/repository/evidence/claims.py",
                 },
                 {
                     "kind": "openspec",

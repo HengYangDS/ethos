@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS provides a head-bound, reason-bound, authorized maintainer command for retiring local unbound Work Lane refs without deleting linked worktrees or bypassing land semantics."
 
 [evidence]
-dated = "evidence/unbound-lane-retire-2026-07-06.md"
+dated = "evidence/chronicle/unbound-lane-retire/2026-07-06.md"
 sha256 = "f8e42208ed48dfa4307d3fb54e03c4adddd967276ac7a8e1c9ed91481ce9d3ab"
 evidence_ids = ["evidence:unbound-lane-retire"]
 binding = "semantic unbound Work Lane ref retirement evidence binding"
@@ -41,7 +41,7 @@ targets = [
   "docs/architecture/runner-and-mutation.md",
   "docs/governance/product-design-contract.md",
   "evidence/claims/unbound-lane-retire.toml",
-  "evidence/unbound-lane-retire-2026-07-06.md",
+  "evidence/chronicle/unbound-lane-retire/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-retire",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/surface/cli/lane.py",

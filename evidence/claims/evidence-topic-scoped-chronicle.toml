@@ -1,0 +1,52 @@
+[claim]
+id = "evidence-topic-scoped-chronicle"
+subject = "ethos:evidence-topic-scoped-chronicle"
+state = "active"
+summary = "Digest-bound record for the topic-scoped chronicle evidence-layout migration."
+
+[evidence]
+dated = "evidence/chronicle/evidence-topic-scoped-chronicle/2026-07-07.md"
+sha256 = "a1f2cf0a35a2e2ff466869790a74f1e209e7a3365649cdad1739bf786952866a"
+evidence_ids = ["evidence:topic-scoped-chronicle"]
+binding = "digest-bound evidence layout proof"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest tests/architecture/test_evidence_layout.py -q",
+  "uv run --group dev pytest tests/unit/governance/test_authority_graph.py tests/unit/governance/test_validation_gates.py tests/unit/kernel/test_rules.py::test_starter_docs_cover_package_and_distribution_readmes tests/architecture/test_product_design_contract.py tests/architecture/test_product_boundaries.py tests/architecture/test_evidence_layout.py -q",
+  "uv run --group dev pytest tests/support tests/unit/kernel/test_rules.py tests/unit/cli/test_contracts.py -q",
+  "ETHOS_ROOT=$PWD uv run --group dev ethos prove --gate claims --execute --expect-head \"$(git rev-parse HEAD)\" --json",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
+  ".config/ci/scripts/run-repository-hygiene.sh",
+]
+
+[scope]
+paths = [
+  "evidence/README.md",
+  "evidence/chronicle/",
+  "evidence/claims/",
+  "docs/architecture/product-ontology.md",
+  "docs/architecture/terminal-governance-product-design.md",
+  "tests/architecture/test_evidence_layout.py",
+]
+
+[boundary]
+owner = "repository-governance"
+scope = "physical evidence layout and topic-scoped chronicle boundary"
+
+[carriers]
+openspec = "openspec/changes/evidence-topic-scoped-chronicle"
+
+fallback = "Keep claim records and parity JSON in their existing owner roots while reverting only the chronicle relocation if digest verification fails."
+kill_signal = "Loose root Markdown proof or flat chronicle Markdown reappears as current ETHOS product evidence."
+
+[promotion]
+targets = [
+  "evidence/README.md",
+  "evidence/chronicle/evidence-topic-scoped-chronicle/2026-07-07.md",
+  "evidence/claims/evidence-topic-scoped-chronicle.toml",
+  "openspec/changes/evidence-topic-scoped-chronicle/proposal.md",
+  "openspec/changes/evidence-topic-scoped-chronicle/design.md",
+  "openspec/changes/evidence-topic-scoped-chronicle/tasks.md",
+  "openspec/changes/evidence-topic-scoped-chronicle/specs/repository-governance/spec.md",
+  "tests/architecture/test_evidence_layout.py",
+]

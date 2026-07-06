@@ -5,7 +5,7 @@ state = "active"
 summary = "ETHOS status exposes unbound Work Lane refs as inspectable residue objects with branch, head, claim binding, relation to accepted truth, and next action."
 
 [evidence]
-dated = "evidence/unbound-lane-residue-readmodel-2026-07-06.md"
+dated = "evidence/chronicle/unbound-lane-residue-readmodel/2026-07-06.md"
 sha256 = "ec37c1e20493bc93858f0b351fd6d1f895ef19cd2b5df825143c23ee93352533"
 evidence_ids = ["evidence:unbound-lane-residue-readmodel"]
 binding = "semantic Work Lane residue read-model evidence binding"
@@ -40,7 +40,7 @@ kill_signal = "Agents must choose merge, supersede, or deletion for an unbound W
 [promotion]
 targets = [
   "evidence/claims/unbound-lane-residue-readmodel.toml",
-  "evidence/unbound-lane-residue-readmodel-2026-07-06.md",
+  "evidence/chronicle/unbound-lane-residue-readmodel/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/proposal.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/design.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/tasks.md",

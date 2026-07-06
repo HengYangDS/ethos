@@ -61,7 +61,9 @@ projection drift visible without creating a parallel truth store.
 Skill creation is therefore a workflow inside `ethos-skill-portfolio-governance`,
 not a sixth primary skill. A separate creator skill is justified only if it owns
 a durable semantic obligation that the portfolio owner cannot express without
-breaking MECE ownership.
+breaking MECE ownership. Scaffolding may be automated, but admission is governed
+by the portfolio owner: owner subject, truth boundary, activation route, package
+manifest, digest, proof commands, and projection-drift evidence must all bind.
 
 The activation `[coverage]` table declares `required_primary_subjects` and
 `single_owner_subjects`. `ethos playbooks check --mode v2-strict --json` fails

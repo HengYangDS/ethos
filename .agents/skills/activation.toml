@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:a161eebb82c5908d7e97caaa85d74e830d63b6aa3434ac8e8ecf0002ec894379"
+expected_registry_digest = "sha256:6d008fb95d8907c13b1c79c0bcd0e02436abd8564c8191604d14bd0cb402edf8"
 expected_generator_digest = "sha256:72252a0caee5f2dd2aeec0a299e484d365b7e321196b4f8996fe25f307ca2088"
 
 [coverage]
@@ -216,6 +216,7 @@ post_checks = [
   ".config/ci/scripts/run-python-lint.sh",
   ".config/ci/scripts/run-config-lint.sh",
   ".config/ci/scripts/run-shell-lint.sh",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
   "ethos prove --json",
 ]
 may_coactivate = ["ethos-change-lifecycle"]

@@ -21,9 +21,13 @@ provider projections.
    `.config/checks/<concern>/` or the smallest stable native config owner.
 3. Keep `pyproject.toml` limited to package/workspace metadata unless a tool has
    no better native owner.
-4. Update `system/tools.toml`, gate registry code, CI, hooks, tests, and
+4. Use `references/gate-design.md` to check SSOT, MECE boundaries, and hard-floor
+   expectations before tightening or adding a gate.
+5. Update `system/tools.toml`, gate registry code, CI, hooks, tests, and
    OpenSpec together; do not duplicate command bodies across provider files.
-5. Prove the exact gate path with focused scripts first, then run head-bound
+6. Run `scripts/quality_audit.py .` so owner shape, coverage, docstrings, and
+   type policy drift are visible before claiming CI strength.
+7. Prove the exact gate path with focused scripts first, then run head-bound
    `ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`.
 
 ## Evidence
@@ -34,13 +38,17 @@ Use owner scripts and proof output:
 .config/ci/scripts/run-python-lint.sh
 .config/ci/scripts/run-config-lint.sh
 .config/ci/scripts/run-shell-lint.sh
+.agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .
 ethos quality types --json
 ethos quality docstrings --json
+# After `.config/ci/scripts/run-python-tests.sh` has produced coverage.xml:
+ethos quality coverage --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 
 ## Trust Boundary
 
-Repository truth remains the source of truth. Quality skills explain the gate workflow. The gate registry, scripts, configs,
-tests, OpenSpec records, command JSON, and HEAD-bound evidence are repository
-truth. CI, pre-commit, and hosted runners are projections over those owners.
+Repository truth remains the source of truth. Quality skills explain the gate
+workflow. The gate registry, scripts, configs, tests, OpenSpec records, command
+JSON, and HEAD-bound evidence are repository truth. CI, pre-commit, and hosted
+runners are projections over those owners.

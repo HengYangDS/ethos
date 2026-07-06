@@ -24,12 +24,14 @@ concern = "tests"
 tool = "pytest"
 config = "pytest.ini"
 profile = "minimal"
+gate = ".config/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "python_typing"
 tool = "ty"
 config = ".config/checks/ty/"
 profile = "product"
+gate = "ethos quality types --json"
 
 [[tool]]
 concern = "import_boundaries"
@@ -54,12 +56,14 @@ concern = "coverage"
 tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
 profile = "product"
+gate = ".config/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "python_docstrings"
 tool = "ethos-docstrings"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
+gate = ".config/ci/scripts/run-docstring-coverage.sh"
 
 [[tool]]
 concern = "dependency_hygiene"

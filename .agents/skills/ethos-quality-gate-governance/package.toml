@@ -4,10 +4,14 @@ entrypoint = "SKILL.md"
 boundary = "repository-skill-source"
 truth = "repository-source-docs-rules-and-evidence"
 digest_algorithm = "sha256"
-include = ["SKILL.md"]
+include = [
+  "SKILL.md",
+  "scripts/quality_audit.py",
+  "references/gate-design.md",
+]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:11ba02601ad7c0cd5b4eb0ac3b0de187d2d8e5ae13876d4da1de92fd346599ae"
+expected_digest = "sha256:9ea3d5bf14aed5d111efdc98d9400a5140bfb8854bcef48b75d8544945a9af0c"
 
 [quality]
 placeholder_allowed = false
@@ -22,6 +26,11 @@ command = ["ethos", "quality", "types", "--json"]
 id = "ethos.quality.docstrings"
 kind = "command_readonly"
 command = ["ethos", "quality", "docstrings", "--json"]
+
+[[capability]]
+id = "ethos.quality.coverage"
+kind = "command_readonly"
+command = ["ethos", "quality", "coverage", "--json"]
 
 [[capability]]
 id = "ethos.prove"

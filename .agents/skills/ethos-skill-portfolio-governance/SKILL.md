@@ -24,11 +24,15 @@ repository truth.
 4. Use `references/portfolio-design.md` before creating a new skill; prefer
    strengthening the existing MECE portfolio unless a new repeated procedure has
    a distinct owner. Treat route overlap, weak triggers, oversized entrypoints,
-   and stale digests as first-class disorder signals, not cosmetic issues.
-5. Update `.agents/skills/activation.toml` and `package.toml` together so route
+   missing creator-admission evidence, and stale digests as first-class disorder
+   signals, not cosmetic issues.
+5. Keep skill creator activity inside this skill's workflow: scaffold helpers may
+   draft files, but admission requires owner subject, truth boundary, activation
+   route, package digest, proof commands, and projection-drift evidence.
+6. Update `.agents/skills/activation.toml` and `package.toml` together so route
    metadata, included files, required sections, capabilities, and digests stay
    aligned.
-6. Run the bundled portfolio audit plus `ethos playbooks check --mode v2-strict
+7. Run the bundled portfolio audit plus `ethos playbooks check --mode v2-strict
    --json` and `ethos quality projection-drift --json` before claiming the
    projection is fresh.
 

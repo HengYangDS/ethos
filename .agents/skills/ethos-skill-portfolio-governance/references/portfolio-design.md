@@ -22,15 +22,28 @@ truth center.
 
 ## Skill Creator Use
 
-Create a new repo-local skill only when all are true:
+Skill creation is an admission workflow inside this portfolio owner, not a
+separate primary skill. Treat a proposed skill as a change request and admit it
+only when all are true:
 
 1. The procedure is repeated and repository-specific.
 2. Existing skills cannot own it without losing MECE boundaries.
 3. The new skill can stay small and point to repository truth.
 4. It has a package manifest, activation route, evidence commands, and digest.
+5. It owns a durable semantic obligation rather than a vendor surface, UI affordance,
+   or one-off workaround.
 
 If any condition fails, update docs, rules, scripts, or references inside an
-existing skill instead.
+existing skill instead. A creator helper may scaffold files, but the portfolio
+owner must still decide admission through activation coverage, package integrity,
+projection drift, and changed-scope routing evidence.
+
+Use this minimal admission checklist before adding a skill:
+
+```text
+trigger -> owner subject -> existing-skill fit -> truth boundary -> package manifest
+  -> activation route -> digest -> proof commands -> projection drift check
+```
 
 ## Multi-agent Boundary
 

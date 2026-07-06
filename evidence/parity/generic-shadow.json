@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
-    "target_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
-    "product_semantic_sha256": "2e04baf33e8464ebc2c17978bb3fdb9cd25c9476d6da216ba985232e9fef9c9c",
-    "target_semantic_sha256": "2e04baf33e8464ebc2c17978bb3fdb9cd25c9476d6da216ba985232e9fef9c9c",
+    "product_head": "721150394fdd569e286883ac84e5e4d3257666de",
+    "target_head": "721150394fdd569e286883ac84e5e4d3257666de",
+    "product_semantic_sha256": "1381ca16cae3f3eba570a59093d05693d2af8e6b765e8e439fafa1309949bb0f",
+    "target_semantic_sha256": "1381ca16cae3f3eba570a59093d05693d2af8e6b765e8e439fafa1309949bb0f",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -34,9 +34,9 @@
     }
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-shadow-identity-envelope",
-    "target_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
-    "product_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes",
+    "target_head": "721150394fdd569e286883ac84e5e4d3257666de",
+    "product_head": "721150394fdd569e286883ac84e5e4d3257666de",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -50,15 +50,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-shadow-identity-envelope --json",
-      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-shadow-identity-envelope --json"
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json",
+      "/Users/yheng/projects/ethos-worktrees/discoverability-entry-routes/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/discoverability-entry-routes --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -75,7 +75,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e2918313340b7e4304032d72c4432548699da001a1dcf575cfa66f3d93a7533f"
+        "sha256": "d846568bdae3c60b85ff5720e44ddb49eb408bb5e18d04eeb2cd65e621302a57"
       },
       {
         "path": "evidence/claims",

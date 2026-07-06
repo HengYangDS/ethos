@@ -1,0 +1,22 @@
+schema_version = 1
+id = "explain-metavar-language"
+summary = "Generated explain help uses gap-or-signal positional language."
+state = "active"
+subject = "command-plane:explain-metavar-language"
+evidence = "evidence/chronicle/explain-metavar-language/2026-07-07.md"
+
+[bindings]
+head = "79b394b324732b5d84008adff384faf957f2841c"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-explain-metavar-language"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/cli.py"
+
+[[promotion_targets]]
+path = "tests/unit/cli/test_invalid_state_projection.py"

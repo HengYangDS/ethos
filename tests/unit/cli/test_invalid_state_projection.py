@@ -66,5 +66,7 @@ def test_explain_help_uses_gap_or_signal_language() -> None:
     completed = run_ethos_raw("explain", "--help")
 
     assert completed.returncode == 0
+    assert "Usage: ethos explain [OPTIONS] GAP-OR-SIGNAL" in completed.stdout
+    assert "GAP-OR-SIGNAL" in completed.stdout
     assert "gap or advisory signal" in completed.stdout
     assert "Explain a required gap" not in completed.stdout

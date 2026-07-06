@@ -692,16 +692,18 @@ def report(
 
 
 @app.command(show=False)
-def explain(gap: str, *, json_output: JsonFlag = False) -> None:
+def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     """Explain a governance gap or advisory signal as a read-only invalid-state projection."""
-    data = explain_gap(gap)
+    data = explain_gap(gap_or_signal)
     category_id = str(data["invalid_state"]["id"])
     result = EthosResult(
         command="explain",
         ok=category_id != UNCLASSIFIED,
         state="explained" if category_id != UNCLASSIFIED else "unclassified",
-        summary={"gap": gap, "invalid_state": category_id},
-        required_gaps=() if category_id != UNCLASSIFIED else (f"unclassified_invalid_state:{gap}",),
+        summary={"gap": gap_or_signal, "invalid_state": category_id},
+        required_gaps=(
+            () if category_id != UNCLASSIFIED else (f"unclassified_invalid_state:{gap_or_signal}",)
+        ),
         data=data,
     )
     emit(result, json_output, enforce=False)

@@ -7,6 +7,8 @@ import tomllib
 from pathlib import Path
 
 from ethos.assistants.skill_packages import compute_skill_package_digest
+from ethos.domain.report import _advisory_next_actions
+from ethos.domain.report import _gap_layers
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.branch_roles import load_branch_role_policy
@@ -2147,6 +2149,33 @@ def test_docs_command_uses_registry_for_discovery() -> None:
     assert payload["data"]["path"] == "docs/architecture/agent-projections.md"
 
 
+def test_report_advisory_layer_classifies_protected_openspec_residue() -> None:
+    protected_residue_gap = (
+        "openspec_protected_branch_active_change_unarchived:"
+        "main:release_root:ethos-release-hardening"
+    )
+    next_actions = _advisory_next_actions((protected_residue_gap,))
+    layers = _gap_layers(
+        result_required_gaps=(),
+        parity_gaps={"ok": True, "required_gaps": []},
+        playbooks={"ok": True, "required_gaps": [], "advisory_gaps": []},
+        advisory_gaps=(protected_residue_gap,),
+        advisory_next_actions=next_actions,
+    )
+
+    advisory_layer = layers["advisory_signals"]
+    assert advisory_layer["blocking"] is False
+    assert advisory_layer["invalid_states"] == {
+        "categories": {"carrier_invalid": [protected_residue_gap]},
+        "category_count": 1,
+        "gap_count": 1,
+    }
+    assert advisory_layer["next_actions"] == [
+        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
+        "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",
+    ]
+
+
 def test_report_scorecard_is_derived_from_governance_checks() -> None:
     payload = run_ethos("report", "--json")
 
@@ -2172,23 +2201,11 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert payload["summary"]["parity_pending_count"] == 0
     assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
     assert payload["summary"]["governance_gap_count"] == 0
-    assert payload["summary"]["advisory_gap_count"] >= 1
     advisory_layer = payload["data"]["gap_layers"]["advisory_signals"]
     assert advisory_layer["blocking"] is False
     assert advisory_layer["gap_count"] == payload["summary"]["advisory_gap_count"]
-    protected_residue_gap = "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
-    assert protected_residue_gap in advisory_layer["advisory_gaps"]
-    assert advisory_layer["invalid_states"] == {
-        "categories": {"carrier_invalid": [protected_residue_gap]},
-        "category_count": 1,
-        "gap_count": 1,
-    }
-    assert advisory_layer["next_actions"] == [
-        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
-        "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",
-    ]
-    assert protected_residue_gap in payload["data"]["advisory_signals"]["advisory_gaps"]
-    assert payload["data"]["advisory_signals"]["next_actions"] == advisory_layer["next_actions"]
+    assert advisory_layer["advisory_gaps"] == payload["data"]["advisory_signals"]["advisory_gaps"]
+    assert advisory_layer["next_actions"] == payload["data"]["advisory_signals"]["next_actions"]
     assert "self_audit" not in payload["data"]
     assert (
         payload["data"]["governance_context"]

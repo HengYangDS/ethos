@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "93aef873e95bd95c5db4951ecd0f4371afef6fcd",
-    "target_head": "93aef873e95bd95c5db4951ecd0f4371afef6fcd",
-    "product_semantic_sha256": "eaa7ad12e66859eb9a8d247f991e3c0312e9443abc752aed1d752d3ace173acf",
-    "target_semantic_sha256": "eaa7ad12e66859eb9a8d247f991e3c0312e9443abc752aed1d752d3ace173acf",
+    "product_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
+    "target_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
+    "product_semantic_sha256": "2e04baf33e8464ebc2c17978bb3fdb9cd25c9476d6da216ba985232e9fef9c9c",
+    "target_semantic_sha256": "2e04baf33e8464ebc2c17978bb3fdb9cd25c9476d6da216ba985232e9fef9c9c",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -32,6 +32,67 @@
       "kind_counts": {},
       "command_count": 0
     }
+  },
+  "identity": {
+    "target_root": "/private/tmp/ethos-shadow-identity-envelope",
+    "target_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
+    "product_head": "ad55a9ecb8125a4406ecba6368ef22b56d9d2c9d",
+    "changed_paths": [],
+    "commands": [
+      "ethos status --json",
+      "ethos plan --changed --json",
+      "ethos prove --json",
+      "ethos report --json",
+      "ethos quality command-surface --json",
+      "ethos assistants doctor --json",
+      "ethos playbooks route --changed --json",
+      "ethos land --json",
+      "ethos publish --json"
+    ],
+    "external_commands": [
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-shadow-identity-envelope --json",
+      "/private/tmp/ethos-shadow-identity-envelope/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-shadow-identity-envelope --json"
+    ],
+    "embedded_commands": [
+      "uv run --package ethos ethos status --json",
+      "uv run --package ethos ethos plan --changed --json",
+      "uv run --package ethos ethos prove --json",
+      "uv run --package ethos ethos report --json",
+      "uv run --package ethos ethos quality command-surface --json",
+      "uv run --package ethos ethos assistants doctor --json",
+      "uv run --package ethos ethos playbooks route --changed --json",
+      "uv run --package ethos ethos land --json",
+      "uv run --package ethos ethos publish --json"
+    ],
+    "evidence_inputs": [
+      {
+        "path": "evidence",
+        "kind": "directory",
+        "sha256": "e2918313340b7e4304032d72c4432548699da001a1dcf575cfa66f3d93a7533f"
+      },
+      {
+        "path": "evidence/claims",
+        "kind": "directory",
+        "sha256": "45979ae28e7a65e4b300c83985a2bfddff2963d9cb2f3216b62b4b5288d2b763"
+      },
+      {
+        "path": "openspec",
+        "kind": "directory",
+        "sha256": "15a0cfe3340830dc9645c074871ff4a4d5aeec4634046a067ea3f7bd9c12ca9b"
+      },
+      {
+        "path": "rules",
+        "kind": "directory",
+        "sha256": "8e0e4e0ea8b63fd60842f682052b31f6894984d26b51184a405abc40da7c4e44"
+      }
+    ]
   },
   "verified_capabilities": [
     "work-lane-lifecycle",

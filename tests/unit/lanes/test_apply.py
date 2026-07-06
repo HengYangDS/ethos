@@ -93,10 +93,17 @@ def test_mutation_requires_authorization_and_expected_head() -> None:
     assert "expect_head_required" in result.gaps
 
 
-def test_mutation_allows_dry_run_without_authorization() -> None:
+def test_mutation_allows_work_lane_dry_run_without_authorization(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = add_owned_work_lane(repo, "dry-run", tmp_path / "repo-work-dry-run")
     request = MutationRequest(command="land", apply=False, authorized=False, expect_head=None)
 
-    result = evaluate_mutation(request, root=Path.cwd(), current_head="abc123")
+    result = evaluate_mutation(
+        request,
+        root=worktree,
+        current_head=git(worktree, "rev-parse", "HEAD"),
+    )
 
     assert result.ok is True
     assert result.state == "dry_run"

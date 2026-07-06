@@ -459,6 +459,21 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     assert payload["data"]["repository_audit"]["root"] == candidate.as_posix()
 
 
+def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready_to_publish"
+    assert payload["required_gaps"] == []
+
+
 def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

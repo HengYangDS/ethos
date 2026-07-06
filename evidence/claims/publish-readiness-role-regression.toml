@@ -1,0 +1,23 @@
+schema_version = 1
+id = "publish-readiness-role-regression"
+summary = "Publish dry-run remains accepted-root readiness while normal land stays role-bound."
+state = "accepted"
+subject = "repository-governance:publish-readiness-role-regression"
+evidence = "evidence/chronicle/publish-readiness-role-regression/2026-07-07.md"
+
+[bindings]
+head = "cd62f7f20ce666f7d2a3a028366a4639e75250ea"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-publish-readiness-role-regression"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts_closeout.py::test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts_closeout.py::test_land_dry_run_blocks_accepted_root_without_closeout"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/adapters/mutation/core.py"

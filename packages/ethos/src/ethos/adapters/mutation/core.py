@@ -135,6 +135,8 @@ def evaluate_mutation(
     root: Path,
     current_head: str,
 ) -> MutationDecision:
+    if not request.apply and request.command != "land":
+        return MutationDecision(ok=True, state="dry_run")
     gaps: list[str] = []
     if request.apply and not request.authorized:
         gaps.append("authorization_required")

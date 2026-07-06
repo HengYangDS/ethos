@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "8ed1205fda036c4be4c5d26bba0c414f73e12afd",
-    "target_head": "8ed1205fda036c4be4c5d26bba0c414f73e12afd",
-    "product_semantic_sha256": "ece794acdc0ff912f00658d9d0f6025832ad20fd85aeac80953ad3be03337527",
-    "target_semantic_sha256": "ece794acdc0ff912f00658d9d0f6025832ad20fd85aeac80953ad3be03337527",
+    "product_head": "587993981433f219ef31d3b84580f12b3750b832",
+    "target_head": "587993981433f219ef31d3b84580f12b3750b832",
+    "product_semantic_sha256": "efd377783c9a33f2562fdd4d58f105f6c99af179fcebd387a526d4e50db6d97d",
+    "target_semantic_sha256": "efd377783c9a33f2562fdd4d58f105f6c99af179fcebd387a526d4e50db6d97d",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/land-role-boundary",
-    "target_head": "8ed1205fda036c4be4c5d26bba0c414f73e12afd",
-    "product_head": "8ed1205fda036c4be4c5d26bba0c414f73e12afd",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression",
+    "target_head": "587993981433f219ef31d3b84580f12b3750b832",
+    "product_head": "587993981433f219ef31d3b84580f12b3750b832",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/land-role-boundary/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/land-role-boundary --json"
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-readiness-role-regression --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6a863f41618178e4b9a408005123504a69b2984c814b81500c251a71c188c344"
+        "sha256": "c95e36088ab82933d04912e4f9648fec987e5ed405e8c3e62377436594b913be"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "9577ad6de932a41370d3d22509f4b0c1d4ea4c7d667e65db13b757f0b1105e74"
+        "sha256": "b8a62cb2ad9bde8fad42567c4f94f456a98173bac7a6067f0be28a77bfc5b67f"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d3027c29f3ac4d7920ec533481ad3c338a9415bc238b70e2363ac32700573e3a"
+        "sha256": "e815fd7883071b8d87a016625528d5d01b77b2593189f8e13bee1a747d08d801"
       },
       {
         "path": "rules",

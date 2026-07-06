@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "d72e2c5e92a59e2668a7cb3aa14c98d777cd73db",
-    "target_head": "d72e2c5e92a59e2668a7cb3aa14c98d777cd73db",
-    "product_semantic_sha256": "a36679699adbd7ce88c6d19469fc8702effd3b46c0a5c9660e328dd5ace7ed68",
-    "target_semantic_sha256": "a36679699adbd7ce88c6d19469fc8702effd3b46c0a5c9660e328dd5ace7ed68",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
+    "target_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
+    "product_semantic_sha256": "1e7f2d9217ee68d4b6c058010a23670aa42fa4a5e4ff191d4199de7c3a1f1e6a",
+    "target_semantic_sha256": "1e7f2d9217ee68d4b6c058010a23670aa42fa4a5e4ff191d4199de7c3a1f1e6a",
+    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
     "ok": true,
@@ -34,12 +34,10 @@
     }
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-openspec-metadata-compat",
-    "target_head": "d72e2c5e92a59e2668a7cb3aa14c98d777cd73db",
-    "product_head": "d72e2c5e92a59e2668a7cb3aa14c98d777cd73db",
-    "changed_paths": [
-      "evidence/parity/generic-shadow.json"
-    ],
+    "target_root": "/private/tmp/paF",
+    "target_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
+    "product_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -52,15 +50,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-openspec-metadata-compat --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-openspec-metadata-compat --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paF --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paF --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -77,7 +75,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e6d8ec322e820041186fc11d459ca64d3e0f52f8c4cdbf7d408bced056bd42fc"
+        "sha256": "3d3b993d9f82b995c37e2f1bf2292c2895218dbd48d0bf711c400d73bb6e8754"
       },
       {
         "path": "evidence/claims",

@@ -141,6 +141,26 @@ proof legacy objective
     assert payload["next_actions"] == ["ethos audit --mode deep"]
 
 
+def test_prove_missing_gate_dependency_reports_concrete_rerun(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "prove",
+        "--root",
+        repo.as_posix(),
+        "--gate",
+        "openspec",
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "missing_dependency:openspec->schemas" in payload["required_gaps"]
+    assert payload["next_actions"] == [
+        f"ethos prove --execute --gate schemas --gate openspec --expect-head {head} --json"
+    ]
+
+
 def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()

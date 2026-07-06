@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
-    "target_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
-    "product_semantic_sha256": "98ebd340c4fb20545589e3fff76ea9e1f0070a3016fbbf7a8af7058c329bce5d",
-    "target_semantic_sha256": "98ebd340c4fb20545589e3fff76ea9e1f0070a3016fbbf7a8af7058c329bce5d",
+    "product_head": "aaf679b208384fd38f9226e0cff6c601db1bbd53",
+    "target_head": "aaf679b208384fd38f9226e0cff6c601db1bbd53",
+    "product_semantic_sha256": "bfcff9a39969e4b90de51aa32cecf215775e9f4781fa084bb7e8c0bb00aee63f",
+    "target_semantic_sha256": "bfcff9a39969e4b90de51aa32cecf215775e9f4781fa084bb7e8c0bb00aee63f",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-root-binding-fail-closed",
-    "target_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
-    "product_head": "516a214a2fb3a373d0b3ff7246458d0b4959ecbf",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action",
+    "target_head": "aaf679b208384fd38f9226e0cff6c601db1bbd53",
+    "product_head": "aaf679b208384fd38f9226e0cff6c601db1bbd53",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-root-binding-fail-closed --json",
-      "/Users/yheng/projects/ethos-root-binding-fail-closed/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-root-binding-fail-closed --json"
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json",
+      "/Users/yheng/projects/ethos-worktrees/proof-dependency-next-action/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/proof-dependency-next-action --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,7 +76,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "60acad25b733ac4e93b16ba4f017c55748b6fadca4a5d2c126f5684722ec944e"
+        "sha256": "17a403745e9c34907190015892f3c2c6cc68adf2c89804998e9c4ddb57177427"
       },
       {
         "path": "evidence/claims",

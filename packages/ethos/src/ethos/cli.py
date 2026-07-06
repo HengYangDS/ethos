@@ -65,6 +65,52 @@ def _git_files(root: Path, *patterns: str) -> list[str]:
     return _gitio.git_files(root, *patterns)
 
 
+def _missing_gate_dependency_next_actions(
+    *,
+    selected_gate_ids: tuple[str, ...],
+    validation_gaps: tuple[str, ...],
+    current_head: str,
+) -> tuple[str, ...]:
+    """Return a concrete proof rerun command when selected gates omit dependencies."""
+    if not selected_gate_ids:
+        return ()
+
+    missing_dependencies = tuple(
+        gap.removeprefix("missing_dependency:").split("->", maxsplit=1)[1]
+        for gap in validation_gaps
+        if gap.startswith("missing_dependency:") and "->" in gap
+    )
+    if not missing_dependencies:
+        return ()
+
+    registry = gate_registry()
+    ordered_gate_ids: list[str] = []
+    seen: set[str] = set()
+
+    def add_gate_with_dependencies(gate_id: str) -> None:
+        if gate_id in seen:
+            return
+        gate = registry.get(gate_id)
+        if gate is None:
+            return
+        for dependency_id in gate.depends_on:
+            add_gate_with_dependencies(dependency_id)
+        seen.add(gate_id)
+        ordered_gate_ids.append(gate_id)
+
+    for gate_id in selected_gate_ids:
+        add_gate_with_dependencies(gate_id)
+
+    if not any(gate_id in ordered_gate_ids for gate_id in missing_dependencies):
+        return ()
+
+    command_parts = ["ethos", "prove", "--execute"]
+    for gate_id in ordered_gate_ids:
+        command_parts.extend(("--gate", gate_id))
+    command_parts.extend(("--expect-head", current_head, "--json"))
+    return (" ".join(command_parts),)
+
+
 def _quality_tool_report(
     *,
     root: Path,
@@ -230,6 +276,7 @@ def prove(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
     graph = gate_graph(gate, full=full)
+    graph_validation = graph.validate()
     gates_by_id = gate_registry()
     runner = (
         LocalSubprocessRunner(inprocess_handler=_run_inprocess_cli_gate)
@@ -285,7 +332,7 @@ def prove(
     ok = (
         bool(audit["ok"])
         and runs_ok
-        and graph.validate().ok
+        and graph_validation.ok
         and not failed_gate_gaps
         and not proof_gaps
         and not trust_gaps
@@ -297,7 +344,12 @@ def prove(
         # require executed proof at this exact HEAD. The full evidence body is stored
         # so the record's digest is later recomputable — a forged record fails.
         record_executed_proof(repo, evidence.to_dict())
-    next_actions = (
+    dependency_next_actions = _missing_gate_dependency_next_actions(
+        selected_gate_ids=gate,
+        validation_gaps=graph_validation.gaps,
+        current_head=current_head,
+    )
+    next_actions = dependency_next_actions or (
         ("ethos land",)
         if result_state == "proven"
         else ("ethos prove --execute",)
@@ -315,7 +367,7 @@ def prove(
         },
         required_gaps=(
             tuple(audit["required_gaps"])
-            + tuple(graph.validate().gaps)
+            + tuple(graph_validation.gaps)
             + failed_gate_gaps
             + proof_gaps
             + trust_gaps

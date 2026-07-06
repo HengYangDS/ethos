@@ -5,9 +5,9 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "product_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
     "target_head": "be4bffaad3eb84db6580ee27a2016bcdd23c9ce4",
-    "product_semantic_sha256": "01b65d1a65e135570f285929c34ca4271124be1dc2cb07cd9c5218d184d0e772",
+    "product_semantic_sha256": "cbb03c086899c793bcc85a4f38a411891e39ced8590c72c8400498e39859852a",
     "target_semantic_sha256": "42a4fc7c07a1701abeec78e6fe28fdc7d00d99f3a4c029b3f48325ff94a35286",
     "command_sha256": "c60efddfb82585d2bbcf32a481c890250210d8d8faa6df194b33e2abb92b1b62"
   },
@@ -37,7 +37,7 @@
   "identity": {
     "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3",
     "target_head": "be4bffaad3eb84db6580ee27a2016bcdd23c9ce4",
-    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "product_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json"
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json"
     ],
     "embedded_commands": [
       "pixi run ethos status --json",

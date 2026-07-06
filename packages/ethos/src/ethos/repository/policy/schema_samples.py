@@ -56,6 +56,7 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
             "command_count": 1,
             "kind_counts": {"external_product_repository_audit_gap": 1},
         },
+        "false_negative_count": 0,
         "comparisons": [
             {
                 "command": "ethos prove",
@@ -72,6 +73,7 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
                     "json": {},
                 },
                 "semantic_diff": {},
+                "false_negative_gaps": [],
                 "accepted_summary": {
                     "total_count": 1,
                     "kind_counts": {"external_product_repository_audit_gap": 1},

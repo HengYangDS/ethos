@@ -1,0 +1,55 @@
+---
+subject: ethos:evidence:shadow-false-negative-gate
+state: active
+owner: ethos-repository
+generated_on: 2026-07-06
+canonical_for: shadow parity false-negative gate and external required-gap superset semantics
+---
+
+# Shadow False-Negative Gate Evidence
+
+## Claim
+
+External ETHOS shadow parity now enforces retirement superset safety: external
+command output may be stricter than embedded fallback output, but it must not
+miss an embedded blocking `required_gaps` item or downgrade it into advisory-only
+state.
+
+## Implemented Semantics
+
+- Runtime shadow reports include `external_false_negative` in the semantic
+  dimensions.
+- Each comparison records `false_negative_gaps`.
+- The report records `false_negative_count`.
+- Missing embedded blocking gaps emit blocking
+  `shadow_false_negative:<command>` required gaps.
+- External required-gap supersets are accepted as stronger behavior through the
+  `external_required_gap_superset` accepted difference.
+- Tracked parity evidence must record `false_negative_count = 0` and include the
+  `external_false_negative` dimension before it can close adopter parity.
+
+## Validation
+
+Commands executed in `/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate`:
+
+```bash
+uv run --group dev pytest tests/unit/product/test_parity.py -q
+# 33 passed
+
+uv run --group dev pytest tests/unit/product/test_parity_generic.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py -q
+# 149 passed
+
+uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --write-evidence --json
+# ok=true, state=matched, evidence_written=evidence/parity/generic-shadow.json
+
+uv run --package ethos ethos parity gaps --json
+# ok=true, state=clean, required_gaps=[]
+```
+
+## Adopter Note
+
+A live `alphasim-dmgr` shadow refresh was attempted but not written because the
+comparison still reported non-false-negative semantic diffs in `prove`,
+`report`, `playbooks route --changed`, `land`, and `publish`. That evidence is
+kept as a future adopter-retirement blocker rather than being papered over by
+this product-core gate.

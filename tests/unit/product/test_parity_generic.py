@@ -492,12 +492,14 @@ def test_shadow_semantic_diff_classifies_report_parity_evidence_refresh_bootstra
             "command_count": 1,
             "kind_counts": {"report_parity_evidence_refresh_bootstrap": 1},
         },
+        "false_negative_count": 0,
         "comparisons": [
             {
                 "command": "ethos report",
                 "external": {"exit_code": 0, "stdout": "", "stderr": "", "json": external},
                 "embedded": {"exit_code": 0, "stdout": "", "stderr": "", "json": embedded},
                 "semantic_diff": {},
+                "false_negative_gaps": [],
                 "accepted_summary": {
                     "total_count": 1,
                     "kind_counts": {"report_parity_evidence_refresh_bootstrap": 1},
@@ -724,12 +726,14 @@ def test_shadow_accepted_difference_schema_rejects_unknown_kind() -> None:
             "command_count": 1,
             "kind_counts": {"unknown": 1},
         },
+        "false_negative_count": 0,
         "comparisons": [
             {
                 "command": "ethos prove",
                 "external": {"exit_code": 0, "stdout": "", "stderr": "", "json": {}},
                 "embedded": {"exit_code": 0, "stdout": "", "stderr": "", "json": {}},
                 "semantic_diff": {},
+                "false_negative_gaps": [],
                 "accepted_summary": {"total_count": 1, "kind_counts": {"unknown": 1}},
                 "accepted_differences": [
                     {

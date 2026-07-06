@@ -46,6 +46,7 @@ SEMANTIC_DIMENSIONS = [
     "land_readiness",
     "publish_readiness",
     "blocking_vs_advisory",
+    "external_false_negative",
 ]
 
 
@@ -65,6 +66,7 @@ def run_shadow_parity(
         external_json = external.get("json", {})
         embedded_json = embedded.get("json", {})
         diff = _semantic_diff(command, external_json, embedded_json)
+        false_negative_gaps = _false_negative_gaps(command, external_json, embedded_json)
         accepted_differences = _accepted_semantic_differences(
             command,
             external_json,
@@ -78,6 +80,8 @@ def run_shadow_parity(
                 required_gaps.append(str(gap))
         if _process_failed(embedded):
             required_gaps.append(f"embedded_command_failed:{' '.join(command)}")
+        if false_negative_gaps:
+            required_gaps.append(f"shadow_false_negative:{' '.join(command)}")
         if diff:
             required_gaps.append(f"shadow_diff:{' '.join(command)}")
         comparisons.append(
@@ -86,6 +90,7 @@ def run_shadow_parity(
                 "external": external,
                 "embedded": embedded,
                 "semantic_diff": diff,
+                "false_negative_gaps": false_negative_gaps,
                 "accepted_summary": _accepted_summary(accepted_differences),
                 "accepted_differences": accepted_differences,
             }
@@ -112,6 +117,9 @@ def run_shadow_parity(
                 1 for comparison in comparisons if comparison["accepted_differences"]
             )
         },
+        "false_negative_count": sum(
+            len(comparison["false_negative_gaps"]) for comparison in comparisons
+        ),
         "comparisons": comparisons,
         "execution_packages": [
             _execution_package(gap=gap, target=target, comparisons=comparisons)
@@ -498,6 +506,21 @@ def _semantic_diff(*args: Any) -> dict[str, Any]:
     return diff
 
 
+def _false_negative_gaps(
+    command: tuple[str, ...],
+    external: dict[str, Any],
+    embedded: dict[str, Any],
+) -> list[str]:
+    external_projection, embedded_projection, _accepted = _normalized_semantic_projections(
+        command,
+        external,
+        embedded,
+    )
+    external_required = set(_gap_list(external_projection.get("required_gaps")))
+    embedded_required = set(_gap_list(embedded_projection.get("required_gaps")))
+    return sorted(embedded_required - external_required)
+
+
 def _accepted_semantic_differences(*args: Any) -> list[dict[str, Any]]:
     command, external, embedded = _semantic_args(args)
     _external_projection, _embedded_projection, accepted = _normalized_semantic_projections(
@@ -545,7 +568,19 @@ def _normalized_semantic_projections(
     accepted: list[dict[str, Any]] = []
     embedded_gaps = _gap_list(embedded_projection.get("required_gaps"))
     external_gaps = _gap_list(external_projection.get("required_gaps"))
-    if not embedded_gaps:
+    if embedded_gaps:
+        missing_embedded_gaps = sorted(set(embedded_gaps) - set(external_gaps))
+        external_extra_gaps = sorted(set(external_gaps) - set(embedded_gaps))
+        if external_extra_gaps and not missing_embedded_gaps:
+            accepted.append(
+                _accepted_difference(
+                    "external_required_gap_superset",
+                    command=external_projection.get("command"),
+                    gaps=external_extra_gaps,
+                )
+            )
+            external_gaps = embedded_gaps
+    else:
         external_gaps, repository_audit_gaps = _without_product_repository_audit_gaps(
             external,
             external_gaps,
@@ -603,6 +638,9 @@ def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict
     elif kind == "report_parity_evidence_refresh_bootstrap":
         scope = "parity_evidence_refresh"
         reason = "report parity freshness is being refreshed by the current shadow run"
+    elif kind == "external_required_gap_superset":
+        scope = "external_required_gap_superset"
+        reason = "external product reports the embedded blocking gaps plus stricter required gaps"
     else:
         scope = "unknown"
         reason = "unclassified accepted difference"

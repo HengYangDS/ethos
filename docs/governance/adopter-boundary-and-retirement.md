@@ -66,6 +66,11 @@ external == embedded
 external stricter than embedded
 ```
 
+"Stricter" means the external product preserves every embedded blocking
+`required_gaps` item and may add additional blocking obligations. A missing
+embedded blocking gap is a shadow false negative even when external records an
+advisory signal for the same condition.
+
 Blocking outcomes:
 
 ```text

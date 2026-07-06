@@ -180,6 +180,7 @@ def build_tracked_parity_evidence(
             "accepted_summary": accepted_summary
             if isinstance(accepted_summary, dict)
             else {"total_count": 0, "kind_counts": {}, "command_count": 0},
+            "false_negative_count": int(shadow.get("false_negative_count") or 0),
         },
         "identity": _shadow_identity(
             shadow=shadow,
@@ -353,6 +354,7 @@ SHADOW_PARITY_DIMENSIONS = [
     "land_readiness",
     "publish_readiness",
     "blocking_vs_advisory",
+    "external_false_negative",
 ]
 
 

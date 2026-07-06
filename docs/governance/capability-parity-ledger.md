@@ -117,7 +117,10 @@ accepted classification boundary without treating it as remote publication.
 Tracked shadow evidence is closeout input only when its identity is fresh. The
 evidence record must bind the adopter id, target path, product HEAD, target
 HEAD, command digest, full command identity, command list, semantic dimensions,
-verified capabilities, capability basis, and shadow accepted-difference summary.
+verified capabilities, capability basis, shadow accepted-difference summary, and
+zero false-negative count. The `external_false_negative` semantic dimension is
+mandatory: external ETHOS may report a stricter required-gap superset, but it
+must not miss an embedded blocking gap or move it into advisory-only state.
 If any of the identity fields are missing, stale, target-mismatched, or produced
 by an old command shape, ETHOS reports a blocking `parity_evidence_refresh`
 package. The package names the adopter, product root, explicit target when

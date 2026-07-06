@@ -10,6 +10,7 @@
     "identity",
     "required_gaps",
     "accepted_summary",
+    "false_negative_count",
     "comparisons",
     "execution_packages"
   ],
@@ -37,6 +38,10 @@
     "accepted_summary": {
       "$ref": "#/$defs/acceptedSummaryWithCommands"
     },
+    "false_negative_count": {
+      "type": "integer",
+      "minimum": 0
+    },
     "comparisons": {
       "type": "array",
       "items": {
@@ -59,14 +64,16 @@
       "enum": [
         "external_product_repository_audit_gap",
         "changed_route_noop",
-        "report_parity_evidence_refresh_bootstrap"
+        "report_parity_evidence_refresh_bootstrap",
+        "external_required_gap_superset"
       ]
     },
     "acceptedScope": {
       "enum": [
         "external_product_repository_audit",
         "changed_scope_route",
-        "parity_evidence_refresh"
+        "parity_evidence_refresh",
+        "external_required_gap_superset"
       ]
     },
     "acceptedSummary": {
@@ -258,6 +265,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/acceptedDifference"
+          }
+        },
+        "false_negative_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       },

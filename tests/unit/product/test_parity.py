@@ -96,7 +96,9 @@ def _complete_parity_evidence(adopter: str) -> dict[str, object]:
             "required_gaps": [],
             "comparison_count": len(SHADOW_COMMANDS),
             "commands": SHADOW_COMMANDS,
+            "false_negative_count": 0,
         },
+        "semantic_dimensions": ["blocking_vs_advisory", "external_false_negative"],
         "verified_capabilities": MIGRATED_CAPABILITIES,
         "capability_basis": {
             capability: [f"{capability} shadow parity basis"]
@@ -255,7 +257,13 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
             "target": target.resolve().as_posix(),
             "required_gaps": [],
             "comparisons": SHADOW_COMMANDS,
-            "semantic_dimensions": ["branch role", "publish readiness"],
+            "semantic_dimensions": [
+                "branch role",
+                "publish readiness",
+                "blocking_vs_advisory",
+                "external_false_negative",
+            ],
+            "false_negative_count": 0,
             "accepted_summary": {
                 "total_count": 2,
                 "kind_counts": {
@@ -349,7 +357,8 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
             "target": target.resolve().as_posix(),
             "required_gaps": [],
             "comparisons": SHADOW_COMMANDS,
-            "semantic_dimensions": ["product command parity"],
+            "semantic_dimensions": ["product command parity", "external_false_negative"],
+            "false_negative_count": 0,
             "execution_packages": [],
         }
 
@@ -400,15 +409,94 @@ def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:
         "adopter_repository",
         "posture",
     )
-    findings: list[str] = []
-
-    for path in Path("evidence/parity").glob("*-shadow.json"):
-        text = path.read_text(encoding="utf-8").lower()
-        for term in retired_terms:
-            if term in text:
-                findings.append(f"{path}: {term}")
+    findings = [
+        f"{path}: {term}"
+        for path in Path("evidence/parity").glob("*-shadow.json")
+        for term in retired_terms
+        if term in path.read_text(encoding="utf-8").lower()
+    ]
 
     assert findings == []
+
+
+def test_shadow_semantic_diff_accepts_external_required_gap_superset() -> None:
+    external = {
+        "ok": False,
+        "command": "status",
+        "state": "blocked",
+        "required_gaps": ["embedded_gap", "external_stricter_gap"],
+    }
+    embedded = {
+        "ok": False,
+        "command": "status",
+        "state": "blocked",
+        "required_gaps": ["embedded_gap"],
+    }
+
+    assert shadow._semantic_diff(("status",), external, embedded) == {}
+    accepted = shadow._accepted_semantic_differences(("status",), external, embedded)
+
+    assert accepted == [
+        {
+            "kind": "external_required_gap_superset",
+            "classification": "accepted",
+            "scope": "external_required_gap_superset",
+            "commands": ["ethos status"],
+            "gaps": ["external_stricter_gap"],
+            "reason": "external product reports the embedded blocking gaps plus stricter required gaps",
+        }
+    ]
+
+
+def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
+    external = {
+        "ok": True,
+        "command": "status",
+        "state": "ready",
+        "required_gaps": [],
+    }
+    embedded = {
+        "ok": False,
+        "command": "status",
+        "state": "blocked",
+        "required_gaps": ["embedded_gap"],
+    }
+
+    diff = shadow._semantic_diff(("status",), external, embedded)
+
+    assert diff["required_gaps"] == {"external": [], "embedded": ["embedded_gap"]}
+    assert shadow._false_negative_gaps(("status",), external, embedded) == ["embedded_gap"]
+
+
+def test_parity_gaps_rejects_shadow_evidence_without_false_negative_gate(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    stale = _complete_parity_evidence("sample-adopter")
+    stale["shadow"].pop("false_negative_count")
+    stale["semantic_dimensions"] = ["blocking_vs_advisory"]
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(stale),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert "parity_evidence_invalid:sample-adopter:false_negative_count" in payload["required_gaps"]
+    assert (
+        "parity_evidence_invalid:sample-adopter:semantic_dimension:external_false_negative"
+        in payload["required_gaps"]
+    )
 
 
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
@@ -442,7 +530,12 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
     target.mkdir()
     evidence = _complete_parity_evidence("sample-adopter")
     _retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
-    evidence["semantic_dimensions"] = ["branch role", "publish readiness"]
+    evidence["semantic_dimensions"] = [
+        "branch role",
+        "publish readiness",
+        "blocking_vs_advisory",
+        "external_false_negative",
+    ]
     evidence_dir = tmp_path / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(

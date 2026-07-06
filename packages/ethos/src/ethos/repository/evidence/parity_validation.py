@@ -222,6 +222,11 @@ def _validate_parity_evidence(
         }
     )
     _validate_shadow(payload.get("shadow"), adopter=adopter, required_gaps=required_gaps)
+    _validate_semantic_dimensions(
+        payload.get("semantic_dimensions"),
+        adopter=adopter,
+        required_gaps=required_gaps,
+    )
     _validate_verified_capabilities(
         payload.get("verified_capabilities"),
         capability_basis=payload.get("capability_basis"),
@@ -250,6 +255,24 @@ def _validate_shadow(
         required_gaps.append(f"parity_evidence_invalid:{adopter}:comparison_count")
     if shadow.get("commands") != list(SHADOW_PARITY_COMMANDS):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:commands")
+    if shadow.get("false_negative_count") != 0:
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:false_negative_count")
+
+
+def _validate_semantic_dimensions(
+    dimensions: object,
+    *,
+    adopter: str,
+    required_gaps: list[str],
+) -> None:
+    if not isinstance(dimensions, list) or not all(isinstance(item, str) for item in dimensions):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:semantic_dimensions")
+        return
+    required = {"blocking_vs_advisory", "external_false_negative"}
+    missing = sorted(required - set(dimensions))
+    required_gaps.extend(
+        f"parity_evidence_invalid:{adopter}:semantic_dimension:{dimension}" for dimension in missing
+    )
 
 
 def _validate_verified_capabilities(

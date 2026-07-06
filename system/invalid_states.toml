@@ -143,6 +143,8 @@ match_prefixes = [
   "rule_attestation_",
   "parity_evidence_",
   "parity_pending",
+  "false_negative_gaps",
+  "shadow_false_negative",
   "stable_paths_invalid",
 ]
 
@@ -190,6 +192,7 @@ match_prefixes = [
   "hook_context_root_mismatch",
   "embedded_backend_missing",
   "external_product_repository_audit_gap",
+  "external_required_gap_superset",
   "projection_",
   "assistant_projection",
   "assistant_surface_projection_gap",

@@ -147,6 +147,7 @@ def _adopter_scores(
         "adopter_governance": int(bool(audit["ok"])),
         "schemas": int(bool(cast("dict[str, object]", audit["schemas"])["ok"])),
         "claims": int(bool(adopter["claims"])),
+        "evidence": int(bool(adopter["evidence"])),
         "docs": int(bool(adopter["docs"])),
         "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
         "context_projection": context_projection_score,

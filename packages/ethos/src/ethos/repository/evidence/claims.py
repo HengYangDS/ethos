@@ -5,6 +5,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.profile import profile_root
 from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 
@@ -89,6 +90,71 @@ def _has_repository_overclaim(text: str, verifier: str) -> bool:
     return any(phrase in lowered for phrase in REPOSITORY_OVERCLAIM_PHRASES)
 
 
+def _normalized_digest(value: object) -> str:
+    digest = str(value or "")
+    return digest.removeprefix("sha256:")
+
+
+def _change_claim_record(
+    *,
+    root: Path,
+    path: Path,
+    payload: dict[str, Any],
+    gaps: list[str],
+) -> tuple[str, dict[str, object]]:
+    claim_id = str(payload.get("id") or path.stem)
+    lifecycle = str(payload.get("lifecycle") or "")
+    refs = payload.get("evidence_refs")
+    requires_evidence = lifecycle in {"evidence_closed", "promoted", "closed", "accepted"}
+    if not isinstance(refs, list) or not refs:
+        if requires_evidence:
+            gaps.append(f"{claim_id}:evidence_refs_missing")
+        refs = []
+    artifacts: list[dict[str, object]] = []
+    for index, ref in enumerate(refs):
+        if not isinstance(ref, dict):
+            gaps.append(f"{claim_id}:evidence_ref_invalid:{index}")
+            continue
+        artifact = str(ref.get("artifact") or "")
+        expected_digest = _normalized_digest(ref.get("digest"))
+        if not artifact:
+            gaps.append(f"{claim_id}:evidence_ref_artifact_missing:{index}")
+            continue
+        evidence_path = root / artifact
+        actual_digest = ""
+        if not evidence_path.exists():
+            gaps.append(f"{claim_id}:evidence_file_missing:{artifact}")
+        else:
+            actual_digest = _sha256(evidence_path)
+            if expected_digest and expected_digest != actual_digest:
+                gaps.append(f"{claim_id}:evidence.sha256_mismatch:{artifact}")
+            elif not expected_digest:
+                gaps.append(f"{claim_id}:evidence.sha256_missing:{artifact}")
+        artifacts.append(
+            {
+                "artifact": artifact,
+                "sha256": expected_digest,
+                "actual_sha256": actual_digest,
+                "gate": str(ref.get("gate") or ""),
+                "head": str(ref.get("head") or ""),
+                "verdict": str(ref.get("verdict") or ""),
+            }
+        )
+    for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
+        if lifecycle == "active" and retired in claim_id:
+            gaps.append(f"{claim_id}:retired_product_family:{retired}")
+    return claim_id, {
+        "path": path.relative_to(root).as_posix(),
+        "evidence": artifacts[0]["artifact"] if artifacts else "",
+        "sha256": artifacts[0]["sha256"] if artifacts else "",
+        "actual_sha256": artifacts[0]["actual_sha256"] if artifacts else "",
+        "state": lifecycle,
+        "kind": str(payload.get("kind") or ""),
+        "evidence_refs": artifacts,
+        "trust_envelope": {},
+    }
+
+
 def _trust_envelope(
     *,
     root: Path,
@@ -157,15 +223,24 @@ def _trust_envelope(
 
 
 def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
-    claims_dir = root / "evidence" / "claims"
+    claims_dir = profile_root(root, "claims")
     gaps: list[str] = []
     advisory_gaps: list[str] = []
     claims: dict[str, dict[str, object]] = {}
-    claim_paths = sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []
+    claim_paths = sorted(claims_dir.rglob("*.toml")) if claims_dir.exists() else []
     if not claim_paths:
         gaps.append("claims_missing")
     for path in claim_paths:
         payload = _claim_payload(path)
+        if "claim" not in payload and ("id" in payload or "evidence_refs" in payload):
+            claim_id, record = _change_claim_record(
+                root=root,
+                path=path,
+                payload=payload,
+                gaps=gaps,
+            )
+            claims[claim_id] = record
+            continue
         claim = payload.get("claim", {})
         evidence = payload.get("evidence", {})
         claim_id = str(claim.get("id", path.stem))
@@ -262,5 +337,8 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
         "ok": not gaps,
         "required_gaps": gaps,
         "advisory_gaps": advisory_gaps,
+        "claims_root": claims_dir.relative_to(root.resolve()).as_posix()
+        if claims_dir.is_relative_to(root.resolve())
+        else str(claims_dir),
         "claims": claims,
     }

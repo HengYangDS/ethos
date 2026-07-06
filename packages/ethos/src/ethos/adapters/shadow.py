@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.profile import profile_evidence_roots
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -237,34 +239,7 @@ def _evidence_inputs(target: Path) -> list[dict[str, Any]]:
 
 
 def _evidence_root_candidates(target: Path) -> list[str]:
-    profile_path = target / ".ethos" / "profile.toml"
-    candidates = [
-        ".ethos/profile.toml",
-        "rules",
-        "claims",
-        "evidence/claims",
-        "openspec",
-        "docs/evidence",
-        "evidence",
-    ]
-    if profile_path.exists():
-        try:
-            profile = tomllib.loads(profile_path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError:
-            profile = {}
-        roots = profile.get("roots") if isinstance(profile, dict) else None
-        if isinstance(roots, dict):
-            for key in ("rules", "claims", "openspec", "durable_evidence", "docs"):
-                value = roots.get(key)
-                if isinstance(value, str) and value:
-                    candidates.append(value)
-        evidence = profile.get("evidence") if isinstance(profile, dict) else None
-        if isinstance(evidence, dict):
-            for key in ("durable_roots", "generated_roots", "host_local_roots"):
-                value = evidence.get(key)
-                if isinstance(value, list):
-                    candidates.extend(str(item) for item in value if str(item))
-    return sorted(dict.fromkeys(candidates))
+    return sorted(profile_evidence_roots(target))
 
 
 def _evidence_input(target: Path, relative: str) -> dict[str, Any] | None:

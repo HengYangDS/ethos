@@ -10,6 +10,10 @@ from ethos.assistants.playbook_utils import _command_capability_gaps
 from ethos.assistants.skill_packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skill_packages import validate_skill_markdown
 from ethos.assistants.skill_packages import validate_skill_package_manifest
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_relative_root
+from ethos.repository.profile import profile_root
+from ethos.repository.profile import table_version
 from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest
 
@@ -20,7 +24,7 @@ INTENT_TOKEN_OWNER_LIMIT = 2
 
 
 def _skills_root(root: Path) -> Path:
-    return root / ".agents" / "skills"
+    return profile_root(root, "agent_skills")
 
 
 def _activation_path(root: Path) -> Path:
@@ -42,54 +46,39 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
     selected_mode = _mode(mode)
     skills_root = _skills_root(root)
     payload, missing = _load_activation(root)
+    transition_adopter = _transition_adopter_activation(root, payload)
     registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
+    if transition_adopter:
+        registry = _transition_registry(
+            payload,
+            skills_root=profile_relative_root(root, "agent_skills"),
+        )
     registry["digest"] = skill_registry_digest(registry)
-    records = []
     required_gaps = list(missing)
     advisory_gaps: list[str] = []
-    v2_gaps: list[str] = []
-    package_reports: list[dict[str, Any]] = []
-    package_capabilities: list[dict[str, Any]] = []
     activation_version = int(registry.get("meta", {}).get("version") or 1)
-    if activation_version < PLAYBOOK_ACTIVATION_VERSION:
+    collected = _collect_playbook_records(
+        root,
+        registry=registry,
+        transition_adopter=transition_adopter,
+    )
+    records = collected["records"]
+    package_reports = collected["package_reports"]
+    package_capabilities = collected["package_capabilities"]
+    required_gaps.extend(collected["required_gaps"])
+    v2_gaps = list(collected["v2_gaps"])
+    if activation_version < PLAYBOOK_ACTIVATION_VERSION and not transition_adopter:
         v2_gaps.append(f"playbook_activation_unsupported_version:{activation_version}")
-    for record in registry["records"]:
-        playbook_record = _playbook_record(record)
-        records.append(playbook_record)
-        skill_id = playbook_record["id"]
-        if not skill_id:
-            required_gaps.append("skill_missing_id")
-            continue
-        path_gaps = _record_path_gaps(root, str(skill_id), str(playbook_record["path"]))
-        if path_gaps:
-            v2_gaps.extend(path_gaps)
-        elif not (root / str(playbook_record["path"])).exists():
-            required_gaps.append(f"skill_missing_file:{skill_id}")
-        v2_gaps.extend(_strict_record_gaps(record))
-        if not path_gaps:
-            quality = validate_skill_markdown(
-                root,
-                str(playbook_record["path"]),
-                str(skill_id),
-                DEFAULT_REQUIRED_SECTIONS,
-            )
-            v2_gaps.extend(str(gap) for gap in quality["required_gaps"])
-        manifest_path = _manifest_path(record)
-        package_report = validate_skill_package_manifest(root, manifest_path)
-        package_reports.append(package_report)
-        package_capabilities.extend(package_report["capabilities"])
-        v2_gaps.extend(str(gap) for gap in package_report["required_gaps"])
-        v2_gaps.extend(
-            _package_entrypoint_gaps(
-                root,
-                str(skill_id),
-                str(playbook_record["path"]),
-                package_report,
-            )
-        )
-        v2_gaps.extend(_command_capability_gaps(record, package_report))
-    portfolio_coverage = _portfolio_coverage(registry.get("coverage", {}), records)
-    portfolio_design = _portfolio_design(records, package_reports)
+    portfolio_coverage = (
+        _empty_portfolio_coverage()
+        if transition_adopter
+        else _portfolio_coverage(registry.get("coverage", {}), records)
+    )
+    portfolio_design = (
+        _empty_portfolio_design()
+        if transition_adopter
+        else _portfolio_design(records, package_reports)
+    )
     v2_gaps.extend(str(gap) for gap in cast("list[object]", portfolio_coverage["required_gaps"]))
     v2_gaps.extend(str(gap) for gap in cast("list[object]", portfolio_design["required_gaps"]))
     if skills_root.exists() and not (skills_root / "README.md").exists():
@@ -102,8 +91,10 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         "ok": not required_gaps,
         "schema_version": 2,
         "mode": selected_mode,
-        "skills_root": ".agents/skills",
-        "activation_path": ".agents/skills/activation.toml",
+        "skills_root": profile_relative_root(root, "agent_skills"),
+        "activation_path": (
+            Path(profile_relative_root(root, "agent_skills")) / "activation.toml"
+        ).as_posix(),
         "skills": [skill["id"] for skill in records],
         "records": records,
         "registry": registry,
@@ -123,6 +114,141 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         },
         "advisory_gaps": _dedupe(advisory_gaps),
         "required_gaps": _dedupe(required_gaps),
+    }
+
+
+def _collect_playbook_records(
+    root: Path,
+    *,
+    registry: dict[str, Any],
+    transition_adopter: bool,
+) -> dict[str, Any]:
+    records = []
+    required_gaps: list[str] = []
+    v2_gaps: list[str] = []
+    package_reports: list[dict[str, Any]] = []
+    package_capabilities: list[dict[str, Any]] = []
+    for record in registry["records"]:
+        playbook_record = _playbook_record(record)
+        records.append(playbook_record)
+        skill_id = playbook_record["id"]
+        if not skill_id:
+            required_gaps.append("skill_missing_id")
+            continue
+        path_gaps = _record_path_gaps(root, str(skill_id), str(playbook_record["path"]))
+        if path_gaps:
+            v2_gaps.extend(path_gaps)
+        elif not (root / str(playbook_record["path"])).exists():
+            required_gaps.append(f"skill_missing_file:{skill_id}")
+        if not transition_adopter:
+            v2_gaps.extend(_strict_record_gaps(record))
+        if not path_gaps and not transition_adopter:
+            quality = validate_skill_markdown(
+                root,
+                str(playbook_record["path"]),
+                str(skill_id),
+                DEFAULT_REQUIRED_SECTIONS,
+            )
+            v2_gaps.extend(str(gap) for gap in quality["required_gaps"])
+        manifest_path = _manifest_path(record)
+        package_report = (
+            _transition_package_report(str(skill_id), manifest_path)
+            if transition_adopter
+            else validate_skill_package_manifest(root, manifest_path)
+        )
+        package_reports.append(package_report)
+        package_capabilities.extend(package_report["capabilities"])
+        v2_gaps.extend(str(gap) for gap in package_report["required_gaps"])
+        v2_gaps.extend(
+            _package_entrypoint_gaps(
+                root,
+                str(skill_id),
+                str(playbook_record["path"]),
+                package_report,
+            )
+        )
+        if not transition_adopter:
+            v2_gaps.extend(_command_capability_gaps(record, package_report))
+    return {
+        "records": records,
+        "required_gaps": required_gaps,
+        "v2_gaps": v2_gaps,
+        "package_reports": package_reports,
+        "package_capabilities": package_capabilities,
+    }
+
+
+def _transition_adopter_activation(root: Path, payload: dict[str, Any]) -> bool:
+    profile = load_repository_profile(root)
+    return profile.exists and table_version(payload) < PLAYBOOK_ACTIVATION_VERSION
+
+
+def _transition_registry(payload: dict[str, Any], *, skills_root: str) -> dict[str, Any]:
+    records = []
+    for item in payload.get("skill", []):
+        if not isinstance(item, dict):
+            continue
+        skill_id = str(item.get("id") or item.get("name") or "")
+        path = str(item.get("path") or (Path(skills_root) / skill_id / "SKILL.md").as_posix())
+        subjects = [str(item) for item in item.get("subjects", []) if str(item)]
+        if not subjects:
+            subjects = ["changed-scope", skill_id]
+        records.append(
+            {
+                "id": skill_id,
+                "path": path,
+                "route_subjects": subjects,
+                "activation": {"path_globs": list(item.get("path_globs", []))},
+                "routing": {"intent_tokens": list(item.get("intent_tokens", []))},
+                "obligations": {
+                    "pre_reads": list(item.get("pre_reads", [])),
+                    "post_checks": list(item.get("post_checks", [])),
+                },
+                "relations": {"may_coactivate": list(item.get("may_coactivate", []))},
+                "commands": list(item.get("commands", [])),
+                "boundary": "adopter-transition-projection",
+                "primary_subject": subjects[0],
+                "operation": "route",
+                "authority": "adopter",
+                "lifecycle": "active",
+                "package_manifest": "",
+            }
+        )
+    return {
+        "meta": dict(payload.get("meta", {})),
+        "records": records,
+        "coverage": {},
+    }
+
+
+def _transition_package_report(skill_id: str, manifest_path: str) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "id": skill_id,
+        "manifest": manifest_path,
+        "entrypoint": "",
+        "files": [],
+        "capabilities": [],
+        "required_gaps": [],
+    }
+
+
+def _empty_portfolio_coverage() -> dict[str, object]:
+    return {
+        "ok": True,
+        "contract": {"required_primary_subjects": [], "single_owner_subjects": []},
+        "owners": {},
+        "required_gaps": [],
+    }
+
+
+def _empty_portfolio_design() -> dict[str, object]:
+    return {
+        "ok": True,
+        "command_owner_count": {},
+        "path_glob_owner_count": {},
+        "intent_token_owner_count": {},
+        "required_gaps": [],
     }
 
 

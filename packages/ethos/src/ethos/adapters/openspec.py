@@ -10,6 +10,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from ethos.repository.profile import profile_root
+
 OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec"
 REQUIRED_PROPOSAL_METADATA = (
     "subject",
@@ -604,9 +606,9 @@ def _openspec_governance_report(
 
 
 def _active_claim_openspec_carriers(root: Path) -> set[str]:
-    claims_dir = root / "evidence" / "claims"
+    claims_dir = profile_root(root, "claims")
     carriers: set[str] = set()
-    for path in sorted(claims_dir.glob("*.toml")) if claims_dir.exists() else []:
+    for path in sorted(claims_dir.rglob("*.toml")) if claims_dir.exists() else []:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
         claim = payload.get("claim", {})
         if claim.get("state") != "active":

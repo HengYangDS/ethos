@@ -78,6 +78,59 @@ def test_empty_claims_directory_is_a_gap(tmp_path: Path) -> None:
     assert "claims_missing" in report["required_gaps"]
 
 
+def test_profile_claims_root_accepts_recursive_change_claims(tmp_path: Path) -> None:
+    evidence = tmp_path / "docs" / "evidence"
+    claims = tmp_path / "claims" / "changes"
+    profile = tmp_path / ".ethos" / "profile.toml"
+    evidence.mkdir(parents=True)
+    claims.mkdir(parents=True)
+    profile.parent.mkdir()
+    evidence_file = evidence / "sample.md"
+    evidence_file.write_text("sample\n", encoding="utf-8")
+    profile.write_text(
+        'schema_version = 1\n[roots]\nclaims = "claims"\ndurable_evidence = "docs/evidence"',
+        encoding="utf-8",
+    )
+    (claims / "sample.toml").write_text(
+        "\n".join(
+            [
+                'id = "sample-change"',
+                'kind = "change"',
+                'lifecycle = "evidence_closed"',
+                "",
+                "[[evidence_refs]]",
+                'artifact = "docs/evidence/sample.md"',
+                f'digest = "sha256:{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
+                'verdict = "pass"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = claims_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["claims_root"] == "claims"
+    assert "sample-change" in report["claims"]
+
+
+def test_active_change_claim_without_evidence_refs_is_not_closed_claim_gap(tmp_path: Path) -> None:
+    claims = tmp_path / "claims" / "changes"
+    profile = tmp_path / ".ethos" / "profile.toml"
+    claims.mkdir(parents=True)
+    profile.parent.mkdir()
+    profile.write_text('schema_version = 1\n[roots]\nclaims = "claims"\n', encoding="utf-8")
+    (claims / "active.toml").write_text(
+        'id = "active-change"\nkind = "change"\nlifecycle = "active"\n',
+        encoding="utf-8",
+    )
+
+    report = claims_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["claims"]["active-change"]["state"] == "active"
+
+
 def test_active_claims_reject_retired_product_family_subjects(tmp_path: Path) -> None:
     claims = tmp_path / "evidence" / "claims"
     evidence = tmp_path / "evidence"

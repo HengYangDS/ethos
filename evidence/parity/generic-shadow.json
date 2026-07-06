@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "c439257fe2ccded14ebaa3b514e8bfe0933ece5b",
-    "target_head": "c439257fe2ccded14ebaa3b514e8bfe0933ece5b",
-    "product_semantic_sha256": "bb8e6780121fbe0ddebcd23532f182a3addb9ddebdaff9d42782b526e108d299",
-    "target_semantic_sha256": "bb8e6780121fbe0ddebcd23532f182a3addb9ddebdaff9d42782b526e108d299",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
+    "target_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
+    "product_semantic_sha256": "ea97865dd2b37b3e62ca2d9d53bcba3d8d1ecff810d6dbf07539f7f7cde06fe0",
+    "target_semantic_sha256": "ea97865dd2b37b3e62ca2d9d53bcba3d8d1ecff810d6dbf07539f7f7cde06fe0",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paLF",
-    "target_head": "c439257fe2ccded14ebaa3b514e8bfe0933ece5b",
-    "product_head": "c439257fe2ccded14ebaa3b514e8bfe0933ece5b",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding",
+    "target_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
+    "product_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paLF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paLF --json"
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -74,9 +74,14 @@
     ],
     "evidence_inputs": [
       {
+        "path": "docs",
+        "kind": "directory",
+        "sha256": "c028328fe21f4e05895a6c5caf8223c5944af6a12495a5fe7bca3c0e291f5cfa"
+      },
+      {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "047c21ad1d4bd81122fa2baa4223bebd3284baf202398f69a87e8a6c3f76c8d4"
+        "sha256": "1d3e3f857a37559dab17834bd62b165a9ec1a13c4d2dbbe913bc88d3493a1759"
       },
       {
         "path": "evidence/claims",

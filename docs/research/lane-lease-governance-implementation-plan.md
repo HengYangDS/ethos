@@ -92,9 +92,11 @@ Acceptance:
 - status or planning output names which stage is blocked: authoring,
   integration, or accepted closeout.
 
-## Slice 1: authority read model
+## Slice 1: discoverable authority read model
 
-Goal: make legal action visible before adding stricter enforcement.
+Goal: make legal action visible before adding stricter enforcement. This is not
+cosmetic polish; discoverability is the first safety and productivity primitive
+for both humans and agents.
 
 Candidate files after scope review:
 
@@ -102,6 +104,7 @@ Candidate files after scope review:
 - workspace status schema
 - lane status tests
 - CLI contract tests
+- command help / rendering tests where available
 
 Required behavior:
 
@@ -109,20 +112,28 @@ Required behavior:
 - status reports `allowed_actions` and `forbidden_actions`;
 - status separately reports `authoring_allowed`, `integration_allowed`, and
   `accepted_closeout_allowed`;
-- foreign lanes render observe-only authority;
+- status reports `recommended_next_command` and bounded `next_commands`;
+- status reports blocker stage, blocker owner, and whether the blocker is
+  authoring, candidate integration, or accepted closeout;
+- foreign lanes render observe-only authority with disjoint/overlap state;
 - stale or unknown ownership reports next legal commands;
-- root/editor-root ambiguity is visible in JSON.
+- root/editor-root ambiguity is visible in JSON and human output;
+- command help, error text, JSON keys, and docs use the same nouns.
 
 Tests:
 
 - accepted root shows observe-only for normal mutation;
 - owned lane shows write/prewrite/land capability;
 - foreign lane shows read/diff/note/request-handoff only;
-- stale lease does not imply delete/retire permission.
+- stale lease does not imply delete/retire permission;
+- human rendering includes role, capability, stage gate, and next command;
+- JSON contract is stable enough for Codex/Claude/MCP adapters.
 
-Expert review question:
+Expert review questions:
 
 > Does the read model tell an agent what it may do without reading prose docs?
+> Could a human contributor recover from the same output without knowing ETHOS
+> internals?
 
 ## Slice 2: lease epoch and fencing
 
@@ -255,19 +266,21 @@ Expert review question:
 
 > Are hooks a fallback guard rather than the primary UX?
 
-## Slice 6: projection and UX polish
+## Slice 6: projection and DX polish
 
-Only after command JSON is correct:
+Only after command JSON and human rendering are correct:
 
-- concise human `ethos lanes` view;
+- concise human `ethos lanes` view if it reuses the Slice 1 read model;
 - IDE badge projection;
+- shell-completion or command-suggestion affordances if they reuse command
+  metadata;
 - optional local dashboard;
 - MCP resource projection if useful.
 
 Projection rule:
 
 > Projection may display and initiate ETHOS commands, but may not own lifecycle
-> truth.
+> truth. Projection improves discoverability; it does not define authority.
 
 ## Verification ladder
 

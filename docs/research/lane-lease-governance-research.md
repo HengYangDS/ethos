@@ -502,7 +502,7 @@ In compact form: many Work Lanes may generate; candidate/dev selects and
 integrates; accepted root records what has become law. 多 lane 并生，
 candidate 取势，accepted 成法。
 
-### Layer 1: observation before enforcement
+### Layer 1: discoverability before enforcement
 
 Implement or refine read models before adding new hard blocks. A correct status
 surface should answer four questions for both humans and agents:
@@ -512,9 +512,31 @@ surface should answer four questions for both humans and agents:
 3. Which foreign lanes, stale leases, unknown scopes, or overlaps affect me?
 4. What is the next legal command?
 
+The deeper requirement is discoverability: the system must make the legal path
+visible at the moment of intent, not after a failed mutation. A human should be
+able to glance at the command output and understand the situation. An agent
+should be able to parse the same truth without reading prose or inferring from
+Git internals.
+
 The minimum useful output is not a dashboard; it is stable JSON plus a concise
-human rendering. If the JSON is correct, IDE badges and dashboards can remain
-projections.
+human rendering. If the JSON is correct, IDE badges, MCP resources, terminal
+prompts, and dashboards can remain projections. Projection may improve UX and
+DX, but must not become lifecycle truth.
+
+Required UX/DX properties:
+
+- **Progressive disclosure:** default output shows role, stage gates, blockers,
+  and next command; `--json` exposes full machine-readable detail.
+- **Stage-aware next actions:** failures say whether authoring, candidate
+  integration, or accepted closeout is blocked.
+- **Copy-pasteable remedies:** every blocked state should include the exact next
+  ETHOS command when one exists.
+- **Agent affordances:** JSON fields use stable names, bounded enums, absolute
+  roots, relative changed paths, and explicit capabilities.
+- **Human affordances:** concise language distinguishes observe-only, write,
+  land, adopt, retire, and closeout without requiring internal terminology.
+- **DX locality:** command help, error text, and status output converge on the
+  same nouns so contributors do not need to memorize hidden workflow rules.
 
 ### Layer 2: lease and fencing
 
@@ -563,23 +585,29 @@ unowned, unobservable, unprovable, or irreversible.
 
 ## Minimal implementation slices
 
-### Slice A: status and UX read model
+### Slice A: discoverable status and UX/DX read model
 
-Goal: make current authority visible.
+Goal: make current authority and next legal action visible before mutation.
 
 Candidate changes:
 
 - extend `ethos lane status --json` with `actor_role`, `allowed_actions`,
-  `forbidden_actions`, and `next_commands`;
-- ensure root/editor-root ambiguity is explicit;
-- make foreign lanes show observe-only authority;
+  `forbidden_actions`, `next_commands`, `authoring_allowed`,
+  `integration_allowed`, and `accepted_closeout_allowed`;
+- add a concise human rendering that names the current lane/root, capability,
+  stage blockers, foreign lanes, and one recommended next command;
+- ensure root/editor-root ambiguity is explicit and shown with absolute paths;
+- make foreign lanes show observe-only authority and disjoint/overlap status;
+- align `--help`, blocked-state messages, and JSON field names around the same
+  vocabulary;
 - keep all output derived from current repo state and lease state.
 
 Acceptance evidence:
 
 - unit tests for accepted root, owned lane, foreign lane, stale lease, and
   protected root;
-- golden JSON checks for next commands;
+- golden JSON checks for next commands and stage gates;
+- CLI snapshot or contract tests for the human rendering;
 - no new runtime dependency.
 
 ### Slice B: lease epoch and adoption

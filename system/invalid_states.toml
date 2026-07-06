@@ -72,6 +72,8 @@ match_prefixes = [
   "required_doc",
   "playbook",
   "skill_",
+  "command_missing",
+  "guard_missing",
   "context_eval_suite_missing",
 ]
 
@@ -127,6 +129,7 @@ match_prefixes = [
   "executed_proof_missing",
   "trust_bearing_proof_missing",
   "proof_not_proven",
+  "proof_invalid",
   "push_to_protected_role_not_proven",
   "expect_head_mismatch",
   "expected_head_mismatch",

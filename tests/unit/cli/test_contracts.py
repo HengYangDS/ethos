@@ -2078,8 +2078,14 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]
     assert packages["parity"]["blocking"] is False
     assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
-    if payload["state"] == "gapped":
+    if payload["data"]["parity"]["required_gaps"]:
         assert "parity_evidence_invalid:alphasim-dmgr" in payload["data"]["parity"]["required_gaps"]
+    if payload["state"] == "gapped" and not payload["data"]["parity"]["required_gaps"]:
+        assert any(
+            package.get("required_gaps")
+            for package in packages.values()
+            if isinstance(package, dict)
+        )
     assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
     assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
     assert packages["shadow_parity"]["evidence_path"] == (

@@ -168,6 +168,34 @@ def test_shadow_status_projection_accepts_embedded_top_level_fields() -> None:
     assert shadow._semantic_diff(("status",), external, embedded) == {}
 
 
+@pytest.mark.parametrize(
+    ("external_role", "embedded_role"),
+    [
+        ("candidate", "integration_candidate"),
+        ("work_lane", "isolated_lane"),
+    ],
+)
+def test_shadow_status_projection_normalizes_legacy_role_aliases(
+    external_role: str,
+    embedded_role: str,
+) -> None:
+    external = {
+        "ok": True,
+        "command": "status",
+        "state": "ready",
+        "required_gaps": [],
+        "summary": {"role": external_role, "dirty": False},
+    }
+    embedded = {
+        "ok": True,
+        "command": "status",
+        "required_gaps": [],
+        "summary": {"role": embedded_role, "dirty": False},
+    }
+
+    assert shadow._semantic_diff(("status",), external, embedded) == {}
+
+
 def test_shadow_report_projection_normalizes_missing_blocking_gap_count() -> None:
     external = {"ok": True, "command": "report", "state": "ready", "required_gaps": []}
     embedded = {

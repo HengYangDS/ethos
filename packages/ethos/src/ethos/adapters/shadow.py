@@ -45,6 +45,11 @@ SEMANTIC_DIMENSIONS = [
     "external_false_negative",
 ]
 
+STATUS_ROLE_ALIASES = {
+    "integration_candidate": "candidate",
+    "isolated_lane": "work_lane",
+}
+
 
 def run_shadow_parity(
     target: Path,
@@ -666,9 +671,10 @@ def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> d
         )
         if dirty is None and state == "ready":
             dirty = False
+        role = payload.get("role") or summary.get("role") or data.get("role")
         projection.update(
             {
-                "role": payload.get("role") or summary.get("role") or data.get("role"),
+                "role": _canonical_status_role(role),
                 "dirty": dirty,
                 "changed_path_count": len(changed_paths),
             }
@@ -932,6 +938,12 @@ def _report_parity_evidence_refresh_bootstrap_gaps(
 
 def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def _canonical_status_role(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    return STATUS_ROLE_ALIASES.get(value, value)
 
 
 def _first_list(*values: Any) -> list[Any]:

@@ -138,6 +138,14 @@ profile = "minimal"
 planned = true
 
 [[tool]]
+concern = "local_ci_fallback"
+tool = "ETHOS local-ci owner gate bundle"
+config = ".config/ci/scripts/run-local-ci.sh"
+artifacts = "build/evidence/quality/tests/"
+profile = "minimal"
+gate = ".config/ci/scripts/run-local-ci.sh"
+
+[[tool]]
 concern = "shell"
 tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"

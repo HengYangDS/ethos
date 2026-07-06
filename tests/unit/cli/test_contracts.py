@@ -2045,11 +2045,16 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert payload["summary"]["parity_pending_count"] == len(
         payload["data"]["parity"]["pending_packages"]
     )
-    assert payload["data"]["remote_publication"] == {
-        "remote_push": "not_performed",
-        "state": "deferred",
-        "reason": "remote publication adapter unavailable",
+    remote_publication = payload["data"]["remote_publication"]
+    assert remote_publication["remote_push"] == "not_performed"
+    assert remote_publication["state"] == "deferred"
+    assert remote_publication["reason"] in {
+        "remote publication adapter unavailable",
+        "remote unavailable; use local-ci fallback evidence",
     }
+    assert remote_publication["availability"]["blocking"] is False
+    assert remote_publication["fallback"]["kind"] == "local_ci_fallback"
+    assert remote_publication["fallback"]["hosted_ci_status_claimed"] is False
 
     packages = payload["data"]["packages"]
     assert set(packages) == {

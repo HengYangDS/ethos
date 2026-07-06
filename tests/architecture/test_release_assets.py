@@ -90,6 +90,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
     assert (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").exists()
+    assert (ROOT / ".config/ci/scripts/run-local-ci.sh").exists()
+    assert 'concern = "local_ci_fallback"' in tools
+    assert 'gate = ".config/ci/scripts/run-local-ci.sh"' in tools
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
     assert 'tool = "ethos-docstrings-google"' in tools
     assert 'concern = "python_docstrings"' in tools

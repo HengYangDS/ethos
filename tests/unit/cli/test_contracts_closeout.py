@@ -791,19 +791,22 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
 
     assert publish_payload["ok"] is True
     assert publish_payload["data"]["publication"]["submit_branch"] == "review/configured"
-    assert publish_payload["data"]["publication"]["local_submit_package"] == {
-        "kind": "submit_branch_plan",
-        "source_branch": "lane/configured",
-        "submit_branch": "review/configured",
-        "remote_push": "not_performed",
-        "remote_state": "deferred",
-        "blocking": False,
-        "required_steps": [
-            "land work lane to candidate role",
-            "fast-forward accepted root from candidate role",
-            "create configured submit branch when remote publication is available",
-        ],
-    }
+    local_submit = publish_payload["data"]["publication"]["local_submit_package"]
+    assert local_submit["kind"] == "submit_branch_plan"
+    assert local_submit["source_branch"] == "lane/configured"
+    assert local_submit["submit_branch"] == "review/configured"
+    assert local_submit["remote_push"] == "not_performed"
+    assert local_submit["remote_state"] == "deferred"
+    assert local_submit["blocking"] is False
+    assert local_submit["remote_availability"]["blocking"] is False
+    assert local_submit["local_ci_fallback"]["kind"] == "local_ci_fallback"
+    assert local_submit["local_ci_fallback"]["hosted_ci_status_claimed"] is False
+    assert local_submit["required_steps"] == [
+        "land work lane to candidate role",
+        "fast-forward accepted root from candidate role",
+        "run local-ci fallback when remote publication is unavailable",
+        "create configured submit branch when remote publication is available",
+    ]
 
     land_payload = run_ethos(
         "land",
@@ -899,27 +902,31 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     submit_branch = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
 
     assert payload["data"]["remote_push"] == "not_performed"
-    assert payload["data"]["publication"] == {
-        "mode": "local_readiness",
-        "remote_push": "not_performed",
-        "remote_state": "deferred",
-        "submit_branch": submit_branch,
-        "local_submit_package": {
-            "kind": "submit_branch_plan",
-            "source_branch": branch,
-            "submit_branch": submit_branch,
-            "remote_push": "not_performed",
-            "remote_state": "deferred",
-            "blocking": False,
-            "required_steps": [
-                "land work lane to candidate role",
-                "fast-forward accepted root from candidate role",
-                "create configured submit branch when remote publication is available",
-            ],
-        },
-        "required_gaps": [],
-        "next_actions": ["create configured submit branch when remote publication is available"],
-    }
+    assert payload["data"]["remote_availability"]["blocking"] is False
+    assert (
+        payload["data"]["local_ci_fallback"] == payload["data"]["publication"]["fallback_evidence"]
+    )
+    assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
+    assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
+
+    publication = payload["data"]["publication"]
+    assert publication["mode"] == "local_readiness"
+    assert publication["remote_push"] == "not_performed"
+    assert publication["submit_branch"] == submit_branch
+    assert publication["required_gaps"] == (
+        [] if payload["ok"] else ["local_publish_readiness_blocked"]
+    )
+    assert publication["local_submit_package"]["kind"] == "submit_branch_plan"
+    assert publication["local_submit_package"]["source_branch"] == branch
+    assert publication["local_submit_package"]["submit_branch"] == submit_branch
+    assert (
+        publication["local_submit_package"]["local_ci_fallback"]["evidence_class"]
+        == "local_fallback"
+    )
+    assert (
+        "run local-ci fallback when remote publication is unavailable"
+        in publication["local_submit_package"]["required_steps"]
+    )
 
 
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:

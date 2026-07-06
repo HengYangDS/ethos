@@ -26,12 +26,60 @@ def command_is_executed_proof(command: object) -> bool:
     return "prove" in text and "--execute" in text
 
 
-def remote_publication_deferred() -> dict[str, object]:
-    """Describe the deferred remote-publication state (no remote adapter yet)."""
+def remote_publication_deferred(
+    remote_availability: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Describe the deferred remote-publication state (no remote adapter success)."""
+    availability = remote_availability or {
+        "kind": "git_remote_availability",
+        "remote": "origin",
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+    state = str(availability.get("state") or "not_probed")
+    reason = (
+        "remote unavailable; use local-ci fallback evidence"
+        if state in {"unavailable", "unconfigured"}
+        else "remote publication adapter unavailable"
+    )
     return {
         "remote_push": "not_performed",
         "state": "deferred",
-        "reason": "remote publication adapter unavailable",
+        "reason": reason,
+        "availability": availability,
+        "fallback": local_ci_fallback_package(remote_availability=availability),
+    }
+
+
+def local_ci_fallback_package(
+    remote_availability: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Describe local CI fallback evidence without claiming hosted CI success."""
+    availability = remote_availability or {
+        "kind": "git_remote_availability",
+        "remote": "origin",
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+    }
+    return {
+        "kind": "local_ci_fallback",
+        "evidence_class": "local_fallback",
+        "boundary": "local-ci evidence; hosted CI status unclaimed",
+        "hosted_ci_status_claimed": False,
+        "remote_availability_state": str(availability.get("state") or "not_probed"),
+        "command": ".config/ci/scripts/run-local-ci.sh",
+        "owner_scripts": [
+            ".config/ci/scripts/run-python-lint.sh",
+            ".config/ci/scripts/run-config-lint.sh",
+            ".config/ci/scripts/run-shell-lint.sh",
+            ".config/ci/scripts/run-docstring-coverage.sh",
+            ".config/ci/scripts/run-repository-hygiene.sh",
+            ".config/ci/scripts/run-python-tests.sh",
+        ],
     }
 
 
@@ -92,7 +140,12 @@ def repository_audit_after_admission(repo: Path, decision: MutationDecision) -> 
     return audit_for_root(repo, openspec_mode="shape")
 
 
-def local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object]:
+def local_submit_package(
+    *,
+    branch: str,
+    submit_branch: str,
+    remote_availability: dict[str, object] | None = None,
+) -> dict[str, object]:
     """Plan the local submit-branch package (remote push deferred)."""
     return {
         "kind": "submit_branch_plan",
@@ -101,9 +154,14 @@ def local_submit_package(*, branch: str, submit_branch: str) -> dict[str, object
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "blocking": False,
+        "remote_availability": remote_availability or {"state": "not_probed", "available": False},
+        "local_ci_fallback": local_ci_fallback_package(
+            remote_availability=remote_availability,
+        ),
         "required_steps": [
             "land work lane to candidate role",
             "fast-forward accepted root from candidate role",
+            "run local-ci fallback when remote publication is unavailable",
             "create configured submit branch when remote publication is available",
         ],
     }
@@ -149,24 +207,39 @@ def publication_readiness(
     branch: str,
     local_ok: bool,
     policy: BranchRolePolicy,
+    remote_availability: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Assemble the local publication-readiness package (remote push deferred)."""
+    """Assemble publication readiness with remote probe and local-ci fallback."""
     submit_branch = policy.submit_branch_for_source(branch)
+    availability = remote_availability or {
+        "kind": "git_remote_availability",
+        "remote": "origin",
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+    remote_available = availability.get("available") is True
+    next_actions = ["resolve local publish readiness gaps"]
+    if local_ok and remote_available:
+        next_actions = ["create configured submit branch when remote publication is available"]
+    elif local_ok:
+        next_actions = ["run .config/ci/scripts/run-local-ci.sh as local fallback evidence"]
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
-        "remote_state": "deferred",
+        "remote_state": "available" if remote_available else "deferred",
+        "remote_availability": availability,
+        "fallback_evidence": local_ci_fallback_package(remote_availability=availability),
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(
             branch=branch,
             submit_branch=submit_branch,
+            remote_availability=availability,
         ),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
-        "next_actions": (
-            ["create configured submit branch when remote publication is available"]
-            if local_ok
-            else ["resolve local publish readiness gaps"]
-        ),
+        "next_actions": next_actions,
     }
 
 

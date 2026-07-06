@@ -20,6 +20,7 @@ from ethos.domain.land_support import closeout_next_actions
 from ethos.domain.land_support import command_is_executed_proof
 from ethos.domain.land_support import intake_projection_report
 from ethos.domain.land_support import land_next_actions
+from ethos.domain.land_support import local_ci_fallback_package
 from ethos.domain.land_support import local_submit_package
 from ethos.domain.land_support import publication_readiness
 from ethos.domain.land_support import remote_publication_deferred
@@ -37,6 +38,7 @@ __all__ = (
     "command_is_executed_proof",
     "intake_projection_report",
     "land_next_actions",
+    "local_ci_fallback_package",
     "local_submit_package",
     "publication_readiness",
     "remote_publication_deferred",

@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from ethos.adapters.admission import core as admission
+from ethos.adapters.repo import git as gitio
 from ethos.domain import land
 from ethos.domain import land_support
 from ethos.repository.adoption import evolution
@@ -291,3 +292,71 @@ def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
     gaps = policy_rules.rules_check_report(tmp_path)["required_gaps"]
     assert "duplicate_rule_id:r1" in gaps
     assert "unknown_rule_gate:r1:missing-gate" in gaps
+
+
+def test_remote_availability_and_local_ci_fallback_edges(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(args, **_kwargs):
+        calls.append(tuple(args))
+        if args[:3] == ["git", "remote", "get-url"]:
+            return cp(stdout="https://example.invalid/repo.git\n")
+        if args[:3] == ["git", "ls-remote", "--exit-code"]:
+            return cp(stderr="network down", returncode=128)
+        return cp(returncode=1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    availability = gitio.remote_availability(tmp_path)
+
+    assert availability["state"] == "unavailable"
+    assert availability["available"] is False
+    assert availability["blocking"] is False
+    assert availability["required_gaps"] == []
+    assert availability["advisory_gaps"] == ["remote_unavailable:origin"]
+    assert ("git", "ls-remote", "--exit-code", "origin") in calls
+
+    deferred = land.remote_publication_deferred(availability)
+    assert deferred["state"] == "deferred"
+    assert deferred["fallback"]["kind"] == "local_ci_fallback"
+    assert deferred["fallback"]["hosted_ci_status_claimed"] is False
+
+    package = land.publication_readiness(
+        branch="work/x",
+        local_ok=True,
+        policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
+        remote_availability=availability,
+    )
+    assert package["remote_state"] == "deferred"
+    assert package["fallback_evidence"]["evidence_class"] == "local_fallback"
+    assert package["fallback_evidence"]["command"] == ".config/ci/scripts/run-local-ci.sh"
+    assert package["required_gaps"] == []
+    assert package["next_actions"] == [
+        "run .config/ci/scripts/run-local-ci.sh as local fallback evidence"
+    ]
+
+
+def test_remote_availability_reports_configured_remote_available(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fake_run(args, **_kwargs):
+        if args[:3] == ["git", "remote", "get-url"]:
+            return cp(stdout="git@example.invalid:repo.git\n")
+        if args[:3] == ["git", "ls-remote", "--exit-code"]:
+            return cp(stdout="abc\tHEAD\n")
+        return cp(returncode=1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    availability = gitio.remote_availability(tmp_path)
+
+    assert availability["state"] == "available"
+    assert availability["available"] is True
+    package = land.publication_readiness(
+        branch="work/x",
+        local_ok=True,
+        policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
+        remote_availability=availability,
+    )
+    assert package["remote_state"] == "available"
+    assert package["next_actions"] == [
+        "create configured submit branch when remote publication is available"
+    ]

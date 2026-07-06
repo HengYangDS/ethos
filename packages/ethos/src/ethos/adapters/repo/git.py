@@ -138,3 +138,66 @@ def commits_equivalent_over_paths(
     span = git_stdout(root, "rev-list", f"{boundary}..{head}")
     commits = [line for line in span.splitlines() if line]
     return tuple(dict.fromkeys([head, *commits, boundary]))
+
+
+def remote_availability(
+    root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
+) -> dict[str, object]:
+    """Probe whether a configured Git remote is reachable without mutating state."""
+    url = git_stdout(root, "remote", "get-url", remote)
+    if not url:
+        return {
+            "kind": "git_remote_availability",
+            "remote": remote,
+            "state": "unconfigured",
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_unconfigured:{remote}"],
+        }
+    try:
+        completed = subprocess.run(
+            ["git", "ls-remote", "--exit-code", remote],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "kind": "git_remote_availability",
+            "remote": remote,
+            "url": url,
+            "state": "unavailable",
+            "available": False,
+            "blocking": False,
+            "reason": "timeout",
+            "stderr": str(exc),
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_unavailable:{remote}"],
+        }
+    if completed.returncode == 0:
+        return {
+            "kind": "git_remote_availability",
+            "remote": remote,
+            "url": url,
+            "state": "available",
+            "available": True,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [],
+        }
+    return {
+        "kind": "git_remote_availability",
+        "remote": remote,
+        "url": url,
+        "state": "unavailable",
+        "available": False,
+        "blocking": False,
+        "reason": "ls_remote_failed",
+        "exit_code": completed.returncode,
+        "stderr": completed.stderr.strip(),
+        "required_gaps": [],
+        "advisory_gaps": [f"remote_unavailable:{remote}"],
+    }

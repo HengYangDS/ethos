@@ -10,10 +10,37 @@ from ethos.repository.policy.schema_sample_shared import _trust_closeout_contrac
 
 
 def _campaign_closeout_contract_sample() -> dict[str, Any]:
+    remote_availability = {
+        "kind": "git_remote_availability",
+        "remote": "origin",
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+    local_ci_fallback = {
+        "kind": "local_ci_fallback",
+        "evidence_class": "local_fallback",
+        "boundary": "local-ci evidence; hosted CI status unclaimed",
+        "hosted_ci_status_claimed": False,
+        "remote_availability_state": "not_probed",
+        "command": ".config/ci/scripts/run-local-ci.sh",
+        "owner_scripts": [
+            ".config/ci/scripts/run-python-lint.sh",
+            ".config/ci/scripts/run-config-lint.sh",
+            ".config/ci/scripts/run-shell-lint.sh",
+            ".config/ci/scripts/run-docstring-coverage.sh",
+            ".config/ci/scripts/run-repository-hygiene.sh",
+            ".config/ci/scripts/run-python-tests.sh",
+        ],
+    }
     publication = {
         "mode": "local_readiness",
         "remote_push": "not_performed",
         "remote_state": "deferred",
+        "remote_availability": remote_availability,
+        "fallback_evidence": local_ci_fallback,
         "submit_branch": "review/example",
         "local_submit_package": {
             "kind": "submit_branch_plan",
@@ -22,14 +49,17 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
             "remote_push": "not_performed",
             "remote_state": "deferred",
             "blocking": False,
+            "remote_availability": remote_availability,
+            "local_ci_fallback": local_ci_fallback,
             "required_steps": [
                 "land work lane to candidate role",
                 "fast-forward accepted root from candidate role",
+                "run local-ci fallback when remote publication is unavailable",
                 "create configured submit branch when remote publication is available",
             ],
         },
         "required_gaps": [],
-        "next_actions": ["create configured submit branch when remote publication is available"],
+        "next_actions": ["run .config/ci/scripts/run-local-ci.sh as local fallback evidence"],
     }
     shadow_provenance = {
         "mode": "tracked_evidence",
@@ -77,6 +107,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
             "remote_push": "not_performed",
             "state": "deferred",
             "reason": "remote publication adapter unavailable",
+            "availability": remote_availability,
+            "fallback": local_ci_fallback,
         },
         "provenance": {
             "shadow_parity": shadow_provenance,

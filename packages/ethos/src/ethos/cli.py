@@ -557,6 +557,7 @@ def publish(
     gaps = tuple(audit["required_gaps"]) + decision.gaps
     ok = bool(audit["ok"]) and decision.ok
     branch = workspace_status(repo)["branch"]
+    remote_availability = _gitio.remote_availability(repo)
     result = EthosResult(
         command="publish",
         ok=ok,
@@ -566,10 +567,15 @@ def publish(
         data={
             "repository_audit": audit,
             "remote_push": "not_performed",
+            "remote_availability": remote_availability,
+            "local_ci_fallback": _land.local_ci_fallback_package(
+                remote_availability=remote_availability,
+            ),
             "publication": _land.publication_readiness(
                 branch=str(branch),
                 local_ok=ok,
                 policy=load_branch_role_policy(repo),
+                remote_availability=remote_availability,
             ),
             "mutation": {
                 "apply": apply,

@@ -55,7 +55,8 @@ for path in paths:
         failures.append(f"{path}: missing final newline")
     if b"\r\n" in data or b"\r" in data:
         failures.append(f"{path}: non-LF line ending")
-    if "<<<<<<< " in text or "=======" in text or ">>>>>>> " in text:
+    conflict_markers = ("<<<<<<< ", "=======", ">>>>>>> ")
+    if any(line.startswith(conflict_markers) for line in text.splitlines()):
         failures.append(f"{path}: possible merge conflict marker")
     if path.suffix == ".json":
         try:

@@ -147,6 +147,8 @@
         "mode",
         "remote_push",
         "remote_state",
+        "remote_availability",
+        "fallback_evidence",
         "submit_branch",
         "local_submit_package",
         "required_gaps",
@@ -160,7 +162,10 @@
           "const": "not_performed"
         },
         "remote_state": {
-          "const": "deferred"
+          "enum": [
+            "available",
+            "deferred"
+          ]
         },
         "submit_branch": {
           "type": "string"
@@ -179,6 +184,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "remote_availability": {
+          "$ref": "#/$defs/remoteAvailability"
+        },
+        "fallback_evidence": {
+          "$ref": "#/$defs/localCiFallback"
         }
       },
       "additionalProperties": false
@@ -188,7 +199,9 @@
       "required": [
         "remote_push",
         "state",
-        "reason"
+        "reason",
+        "availability",
+        "fallback"
       ],
       "properties": {
         "remote_push": {
@@ -199,6 +212,12 @@
         },
         "reason": {
           "type": "string"
+        },
+        "availability": {
+          "$ref": "#/$defs/remoteAvailability"
+        },
+        "fallback": {
+          "$ref": "#/$defs/localCiFallback"
         }
       },
       "additionalProperties": false
@@ -548,6 +567,104 @@
             }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "remoteAvailability": {
+      "type": "object",
+      "required": [
+        "kind",
+        "remote",
+        "state",
+        "available",
+        "blocking",
+        "required_gaps",
+        "advisory_gaps"
+      ],
+      "properties": {
+        "kind": {
+          "const": "git_remote_availability"
+        },
+        "remote": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unconfigured",
+            "not_probed"
+          ]
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "advisory_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "localCiFallback": {
+      "type": "object",
+      "required": [
+        "kind",
+        "evidence_class",
+        "boundary",
+        "hosted_ci_status_claimed",
+        "remote_availability_state",
+        "command",
+        "owner_scripts"
+      ],
+      "properties": {
+        "kind": {
+          "const": "local_ci_fallback"
+        },
+        "evidence_class": {
+          "const": "local_fallback"
+        },
+        "boundary": {
+          "type": "string"
+        },
+        "hosted_ci_status_claimed": {
+          "const": false
+        },
+        "remote_availability_state": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "owner_scripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

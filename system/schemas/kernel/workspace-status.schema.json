@@ -18,6 +18,7 @@
     "coordination_gaps",
     "coordination",
     "closeout_support",
+    "stage_gates",
     "required_gaps"
   ],
   "properties": {
@@ -83,6 +84,9 @@
     },
     "dirty_provenance": {
       "$ref": "#/$defs/dirtyProvenance"
+    },
+    "stage_gates": {
+      "$ref": "#/$defs/stageGates"
     }
   },
   "additionalProperties": false,
@@ -668,6 +672,50 @@
           "type": "string"
         },
         "next_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "stageGates": {
+      "type": "object",
+      "required": [
+        "authoring_allowed",
+        "integration_allowed",
+        "accepted_closeout_allowed",
+        "blocked_stage",
+        "blocker_owner",
+        "recommended_next_command",
+        "next_commands"
+      ],
+      "properties": {
+        "authoring_allowed": {
+          "type": "boolean"
+        },
+        "integration_allowed": {
+          "type": "boolean"
+        },
+        "accepted_closeout_allowed": {
+          "type": "boolean"
+        },
+        "blocked_stage": {
+          "enum": [
+            "authoring",
+            "candidate_integration",
+            "accepted_closeout",
+            ""
+          ]
+        },
+        "blocker_owner": {
+          "type": "string"
+        },
+        "recommended_next_command": {
+          "type": "string"
+        },
+        "next_commands": {
           "type": "array",
           "items": {
             "type": "string"

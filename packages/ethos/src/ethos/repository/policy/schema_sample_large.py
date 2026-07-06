@@ -236,5 +236,14 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
+        "stage_gates": {
+            "authoring_allowed": False,
+            "integration_allowed": False,
+            "accepted_closeout_allowed": False,
+            "blocked_stage": "authoring",
+            "blocker_owner": "",
+            "recommended_next_command": "ethos lane start <name>",
+            "next_commands": ["ethos lane start <name>"],
+        },
         "required_gaps": [],
     }

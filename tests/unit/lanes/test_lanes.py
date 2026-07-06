@@ -103,6 +103,78 @@ def assert_no_ui_projection(value: object) -> None:
             assert_no_ui_projection(child)
 
 
+def test_workspace_status_reports_stage_gates_for_accepted_root(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+
+    status = workspace_status(repo)
+
+    assert status["stage_gates"] == {
+        "authoring_allowed": False,
+        "integration_allowed": False,
+        "accepted_closeout_allowed": False,
+        "blocked_stage": "authoring",
+        "blocker_owner": "",
+        "recommended_next_command": "ethos lane start <name>",
+        "next_commands": ["ethos lane start <name>"],
+    }
+
+
+def test_workspace_status_reports_stage_gates_for_owned_work_lane(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+
+    status = workspace_status(worktree)
+
+    assert status["stage_gates"] == {
+        "authoring_allowed": True,
+        "integration_allowed": True,
+        "accepted_closeout_allowed": False,
+        "blocked_stage": "accepted_closeout",
+        "blocker_owner": "candidate/dev",
+        "recommended_next_command": "ethos land --json",
+        "next_commands": ["ethos lane prewrite <path>", "ethos land --json"],
+    }
+
+
+def test_workspace_status_stage_gates_keep_authoring_open_when_lane_is_dirty(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
+
+    status = workspace_status(worktree)
+
+    assert status["stage_gates"]["authoring_allowed"] is True
+    assert status["stage_gates"]["integration_allowed"] is False
+    assert status["stage_gates"]["accepted_closeout_allowed"] is False
+    assert status["stage_gates"]["blocked_stage"] == "candidate_integration"
+    assert status["stage_gates"]["blocker_owner"] == "work/feature"
+    assert status["stage_gates"]["recommended_next_command"] == "ethos lane prewrite <path>"
+
+
+def test_workspace_status_stage_gates_keep_authoring_open_with_foreign_lane(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    current = tmp_path / "repo-work-current"
+    foreign = tmp_path / "repo-work-foreign"
+    start_work_lane(root=repo, name="current", path=current, owner="agent:current", apply=True)
+    start_work_lane(root=repo, name="foreign", path=foreign, owner="agent:foreign", apply=True)
+
+    status = workspace_status(current)
+
+    assert status["stage_gates"]["authoring_allowed"] is True
+    assert status["stage_gates"]["integration_allowed"] is True
+    assert status["stage_gates"]["recommended_next_command"] == "ethos land --json"
+
+
 def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")

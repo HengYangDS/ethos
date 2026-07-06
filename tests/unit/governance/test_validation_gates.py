@@ -391,6 +391,15 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
             "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
         },
+        "stage_gates": {
+            "authoring_allowed": False,
+            "integration_allowed": False,
+            "accepted_closeout_allowed": False,
+            "blocked_stage": "authoring",
+            "blocker_owner": "",
+            "recommended_next_command": "ethos lane start <name>",
+            "next_commands": ["ethos lane start <name>"],
+        },
         "required_gaps": [],
     }
 
@@ -472,6 +481,15 @@ def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
             "claim_id": "",
             "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation"],
+        },
+        "stage_gates": {
+            "authoring_allowed": False,
+            "integration_allowed": False,
+            "accepted_closeout_allowed": False,
+            "blocked_stage": "authoring",
+            "blocker_owner": "",
+            "recommended_next_command": "ethos lane start <name>",
+            "next_commands": ["ethos lane start <name>"],
         },
         "required_gaps": [],
     }

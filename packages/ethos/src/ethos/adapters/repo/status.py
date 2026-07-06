@@ -170,6 +170,11 @@ def workspace_status(root: Path) -> dict[str, object]:
     )
     closeout_gaps = cast("list[str]", closeout_support["required_gaps"])
     required_gaps = workspace_required_gaps(closeout_gaps, candidate=candidate)
+    stage_gates = _stage_gates(
+        branch=branch,
+        role=role,
+        closeout_support=closeout_support,
+    )
     return {
         "root": str(root),
         "branch": branch,
@@ -185,7 +190,53 @@ def workspace_status(root: Path) -> dict[str, object]:
         "coordination_gaps": coordination_gaps,
         "coordination": coordination,
         "closeout_support": closeout_support,
+        "stage_gates": stage_gates,
         "required_gaps": required_gaps,
+    }
+
+
+def _stage_gates(
+    *,
+    branch: str,
+    role: str,
+    closeout_support: dict[str, object],
+) -> dict[str, object]:
+    is_work_lane = role == "work_lane"
+    closeout_gaps = tuple(str(gap) for gap in closeout_support.get("required_gaps", ()))
+    authoring_allowed = is_work_lane and not any(
+        gap.startswith("work_lane_missing_lease:") for gap in closeout_gaps
+    )
+    integration_allowed = bool(closeout_support.get("supported"))
+    accepted_closeout_allowed = False
+    next_commands: list[str] = []
+    if authoring_allowed:
+        next_commands.append("ethos lane prewrite <path>")
+    if integration_allowed:
+        next_commands.append("ethos land --json")
+    if not next_commands:
+        next_commands.append("ethos lane start <name>")
+
+    if not authoring_allowed:
+        blocked_stage = "authoring"
+        blocker_owner = branch if is_work_lane else ""
+    elif not integration_allowed:
+        blocked_stage = "candidate_integration"
+        blocker_owner = branch
+    elif not accepted_closeout_allowed:
+        blocked_stage = "accepted_closeout"
+        blocker_owner = str(closeout_support.get("target_branch") or "")
+    else:
+        blocked_stage = ""
+        blocker_owner = ""
+
+    return {
+        "authoring_allowed": authoring_allowed,
+        "integration_allowed": integration_allowed,
+        "accepted_closeout_allowed": accepted_closeout_allowed,
+        "blocked_stage": blocked_stage,
+        "blocker_owner": blocker_owner,
+        "recommended_next_command": next_commands[-1],
+        "next_commands": next_commands,
     }
 
 
@@ -229,6 +280,15 @@ def _non_git_status(root: Path) -> dict[str, object]:
             "claim_id": "",
             "claim_binding": "unbound",
             "required_gaps": ["protected_root_mutation", "git_repository_missing"],
+        },
+        "stage_gates": {
+            "authoring_allowed": False,
+            "integration_allowed": False,
+            "accepted_closeout_allowed": False,
+            "blocked_stage": "authoring",
+            "blocker_owner": "",
+            "recommended_next_command": "ethos lane start <name>",
+            "next_commands": ["ethos lane start <name>"],
         },
         "required_gaps": ["git_repository_missing", "candidate_branch_missing"],
     }

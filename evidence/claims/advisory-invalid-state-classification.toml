@@ -1,0 +1,22 @@
+schema_version = 1
+id = "advisory-invalid-state-classification"
+summary = "Report advisory signals classify through the invalid-state taxonomy without becoming blockers."
+state = "active"
+subject = "command-plane:advisory-invalid-state-classification"
+evidence = "evidence/chronicle/advisory-invalid-state-classification/2026-07-07.md"
+
+[bindings]
+head = "4ca937048b208dcf131e12006d45d387b93ed90f"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-advisory-invalid-state-classification"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/domain/report.py"
+
+[[promotion_targets]]
+path = "tests/unit/cli/test_contracts.py"

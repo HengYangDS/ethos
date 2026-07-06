@@ -312,7 +312,7 @@ def _gap_layers(
             "advisory_gaps": list(advisory_gaps),
             "gap_count": len(advisory_gaps),
             "next_actions": list(advisory_next_actions),
-            "invalid_states": invalid_state_projection([]),
+            "invalid_states": invalid_state_projection(list(advisory_gaps)),
         },
     }
 

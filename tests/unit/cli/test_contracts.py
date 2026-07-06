@@ -2178,6 +2178,11 @@ def test_report_scorecard_is_derived_from_governance_checks() -> None:
     assert advisory_layer["gap_count"] == payload["summary"]["advisory_gap_count"]
     protected_residue_gap = "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
     assert protected_residue_gap in advisory_layer["advisory_gaps"]
+    assert advisory_layer["invalid_states"] == {
+        "categories": {"carrier_invalid": [protected_residue_gap]},
+        "category_count": 1,
+        "gap_count": 1,
+    }
     assert advisory_layer["next_actions"] == [
         "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
         "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",

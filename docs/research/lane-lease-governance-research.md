@@ -315,3 +315,144 @@ must make target root and editor root explicit and visible.
 3. Decide whether destructive-change governance belongs in a new schema or an
    extension of existing claim / evidence schemas.
 4. Harden command UX around PATH, root, editor-root, and next-command remedies.
+
+## Expert committee review, round 1
+
+### Distributed systems chair
+
+The core distributed-systems lesson is that a lease is not a lock unless it is
+paired with fencing. Heartbeats make liveness observable; epoch or revision
+makes stale holders harmless. ETHOS should therefore never treat `expires_at`
+as sufficient authority. The gate must check the current lane epoch at write and
+closeout time.
+
+Decision: adopt lease + epoch locally; reject runtime ZooKeeper / etcd / Redis
+until coordination spans multiple machines and cannot be represented by Git
+common-dir state.
+
+### Code collaboration chair
+
+Hosted collaboration systems separate authorship, ownership, and integration.
+ETHOS should mirror that split locally: an agent may author in its owned lane,
+but integration into candidate / accepted root is a submit-like action requiring
+proof, scope checks, and owner authority. CODEOWNERS-style ownership should
+inform scope and review, but hosted PR/MR state must not become the local source
+of truth.
+
+Decision: borrow owner-only closeout, protected refs, submit queue semantics;
+keep local Work Lane lifecycle as authority.
+
+### Observability chair
+
+The observable surface must be the lane lifecycle, not the chat. Status should
+show role, authority, conflicts, and next legal action. Lane logs should be event
+records. Metrics must remain few and tied to decisions: stale leases, unknown
+scopes, overlaps, blocked closeouts, unauthorized attempts.
+
+Decision: adopt an ETHOS profile of CloudEvents for lane events; borrow OTel's
+signals taxonomy; defer collectors and dashboards.
+
+### Supply-chain / proof chair
+
+SLSA and in-toto show how to record what was built, from what materials, under
+which process, and with what result. ETHOS closeout and destructive changes need
+that same shape, but at repository-change scale rather than artifact-release
+scale.
+
+Decision: borrow provenance fields into proof / evidence; defer signing unless
+release publication or external consumers require it.
+
+### Creative-destruction chair
+
+Governance must not freeze bad structure. The point of lane ownership is to let
+the owner safely carry responsibility for bold change. Architectural or
+destructive changes should require intent, hypothesis, blast radius, rollback,
+net-gain metric, abort condition, and archived evidence. A bounded failed
+experiment is acceptable if it increases knowledge and does not leak damage.
+
+Decision: add a net-gain destructive-change policy; adopt ADR/RFC records only
+for material and destructive changes, not routine edits.
+
+## Standard and framework introduction decisions
+
+| Candidate | Introduce as dependency? | Introduce as profile / schema? | Decision rationale |
+| --- | ---: | ---: | --- |
+| Kubernetes Lease | No | Yes, conceptually | Its holder + renew time model fits lane lease, but API server is unnecessary. |
+| etcd concurrency | No | Yes, conceptually | Epoch/fencing is required; distributed KV is not. |
+| ZooKeeper locks | No | No | Useful session ordering pattern, but too heavy and not aligned with local Git common-dir. |
+| Redis Redlock | No | No | TTL-only locking is a cautionary anti-pattern without fencing. |
+| Git reference-transaction | Existing substrate | Yes | Best low-level guard for protected refs. |
+| GitHub/GitLab/Gerrit | No | Yes | Useful submit and ownership semantics; hosted systems remain publication surfaces. |
+| OpenTelemetry | No | Partial vocabulary | Signals taxonomy is useful; collector is premature. |
+| CloudEvents | No runtime | Yes | Good envelope for lane log events. |
+| CDEvents | No | Selective vocabulary | Useful for delivery lifecycle names; ETHOS lane semantics remain primary. |
+| SLSA | No runtime | Provenance shape | Good for subject/material/process/result evidence. |
+| in-toto | No runtime | Provenance shape | Useful evidence model; full layout/signing is premature. |
+| Sigstore/cosign | Defer | Defer | Relevant to external artifact signing, not first local lane governance. |
+| OpenFeature | No SDK yet | Conceptual | Flags/shadow/dual-run are key for destructive migration; SDK only when runtime flags exist. |
+| ADR | Template | Yes | Adopt for material changes. |
+| RFC | Template | Yes | Adopt for destructive or architectural changes. |
+| SRE error budget | No | Conceptual | Use as change-risk budget when reliability evidence exists. |
+| DORA metrics | No | Conceptual | Use for net-gain framing; do not force all repo work into service-delivery metrics. |
+| Chaos engineering | No | Experiment guardrails | Hypothesis, steady state, blast radius, stop condition. |
+| MCP/A2A | No | Projection later | Useful external interface; not a lane truth source. |
+
+## Revised ETHOS design thesis
+
+The mature-framework synthesis changes the thesis from defensive coordination to
+bounded generative change:
+
+> A Work Lane is a leased vessel for intentional repository mutation. It should
+> protect other lanes from intrusion, but within its declared scope it should
+> enable bold change when the claim states a net-gain hypothesis and the system
+> can observe, fence, prove, roll back, and archive the result.
+
+This implies two complementary policies:
+
+1. **Foreign-lane restraint:** an agent may observe a foreign lane but must not
+   write, rebase, close out, retire, or delete it without ownership transfer or
+   maintainer adoption.
+2. **Owned-lane potency:** an owner may perform destructive or architectural
+   change when the change class requires and supplies intent, hypothesis, blast
+   radius, rollback, abort condition, net-gain metric, and evidence.
+
+## Proposed ETHOS primitives after research
+
+Do not add a separate agent registry or mailbox unless these primitives prove
+insufficient.
+
+| Primitive | Role | Minimal carrier |
+| --- | --- | --- |
+| Work Lane | Governed mutation vessel | `work/*` branch + linked worktree |
+| Lane Lease | Temporary right to act | Git common-dir runtime JSON |
+| Epoch | Fencing token | lease field incremented on adoption/transfer |
+| Scope | Parallelism and blast-radius boundary | claim / lease path list |
+| Lane Event | Coordination and observability record | CloudEvents-like append-only log |
+| Claim | Why the lane exists | existing claim evidence |
+| Change Class | Routine/material/destructive classification | claim/evidence extension |
+| Net-Gain Evidence | Proof that destructive change improved the system | evidence record / proof package |
+
+## Implementation implications for the next stage
+
+1. Before implementing new coordination code, inspect and absorb the existing
+   `work/lane-collaboration-readmodel` lane if it lands. It appears to already
+   touch coordination read models, invalid states, workspace-status schema, and
+   lane tests. Duplicating that work would violate the foreign-lane rule.
+2. First implement or refine observable read models before hard enforcement.
+   Agents must see role, holder, scope, allowed actions, denied actions, and
+   next commands.
+3. Add epoch/fencing to lease semantics before relying on stale/adoption flows.
+4. Add destructive-change classification after the lane lease gate exists,
+   because net-gain permission depends on ownership and scope.
+5. Add CloudEvents-like lane logs only as a profile over lane lease state, not as
+   a second truth store.
+
+## Non-goals
+
+- No Kubernetes, ZooKeeper, etcd, Redis, or external lock service for local-only
+  repo coordination.
+- No hosted PR/MR system as local Work Lane truth.
+- No general agent-to-agent chat system.
+- No dashboard before command JSON is correct.
+- No blanket ADR/RFC requirement for routine changes.
+- No conservative ban on destructive change.

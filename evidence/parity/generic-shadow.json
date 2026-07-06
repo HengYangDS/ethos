@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
-    "target_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
-    "product_semantic_sha256": "b4f81f2bf05e651bbc9ec3c239b4950fce7dfbecce005d338921cd79cd80d331",
-    "target_semantic_sha256": "b4f81f2bf05e651bbc9ec3c239b4950fce7dfbecce005d338921cd79cd80d331",
+    "product_head": "c8a125b1c80ba0f22512a2cdc14a3edab65cc87a",
+    "target_head": "c8a125b1c80ba0f22512a2cdc14a3edab65cc87a",
+    "product_semantic_sha256": "40ea9c67c0b128a6e79603dc1fc4ecb55e4b8ae6bd985e8ce33d289ddfd45d46",
+    "target_semantic_sha256": "40ea9c67c0b128a6e79603dc1fc4ecb55e4b8ae6bd985e8ce33d289ddfd45d46",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -35,8 +35,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/status-summary-coordination",
-    "target_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
-    "product_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
+    "target_head": "c8a125b1c80ba0f22512a2cdc14a3edab65cc87a",
+    "product_head": "c8a125b1c80ba0f22512a2cdc14a3edab65cc87a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -75,7 +75,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f57a1bd24670f7e6d05803f8dc018c5c91fa8685f4b2f2227b1d7630a4ae7435"
+        "sha256": "2585a032a6966a08d7a08d6302f3bd67022debb8f76fa74dcc0d4a1485448d77"
       },
       {
         "path": "evidence/claims",

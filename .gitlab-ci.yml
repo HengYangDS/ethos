@@ -31,7 +31,7 @@ ethos:types:
     # policy.toml): zero-tolerance packages must be 0 diagnostics, ratchet packages
     # must stay within their baseline (which may only shrink). Fail-closed via the
     # verdict->exit binding, so a breach fails the pipeline.
-    - uv run --group dev ethos quality types --json
+    - uv run --package ethos --group dev ethos quality types --json
 
 ethos:architecture:
   <<: *python_setup

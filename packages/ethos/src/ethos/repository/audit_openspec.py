@@ -4,7 +4,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec import openspec_metadata_compatibility_report
+from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
 
 if TYPE_CHECKING:
     from pathlib import Path

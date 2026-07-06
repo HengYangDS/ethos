@@ -47,6 +47,7 @@ def orientation_packet(
             "report_payload": report_payload,
         }
     )
+    current_head = _current_head(status_payload, branch=str(status_payload.get("branch") or ""))
     return {
         "kind": "orientation",
         "truth_boundary": "repository-reader-view",
@@ -56,7 +57,7 @@ def orientation_packet(
             "root": str(status_payload.get("root") or ""),
             "branch": str(status_payload.get("branch") or ""),
             "role": role,
-            "head": str(status_payload.get("head") or ""),
+            "head": current_head,
             "dirty": dirty,
             "changed_path_count": len(changed_paths),
         },
@@ -152,6 +153,18 @@ def _strings(value: object) -> list[str]:
 
 def _dedupe(values: list[str]) -> list[str]:
     return list(dict.fromkeys(item for item in values if item))
+
+
+def _current_head(status_payload: Mapping[str, Any], *, branch: str) -> str:
+    direct_head = str(status_payload.get("head") or "")
+    if direct_head:
+        return direct_head
+    for item in cast("list[object]", status_payload.get("branch_bindings") or []):
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("branch") or "") == branch:
+            return str(item.get("head") or "")
+    return ""
 
 
 def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:

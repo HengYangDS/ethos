@@ -30,7 +30,9 @@ ethos publish
 `report`: it tells a human or agent where it is, what it may do, which foreign
 Work Lanes are visible, what remains gapped, and which command should run next.
 It is a projection (`truth_boundary = repository-reader-view`, `mints_truth =
-false`), not a transition verb and not a truth store.
+false`), not a transition verb and not a truth store. Its current HEAD field is
+derived from workspace-status branch bindings when the status payload does not
+carry a direct top-level head.
 
 `ethos report` is the read-only scorecard over that workflow. It is not a
 transition command:

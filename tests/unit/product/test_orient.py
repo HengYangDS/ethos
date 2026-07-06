@@ -90,3 +90,14 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
     assert any(line.startswith("where:") for line in lines)
     assert any(line.startswith("can:") for line in lines)
     assert any(line.startswith("next:") for line in lines)
+
+
+def test_orient_reports_current_head_from_status_branch_binding() -> None:
+    payload = run_ethos("orient", "--json")
+    status = run_ethos("status", "--json")
+
+    orientation = payload["data"]["orientation"]
+    branch = status["data"]["branch"]
+    binding = next(item for item in status["data"]["branch_bindings"] if item["branch"] == branch)
+    assert orientation["where"]["head"] == binding["head"]
+    assert orientation["where"]["head"]

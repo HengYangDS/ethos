@@ -18,13 +18,18 @@ See also: [Command Plane](../reference/command-plane.md) and
 
 ## First Hour
 
-Start with a read-only status check:
+Start with read-only orientation:
 
 ```bash
-ethos status
+ethos orient
 ```
 
-Then choose a profile:
+`ethos orient` is a first-glance projection for humans and agents. It answers
+where you are, what you may do, which foreign Work Lanes are visible, whether
+readiness is gapped, and which command should run next. It reads `status` and
+`report`; it is not a transition verb and does not mint repository truth.
+
+Use `--json` when an agent or script needs stable evidence, then choose a profile:
 
 | Profile | Use when | Reads | Plans to write |
 | --- | --- | --- | --- |
@@ -60,9 +65,11 @@ ethos adopt --profile python --apply --authorize --expect-head <git-head> --json
 If the repository is not tracked by Git yet, initialize Git first or use the
 dry-run plan as a review artifact without claiming HEAD-bound adoption.
 
-After the scaffold is applied, use the five-command loop:
+After the scaffold is applied, re-orient and use the five-command transition
+loop:
 
 ```bash
+ethos orient
 ethos status
 ethos plan --changed
 ethos prove
@@ -99,6 +106,7 @@ are not part of the first-hour path:
 First validation path:
 
 ```bash
+ethos orient --json
 ethos status --json
 ethos prove --execute
 ethos quality command-examples

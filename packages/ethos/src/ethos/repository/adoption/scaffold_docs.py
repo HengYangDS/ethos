@@ -273,6 +273,7 @@ See also: [Documentation Index](../index.md) and
 ## First Hour
 
 ```bash
+ethos orient
 ethos status
 ethos plan --changed
 ethos prove
@@ -280,6 +281,11 @@ ethos land
 ethos publish
 ethos report
 ```
+
+`ethos orient` is read-only first-glance UX for humans and agents. It projects
+`status` and `report` to show where you are, what you may do, visible foreign
+Work Lanes, readiness, and next action. It is not a transition verb and does not
+mint repository truth.
 
 Use `ethos adopt --dry-run --json` to review the profile, write plan, apply
 criteria, and rollback list before changing files. Use `ethos adopt --apply

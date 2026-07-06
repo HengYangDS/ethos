@@ -12,15 +12,15 @@ schemas, docs, evidence, and promoted decisions remain the truth.
 
 ## First Hour
 
-The first hour is deliberately small:
+The first hour is deliberately small. Start with a first-glance orientation,
+then run the transition loop:
 
 ```text
 status -> plan -> prove -> land -> publish
 ```
 
-Daily workflow:
-
 ```bash
+ethos orient
 ethos status
 ethos plan
 ethos prove
@@ -28,8 +28,13 @@ ethos land
 ethos publish
 ```
 
-report is a read-only scorecard. It shows the payoff after the loop, but it is
-not another transition verb:
+`ethos orient` is read-only UX for humans and agents: where am I, what can I do,
+who else is present, what remains gapped, and what runs next. It projects
+`status` and `report`; it is not a transition verb and does not mint repository
+truth.
+
+report is a read-only scorecard. It shows the payoff after the loop, but
+it is not another transition verb:
 
 ```bash
 ethos report
@@ -99,6 +104,7 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 ```bash
 uv run --group dev pytest
 uv run --group dev ruff check .
+uv run --package ethos ethos orient --json
 uv run --package ethos ethos status --json
 uv run --package ethos ethos report --json
 ```

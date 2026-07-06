@@ -24,12 +24,14 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
         "ethos land",
         "ethos publish",
     ]
+    assert report["reader_view_commands"] == ["ethos orient"]
     assert report["scorecard_commands"] == ["ethos report"]
     assert report["setup_commands"] == [
         "ethos init",
         "ethos adopt",
         "ethos doctor",
     ]
+    assert "ethos orient" not in report["public_workflow_commands"]
     assert "ethos report" not in report["public_workflow_commands"]
     assert "ethos adopt" not in report["maintainer_reference_commands"]
     assert "ethos init" not in report["maintainer_reference_commands"]
@@ -37,9 +39,11 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     assert "ethos quality" in report["maintainer_reference_commands"]
     assert "ethos quality" in report["known_commands"]
     assert "ethos adopt" in report["known_commands"]
+    assert "ethos orient" in report["known_commands"]
     assert "ethos report" in report["known_commands"]
     assert report["advanced_public_commands"] == []
     assert report["public_workflow_count"] == 5
+    assert report["reader_view_count"] == 1
     assert report["scorecard_count"] == 1
     assert report["setup_count"] == 3
 
@@ -179,6 +183,23 @@ def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> 
     for path in surfaces:
         text = path.read_text(encoding="utf-8")
         assert "legacy" not in text.lower(), f"{path} exposes legacy compatibility"
+
+
+def test_command_examples_accept_orient_as_reader_view_not_transition(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        "```bash\nethos orient\nethos status\nethos plan\nethos prove\nethos land\nethos publish\nethos report\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is True
+    registry = command_registry_report()
+    assert "ethos orient" in registry["reader_view_commands"]
+    assert "ethos orient" not in registry["public_workflow_commands"]
 
 
 def test_command_examples_reject_unknown_ethos_subcommands(tmp_path: Path) -> None:

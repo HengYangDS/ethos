@@ -14,6 +14,7 @@ PUBLIC_WORKFLOW_COMMANDS = (
     "ethos land",
     "ethos publish",
 )
+READER_VIEW_COMMANDS = ("ethos orient",)
 SCORECARD_COMMANDS = ("ethos report",)
 SETUP_COMMANDS = (
     "ethos init",
@@ -43,6 +44,7 @@ EVIDENCE_REFRESH_COMMANDS = (
 PUBLIC_COMMANDS = (*PUBLIC_WORKFLOW_COMMANDS,)
 KNOWN_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
+    *READER_VIEW_COMMANDS,
     *SCORECARD_COMMANDS,
     *SETUP_COMMANDS,
     *MAINTAINER_REFERENCE_COMMANDS,
@@ -182,6 +184,7 @@ def _scan_retired_public_command_prefixes(root: Path) -> list[str]:
 def command_registry_report(root: Path | None = None) -> dict[str, object]:
     classified = (
         set(PUBLIC_WORKFLOW_COMMANDS)
+        | set(READER_VIEW_COMMANDS)
         | set(SCORECARD_COMMANDS)
         | set(SETUP_COMMANDS)
         | set(MAINTAINER_REFERENCE_COMMANDS)
@@ -206,6 +209,7 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "public_commands": list(PUBLIC_COMMANDS),
         "known_commands": list(KNOWN_COMMANDS),
         "public_workflow_commands": list(PUBLIC_WORKFLOW_COMMANDS),
+        "reader_view_commands": list(READER_VIEW_COMMANDS),
         "scorecard_commands": list(SCORECARD_COMMANDS),
         "setup_commands": list(SETUP_COMMANDS),
         "maintainer_reference_commands": list(MAINTAINER_REFERENCE_COMMANDS),
@@ -214,6 +218,7 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "evidence_refresh_commands": list(EVIDENCE_REFRESH_COMMANDS),
         "advanced_public_commands": advanced_public_commands,
         "public_workflow_count": len(PUBLIC_WORKFLOW_COMMANDS),
+        "reader_view_count": len(READER_VIEW_COMMANDS),
         "scorecard_count": len(SCORECARD_COMMANDS),
         "setup_count": len(SETUP_COMMANDS),
         "known_command_count": len(KNOWN_COMMANDS),

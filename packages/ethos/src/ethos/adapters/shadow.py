@@ -9,22 +9,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.evidence.parity_validation import SHADOW_COMMAND_ARGS
 from ethos.repository.profile import profile_evidence_roots
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-READ_ONLY_COMMANDS = (
-    ("status",),
-    ("plan", "--changed"),
-    ("prove",),
-    ("report",),
-    ("quality", "command-surface"),
-    ("assistants", "doctor"),
-    ("playbooks", "route", "--changed"),
-    ("land",),
-    ("publish",),
-)
+# The read-only shadow command set is defined once in the repository layer
+# (SHADOW_COMMAND_ARGS) so the executed commands and the parity-evidence display
+# strings cannot drift. Aliased here for the local execution call sites.
+READ_ONLY_COMMANDS = SHADOW_COMMAND_ARGS
 
 ROOT_OPTION_COMMANDS = {
     ("status",),

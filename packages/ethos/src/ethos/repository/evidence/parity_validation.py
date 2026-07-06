@@ -11,16 +11,25 @@ from ethos_core.contracts.capability_parity import capability_parity_records
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
-SHADOW_PARITY_COMMANDS = (
-    "ethos status --json",
-    "ethos plan --changed --json",
-    "ethos prove --json",
-    "ethos report --json",
-    "ethos quality command-surface --json",
-    "ethos assistants doctor --json",
-    "ethos playbooks route --changed --json",
-    "ethos land --json",
-    "ethos publish --json",
+# The shadow-parity command set — the single source of truth for BOTH the executed
+# read-only commands (adapters/shadow.py imports SHADOW_COMMAND_ARGS to run them) and
+# the display-string identities recorded in parity evidence (SHADOW_PARITY_COMMANDS,
+# derived below). Add or remove a command in ONE place; the two forms cannot drift.
+# Lives in the repository layer so adapters may import it (adapters -> repository is the
+# permitted direction; the reverse is not).
+SHADOW_COMMAND_ARGS: tuple[tuple[str, ...], ...] = (
+    ("status",),
+    ("plan", "--changed"),
+    ("prove",),
+    ("report",),
+    ("quality", "command-surface"),
+    ("assistants", "doctor"),
+    ("playbooks", "route", "--changed"),
+    ("land",),
+    ("publish",),
+)
+SHADOW_PARITY_COMMANDS: tuple[str, ...] = tuple(
+    "ethos " + " ".join(args) + " --json" for args in SHADOW_COMMAND_ARGS
 )
 
 

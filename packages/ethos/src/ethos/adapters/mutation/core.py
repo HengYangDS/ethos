@@ -9,7 +9,10 @@ from typing import cast
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status import workspace_status
+from ethos.repository.audit_openspec import _active_change_violations_for_role
+from ethos.repository.audit_openspec import _completed_unarchived_changes
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
@@ -33,6 +36,21 @@ def _candidate_proof_gaps(candidate_path: Path, candidate_head: str) -> list[str
     return _proof_gaps(candidate_path, candidate_head)
 
 
+def _openspec_carrier_gaps(root: Path, role: str) -> list[str]:
+    """Blocking gaps when OpenSpec carriers are illegal for a transition role.
+
+    Work Lanes may carry active in-progress OpenSpec changes, but completed active
+    changes must be archived before landing. Candidate and accepted-root checkouts
+    may not retain any active carrier: after promotion the current truth belongs in
+    source, canonical specs, claims, evidence, and chronicle.
+    """
+    openspec_root = root / "openspec"
+    return [
+        *_active_change_violations_for_role(openspec_root, role),
+        *_completed_unarchived_changes(openspec_root),
+    ]
+
+
 def _closeout_candidate_gaps(
     root: Path,
     candidate: dict[str, object],
@@ -51,9 +69,10 @@ def _closeout_candidate_gaps(
     candidate_head = str(candidate.get("head") or "")
     if not _is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
-    if not require_proof:
-        return []
-    return _candidate_proof_gaps(candidate_path, candidate_head)
+    gaps = _openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
+    if require_proof:
+        gaps.extend(_candidate_proof_gaps(candidate_path, candidate_head))
+    return gaps
 
 
 @dataclass(frozen=True)
@@ -150,6 +169,7 @@ def evaluate_mutation(
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
     else:
+        gaps.extend(_openspec_carrier_gaps(root, ROLE_WORK_LANE))
         closeout = cast("dict[str, object]", status.get("closeout_support", {}))
         gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
     if request.apply:
@@ -180,6 +200,8 @@ def evaluate_closeout_mutation(
         gaps.append("accepted_root_required")
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
+    else:
+        gaps.extend(_openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT))
     candidate = cast("dict[str, object]", status["candidate"])
     gaps.extend(
         _closeout_candidate_gaps(root, candidate, current_head, require_proof=request.apply)
@@ -349,6 +371,20 @@ def apply_candidate_to_accepted(
             "previous_head": current_head,
             "required_gaps": ["accepted_worktree_sync_failed"],
             "stderr": synced.stderr.strip(),
+        }
+    post_status = _git(root, "status", "--short", check=False)
+    if post_status.returncode != 0 or post_status.stdout.strip():
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.accepted_branch,
+            "source_branch": policy.candidate_branch,
+            "head": current_head,
+            "candidate_head": candidate_head,
+            "previous_head": current_head,
+            "required_gaps": ["accepted_worktree_dirty_after_sync"],
+            "stderr": post_status.stderr.strip(),
+            "status": post_status.stdout.strip(),
         }
     return {
         "ok": True,

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "e35aecd2522697e0527b40fe676d1291d2536d7e",
-    "target_head": "e35aecd2522697e0527b40fe676d1291d2536d7e",
-    "product_semantic_sha256": "353669b17f82942f85123f463a25cdff601b5fada1dd0239130506d9987ac18a",
-    "target_semantic_sha256": "353669b17f82942f85123f463a25cdff601b5fada1dd0239130506d9987ac18a",
-    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
+    "product_head": "90f4e6fae12ad0ee4957ee4b36485132b9226023",
+    "target_head": "90f4e6fae12ad0ee4957ee4b36485132b9226023",
+    "product_semantic_sha256": "8476e48afe7eb112c5c0701960094e2782315c858dd6712d85516cc358bdd096",
+    "target_semantic_sha256": "8476e48afe7eb112c5c0701960094e2782315c858dd6712d85516cc358bdd096",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paQS",
-    "target_head": "e35aecd2522697e0527b40fe676d1291d2536d7e",
-    "product_head": "e35aecd2522697e0527b40fe676d1291d2536d7e",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean",
+    "target_head": "90f4e6fae12ad0ee4957ee4b36485132b9226023",
+    "product_head": "90f4e6fae12ad0ee4957ee4b36485132b9226023",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paQS --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paQS --json"
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/closeout-postcondition-clean --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "cdd525d3c8b2e9965863719d7b5b811376bab9ea47c9a9094a069966773525c2"
+        "sha256": "d876bec3469091bf7e3f6babdca51e6a553a41301f2ab4027dbff71fb65256c4"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "81bd740dc670cea61842ad275a8ba001b56ba57a85fac6c2af126e4362eabc7a"
+        "sha256": "6fc5e328c85903c2b4fc949c742e4289c020a6ff76ac1786fcc47f6845deb7fc"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "caa29347283446f2bee477b32f311867d220f05d50a086f76cf20dc779fb51b0"
+        "sha256": "8437f273727638c134340d010393b77f6ce25d1ea465886aa6378cf80bd27fbb"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "db3a7deb565ccb8bdcab0433c2c5fe1291baf7384630d89d0e4a66f211e1f87e"
+        "sha256": "5ba9a5fd1b5a38a7f42660ea644d24c6b0f88cd871662a4b89fc31cb191c37da"
       },
       {
         "path": "rules",

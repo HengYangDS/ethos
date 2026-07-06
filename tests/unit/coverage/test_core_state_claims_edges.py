@@ -231,17 +231,106 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert failed_sync["required_gaps"] == ["accepted_worktree_sync_failed"]
     assert failed_sync["state"] == "blocked"
 
-    monkeypatch.setattr(
-        mutation_core,
-        "_git",
-        lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
-    )
+    def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
+        _ = check
+        if args[:1] == ("update-ref",):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("reset", "--hard"):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("status", "--short"):
+            return cp(stdout="", returncode=0)
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "_git", fake_git_clean_after_sync)
     assert (
         mutation_core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="h1")[
             "state"
         ]
         == "accepted_validated"
     )
+
+
+def test_closeout_blocks_dirty_accepted_worktree_after_sync(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(
+        mutation_core,
+        "evaluate_closeout_mutation",
+        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
+    )
+    monkeypatch.setattr(
+        mutation_core,
+        "workspace_status",
+        lambda root: status_for(
+            role=ROLE_ACCEPTED_ROOT,
+            candidate={
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "/tmp/c",
+                "head": "c2",
+            },
+        ),
+    )
+    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+
+    def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
+        _ = check
+        if args[:1] == ("update-ref",):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("reset", "--hard"):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("status", "--short"):
+            return cp(stdout=" M README.md\n", returncode=0)
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "_git", fake_git_dirty_after_sync)
+
+    dirty_after_sync = mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )
+
+    assert dirty_after_sync["required_gaps"] == ["accepted_worktree_dirty_after_sync"]
+    assert dirty_after_sync["state"] == "blocked"
+
+
+def test_mutation_admission_blocks_unarchived_openspec_carriers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    change = tmp_path / "openspec" / "changes" / "done"
+    change.mkdir(parents=True)
+    (change / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
+
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    land_decision = mutation_core.evaluate_mutation(
+        mutation_core.MutationRequest("land", True, True, "h1"),
+        root=tmp_path,
+        current_head="h1",
+    )
+    assert land_decision.gaps == ("openspec_completed_change_unarchived:done",)
+
+    monkeypatch.setattr(
+        mutation_core,
+        "workspace_status",
+        lambda root: status_for(
+            role=ROLE_ACCEPTED_ROOT,
+            candidate={
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": str(tmp_path),
+                "head": "h1",
+            },
+        ),
+    )
+    closeout_decision = mutation_core.evaluate_closeout_mutation(
+        mutation_core.MutationRequest("closeout", False, False, "h1"),
+        root=tmp_path,
+        current_head="h1",
+    )
+    assert "openspec_active_change_unarchived:done:accepted_root" in closeout_decision.gaps
+    assert "openspec_active_change_unarchived:done:candidate" in closeout_decision.gaps
 
 
 def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:

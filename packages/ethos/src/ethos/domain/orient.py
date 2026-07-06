@@ -26,6 +26,7 @@ def orientation_packet(
     coordination = _dict(status_payload.get("coordination"))
     candidate = _dict(status_payload.get("candidate"))
     runtime = _dict(status_payload.get("runtime_binding"))
+    landing = _dict(status_payload.get("landing_readiness"))
     role = str(status_payload.get("role") or "unknown")
     dirty = bool(status_payload.get("dirty"))
     changed_paths = _strings(status_payload.get("changed_paths"))
@@ -86,6 +87,13 @@ def orientation_packet(
             "advisory_items": _strings(runtime.get("advisory_gaps")),
             "next_action": str(runtime.get("next_action") or ""),
         },
+        "landing_readiness": {
+            "state": str(landing.get("state") or ""),
+            "candidate_branch": str(landing.get("candidate_branch") or ""),
+            "candidate_head": str(landing.get("candidate_head") or ""),
+            "required_items": _strings(landing.get("required_gaps")),
+            "next_action": str(landing.get("next_action") or ""),
+        },
         "readiness": {
             "status_items": required_gaps,
             "report_items": report_required,
@@ -112,6 +120,7 @@ def orientation_packet(
             "use_json_for_evidence": True,
             "orientation_projection_only": True,
             "runner_binding_visible": bool(runtime),
+            "landing_readiness_visible": bool(landing),
         },
     }
 
@@ -123,6 +132,7 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     coordination = _dict(packet.get("coordination"))
     capability = _dict(packet.get("capability"))
     runtime = _dict(packet.get("runtime_binding"))
+    landing = _dict(packet.get("landing_readiness"))
     head = str(where.get("head") or "")
     head_text = f" @ {head[:12]}" if head else ""
     lines = [
@@ -146,6 +156,9 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     runtime_items = _strings(runtime.get("advisory_items"))
     if runtime_items:
         lines.append(f"runtime: {runtime.get('state')}; {runtime.get('next_action')}")
+    landing_items = _strings(landing.get("required_items"))
+    if landing_items:
+        lines.append(f"landing: {landing.get('state')}; {landing.get('next_action')}")
     if int(coordination.get("foreign_work_lane_count") or 0):
         lines.append(
             "coordination: "

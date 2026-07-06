@@ -85,6 +85,100 @@ def runtime_binding(root: Path) -> dict[str, object]:
     }
 
 
+def landing_readiness(
+    root: Path,
+    *,
+    branch: str,
+    role: str,
+    candidate: dict[str, object],
+) -> dict[str, object]:
+    """Read-only view of whether this lane can fast-forward into candidate.
+
+    This does not mutate candidate/dev and does not replace the land-time CAS check.
+    It makes the common candidate_base_stale race visible before an agent spends a
+    proof cycle and only discovers the race at `ethos land --apply`.
+    """
+    current_head = _safe_ref(root, "HEAD")
+    candidate_branch = str(candidate.get("branch") or "")
+    candidate_head = str(candidate.get("head") or "")
+    refresh_command = (
+        "ethos lane refresh-base --apply --authorize "
+        f"--expect-head {current_head or '<head>'} --json"
+    )
+    if role != "work_lane":
+        return {
+            "kind": "landing_readiness",
+            "state": "not_work_lane",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": candidate_branch,
+            "candidate_head": candidate_head,
+            "required_gaps": [],
+            "next_action": "start or enter a Work Lane before landing",
+        }
+    if not candidate.get("exists"):
+        return {
+            "kind": "landing_readiness",
+            "state": "blocked",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": candidate_branch,
+            "candidate_head": candidate_head,
+            "required_gaps": ["candidate_branch_missing"],
+            "next_action": "create or repair the configured candidate branch",
+        }
+    if not candidate.get("worktree_exists"):
+        return {
+            "kind": "landing_readiness",
+            "state": "blocked",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": candidate_branch,
+            "candidate_head": candidate_head,
+            "required_gaps": ["candidate_worktree_missing"],
+            "next_action": "create or repair the configured candidate worktree",
+        }
+    if current_head and candidate_head and not _is_ancestor(root, candidate_head, current_head):
+        return {
+            "kind": "landing_readiness",
+            "state": "candidate_base_stale",
+            "branch": branch,
+            "head": current_head,
+            "candidate_branch": candidate_branch,
+            "candidate_head": candidate_head,
+            "required_gaps": ["candidate_base_stale"],
+            "next_action": refresh_command,
+        }
+    return {
+        "kind": "landing_readiness",
+        "state": "candidate_base_current",
+        "branch": branch,
+        "head": current_head,
+        "candidate_branch": candidate_branch,
+        "candidate_head": candidate_head,
+        "required_gaps": [],
+        "next_action": "ethos land --json",
+    }
+
+
+def _safe_ref(root: Path, ref: str) -> str:
+    try:
+        return _run_git(root, "rev-parse", ref)
+    except subprocess.CalledProcessError:
+        return ""
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    completed = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    return completed.returncode == 0
+
+
 def _run_git(root: Path, *args: str) -> str:
     completed = subprocess.run(
         ["git", *args],
@@ -234,10 +328,12 @@ def workspace_status(root: Path) -> dict[str, object]:
     )
     closeout_gaps = cast("list[str]", closeout_support["required_gaps"])
     required_gaps = workspace_required_gaps(closeout_gaps, candidate=candidate)
+    landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
     stage_gates = _stage_gates(
         branch=branch,
         role=role,
         closeout_support=closeout_support,
+        landing_readiness=landing,
     )
     return {
         "root": str(root),
@@ -248,6 +344,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "role": role,
         "role_policy": policy.as_status_policy(),
         "runtime_binding": runtime_binding(repo),
+        "landing_readiness": landing,
         "candidate": candidate,
         "worktrees": worktrees,
         "branch_bindings": branch_bindings,
@@ -265,6 +362,7 @@ def _stage_gates(
     branch: str,
     role: str,
     closeout_support: dict[str, object],
+    landing_readiness: dict[str, object],
 ) -> dict[str, object]:
     is_work_lane = role == "work_lane"
     raw_closeout_gaps = cast("list[object]", closeout_support.get("required_gaps", ()))
@@ -272,12 +370,20 @@ def _stage_gates(
     authoring_allowed = is_work_lane and not any(
         gap.startswith("work_lane_missing_lease:") for gap in closeout_gaps
     )
-    integration_allowed = bool(closeout_support.get("supported"))
+    raw_landing_gaps = cast("list[object]", landing_readiness.get("required_gaps", []))
+    landing_gaps = tuple(str(gap) for gap in raw_landing_gaps)
+    landing_stale = "candidate_base_stale" in landing_gaps
+    integration_allowed = bool(closeout_support.get("supported")) and not landing_stale
     accepted_closeout_allowed = False
     next_commands: list[str] = []
     if authoring_allowed:
         next_commands.append("ethos lane prewrite <path>")
-    if integration_allowed:
+    if landing_stale:
+        refresh_command = str(
+            landing_readiness.get("next_action") or "ethos lane refresh-base --json"
+        )
+        next_commands.append(refresh_command)
+    elif integration_allowed:
         next_commands.append("ethos land --json")
     if not next_commands:
         next_commands.append("ethos lane start <name>")
@@ -287,7 +393,9 @@ def _stage_gates(
         blocker_owner = branch if is_work_lane else ""
     elif not integration_allowed:
         blocked_stage = "candidate_integration"
-        blocker_owner = branch
+        blocker_owner = (
+            str(landing_readiness.get("candidate_branch") or branch) if landing_stale else branch
+        )
     elif not accepted_closeout_allowed:
         blocked_stage = "accepted_closeout"
         blocker_owner = str(closeout_support.get("target_branch") or "")
@@ -325,6 +433,16 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "role": "other",
         "role_policy": policy.as_status_policy(),
         "runtime_binding": runtime_binding(root),
+        "landing_readiness": {
+            "kind": "landing_readiness",
+            "state": "not_work_lane",
+            "branch": "untracked",
+            "head": "",
+            "candidate_branch": policy.candidate_branch,
+            "candidate_head": "",
+            "required_gaps": ["git_repository_missing"],
+            "next_action": "enter a Git-backed Work Lane before landing",
+        },
         "candidate": candidate,
         "worktrees": [],
         "branch_bindings": _branch_bindings(

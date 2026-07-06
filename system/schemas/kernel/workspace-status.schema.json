@@ -12,6 +12,7 @@
     "role",
     "role_policy",
     "runtime_binding",
+    "landing_readiness",
     "candidate",
     "worktrees",
     "branch_bindings",
@@ -46,6 +47,9 @@
     },
     "runtime_binding": {
       "$ref": "#/$defs/runtimeBinding"
+    },
+    "landing_readiness": {
+      "$ref": "#/$defs/landingReadiness"
     },
     "candidate": {
       "$ref": "#/$defs/candidate"
@@ -227,6 +231,55 @@
           "type": "boolean"
         },
         "advisory_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "landingReadiness": {
+      "type": "object",
+      "required": [
+        "kind",
+        "state",
+        "branch",
+        "head",
+        "candidate_branch",
+        "candidate_head",
+        "required_gaps",
+        "next_action"
+      ],
+      "properties": {
+        "kind": {
+          "const": "landing_readiness"
+        },
+        "state": {
+          "enum": [
+            "candidate_base_current",
+            "candidate_base_stale",
+            "blocked",
+            "not_work_lane"
+          ]
+        },
+        "branch": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string"
+        },
+        "candidate_branch": {
+          "type": "string"
+        },
+        "candidate_head": {
+          "type": "string"
+        },
+        "required_gaps": {
           "type": "array",
           "items": {
             "type": "string"

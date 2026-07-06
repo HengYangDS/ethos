@@ -323,6 +323,16 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
             "advisory_gaps": [],
             "next_action": "runner, schema, and audit root are aligned",
         },
+        "landing_readiness": {
+            "kind": "landing_readiness",
+            "state": "not_work_lane",
+            "branch": "dev",
+            "head": "abc123",
+            "candidate_branch": "candidate/dev",
+            "candidate_head": "abc123",
+            "required_gaps": [],
+            "next_action": "start or enter a Work Lane before landing",
+        },
         "candidate": {
             "branch": "candidate/dev",
             "exists": True,

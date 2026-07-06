@@ -1235,3 +1235,77 @@ def test_workspace_status_runtime_binding_warns_when_runner_is_external(
     assert binding["runner_matches_audit_root"] is False
     assert "workspace_status_runner_source_differs_from_audit_root" in binding["advisory_gaps"]
     assert "package-bound runner" in binding["next_action"]
+
+
+def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+
+    status = workspace_status(worktree)
+
+    readiness = status["landing_readiness"]
+    assert readiness["kind"] == "landing_readiness"
+    assert readiness["state"] == "candidate_base_current"
+    assert readiness["branch"] == "work/feature"
+    assert readiness["head"] == git(worktree, "rev-parse", "HEAD")
+    assert readiness["candidate_branch"] == "candidate/dev"
+    assert readiness["candidate_head"] == git(candidate, "rev-parse", "HEAD")
+    assert readiness["required_gaps"] == []
+    assert readiness["next_action"] == "ethos land --json"
+    assert status["stage_gates"]["integration_allowed"] is True
+    assert status["stage_gates"]["recommended_next_command"] == "ethos land --json"
+
+
+def test_workspace_status_reports_stale_landing_readiness_before_land(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    status = workspace_status(worktree)
+
+    readiness = status["landing_readiness"]
+    assert readiness["state"] == "candidate_base_stale"
+    assert readiness["head"] == work_head
+    assert readiness["candidate_head"] == candidate_head
+    assert readiness["required_gaps"] == ["candidate_base_stale"]
+    assert readiness["next_action"] == (
+        f"ethos lane refresh-base --apply --authorize --expect-head {work_head} --json"
+    )
+    assert status["stage_gates"]["authoring_allowed"] is True
+    assert status["stage_gates"]["integration_allowed"] is False
+    assert status["stage_gates"]["blocked_stage"] == "candidate_integration"
+    assert status["stage_gates"]["blocker_owner"] == "candidate/dev"
+    assert status["stage_gates"]["recommended_next_command"] == readiness["next_action"]
+    assert status["stage_gates"]["next_commands"] == [
+        "ethos lane prewrite <path>",
+        readiness["next_action"],
+    ]

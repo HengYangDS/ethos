@@ -117,7 +117,7 @@ def status(
         summary={
             "root": str(repo),
             "branch": status_payload["branch"],
-            "role": status_payload["role"],
+            "role": status_payload.get("role", ""),
             "dirty": status_payload["dirty"],
             "changed_path_count": len(cast("list[object]", status_payload["changed_paths"])),
             "foreign_work_lane_count": coordination.get("foreign_work_lane_count", 0),

@@ -148,6 +148,9 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(cli._prove, "workspace_status_validation_gaps", lambda validation: ("bad",))
     cli.status(json_output=True)
     assert emitted[-1].state == "invalid"
+    assert emitted[-1].summary["role"] == ""
+    assert emitted[-1].summary["foreign_work_lane_count"] == 0
+    assert emitted[-1].summary["unbound_work_lane_count"] == 0
 
     monkeypatch.setattr(
         cli._prove,

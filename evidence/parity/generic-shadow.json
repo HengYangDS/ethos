@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "adopter": "generic",
-  "target": "/private/tmp/ethos-terminal-boundary-finalization",
+  "target": "/private/tmp/ethos-skill-script-capability",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-terminal-boundary-finalization --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target /private/tmp/ethos-skill-script-capability --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "2f42dd5e5509d5f5afd0e3cc15114d9273e6fc79",
-    "target_head": "2f42dd5e5509d5f5afd0e3cc15114d9273e6fc79",
-    "command_sha256": "3ad1124783c66bc9f7b241e775dc96bf54459e5dd7a9ecb01862652440279d68"
+    "product_head": "e56f5d02185d4eb718e681baf07aa0aa6b47ad71",
+    "target_head": "e56f5d02185d4eb718e681baf07aa0aa6b47ad71",
+    "command_sha256": "e597a233e312bf28eaf47e96cbc76a78cef207617ffb75682626d9a352d2d346"
   },
   "shadow": {
     "ok": true,

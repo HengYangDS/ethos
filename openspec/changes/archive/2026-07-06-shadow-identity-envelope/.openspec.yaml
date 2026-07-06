@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-07-06
+goal: >-
+  Bind executed shadow parity reports and tracked parity evidence to same-state
+  target, product, command, changed-path, and evidence-input identity before
+  retirement checks consume semantic diffs.

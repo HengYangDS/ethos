@@ -47,6 +47,7 @@ kill_signal = "Adopter retirement readiness can consume semantic shadow diff res
 [promotion]
 targets = [
   "evidence/claims/shadow-identity-envelope.toml",
+  "openspec/changes/archive/2026-07-06-shadow-identity-envelope/.openspec.yaml",
   "openspec/changes/archive/2026-07-06-shadow-identity-envelope/proposal.md",
   "openspec/changes/archive/2026-07-06-shadow-identity-envelope/design.md",
   "openspec/changes/archive/2026-07-06-shadow-identity-envelope/tasks.md",

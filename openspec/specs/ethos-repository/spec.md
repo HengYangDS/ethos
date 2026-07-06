@@ -495,6 +495,16 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** `unbound_work_lane_count` equals the number of emitted residue objects
 - **AND** the signal remains advisory unless another gate reports a required gap
 
+#### Scenario: Status summary exposes coordination small signals
+
+- **WHEN** `ethos status --json` reports `data.coordination`
+- **THEN** `summary.foreign_work_lane_count` equals
+  `data.coordination.foreign_work_lane_count`
+- **AND** `summary.unbound_work_lane_count` equals
+  `data.coordination.unbound_work_lane_count`
+- **AND** those summary fields remain derived visibility signals and do not grant
+  write, land, retire, or cleanup authority over another Work Lane or ref
+
 #### Scenario: Orientation projects unbound refs without authority
 
 - **GIVEN** a repository has an unbound `work/*` branch ref

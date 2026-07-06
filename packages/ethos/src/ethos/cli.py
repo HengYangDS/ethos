@@ -106,6 +106,7 @@ def status(
     status_payload = workspace_status(repo)
     orientation = _orient.orientation_packet(status_payload=status_payload)
     orientation_actions = cast("list[str]", orientation["next_actions"])
+    coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
     validation = _prove.workspace_status_validation(repo, status_payload)
     validation_gaps = _prove.workspace_status_validation_gaps(validation)
     ok = bool(validation["ok"])
@@ -116,7 +117,11 @@ def status(
         summary={
             "root": str(repo),
             "branch": status_payload["branch"],
+            "role": status_payload["role"],
+            "dirty": status_payload["dirty"],
             "changed_path_count": len(cast("list[object]", status_payload["changed_paths"])),
+            "foreign_work_lane_count": coordination.get("foreign_work_lane_count", 0),
+            "unbound_work_lane_count": coordination.get("unbound_work_lane_count", 0),
         },
         diagnostics=(validation,),
         required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,

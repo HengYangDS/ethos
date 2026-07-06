@@ -60,6 +60,13 @@ def test_status_json_keeps_workspace_status_pure() -> None:
             "required_gaps": [],
         }
     ]
+    summary = payload["summary"]
+    data = payload["data"]
+    coordination = data["coordination"]
+    assert summary["role"] == data["role"]
+    assert summary["dirty"] == data["dirty"]
+    assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"]
+    assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"]
 
 
 def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path: Path) -> None:
@@ -101,6 +108,7 @@ def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
     git(repo, "branch", "work/stale-ref", "dev")
 
     payload = run_ethos("orient", "--root", repo.as_posix(), "--json", cwd=repo)
+    status = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
 
     orientation = payload["data"]["orientation"]
     coordination = orientation["coordination"]
@@ -122,6 +130,11 @@ def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
     assert orientation["capability"]["current_actor_capability"] == "observe"
     assert orientation["capability"]["can_mutate_tracked_files"] is False
     assert "unbound ref(s) visible" in orientation["human_summary"]
+    assert status["summary"]["unbound_work_lane_count"] == 1
+    assert (
+        status["summary"]["unbound_work_lane_count"]
+        == status["data"]["coordination"]["unbound_work_lane_count"]
+    )
 
 
 def test_orient_human_output_is_concise_and_actionable() -> None:

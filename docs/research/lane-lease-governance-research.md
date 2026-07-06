@@ -272,6 +272,9 @@ Primary sources:
 6. Status and gate errors must prescribe legal next actions for agents.
 7. External standards should inform envelopes and evidence shape, not introduce
    heavy runtimes before the local command plane needs them.
+8. Governance must not collapse all gates into one coarse `blocked` state.
+   Work Lane authoring, candidate integration, and accepted-root closeout have
+   different proof burdens.
 
 ## Recommended adoption matrix
 
@@ -464,6 +467,41 @@ This research intake should drive implementation in four layers. The order is
 intentional: make state visible before making enforcement stricter, then permit
 higher-risk change only after ownership and evidence are reliable.
 
+### Stage model: many lanes, one train, one history
+
+The corrected concurrency model is not serial proof before all work. It is:
+
+1. **Work Lane stage:** lanes may branch, explore, destroy, rebuild, and prove
+   locally inside declared scope. Foreign parity or baseline debt should not
+   prevent unrelated authoring.
+2. **Candidate stage:** lanes are absorbed, compared, fused, and judged
+   together. This is where overlap, baseline parity, and cross-lane proof debt
+   become integration gates.
+3. **Accepted-root stage:** the candidate train becomes durable history only
+   after head-bound proof and sanctioned closeout.
+
+The status surface should therefore classify authority as separate booleans,
+not as a single `blocked` verdict:
+
+```json
+{
+  "authoring_allowed": true,
+  "integration_allowed": false,
+  "accepted_closeout_allowed": false,
+  "blocker": "baseline_parity_gapped",
+  "blocker_owner": "work/parity-self-evidence-head",
+  "allowed_next_actions": [
+    "continue lane-local design",
+    "run focused tests",
+    "prepare integration notes"
+  ]
+}
+```
+
+In compact form: many Work Lanes may generate; candidate/dev selects and
+integrates; accepted root records what has become law. 多 lane 并生，
+candidate 取势，accepted 成法。
+
 ### Layer 1: observation before enforcement
 
 Implement or refine read models before adding new hard blocks. A correct status
@@ -638,8 +676,10 @@ explicitly accepted as constraints:
 
 1. `dev` and `candidate/dev` are aligned, or the implementation lane is rebased
    onto the current candidate head.
-2. Active foreign lanes are either disjoint in scope or deliberately treated as
-   observe-only blockers.
+2. Active foreign lanes are classified by stage impact: observe-only during
+   unrelated authoring; candidate blockers only when scope, proof, or baseline
+   evidence overlaps; accepted-root blockers only when head-bound proof or
+   closeout authority is not clean.
 3. The implementation lane has a claim and bounded scope.
 4. `ethos lane status --json` shows no unknown overlap for the implementation
    lane.
@@ -649,6 +689,9 @@ explicitly accepted as constraints:
    closeout authority are visible in command JSON.
 7. Full proof failures are classified into current-lane failures versus foreign
    or baseline proof debt before any repair is attempted.
+8. Status output distinguishes `authoring_allowed`, `integration_allowed`, and
+   `accepted_closeout_allowed`, so concurrency is not sacrificed merely because
+   a later-stage proof gate is red.
 
 ## Open decisions for maintainers
 
@@ -734,16 +777,22 @@ its authority, observability, and evidence surfaces agree.
 
 ## Current research-lane closeout note
 
-This research lane is intentionally not forcing closeout while a dirty foreign
-lane is working on parity/proof freshness:
+This research lane is intentionally not forcing candidate integration or
+accepted-root closeout while a dirty foreign lane is working on parity/proof
+freshness:
 
 - foreign lane: `work/parity-self-evidence-head`
 - reason: it owns active changes in parity evidence, report/land support, and
   parity tests;
-- implication: full proof failures involving parity should not be repaired here
-  unless ownership is explicitly transferred or that lane lands.
+- implication: full proof failures involving parity should not be repaired in
+  this lane unless ownership is explicitly transferred or that lane lands.
 
-The research lane remains useful and clean because it only changes
-`docs/research/lane-lease-governance-research.md`. Once the parity lane lands or
-is otherwise resolved, refresh this lane onto `candidate/dev`, rerun docs and
-proof gates, then land it through the normal Work Lane path.
+This is not an authoring blocker. The research lane remains useful and clean
+because it only changes bounded research documentation:
+
+- `docs/research/lane-lease-governance-research.md`
+- `docs/research/lane-lease-governance-implementation-plan.md`
+
+Once the parity lane lands or is otherwise resolved, refresh this lane onto
+`candidate/dev`, rerun docs and proof gates, then land it through the normal
+Work Lane path.

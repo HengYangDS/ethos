@@ -34,8 +34,37 @@ lease fencing, lane-local events, and proof-backed closeout.
    proof, and closeout gates are the authoritative command surfaces.
 6. Reference hooks are the substrate fallback; user-facing commands should fail
    earlier with useful next actions.
+7. Work Lane authoring, candidate integration, and accepted-root closeout are
+   separate stages with separate proof burdens. A red integration or closeout
+   gate must not unnecessarily serialize unrelated lane-local authoring.
 
-## Slice 0: absorb current parity/readmodel lanes
+## Stage gates: authoring, integration, closeout
+
+The lane system should preserve high parallelism:
+
+- **Authoring gate:** checks lane ownership, declared scope, and prewrite
+  legality. It allows local design, focused tests, and evidence preparation.
+- **Candidate integration gate:** checks overlap, baseline parity, candidate
+  freshness, cross-lane proof debt, and net-gain evidence for disruptive
+  changes.
+- **Accepted-root closeout gate:** checks candidate proof, expected head,
+  sanctioned ref movement, and historical evidence.
+
+The read model should expose these states independently:
+
+```json
+{
+  "authoring_allowed": true,
+  "integration_allowed": false,
+  "accepted_closeout_allowed": false,
+  "blocker_owner": "work/parity-self-evidence-head"
+}
+```
+
+This keeps Work Lanes generative while preserving a strict candidate train and
+accepted history.
+
+## Slice 0: classify current parity/readmodel lanes
 
 Before coding, inspect current repository truth.
 
@@ -49,14 +78,19 @@ git rev-list --left-right --count dev...candidate/dev
 ```
 
 If a foreign lane owns parity, coordination read models, or workspace-status
-schema changes, do not duplicate that work. Wait for it to land, or explicitly
-build on its landed state.
+schema changes, do not duplicate that work. Classify its impact by stage:
+
+- unrelated authoring can continue in the owned lane;
+- integration waits when scope, baseline proof, or parity evidence overlaps;
+- accepted-root closeout waits until candidate proof is clean.
 
 Acceptance:
 
-- no overlapping dirty foreign lane for the intended write scope;
+- no overlapping dirty foreign lane for the intended authoring write scope;
 - current lane rebased onto current `candidate/dev`;
-- proof failures classified as current-lane, baseline, or foreign-lane debt.
+- proof failures classified as current-lane, baseline, or foreign-lane debt;
+- status or planning output names which stage is blocked: authoring,
+  integration, or accepted closeout.
 
 ## Slice 1: authority read model
 
@@ -73,6 +107,8 @@ Required behavior:
 
 - status reports `actor_role`: owner, observer, maintainer, protected-root;
 - status reports `allowed_actions` and `forbidden_actions`;
+- status separately reports `authoring_allowed`, `integration_allowed`, and
+  `accepted_closeout_allowed`;
 - foreign lanes render observe-only authority;
 - stale or unknown ownership reports next legal commands;
 - root/editor-root ambiguity is visible in JSON.
@@ -237,21 +273,22 @@ Projection rule:
 
 Each slice should use the narrowest meaningful proof first, then graduate:
 
-1. focused unit tests;
-2. CLI contract tests;
+1. focused unit tests for the changed surface;
+2. lane-local CLI contract tests;
 3. docs-registry/schema checks if docs/schema changed;
 4. `ethos lane status --json` from accepted root and owned lane;
-5. `ethos prove --execute --expect-head <head> --json`;
-6. land to candidate;
-7. accepted-root closeout only when candidate proof is clean.
+5. lane-local proof for authoring readiness;
+6. candidate proof only at integration time;
+7. accepted-root closeout only when candidate proof is clean and expected-head
+   authority is current.
 
 ## Closeout criteria for this implementation plan
 
 This plan is complete when it is landed as research/design input and the next
 implementation lane can start from current `candidate/dev` with:
 
-- no overlapping dirty foreign lane in the selected slice;
+- no overlapping dirty foreign lane in the selected authoring scope;
 - a bounded claim;
 - explicit file scope;
-- expected tests and proof gates listed;
+- expected tests and proof gates listed by stage;
 - expert committee review questions attached.

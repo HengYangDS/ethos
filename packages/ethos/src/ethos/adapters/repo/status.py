@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
+import ethos
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps as _scope_coordination_gaps
 from ethos.adapters.repo.coordination import coordination_package
@@ -19,6 +20,69 @@ from ethos.adapters.repo.status_bindings import _worktree_binding
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+
+def _source_root_for_module(module_path: Path) -> Path:
+    """Resolve the repository source root that supplied this ETHOS runner."""
+    for parent in (module_path.parent, *module_path.parents):
+        if (parent / "pyproject.toml").exists() and (
+            parent / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+        ).exists():
+            return parent
+    return module_path.parent
+
+
+def _schema_source_root(audit_root: Path, runner_source_root: Path) -> Path:
+    """Best-effort source root for workspace-status contract validation.
+
+    Product checkouts normally validate against their own tracked schemas. Adopters
+    without a complete product schema set fall back to the runner's packaged
+    contract source. Keep this read-model lightweight and side-effect free; exact
+    schema diagnostics remain owned by the schema validator.
+    """
+    local = audit_root / "system" / "schemas" / "kernel" / "workspace-status.schema.json"
+    if local.exists():
+        return audit_root
+    runner = runner_source_root / "system" / "schemas" / "kernel" / "workspace-status.schema.json"
+    if runner.exists():
+        return runner_source_root
+    return runner_source_root
+
+
+def runtime_binding(root: Path) -> dict[str, object]:
+    """Expose runner/schema/audit binding for agent- and human-friendly diagnosis."""
+    audit_root = root.resolve()
+    runner_module_path = Path(ethos.__file__).resolve()
+    runner_source_root = _source_root_for_module(runner_module_path)
+    schema_source_root = _schema_source_root(audit_root, runner_source_root).resolve()
+    runner_matches_audit_root = runner_source_root == audit_root
+    schema_matches_audit_root = schema_source_root == audit_root
+    advisory_gaps: list[str] = []
+    if not runner_matches_audit_root:
+        advisory_gaps.append("workspace_status_runner_source_differs_from_audit_root")
+    if not schema_matches_audit_root:
+        advisory_gaps.append("workspace_status_schema_source_differs_from_audit_root")
+    state = "bound_to_audit_root" if not advisory_gaps else "external_current_runner"
+    next_action = (
+        "runner, schema, and audit root are aligned"
+        if not advisory_gaps
+        else (
+            "rerun with a package-bound runner from the audited checkout "
+            "when changing command or schema surfaces"
+        )
+    )
+    return {
+        "kind": "workspace_status_runtime_binding",
+        "state": state,
+        "audit_root": audit_root.as_posix(),
+        "runner_module_path": runner_module_path.as_posix(),
+        "runner_source_root": runner_source_root.as_posix(),
+        "schema_source_root": schema_source_root.as_posix(),
+        "runner_matches_audit_root": runner_matches_audit_root,
+        "schema_matches_audit_root": schema_matches_audit_root,
+        "advisory_gaps": advisory_gaps,
+        "next_action": next_action,
+    }
 
 
 def _run_git(root: Path, *args: str) -> str:
@@ -183,6 +247,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "dirty_provenance": provenance,
         "role": role,
         "role_policy": policy.as_status_policy(),
+        "runtime_binding": runtime_binding(repo),
         "candidate": candidate,
         "worktrees": worktrees,
         "branch_bindings": branch_bindings,
@@ -259,6 +324,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "dirty_provenance": {"dirty": False, "state": "non_git", "entries": [], "summary": {}},
         "role": "other",
         "role_policy": policy.as_status_policy(),
+        "runtime_binding": runtime_binding(root),
         "candidate": candidate,
         "worktrees": [],
         "branch_bindings": _branch_bindings(

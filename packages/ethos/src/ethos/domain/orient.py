@@ -25,11 +25,12 @@ def orientation_packet(
     closeout = _dict(status_payload.get("closeout_support"))
     coordination = _dict(status_payload.get("coordination"))
     candidate = _dict(status_payload.get("candidate"))
+    runtime = _dict(status_payload.get("runtime_binding"))
     role = str(status_payload.get("role") or "unknown")
     dirty = bool(status_payload.get("dirty"))
     changed_paths = _strings(status_payload.get("changed_paths"))
     foreign_lanes = [
-        _foreign_lane_summary(item)
+        _foreign_lane_summary(cast("Mapping[str, Any]", item))
         for item in cast("list[object]", status_payload.get("foreign_work_lanes") or [])
         if isinstance(item, dict)
     ]
@@ -76,6 +77,15 @@ def orientation_packet(
             "required_items": _strings(coordination.get("required_gaps")),
             "foreign_work_lanes": foreign_lanes,
         },
+        "runtime_binding": {
+            "state": str(runtime.get("state") or ""),
+            "runner_source_root": str(runtime.get("runner_source_root") or ""),
+            "schema_source_root": str(runtime.get("schema_source_root") or ""),
+            "runner_matches_audit_root": bool(runtime.get("runner_matches_audit_root")),
+            "schema_matches_audit_root": bool(runtime.get("schema_matches_audit_root")),
+            "advisory_items": _strings(runtime.get("advisory_gaps")),
+            "next_action": str(runtime.get("next_action") or ""),
+        },
         "readiness": {
             "status_items": required_gaps,
             "report_items": report_required,
@@ -101,6 +111,7 @@ def orientation_packet(
             "foreign_lanes_observe_only": bool(foreign_lanes),
             "use_json_for_evidence": True,
             "orientation_projection_only": True,
+            "runner_binding_visible": bool(runtime),
         },
     }
 
@@ -111,6 +122,7 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     readiness = _dict(packet.get("readiness"))
     coordination = _dict(packet.get("coordination"))
     capability = _dict(packet.get("capability"))
+    runtime = _dict(packet.get("runtime_binding"))
     head = str(where.get("head") or "")
     head_text = f" @ {head[:12]}" if head else ""
     lines = [
@@ -131,6 +143,9 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
         )
     else:
         lines.append("readiness: status-only view; run ethos report --json for scorecard")
+    runtime_items = _strings(runtime.get("advisory_items"))
+    if runtime_items:
+        lines.append(f"runtime: {runtime.get('state')}; {runtime.get('next_action')}")
     if int(coordination.get("foreign_work_lane_count") or 0):
         lines.append(
             "coordination: "
@@ -144,7 +159,9 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def _dict(value: object) -> dict[str, Any]:
-    return dict(value) if isinstance(value, dict) else {}
+    if not isinstance(value, dict):
+        return {}
+    return cast("dict[str, Any]", value)
 
 
 def _strings(value: object) -> list[str]:

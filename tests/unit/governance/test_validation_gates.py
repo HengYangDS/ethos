@@ -311,6 +311,18 @@ def test_workspace_status_payload_validates_worktree_bindings() -> None:
         },
         "role": "accepted_root",
         "role_policy": ROLE_POLICY_SAMPLE,
+        "runtime_binding": {
+            "kind": "workspace_status_runtime_binding",
+            "state": "bound_to_audit_root",
+            "audit_root": "/repo",
+            "runner_module_path": "/repo/packages/ethos/src/ethos/__init__.py",
+            "runner_source_root": "/repo",
+            "schema_source_root": "/repo",
+            "runner_matches_audit_root": True,
+            "schema_matches_audit_root": True,
+            "advisory_gaps": [],
+            "next_action": "runner, schema, and audit root are aligned",
+        },
         "candidate": {
             "branch": "candidate/dev",
             "exists": True,

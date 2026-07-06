@@ -1193,3 +1193,45 @@ def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> No
     assert report["dirty"] is True
     assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
     assert not worktree.exists()
+
+
+def test_workspace_status_reports_runtime_binding_for_audited_checkout(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+
+    status = workspace_status(repo)
+
+    binding = status["runtime_binding"]
+    assert binding["kind"] == "workspace_status_runtime_binding"
+    assert binding["audit_root"] == repo.resolve().as_posix()
+    assert binding["runner_module_path"]
+    assert binding["runner_source_root"]
+    assert binding["schema_source_root"]
+    assert isinstance(binding["runner_matches_audit_root"], bool)
+    assert isinstance(binding["schema_matches_audit_root"], bool)
+    assert isinstance(binding["advisory_gaps"], list)
+    assert binding["next_action"]
+
+
+def test_workspace_status_runtime_binding_warns_when_runner_is_external(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+    external_runner.parent.mkdir(parents=True)
+    (tmp_path / "external" / "pyproject.toml").write_text(
+        "[project]\nname='external'\n", encoding="utf-8"
+    )
+    external_runner.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
+
+    status = workspace_status(repo)
+
+    binding = status["runtime_binding"]
+    assert binding["state"] == "external_current_runner"
+    assert binding["runner_matches_audit_root"] is False
+    assert "workspace_status_runner_source_differs_from_audit_root" in binding["advisory_gaps"]
+    assert "package-bound runner" in binding["next_action"]

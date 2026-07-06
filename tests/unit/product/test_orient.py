@@ -26,7 +26,10 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         "foreign_lanes_observe_only": bool(orientation["coordination"]["foreign_work_lanes"]),
         "use_json_for_evidence": True,
         "orientation_projection_only": True,
+        "runner_binding_visible": True,
     }
+    assert orientation["runtime_binding"]["state"]
+    assert isinstance(orientation["runtime_binding"]["advisory_items"], list)
     assert payload["summary"]["role"] == orientation["where"]["role"]
     assert payload["next_actions"] == orientation["next_actions"]
 
@@ -85,7 +88,7 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
 
     assert completed.returncode == 0
     lines = completed.stdout.splitlines()
-    assert 4 <= len(lines) <= 6
+    assert 4 <= len(lines) <= 7
     assert lines[0].startswith(("ready:", "dirty:", "gapped:"))
     where_line = next(line for line in lines if line.startswith("where:"))
     json_payload = run_ethos("orient", "--json")

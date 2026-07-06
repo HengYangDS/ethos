@@ -11,6 +11,7 @@
     "dirty_provenance",
     "role",
     "role_policy",
+    "runtime_binding",
     "candidate",
     "worktrees",
     "branch_bindings",
@@ -42,6 +43,9 @@
     },
     "role_policy": {
       "$ref": "#/$defs/rolePolicy"
+    },
+    "runtime_binding": {
+      "$ref": "#/$defs/runtimeBinding"
     },
     "candidate": {
       "$ref": "#/$defs/candidate"
@@ -179,6 +183,61 @@
         "unbound",
         "absent"
       ]
+    },
+    "runtimeBinding": {
+      "type": "object",
+      "required": [
+        "kind",
+        "state",
+        "audit_root",
+        "runner_module_path",
+        "runner_source_root",
+        "schema_source_root",
+        "runner_matches_audit_root",
+        "schema_matches_audit_root",
+        "advisory_gaps",
+        "next_action"
+      ],
+      "properties": {
+        "kind": {
+          "const": "workspace_status_runtime_binding"
+        },
+        "state": {
+          "enum": [
+            "bound_to_audit_root",
+            "external_current_runner"
+          ]
+        },
+        "audit_root": {
+          "type": "string"
+        },
+        "runner_module_path": {
+          "type": "string"
+        },
+        "runner_source_root": {
+          "type": "string"
+        },
+        "schema_source_root": {
+          "type": "string"
+        },
+        "runner_matches_audit_root": {
+          "type": "boolean"
+        },
+        "schema_matches_audit_root": {
+          "type": "boolean"
+        },
+        "advisory_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     },
     "candidate": {
       "type": "object",

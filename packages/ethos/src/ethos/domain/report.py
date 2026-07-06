@@ -84,7 +84,10 @@ def scorecard_report(repo: Path) -> dict[str, object]:
         )
     parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
     advisory_gaps = _advisory_gaps(audit, claim_report, playbooks)
-    gap_layers = _gap_layers(result_required_gaps, parity_gaps, playbooks, advisory_gaps)
+    advisory_next_actions = _advisory_next_actions(advisory_gaps)
+    gap_layers = _gap_layers(
+        result_required_gaps, parity_gaps, playbooks, advisory_gaps, advisory_next_actions
+    )
     return {
         "ok": all(value == 1 for value in scores.values()),
         "summary": {
@@ -121,6 +124,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
                 "blocking": False,
                 "advisory_gaps": list(advisory_gaps),
                 "gap_count": len(advisory_gaps),
+                "next_actions": list(advisory_next_actions),
             },
             "parity": {
                 "scope": {
@@ -240,6 +244,31 @@ def _advisory_gaps(
     return tuple(dict.fromkeys(values))
 
 
+def _advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
+    """Translate non-blocking advisory signals into bounded repair hints.
+
+    These are not transition requirements and do not authorize mutation from the
+    current checkout. They only keep small visible signals actionable for a
+    human or agent who chooses to repair the owning branch or surface.
+    """
+    actions: list[str] = []
+    for gap in advisory_gaps:
+        parts = gap.split(":")
+        if len(parts) == 4 and parts[0] == "openspec_protected_branch_active_change_unarchived":
+            branch = parts[1]
+            role = parts[2]
+            change = parts[3]
+            actions.extend(
+                [
+                    f"git ls-tree -r --name-only {branch} -- openspec/changes/{change}",
+                    "ethos explain "
+                    f"openspec_protected_branch_active_change_unarchived:{branch}:{role}:{change} "
+                    "--json",
+                ]
+            )
+    return tuple(dict.fromkeys(actions))
+
+
 def _strings(value: object) -> list[str]:
     if not isinstance(value, list | tuple):
         return []
@@ -251,6 +280,7 @@ def _gap_layers(
     parity_gaps: dict[str, object],
     playbooks: dict[str, object],
     advisory_gaps: tuple[str, ...],
+    advisory_next_actions: tuple[str, ...],
 ) -> dict[str, dict[str, object]]:
     return {
         "governance_audit": _gap_layer(
@@ -281,6 +311,7 @@ def _gap_layers(
             "required_gaps": [],
             "advisory_gaps": list(advisory_gaps),
             "gap_count": len(advisory_gaps),
+            "next_actions": list(advisory_next_actions),
             "invalid_states": invalid_state_projection([]),
         },
     }

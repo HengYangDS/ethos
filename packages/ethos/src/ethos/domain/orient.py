@@ -44,6 +44,7 @@ def orientation_packet(
     report_summary = _dict(report_payload.get("summary") if report_payload else None)
     report_required = _strings(report_payload.get("required_gaps") if report_payload else None)
     report_advisory = _report_advisory_items(report_payload)
+    report_advisory_next_actions = _report_advisory_next_actions(report_payload)
     gaps = _dedupe([*required_gaps, *report_required])
     capability = _capability(role=role, dirty=dirty, closeout=closeout)
     next_actions = _next_actions(
@@ -53,6 +54,7 @@ def orientation_packet(
             "gaps": gaps,
             "closeout": closeout,
             "report_payload": report_payload,
+            "advisory_next_actions": report_advisory_next_actions,
         }
     )
     current_head = _current_head(status_payload, branch=str(status_payload.get("branch") or ""))
@@ -112,6 +114,7 @@ def orientation_packet(
                 report_summary.get("advisory_gap_count") or len(report_advisory)
             ),
             "advisory_items": report_advisory,
+            "advisory_next_actions": report_advisory_next_actions,
             "score": int(report_summary.get("score") or 0),
             "max_score": int(report_summary.get("max_score") or 0),
         },
@@ -219,6 +222,19 @@ def _report_advisory_items(report_payload: Mapping[str, Any] | None) -> list[str
     return _strings(signals.get("advisory_gaps"))
 
 
+def _report_advisory_next_actions(report_payload: Mapping[str, Any] | None) -> list[str]:
+    if not isinstance(report_payload, dict):
+        return []
+    data = _dict(report_payload.get("data"))
+    layers = _dict(data.get("gap_layers"))
+    advisory_layer = _dict(layers.get("advisory_signals"))
+    actions = _strings(advisory_layer.get("next_actions"))
+    if actions:
+        return actions
+    signals = _dict(data.get("advisory_signals"))
+    return _strings(signals.get("next_actions"))
+
+
 def _dict(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
@@ -308,6 +324,7 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
     closeout = _dict(context.get("closeout"))
     gaps = _strings(context.get("gaps"))
     report_payload = context.get("report_payload")
+    advisory_next_actions = _strings(context.get("advisory_next_actions"))
     actions = ["ethos status --json"]
     if context.get("dirty") is True:
         actions = ["ethos status --json", "git status --short"]
@@ -327,7 +344,7 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
         actions = ["ethos land --closeout --json"]
     elif isinstance(report_payload, dict):
         actions = _strings(report_payload.get("next_actions")) or actions
-    return actions
+    return _dedupe([*actions, *advisory_next_actions])
 
 
 def _human_summary(context: Mapping[str, Any]) -> str:

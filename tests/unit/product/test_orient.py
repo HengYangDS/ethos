@@ -40,6 +40,14 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
         in orientation["readiness"]["advisory_items"]
     )
+    assert orientation["readiness"]["advisory_next_actions"] == [
+        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
+        "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",
+    ]
+    assert (
+        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening"
+        in orientation["next_actions"]
+    )
     assert payload["summary"]["role"] == orientation["where"]["role"]
     assert (
         payload["summary"]["foreign_work_lane_count"]

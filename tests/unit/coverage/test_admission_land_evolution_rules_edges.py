@@ -110,14 +110,17 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_evolution_ledger_campaign_and_candidate_edges(tmp_path: Path) -> None:
-    assert evolution.evolution_ledger(tmp_path) == {"hypotheses": []}
-    ledger = tmp_path / "docs" / "governance"
+    empty_ledger = evolution.evolution_ledger(tmp_path)
+    assert empty_ledger["hypotheses"] == []
+    assert empty_ledger["entries"] == []
+    assert empty_ledger["path"].endswith("evolution/ledger.toml")
+    ledger = tmp_path / "evolution"
     ledger.mkdir(parents=True)
-    (ledger / "evolution-ledger.toml").write_text("[[hypothesis]]\nid='h1'\n", encoding="utf-8")
+    (ledger / "ledger.toml").write_text("[[hypothesis]]\nid='h1'\n", encoding="utf-8")
     report = evolution.evolution_report(tmp_path)
     assert report["ok"] is False
     assert "hypothesis_missing_field:0" in report["required_gaps"]
-    (ledger / "evolution-ledger.toml").write_text("[[hypothesis]\n", encoding="utf-8")
+    (ledger / "ledger.toml").write_text("[[hypothesis]\n", encoding="utf-8")
     assert "evolution_ledger_invalid_toml" in evolution.evolution_report(tmp_path)["required_gaps"]
 
     campaign_dir = tmp_path / "evolution" / "campaigns" / "c1"

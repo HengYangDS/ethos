@@ -1,0 +1,54 @@
+# Evolution Ledger SSOT Evidence
+
+Date: 2026-07-07
+Work Lane: `work/evolution-ledger-ssot`
+Base HEAD: `978a98021b23d2843a0aff7b75313126d4f4ed55`
+Executed proof digest: `c94158f148c02336096f69673f5adac83566068b9caab0cb2788bd5d39edcf8d`
+
+## Claim Boundary
+
+This evidence binds `evolution-ledger-ssot-20260707` to the repository change
+that removes the docs-hosted evolution ledger as a parallel data store and makes
+`evolution/ledger.toml` the single repository-truth ledger for typed evolution
+entries and active hypotheses.
+
+The change also fixes the config-lint execution owner so deletion of a tracked
+configuration file does not make the gate crash by attempting to read a missing
+path. The fix does not move TOML or YAML policy out of `.config/checks/`; it only
+keeps the reusable owner script robust against normal tracked deletions.
+
+## Local Evidence
+
+- `ethos campaign hypotheses --json` reads the ledger and reports active
+  hypotheses with data keys `entries`, `hypotheses`, `path`, and `types`.
+- `.config/ci/scripts/run-python-lint.sh` passed.
+- `.config/ci/scripts/run-config-lint.sh` passed and ignored deleted tracked
+  config paths that no longer exist in the worktree.
+- `.config/ci/scripts/run-docstring-coverage.sh` passed with Google style policy,
+  100.00% blocking public docstring coverage, and no style issues.
+- `.agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .`
+  passed with no required gaps.
+- Focused tests passed for evolution ledger, campaign manifest, schema
+  validation, and repository audit: 8 passed.
+- `openspec validate evolution-ledger-ssot-20260707 --strict --json` passed before archive.
+- `openspec archive evolution-ledger-ssot-20260707 --yes --json` archived the
+  completed change as `openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707`
+  and fused 1 added requirement into the canonical repository-governance spec.
+- `openspec validate --all --strict --json` passed after archive with 9 accepted
+  specs and no active changes.
+- `ethos quality schemas --json`, `ethos openspec --lifecycle --json`,
+  `ethos quality claims --json`, and `ethos report --json` passed before archive;
+  they must be rerun after the archived carrier and claim digest update.
+- `.config/ci/scripts/run-python-tests.sh` passed: 777 tests passed, branch
+  coverage 95.08%, coverage XML written to
+  `build/evidence/quality/tests/coverage/coverage.xml`.
+- `ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json`
+  passed with 13 gates and evidence digest
+  `c94158f148c02336096f69673f5adac83566068b9caab0cb2788bd5d39edcf8d`.
+
+## Boundary
+
+This evidence does not claim remote CI, push, merge request, hosted publication,
+or behavior in foreign Work Lanes. It only claims local repository-truth SSOT
+convergence for the evolution ledger path and local gate robustness for tracked
+configuration-file deletion.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 - Cyclopts resolves CLI annotations at import time.
 from typing import Annotated
 
 from cyclopts import Parameter
@@ -44,9 +44,14 @@ def campaign_status(
 
 
 @campaign_app.command
-def hypotheses(*, json_output: JsonFlag = False) -> None:
+def hypotheses(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """List active ETHOS evolution hypotheses."""
-    ledger = evolution_ledger(Path.cwd())
+    repo = resolve_root(root)
+    ledger = evolution_ledger(repo)
     result = EthosResult(
         command="campaign hypotheses",
         ok=True,

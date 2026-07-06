@@ -145,7 +145,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     from ethos.repository.policy.coupling import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
-    ledger_path = root / "docs" / "governance" / "evolution-ledger.toml"
+    ledger_path = root / "evolution" / "ledger.toml"
     if ledger_path.exists():
         try:
             ledger = tomllib.loads(ledger_path.read_text(encoding="utf-8"))

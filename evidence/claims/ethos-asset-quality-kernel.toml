@@ -94,7 +94,7 @@ targets = [
   "docs/governance/provenance-and-attestation.md",
   "docs/governance/release-governance.md",
   "docs/governance/evolution-campaign.md",
-  "docs/governance/evolution-ledger.toml",
+  "evolution/ledger.toml",
   "docs/governance/standards-adoption-policy.md",
   "docs/index.md",
   "docs/reference/command-plane.md",

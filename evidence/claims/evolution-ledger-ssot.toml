@@ -1,0 +1,59 @@
+[claim]
+id = "evolution-ledger-ssot"
+subject = "ethos:evolution-ledger-ssot"
+state = "active"
+change_id = "evolution-ledger-ssot-20260707"
+summary = "ETHOS uses evolution/ledger.toml as the single repository-truth evolution ledger and keeps docs explanatory."
+
+[evidence]
+dated = "evidence/evolution-ledger-ssot-2026-07-07.md"
+sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6"
+evidence_ids = ["evidence:evolution-ledger-ssot"]
+binding = "Evolution ledger SSOT binding"
+verifier = "semantic"
+tests = [
+  "ethos campaign hypotheses --json",
+  "ethos quality schemas --json",
+  "openspec validate evolution-ledger-ssot-20260707 --strict --json",
+  "openspec validate --all --strict --json",
+  ".config/ci/scripts/run-python-lint.sh",
+  ".config/ci/scripts/run-config-lint.sh",
+  ".config/ci/scripts/run-docstring-coverage.sh",
+  ".config/ci/scripts/run-python-tests.sh",
+  "ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/audit/test_depth.py",
+  "tests/unit/cli/test_contracts.py",
+]
+
+[boundary]
+owner = "ethos"
+scope = "Evolution ledger physical truth path, schema validation, campaign hypothesis reader, audit release files, assistant context resource, and config lint deletion robustness"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707"
+
+fallback = "Restore docs/governance/evolution-ledger.toml as the data ledger if evolution/ledger.toml cannot validate."
+kill_signal = "Two active evolution ledger data stores are required for normal operation."
+
+[promotion]
+targets = [
+  "evolution/ledger.toml",
+  "docs/governance/evolution-campaign.md",
+  "packages/ethos/src/ethos/repository/adoption/evolution.py",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "packages/ethos/src/ethos/assistants/context.py",
+  "system/schemas/kernel/evolution-ledger.schema.json",
+  ".config/ci/scripts/run-config-lint.sh",
+  "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",
+  "evidence/claims/evolution-ledger-ssot.toml",
+  "evidence/evolution-ledger-ssot-2026-07-07.md",
+]

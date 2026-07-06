@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def _ledger_path(root: Path) -> Path:
-    return root / "docs" / "governance" / "evolution-ledger.toml"
+    return root / "evolution" / "ledger.toml"
 
 
 def _campaigns_root(root: Path) -> Path:
@@ -19,12 +19,17 @@ def _campaigns_root(root: Path) -> Path:
 def evolution_ledger(root: Path) -> dict[str, Any]:
     path = _ledger_path(root)
     if not path.exists():
-        return {"hypotheses": []}
+        return {"hypotheses": [], "entries": [], "path": path.as_posix()}
     try:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
-        return {"hypotheses": [], "parse_error": str(exc)}
-    return {"hypotheses": payload.get("hypothesis", [])}
+        return {"hypotheses": [], "entries": [], "path": path.as_posix(), "parse_error": str(exc)}
+    return {
+        "hypotheses": payload.get("hypothesis", []),
+        "entries": payload.get("entry", []),
+        "types": payload.get("types", {}),
+        "path": path.as_posix(),
+    }
 
 
 def evolution_report(root: Path) -> dict[str, object]:

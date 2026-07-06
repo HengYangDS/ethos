@@ -29,6 +29,17 @@ else
   mapfile -t json_files < <(git ls-files '*.json')
 fi
 
+filter_existing_files() {
+  local target
+  for target in "$@"; do
+    [[ -f "${target}" ]] && printf '%s\n' "${target}"
+  done
+}
+
+mapfile -t toml_files < <(filter_existing_files "${toml_files[@]}")
+mapfile -t yaml_files < <(filter_existing_files "${yaml_files[@]}")
+mapfile -t json_files < <(filter_existing_files "${json_files[@]}")
+
 python - "${toml_files[@]}" <<'PY'
 from __future__ import annotations
 

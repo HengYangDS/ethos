@@ -84,7 +84,7 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
         ".gitlab-ci.yml",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",
-        "docs/governance/evolution-ledger.toml",
+        "evolution/ledger.toml",
         "openspec/config.yaml",
         "openspec/specs/kernel/spec.md",
     ):

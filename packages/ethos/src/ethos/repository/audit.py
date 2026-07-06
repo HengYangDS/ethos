@@ -129,7 +129,7 @@ REQUIRED_SCHEMAS = (
 
 REQUIRED_RELEASE_FILES = (
     *PRODUCT_RELEASE_FILES,
-    "docs/governance/evolution-ledger.toml",
+    "evolution/ledger.toml",
 )
 
 REQUIRED_PLAYBOOK_FILES = (

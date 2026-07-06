@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
-    "target_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
-    "product_semantic_sha256": "cbb03c086899c793bcc85a4f38a411891e39ced8590c72c8400498e39859852a",
-    "target_semantic_sha256": "cbb03c086899c793bcc85a4f38a411891e39ced8590c72c8400498e39859852a",
+    "product_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
+    "target_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
+    "product_semantic_sha256": "59c6a6a7c6070ce75460b037ea3bbe4515cb8d3363d31571cae7c9e674ad5278",
+    "target_semantic_sha256": "59c6a6a7c6070ce75460b037ea3bbe4515cb8d3363d31571cae7c9e674ad5278",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier",
-    "target_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
-    "product_head": "f9ecd1bbf6096fa1463a81f4f75c30558bc4e92f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot",
+    "target_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
+    "product_head": "b70f1dfc84b6ac7b14583f635030d445f997f333",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json",
-      "/Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/rollback-manifest-verifier --json"
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evolution-ledger-ssot --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "3b2ba4be4e9b5458cc1a22d87301592aa983a243eed3b37aeacf7bdaa4398bf5"
+        "sha256": "4af40cb84230c1f9e98025487bb059ef4d9e0f075968e183e9c4200192ddadb8"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0633fa5896eba0333bd0b083579e9ca5b02ef231dacc9925fb0db619d8374216"
+        "sha256": "0f96f0bad390704177fc09699827a18c5586c88b1fbd5e5346548b5e8e273890"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "6364742153e01e0e2765e7675663126ade5acde6852f71966044c4fd51d939be"
+        "sha256": "3f4b97f4d9454a32fca916607eef1f95b9eed24171016e605f39920ad7a34828"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "39b93bc5017a53df9d1092b65026ca56c994c21842e64fea9a272bb097f415cd"
+        "sha256": "1d5e5c36a2f19b69561e1ec75552486e6a73626ff9a3185b2ffa68b7b8cfb406"
       },
       {
         "path": "rules",

@@ -8,6 +8,8 @@ relations:
 
 # Evolution Campaign
 
+ETHOS governs repository evolution through one repository-truth ledger at `evolution/ledger.toml` plus campaign manifests under `evolution/campaigns/`. Documentation explains the mechanism; it does not store a parallel ledger.
+
 ETHOS governs repository evolution through:
 
 ```text
@@ -24,7 +26,7 @@ every profile.
 `ethos audit` changes proof depth for the product-toolchain profile; it does
 not create a private command plane or a second product lifecycle.
 
-`ethos campaign hypotheses --json` exposes active hypotheses as first-class
+`ethos campaign hypotheses --json` reads `evolution/ledger.toml` and exposes active hypotheses as first-class
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.
 

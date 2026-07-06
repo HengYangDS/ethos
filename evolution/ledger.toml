@@ -1,10 +1,9 @@
 # evolution/ledger.toml
-# Evolution is a typed record system, not many independent roots.
-# Records typed entries: feedback -> review -> challenge -> hypothesis ->
-# experiment -> evaluation -> retrospective, plus campaign containers.
-# Authority: docs/architecture/terminal-governance-product-design.md (§`evolution/`).
+# SSOT for ETHOS evolution records.
+# Docs explain the mechanism; this file is repository truth for hypotheses and
+# reviewed evolution entries.
 
-schema = "system/schemas/evolution-ledger.schema.json"
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
 
 [types]
 feedback = "Raw signal from users, agents, tools, incidents, or drift."
@@ -16,12 +15,48 @@ evaluation = "Measured result and decision recommendation."
 retrospective = "Human-readable learning after a campaign or repeated pattern."
 campaign = "Long-running goal container that coordinates entries and changes."
 
-# Entries are appended below as the terminal migration proceeds.
-# The terminal-substrate campaign itself is recorded as the first entry.
-
 [[entry]]
 id = "terminal-substrate-groundwork"
 type = "campaign"
 state = "active"
 summary = "Phase A: establish terminal semantic substrate (system/, evidence/, evolution/) and relocate legacy roots toward the terminal layout."
 work_lane = "work/terminal-substrate"
+
+[[hypothesis]]
+id = "schema-validated-command-plane"
+campaign = "ethos-product-maturation"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Every public JSON command can be validated against tracked ETHOS schemas."
+challenge = "A command without schema validation remains a product risk."
+transition = "shape -> canonize"
+proof_refs = ["ethos quality schemas --json"]
+review_refs = ["tests/unit/governance/test_validation_gates.py"]
+decision_refs = ["docs/governance/evolution-campaign.md"]
+retirement_conditions = ["all public JSON commands declare schema-bound output contracts"]
+
+[[hypothesis]]
+id = "real-gate-runner"
+campaign = "ethos-product-maturation"
+state = "experimenting"
+owner = "ethos-maintainers"
+claim = "ETHOS proof should execute selected gates through the action graph."
+challenge = "A proof wrapper that only summarizes repository-audit is not sufficient."
+transition = "experiment -> canonize"
+proof_refs = ["ethos prove --execute --json"]
+review_refs = ["tests/unit/lanes/test_runner_evidence.py"]
+decision_refs = ["docs/architecture/gate-runner.md"]
+retirement_conditions = ["land and publish consume proven evidence records"]
+
+[[hypothesis]]
+id = "host-profile-release-governance"
+campaign = "ethos-product-maturation"
+state = "active"
+owner = "ethos-maintainers"
+claim = "A release-ready product needs generic repository basics plus explicit host-profile surfaces."
+challenge = "Missing repository basics or hidden hosted-provider assumptions reduce trust even when code tests pass."
+transition = "shape -> canonize"
+proof_refs = ["ethos quality release-policy --json"]
+review_refs = ["tests/unit/release/test_policy_attestation.py"]
+decision_refs = ["docs/governance/release-governance.md"]
+retirement_conditions = ["release readiness is backed by local build smoke and attestation checks"]

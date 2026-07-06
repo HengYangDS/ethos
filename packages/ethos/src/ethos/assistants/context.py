@@ -35,7 +35,7 @@ def context_bundle(
             "ethos://docs/index": "docs/index.md",
             "ethos://docs/command-plane": "docs/reference/command-plane.md",
             "ethos://schemas/result": "system/schemas/kernel/result.schema.json",
-            "ethos://governance/evolution": "docs/governance/evolution-ledger.toml",
+            "ethos://governance/evolution": "evolution/ledger.toml",
         },
         "rules": [
             "agent hosts consume ETHOS context without becoming truth stores",

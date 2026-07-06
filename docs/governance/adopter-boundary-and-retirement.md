@@ -98,6 +98,14 @@ default, the adopter profile must expose a `[rollback_window]` table with a
 tracked evidence manifest and completed minimum scenarios for proof/report, Work
 Lane closeout, domain-gate planning, and assistant/playbook routing.
 
+The evidence manifest is not a narrative placeholder. It must be tracked inside
+the adopter repository, parse as TOML, bind the evidence to reachable adopter
+and external-ETHOS heads, and include one entry per required scenario. Each
+scenario entry records the scenario id, the evidence path, the command that
+produced or checked the evidence, an evidence digest, and the same target and
+product heads. Profile `completed_scenarios` are therefore admitted only when
+the manifest independently proves the same scenarios.
+
 ## Retirement Decision
 
 A retirement decision must record:

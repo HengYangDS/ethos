@@ -224,6 +224,10 @@ shadow, and lifecycle checks rather than product-core adopter directories.
 - **AND** requires a tracked rollback-window evidence manifest with completed
   `proof_report`, `work_lane_closeout`, `domain_gate`, and `assistant_playbook`
   scenarios before accepting a terminal retirement-ready backend state
+- **AND** requires the rollback-window manifest to be repository-local,
+  Git-tracked, parseable, bound to reachable adopter and external-product
+  heads, and backed by per-scenario evidence path, command, digest, target-head,
+  and product-head fields
 - **AND** does not require `adopters/<name>`, `profiles/<name>`, or
   `tests/fixtures/adopters/<name>` inside the ETHOS product repository.
 

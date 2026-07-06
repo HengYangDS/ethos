@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.retirement import retirement_readiness_report
@@ -11,6 +12,83 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import pytest
+
+STANDARD_ROLLBACK_SCENARIOS = (
+    "proof_report",
+    "work_lane_closeout",
+    "domain_gate",
+    "assistant_playbook",
+)
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.check_output(
+        ["git", "-C", root.as_posix(), *args],
+        text=True,
+        stderr=subprocess.DEVNULL,
+    ).strip()
+
+
+def _init_git_repo(root: Path) -> None:
+    subprocess.run(["git", "-C", root.as_posix(), "init", "-q"], check=True)
+    subprocess.run(
+        ["git", "-C", root.as_posix(), "config", "user.email", "test@example.com"], check=True
+    )
+    subprocess.run(["git", "-C", root.as_posix(), "config", "user.name", "Test User"], check=True)
+    subprocess.run(
+        ["git", "-C", root.as_posix(), "commit", "--allow-empty", "-q", "-m", "initial"],
+        check=True,
+    )
+
+
+def _git_head(root: Path) -> str:
+    return _git(root, "rev-parse", "HEAD")
+
+
+def _git_add_all(root: Path) -> None:
+    subprocess.run(["git", "-C", root.as_posix(), "add", "-A"], check=True)
+
+
+def _terminal_rollback(adopter: Path, product: Path) -> dict[str, object]:
+    return {
+        "state": "complete",
+        "completed_scenarios": STANDARD_ROLLBACK_SCENARIOS,
+        "target_head": _git_head(adopter),
+        "product_head": _git_head(product),
+    }
+
+
+def _prepare_terminal_profile(
+    tmp_path: Path, *, rollback_overrides: dict[str, object] | None = None
+) -> tuple[Path, Path]:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
+    rollback = _terminal_rollback(adopter, product)
+    if rollback_overrides:
+        rollback.update(rollback_overrides)
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback=rollback,
+    )
+    _git_add_all(adopter)
+    return adopter, product
+
+
+def _terminal_report(adopter: Path, product: Path) -> dict[str, object]:
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+    return retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
 
 
 def _write_profile(
@@ -34,18 +112,56 @@ def _write_profile(
     )
     rollback_table = ""
     if rollback is not None:
-        (root / "docs/evidence/rollback-window.md").write_text(
-            "# rollback window\n",
-            encoding="utf-8",
+        evidence_manifest = str(
+            rollback.get("evidence_manifest") or "docs/evidence/rollback-window.toml"
         )
+        manifest_kind = str(rollback.get("manifest") or "complete")
         completed_items = rollback.get("completed_scenarios", ())
         required_items = rollback.get("required_scenarios", ())
+        if manifest_kind == "placeholder":
+            (root / evidence_manifest).parent.mkdir(parents=True, exist_ok=True)
+            (root / evidence_manifest).write_text(
+                "# rollback window\n",
+                encoding="utf-8",
+            )
+        else:
+            scenario_lines = []
+            target_head = str(rollback.get("target_head") or "")
+            product_head = str(rollback.get("product_head") or "")
+            for item in completed_items:
+                evidence_path = f"docs/evidence/rollback-window/{item}.json"
+                (root / evidence_path).parent.mkdir(parents=True, exist_ok=True)
+                (root / evidence_path).write_text("{}\n", encoding="utf-8")
+                scenario_lines.extend(
+                    [
+                        f"[scenarios.{item}]",
+                        f'target_head = "{target_head}"',
+                        f'product_head = "{product_head}"',
+                        f'evidence = "{evidence_path}"',
+                        f'command = "ethos {item}"',
+                        f'digest = "sha256:{item}"',
+                        "",
+                    ]
+                )
+            (root / evidence_manifest).parent.mkdir(parents=True, exist_ok=True)
+            (root / evidence_manifest).write_text(
+                "\n".join(
+                    [
+                        "schema_version = 1",
+                        f'target_head = "{target_head}"',
+                        f'product_head = "{product_head}"',
+                        "",
+                        *scenario_lines,
+                    ]
+                ),
+                encoding="utf-8",
+            )
         completed = "\n".join(f'  "{item}",' for item in completed_items)
         required = "\n".join(f'  "{item}",' for item in required_items)
         rollback_table = (
             "\n[rollback_window]\n"
             f'state = "{rollback.get("state", "")}"\n'
-            'evidence_manifest = "docs/evidence/rollback-window.md"\n'
+            f'evidence_manifest = "{evidence_manifest}"\n'
             "completed_scenarios = [\n"
             f"{completed}\n"
             "]\n"
@@ -133,20 +249,15 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
     _write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback={
-            "state": "complete",
-            "completed_scenarios": (
-                "proof_report",
-                "work_lane_closeout",
-                "domain_gate",
-                "assistant_playbook",
-            ),
-        },
+        rollback=_terminal_rollback(adopter, product),
     )
+    _git_add_all(adopter)
     (product / "adopters/sample").mkdir(parents=True)
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -190,6 +301,18 @@ def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_sta
 def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
     tmp_path: Path,
 ) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is True
+    assert report["state"] == "ready"
+    assert report["required_gaps"] == []
+
+
+def test_retirement_readiness_rejects_placeholder_rollback_manifest(
+    tmp_path: Path,
+) -> None:
     adopter = tmp_path / "adopter"
     product = tmp_path / "product"
     adopter.mkdir()
@@ -200,12 +323,8 @@ def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
         embedded_state="frozen_fallback",
         rollback={
             "state": "complete",
-            "completed_scenarios": (
-                "proof_report",
-                "work_lane_closeout",
-                "domain_gate",
-                "assistant_playbook",
-            ),
+            "manifest": "placeholder",
+            "completed_scenarios": STANDARD_ROLLBACK_SCENARIOS,
         },
     )
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
@@ -218,9 +337,249 @@ def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
         shadow=shadow,
     )
 
-    assert report["ok"] is True
-    assert report["state"] == "ready"
-    assert report["required_gaps"] == []
+    assert report["ok"] is False
+    assert any(
+        gap.startswith("retirement_rollback_window_evidence_manifest_invalid:")
+        for gap in report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_rejects_rollback_manifest_outside_repo(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(
+        tmp_path,
+        rollback_overrides={"evidence_manifest": "../rollback-window.toml"},
+    )
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_evidence_manifest_path_outside_repo:../rollback-window.toml"
+    ) in report["required_gaps"]
+
+
+def test_retirement_readiness_rejects_missing_rollback_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "docs/evidence/rollback-window.toml").unlink()
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_evidence_manifest_path_missing:"
+        "docs/evidence/rollback-window.toml"
+    ) in report["required_gaps"]
+
+
+def test_retirement_readiness_rejects_unparseable_rollback_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "docs/evidence/rollback-window.toml").write_text("[", encoding="utf-8")
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_evidence_manifest_invalid:docs/evidence/rollback-window.toml"
+    ) in report["required_gaps"]
+
+
+def test_retirement_readiness_rejects_manifest_without_scenarios(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "docs/evidence/rollback-window.toml").write_text(
+        "\n".join(
+            [
+                "schema_version = 1",
+                f'target_head = "{_git_head(adopter)}"',
+                f'product_head = "{_git_head(product)}"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_evidence_manifest_invalid:docs/evidence/rollback-window.toml"
+    ) in report["required_gaps"]
+    assert (
+        "retirement_rollback_window_manifest_scenario_missing:proof_report"
+        in report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_rejects_incomplete_scenario_bindings(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "docs/evidence/rollback-window.toml").write_text(
+        "\n".join(
+            [
+                "schema_version = 1",
+                f'target_head = "{_git_head(adopter)}"',
+                f'product_head = "{_git_head(product)}"',
+                "",
+                "[scenarios.proof_report]",
+                'target_head = "different-target"',
+                'product_head = "different-product"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_manifest_scenario_target_head_mismatch:proof_report"
+        in report["required_gaps"]
+    )
+    assert (
+        "retirement_rollback_window_manifest_scenario_product_head_mismatch:proof_report"
+        in report["required_gaps"]
+    )
+    assert (
+        "retirement_rollback_window_manifest_scenario_command_missing:proof_report"
+        in report["required_gaps"]
+    )
+    assert (
+        "retirement_rollback_window_manifest_scenario_digest_missing:proof_report"
+        in report["required_gaps"]
+    )
+    assert (
+        "retirement_rollback_window_manifest_scenario_evidence_missing:proof_report"
+        in report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_rejects_bad_scenario_evidence_paths(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    manifest = adopter / "docs/evidence/rollback-window.toml"
+    manifest.write_text(
+        "\n".join(
+            [
+                "schema_version = 1",
+                f'target_head = "{_git_head(adopter)}"',
+                f'product_head = "{_git_head(product)}"',
+                "",
+                "[scenarios.proof_report]",
+                f'target_head = "{_git_head(adopter)}"',
+                f'product_head = "{_git_head(product)}"',
+                'evidence = "../outside.json"',
+                'command = "ethos prove"',
+                'digest = "sha256:proof"',
+                "",
+                "[scenarios.work_lane_closeout]",
+                f'target_head = "{_git_head(adopter)}"',
+                f'product_head = "{_git_head(product)}"',
+                'evidence = "docs/evidence/missing.json"',
+                'command = "ethos land"',
+                'digest = "sha256:land"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_manifest_scenario_evidence_outside_repo:proof_report"
+        in report["required_gaps"]
+    )
+    assert (
+        "retirement_rollback_window_manifest_scenario_evidence_path_missing:"
+        "work_lane_closeout:docs/evidence/missing.json"
+    ) in report["required_gaps"]
+
+
+def test_retirement_readiness_requires_tracked_rollback_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback=_terminal_rollback(adopter, product),
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["ok"] is False
+    assert (
+        "retirement_rollback_window_evidence_manifest_not_tracked:"
+        "docs/evidence/rollback-window.toml"
+    ) in report["required_gaps"]
+    assert any(
+        gap.startswith("retirement_rollback_window_manifest_scenario_evidence_not_tracked:")
+        for gap in report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_rejects_unreachable_rollback_heads(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
+    rollback = _terminal_rollback(adopter, product)
+    rollback["target_head"] = "0" * 40
+    rollback["product_head"] = "1" * 40
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback=rollback,
+    )
+    _git_add_all(adopter)
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["ok"] is False
+    assert (
+        f"retirement_rollback_window_evidence_manifest_target_head_unreachable:{'0' * 40}"
+    ) in report["required_gaps"]
+    assert (
+        f"retirement_rollback_window_evidence_manifest_product_head_unreachable:{'1' * 40}"
+    ) in report["required_gaps"]
 
 
 def test_fleet_retirement_readiness_cli_reports_profile_stage(
@@ -231,20 +590,15 @@ def test_fleet_retirement_readiness_cli_reports_profile_stage(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
     _write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback={
-            "state": "complete",
-            "completed_scenarios": (
-                "proof_report",
-                "work_lane_closeout",
-                "domain_gate",
-                "assistant_playbook",
-            ),
-        },
+        rollback=_terminal_rollback(adopter, product),
     )
+    _git_add_all(adopter)
 
     def fake_parity_gaps_report(**kwargs):
         assert kwargs["adopter"] == "sample"
@@ -387,20 +741,15 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
+    _init_git_repo(adopter)
+    _init_git_repo(product)
     _write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback={
-            "state": "complete",
-            "completed_scenarios": (
-                "proof_report",
-                "work_lane_closeout",
-                "domain_gate",
-                "assistant_playbook",
-            ),
-        },
+        rollback=_terminal_rollback(adopter, product),
     )
+    _git_add_all(adopter)
 
     def fake_parity_gaps_report(**kwargs):
         return {

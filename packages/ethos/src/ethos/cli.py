@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 from typing import cast
 
-from ethos.adapters.gates import tool as _qtool
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalSubprocessRunner
 from ethos.adapters.mutation.core import MutationRequest
@@ -55,16 +53,6 @@ from ethos_core.invalid_states import explain_gap
 from ethos_core.result import EthosResult
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    digest.update(path.read_bytes())
-    return f"sha256:{digest.hexdigest()}"
-
-
-def _git_files(root: Path, *patterns: str) -> list[str]:
-    return _gitio.git_files(root, *patterns)
-
-
 def _missing_gate_dependency_next_actions(
     *,
     selected_gate_ids: tuple[str, ...],
@@ -109,36 +97,6 @@ def _missing_gate_dependency_next_actions(
         command_parts.extend(("--gate", gate_id))
     command_parts.extend(("--expect-head", current_head, "--json"))
     return (" ".join(command_parts),)
-
-
-def _quality_tool_report(
-    *,
-    root: Path,
-    gate_id: str,
-    tool: str,
-    command: list[str],
-    files: list[str],
-) -> dict[str, object]:
-    return _qtool.quality_tool_report(
-        root=root,
-        gate_id=gate_id,
-        tool=tool,
-        command=command,
-        files=files,
-    )
-
-
-def _code_size_report(root: Path) -> dict[str, object]:
-    return _prove.code_size_report(root)
-
-
-def _command_data_validation(
-    repo: Path,
-    *,
-    schema_name: str,
-    payload: dict[str, object],
-) -> dict[str, object]:
-    return _prove.command_data_validation(repo, schema_name=schema_name, payload=payload)
 
 
 @app.command

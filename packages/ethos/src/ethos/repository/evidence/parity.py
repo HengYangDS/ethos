@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
 from ethos.repository.evidence.parity_validation import SHADOW_PARITY_COMMANDS
 from ethos.repository.evidence.parity_validation import _command_matches_identity
 from ethos.repository.evidence.parity_validation import _migratable_capability_list
@@ -298,8 +298,33 @@ def _shadow_evidence_command(*, adopter: str, target: str, timeout_seconds: int)
     )
 
 
+def _same_git_repository(left: Path, right: Path) -> bool:
+    """True when both paths resolve to the same underlying git repository.
+
+    Inlined here (repository layer runs git via subprocess directly, per the sibling
+    parity_validation module) rather than importing the adapters git helper, which the
+    surface>domain>adapters>repository layering forbids.
+    """
+
+    def _common_dir(path: Path) -> str:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return ""
+        return str((path / completed.stdout.strip()).resolve())
+
+    left_common = _common_dir(left)
+    right_common = _common_dir(right)
+    return bool(left_common and right_common and left_common == right_common)
+
+
 def _target_identity(*, root: Path | None, adopter: str, target: Path) -> str:
-    if adopter == "generic" and root is not None and _gitio.same_git_repository(root, target):
+    if adopter == "generic" and root is not None and _same_git_repository(root, target):
         return REPOSITORY_TARGET
     return target.resolve().as_posix()
 

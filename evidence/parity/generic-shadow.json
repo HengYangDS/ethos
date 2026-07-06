@@ -5,8 +5,8 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "b58948270c1c5c2b69d1e6df13783c36b94f0e0b",
-    "target_head": "b58948270c1c5c2b69d1e6df13783c36b94f0e0b",
+    "product_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
+    "target_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
     "product_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
     "target_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
     "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paHref",
-    "target_head": "b58948270c1c5c2b69d1e6df13783c36b94f0e0b",
-    "product_head": "b58948270c1c5c2b69d1e6df13783c36b94f0e0b",
+    "target_root": "/private/tmp/paT",
+    "target_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
+    "product_head": "d87d025a8fc980715f61c0f42b6fba2ecdc01393",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paHref --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paT --json",
       "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paHref --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paHref --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paT --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paT --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "30e55bbab5f55c9c3e06ffaa70b962f87e9fc12a23e76f7d1a10ada37d3b63de"
+        "sha256": "c551aca2305be573ec71a922947fdda2273496739826588570df9e15ccee6999"
       },
       {
         "path": "evidence/claims",

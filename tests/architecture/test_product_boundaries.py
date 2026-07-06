@@ -586,3 +586,11 @@ def test_markdown_docs_declare_subject_role_state_relations() -> None:
         header = text.split("---", 2)[1]
         for field in ("subject:", "role:", "state:", "relations:"):
             assert field in header, path
+
+
+def test_command_plane_docs_use_gap_or_signal_explain_language() -> None:
+    text = (ROOT / "docs/reference/command-plane.md").read_text(encoding="utf-8")
+
+    assert "ethos explain <gap-or-signal>" in text
+    assert "ethos explain required_gaps" not in text
+    assert "projects one gap or advisory signal into that taxonomy" in text

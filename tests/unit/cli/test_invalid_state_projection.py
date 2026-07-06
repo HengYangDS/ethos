@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def test_explain_projects_gap_to_invalid_state_taxonomy() -> None:
@@ -59,3 +60,11 @@ def test_explain_projects_advisory_signal_without_required_gap_overclaim() -> No
     assert "required gap" not in payload["data"]["meaning"]
     assert "signal" in payload["data"]["meaning"]
     assert payload["data"]["taxonomy"]["projection_only"] is True
+
+
+def test_explain_help_uses_gap_or_signal_language() -> None:
+    completed = run_ethos_raw("explain", "--help")
+
+    assert completed.returncode == 0
+    assert "gap or advisory signal" in completed.stdout
+    assert "Explain a required gap" not in completed.stdout

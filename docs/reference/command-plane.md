@@ -114,7 +114,7 @@ ethos parity shadow --target <repo>
 ethos parity shadow --adopter <adopter-id> --target <repo>
 ethos report
 ethos docs
-ethos explain required_gaps
+ethos explain <gap-or-signal>
 ```
 
 Agent projections:
@@ -334,8 +334,8 @@ parity backlog.
 
 The invalid-state taxonomy is not a second lifecycle and does not add a sixth
 transition command. It is a read-only explanation vocabulary for failed
-preconditions in the kernel chain and boundary substrate. `ethos explain <gap>
---json` projects one gap into that taxonomy and returns the category id, node,
+preconditions in the kernel chain and boundary substrate. `ethos explain <gap-or-signal>
+--json` projects one gap or advisory signal into that taxonomy and returns the category id, node,
 question, summary, and taxonomy source. A gap that cannot classify is reported as
 `unclassified_invalid_state`, which means the command plane emitted an ungoverned
 failure mode that must be folded back into the taxonomy or renamed to an existing

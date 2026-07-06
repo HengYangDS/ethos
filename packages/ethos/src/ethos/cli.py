@@ -693,7 +693,7 @@ def report(
 
 @app.command(show=False)
 def explain(gap: str, *, json_output: JsonFlag = False) -> None:
-    """Explain a required gap as a read-only invalid-state projection."""
+    """Explain a governance gap or advisory signal as a read-only invalid-state projection."""
     data = explain_gap(gap)
     category_id = str(data["invalid_state"]["id"])
     result = EthosResult(

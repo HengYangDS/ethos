@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
-    "target_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
-    "product_semantic_sha256": "7f9ca3391f04df5f826c1b7dcdc3bf41fbd3efe6893e6db8b9026bb782720cae",
-    "target_semantic_sha256": "7f9ca3391f04df5f826c1b7dcdc3bf41fbd3efe6893e6db8b9026bb782720cae",
+    "product_head": "5b63acce75dd82f888816b73d03628cf652a346a",
+    "target_head": "5b63acce75dd82f888816b73d03628cf652a346a",
+    "product_semantic_sha256": "3e99ccf408753b42e0e21142227ae283c73d8dc0d155752074ec19f9668e1a71",
+    "target_semantic_sha256": "3e99ccf408753b42e0e21142227ae283c73d8dc0d155752074ec19f9668e1a71",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/explain-signal-language",
-    "target_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
-    "product_head": "e9a25d8dda532fb344b140fb60b1506cfffa384e",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/explain-projection-language",
+    "target_head": "5b63acce75dd82f888816b73d03628cf652a346a",
+    "product_head": "5b63acce75dd82f888816b73d03628cf652a346a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json",
-      "/Users/yheng/projects/ethos-worktrees/explain-signal-language/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/explain-signal-language --json"
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json",
+      "/Users/yheng/projects/ethos-worktrees/explain-projection-language/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/explain-projection-language --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "d876bec3469091bf7e3f6babdca51e6a553a41301f2ab4027dbff71fb65256c4"
+        "sha256": "9608ac87eb524c01e616e6b7fd5efbbfd555f9fe25a2e9280b5c0240ff938f2c"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "45c934ed42f2c621114747ddceac38fa898825b6caac001ccc701305a31d4f7b"
+        "sha256": "de507b7681975bef22d610fe9f5966d816b902d59792ec4ca1476cf968caf0d0"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "3212b2232e80bc3d390ae0d62ff458f23998428bcc1a15889f6b27d935c4f35b"
+        "sha256": "0fc1b14188fff419479931f17b68a82b9d4f09bcb6ae9fa0786b79e22b732a5d"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d1b354961112ff46ec1d4190217eb21436adfccdc36e1b30651bb57e2b2534da"
+        "sha256": "a55c424825847201167c9a934af968b16f292b662b7b7c018e23fd7fe0816584"
       },
       {
         "path": "rules",

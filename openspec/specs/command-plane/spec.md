@@ -89,3 +89,10 @@ projection for governance gaps and advisory signals.
 - **AND** the payload classifies the signal into an invalid-state category
 - **AND** the payload wording does not claim every explained signal is a required gap
 - **AND** the taxonomy projection does not become a lifecycle command
+
+#### Scenario: Explain help and docs use gap-or-signal language
+
+- **WHEN** a human or agent reads `ethos explain --help` or the command-plane reference
+- **THEN** the command is described as explaining a governance gap or advisory signal
+- **AND** docs show `ethos explain <gap-or-signal>` rather than a required-gap-only surface
+- **AND** the command remains a read-only projection, not a lifecycle command

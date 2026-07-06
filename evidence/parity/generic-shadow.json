@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "e235b41e580a44117e07831f0d69a6bddfbf3e07",
-    "target_head": "e235b41e580a44117e07831f0d69a6bddfbf3e07",
-    "product_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
-    "target_semantic_sha256": "a11ce650d6ed649431732d289b2df07988639c379856aa9b38bb5e971204f274",
+    "product_head": "609f3292025a41f2577e922eec736f6ef0feda71",
+    "target_head": "609f3292025a41f2577e922eec736f6ef0feda71",
+    "product_semantic_sha256": "30fcc51498025605968d29c65f5f302a1e6ae8843638703acb78e0d2fae898af",
+    "target_semantic_sha256": "30fcc51498025605968d29c65f5f302a1e6ae8843638703acb78e0d2fae898af",
     "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback",
-    "target_head": "e235b41e580a44117e07831f0d69a6bddfbf3e07",
-    "product_head": "e235b41e580a44117e07831f0d69a6bddfbf3e07",
+    "target_root": "/private/tmp/paH",
+    "target_head": "609f3292025a41f2577e922eec736f6ef0feda71",
+    "product_head": "609f3292025a41f2577e922eec736f6ef0feda71",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json",
-      "/Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/remote-local-ci-fallback --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paH --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paH --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "fc5b5dbb8c3b48761942ba4ef978f13f3d539e64090f81ac66e3cc0cddd537d2"
+        "sha256": "4af40cb84230c1f9e98025487bb059ef4d9e0f075968e183e9c4200192ddadb8"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "2e762e0830a9a04b8226419c55ce02bf0e56b5ddaf83b22879ed5fe4ee29cbe5"
+        "sha256": "fa97bbf745bcd76136c4085ac7f63ff860f56a9ec5b435732ed93cf4a9ccb0b1"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "e43a2d71e9a0f3899b43057f2dab2012d6ba86c51cd1c735353e00224855844b"
+        "sha256": "3f4b97f4d9454a32fca916607eef1f95b9eed24171016e605f39920ad7a34828"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d2445c870ff9c72292508014559cbd8da9d809d8268f556739a039a25d095a08"
+        "sha256": "1d5e5c36a2f19b69561e1ec75552486e6a73626ff9a3185b2ffa68b7b8cfb406"
       },
       {
         "path": "rules",

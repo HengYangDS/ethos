@@ -1,4 +1,2 @@
 schema: spec-driven
 created: 2026-07-01
-goal: Make ETHOS product-truth migration state explicit, scaffolded adopters
-  immediately diagnosable, and package boundaries machine-checkable.

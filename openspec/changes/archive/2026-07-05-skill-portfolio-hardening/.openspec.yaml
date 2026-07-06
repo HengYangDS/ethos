@@ -1,3 +1,2 @@
 schema: spec-driven
 created: 2026-07-05
-goal: Harden the ETHOS repo-local skill portfolio so weak triggers, route overlap, and projection drift are visible without adding a new skill or truth store.

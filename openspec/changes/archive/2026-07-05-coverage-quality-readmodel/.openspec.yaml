@@ -1,3 +1,2 @@
 schema: spec-driven
 created: 2026-07-05
-goal: Expose the active Python coverage floor through a read-only ETHOS quality command without replacing the test gate owner script.

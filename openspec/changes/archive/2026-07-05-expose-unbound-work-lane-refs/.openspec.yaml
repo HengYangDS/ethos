@@ -1,3 +1,2 @@
 schema: spec-driven
 created: 2026-07-05
-goal: Expose unbound configured Work Lane refs as advisory status facts without treating them as active foreign worktrees.

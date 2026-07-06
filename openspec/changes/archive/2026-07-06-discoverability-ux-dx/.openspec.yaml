@@ -1,6 +1,2 @@
 schema: spec-driven
 created: 2026-07-06
-goal: >-
-  Add a thin orientation reader view so humans and agents can discover role,
-  capability, coordination, readiness, and next actions without adding a truth
-  store.

@@ -1,3 +1,2 @@
 schema: spec-driven
 created: 2026-07-05
-goal: Add a head-bound, reason-bound maintainer command for retiring local unbound Work Lane refs without deleting linked worktrees or bypassing land semantics.

@@ -1,3 +1,2 @@
 schema: spec-driven
 created: 2026-07-06
-goal: Bind tracked parity evidence to the parity-relevant semantic tree so evidence commits do not stale themselves.

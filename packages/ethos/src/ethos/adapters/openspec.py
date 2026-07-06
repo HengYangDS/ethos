@@ -26,6 +26,7 @@ CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
 DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
 ARCHIVE_METADATA_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
 REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
+ALLOWED_ARCHIVE_METADATA_KEYS = frozenset({"schema", "created", "status"})
 
 
 def _openspec_base_command() -> tuple[str, ...] | None:
@@ -276,6 +277,15 @@ def _archive_metadata_issues(
 ) -> list[dict[str, str]]:
     metadata = _read_archive_metadata(path)
     issues: list[dict[str, str]] = []
+    for key in sorted(set(metadata) - ALLOWED_ARCHIVE_METADATA_KEYS):
+        issues.append(
+            _archive_issue(
+                f"openspec_archive_metadata_key_unsupported:{key}",
+                path,
+                archive_name,
+                root=root,
+            )
+        )
     if metadata.get("schema") != "spec-driven":
         issues.append(
             _archive_issue(

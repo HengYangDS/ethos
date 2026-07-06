@@ -12,6 +12,12 @@ from ethos.repository.profile import load_repository_profile
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}
 EXTERNAL_DEFAULT_STATES = RETIREMENT_READY_STATES | {"default", "rollback_window"}
 EMBEDDED_FROZEN_STATES = {"frozen_fallback", "reference_only", "retired"}
+STANDARD_ROLLBACK_SCENARIOS = (
+    "proof_report",
+    "work_lane_closeout",
+    "domain_gate",
+    "assistant_playbook",
+)
 
 
 def retirement_readiness_report(
@@ -41,6 +47,12 @@ def retirement_readiness_report(
     adoption_boundary = profile.tables.get("adoption_boundary", {})
     external_backend = profile.tables.get("external_backend", {})
     embedded_backend = profile.tables.get("embedded_backend", {})
+    rollback_window = profile.tables.get("rollback_window", {})
+
+    external_state = str(external_backend.get("state") or "")
+    embedded_state = str(embedded_backend.get("state") or "")
+    parity_ok = bool(parity_gaps and parity_gaps.get("ok") is True)
+    shadow_ok = bool(shadow and shadow.get("ok") is True)
 
     adopter = profile.identity.get("profile_id") or repo.name
     checks = {
@@ -50,6 +62,16 @@ def retirement_readiness_report(
         "binding": _binding_checks(repo, adoption_boundary),
         "external_backend": _external_backend_checks(external_backend),
         "embedded_backend": _embedded_backend_checks(repo, embedded_backend),
+        "rollback_window": _rollback_window_checks(
+            repo,
+            rollback_window,
+            context={
+                "external_state": external_state,
+                "embedded_state": embedded_state,
+                "parity_ok": parity_ok,
+                "shadow_ok": shadow_ok,
+            },
+        ),
         "product_boundary": _product_boundary_checks(product, adoption_boundary),
         "parity": _parity_checks(parity_gaps),
         "shadow": _shadow_checks(shadow),
@@ -58,10 +80,10 @@ def retirement_readiness_report(
         required_gaps.extend(_string_list(check.get("required_gaps")))
 
     lifecycle_stage = _lifecycle_stage(
-        external_state=str(external_backend.get("state") or ""),
-        embedded_state=str(embedded_backend.get("state") or ""),
-        parity_ok=bool(parity_gaps and parity_gaps.get("ok") is True),
-        shadow_ok=bool(shadow and shadow.get("ok") is True),
+        external_state=external_state,
+        embedded_state=embedded_state,
+        parity_ok=parity_ok,
+        shadow_ok=shadow_ok,
     )
     if lifecycle_stage != "retirement_ready":
         required_gaps.append(f"retirement_lifecycle_incomplete:{lifecycle_stage}")
@@ -69,7 +91,7 @@ def retirement_readiness_report(
     required_gaps = list(dict.fromkeys(required_gaps))
     return {
         "ok": not required_gaps,
-        "state": "ready" if not required_gaps else lifecycle_stage,
+        "state": "ready" if not required_gaps else _report_state(lifecycle_stage, required_gaps),
         "adopter": adopter,
         "target": repo.as_posix(),
         "product_root": product.as_posix(),
@@ -158,6 +180,55 @@ def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> di
     }
 
 
+def _rollback_window_checks(
+    repo: Path,
+    rollback_window: dict[str, Any],
+    *,
+    context: dict[str, object],
+) -> dict[str, object]:
+    external_state = str(context.get("external_state") or "")
+    embedded_state = str(context.get("embedded_state") or "")
+    applicable = (
+        context.get("parity_ok") is True
+        and context.get("shadow_ok") is True
+        and external_state in EXTERNAL_DEFAULT_STATES
+        and embedded_state in EMBEDDED_FROZEN_STATES
+    )
+    configured_required = _string_list(rollback_window.get("required_scenarios"))
+    required_scenarios = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *configured_required)))
+    completed_scenarios = _string_list(rollback_window.get("completed_scenarios"))
+    evidence_manifest = str(rollback_window.get("evidence_manifest") or "")
+    state = str(rollback_window.get("state") or "")
+    gaps = []
+    if applicable:
+        if not rollback_window:
+            gaps.append("retirement_rollback_window_missing")
+        if state != "complete":
+            gaps.append(f"retirement_rollback_window_not_complete:{state or 'missing'}")
+        if not evidence_manifest:
+            gaps.append("retirement_rollback_window_evidence_manifest_missing")
+        elif not (repo / evidence_manifest).exists():
+            gaps.append(
+                f"retirement_rollback_window_evidence_manifest_path_missing:{evidence_manifest}"
+            )
+        completed = set(completed_scenarios)
+        gaps.extend(
+            f"retirement_rollback_window_scenario_missing:{scenario}"
+            for scenario in required_scenarios
+            if scenario not in completed
+        )
+    return {
+        "ok": not gaps,
+        "applicable": applicable,
+        "state": state,
+        "evidence_manifest": evidence_manifest,
+        "standard_scenarios": list(STANDARD_ROLLBACK_SCENARIOS),
+        "required_scenarios": required_scenarios,
+        "completed_scenarios": completed_scenarios,
+        "required_gaps": gaps,
+    }
+
+
 def _product_boundary_checks(
     product_root: Path, adoption_boundary: dict[str, Any]
 ) -> dict[str, object]:
@@ -214,6 +285,12 @@ def _shadow_checks(shadow: dict[str, object] | None) -> dict[str, object]:
     }
 
 
+def _report_state(lifecycle_stage: str, gaps: list[str]) -> str:
+    if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
+        return "rollback_window_evidence_open"
+    return lifecycle_stage
+
+
 def _lifecycle_stage(
     *,
     external_state: str,
@@ -251,6 +328,11 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
         actions.append("switch adopter default backend to external under a reversible control")
     if any(gap.startswith("retirement_embedded_backend_not_frozen") for gap in gaps):
         actions.append("freeze embedded backend as fallback/reference during rollback window")
+    if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
+        actions.append(
+            "populate [rollback_window] with a manifest and completed proof_report, "
+            "work_lane_closeout, domain_gate, and assistant_playbook scenarios"
+        )
     if any(gap.startswith("retirement_lifecycle_incomplete:rollback_window") for gap in gaps):
         actions.append(
             "record rollback-window evidence for proof/report, Work Lane, domain gate, "

@@ -13,7 +13,13 @@ if TYPE_CHECKING:
     import pytest
 
 
-def _write_profile(root: Path, *, external_state: str, embedded_state: str) -> None:
+def _write_profile(
+    root: Path,
+    *,
+    external_state: str,
+    embedded_state: str,
+    rollback: dict[str, object] | None = None,
+) -> None:
     (root / ".ethos").mkdir(parents=True)
     (root / ".config").mkdir()
     (root / "docs/current/development/workflow").mkdir(parents=True)
@@ -26,6 +32,27 @@ def _write_profile(root: Path, *, external_state: str, embedded_state: str) -> N
         "# policy\n",
         encoding="utf-8",
     )
+    rollback_table = ""
+    if rollback is not None:
+        (root / "docs/evidence/rollback-window.md").write_text(
+            "# rollback window\n",
+            encoding="utf-8",
+        )
+        completed_items = rollback.get("completed_scenarios", ())
+        required_items = rollback.get("required_scenarios", ())
+        completed = "\n".join(f'  "{item}",' for item in completed_items)
+        required = "\n".join(f'  "{item}",' for item in required_items)
+        rollback_table = (
+            "\n[rollback_window]\n"
+            f'state = "{rollback.get("state", "")}"\n'
+            'evidence_manifest = "docs/evidence/rollback-window.md"\n'
+            "completed_scenarios = [\n"
+            f"{completed}\n"
+            "]\n"
+            "required_scenarios = [\n"
+            f"{required}\n"
+            "]\n"
+        )
     (root / ".ethos/profile.toml").write_text(
         f'''schema_version = 1
 profile_id = "sample"
@@ -49,7 +76,7 @@ retirement_policy = "docs/current/development/workflow/external-ethos-adoption.m
 state = "{external_state}"
 minimum_version = "external>=embedded"
 shadow_required = true
-
+{rollback_table}
 [adoption_boundary]
 binding_manifest = ".ethos/profile.toml"
 execution_config_root = ".config"
@@ -106,7 +133,20 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
-    _write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback={
+            "state": "complete",
+            "completed_scenarios": (
+                "proof_report",
+                "work_lane_closeout",
+                "domain_gate",
+                "assistant_playbook",
+            ),
+        },
+    )
     (product / "adopters/sample").mkdir(parents=True)
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -122,7 +162,7 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
     assert "forbidden_external_product_root_present:adopters/sample" in report["required_gaps"]
 
 
-def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
+def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_state(
     tmp_path: Path,
 ) -> None:
     adopter = tmp_path / "adopter"
@@ -130,6 +170,44 @@ def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
     adopter.mkdir()
     product.mkdir()
     _write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "rollback_window_evidence_open"
+    assert "retirement_rollback_window_missing" in report["required_gaps"]
+    assert "retirement_rollback_window_scenario_missing:proof_report" in report["required_gaps"]
+    assert report["checks"]["rollback_window"]["applicable"] is True
+
+
+def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback={
+            "state": "complete",
+            "completed_scenarios": (
+                "proof_report",
+                "work_lane_closeout",
+                "domain_gate",
+                "assistant_playbook",
+            ),
+        },
+    )
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
@@ -153,7 +231,20 @@ def test_fleet_retirement_readiness_cli_reports_profile_stage(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
-    _write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback={
+            "state": "complete",
+            "completed_scenarios": (
+                "proof_report",
+                "work_lane_closeout",
+                "domain_gate",
+                "assistant_playbook",
+            ),
+        },
+    )
 
     def fake_parity_gaps_report(**kwargs):
         assert kwargs["adopter"] == "sample"
@@ -283,9 +374,9 @@ def test_retirement_readiness_distinguishes_shadow_and_rollback_stages(
 
     assert shadow_open["state"] == "shadow_open"
     assert "retirement_lifecycle_incomplete:shadow_open" in shadow_open["required_gaps"]
-    assert rollback["state"] == "rollback_window"
+    assert rollback["state"] == "rollback_window_evidence_open"
     assert "retirement_lifecycle_incomplete:rollback_window" in rollback["required_gaps"]
-    assert any("rollback-window evidence" in item for item in rollback["next_actions"])
+    assert any("[rollback_window]" in item for item in rollback["next_actions"])
 
 
 def test_fleet_retirement_readiness_execute_shadow_branch(
@@ -296,7 +387,20 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
-    _write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
+    _write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        rollback={
+            "state": "complete",
+            "completed_scenarios": (
+                "proof_report",
+                "work_lane_closeout",
+                "domain_gate",
+                "assistant_playbook",
+            ),
+        },
+    )
 
     def fake_parity_gaps_report(**kwargs):
         return {

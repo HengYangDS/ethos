@@ -93,7 +93,10 @@ A rollback window must include real use, not only dry runs:
 - one publish-readiness inspection.
 
 Rollback must be configuration-based while the fallback exists. Git revert alone
-is not sufficient rollback evidence.
+is not sufficient rollback evidence. Once external ETHOS becomes the reversible
+default, the adopter profile must expose a `[rollback_window]` table with a
+tracked evidence manifest and completed minimum scenarios for proof/report, Work
+Lane closeout, domain-gate planning, and assistant/playbook routing.
 
 ## Retirement Decision
 

@@ -162,9 +162,33 @@ repositories, data repositories, and infrastructure repositories. It requires:
 - a reversible external-default phase;
 - embedded backend freeze as fallback/reference;
 - rollback-window evidence before a separate Retirement Decision;
+- a `[rollback_window]` profile table, once the external backend becomes the
+  reversible default, with a tracked `evidence_manifest`, `state = "complete"`,
+  and completed scenarios for `proof_report`, `work_lane_closeout`,
+  `domain_gate`, and `assistant_playbook`;
 - absence of adopter-private product roots such as `adopters/<repo>`,
   `profiles/<repo>`, or `tests/fixtures/adopters/<repo>` unless the adopter
   profile explicitly marks them as fixture-only outside product ontology.
+
+
+A terminal rollback-window profile section is intentionally generic:
+
+```toml
+[rollback_window]
+state = "complete"
+evidence_manifest = "docs/evidence/external-ethos-rollback-window.md"
+completed_scenarios = [
+  "proof_report",
+  "work_lane_closeout",
+  "domain_gate",
+  "assistant_playbook",
+]
+```
+
+Adopters may add more required scenarios, but they may not remove the standard
+minimum scenarios. Missing, incomplete, or pathless rollback evidence keeps the
+retirement-readiness verdict open even if the external backend state claims
+`retirement_ready`.
 
 ## Product Boundary
 

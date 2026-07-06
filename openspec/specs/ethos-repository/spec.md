@@ -204,8 +204,11 @@ shadow, and lifecycle checks rather than product-core adopter directories.
 - **AND** rejects profile-declared forbidden product-core adopter roots in the
   ETHOS product repository
 - **AND** includes parity and shadow false-negative evidence in the verdict
-- **AND** reports external-default, embedded-freeze, and final retirement
-  lifecycle gaps separately from parity and product-boundary gaps
+- **AND** reports external-default, embedded-freeze, rollback-window evidence,
+  and final retirement lifecycle gaps separately from parity and product-boundary gaps
+- **AND** requires a tracked rollback-window evidence manifest with completed
+  `proof_report`, `work_lane_closeout`, `domain_gate`, and `assistant_playbook`
+  scenarios before accepting a terminal retirement-ready backend state
 - **AND** does not require `adopters/<name>`, `profiles/<name>`, or
   `tests/fixtures/adopters/<name>` inside the ETHOS product repository.
 

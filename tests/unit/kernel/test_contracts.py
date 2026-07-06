@@ -241,6 +241,9 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     """The governed-repository context must anchor on a real JudgmentSource carrying
     the authority order (not an inline dict) — the chain's production constructor."""
     from ethos.repository.context import governance_context
+    from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
+    from ethos.repository.registry.commands import READER_VIEW_COMMANDS
+    from ethos.repository.registry.commands import SCORECARD_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
     assert context["kernel_chain"][0] == "JudgmentSource"
@@ -248,7 +251,10 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     # The authority order is surfaced (head-of-chain hole filled).
     assert "user_instruction" in context["judgment_source"]["policy_refs"]
     assert context["subject"]["kind"] == "repository"
-    assert context["reader_view_commands"] == ["ethos orient"]
+    assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
+    assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
+    assert context["reader_view_commands"] == list(READER_VIEW_COMMANDS)
+    assert context["scorecard_commands"] == list(SCORECARD_COMMANDS)
 
 
 def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
+from ethos.repository.registry.commands import READER_VIEW_COMMANDS
+from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos_core.contracts.system_contracts import load_system_contract
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.models import JudgmentSource
@@ -9,17 +12,6 @@ from ethos_core.models import Subject
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-TRANSITION_COMMANDS = (
-    "ethos status",
-    "ethos plan",
-    "ethos prove",
-    "ethos land",
-    "ethos publish",
-)
-
-READER_VIEW_COMMANDS = ("ethos orient",)
-SCORECARD_COMMANDS = ("ethos report",)
 
 
 def _authority_order(root: Path) -> tuple[str, ...]:
@@ -65,8 +57,8 @@ def governance_context(root: Path, *, profile: str) -> dict[str, object]:
         "subject": subject.to_dict(),
         "single_kernel": True,
         "kernel_chain": list(KERNEL_CHAIN),
-        "shared_commands": list(TRANSITION_COMMANDS),
-        "transition_commands": list(TRANSITION_COMMANDS),
+        "shared_commands": list(PUBLIC_WORKFLOW_COMMANDS),
+        "transition_commands": list(PUBLIC_WORKFLOW_COMMANDS),
         "reader_view_commands": list(READER_VIEW_COMMANDS),
         "scorecard_commands": list(SCORECARD_COMMANDS),
         "truth_boundary": "repository",

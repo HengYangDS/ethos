@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 def test_orient_json_is_projection_not_truth_store() -> None:
     payload = run_ethos("orient", "--json")
+    status = run_ethos("status", "--json")
 
     assert payload["command"] == "orient"
     assert payload["state"] == "oriented"
@@ -42,6 +43,9 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         == orientation["coordination"]["unbound_work_lane_count"]
     )
     assert payload["summary"]["coordination_blocking"] == orientation["coordination"]["blocking"]
+    assert (
+        orientation["coordination"]["next_action"] == status["data"]["coordination"]["next_action"]
+    )
     assert payload["next_actions"] == orientation["next_actions"]
 
 

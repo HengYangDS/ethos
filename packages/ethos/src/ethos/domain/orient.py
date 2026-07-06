@@ -82,6 +82,7 @@ def orientation_packet(
             "overlap_count": int(coordination.get("overlap_count") or 0),
             "advisory_items": _strings(coordination.get("advisory_gaps")),
             "required_items": _strings(coordination.get("required_gaps")),
+            "next_action": str(coordination.get("next_action") or ""),
             "foreign_work_lanes": foreign_lanes,
             "unbound_work_lane_refs": unbound_refs,
         },

@@ -174,6 +174,11 @@ so the workspace-status object remains schema-valid.
 signals for humans and agents; they do not replace `data.coordination`, do not
 add cleanup authority, and do not change whether a coordination signal is
 advisory or required.
+`ethos orient --json` projects `data.coordination.next_action` into
+`data.orientation.coordination.next_action` for first-glance coordination
+guidance. That field is distinct from the top-level transition `next_actions`:
+it explains how to inspect coordination signals, not which transition command
+must run next.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap

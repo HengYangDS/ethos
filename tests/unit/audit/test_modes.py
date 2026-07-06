@@ -1,8 +1,30 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from ethos.repository import audit as repository_audit_module
+from ethos.repository.audit import _openspec_shape_report
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=root, text=True, check=True, capture_output=True)
+
+
+def _seed_repo_with_active_openspec_change(repo: Path) -> Path:
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.name", "Test User")
+    _git(repo, "config", "user.email", "test@example.com")
+    openspec = repo / "openspec"
+    (openspec / "specs").mkdir(parents=True)
+    (openspec / "config.yaml").write_text("version: 1\n", encoding="utf-8")
+    leaked = openspec / "changes" / "leaked-change"
+    leaked.mkdir(parents=True)
+    (leaked / "proposal.md").write_text("# leaked\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "seed release root with leaked active openspec carrier")
+    return leaked
 
 
 def test_repository_audit_can_skip_deep_openspec_cli() -> None:
@@ -246,3 +268,39 @@ def test_write_admission_check_is_silent_for_non_admission_repos(tmp_path) -> No
     from ethos.repository.audit import _write_admission_armed_gaps
 
     assert _write_admission_armed_gaps(tmp_path) == []
+
+
+def test_openspec_shape_surfaces_active_change_on_non_current_protected_branch(
+    tmp_path: Path,
+) -> None:
+    """Protected branch trees are visible signals even when not current truth."""
+    repo = tmp_path / "repo"
+    leaked = _seed_repo_with_active_openspec_change(repo)
+
+    _git(repo, "checkout", "-b", "dev")
+    (leaked / "proposal.md").unlink()
+    leaked.rmdir()
+    archive = repo / "openspec" / "changes" / "archive" / "2026-01-01-leaked-change"
+    archive.mkdir(parents=True)
+    (archive / "proposal.md").write_text("# archived\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "archive change on accepted root")
+
+    report = _openspec_shape_report(repo)
+
+    gap = "openspec_protected_branch_active_change_unarchived:main:release_root:leaked-change"
+    assert report["ok"] is True
+    assert gap in report["advisory_gaps"]
+    assert gap not in report["required_gaps"]
+
+
+def test_openspec_shape_blocks_active_change_on_current_release_root(tmp_path: Path) -> None:
+    """The current release root cannot retain active OpenSpec carriers."""
+    repo = tmp_path / "repo"
+    _seed_repo_with_active_openspec_change(repo)
+
+    report = _openspec_shape_report(repo)
+
+    assert report["ok"] is False
+    assert "openspec_active_change_unarchived:leaked-change:release_root" in report["required_gaps"]
+    assert not report["advisory_gaps"]

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
+from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 if TYPE_CHECKING:
@@ -30,6 +31,75 @@ def _active_change_names(openspec_root: Path) -> list[str]:
     ]
 
 
+def _protected_branch_active_change_report(root: Path, *, current_branch: str) -> dict[str, object]:
+    """Return active OpenSpec carriers hiding in governed branch trees.
+
+    The current checkout is not the whole repository truth. Release, accepted,
+    and candidate branches can be unbound worktree-wise while still being
+    publish/closeout-relevant Git facts. Scan their Git trees directly so active
+    `openspec/changes/<id>/...` carriers cannot hide outside the current worktree.
+    """
+    policy = load_branch_role_policy(root)
+    branches = (
+        (policy.release_branch, policy.role_for_branch(policy.release_branch)),
+        (policy.accepted_branch, policy.role_for_branch(policy.accepted_branch)),
+        (policy.candidate_branch, policy.role_for_branch(policy.candidate_branch)),
+    )
+    records: list[dict[str, str]] = []
+    advisory_gaps: list[str] = []
+    seen: set[tuple[str, str, str]] = set()
+    for branch, role in branches:
+        if not branch or branch == current_branch or not _branch_exists(root, branch):
+            continue
+        for change in _active_change_names_in_ref(root, branch):
+            key = (branch, role, change)
+            if key in seen:
+                continue
+            seen.add(key)
+            gap = f"openspec_protected_branch_active_change_unarchived:{branch}:{role}:{change}"
+            advisory_gaps.append(gap)
+            records.append({"branch": branch, "role": role, "change": change, "gap": gap})
+    return {
+        "ok": not advisory_gaps,
+        "records": records,
+        "advisory_gaps": advisory_gaps,
+        "summary": {"residue_count": len(records)},
+    }
+
+
+def _branch_exists(root: Path, branch: str) -> bool:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
+def _active_change_names_in_ref(root: Path, ref: str) -> list[str]:
+    completed = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", ref, "--", "openspec/changes"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return []
+    active: set[str] = set()
+    for line in completed.stdout.splitlines():
+        parts = line.split("/")
+        if len(parts) < 4 or parts[:2] != ["openspec", "changes"]:
+            continue
+        change = parts[2]
+        if change == "archive":
+            continue
+        active.add(change)
+    return sorted(active)
+
+
 def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
     """Block active OpenSpec carriers on accepted and candidate roles.
 
@@ -38,7 +108,7 @@ def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[s
     stale state and must be archived so current truth lives in source, specs,
     claims, evidence, and chronicle rather than in `openspec/changes/<id>`.
     """
-    if role not in {ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE}:
+    if role not in {ROLE_RELEASE_ROOT, ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE}:
         return []
     return [
         f"openspec_active_change_unarchived:{name}:{role}"
@@ -46,7 +116,7 @@ def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[s
     ]
 
 
-def _current_branch_role(root: Path) -> str:
+def _current_branch(root: Path) -> str:
     branch = subprocess.run(
         ["git", "branch", "--show-current"],
         cwd=root,
@@ -55,8 +125,12 @@ def _current_branch_role(root: Path) -> str:
         check=False,
     )
     if branch.returncode != 0:
-        return "other"
-    return load_branch_role_policy(root).role_for_branch(branch.stdout.strip())
+        return ""
+    return branch.stdout.strip()
+
+
+def _current_branch_role(root: Path) -> str:
+    return load_branch_role_policy(root).role_for_branch(_current_branch(root))
 
 
 def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
@@ -125,8 +199,14 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
         required_gaps.append("openspec_config_missing")
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
+    current_branch = _current_branch(root)
     required_gaps.extend(
-        _active_change_violations_for_role(openspec_root, _current_branch_role(root))
+        _active_change_violations_for_role(
+            openspec_root, load_branch_role_policy(root).role_for_branch(current_branch)
+        )
+    )
+    protected_branch_residue = _protected_branch_active_change_report(
+        root, current_branch=current_branch
     )
     required_gaps.extend(_completed_unarchived_changes(openspec_root))
     metadata_compatibility = openspec_metadata_compatibility_report(root)
@@ -136,6 +216,8 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
         "ok": not required_gaps,
         "mode": "shape",
         "metadata_compatibility": metadata_compatibility,
+        "protected_branch_residue": protected_branch_residue,
+        "advisory_gaps": protected_branch_residue["advisory_gaps"],
         "required_gaps": required_gaps,
     }
 

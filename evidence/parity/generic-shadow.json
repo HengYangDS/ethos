@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "19d79eb60da61392781320adfe075765beb06fc1",
-    "target_head": "19d79eb60da61392781320adfe075765beb06fc1",
-    "product_semantic_sha256": "c9cacc187bf8a172d9546fdc49ca62b78dbd55a634c2a9e8d62bc9cbde82ebaa",
-    "target_semantic_sha256": "c9cacc187bf8a172d9546fdc49ca62b78dbd55a634c2a9e8d62bc9cbde82ebaa",
+    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "target_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "product_semantic_sha256": "01b65d1a65e135570f285929c34ca4271124be1dc2cb07cd9c5218d184d0e772",
+    "target_semantic_sha256": "01b65d1a65e135570f285929c34ca4271124be1dc2cb07cd9c5218d184d0e772",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate",
-    "target_head": "19d79eb60da61392781320adfe075765beb06fc1",
-    "product_head": "19d79eb60da61392781320adfe075765beb06fc1",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate",
+    "target_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
+    "product_head": "7ded44240b1494be644e5ba65eae91648f6d8566",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/external-retirement-readiness-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retirement-rollback-evidence-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "c38b57ca4e8203e603719e3d1ffe6d2fbfb9216d7e6c9e24e9c3290fc14d8dd0"
+        "sha256": "3c10a61852f94001f2e59d10b5d788deef98f7a28227e96435b189c8e7f50e51"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "96aa9979b0e0757cdec2a5c9e698ab8645a1627d77339984883ae1004a8e6d7a"
+        "sha256": "9ceacffea61e258695c72638159e27e1f130a9d645aeeec8d6fa12677bc30736"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "729934c90f1fd8b1433564d7a5fe6c167af07a1f798ae32bb8bc4ae48e649c46"
+        "sha256": "9cfd3752c3eb7341e1eee96ab91b103588b0318cf21b250ae13ab4e63ea08849"
       },
       {
         "path": "rules",

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Any
+from typing import cast
 
 from ethos.adapters.gates import tool as _qtool
 from ethos.adapters.gates.runner import DryRunRunner
@@ -21,6 +23,7 @@ from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import initialize_state
 from ethos.domain import land as _land
+from ethos.domain import orient as _orient
 from ethos.domain import plan as _plan
 from ethos.domain import prove as _prove
 from ethos.domain import status as _status
@@ -101,6 +104,8 @@ def status(
     """Inspect repository state."""
     repo = resolve_root(root)
     status_payload = workspace_status(repo)
+    orientation = _orient.orientation_packet(status_payload=status_payload)
+    orientation_actions = cast("list[str]", orientation["next_actions"])
     validation = _prove.workspace_status_validation(repo, status_payload)
     validation_gaps = _prove.workspace_status_validation_gaps(validation)
     ok = bool(validation["ok"])
@@ -111,14 +116,58 @@ def status(
         summary={
             "root": str(repo),
             "branch": status_payload["branch"],
-            "changed_path_count": len(status_payload["changed_paths"]),
+            "changed_path_count": len(cast("list[object]", status_payload["changed_paths"])),
         },
         diagnostics=(validation,),
         required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
-        next_actions=("ethos plan --changed",),
+        next_actions=tuple(orientation_actions),
         data=status_payload,
     )
-    emit(result, json_output, enforce=False)
+    if json_output:
+        emit(result, json_output, enforce=False)
+        return
+    for line in _orient.human_orientation_lines(orientation):
+        print(line)
+
+
+@app.command
+def orient(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Orient a human or agent without minting repository truth."""
+    repo = resolve_root(root)
+    status_payload = workspace_status(repo)
+    report_payload = scorecard_report(repo)
+    packet = _orient.orientation_packet(
+        status_payload=status_payload,
+        report_payload=report_payload,
+    )
+    where = cast("dict[str, Any]", packet["where"])
+    capability = cast("dict[str, Any]", packet["capability"])
+    coordination = cast("dict[str, Any]", packet["coordination"])
+    readiness = cast("dict[str, Any]", packet["readiness"])
+    packet_actions = cast("list[str]", packet["next_actions"])
+    result = EthosResult(
+        command="orient",
+        ok=True,
+        state="oriented",
+        summary={
+            "role": where["role"],
+            "capability": capability["current_actor_capability"],
+            "foreign_work_lane_count": coordination["foreign_work_lane_count"],
+            "governance_gap_count": readiness["governance_gap_count"],
+            "parity_pending_count": readiness["parity_pending_count"],
+        },
+        next_actions=tuple(packet_actions),
+        data={"orientation": packet},
+    )
+    if json_output:
+        emit(result, json_output, enforce=False)
+        return
+    for line in _orient.human_orientation_lines(packet):
+        print(line)
 
 
 @app.command

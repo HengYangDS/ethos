@@ -26,6 +26,12 @@ ethos land
 ethos publish
 ```
 
+`ethos orient` is a read-only first-glance orientation view over `status` and
+`report`: it tells a human or agent where it is, what it may do, which foreign
+Work Lanes are visible, what remains gapped, and which command should run next.
+It is a projection (`truth_boundary = repository-reader-view`, `mints_truth =
+false`), not a transition verb and not a truth store.
+
 `ethos report` is the read-only scorecard over that workflow. It is not a
 transition command:
 
@@ -216,7 +222,9 @@ landed lanes through `ethos lane retire-landed`, and retire unbound residue refs
 through `ethos lane retire-unbound`. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
-boundary.
+boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;
+`ethos status --json` remains the pure machine contract for role, dirtiness,
+branch bindings, candidate state, and coordination.
 
 Hook admission:
 

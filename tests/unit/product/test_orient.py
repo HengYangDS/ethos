@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.domain.orient import human_orientation_lines
+from ethos.domain.orient import orientation_packet
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.cli.test_contracts import git
@@ -36,18 +38,10 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     assert (
         orientation["readiness"]["advisory_gap_count"] == payload["summary"]["advisory_gap_count"]
     )
-    assert (
-        "openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening"
-        in orientation["readiness"]["advisory_items"]
-    )
-    assert orientation["readiness"]["advisory_next_actions"] == [
-        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
-        "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",
-    ]
-    assert (
-        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening"
-        in orientation["next_actions"]
-    )
+    assert isinstance(orientation["readiness"]["advisory_items"], list)
+    assert isinstance(orientation["readiness"]["advisory_next_actions"], list)
+    for action in orientation["readiness"]["advisory_next_actions"]:
+        assert action in orientation["next_actions"]
     assert payload["summary"]["role"] == orientation["where"]["role"]
     assert (
         payload["summary"]["foreign_work_lane_count"]
@@ -159,6 +153,64 @@ def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
     )
 
 
+def test_orient_projects_advisory_signals_from_report_fixture() -> None:
+    gap = (
+        "openspec_protected_branch_active_change_unarchived:"
+        "main:release_root:ethos-release-hardening"
+    )
+    action = "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening"
+    packet = orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "dev",
+            "role": "accepted_root",
+            "head": "abcdef1234567890",
+            "dirty": False,
+            "changed_paths": [],
+            "required_gaps": [],
+            "closeout_support": {},
+            "coordination": {
+                "blocking": False,
+                "foreign_work_lane_count": 0,
+                "unbound_work_lane_count": 0,
+                "overlap_count": 0,
+                "advisory_gaps": [],
+                "required_gaps": [],
+                "next_action": "",
+                "unbound_work_lane_refs": [],
+            },
+            "candidate": {},
+            "runtime_binding": {"state": "bound", "advisory_gaps": []},
+            "landing_readiness": {"state": "not_work_lane", "required_gaps": []},
+            "foreign_work_lanes": [],
+        },
+        report_payload={
+            "summary": {
+                "score": 16,
+                "max_score": 16,
+                "governance_gap_count": 0,
+                "parity_pending_count": 0,
+                "advisory_gap_count": 1,
+            },
+            "required_gaps": [],
+            "data": {
+                "gap_layers": {
+                    "advisory_signals": {
+                        "advisory_gaps": [gap],
+                        "next_actions": [action],
+                    }
+                }
+            },
+        },
+    )
+
+    assert packet["readiness"]["advisory_items"] == [gap]
+    assert packet["readiness"]["advisory_next_actions"] == [action]
+    assert action in packet["next_actions"]
+    assert "1 advisory signal(s)" in packet["human_summary"]
+    assert "advisory signals 1" in "\n".join(human_orientation_lines(packet))
+
+
 def test_orient_human_output_is_concise_and_actionable() -> None:
     completed = run_ethos_raw("orient")
 
@@ -166,7 +218,6 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
     lines = completed.stdout.splitlines()
     assert 4 <= len(lines) <= 8
     assert lines[0].startswith(("ready:", "dirty:", "gapped:"))
-    assert "advisory" in lines[0]
     where_line = next(line for line in lines if line.startswith("where:"))
     json_payload = run_ethos("orient", "--json")
     head = json_payload["data"]["orientation"]["where"]["head"]

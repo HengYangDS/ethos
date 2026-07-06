@@ -199,6 +199,7 @@ match_prefixes = [
   "embedded_backend_missing",
   "external_product_repository_audit_gap",
   "external_required_gap_superset",
+  "external_stricter_required_gap",
   "projection_",
   "assistant_projection",
   "assistant_surface_projection_gap",

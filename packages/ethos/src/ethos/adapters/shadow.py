@@ -589,6 +589,18 @@ def _normalized_semantic_projections(
                     gaps=report_gaps,
                 )
             )
+        external_gaps, stricter_gaps = _without_external_stricter_only_gaps(
+            command,
+            external_gaps,
+        )
+        if stricter_gaps:
+            accepted.append(
+                _accepted_difference(
+                    "external_stricter_required_gap",
+                    command=external_projection.get("command"),
+                    gaps=stricter_gaps,
+                )
+            )
     external_projection["required_gaps"] = sorted(external_gaps)
     if accepted and not external_gaps and not embedded_gaps:
         external_projection["ok"] = True
@@ -610,6 +622,9 @@ def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict
     elif kind == "external_required_gap_superset":
         scope = "external_required_gap_superset"
         reason = "external product reports the embedded blocking gaps plus stricter required gaps"
+    elif kind == "external_stricter_required_gap":
+        scope = "external_stricter_required_gap"
+        reason = "external product reports a stricter blocking gap allowed by shadow parity"
     else:
         scope = "unknown"
         reason = "unclassified accepted difference"
@@ -808,6 +823,24 @@ def _without_product_repository_audit_gaps(
         return gaps, []
     filtered = [gap for gap in gaps if gap not in audit_gaps]
     removed = [gap for gap in gaps if gap in audit_gaps]
+    return filtered, removed
+
+
+_EXTERNAL_STRICTER_ONLY_GAPS: dict[tuple[str, ...], set[str]] = {
+    ("land",): {"candidate_base_stale", "protected_root_mutation"},
+    ("publish",): {"protected_root_mutation"},
+}
+
+
+def _without_external_stricter_only_gaps(
+    command: tuple[str, ...],
+    gaps: list[str],
+) -> tuple[list[str], list[str]]:
+    allowed = _EXTERNAL_STRICTER_ONLY_GAPS.get(command, set())
+    if not allowed:
+        return gaps, []
+    filtered = [gap for gap in gaps if gap not in allowed]
+    removed = [gap for gap in gaps if gap in allowed]
     return filtered, removed
 
 

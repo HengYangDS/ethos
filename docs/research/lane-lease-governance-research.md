@@ -1,7 +1,8 @@
 ---
 subject: ethos:lane-lease-governance-research
+role: research
+state: experimental
 relations: supports: lane lease governance design, net-gain destructive change governance, multi-agent work lane coordination
-status: draft
 updated: 2026-07-06
 ---
 

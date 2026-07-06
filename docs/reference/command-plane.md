@@ -145,7 +145,7 @@ ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim
 ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
-ethos lane retire-landed --branch <work-lane-branch> --apply
+ethos lane retire-landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
 ```
 

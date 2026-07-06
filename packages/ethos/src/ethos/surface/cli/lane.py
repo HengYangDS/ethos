@@ -270,13 +270,19 @@ def lane_retire_unbound(
 def lane_retire_landed(
     *,
     branch: str | None = None,
+    expect_head: str | None = None,
     apply: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Retire a landed Work Lane after it is merged into the accepted root."""
     repo = resolve_root(root)
-    report = retire_landed_work_lanes(root=repo, branch=branch, apply=apply)
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch=branch,
+        expect_head=expect_head,
+        apply=apply,
+    )
     result = EthosResult(
         command="lane retire-landed",
         ok=bool(report["ok"]),

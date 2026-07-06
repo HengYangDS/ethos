@@ -142,9 +142,7 @@ def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
     assert landed.exists()
 
 
-def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
-    tmp_path: Path,
-) -> None:
+def test_retire_landed_work_lane_apply_requires_expected_head(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
@@ -152,8 +150,52 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
 
     report = retire_landed_work_lanes(root=repo, branch="work/landed", apply=True)
 
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["expect_head_required"]
+    assert landed.exists()
+    assert git(repo, "branch", "--list", "work/landed") != ""
+
+
+def test_retire_landed_work_lane_apply_rejects_mismatched_expected_head(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch="work/landed",
+        expect_head="not-the-lane-head",
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["expect_head_mismatch"]
+    assert landed.exists()
+    assert git(repo, "branch", "--list", "work/landed") != ""
+
+
+def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    landed_head = git(landed, "rev-parse", "HEAD")
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch="work/landed",
+        expect_head=landed_head,
+        apply=True,
+    )
+
     assert report["ok"] is True
     assert report["state"] == "retired"
+    assert report["mutation"]["expect_head"] == landed_head
     assert not landed.exists()
     assert git(repo, "branch", "--list", "work/landed") == ""
 

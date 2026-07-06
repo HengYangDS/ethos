@@ -848,6 +848,8 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
         "retire-landed",
         "--branch",
         "lane/configured",
+        "--expect-head",
+        work_head,
         "--apply",
         "--root",
         repo.as_posix(),
@@ -860,6 +862,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
         "landed_lane_count": 1,
         "selected_branch": "lane/configured",
     }
+    assert retire_payload["data"]["mutation"]["expect_head"] == work_head
 
 
 def test_publish_apply_requires_authorization_and_expected_head() -> None:

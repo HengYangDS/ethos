@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
-    "target_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
-    "product_semantic_sha256": "ea97865dd2b37b3e62ca2d9d53bcba3d8d1ecff810d6dbf07539f7f7cde06fe0",
-    "target_semantic_sha256": "ea97865dd2b37b3e62ca2d9d53bcba3d8d1ecff810d6dbf07539f7f7cde06fe0",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "7f3507e6d9269fd3d5bea2214f5feef93be01534",
+    "target_head": "7f3507e6d9269fd3d5bea2214f5feef93be01534",
+    "product_semantic_sha256": "e5949ee0b98737cf1ebe97030e4d246dcde163fec68c2696a7068c8f1f4b446e",
+    "target_semantic_sha256": "e5949ee0b98737cf1ebe97030e4d246dcde163fec68c2696a7068c8f1f4b446e",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding",
-    "target_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
-    "product_head": "fee8c0adad9bcd33d9ca86ff626a58d10a3c320f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding",
+    "target_head": "7f3507e6d9269fd3d5bea2214f5feef93be01534",
+    "product_head": "7f3507e6d9269fd3d5bea2214f5feef93be01534",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/adopter-root-profile-binding --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-head-binding/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-head-binding --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "c028328fe21f4e05895a6c5caf8223c5944af6a12495a5fe7bca3c0e291f5cfa"
+        "sha256": "a23ab8cc85c1d084365b31643eaa094981e1b3969e7cf720189e7510b9121618"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1d3e3f857a37559dab17834bd62b165a9ec1a13c4d2dbbe913bc88d3493a1759"
+        "sha256": "f45cb10dd2653684383e3e4dd1287e9155cc3c27d5374dd50a7823606b414be7"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "92b93093bee94b2e3c4024172dcab761f96e60ad531b5bf78b6429ee0db1231d"
+        "sha256": "5f6a65f6cf60bcdd8b660683622d3fa111dc9bc6f8f63d51e4eb9f11a70e832c"
       },
       {
         "path": "rules",

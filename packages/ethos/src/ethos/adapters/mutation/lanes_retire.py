@@ -120,6 +120,7 @@ def retire_landed_work_lanes(
     *,
     root: Path,
     branch: str | None = None,
+    expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
     repo = _repo_root(root)
@@ -138,12 +139,14 @@ def retire_landed_work_lanes(
     if branch:
         for lane in selected:
             gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
+        gaps.extend(_landed_expect_head_gaps(selected, expect_head=expect_head, apply=apply))
     if gaps:
         return {
             "ok": False,
             "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
+            "mutation": _landed_retire_mutation(branch=branch, expect_head=expect_head),
             "required_gaps": sorted(set(gaps)),
         }
     if not apply:
@@ -152,6 +155,7 @@ def retire_landed_work_lanes(
             "state": "planned",
             "branch": branch or "",
             "lanes": lanes,
+            "mutation": _landed_retire_mutation(branch=branch, expect_head=expect_head),
             "required_gaps": [],
         }
     lane = selected[0]
@@ -162,16 +166,25 @@ def retire_landed_work_lanes(
             "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
+            "mutation": _landed_retire_mutation(branch=branch, expect_head=expect_head),
             "required_gaps": ["worktree_remove_failed"],
             "stderr": remove.stderr.strip(),
         }
-    delete = _git(repo, "branch", "-d", str(lane["branch"]), check=False)
+    delete = _git(
+        repo,
+        "update-ref",
+        "-d",
+        f"refs/heads/{lane['branch']}",
+        str(expect_head),
+        check=False,
+    )
     if delete.returncode != 0:
         return {
             "ok": False,
             "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
+            "mutation": _landed_retire_mutation(branch=branch, expect_head=expect_head),
             "required_gaps": ["branch_delete_failed"],
             "stderr": delete.stderr.strip(),
         }
@@ -184,7 +197,35 @@ def retire_landed_work_lanes(
         "branch": branch or "",
         "retired": lane,
         "lanes": lanes,
+        "mutation": _landed_retire_mutation(branch=branch, expect_head=expect_head),
         "required_gaps": [],
+    }
+
+
+def _landed_expect_head_gaps(
+    selected: list[dict[str, object]],
+    *,
+    expect_head: str | None,
+    apply: bool,
+) -> list[str]:
+    if not apply:
+        return []
+    expected = (expect_head or "").strip()
+    if not expected:
+        return ["expect_head_required"]
+    if selected and expected != str(selected[0]["head"]):
+        return ["expect_head_mismatch"]
+    return []
+
+
+def _landed_retire_mutation(
+    *,
+    branch: str | None,
+    expect_head: str | None,
+) -> dict[str, str]:
+    return {
+        "expect_head": (expect_head or "").strip(),
+        "ref": f"refs/heads/{branch}" if branch else "",
     }
 
 

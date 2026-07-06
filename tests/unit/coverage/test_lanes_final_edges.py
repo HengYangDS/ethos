@@ -175,16 +175,22 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         return cp(returncode=0)
 
     monkeypatch.setattr(lanes, "_git", remove_fails)
-    assert lanes.retire_landed_work_lanes(root=tmp_path, branch="work/x", apply=True)[
-        "required_gaps"
-    ] == ["worktree_remove_failed"]
+    assert lanes.retire_landed_work_lanes(
+        root=tmp_path,
+        branch="work/x",
+        expect_head="h1",
+        apply=True,
+    )["required_gaps"] == ["worktree_remove_failed"]
 
     def delete_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
-        if args[:2] == ("branch", "-d"):
+        if args[:2] == ("update-ref", "-d"):
             return cp(returncode=1, stderr="delete fail")
         return cp(returncode=0)
 
     monkeypatch.setattr(lanes, "_git", delete_fails)
-    assert lanes.retire_landed_work_lanes(root=tmp_path, branch="work/x", apply=True)[
-        "required_gaps"
-    ] == ["branch_delete_failed"]
+    assert lanes.retire_landed_work_lanes(
+        root=tmp_path,
+        branch="work/x",
+        expect_head="h1",
+        apply=True,
+    )["required_gaps"] == ["branch_delete_failed"]

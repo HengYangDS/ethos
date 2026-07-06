@@ -354,6 +354,7 @@ def retire_landed_work_lanes(
     *,
     root: Path,
     branch: str | None = None,
+    expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
     """Retire landed lanes while preserving this module's patchable adapters."""
@@ -368,7 +369,12 @@ def retire_landed_work_lanes(
         _retire.delete_lease = delete_lease
         _retire.__dict__["_is_ancestor"] = _is_ancestor
         _retire.__dict__["_git"] = _git
-        return _retire_landed_work_lanes(root=root, branch=branch, apply=apply)
+        return _retire_landed_work_lanes(
+            root=root,
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+        )
     finally:
         _retire.workspace_status = previous["workspace_status"]
         _retire.delete_lease = previous["delete_lease"]

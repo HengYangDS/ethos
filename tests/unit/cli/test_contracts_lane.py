@@ -615,7 +615,7 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
     assert worktree.exists()
 
 
-def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> None:
+def test_lane_retire_landed_apply_requires_expected_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
         repo,
@@ -629,7 +629,7 @@ def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> Non
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "lane",
         "retire-landed",
         "--branch",
@@ -642,8 +642,44 @@ def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> Non
     )
 
     assert payload["command"] == "lane retire-landed"
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["expect_head_required"]
+    assert worktree.exists()
+
+
+def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
+    worktree_head = git(worktree, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "lane",
+        "retire-landed",
+        "--branch",
+        "work/landed",
+        "--expect-head",
+        worktree_head,
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire-landed"
     assert payload["ok"] is True
     assert payload["state"] == "retired"
+    assert payload["data"]["mutation"]["expect_head"] == worktree_head
     assert not worktree.exists()
 
 

@@ -580,3 +580,27 @@ head-bound command semantics rather than raw Git branch deletion.
   has a mismatched expected head, lacks a reason, or apply lacks authorization
 - **THEN** ETHOS refuses deletion and reports deterministic required gaps
 - **AND** the branch ref remains present
+
+### Requirement: Landed Work Lane Retirement
+
+ETHOS SHALL govern local landed Work Lane cleanup through explicit,
+head-bound command semantics rather than raw Git worktree or branch deletion.
+
+#### Scenario: landed Work Lane retirement is head-bound
+
+- **GIVEN** `ethos status --json` exposes a linked Work Lane whose branch is
+  already merged into the accepted root
+- **WHEN** `ethos lane retire-landed --branch <branch> --expect-head <head>
+  --apply --json` runs
+- **THEN** ETHOS removes the linked worktree and deletes `refs/heads/<branch>`
+  only if the Work Lane is clean, merged, explicitly selected, and its current
+  head equals `<head>`
+- **AND** the command emits the selected branch, expected head, ref, retired
+  lane, and required gaps
+
+#### Scenario: landed Work Lane retirement fails closed
+
+- **WHEN** the selected Work Lane is missing, dirty, unmerged, lacks an
+  expected head, or has a mismatched expected head
+- **THEN** ETHOS refuses cleanup and reports deterministic required gaps
+- **AND** the Work Lane branch ref remains present

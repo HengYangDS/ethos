@@ -226,10 +226,15 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     monkeypatch.setattr(lanes, "_git", git_retire)
     monkeypatch.setattr(lanes, "delete_lease", lambda *args, **kwargs: {"ok": True})
     assert (
-        lanes.retire_landed_work_lanes(root=tmp_path, branch="work/x", apply=True)["state"]
+        lanes.retire_landed_work_lanes(
+            root=tmp_path,
+            branch="work/x",
+            expect_head="h2",
+            apply=True,
+        )["state"]
         == "retired"
     )
-    assert ("branch", "-d", "work/x") in calls
+    assert ("update-ref", "-d", "refs/heads/work/x", "h2") in calls
 
 
 def test_shadow_process_json_backend_and_semantic_edges(

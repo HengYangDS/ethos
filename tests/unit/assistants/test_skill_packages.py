@@ -395,3 +395,89 @@ def test_skill_markdown_rejects_overlong_entrypoint_without_progressive_disclosu
 
     assert result["ok"] is False
     assert "skill_quality_progressive_disclosure_missing:sample-skill" in result["required_gaps"]
+
+
+def test_skill_package_manifest_accepts_readonly_repo_local_script(tmp_path: Path) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    scripts_dir = package_dir / "scripts"
+    scripts_dir.mkdir()
+    (scripts_dir / "audit.py").write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md", "scripts/audit.py"])
+    (package_dir / "package.toml").write_text(
+        f'''
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md", "scripts/audit.py"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[[capability]]
+id = "sample.audit"
+kind = "script_readonly"
+command = ["scripts/audit.py", "."]
+'''.lstrip(),
+        encoding="utf-8",
+    )
+
+    result = validate_skill_package_manifest(
+        tmp_path,
+        ".agents/skills/sample-skill/package.toml",
+    )
+
+    assert result["ok"] is True
+    assert result["required_gaps"] == []
+    assert result["capabilities"] == [
+        {
+            "id": "sample.audit",
+            "kind": "script_readonly",
+            "command": ["scripts/audit.py", "."],
+        }
+    ]
+
+
+def test_skill_package_manifest_rejects_untrusted_readonly_script(tmp_path: Path) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    (package_dir / "package.toml").write_text(
+        f'''
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[[capability]]
+id = "sample.escape"
+kind = "script_readonly"
+command = ["../outside.sh"]
+
+[[capability]]
+id = "sample.mutating"
+kind = "script_readonly"
+command = ["scripts/audit.py", "--apply"]
+'''.lstrip(),
+        encoding="utf-8",
+    )
+
+    result = validate_skill_package_manifest(
+        tmp_path,
+        ".agents/skills/sample-skill/package.toml",
+    )
+
+    assert result["ok"] is False
+    assert (
+        "skill_package_capability_readonly_untrusted:sample-skill:sample.escape"
+        in result["required_gaps"]
+    )
+    assert (
+        "skill_package_capability_readonly_mutating:sample-skill:sample.mutating"
+        in result["required_gaps"]
+    )

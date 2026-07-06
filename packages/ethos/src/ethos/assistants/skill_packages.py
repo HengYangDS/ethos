@@ -57,6 +57,17 @@ _READONLY_ETHOS_COMMANDS = {
 
 
 @dataclass(frozen=True)
+class CapabilityValidationContext:
+    skill_id: str
+    capability_id: str
+    kind: str
+    command: list[str]
+    item: dict[str, Any]
+    package_dir: Path
+    included_files: frozenset[str]
+
+
+@dataclass(frozen=True)
 class SkillPackageResult:
     skill_id: str
     manifest_path: str
@@ -153,7 +164,12 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
             placeholder_allowed=bool(quality_policy.get("placeholder_allowed", True)),
         )
         gaps.extend(quality["required_gaps"])
-    capability_gaps, capabilities = _capability_records(skill_id, manifest.get("capability"))
+    capability_gaps, capabilities = _capability_records(
+        skill_id,
+        manifest.get("capability"),
+        package_dir=package_dir,
+        included_files=frozenset(safe_include),
+    )
     gaps.extend(capability_gaps)
     return _manifest_result(
         SkillPackageResult(
@@ -225,6 +241,9 @@ def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
 def _capability_records(
     skill_id: str,
     value: Any,
+    *,
+    package_dir: Path | None = None,
+    included_files: frozenset[str] = frozenset(),
 ) -> tuple[list[str], list[dict[str, Any]]]:
     gaps: list[str] = []
     records: list[dict[str, Any]] = []
@@ -243,15 +262,16 @@ def _capability_records(
             gaps.append(f"skill_package_capability_command_invalid:{skill_id}:{index}")
             command = []
         capability_id = str(item.get("id") or f"{skill_id}:{index}")
-        gaps.extend(
-            _capability_semantic_gaps(
-                skill_id,
-                capability_id,
-                kind,
-                command if isinstance(command, list) else [],
-                item,
-            )
+        context = CapabilityValidationContext(
+            skill_id=skill_id,
+            capability_id=capability_id,
+            kind=kind,
+            command=command if isinstance(command, list) else [],
+            item=item,
+            package_dir=package_dir or Path(),
+            included_files=included_files,
         )
+        gaps.extend(_capability_semantic_gaps(context))
         record = {
             "id": capability_id,
             "kind": kind,
@@ -283,31 +303,47 @@ def _manifest_schema_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
     return gaps
 
 
-def _capability_semantic_gaps(
-    skill_id: str,
-    capability_id: str,
-    kind: str,
-    command: list[str],
-    item: dict[str, Any],
-) -> list[str]:
+def _capability_semantic_gaps(context: CapabilityValidationContext) -> list[str]:
     gaps: list[str] = []
-    command_required = kind.startswith(("command_", "mcp_tool_", "script_"))
-    if command_required and not command:
-        gaps.append(f"skill_package_capability_command_missing:{skill_id}:{capability_id}")
-    if kind in {"command_readonly", "mcp_tool_readonly", "script_readonly"}:
-        if _is_mutating_command(command):
-            gaps.append(f"skill_package_capability_readonly_mutating:{skill_id}:{capability_id}")
-        elif not _is_trusted_readonly_command(command):
-            gaps.append(f"skill_package_capability_readonly_untrusted:{skill_id}:{capability_id}")
-    if kind in {"command_proof", "mcp_tool_proof"} and not _is_proof_command(command):
-        gaps.append(f"skill_package_capability_proof_invalid:{skill_id}:{capability_id}")
-    if kind in {
+    command_required = context.kind.startswith(("command_", "mcp_tool_", "script_"))
+    if command_required and not context.command:
+        gaps.append(_capability_gap(context, "command_missing"))
+    if context.kind in {"command_readonly", "mcp_tool_readonly"}:
+        if _is_mutating_command(context.command):
+            gaps.append(_capability_gap(context, "readonly_mutating"))
+        elif not _is_trusted_readonly_command(context.command):
+            gaps.append(_capability_gap(context, "readonly_untrusted"))
+    if context.kind == "script_readonly":
+        if _is_mutating_command(context.command):
+            gaps.append(_capability_gap(context, "readonly_mutating"))
+        elif not _is_trusted_readonly_script(context):
+            gaps.append(_capability_gap(context, "readonly_untrusted"))
+    if context.kind in {"command_proof", "mcp_tool_proof"} and not _is_proof_command(
+        context.command
+    ):
+        gaps.append(_capability_gap(context, "proof_invalid"))
+    if context.kind in {
         "command_mutation_guarded",
         "script_mutation_guarded",
         "mcp_tool_mutation_guarded",
-    } and not str(item.get("guard") or ""):
-        gaps.append(f"skill_package_capability_guard_missing:{skill_id}:{capability_id}")
+    } and not str(context.item.get("guard") or ""):
+        gaps.append(_capability_gap(context, "guard_missing"))
     return gaps
+
+
+def _capability_gap(context: CapabilityValidationContext, kind: str) -> str:
+    return f"skill_package_capability_{kind}:{context.skill_id}:{context.capability_id}"
+
+
+def _is_trusted_readonly_script(context: CapabilityValidationContext) -> bool:
+    if not context.command:
+        return False
+    script = context.command[0]
+    if script.startswith("-") or script in {".", ".."}:
+        return False
+    if script.startswith(("python", "python3", "bash", "sh", "uv", "npx")):
+        return False
+    return script in context.included_files and _contained_package_path(context.package_dir, script)
 
 
 def _is_mutating_command(command: list[str]) -> bool:

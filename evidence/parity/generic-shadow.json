@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
-    "target_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
-    "product_semantic_sha256": "1e7f2d9217ee68d4b6c058010a23670aa42fa4a5e4ff191d4199de7c3a1f1e6a",
-    "target_semantic_sha256": "1e7f2d9217ee68d4b6c058010a23670aa42fa4a5e4ff191d4199de7c3a1f1e6a",
+    "product_head": "1a9bc5f1b4d316bb86eb6570d088fd48c4868c37",
+    "target_head": "1a9bc5f1b4d316bb86eb6570d088fd48c4868c37",
+    "product_semantic_sha256": "8ac99a6b57eb1898ecc864b23f23700e2b8f611f78a8d66771dfe10d244c31d8",
+    "target_semantic_sha256": "8ac99a6b57eb1898ecc864b23f23700e2b8f611f78a8d66771dfe10d244c31d8",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -34,9 +34,9 @@
     }
   },
   "identity": {
-    "target_root": "/private/tmp/paF",
-    "target_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
-    "product_head": "28d79b9d0ca2eb8f735a27fc55bbc2ff19d03a7b",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel",
+    "target_head": "1a9bc5f1b4d316bb86eb6570d088fd48c4868c37",
+    "product_head": "1a9bc5f1b4d316bb86eb6570d088fd48c4868c37",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -50,15 +50,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paF --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paF --json"
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/orient-unbound-readmodel --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -75,7 +75,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3d3b993d9f82b995c37e2f1bf2292c2895218dbd48d0bf711c400d73bb6e8754"
+        "sha256": "b13845e57477734f67888f1f6663a0ce7ea55376c0398ba3d26b222d643bd3f1"
       },
       {
         "path": "evidence/claims",
@@ -85,7 +85,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "bbceba69645280d5ece27ce9f1481244bba4f2dd7731f397e9ab8714fc2bde59"
+        "sha256": "f4de9704e51a5fb49dbad96c001b6ec293a9032501efd3614c943a54d89cf556"
       },
       {
         "path": "rules",

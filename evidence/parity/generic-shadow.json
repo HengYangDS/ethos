@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "3de3bd786a3a5a981cad3c12d557a05a94da9f53",
-    "target_head": "3de3bd786a3a5a981cad3c12d557a05a94da9f53",
-    "product_semantic_sha256": "abe2b62b6f3794fa1524b68b0bd2643380204bac58f83e61c6f4308d097e3d7d",
-    "target_semantic_sha256": "abe2b62b6f3794fa1524b68b0bd2643380204bac58f83e61c6f4308d097e3d7d",
+    "product_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
+    "target_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
+    "product_semantic_sha256": "b4f81f2bf05e651bbc9ec3c239b4950fce7dfbecce005d338921cd79cd80d331",
+    "target_semantic_sha256": "b4f81f2bf05e651bbc9ec3c239b4950fce7dfbecce005d338921cd79cd80d331",
     "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
@@ -34,9 +34,9 @@
     }
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination",
-    "target_head": "3de3bd786a3a5a981cad3c12d557a05a94da9f53",
-    "product_head": "3de3bd786a3a5a981cad3c12d557a05a94da9f53",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/status-summary-coordination",
+    "target_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
+    "product_head": "6cc770f43ed94a63149a249a621b89a4cd02584b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -50,15 +50,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-summary-coordination/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/orient-summary-coordination --json"
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json",
+      "/Users/yheng/projects/ethos-worktrees/status-summary-coordination/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/status-summary-coordination --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -75,7 +75,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "790c2fbd83dcff39c9576cdd63e2527f0d2a285d702e49e91b7545a87ca21545"
+        "sha256": "f57a1bd24670f7e6d05803f8dc018c5c91fa8685f4b2f2227b1d7630a4ae7435"
       },
       {
         "path": "evidence/claims",
@@ -85,7 +85,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "634a762d0c5877db128a0d060de48136fd0fcf9942311f1fce2b8e666a996357"
+        "sha256": "606a05ae219aa88e5c8f45b98e8a8e1f553ff863331484008da80d757339993a"
       },
       {
         "path": "rules",

@@ -495,6 +495,16 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** `unbound_work_lane_count` equals the number of emitted residue objects
 - **AND** the signal remains advisory unless another gate reports a required gap
 
+#### Scenario: Orientation projects unbound refs without authority
+
+- **GIVEN** a repository has an unbound `work/*` branch ref
+- **WHEN** `ethos orient --json` runs
+- **THEN** `data.orientation.coordination.unbound_work_lane_refs` projects the
+  branch, head, claim binding, relation to accepted truth, and next action from
+  status
+- **AND** the orientation view does not grant write, land, retire, or cleanup
+  authority over that ref
+
 #### Scenario: Foreign Work Lanes are observable but not owned by the current actor
 
 - **GIVEN** a repository has a linked foreign `work/*` worktree
@@ -528,4 +538,3 @@ head-bound command semantics rather than raw Git branch deletion.
   has a mismatched expected head, lacks a reason, or apply lacks authorization
 - **THEN** ETHOS refuses deletion and reports deterministic required gaps
 - **AND** the branch ref remains present
-

@@ -85,6 +85,37 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
     assert payload["data"]["orientation"]["agent_hints"]["foreign_lanes_observe_only"] is True
 
 
+def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(repo, "worktree", "add", "-b", "candidate/dev", (tmp_path / "candidate").as_posix(), "dev")
+    git(repo, "branch", "work/stale-ref", "dev")
+
+    payload = run_ethos("orient", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    orientation = payload["data"]["orientation"]
+    coordination = orientation["coordination"]
+    assert coordination["foreign_work_lane_count"] == 0
+    assert coordination["foreign_work_lanes"] == []
+    assert coordination["unbound_work_lane_count"] == 1
+    assert coordination["unbound_work_lane_refs"] == [
+        {
+            "branch": "work/stale-ref",
+            "head": git(repo, "rev-parse", "dev"),
+            "claim_id": "",
+            "claim_binding": "missing",
+            "relation_to_accepted": "ancestor_of_accepted",
+            "next_action": (
+                "retire unbound Work Lane ref after confirming no external owner depends on it"
+            ),
+        }
+    ]
+    assert orientation["capability"]["current_actor_capability"] == "observe"
+    assert orientation["capability"]["can_mutate_tracked_files"] is False
+    assert "unbound ref(s) visible" in orientation["human_summary"]
+
+
 def test_orient_human_output_is_concise_and_actionable() -> None:
     completed = run_ethos_raw("orient")
 

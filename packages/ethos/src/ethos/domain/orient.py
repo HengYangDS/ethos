@@ -35,6 +35,11 @@ def orientation_packet(
         for item in cast("list[object]", status_payload.get("foreign_work_lanes") or [])
         if isinstance(item, dict)
     ]
+    unbound_refs = [
+        _unbound_lane_ref_summary(cast("Mapping[str, Any]", item))
+        for item in cast("list[object]", coordination.get("unbound_work_lane_refs") or [])
+        if isinstance(item, dict)
+    ]
     required_gaps = _strings(status_payload.get("required_gaps"))
     report_summary = _dict(report_payload.get("summary") if report_payload else None)
     report_required = _strings(report_payload.get("required_gaps") if report_payload else None)
@@ -73,10 +78,12 @@ def orientation_packet(
         "coordination": {
             "blocking": bool(coordination.get("blocking")),
             "foreign_work_lane_count": int(coordination.get("foreign_work_lane_count") or 0),
+            "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
             "overlap_count": int(coordination.get("overlap_count") or 0),
             "advisory_items": _strings(coordination.get("advisory_gaps")),
             "required_items": _strings(coordination.get("required_gaps")),
             "foreign_work_lanes": foreign_lanes,
+            "unbound_work_lane_refs": unbound_refs,
         },
         "runtime_binding": {
             "state": str(runtime.get("state") or ""),
@@ -110,6 +117,7 @@ def orientation_packet(
                 "changed_count": len(changed_paths),
                 "capability": capability,
                 "foreign_count": len(foreign_lanes),
+                "unbound_count": len(unbound_refs),
                 "gaps": gaps,
                 "next_actions": next_actions,
             }
@@ -165,6 +173,12 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
             f"{coordination.get('foreign_work_lane_count')} foreign lane(s), "
             "observe-only unless owner/handoff/break-glass"
         )
+    if int(coordination.get("unbound_work_lane_count") or 0):
+        lines.append(
+            "coordination: "
+            f"{coordination.get('unbound_work_lane_count')} unbound Work Lane ref(s), "
+            "inspect before merge, supersede, or retirement"
+        )
     next_actions = _strings(packet.get("next_actions"))
     if next_actions:
         lines.append("next: " + " | ".join(next_actions))
@@ -210,6 +224,17 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "allowed_actions": _strings(item.get("allowed_actions")),
         "forbidden_actions": _strings(item.get("forbidden_actions")),
         "path_scope": _strings(item.get("path_scope")),
+    }
+
+
+def _unbound_lane_ref_summary(item: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "branch": str(item.get("branch") or ""),
+        "head": str(item.get("head") or ""),
+        "claim_id": str(item.get("claim_id") or ""),
+        "claim_binding": str(item.get("claim_binding") or ""),
+        "relation_to_accepted": str(item.get("relation_to_accepted") or ""),
+        "next_action": str(item.get("next_action") or ""),
     }
 
 
@@ -279,9 +304,11 @@ def _human_summary(context: Mapping[str, Any]) -> str:
     state = "dirty" if dirty else "gapped" if gaps else "ready"
     actor = capability.get("current_actor_capability")
     foreign_count = int(context["foreign_count"])
+    unbound_count = int(context["unbound_count"])
     foreign = f", {foreign_count} foreign lane(s) visible" if foreign_count else ""
+    unbound = f", {unbound_count} unbound ref(s) visible" if unbound_count else ""
     next_action = f"; next: {next_actions[0]}" if next_actions else ""
     return (
         f"{state}: {context['role']}, {context['changed_count']} changed path(s), "
-        f"capability={actor}{foreign}{next_action}"
+        f"capability={actor}{foreign}{unbound}{next_action}"
     )

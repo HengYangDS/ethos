@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
-    "target_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
-    "product_semantic_sha256": "543300f5c0026b0d3fd53a5e48ba6fb0ff741ba7ed27db29b386aac5ceed83d0",
-    "target_semantic_sha256": "543300f5c0026b0d3fd53a5e48ba6fb0ff741ba7ed27db29b386aac5ceed83d0",
+    "product_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
+    "target_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
+    "product_semantic_sha256": "190b1e9c893878b84e4122a611144683e6ec093cf85f0bfa0441b5e68196ff6b",
+    "target_semantic_sha256": "190b1e9c893878b84e4122a611144683e6ec093cf85f0bfa0441b5e68196ff6b",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh",
-    "target_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
-    "product_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility",
+    "target_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
+    "product_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh --json"
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
+      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "59e9736739a4c172adbf77002f1cba874517ec29ade7559c709275f41212b019"
+        "sha256": "2f2c271227c3b0559ec02cc3a97150d6b96ceb7477eefeb80917491c835308c8"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "8437f273727638c134340d010393b77f6ce25d1ea465886aa6378cf80bd27fbb"
+        "sha256": "b6461df5c3784d3735dfb52a00fd7700e3d0534d9f90bc545d890e1233cbc1e5"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "5ba9a5fd1b5a38a7f42660ea644d24c6b0f88cd871662a4b89fc31cb191c37da"
+        "sha256": "99580055f86583a7e8ab1a9af7240a10f7c1e437fae0ac64da522c68adc349db"
       },
       {
         "path": "rules",

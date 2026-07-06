@@ -1,0 +1,27 @@
+schema_version = 1
+id = "openspec-land-carrier-archive-gate"
+summary = "Work Lane active OpenSpec carriers are blocked at land admission until archived and fused."
+state = "accepted"
+subject = "repository-governance:openspec-land-carrier-archive-gate"
+evidence = "evidence/chronicle/openspec-land-carrier-archive-gate/2026-07-07.md"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-openspec-land-carrier-archive-gate"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_any_active_openspec_carrier_before_land"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_unarchived_openspec_carriers"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_active_openspec_carriers_on_closeout"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/adapters/mutation/core.py"
+
+[[promotion_targets]]
+path = "tests/unit/coverage/test_core_state_claims_edges.py"

@@ -311,6 +311,35 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
     )
     assert land_decision.gaps == ("openspec_completed_change_unarchived:done",)
 
+
+def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    change = tmp_path / "openspec" / "changes" / "wip"
+    change.mkdir(parents=True)
+    (change / "tasks.md").write_text("- [x] started\n- [ ] not archived\n", encoding="utf-8")
+
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+
+    land_decision = mutation_core.evaluate_mutation(
+        mutation_core.MutationRequest("land", True, True, "h1"),
+        root=tmp_path,
+        current_head="h1",
+    )
+
+    assert land_decision.gaps == ("openspec_active_change_unarchived:wip:work_lane",)
+
+
+def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    change = tmp_path / "openspec" / "changes" / "wip"
+    change.mkdir(parents=True)
+    (change / "tasks.md").write_text("- [ ] unfinished\n", encoding="utf-8")
+
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
@@ -329,8 +358,8 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
         root=tmp_path,
         current_head="h1",
     )
-    assert "openspec_active_change_unarchived:done:accepted_root" in closeout_decision.gaps
-    assert "openspec_active_change_unarchived:done:candidate" in closeout_decision.gaps
+    assert "openspec_active_change_unarchived:wip:accepted_root" in closeout_decision.gaps
+    assert "openspec_active_change_unarchived:wip:candidate" in closeout_decision.gaps
 
 
 def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:

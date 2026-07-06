@@ -630,3 +630,120 @@ correct command JSON would create a second truth store.
 
 Do not harden ref hooks before command-level remedies are clear. Hooks should be
 the last guardrail, not the first user experience.
+
+## Implementation readiness checklist
+
+Before the implementation phase starts, the following facts should be true or
+explicitly accepted as constraints:
+
+1. `dev` and `candidate/dev` are aligned, or the implementation lane is rebased
+   onto the current candidate head.
+2. Active foreign lanes are either disjoint in scope or deliberately treated as
+   observe-only blockers.
+3. The implementation lane has a claim and bounded scope.
+4. `ethos lane status --json` shows no unknown overlap for the implementation
+   lane.
+5. The first implementation slice changes only read-model/status surfaces unless
+   a stricter gate is already proven by tests.
+6. Any destructive-change policy work is deferred until ownership, epoch, and
+   closeout authority are visible in command JSON.
+7. Full proof failures are classified into current-lane failures versus foreign
+   or baseline proof debt before any repair is attempted.
+
+## Open decisions for maintainers
+
+These are real design choices, not implementation details.
+
+### Lane event envelope strictness
+
+Option A: strict CloudEvents fields and naming.
+
+- Pro: easier future interoperability.
+- Con: may overfit a local repository lifecycle to a cloud event standard.
+
+Option B: ETHOS lane event profile compatible with CloudEvents.
+
+- Pro: keeps ETHOS semantics primary while preserving familiar fields.
+- Con: future adapters may need a small mapping layer.
+
+Recommendation: choose Option B now. Revisit strict CloudEvents only when an
+external consumer needs it.
+
+### Destructive-change carrier
+
+Option A: extend existing claim / evidence schemas.
+
+- Pro: avoids new entities.
+- Con: claim schema may become broad.
+
+Option B: add a small `destructive-change` schema linked from claim evidence.
+
+- Pro: clearer for high-risk changes.
+- Con: adds one new entity.
+
+Recommendation: begin as claim/evidence extension. Add a separate schema only
+if repeated destructive-change records make the claim schema unclear.
+
+### Agent identity granularity
+
+Option A: lane lease holder is enough.
+
+- Pro: minimal entity count.
+- Con: less detail about host/session identity.
+
+Option B: add an agent registry.
+
+- Pro: richer host/session tracking.
+- Con: likely becomes a second truth source and stale quickly.
+
+Recommendation: do not add an agent registry. Put host/session details inside
+lease holder metadata and lane events. Reassess only if cross-host execution
+requires durable agent identity beyond lane ownership.
+
+### Runtime location
+
+Option A: Git common-dir runtime state.
+
+- Pro: shared by worktrees, not committed, local-first.
+- Con: not visible after clone unless reconstructed.
+
+Option B: tracked runtime-like files.
+
+- Pro: portable.
+- Con: pollutes history and creates merge conflicts.
+
+Recommendation: use Git common-dir for active leases/events; promote only
+selected evidence into tracked `evidence/` when it matters historically.
+
+## Expert committee cadence for implementation
+
+Each implementation slice should end with a short committee review:
+
+1. **Kernel reviewer:** Did the change reduce to Work Lane, lease, scope, epoch,
+   gate, log, claim, and evidence, or did it add unnecessary entities?
+2. **Concurrency reviewer:** Can an old holder, foreign agent, stale worktree, or
+   raw Git operation bypass the intended authority?
+3. **UX reviewer:** Does the failed command tell an agent what it may do next?
+4. **Creative-change reviewer:** Does the design permit net-positive destructive
+   change instead of freezing the old structure?
+5. **Evidence reviewer:** Is the completion claim backed by command output,
+   tests, proof, or explicit documented limits?
+
+A slice should not close if it only looks conceptually correct. It closes when
+its authority, observability, and evidence surfaces agree.
+
+## Current research-lane closeout note
+
+This research lane is intentionally not forcing closeout while a dirty foreign
+lane is working on parity/proof freshness:
+
+- foreign lane: `work/parity-self-evidence-head`
+- reason: it owns active changes in parity evidence, report/land support, and
+  parity tests;
+- implication: full proof failures involving parity should not be repaired here
+  unless ownership is explicitly transferred or that lane lands.
+
+The research lane remains useful and clean because it only changes
+`docs/research/lane-lease-governance-research.md`. Once the parity lane lands or
+is otherwise resolved, refresh this lane onto `candidate/dev`, rerun docs and
+proof gates, then land it through the normal Work Lane path.

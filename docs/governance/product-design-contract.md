@@ -82,6 +82,9 @@ Do not turn this root text into a line-by-line module map. Its engineering
 reading is deliberately plain: JudgmentSource preserves authority; one single kernel keeps the center; truth boundary and profile or adapter boundary prevent
 false absorption; binding taxonomy keeps measures domain-appropriate; command
 JSON and evidence make hidden state inspectable; adapters remain adapters.
+`system/tao.md` may restate these axioms for machine-adjacent review, but it is
+not a separate product truth center and must stay derivable from this contract
+and the kernel model.
 
 Engineering names remain plain and precise: kernel, evidence, claim, chronicle,
 adapter, profile, and transition loop mean what they say.
@@ -183,6 +186,10 @@ retirement, and unbound-ref residue cleanup paths.
 Git worktree facts remain observable, but raw worktree creation is not the
 standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
 boundaries.
+When multiple agents change the repository concurrently, integration is judged
+by repository truth, authority order, lifecycle legality, and bound evidence.
+Candidate integration fuses or rejects conflicts by those measures; it is never
+last-writer-wins and never a host-side overwrite race.
 
 ### Binding taxonomy
 

@@ -4,6 +4,9 @@
 #
 # Profiles decide which gates run by default. Presence in the catalog does NOT
 # make a tool mandatory for every repository.
+# `planned = true` records a roadmap commitment, not a current proof gap. A
+# planned tool becomes an active gate only after it has a config owner, reusable
+# script or native gate owner, registry entry, CI projection, and proof coverage.
 # Derived from the terminal design "Tool Catalog" table. This is the target
 # catalog; gate implementations converge here in Phase E2 (quality-proof-ratchet).
 

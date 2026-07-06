@@ -58,6 +58,10 @@ by one of these subjects. Prefer references or scripts inside the existing skill
 package before adding a new skill. Use the skill portfolio audit helper and the
 activation `[coverage]` contract to keep MECE ownership, package integrity, and
 projection drift visible without creating a parallel truth store.
+Skill creation is therefore a workflow inside `ethos-skill-portfolio-governance`,
+not a sixth primary skill. A separate creator skill is justified only if it owns
+a durable semantic obligation that the portfolio owner cannot express without
+breaking MECE ownership.
 
 The activation `[coverage]` table declares `required_primary_subjects` and
 `single_owner_subjects`. `ethos playbooks check --mode v2-strict --json` fails

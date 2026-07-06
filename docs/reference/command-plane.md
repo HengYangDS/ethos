@@ -33,6 +33,13 @@ transition command:
 ethos report
 ```
 
+This is the command grammar. `status`, `plan`, `prove`, `land`, and `publish`
+are the transition verbs; `report` is the payoff view. Every maintainer,
+quality, parity, assistant, playbook, fleet, hook, lane, or docs command is a
+domain lens or repair surface over that grammar. It must project a kernel
+object, expose its boundary, and reduce its decision back to one of the
+transition questions rather than becoming a parallel command plane.
+
 The npm launcher exposes the same root command:
 
 ```bash

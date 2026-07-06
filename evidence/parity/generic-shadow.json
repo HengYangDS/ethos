@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "11ff487a6ccd0fb17a3f69989a73d7bed9a5bfd8",
-    "target_head": "11ff487a6ccd0fb17a3f69989a73d7bed9a5bfd8",
-    "product_semantic_sha256": "0c70949376cdebd54a59f5ffd21513c1798d7aa499de700b19c24047b6428a08",
-    "target_semantic_sha256": "0c70949376cdebd54a59f5ffd21513c1798d7aa499de700b19c24047b6428a08",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
+    "target_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
+    "product_semantic_sha256": "344d2d95c6c8f3c984906d58662119d47063d3544338625f353159802bd2ed22",
+    "target_semantic_sha256": "344d2d95c6c8f3c984906d58662119d47063d3544338625f353159802bd2ed22",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate",
-    "target_head": "11ff487a6ccd0fb17a3f69989a73d7bed9a5bfd8",
-    "product_head": "11ff487a6ccd0fb17a3f69989a73d7bed9a5bfd8",
+    "target_root": "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate",
+    "target_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
+    "product_head": "f96653e2c1174f3802ba74c374b8e8b3ce7c2f9a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/shadow-false-negative-gate --json"
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json",
+      "/Users/yheng/projects/ethos-openspec-metadata-upstream-gate/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-openspec-metadata-upstream-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,7 +76,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "99691c73c2e4a7164c5eae645e21e0e6d0b8422d953c968f65703d0188d1f005"
+        "sha256": "e107ec27216846fc726feda0c3fbb7c06dc4ab69d10a90eb7f6389ee99658d8c"
       },
       {
         "path": "evidence/claims",
@@ -86,7 +86,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "080fd6b2d4a8c8e5a90be8b7c9b93ddc51fa46c4a17c1fd2975f41b9402d7c38"
+        "sha256": "2d08d2f4d86dddedbede78b0b8ee9a647bdac4223f259a76c267c3f24fc34248"
       },
       {
         "path": "rules",

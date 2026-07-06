@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
   "freshness": {
-    "product_head": "623cf263af5b721764501204d69a9994ab9f91f1",
-    "target_head": "623cf263af5b721764501204d69a9994ab9f91f1",
-    "product_semantic_sha256": "4485493f7cbc5cea6cbdf7cea81161faf5eed6cb0f30c999522a449f4abc8707",
-    "target_semantic_sha256": "4485493f7cbc5cea6cbdf7cea81161faf5eed6cb0f30c999522a449f4abc8707",
-    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
+    "product_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
+    "target_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
+    "product_semantic_sha256": "173af83568ec5112abc455cc0ec0893ef8fbcd643d9495119e5664ebca41cbd9",
+    "target_semantic_sha256": "173af83568ec5112abc455cc0ec0893ef8fbcd643d9495119e5664ebca41cbd9",
+    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision",
-    "target_head": "623cf263af5b721764501204d69a9994ab9f91f1",
-    "product_head": "623cf263af5b721764501204d69a9994ab9f91f1",
+    "target_root": "/private/tmp/paDHP",
+    "target_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
+    "product_head": "56f86af88ee8795899841caf7b72f96c58ac408d",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json",
-      "/Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retirement-next-actions-precision --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paDHP --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paDHP --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "347f499fdb39e74d8770d94de4539fca356862af1e38c2c8de19604d720ad80a"
+        "sha256": "cc03f72d7d158709f9883930aa62b76e03a02966c59dc198a1f8b3e531afdbb1"
       },
       {
         "path": "evidence/claims",

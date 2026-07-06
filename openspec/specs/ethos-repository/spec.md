@@ -502,6 +502,8 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **THEN** `data.orientation.coordination.unbound_work_lane_refs` projects the
   branch, head, claim binding, relation to accepted truth, and next action from
   status
+- **AND** `summary.unbound_work_lane_count` equals
+  `data.orientation.coordination.unbound_work_lane_count`
 - **AND** the orientation view does not grant write, land, retire, or cleanup
   authority over that ref
 

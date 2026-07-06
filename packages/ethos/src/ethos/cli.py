@@ -157,6 +157,7 @@ def orient(
             "role": where["role"],
             "capability": capability["current_actor_capability"],
             "foreign_work_lane_count": coordination["foreign_work_lane_count"],
+            "unbound_work_lane_count": coordination["unbound_work_lane_count"],
             "governance_gap_count": readiness["governance_gap_count"],
             "parity_pending_count": readiness["parity_pending_count"],
         },

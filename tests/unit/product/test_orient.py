@@ -33,6 +33,14 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     assert orientation["landing_readiness"]["state"]
     assert isinstance(orientation["runtime_binding"]["advisory_items"], list)
     assert payload["summary"]["role"] == orientation["where"]["role"]
+    assert (
+        payload["summary"]["foreign_work_lane_count"]
+        == orientation["coordination"]["foreign_work_lane_count"]
+    )
+    assert (
+        payload["summary"]["unbound_work_lane_count"]
+        == orientation["coordination"]["unbound_work_lane_count"]
+    )
     assert payload["next_actions"] == orientation["next_actions"]
 
 

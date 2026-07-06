@@ -849,6 +849,37 @@ def test_prewrite_allows_owned_work_lane_with_matching_editor_root(tmp_path: Pat
     assert report["error"] == ""
 
 
+def test_prewrite_blocks_product_root_when_runner_source_differs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-owned"
+    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
+    product_marker = worktree / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+    product_marker.parent.mkdir(parents=True)
+    product_marker.write_text("", encoding="utf-8")
+    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+    external_runner.parent.mkdir(parents=True)
+    (tmp_path / "external" / "pyproject.toml").write_text(
+        "[project]\nname='external'\n", encoding="utf-8"
+    )
+    external_runner.write_text("", encoding="utf-8")
+    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
+
+    report = prewrite_guard(
+        root=worktree,
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["error"] == "root_binding_mismatch"
+    assert report["runtime_binding"]["product_audit_root"] is True
+    assert report["runtime_binding"]["runner_matches_audit_root"] is False
+
+
 def test_prewrite_rejects_work_lane_without_editor_root_binding(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-owned"

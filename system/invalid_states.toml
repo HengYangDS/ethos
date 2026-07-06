@@ -190,6 +190,7 @@ match_prefixes = [
   "adapter_missing",
   "write_admission_not_armed",
   "hook_context_root_mismatch",
+  "root_binding_mismatch",
   "embedded_backend_missing",
   "external_product_repository_audit_gap",
   "external_required_gap_superset",

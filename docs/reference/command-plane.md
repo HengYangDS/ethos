@@ -149,6 +149,12 @@ ethos lane retire-landed --branch <work-lane-branch> --apply
 ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
 ```
 
+When `--root` is omitted, CLI commands resolve the current Git worktree root
+from `cwd`. A Work Lane subdirectory therefore binds to that Work Lane, not to
+the accepted-root checkout or a host launch directory. Product-repository
+prewrite also reports `data.runtime_binding` and blocks when the command runner,
+schema source, and audited root are not the same product checkout.
+
 `ethos status --json` and `ethos lane status --json` expose the configured role
 contract under `data.role_policy` and role-policy branch bindings under
 `data.branch_bindings`. The `role_policy` field is the configured product

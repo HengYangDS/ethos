@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.adapters.repo.status import workspace_status
 from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def prewrite_guard(
@@ -19,6 +16,7 @@ def prewrite_guard(
 ) -> dict[str, object]:
     status = workspace_status(root)
     role = str(status["role"])
+    runtime_check = _runtime_binding_check(status)
     checked_paths = [_check_path(root=root, path=path, role=role) for path in paths]
     tracked_write_requested = any(path["tracked_candidate"] for path in checked_paths)
     editor_check = _editor_root_check(
@@ -27,16 +25,55 @@ def prewrite_guard(
         require_editor_root=require_editor_root or tracked_write_requested,
     )
     blocked_paths = [path for path in checked_paths if path["allowed"] is False]
-    error = _error(editor_check=editor_check, blocked_paths=blocked_paths)
+    error = _error(
+        runtime_check=runtime_check,
+        editor_check=editor_check,
+        blocked_paths=blocked_paths,
+    )
     return {
         "ok": error == "",
         "error": error,
         "role": role,
         "branch": status["branch"],
+        "runtime_binding": runtime_check,
         "editor_root": editor_check,
         "paths": checked_paths,
         "blocked_paths": blocked_paths,
         "required_gaps": [error] if error else [],
+    }
+
+
+def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
+    binding = status.get("runtime_binding")
+    if not isinstance(binding, dict):
+        return {
+            "ok": True,
+            "reason": "runtime_binding_unavailable",
+            "audit_root": "",
+            "runner_source_root": "",
+            "schema_source_root": "",
+            "product_audit_root": False,
+        }
+    audit_root = str(binding.get("audit_root") or "")
+    runner_source_root = str(binding.get("runner_source_root") or "")
+    schema_source_root = str(binding.get("schema_source_root") or "")
+    product_audit_root = (
+        bool(audit_root)
+        and (Path(audit_root) / "packages" / "ethos" / "src" / "ethos" / "__init__.py").exists()
+    )
+    runner_matches = binding.get("runner_matches_audit_root") is True
+    schema_matches = binding.get("schema_matches_audit_root") is True
+    ok = (not product_audit_root) or (runner_matches and schema_matches)
+    reason = "matched" if ok else "root_binding_mismatch"
+    return {
+        "ok": ok,
+        "reason": reason,
+        "audit_root": audit_root,
+        "runner_source_root": runner_source_root,
+        "schema_source_root": schema_source_root,
+        "product_audit_root": product_audit_root,
+        "runner_matches_audit_root": runner_matches,
+        "schema_matches_audit_root": schema_matches,
     }
 
 
@@ -103,9 +140,12 @@ def _is_ignored(root: Path, relative_path: str) -> bool:
 
 def _error(
     *,
+    runtime_check: dict[str, object],
     editor_check: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
+    if runtime_check["ok"] is not True:
+        return str(runtime_check["reason"])
     if any(path["reason"] == "path_outside_worktree" for path in blocked_paths):
         return "prewrite_path_outside_worktree"
     if blocked_paths:

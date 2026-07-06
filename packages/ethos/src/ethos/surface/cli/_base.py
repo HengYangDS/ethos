@@ -10,6 +10,7 @@ surface acyclic.
 from __future__ import annotations
 
 import hashlib
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
@@ -54,8 +55,25 @@ RootOption = Annotated[Path, Parameter(name="--root")]
 
 # ---- cross-group helpers ----
 def resolve_root(root: Path | None) -> Path:
-    """Resolve the target repository root (cwd when unspecified)."""
-    return (root or Path.cwd()).resolve()
+    """Resolve the target repository root.
+
+    The default is the current Git worktree root, not the process launch
+    directory. Agent and IDE hosts often invoke ETHOS from a subdirectory inside a
+    linked Work Lane; binding to that Work Lane's Git toplevel keeps relative
+    paths, editor-root checks, and branch-role classification on the same
+    governed subject. Non-Git adopters still resolve to the supplied path/cwd.
+    """
+    candidate = (root or Path.cwd()).resolve()
+    completed = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=candidate,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode == 0 and completed.stdout.strip():
+        return Path(completed.stdout.strip()).resolve()
+    return candidate
 
 
 def sha256_file(path: Path) -> str:

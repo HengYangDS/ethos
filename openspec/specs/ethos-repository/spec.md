@@ -376,6 +376,14 @@ mutate tracked files.
 - **AND** the terminal design still treats manual prewrite as weaker than a
   bound mutation hook
 
+#### Scenario: Worktree root binding fails closed
+- **WHEN** ETHOS resolves mutation admission from inside a linked Work Lane
+  subdirectory
+- **THEN** the default target root is the current Git worktree root rather than
+  an accepted root or process launch directory
+- **AND** product-repository prewrite blocks when the command runner, schema
+  source, and audited root do not bind to the same product checkout
+
 ### Requirement: Failure blocking moves upstream
 ETHOS SHALL promote repeated late failures to earlier controls until the normal
 workflow prevents the invalid state before mutation when practical.

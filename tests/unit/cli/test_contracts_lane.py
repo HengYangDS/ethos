@@ -148,6 +148,32 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(tmp_path: Path
     assert "editor_root_missing" in payload["required_gaps"]
 
 
+def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    nested = worktree / "packages" / "ethos"
+    nested.mkdir(parents=True)
+
+    payload = run_ethos(
+        "lane",
+        "prewrite",
+        "README.md",
+        "--editor-root",
+        worktree.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=nested,
+    )
+
+    assert payload["ok"] is True
+    assert payload["data"]["role"] == "work_lane"
+    assert payload["data"]["editor_root"]["expected"] == worktree.resolve().as_posix()
+    assert payload["data"]["paths"][0]["path"] == (worktree / "README.md").as_posix()
+
+
 def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
 

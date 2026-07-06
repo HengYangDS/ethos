@@ -250,7 +250,11 @@ lives. A provider file must invoke the owner instead of copying its policy.
 
 Conformance, parity, golden output, migration replay, and sample repositories
 belong in an explicit proof host. They must not be scattered through runtime
-packages as accidental product behavior.
+packages as accidental product behavior. Tracked parity evidence binds both the
+commit where comparison ran and the parity-relevant semantic Git tree. This lets
+an evidence-recording commit prove what it actually proves without pretending to
+know its own future commit hash, while any later parity-relevant source or
+contract change still stales the evidence.
 
 
 ## Invalid-State Taxonomy

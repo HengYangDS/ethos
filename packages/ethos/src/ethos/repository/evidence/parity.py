@@ -16,6 +16,7 @@ from ethos.repository.evidence.parity_validation import _sha256_text
 from ethos.repository.evidence.parity_validation import _string_list
 from ethos.repository.evidence.parity_validation import _tracked_evidence_provenance
 from ethos.repository.evidence.parity_validation import _validate_parity_evidence
+from ethos.repository.evidence.parity_validation import semantic_tree_digest
 from ethos_core.contracts.capability_parity import capability_parity_records
 
 __all__ = (
@@ -27,6 +28,23 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 REPOSITORY_TARGET = "<repo>"
+
+# The tree whose change can actually move a shadow-compared command output
+# (status / plan --changed / prove / report / quality command-surface / assistants
+# doctor / playbooks route / land / publish). Parity freshness is keyed on THIS
+# semantic tree, not on a proxy touch of the evidence file.
+PARITY_RELEVANT_PATHS: tuple[str, ...] = (
+    "packages",
+    "system",
+    ".ethos",
+    ".agents/skills",
+    "openspec",
+    "evidence/claims",
+    "rules",
+    "pyproject.toml",
+    "uv.lock",
+    "docs/governance",
+)
 
 
 def parity_ledger_report() -> dict[str, object]:
@@ -62,6 +80,7 @@ def parity_gaps_report(
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
         acceptable_target_heads=acceptable_target_heads,
+        relevant_paths=PARITY_RELEVANT_PATHS,
     )
     evidence_valid = not evidence.get("required_gaps")
     evidence_gaps = [
@@ -138,6 +157,16 @@ def build_tracked_parity_evidence(
         "freshness": {
             "product_head": current_product_head,
             "target_head": current_target_head,
+            "product_semantic_sha256": semantic_tree_digest(
+                root or target,
+                head=current_product_head,
+                relevant_paths=PARITY_RELEVANT_PATHS,
+            ),
+            "target_semantic_sha256": semantic_tree_digest(
+                target,
+                head=current_target_head,
+                relevant_paths=PARITY_RELEVANT_PATHS,
+            ),
             "command_sha256": _sha256_text(command),
         },
         "shadow": {
@@ -296,6 +325,7 @@ def shadow_parity_report(
             current_product_head=current_product_head,
             acceptable_product_heads=acceptable_product_heads,
             acceptable_target_heads=acceptable_target_heads,
+            relevant_paths=PARITY_RELEVANT_PATHS,
         )
         if evidence:
             evidence_gaps = list(cast("Iterable[str]", evidence.get("required_gaps", [])))
@@ -308,6 +338,11 @@ def shadow_parity_report(
                 required_gaps=evidence_gaps,
                 current_target_head=current_target_head,
                 current_product_head=current_product_head,
+                semantic_context={
+                    "product_root": root or Path.cwd(),
+                    "target_root": target,
+                    "relevant_paths": PARITY_RELEVANT_PATHS,
+                },
             )
             if not evidence_gaps and shadow.get("ok") is True:
                 commands = _string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)

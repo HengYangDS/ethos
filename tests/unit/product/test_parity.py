@@ -300,8 +300,12 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     assert evidence["freshness"] == {
         "product_head": _git_head(product),
         "target_head": _git_head(target),
+        "product_semantic_sha256": evidence["freshness"]["product_semantic_sha256"],
+        "target_semantic_sha256": evidence["freshness"]["target_semantic_sha256"],
         "command_sha256": _sha256_text(expected_command),
     }
+    assert evidence["freshness"]["product_semantic_sha256"]
+    assert evidence["freshness"]["target_semantic_sha256"]
     assert evidence["shadow"]["ok"] is True
     assert evidence["shadow"]["state"] == "matched"
     assert evidence["shadow"]["comparison_count"] == len(SHADOW_COMMANDS)
@@ -462,10 +466,16 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
                     "current_product_head": "",
                     "product_head_current": False,
                     "product_head_accepted_by_relevant_tree": False,
+                    "product_semantic_sha256": "",
+                    "current_product_semantic_sha256": "",
+                    "product_semantic_current": False,
                     "target_head": "target-head",
                     "current_target_head": "",
                     "target_head_current": False,
                     "target_head_accepted_by_relevant_tree": False,
+                    "target_semantic_sha256": "",
+                    "current_target_semantic_sha256": "",
+                    "target_semantic_current": False,
                     "command_sha256": evidence["freshness"]["command_sha256"],
                 },
             },
@@ -1169,3 +1179,112 @@ def test_shadow_exit_code_above_one_is_process_failure_even_with_verdict() -> No
             "json": {"ok": False, "command": "status", "required_gaps": []},
         }
     )
+
+
+def test_parity_evidence_semantic_digest_allows_self_evidence_commit(
+    tmp_path: Path,
+) -> None:
+    product = _init_git_repo(tmp_path / "product")
+    target = product
+    (product / "packages").mkdir()
+    (product / "packages" / "core.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=product, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "add product source",
+        ],
+        cwd=product,
+        check=True,
+        capture_output=True,
+    )
+    semantic_head = _git_head(product)
+    evidence = _complete_parity_evidence("generic")
+    command = (
+        "uv run --package ethos ethos parity shadow --adopter generic "
+        "--target . --execute --timeout-seconds 30 --json"
+    )
+    evidence["target"] = "<repo>"
+    evidence["command"] = command
+    freshness = evidence["freshness"]
+    assert isinstance(freshness, dict)
+    freshness["product_head"] = semantic_head
+    freshness["target_head"] = semantic_head
+    freshness["command_sha256"] = _sha256_text(command)
+    from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
+    from ethos.repository.evidence.parity_validation import semantic_tree_digest
+
+    digest = semantic_tree_digest(product, head=semantic_head, relevant_paths=PARITY_RELEVANT_PATHS)
+    freshness["product_semantic_sha256"] = digest
+    freshness["target_semantic_sha256"] = digest
+    evidence_dir = product / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    (evidence_dir / "generic-shadow.json").write_text(json.dumps(evidence), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=product, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "record parity evidence",
+        ],
+        cwd=product,
+        check=True,
+        capture_output=True,
+    )
+    evidence_commit = _git_head(product)
+
+    payload = parity_gaps_report(
+        adopter="generic",
+        root=product,
+        target=target,
+        current_product_head=evidence_commit,
+        current_target_head=evidence_commit,
+    )
+
+    assert payload["ok"] is True
+    freshness_report = payload["evidence"]["provenance"]["freshness"]
+    assert freshness_report["product_head_current"] is False
+    assert freshness_report["target_head_current"] is False
+    assert freshness_report["product_semantic_current"] is True
+    assert freshness_report["target_semantic_current"] is True
+
+    (product / "packages" / "core.py").write_text("value = 2\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=product, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "change product source",
+        ],
+        cwd=product,
+        check=True,
+        capture_output=True,
+    )
+    changed_head = _git_head(product)
+    stale_payload = parity_gaps_report(
+        adopter="generic",
+        root=product,
+        target=target,
+        current_product_head=changed_head,
+        current_target_head=changed_head,
+    )
+
+    assert stale_payload["ok"] is False
+    assert "parity_evidence_invalid:generic:product_head" in stale_payload["required_gaps"]
+    assert "parity_evidence_invalid:generic:target_head" in stale_payload["required_gaps"]

@@ -44,10 +44,14 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     playbooks = playbooks_report(repo, mode="v2-strict")
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
+    current_head = _gitio.current_tracked_head(repo)
     parity_gaps = parity_gaps_report(
         root=repo,
-        current_product_head=_gitio.current_tracked_head(repo),
+        target=repo,
+        current_product_head=current_head,
+        current_target_head=current_head,
         acceptable_product_heads=_land.acceptable_parity_product_heads(repo, None),
+        acceptable_target_heads=_land.acceptable_parity_target_heads(repo, repo, None),
     )
     context_projection = context_projection_contract()
     context_projection_score = int(

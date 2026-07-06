@@ -20,19 +20,45 @@
     "packages"
   ],
   "properties": {
-    "ok": {"type": "boolean"},
-    "state": {"type": "string"},
-    "workspace": {"type": "object"},
-    "claims": {"type": "object"},
-    "intake_projection": {"$ref": "#/$defs/intakeProjection"},
-    "evolution": {"type": "object"},
-    "campaigns": {"$ref": "#/$defs/campaignPackage"},
-    "release": {"type": "object"},
-    "parity": {"type": "object"},
-    "shadow_parity": {"type": "object"},
-    "publication": {"$ref": "#/$defs/publication"},
-    "remote_publication": {"$ref": "#/$defs/remotePublication"},
-    "provenance": {"$ref": "#/$defs/closeoutProvenance"},
+    "ok": {
+      "type": "boolean"
+    },
+    "state": {
+      "type": "string"
+    },
+    "workspace": {
+      "type": "object"
+    },
+    "claims": {
+      "type": "object"
+    },
+    "intake_projection": {
+      "$ref": "#/$defs/intakeProjection"
+    },
+    "evolution": {
+      "type": "object"
+    },
+    "campaigns": {
+      "$ref": "#/$defs/campaignPackage"
+    },
+    "release": {
+      "type": "object"
+    },
+    "parity": {
+      "type": "object"
+    },
+    "shadow_parity": {
+      "type": "object"
+    },
+    "publication": {
+      "$ref": "#/$defs/publication"
+    },
+    "remote_publication": {
+      "$ref": "#/$defs/remotePublication"
+    },
+    "provenance": {
+      "$ref": "#/$defs/closeoutProvenance"
+    },
     "packages": {
       "type": "object",
       "required": [
@@ -46,14 +72,30 @@
         "shadow_parity"
       ],
       "properties": {
-        "local_closeout": {"type": "object"},
-        "trust_closeout": {"$ref": "#/$defs/trustCloseout"},
-        "campaign": {"$ref": "#/$defs/campaignPackage"},
-        "intake_projection": {"$ref": "#/$defs/intakeProjection"},
-        "publication": {"$ref": "#/$defs/publication"},
-        "release": {"type": "object"},
-        "parity": {"type": "object"},
-        "shadow_parity": {"$ref": "#/$defs/shadowParityPackage"}
+        "local_closeout": {
+          "type": "object"
+        },
+        "trust_closeout": {
+          "$ref": "#/$defs/trustCloseout"
+        },
+        "campaign": {
+          "$ref": "#/$defs/campaignPackage"
+        },
+        "intake_projection": {
+          "$ref": "#/$defs/intakeProjection"
+        },
+        "publication": {
+          "$ref": "#/$defs/publication"
+        },
+        "release": {
+          "type": "object"
+        },
+        "parity": {
+          "type": "object"
+        },
+        "shadow_parity": {
+          "$ref": "#/$defs/shadowParityPackage"
+        }
       },
       "additionalProperties": false
     }
@@ -70,12 +112,32 @@
         "campaigns"
       ],
       "properties": {
-        "kind": {"type": "string"},
-        "ok": {"type": "boolean"},
-        "active_count": {"type": "integer", "minimum": 0},
-        "campaign_count": {"type": "integer", "minimum": 0},
-        "required_gaps": {"type": "array", "items": {"type": "string"}},
-        "campaigns": {"type": "array", "items": {"type": "object"}}
+        "kind": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "active_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "campaign_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "campaigns": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -91,23 +153,53 @@
         "next_actions"
       ],
       "properties": {
-        "mode": {"const": "local_readiness"},
-        "remote_push": {"const": "not_performed"},
-        "remote_state": {"const": "deferred"},
-        "submit_branch": {"type": "string"},
-        "local_submit_package": {"type": "object"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}},
-        "next_actions": {"type": "array", "items": {"type": "string"}}
+        "mode": {
+          "const": "local_readiness"
+        },
+        "remote_push": {
+          "const": "not_performed"
+        },
+        "remote_state": {
+          "const": "deferred"
+        },
+        "submit_branch": {
+          "type": "string"
+        },
+        "local_submit_package": {
+          "type": "object"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
     "remotePublication": {
       "type": "object",
-      "required": ["remote_push", "state", "reason"],
+      "required": [
+        "remote_push",
+        "state",
+        "reason"
+      ],
       "properties": {
-        "remote_push": {"const": "not_performed"},
-        "state": {"const": "deferred"},
-        "reason": {"type": "string"}
+        "remote_push": {
+          "const": "not_performed"
+        },
+        "state": {
+          "const": "deferred"
+        },
+        "reason": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
@@ -126,16 +218,42 @@
         "required_gaps"
       ],
       "properties": {
-        "kind": {"const": "intake_projection"},
-        "state": {"type": "string"},
-        "truth_boundary": {"const": "projection-evidence"},
-        "repository_truth": {"const": false},
-        "provider": {"type": "string"},
-        "configured": {"type": "boolean"},
-        "expected_config": {"type": "string"},
-        "adapters": {"type": "array", "items": {"type": "string"}},
-        "blocking": {"type": "boolean"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}}
+        "kind": {
+          "const": "intake_projection"
+        },
+        "state": {
+          "type": "string"
+        },
+        "truth_boundary": {
+          "const": "projection-evidence"
+        },
+        "repository_truth": {
+          "const": false
+        },
+        "provider": {
+          "type": "string"
+        },
+        "configured": {
+          "type": "boolean"
+        },
+        "expected_config": {
+          "type": "string"
+        },
+        "adapters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -152,37 +270,81 @@
         "required_gaps"
       ],
       "properties": {
-        "kind": {"const": "trust_closeout"},
-        "claim_report_ok": {"type": "boolean"},
-        "trust_claim_count": {"type": "integer", "minimum": 0},
-        "promotion_ready": {"type": "boolean"},
-        "executed_proof_evidence": {"type": "boolean"},
+        "kind": {
+          "const": "trust_closeout"
+        },
+        "claim_report_ok": {
+          "type": "boolean"
+        },
+        "trust_claim_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "promotion_ready": {
+          "type": "boolean"
+        },
+        "executed_proof_evidence": {
+          "type": "boolean"
+        },
         "work_lane": {
           "type": "object",
-          "required": ["branch", "claim_id", "claim_binding"],
+          "required": [
+            "branch",
+            "claim_id",
+            "claim_binding"
+          ],
           "properties": {
-            "branch": {"type": "string"},
-            "claim_id": {"type": "string"},
-            "claim_binding": {"enum": ["bound", "missing", "unbound"]}
+            "branch": {
+              "type": "string"
+            },
+            "claim_id": {
+              "type": "string"
+            },
+            "claim_binding": {
+              "enum": [
+                "bound",
+                "missing",
+                "unbound"
+              ]
+            }
           },
           "additionalProperties": false
         },
-        "blocking": {"type": "boolean"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}}
+        "blocking": {
+          "type": "boolean"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
     "closeoutProvenance": {
       "type": "object",
-      "required": ["shadow_parity", "closeout"],
+      "required": [
+        "shadow_parity",
+        "closeout"
+      ],
       "properties": {
-        "shadow_parity": {"$ref": "#/$defs/shadowProvenance"},
+        "shadow_parity": {
+          "$ref": "#/$defs/shadowProvenance"
+        },
         "closeout": {
           "type": "object",
-          "required": ["mode", "remote_state"],
+          "required": [
+            "mode",
+            "remote_state"
+          ],
           "properties": {
-            "mode": {"const": "local_only"},
-            "remote_state": {"const": "deferred"}
+            "mode": {
+              "const": "local_only"
+            },
+            "remote_state": {
+              "const": "deferred"
+            }
           },
           "additionalProperties": false
         }
@@ -201,19 +363,55 @@
         "next_action"
       ],
       "properties": {
-        "kind": {"type": "string"},
-        "gap": {"type": "string"},
-        "state": {"type": "string"},
-        "target": {"type": "string"},
-        "evidence_path": {"type": "string"},
-        "comparison_count": {"type": "integer", "minimum": 0},
-        "commands": {"type": "array", "items": {"type": "string"}},
-        "semantic_dimensions": {"type": "array", "items": {"type": "string"}},
-        "blocking": {"type": "boolean"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}},
-        "provenance": {"$ref": "#/$defs/shadowProvenance"},
-        "refresh_package": {"$ref": "#/$defs/shadowRefreshPackage"},
-        "next_action": {"type": "string"}
+        "kind": {
+          "type": "string"
+        },
+        "gap": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "evidence_path": {
+          "type": "string"
+        },
+        "comparison_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "semantic_dimensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/shadowProvenance"
+        },
+        "refresh_package": {
+          "$ref": "#/$defs/shadowRefreshPackage"
+        },
+        "next_action": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
@@ -230,23 +428,54 @@
         "next_action"
       ],
       "properties": {
-        "kind": {"const": "parity_evidence_refresh"},
-        "adopter": {"type": "string"},
-        "root": {"type": "string"},
-        "target": {"type": "string"},
-        "blocking": {"type": "boolean"},
-        "required_gaps": {"type": "array", "items": {"type": "string"}},
-        "command": {"type": "string"},
-        "next_action": {"type": "string"}
+        "kind": {
+          "const": "parity_evidence_refresh"
+        },
+        "adopter": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "required_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "string"
+        },
+        "next_action": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "shadowProvenance": {
       "type": "object",
-      "required": ["mode", "evidence_path", "freshness"],
+      "required": [
+        "mode",
+        "evidence_path",
+        "freshness"
+      ],
       "properties": {
-        "mode": {"enum": ["tracked_evidence", "live_shadow_run", "planned_shadow_run"]},
-        "evidence_path": {"type": "string"},
+        "mode": {
+          "enum": [
+            "tracked_evidence",
+            "live_shadow_run",
+            "planned_shadow_run"
+          ]
+        },
+        "evidence_path": {
+          "type": "string"
+        },
         "freshness": {
           "type": "object",
           "required": [
@@ -263,17 +492,60 @@
             "command_sha256"
           ],
           "properties": {
-            "ok": {"type": "boolean"},
-            "required_gaps": {"type": "array", "items": {"type": "string"}},
-            "product_head": {"type": "string"},
-            "current_product_head": {"type": "string"},
-            "product_head_current": {"type": "boolean"},
-            "product_head_accepted_by_relevant_tree": {"type": "boolean"},
-            "target_head": {"type": "string"},
-            "current_target_head": {"type": "string"},
-            "target_head_current": {"type": "boolean"},
-            "target_head_accepted_by_relevant_tree": {"type": "boolean"},
-            "command_sha256": {"type": "string"}
+            "ok": {
+              "type": "boolean"
+            },
+            "required_gaps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "product_head": {
+              "type": "string"
+            },
+            "current_product_head": {
+              "type": "string"
+            },
+            "product_head_current": {
+              "type": "boolean"
+            },
+            "product_head_accepted_by_relevant_tree": {
+              "type": "boolean"
+            },
+            "target_head": {
+              "type": "string"
+            },
+            "current_target_head": {
+              "type": "string"
+            },
+            "target_head_current": {
+              "type": "boolean"
+            },
+            "target_head_accepted_by_relevant_tree": {
+              "type": "boolean"
+            },
+            "command_sha256": {
+              "type": "string"
+            },
+            "product_semantic_sha256": {
+              "type": "string"
+            },
+            "current_product_semantic_sha256": {
+              "type": "string"
+            },
+            "product_semantic_current": {
+              "type": "boolean"
+            },
+            "target_semantic_sha256": {
+              "type": "string"
+            },
+            "current_target_semantic_sha256": {
+              "type": "string"
+            },
+            "target_semantic_current": {
+              "type": "boolean"
+            }
           },
           "additionalProperties": false
         }

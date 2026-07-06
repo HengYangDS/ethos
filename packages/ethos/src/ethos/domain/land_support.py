@@ -13,6 +13,7 @@ from typing import cast
 
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
+from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.core import MutationDecision
@@ -243,27 +244,6 @@ def trust_closeout_package(
         "blocking": bool(gaps),
         "required_gaps": gaps,
     }
-
-
-# The tree whose change can actually move a shadow-compared command output (status /
-# plan --changed / prove / report / quality command-surface / assistants doctor /
-# playbooks route / land / publish). Parity freshness is keyed on THIS tree, not on a
-# proxy touch of the evidence file: a commit that changes only parity-irrelevant paths
-# (tests, prose docs, other adopters' evidence, CI) leaves the parity verdict unchanged
-# and therefore does not stale the recorded evidence. Derived from the rules path_globs
-# and the report/land/audit reducer reads (see docs/governance product-design-contract).
-PARITY_RELEVANT_PATHS: tuple[str, ...] = (
-    "packages",  # product + adopter source — the reducers themselves
-    "system",  # contracts + kernel schemas
-    ".ethos",  # rules / workspace / release policy
-    ".agents/skills",  # assistant-surface projections
-    "openspec",  # governance carriers
-    "evidence/claims",  # claim / evidence reducers
-    "rules",  # rules/ethos
-    "pyproject.toml",
-    "uv.lock",
-    "docs/governance",  # PRODUCT_SEMANTIC_DOCS live here (report vendor-term gaps)
-)
 
 
 def acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[str, ...]:

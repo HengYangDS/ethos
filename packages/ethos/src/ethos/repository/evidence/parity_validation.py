@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -27,12 +28,29 @@ def _string_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+def semantic_tree_digest(root: Path, *, head: str, relevant_paths: tuple[str, ...]) -> str:
+    """Digest the Git tree entries that can change generic parity semantics."""
+    if not head:
+        return ""
+    completed = subprocess.run(
+        ["git", "ls-tree", "-r", "--full-tree", head, "--", *relevant_paths],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return ""
+    return _sha256_text(completed.stdout)
+
+
 def _tracked_evidence_provenance(
     evidence: dict[str, object],
     *,
     required_gaps: list[str],
     current_target_head: str,
     current_product_head: str = "",
+    semantic_context: dict[str, object] | None = None,
 ) -> dict[str, object]:
     freshness_value = evidence.get("freshness")
     freshness = freshness_value if isinstance(freshness_value, dict) else {}
@@ -42,6 +60,22 @@ def _tracked_evidence_provenance(
     target_current = bool(current_target_head) and target_head == current_target_head
     product_head_gap = any(str(gap).endswith(":product_head") for gap in required_gaps)
     target_head_gap = any(str(gap).endswith(":target_head") for gap in required_gaps)
+    recorded_product_digest = str(freshness.get("product_semantic_sha256") or "")
+    recorded_target_digest = str(freshness.get("target_semantic_sha256") or "")
+    semantic = semantic_context or {}
+    product_root = cast("Path | None", semantic.get("product_root"))
+    target_root = cast("Path | None", semantic.get("target_root"))
+    relevant_paths = cast("tuple[str, ...]", semantic.get("relevant_paths") or ())
+    current_product_digest = (
+        semantic_tree_digest(product_root, head=current_product_head, relevant_paths=relevant_paths)
+        if product_root is not None and relevant_paths and current_product_head
+        else ""
+    )
+    current_target_digest = (
+        semantic_tree_digest(target_root, head=current_target_head, relevant_paths=relevant_paths)
+        if target_root is not None and relevant_paths and current_target_head
+        else ""
+    )
     return {
         "mode": "tracked_evidence",
         "evidence_path": str(evidence.get("path") or ""),
@@ -57,6 +91,13 @@ def _tracked_evidence_provenance(
                 and product_head != current_product_head
                 and not product_head_gap
             ),
+            "product_semantic_sha256": recorded_product_digest,
+            "current_product_semantic_sha256": current_product_digest,
+            "product_semantic_current": bool(
+                recorded_product_digest
+                and current_product_digest
+                and recorded_product_digest == current_product_digest
+            ),
             "target_head": target_head,
             "current_target_head": current_target_head,
             "target_head_current": target_current,
@@ -65,6 +106,13 @@ def _tracked_evidence_provenance(
                 and target_head
                 and target_head != current_target_head
                 and not target_head_gap
+            ),
+            "target_semantic_sha256": recorded_target_digest,
+            "current_target_semantic_sha256": current_target_digest,
+            "target_semantic_current": bool(
+                recorded_target_digest
+                and current_target_digest
+                and recorded_target_digest == current_target_digest
             ),
             "command_sha256": str(freshness.get("command_sha256") or ""),
         },
@@ -80,6 +128,7 @@ def _parity_evidence(
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
     acceptable_target_heads: Iterable[str] = (),
+    relevant_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     if not adopter:
         return {}
@@ -108,6 +157,9 @@ def _parity_evidence(
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
         acceptable_target_heads=acceptable_target_heads,
+        product_root=root,
+        target_root=target,
+        relevant_paths=relevant_paths,
     )
     evidence_with_path = {"path": path.relative_to(root).as_posix(), **payload}
     return {
@@ -118,6 +170,11 @@ def _parity_evidence(
             required_gaps=required_gaps,
             current_target_head=current_target_head,
             current_product_head=current_product_head,
+            semantic_context={
+                "product_root": root,
+                "target_root": target,
+                "relevant_paths": relevant_paths,
+            },
         ),
     }
 
@@ -131,6 +188,9 @@ def _validate_parity_evidence(
     current_product_head: str = "",
     acceptable_product_heads: Iterable[str] = (),
     acceptable_target_heads: Iterable[str] = (),
+    product_root: Path | None = None,
+    target_root: Path | None = None,
+    relevant_paths: tuple[str, ...] = (),
 ) -> list[str]:
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
@@ -155,6 +215,9 @@ def _validate_parity_evidence(
             "current_product_head": current_product_head,
             "acceptable_product_heads": acceptable_product_heads,
             "acceptable_target_heads": acceptable_target_heads,
+            "product_root": product_root,
+            "target_root": target_root,
+            "relevant_paths": relevant_paths,
             "required_gaps": required_gaps,
         }
     )
@@ -243,6 +306,9 @@ def _validate_freshness(context: dict[str, object]) -> None:
     current_product_head = str(context["current_product_head"])
     acceptable_product_heads = set(cast("Iterable[str]", context["acceptable_product_heads"]))
     acceptable_target_heads = set(cast("Iterable[str]", context["acceptable_target_heads"]))
+    product_root = cast("Path | None", context.get("product_root"))
+    target_root = cast("Path | None", context.get("target_root"))
+    relevant_paths = cast("tuple[str, ...]", context.get("relevant_paths") or ())
     required_gaps = cast("list[str]", context["required_gaps"])
     if not isinstance(freshness, dict):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:freshness")
@@ -254,17 +320,39 @@ def _validate_freshness(context: dict[str, object]) -> None:
     if command and freshness.get("command_sha256") != expected_digest:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command_sha256")
     product_head = str(freshness.get("product_head") or "")
+    product_semantic = str(freshness.get("product_semantic_sha256") or "")
+    current_product_semantic = (
+        semantic_tree_digest(product_root, head=current_product_head, relevant_paths=relevant_paths)
+        if product_root is not None and relevant_paths and current_product_head
+        else ""
+    )
+    product_semantic_matches = bool(
+        product_semantic
+        and current_product_semantic
+        and product_semantic == current_product_semantic
+    )
     if (
         current_product_head
         and product_head != current_product_head
         and product_head not in acceptable_product_heads
+        and not product_semantic_matches
     ):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:product_head")
     target_head = str(freshness.get("target_head") or "")
+    target_semantic = str(freshness.get("target_semantic_sha256") or "")
+    current_target_semantic = (
+        semantic_tree_digest(target_root, head=current_target_head, relevant_paths=relevant_paths)
+        if target_root is not None and relevant_paths and current_target_head
+        else ""
+    )
+    target_semantic_matches = bool(
+        target_semantic and current_target_semantic and target_semantic == current_target_semantic
+    )
     if (
         current_target_head
         and target_head != current_target_head
         and target_head not in acceptable_target_heads
+        and not target_semantic_matches
     ):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")
 

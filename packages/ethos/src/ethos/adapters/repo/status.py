@@ -202,7 +202,8 @@ def _stage_gates(
     closeout_support: dict[str, object],
 ) -> dict[str, object]:
     is_work_lane = role == "work_lane"
-    closeout_gaps = tuple(str(gap) for gap in closeout_support.get("required_gaps", ()))
+    raw_closeout_gaps = cast("list[object]", closeout_support.get("required_gaps", ()))
+    closeout_gaps = tuple(str(gap) for gap in raw_closeout_gaps)
     authoring_allowed = is_work_lane and not any(
         gap.startswith("work_lane_missing_lease:") for gap in closeout_gaps
     )

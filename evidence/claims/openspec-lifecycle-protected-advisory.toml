@@ -1,0 +1,25 @@
+schema_version = 1
+id = "openspec-lifecycle-protected-advisory"
+summary = "OpenSpec lifecycle reader surfaces protected branch active-carrier residue as advisory state."
+state = "active"
+subject = "command-plane:openspec-lifecycle-protected-advisory"
+evidence = "evidence/chronicle/openspec-lifecycle-protected-advisory/2026-07-07.md"
+
+[bindings]
+head = "73dff73bbbcfd7f3eea3cccef1a4f212596bb33a"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-openspec-lifecycle-protected-advisory"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/adapters/openspec.py"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/repository/audit_openspec.py"
+
+[[promotion_targets]]
+path = "tests/unit/product/test_openspec_substrate.py"

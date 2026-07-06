@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -162,4 +163,67 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
     assert [item["name"] for item in report["lifecycle"]["changes"]] == [
         "change-one",
         "change-two",
+    ]
+
+
+def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "repo"
+    (root / "openspec" / "specs").mkdir(parents=True)
+    (root / "openspec" / "changes").mkdir(parents=True)
+    (root / "openspec" / "config.yaml").write_text("project: sample\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-b", "dev"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "ethos@example.test"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "ETHOS Test"], cwd=root, check=True)
+    (root / "README.md").write_text("sample\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "checkout", "-b", "main"], cwd=root, check=True, capture_output=True)
+    leaked = root / "openspec" / "changes" / "release-leak"
+    leaked.mkdir(parents=True)
+    (leaked / "proposal.md").write_text("# leak\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "release leak"], cwd=root, check=True, capture_output=True
+    )
+    subprocess.run(["git", "checkout", "dev"], cwd=root, check=True, capture_output=True)
+
+    def fake_base_command() -> tuple[str, ...]:
+        return ("openspec",)
+
+    def fake_run_json(
+        _root: Path,
+        _base: tuple[str, ...],
+        args: tuple[str, ...],
+    ) -> dict[str, object]:
+        if args == ("doctor", "--json"):
+            payload: dict[str, object] = {"root": {"healthy": True}}
+        elif args == ("list", "--json"):
+            payload = {"changes": []}
+        elif args == ("validate", "--all", "--strict", "--json"):
+            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
+        else:
+            payload = {}
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 0,
+            "stdout": "{}",
+            "stderr": "",
+            "json": payload,
+            "parse_error": "",
+        }
+
+    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+
+    report = openspec.openspec_governance_report(root, lifecycle=True)
+
+    gap = "openspec_protected_branch_active_change_unarchived:main:release_root:release-leak"
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert gap in report["advisory_gaps"]
+    assert report["lifecycle"]["protected_branch_residue"]["records"] == [
+        {"branch": "main", "role": "release_root", "change": "release-leak", "gap": gap}
     ]

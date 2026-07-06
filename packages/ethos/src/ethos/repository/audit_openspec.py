@@ -31,7 +31,7 @@ def _active_change_names(openspec_root: Path) -> list[str]:
     ]
 
 
-def _protected_branch_active_change_report(root: Path, *, current_branch: str) -> dict[str, object]:
+def protected_branch_active_change_report(root: Path, *, current_branch: str) -> dict[str, object]:
     """Return active OpenSpec carriers hiding in governed branch trees.
 
     The current checkout is not the whole repository truth. Release, accepted,
@@ -205,7 +205,7 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
             openspec_root, load_branch_role_policy(root).role_for_branch(current_branch)
         )
     )
-    protected_branch_residue = _protected_branch_active_change_report(
+    protected_branch_residue = protected_branch_active_change_report(
         root, current_branch=current_branch
     )
     required_gaps.extend(_completed_unarchived_changes(openspec_root))

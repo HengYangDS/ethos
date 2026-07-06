@@ -9,7 +9,9 @@ from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from typing import cast
 
+from ethos.repository.audit_openspec import protected_branch_active_change_report
 from ethos.repository.openspec_metadata import ALLOWED_OPENSPEC_METADATA_KEYS
 from ethos.repository.openspec_metadata import is_relative_to as _is_relative_to
 from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
@@ -33,6 +35,19 @@ ARCHIVE_NAME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$
 CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
 DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
 REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
+
+
+def _current_branch(root: Path) -> str:
+    completed = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
 
 
 def _openspec_base_command() -> tuple[str, ...] | None:
@@ -468,6 +483,14 @@ def _openspec_governance_report(
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
 
+    current_branch = _current_branch(root)
+    protected_branch_residue = protected_branch_active_change_report(
+        root, current_branch=current_branch
+    )
+    advisory_gaps = [
+        str(gap) for gap in cast("list[object]", protected_branch_residue["advisory_gaps"])
+    ]
+
     if base_command is None:
         required_gaps.append("openspec_official_cli_missing")
         return {
@@ -481,8 +504,13 @@ def _openspec_governance_report(
             "schema_name": "",
             "summary": {},
             "required_gaps": required_gaps,
+            "advisory_gaps": advisory_gaps,
             "commands": {},
-            "lifecycle": {"enabled": lifecycle, "changes": []},
+            "lifecycle": {
+                "enabled": lifecycle,
+                "changes": [],
+                "protected_branch_residue": protected_branch_residue,
+            },
         }
 
     doctor = _run_json(root, base_command, ("doctor", "--json"))
@@ -515,6 +543,7 @@ def _openspec_governance_report(
         selected_change=change,
         list_payload=list_result["json"],
         enabled=lifecycle,
+        protected_branch_residue=protected_branch_residue,
     )
     required_gaps.extend(lifecycle_report["required_gaps"])
 
@@ -532,9 +561,11 @@ def _openspec_governance_report(
             "validation": validate["json"].get("summary", {}),
         },
         "required_gaps": required_gaps,
+        "advisory_gaps": advisory_gaps,
         "lifecycle": {
             "enabled": lifecycle,
             "changes": lifecycle_report["changes"],
+            "protected_branch_residue": lifecycle_report["protected_branch_residue"],
         },
         "commands": {
             "doctor": doctor,
@@ -574,9 +605,20 @@ def _lifecycle_report(
     selected_change: str | None,
     list_payload: dict[str, Any],
     enabled: bool,
+    protected_branch_residue: dict[str, object] | None = None,
 ) -> dict[str, Any]:
+    residue = protected_branch_residue or {
+        "ok": True,
+        "records": [],
+        "advisory_gaps": [],
+        "summary": {"residue_count": 0},
+    }
     if not enabled:
-        return {"required_gaps": [], "changes": []}
+        return {
+            "required_gaps": [],
+            "changes": [],
+            "protected_branch_residue": residue,
+        }
     changes_payload = list_payload.get("changes", [])
     if selected_change:
         change_names = [selected_change]
@@ -623,7 +665,11 @@ def _lifecycle_report(
                 ],
             }
         )
-    return {"required_gaps": required_gaps, "changes": changes}
+    return {
+        "required_gaps": required_gaps,
+        "changes": changes,
+        "protected_branch_residue": residue,
+    }
 
 
 def _proposal_protocol_report(root: Path, change_name: str) -> dict[str, Any]:

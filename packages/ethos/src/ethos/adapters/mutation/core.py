@@ -323,17 +323,33 @@ def apply_candidate_to_accepted(
             "remediation": remediation_for_gaps(["accepted_advanced_concurrently"]),
             "stderr": completed.stderr.strip(),
         }
-    # CAS won: sync the accepted worktree to the ref it now points at. This is a
-    # fast-forward (candidate_head descends from current_head, checked above), so
-    # --keep advances the tree without discarding any tracked local state.
-    _git(
+    # CAS won: sync the accepted worktree/index to the ref it now points at. Closeout
+    # admission already required the accepted root to be clean, and the ref now points
+    # at candidate_head; `reset --keep candidate_head` can become a no-op after the ref
+    # move because HEAD already resolves to candidate_head even while the worktree still
+    # contains the previous tree. A checked hard reset is therefore the narrow Git-native
+    # synchronization step: it cannot discard admitted user edits (dirty roots were
+    # blocked) and it makes the promoted truth visible in the accepted checkout.
+    synced = _git(
         root,
         "reset",
-        "--keep",
+        "--hard",
         candidate_head,
         check=False,
         env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
+    if synced.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.accepted_branch,
+            "source_branch": policy.candidate_branch,
+            "head": current_head,
+            "candidate_head": candidate_head,
+            "previous_head": current_head,
+            "required_gaps": ["accepted_worktree_sync_failed"],
+            "stderr": synced.stderr.strip(),
+        }
     return {
         "ok": True,
         "state": "accepted_validated",

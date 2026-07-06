@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 40 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "c4703641e75e82cc1d0e70cc6c27a18fb8fce8f2",
-    "target_head": "c4703641e75e82cc1d0e70cc6c27a18fb8fce8f2",
-    "product_semantic_sha256": "f68d0f925c871ccafe514306026ea2009493784173cbb06d36cd87683ad7c650",
-    "target_semantic_sha256": "f68d0f925c871ccafe514306026ea2009493784173cbb06d36cd87683ad7c650",
-    "command_sha256": "c409698c4ade1c259910696564b767144b4cee9db39bac44007581c518d5a312"
+    "product_head": "fb5f23b9a5cc2bef66ba7375d9f3279d2ca0ff79",
+    "target_head": "fb5f23b9a5cc2bef66ba7375d9f3279d2ca0ff79",
+    "product_semantic_sha256": "650b61ed4f881a316e17a6f485b9a605abf883489b7656069c3f0c546ebe7a57",
+    "target_semantic_sha256": "650b61ed4f881a316e17a6f485b9a605abf883489b7656069c3f0c546ebe7a57",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/paDC",
-    "target_head": "c4703641e75e82cc1d0e70cc6c27a18fb8fce8f2",
-    "product_head": "c4703641e75e82cc1d0e70cc6c27a18fb8fce8f2",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync",
+    "target_head": "fb5f23b9a5cc2bef66ba7375d9f3279d2ca0ff79",
+    "product_head": "fb5f23b9a5cc2bef66ba7375d9f3279d2ca0ff79",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /private/tmp/paDC --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /private/tmp/paDC --json"
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-worktree-sync/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/closeout-worktree-sync --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "2b5fdc06b8564cee9945d35053cbeeb533efb8cb04b34f4d4cb363d15b4d04ba"
+        "sha256": "1065900e9b7a815d650f56d2e9e370db154ef226bf2f5d6cd0afbb360601d6c0"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "b8a62cb2ad9bde8fad42567c4f94f456a98173bac7a6067f0be28a77bfc5b67f"
+        "sha256": "caa29347283446f2bee477b32f311867d220f05d50a086f76cf20dc779fb51b0"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "e815fd7883071b8d87a016625528d5d01b77b2593189f8e13bee1a747d08d801"
+        "sha256": "db3a7deb565ccb8bdcab0433c2c5fe1291baf7384630d89d0e4a66f211e1f87e"
       },
       {
         "path": "rules",

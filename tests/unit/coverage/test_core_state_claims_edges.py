@@ -215,6 +215,22 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["accepted_advanced_concurrently"]
+
+    def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
+        _ = check
+        if args[:1] == ("update-ref",):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("reset", "--hard"):
+            return cp(stdout="", stderr="sync failed", returncode=1)
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_failed)
+    failed_sync = mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )
+    assert failed_sync["required_gaps"] == ["accepted_worktree_sync_failed"]
+    assert failed_sync["state"] == "blocked"
+
     monkeypatch.setattr(
         mutation_core,
         "_git",

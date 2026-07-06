@@ -375,6 +375,8 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     assert report["previous_head"] == accepted_head
     assert git(repo, "rev-parse", "integration") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
+    assert (repo / "README.md").read_text(encoding="utf-8") == "# candidate change\n"
+    assert git(repo, "status", "--short") == ""
 
 
 def test_accepted_root_closeout_requires_candidate_head_proof(tmp_path: Path) -> None:

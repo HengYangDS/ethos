@@ -96,3 +96,46 @@ def _run_subprocess(*args: str, cwd: Path | None = None) -> subprocess.Completed
         text=True,
         capture_output=True,
     )
+
+
+def write_role_policy(
+    repo: Path,
+    *,
+    release_branch: str = "main",
+    accepted_branch: str = "dev",
+    candidate_branch: str = "stage/dev",
+    work_branch_prefix: str = "lane/",
+    submit_branch_prefix: str = "review/",
+) -> None:
+    """Write the branch-role policy fixture used by CLI contract tests."""
+    workspace_path = repo / ".ethos" / "workspace.toml"
+    workspace_path.write_text(
+        "\n".join(
+            [
+                "[branch_roles]",
+                f'release_branch = "{release_branch}"',
+                f'accepted_branch = "{accepted_branch}"',
+                f'candidate_branch = "{candidate_branch}"',
+                f'work_branch_prefix = "{work_branch_prefix}"',
+                f'submit_branch_prefix = "{submit_branch_prefix}"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", workspace_path.as_posix()], cwd=repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "configure branch roles",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )

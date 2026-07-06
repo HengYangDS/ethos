@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from ethos.assistants.playbook_utils import _command_capability_gaps
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.skill_packages import compute_skill_package_digest
 
@@ -35,7 +36,7 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 """
 
 
-def _write_skill(root: Path, skill_id: str, subject: str, globs: list[str]) -> None:
+def _write_skill(root: Path, skill_id: str, subject: str, _globs: list[str]) -> None:
     package = root / ".agents" / "skills" / skill_id
     package.mkdir(parents=True)
     (package / "SKILL.md").write_text(
@@ -134,3 +135,12 @@ def test_playbooks_report_accepts_disjoint_portfolio_routes(tmp_path: Path) -> N
 
     assert report["ok"] is True
     assert report["portfolio_design"]["required_gaps"] == []
+
+
+def test_playbook_command_split_falls_back_for_unclosed_quote() -> None:
+    gaps = _command_capability_gaps(
+        {"id": "quote-skill", "commands": ["ethos report '"]},
+        {"capabilities": [{"command": ["ethos", "report", "'"]}]},
+    )
+
+    assert gaps == []

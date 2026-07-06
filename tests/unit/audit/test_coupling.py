@@ -117,6 +117,7 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
         "ethos land",
         "ethos land --closeout",
         "ethos lane retire-landed",
+        "ethos lane retire-unbound",
     ]
     assert registry["work_lane_lifecycle_command_contract"]["forbidden_workflow_state"] == [
         "raw_git_worktree_add"
@@ -177,6 +178,7 @@ def test_work_lane_lifecycle_binding_excludes_raw_git_worktree_entrypoint() -> N
         "ethos land",
         "ethos land --closeout",
         "ethos lane retire-landed",
+        "ethos lane retire-unbound",
     ]
     assert lifecycle["forbidden_workflow_state"] == ["raw_git_worktree_add"]
     assert "git worktree add" not in lifecycle["commands"]

@@ -98,3 +98,108 @@ def test_coverage_quality_report_reports_missing_latest_artifact(tmp_path: Path)
     assert report["required_gaps"] == [
         "coverage_artifact_missing:.config/checks/coverage/coverage.xml"
     ]
+
+
+def test_coverage_quality_report_reports_missing_policy_and_config(tmp_path: Path) -> None:
+    write_coverage_xml(tmp_path)
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["policy"] == {
+        "path": ".config/checks/coverage/policy.toml",
+        "current_hard_floor": None,
+        "aspirational_floor": None,
+        "branch_coverage_required": False,
+        "owner": "",
+        "source": "",
+    }
+    assert report["config"] == {
+        "path": ".config/checks/coverage/coverage.ini",
+        "fail_under": None,
+        "branch": False,
+        "source": [],
+    }
+    assert report["required_gaps"] == [
+        "coverage_policy_missing:.config/checks/coverage/policy.toml",
+        "coverage_config_missing:.config/checks/coverage/coverage.ini",
+    ]
+
+
+def test_coverage_quality_report_reports_invalid_policy_config_and_artifact(
+    tmp_path: Path,
+) -> None:
+    coverage_dir = tmp_path / ".config" / "checks" / "coverage"
+    coverage_dir.mkdir(parents=True)
+    (coverage_dir / "policy.toml").write_text("current_hard_floor = [\n", encoding="utf-8")
+    (coverage_dir / "coverage.ini").write_text("[report]\nfail_under = 95\n", encoding="utf-8")
+    (coverage_dir / "coverage.xml").write_text("<coverage", encoding="utf-8")
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["latest_artifact"] == {
+        "path": ".config/checks/coverage/coverage.xml",
+        "present": True,
+    }
+    assert report["required_gaps"] == [
+        "coverage_policy_invalid_toml:.config/checks/coverage/policy.toml",
+        "coverage_config_missing_section:run",
+        "coverage_artifact_malformed:.config/checks/coverage/coverage.xml",
+    ]
+
+
+def test_coverage_quality_report_accepts_unparseable_numbers_as_unknown(tmp_path: Path) -> None:
+    coverage_dir = tmp_path / ".config" / "checks" / "coverage"
+    coverage_dir.mkdir(parents=True)
+    (coverage_dir / "policy.toml").write_text(
+        """current_hard_floor = "strict"
+aspirational_floor = "later"
+branch_coverage_required = false
+owner = "product-toolchain"
+source = "coverage.ini"
+""",
+        encoding="utf-8",
+    )
+    (coverage_dir / "coverage.ini").write_text(
+        """[run]
+branch = false
+
+[report]
+fail_under = strict
+""",
+        encoding="utf-8",
+    )
+    (coverage_dir / "coverage.xml").write_text(
+        '<coverage line-rate="n/a" branch-rate="n/a" lines-covered="many" lines-valid="all" />',
+        encoding="utf-8",
+    )
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["policy"]["current_hard_floor"] is None
+    assert report["policy"]["aspirational_floor"] is None
+    assert report["config"]["fail_under"] is None
+    assert report["latest_artifact"]["line_percent"] is None
+    assert report["latest_artifact"]["branch_percent"] is None
+    assert report["latest_artifact"]["lines_valid"] is None
+    assert report["latest_artifact"]["lines_covered"] is None
+
+
+def test_coverage_quality_report_reports_missing_report_section(tmp_path: Path) -> None:
+    coverage_dir = tmp_path / ".config" / "checks" / "coverage"
+    coverage_dir.mkdir(parents=True)
+    (coverage_dir / "policy.toml").write_text(
+        """current_hard_floor = 95
+branch_coverage_required = false
+""",
+        encoding="utf-8",
+    )
+    (coverage_dir / "coverage.ini").write_text("[run]\nbranch = false\n", encoding="utf-8")
+    write_coverage_xml(tmp_path)
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["coverage_config_missing_section:report"]

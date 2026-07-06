@@ -6,8 +6,19 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
+import ethos.repository.audit_openspec as _audit_openspec
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
+from ethos.repository.audit_design import DESIGN_INTEGRITY_DOCS
+from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
+from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_TERMS
+from ethos.repository.audit_design import DESIGN_INTEGRITY_REQUIRED_TERMS
+from ethos.repository.audit_design import DESIGN_INTEGRITY_VENDOR_TERMS
+from ethos.repository.audit_design import _design_integrity_report
+from ethos.repository.audit_design import _front_matter_ok
+from ethos.repository.audit_openspec import _completed_unarchived_changes
+from ethos.repository.audit_openspec import _openspec_provider_missing_report
+from ethos.repository.audit_openspec import _openspec_shape_report as _openspec_shape_report_impl
 from ethos.repository.context import governance_context
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.coupling import coupling_audit_report
@@ -20,6 +31,15 @@ from ethos_core.contracts.package_ontology import workspace_package_config_repor
 from ethos_core.contracts.system_contracts import system_contracts_report
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
+
+__all__ = (
+    "DESIGN_INTEGRITY_DOCS",
+    "DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS",
+    "DESIGN_INTEGRITY_FORBIDDEN_TERMS",
+    "DESIGN_INTEGRITY_REQUIRED_TERMS",
+    "DESIGN_INTEGRITY_VENDOR_TERMS",
+    "_completed_unarchived_changes",
+)
 
 _PACKAGE_ONTOLOGY = package_ontology_report()
 TARGET_PRODUCT_PACKAGES = tuple(
@@ -128,151 +148,6 @@ REQUIRED_OPENSPEC_FAMILIES = (
 )
 
 
-DESIGN_INTEGRITY_DOCS = (
-    "docs/governance/product-design-contract.md",
-    "docs/concepts/kernel-model.md",
-    "docs/reference/command-plane.md",
-    "docs/architecture/runner-and-mutation.md",
-)
-
-DESIGN_INTEGRITY_REQUIRED_TERMS = {
-    "docs/governance/product-design-contract.md": (
-        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle",
-        "not an external slogan",
-        "single kernel",
-        "truth boundary",
-        "profile or adapter boundary",
-        "Configuration follows separation of concerns, MECE, SSOT, and DRY",
-        "OpenSpec remains mandatory governance, not a product substrate",
-        "not a generic VCS abstraction",
-        "status",
-        "plan",
-        "prove",
-        "land",
-        "publish",
-    ),
-    "docs/concepts/kernel-model.md": (
-        "Root Philosophy Derivation",
-        "truth and projection",
-        "product semantics and adapter boundary",
-        "which kernel object it projects",
-    ),
-    "docs/reference/command-plane.md": (
-        "status",
-        "plan",
-        "prove",
-        "land",
-        "publish",
-        "report",
-        "adapter UI text is not product state",
-    ),
-    "docs/architecture/runner-and-mutation.md": (
-        "target path",
-        "repository root",
-        "prewrite",
-        "post-write audit",
-        "ethos land --closeout",
-        'remote_push = "not_performed"',
-    ),
-}
-
-DESIGN_INTEGRITY_FORBIDDEN_TERMS = (
-    "VendorTruthCenter",
-    "product_self",
-    "adopter_repository",
-    "dual-posture",
-)
-
-DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS = (
-    "CLAUDE.md",
-    ".claude",
-    ".gitnexus",
-)
-
-DESIGN_INTEGRITY_VENDOR_TERMS = (
-    "PyCharm",
-    "Claude",
-    "Codex",
-    "OpenAI",
-    "GPT",
-    "IDE",
-    "JetBrains",
-    "Anthropic",
-    "Gemini",
-    "Copilot",
-    "Cursor",
-    "Windsurf",
-)
-
-
-def _design_integrity_report(root: Path) -> dict[str, object]:
-    """Audit canonical design docs for kernel and boundary regressions.
-
-    This is deliberately a projection over existing canonical docs, not a new
-    source of product truth. It catches small design drifts where the transition
-    loop, Tao/kernel constraint, configuration separation, or provider boundary
-    silently disappears while lower-level tests still pass.
-    """
-    required_gaps: list[str] = []
-    forbidden_paths = [
-        f"design_integrity_forbidden_projection_path:{path}"
-        for path in DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
-        if (root / path).exists()
-    ]
-    required_gaps.extend(forbidden_paths)
-    files: dict[str, dict[str, object]] = {}
-    for doc in DESIGN_INTEGRITY_DOCS:
-        path = root / doc
-        if not path.exists():
-            gap = f"design_integrity_doc_missing:{doc}"
-            required_gaps.append(gap)
-            files[doc] = {"ok": False, "missing": [gap], "forbidden": [], "vendor_terms": []}
-            continue
-        text = path.read_text(encoding="utf-8")
-        missing = [
-            f"design_integrity_anchor_missing:{doc}:{term}"
-            for term in DESIGN_INTEGRITY_REQUIRED_TERMS.get(doc, ())
-            if term not in text
-        ]
-        forbidden = [
-            f"design_integrity_forbidden_term:{doc}:{term}"
-            for term in DESIGN_INTEGRITY_FORBIDDEN_TERMS
-            if term in text
-        ]
-        vendor_terms = [
-            f"design_integrity_vendor_center_leak:{doc}:{term}"
-            for term in DESIGN_INTEGRITY_VENDOR_TERMS
-            if term in text
-        ]
-        doc_gaps = missing + forbidden + vendor_terms
-        required_gaps.extend(doc_gaps)
-        files[doc] = {
-            "ok": not doc_gaps,
-            "missing": missing,
-            "forbidden": forbidden,
-            "vendor_terms": vendor_terms,
-        }
-    return {
-        "ok": not required_gaps,
-        "scope": "canonical_product_design_docs",
-        "source_of_truth": "docs plus product-design-contract anchors",
-        "not_a_truth_store": True,
-        "forbidden_projection_paths": forbidden_paths,
-        "files": files,
-        "required_gaps": required_gaps,
-    }
-
-
-def _front_matter_ok(path: Path) -> bool:
-    if not path.exists():
-        return False
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        return False
-    header = text.split("---", 2)[1]
-    return all(f"{key}:" in header for key in ("subject", "role", "state", "relations"))
-
-
 def release_files_report(root: Path) -> dict[str, object]:
     release_files_missing = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]
     return {
@@ -281,64 +156,7 @@ def release_files_report(root: Path) -> dict[str, object]:
     }
 
 
-def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
-    """Active OpenSpec changes whose tasks are all complete but which are not archived.
-
-    Uses ETHOS's OWN signal (every task box in tasks.md checked) rather than the
-    external openspec CLI, so the leak is caught on the always-run audit path — not
-    only at `land --closeout` (which raw `git merge` bypasses). A completed change
-    left in changes/ is a carrier masquerading as active.
-    """
-    changes_root = openspec_root / "changes"
-    if not changes_root.exists():
-        return []
-    unarchived: list[str] = []
-    for change_dir in sorted(changes_root.iterdir()):
-        if not change_dir.is_dir() or change_dir.name == "archive":
-            continue
-        tasks = change_dir / "tasks.md"
-        if not tasks.exists():
-            continue
-        boxes = re.findall(r"- \[( |x|X)\]", tasks.read_text(encoding="utf-8"))
-        if boxes and all(box.lower() == "x" for box in boxes):
-            unarchived.append(f"openspec_completed_change_unarchived:{change_dir.name}")
-    return unarchived
-
-
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
-
-
-def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
-    """Detect accepted OpenSpec spec obligations removed in the current change.
-
-    OpenSpec archives are projections until their deltas are fused into accepted
-    specs. A tool-applied MODIFIED delta can accidentally replace a requirement
-    and delete existing scenario obligations. The always-run shape audit treats
-    removed WHEN/THEN/AND lines in accepted specs as a blocking small signal so
-    humans/agents must either restore/fuse them or carry an explicit removal
-    decision in a separate semantic change.
-    """
-    completed = subprocess.run(
-        ["git", "diff", "--unified=0", "--", "openspec/specs/**/*.md"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode not in {0, 1}:
-        return ["openspec_spec_obligation_diff_unavailable"]
-    gaps: list[str] = []
-    current_file = ""
-    for line in completed.stdout.splitlines():
-        if line.startswith("+++ b/"):
-            current_file = line.removeprefix("+++ b/")
-            continue
-        if not line.startswith("-") or line.startswith("---"):
-            continue
-        removed = line[1:].strip()
-        if OPENSPEC_SPEC_OBLIGATION_PATTERN.match(removed):
-            gaps.append(f"openspec_spec_obligation_removed:{current_file}:{removed}")
-    return gaps
 
 
 def _write_admission_armed_gaps(root: Path) -> list[str]:
@@ -370,34 +188,6 @@ def _write_admission_armed_gaps(root: Path) -> list[str]:
     if hooks_path != ".githooks":
         gaps.append("write_admission_not_armed:core.hooksPath")
     return gaps
-
-
-def _openspec_shape_report(root: Path) -> dict[str, object]:
-    openspec_root = root / "openspec"
-    required_gaps = []
-    if not openspec_root.exists():
-        required_gaps.append("openspec_directory_missing")
-    if not (openspec_root / "config.yaml").exists():
-        required_gaps.append("openspec_config_missing")
-    if not (openspec_root / "specs").exists():
-        required_gaps.append("openspec_specs_missing")
-    required_gaps.extend(_completed_unarchived_changes(openspec_root))
-    required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
-    return {
-        "ok": not required_gaps,
-        "mode": "shape",
-        "required_gaps": required_gaps,
-    }
-
-
-def _openspec_provider_missing_report(root: Path) -> dict[str, object]:
-    shape = _openspec_shape_report(root)
-    return {
-        "ok": False,
-        "mode": "deep",
-        "shape": shape,
-        "required_gaps": ["openspec_reporter_not_configured"],
-    }
 
 
 def repository_audit(
@@ -573,3 +363,8 @@ def repository_audit(
         "system_contracts": system_contracts,
         "required_gaps": gaps,
     }
+
+
+def _openspec_shape_report(root: Path) -> dict[str, object]:
+    _audit_openspec.subprocess = subprocess
+    return _openspec_shape_report_impl(root)

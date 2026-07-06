@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import fnmatch
-import shlex
 import tomllib
 from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.assistants.playbook_utils import _command_capability_gaps
 from ethos.assistants.skill_packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skill_packages import validate_skill_markdown
 from ethos.assistants.skill_packages import validate_skill_package_manifest
@@ -398,39 +398,6 @@ def _select_for_changed_paths(
         selected.append(enriched)
         matched_paths.update(matches)
     return selected, [path for path in changed_paths if path not in matched_paths]
-
-
-def _command_capability_gaps(
-    record: dict[str, Any],
-    package_report: dict[str, Any],
-) -> list[str]:
-    skill_id = str(record["id"] or "<missing>")
-    capability_commands = [
-        _command_key(item["command"])
-        for item in package_report["capabilities"]
-        if item.get("command")
-    ]
-    gaps: list[str] = []
-    for command in record["commands"]:
-        command_key = _command_key(_split_command(command))
-        if not any(_command_covers(capability, command_key) for capability in capability_commands):
-            gaps.append(f"skill_package_capability_missing_command:{skill_id}:{command}")
-    return gaps
-
-
-def _split_command(command: str) -> list[str]:
-    try:
-        return shlex.split(command)
-    except ValueError:
-        return command.split()
-
-
-def _command_key(command: list[str]) -> tuple[str, ...]:
-    return tuple(part for part in command if part != "--json")
-
-
-def _command_covers(capability: tuple[str, ...], command: tuple[str, ...]) -> bool:
-    return capability[: len(command)] == command
 
 
 def _skills_v2_score(required: list[str], advisory: list[str], mode: str) -> int:

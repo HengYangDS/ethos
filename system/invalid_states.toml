@@ -85,6 +85,8 @@ match_prefixes = [
   "work_lane_",
   "candidate_",
   "retire_branch",
+  "retire_reason_required",
+  "unbound_retire_",
   "promotion_",
   "authorization_required",
   "protected_root_mutation",

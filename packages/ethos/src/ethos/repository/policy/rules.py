@@ -2,19 +2,27 @@ from __future__ import annotations
 
 import fnmatch
 import tomllib
-from datetime import date
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.rules_exceptions import _date_or_none
+from ethos.repository.policy.rules_exceptions import _minimal_rule_skeleton
+from ethos.repository.policy.rules_exceptions import _ttl_days_or_none
+from ethos.repository.policy.rules_exceptions import policy_exceptions_report
+from ethos.repository.policy.rules_exceptions import rules_docs_manifest_report
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.rules import PolicyException
 from ethos_core.contracts.rules import Rule
 from ethos_core.contracts.rules import RuleEvalRequest
 from ethos_core.contracts.rules import RuleFactSnapshot
 from ethos_core.contracts.rules import RuleSet
 from ethos_core.contracts.rules import stable_digest
+
+__all__ = (
+    "_date_or_none",
+    "_ttl_days_or_none",
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -973,146 +981,6 @@ def _toml_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _exceptions_path(root: Path) -> Path:
-    return root / "rules" / "ethos" / "policy-exceptions.toml"
-
-
-def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[str, object]:
-    path = _exceptions_path(root)
-    if not path.exists():
-        return {
-            "ok": True,
-            "owner": "rules/ethos/policy-exceptions.toml",
-            "exceptions": [],
-            "required_gaps": [],
-        }
-    try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as exc:
-        return {
-            "ok": False,
-            "owner": "rules/ethos/policy-exceptions.toml",
-            "exceptions": [],
-            "required_gaps": [f"policy_exception_parse_error:{exc}"],
-        }
-    exceptions = payload.get("exception", [])
-    if not isinstance(exceptions, list):
-        exceptions = []
-    known_rules = {
-        str(rule.get("id")): rule
-        for rule in cast("list[object]", compile_rules(root)["rules"])
-        if isinstance(rule, dict) and rule.get("id")
-    }
-    known_rule_ids = set(known_rules)
-    today_date = _date_or_none(today or date.today().isoformat())
-    normalized: list[dict[str, object]] = []
-    gaps: list[str] = []
-    for item in exceptions:
-        if not isinstance(item, dict):
-            gaps.append("policy_exception_malformed")
-            continue
-        record = {
-            "id": str(item.get("id", "")),
-            "rule_id": str(item.get("rule_id", "")),
-            "scope": str(item.get("scope", "")),
-            "owner": str(item.get("owner", "")),
-            "approver": str(item.get("approver", "")),
-            "reason": str(item.get("reason", "")),
-            "evidence_ref": str(item.get("evidence_ref", "")),
-            "created_at": str(item.get("created_at", "")),
-            "expires_at": str(item.get("expires_at", "")),
-            "status": str(item.get("status", "")),
-            "digest": str(item.get("digest", "")),
-        }
-        if item.get("max_ttl"):
-            record["max_ttl"] = str(item["max_ttl"])
-        validation = validate_schema_instance("policy-exception.schema.json", record)
-        if not validation["ok"]:
-            gaps.extend(
-                f"policy_exception_schema_invalid:{record['id']}:{gap}"
-                for gap in cast("list[object]", validation["required_gaps"])
-            )
-        expected = PolicyException(
-            id=str(record["id"]),
-            rule_id=str(record["rule_id"]),
-            scope=str(record["scope"]),
-            owner=str(record["owner"]),
-            approver=str(record["approver"]),
-            reason=str(record["reason"]),
-            evidence_ref=str(record["evidence_ref"]),
-            created_at=str(record["created_at"]),
-            expires_at=str(record["expires_at"]),
-            status=str(record["status"]),
-            max_ttl=str(record.get("max_ttl", "")),
-        ).to_dict()["digest"]
-        if record["digest"] != expected:
-            gaps.append(f"policy_exception_digest_mismatch:{record['id']}")
-        if record["rule_id"] not in known_rule_ids:
-            gaps.append(f"policy_exception_unknown_rule:{record['id']}:{record['rule_id']}")
-        elif bool(known_rules[str(record["rule_id"])].get("non_waivable", False)):
-            gaps.append(f"policy_exception_non_waivable_rule:{record['id']}:{record['rule_id']}")
-        scope_value = str(record["scope"])
-        if (scope_value != "repository" and not scope_value.startswith("path:")) or (
-            scope_value.startswith("path:") and not scope_value.removeprefix("path:").strip("/")
-        ):
-            gaps.append(f"policy_exception_scope_invalid:{record['id']}")
-        evidence_ref = str(record["evidence_ref"])
-        if evidence_ref and not (root / evidence_ref).exists():
-            gaps.append(f"policy_exception_evidence_missing:{record['id']}:{evidence_ref}")
-        created_at = _date_or_none(str(record["created_at"]))
-        expires_at = _date_or_none(str(record["expires_at"]))
-        if created_at is None:
-            gaps.append(f"policy_exception_date_invalid:{record['id']}:created_at")
-        if expires_at is None:
-            gaps.append(f"policy_exception_date_invalid:{record['id']}:expires_at")
-        max_ttl = str(record.get("max_ttl", ""))
-        if max_ttl:
-            ttl_days = _ttl_days_or_none(max_ttl)
-            if ttl_days is None:
-                gaps.append(f"policy_exception_ttl_invalid:{record['id']}")
-            elif (
-                created_at is not None
-                and expires_at is not None
-                and (expires_at - created_at).days > ttl_days
-            ):
-                gaps.append(f"policy_exception_ttl_exceeded:{record['id']}")
-        if (
-            record["status"] == "active"
-            and expires_at is not None
-            and today_date is not None
-            and expires_at < today_date
-        ):
-            gaps.append(f"policy_exception_expired:{record['id']}")
-        normalized.append({**record, "expected_digest": expected})
-    return {
-        "ok": not gaps,
-        "owner": "rules/ethos/policy-exceptions.toml",
-        "exceptions": normalized,
-        "required_gaps": list(dict.fromkeys(gaps)),
-    }
-
-
-def rules_docs_manifest_report(root: Path) -> dict[str, object]:
-    product_root = _is_product_root(root)
-    refs = sorted(
-        {
-            str(ref)
-            for rule in cast("list[object]", compile_rules(root)["rules"])
-            if isinstance(rule, dict) and (product_root or rule.get("owner") != "ethos")
-            for ref in (rule.get("authority_ref"), rule.get("contract_ref"))
-            if isinstance(ref, str) and ref.endswith(".md")
-        }
-    )
-    missing = [ref for ref in refs if not (root / ref).exists()]
-    return {
-        "ok": not missing,
-        "generated_from": "compiled-rules",
-        "refs": refs,
-        "missing": missing,
-        "required_gaps": [f"missing_doc_ref:{ref}" for ref in missing],
-    }
-
-
 def _is_product_root(root: Path) -> bool:
     return (root / "packages" / "ethos" / "README.md").exists() and (
         root / "schemas" / "ethos"
@@ -1158,33 +1026,4 @@ def explain_rules_target(root: Path, target: str) -> dict[str, object]:
         "minimal_rule_skeleton": {}
         if coverage["matched_rules"]
         else _minimal_rule_skeleton(target),
-    }
-
-
-def _date_or_none(value: str) -> date | None:
-    try:
-        return date.fromisoformat(value[:10])
-    except ValueError:
-        return None
-
-
-def _ttl_days_or_none(value: str) -> int | None:
-    if not value.endswith("d"):
-        return None
-    raw = value.removesuffix("d")
-    if not raw.isdigit():
-        return None
-    return int(raw)
-
-
-def _minimal_rule_skeleton(path: str) -> dict[str, object]:
-    return {
-        "id": "custom.example",
-        "owner": "team",
-        "authority_ref": "docs/governance/example.md",
-        "contract_ref": "docs/governance/example.md",
-        "path_globs": [path] if path else [],
-        "severity": "advisory",
-        "required_gates": [],
-        "stop_condition": "custom_rule_gap",
     }

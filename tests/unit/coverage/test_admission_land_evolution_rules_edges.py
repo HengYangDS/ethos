@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from ethos.adapters.admission import core as admission
 from ethos.domain import land
+from ethos.domain import land_support
 from ethos.repository.adoption import evolution
 from ethos.repository.policy import rules as policy_rules
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -209,6 +210,30 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         claims={"ok": True, "claims": {"c": {"trust_envelope": envelope}}},
     )
     assert ready["blocking"] is False
+
+
+def test_land_support_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:
+    decision = SimpleNamespace(ok=True)
+    monkeypatch.setattr(
+        land_support,
+        "workspace_status",
+        lambda _repo: {"candidate": "not-a-dict"},
+    )
+    assert land_support.closeout_audit_root(tmp_path, decision) == tmp_path
+
+    (tmp_path / ".ethos").mkdir(exist_ok=True)
+    (tmp_path / ".ethos" / "intake.toml").write_text('provider = "gitlab"\n', encoding="utf-8")
+    configured = land_support.intake_projection_report(tmp_path)
+    assert configured["state"] == "configured"
+    assert configured["provider"] == "gitlab"
+    assert configured["required_gaps"] == []
+
+    blocked = land_support.trust_closeout_package(
+        workspace={"role": "accepted_root", "branch": "dev"},
+        claims={"ok": False, "required_gaps": ["claim_schema_invalid"], "claims": {}},
+    )
+    assert "claim_schema_invalid" in blocked["required_gaps"]
+    assert "trust_claim_missing" in blocked["required_gaps"]
 
 
 def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:

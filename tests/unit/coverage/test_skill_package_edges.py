@@ -7,7 +7,7 @@ from ethos.assistants import skill_packages as sp
 
 SKILL_MD = """---
 name: sample
-description: sample skill
+description: Use when validating sample skill packages.
 ---
 
 # Sample

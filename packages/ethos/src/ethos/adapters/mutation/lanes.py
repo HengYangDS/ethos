@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 from typing import cast
 
+import ethos.adapters.mutation.lanes_refresh as _refresh
+import ethos.adapters.mutation.lanes_retire as _retire
+from ethos.adapters.mutation.lanes_retire import _git
+from ethos.adapters.mutation.lanes_retire import _is_ancestor
+from ethos.adapters.mutation.lanes_retire import (
+    retire_landed_work_lanes as _retire_landed_work_lanes,
+)
+from ethos.adapters.mutation.lanes_retire import (
+    retire_unbound_work_lane_ref as _retire_unbound_work_lane_ref,
+)
 from ethos.adapters.repo.status import changed_paths
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import acquire_lease
@@ -14,6 +23,11 @@ from ethos.adapters.store.state import update_lease_payload
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+__all__ = (
+    "retire_landed_work_lanes",
+    "retire_unbound_work_lane_ref",
+)
 
 _SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -199,91 +213,14 @@ def bootstrap_candidate(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
-    policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
-    current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (path or _default_candidate_path(repo, policy.candidate_branch)).resolve()
-    gaps: list[str] = []
-    if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
-        gaps.append("candidate_bootstrap_requires_clean_accepted_root")
-    if expect_head is not None and expect_head != current_head:
-        gaps.append("expect_head_mismatch")
-    if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": gaps,
-        }
-    candidate = cast("dict[str, object]", status["candidate"])
-    if candidate["exists"] and candidate["worktree_exists"]:
-        return {
-            "ok": True,
-            "state": "present",
-            "branch": policy.candidate_branch,
-            "head": candidate["head"],
-            "path": candidate["worktree_path"],
-            "required_gaps": [],
-        }
-    if not apply:
-        return {
-            "ok": True,
-            "state": "planned",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": [],
-        }
-    if target.exists():
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_path_exists"],
-        }
-    if not candidate["exists"]:
-        completed = _git(repo, "branch", policy.candidate_branch, current_head, check=False)
-        if completed.returncode != 0:
-            return {
-                "ok": False,
-                "state": "blocked",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "path": target.as_posix(),
-                "required_gaps": ["candidate_bootstrap_failed"],
-                "stderr": completed.stderr.strip(),
-            }
-    completed = _git(
-        repo,
-        "worktree",
-        "add",
-        target.as_posix(),
-        policy.candidate_branch,
-        check=False,
+    """Bootstrap candidate role while preserving this module's patchable adapters."""
+    return _call_refresh(
+        "bootstrap_candidate",
+        root=root,
+        path=path,
+        expect_head=expect_head,
+        apply=apply,
     )
-    if completed.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_add_failed"],
-            "stderr": completed.stderr.strip(),
-        }
-    return {
-        "ok": True,
-        "state": "bootstrapped",
-        "branch": policy.candidate_branch,
-        "head": current_head,
-        "path": target.as_posix(),
-        "required_gaps": [],
-    }
 
 
 def refresh_candidate_from_accepted(
@@ -293,82 +230,14 @@ def refresh_candidate_from_accepted(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
-    policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
-    current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    candidate = cast("dict[str, object]", status["candidate"])
-    candidate_head = str(candidate.get("head") or "")
-    candidate_path = str(candidate.get("worktree_path") or "")
-    gaps: list[str] = []
-    if status["role"] != ROLE_ACCEPTED_ROOT:
-        gaps.append("accepted_root_required")
-    elif status["dirty"]:
-        gaps.append("accepted_root_dirty")
-    if not candidate["exists"]:
-        gaps.append("candidate_branch_missing")
-    elif not candidate["worktree_exists"]:
-        gaps.append("candidate_worktree_missing")
-    elif changed_paths(Path(candidate_path)):
-        gaps.append("candidate_worktree_dirty")
-    if apply:
-        if not authorized:
-            gaps.append("authorization_required")
-        if expect_head is None:
-            gaps.append("expect_head_required")
-        elif expect_head != current_head:
-            gaps.append("expect_head_mismatch")
-    if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "previous_head": candidate_head,
-            "path": candidate_path,
-            "required_gaps": gaps,
-        }
-    if candidate_head == current_head:
-        return {
-            "ok": True,
-            "state": "base_current",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "previous_head": candidate_head,
-            "path": candidate_path,
-            "required_gaps": [],
-        }
-    if not apply:
-        return {
-            "ok": True,
-            "state": "ready_to_refresh_from_accepted",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "previous_head": candidate_head,
-            "path": candidate_path,
-            "required_gaps": [],
-        }
-    completed = _git(Path(candidate_path), "reset", "--hard", current_head, check=False)
-    if completed.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "previous_head": candidate_head,
-            "path": candidate_path,
-            "required_gaps": ["candidate_refresh_from_accepted_failed"],
-            "stderr": completed.stderr.strip(),
-        }
-    return {
-        "ok": True,
-        "state": "refreshed_from_accepted",
-        "branch": policy.candidate_branch,
-        "head": current_head,
-        "previous_head": candidate_head,
-        "path": candidate_path,
-        "required_gaps": [],
-    }
+    """Refresh candidate from accepted while preserving patchable adapters."""
+    return _call_refresh(
+        "refresh_candidate_from_accepted",
+        root=root,
+        apply=apply,
+        authorized=authorized,
+        expect_head=expect_head,
+    )
 
 
 def refresh_work_lane_base(
@@ -378,283 +247,44 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    policy = load_branch_role_policy(root)
-    status = workspace_status(root)
-    current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
-    branch = str(status.get("branch") or "")
-    candidate = cast("dict[str, object]", status["candidate"])
-    candidate_head = str(candidate.get("head") or "")
-    candidate_path = str(candidate.get("worktree_path") or "")
-    gaps: list[str] = []
-    if status["role"] != ROLE_WORK_LANE:
-        gaps.append("protected_root_mutation")
-    elif status["dirty"]:
-        gaps.append("work_lane_dirty")
-    if not candidate["exists"]:
-        gaps.append("candidate_branch_missing")
-    elif not candidate["worktree_exists"]:
-        gaps.append("candidate_worktree_missing")
-    elif changed_paths(Path(candidate_path)):
-        gaps.append("candidate_worktree_dirty")
-    if apply:
-        if not authorized:
-            gaps.append("authorization_required")
-        if expect_head is None:
-            gaps.append("expect_head_required")
-        elif expect_head != current_head:
-            gaps.append("expect_head_mismatch")
-    if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "head": current_head,
-            "candidate_branch": policy.candidate_branch,
-            "candidate_head": candidate_head,
-            "candidate_path": candidate_path,
-            "required_gaps": gaps,
-        }
-    if _is_ancestor(root, candidate_head, current_head):
-        return {
-            "ok": True,
-            "state": "base_current",
-            "branch": branch,
-            "head": current_head,
-            "candidate_branch": policy.candidate_branch,
-            "candidate_head": candidate_head,
-            "candidate_path": candidate_path,
-            "required_gaps": [],
-        }
-    if not apply:
-        return {
-            "ok": True,
-            "state": "ready_to_refresh_base",
-            "branch": branch,
-            "head": current_head,
-            "candidate_branch": policy.candidate_branch,
-            "candidate_head": candidate_head,
-            "candidate_path": candidate_path,
-            "required_gaps": [],
-        }
-    completed = _git(root, "rebase", policy.candidate_branch, check=False)
-    if completed.returncode != 0:
-        _git(root, "rebase", "--abort", check=False)
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "head": current_head,
-            "candidate_branch": policy.candidate_branch,
-            "candidate_head": candidate_head,
-            "candidate_path": candidate_path,
-            "required_gaps": ["refresh_base_failed"],
-            "stderr": completed.stderr.strip(),
-        }
-    refreshed_head = _git(root, "rev-parse", "HEAD").stdout.strip()
-    return {
-        "ok": True,
-        "state": "base_refreshed",
-        "branch": branch,
-        "previous_head": current_head,
-        "head": refreshed_head,
-        "candidate_branch": policy.candidate_branch,
-        "candidate_head": candidate_head,
-        "candidate_path": candidate_path,
-        "required_gaps": [],
-    }
-
-
-def retire_unbound_work_lane_ref(
-    *,
-    root: Path,
-    branch: str,
-    expect_head: str | None = None,
-    reason: str = "",
-    apply: bool = False,
-    authorized: bool = False,
-) -> dict[str, object]:
-    repo = _repo_root(root)
-    status = workspace_status(repo)
-    policy = load_branch_role_policy(repo)
-    branch = branch.strip()
-    reason = reason.strip()
-    current = _unbound_work_lane_ref(status, branch)
-    binding = _branch_binding(status, branch)
-    head = str((current or binding or {}).get("head") or "")
-    gaps: list[str] = []
-    if not branch:
-        gaps.append("unbound_retire_branch_required")
-    elif not _branch_exists(repo, branch):
-        gaps.append("unbound_retire_branch_not_found")
-    elif policy.role_for_branch(branch) != ROLE_WORK_LANE:
-        gaps.append("unbound_retire_not_work_lane")
-    elif current is None:
-        gaps.append("unbound_retire_ref_not_unbound")
-    if not reason:
-        gaps.append("retire_reason_required")
-    if expect_head is None or not str(expect_head).strip():
-        gaps.append("expect_head_required")
-    elif head and expect_head != head:
-        gaps.append("expect_head_mismatch")
-    if apply and not authorized:
-        gaps.append("authorization_required")
-    report = {
-        "ok": not gaps,
-        "state": "ready_to_retire_unbound" if not gaps else "blocked",
-        "branch": branch,
-        "head": head,
-        "relation_to_accepted": str((current or {}).get("relation_to_accepted") or ""),
-        "claim_id": str((current or {}).get("claim_id") or ""),
-        "claim_binding": str((current or {}).get("claim_binding") or ""),
-        "reason": reason,
-        "mutation": {
-            "apply": apply,
-            "authorized": authorized,
-            "expect_head": expect_head or "",
-            "ref": f"refs/heads/{branch}" if branch else "",
-        },
-        "required_gaps": sorted(set(gaps)),
-    }
-    if gaps:
-        return report
-    if not apply:
-        return report
-    deleted = _git(
-        repo,
-        "update-ref",
-        "-d",
-        f"refs/heads/{branch}",
-        str(expect_head),
-        check=False,
+    """Refresh a work lane base while preserving patchable adapters."""
+    return _call_refresh(
+        "refresh_work_lane_base",
+        root=root,
+        apply=apply,
+        authorized=authorized,
+        expect_head=expect_head,
     )
-    if deleted.returncode != 0:
-        report["ok"] = False
-        report["state"] = "blocked"
-        report["required_gaps"] = ["unbound_ref_delete_failed"]
-        report["stderr"] = deleted.stderr.strip()
-        return report
-    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=branch)
-    report["state"] = "retired_unbound"
-    report["retired_ref"] = f"refs/heads/{branch}"
-    return report
 
 
-def retire_landed_work_lanes(
-    *,
-    root: Path,
-    branch: str | None = None,
-    apply: bool = False,
-) -> dict[str, object]:
-    repo = _repo_root(root)
-    status = workspace_status(repo)
-    lanes = [
-        _retirement_lane(repo, lane)
-        for lane in cast("list[dict[str, object]]", status["worktrees"])
-        if lane["role"] == ROLE_WORK_LANE
-    ]
-    selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
-    gaps: list[str] = []
-    if branch is not None and not selected:
-        gaps.append("retire_branch_not_found")
-    if apply and not branch:
-        gaps.append("retire_branch_required")
-    if branch:
-        for lane in selected:
-            gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
-    if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch or "",
-            "lanes": lanes,
-            "required_gaps": sorted(set(gaps)),
-        }
-    if not apply:
-        return {
-            "ok": True,
-            "state": "planned",
-            "branch": branch or "",
-            "lanes": lanes,
-            "required_gaps": [],
-        }
-    lane = selected[0]
-    remove = _git(repo, "worktree", "remove", str(lane["path"]), check=False)
-    if remove.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch or "",
-            "lanes": lanes,
-            "required_gaps": ["worktree_remove_failed"],
-            "stderr": remove.stderr.strip(),
-        }
-    delete = _git(repo, "branch", "-d", str(lane["branch"]), check=False)
-    if delete.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch or "",
-            "lanes": lanes,
-            "required_gaps": ["branch_delete_failed"],
-            "stderr": delete.stderr.strip(),
-        }
-    # Release the lane's lease so it cannot outlive the lane — a recreated
-    # same-named branch must re-acquire, not inherit a stale lease.
-    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
+def _call_refresh(name: str, **kwargs: object) -> dict[str, object]:
+    previous = _refresh_previous(_refresh)
+    try:
+        _patch_refresh_adapters(_refresh)
+        return cast("dict[str, object]", getattr(_refresh, name)(**kwargs))
+    finally:
+        _restore_refresh_adapters(_refresh, previous)
+
+
+def _refresh_previous(refresh: object) -> dict[str, object]:
+    namespace = cast("dict[str, object]", refresh.__dict__)
     return {
-        "ok": True,
-        "state": "retired",
-        "branch": branch or "",
-        "retired": lane,
-        "lanes": lanes,
-        "required_gaps": [],
+        key: namespace[key] for key in ("workspace_status", "changed_paths", "_is_ancestor", "_git")
     }
 
 
-def _unbound_work_lane_ref(
-    status: dict[str, object],
-    branch: str,
-) -> dict[str, object] | None:
-    coordination = status.get("coordination")
-    if not isinstance(coordination, dict):
-        return None
-    refs = coordination.get("unbound_work_lane_refs")
-    if not isinstance(refs, list):
-        return None
-    for ref in refs:
-        if isinstance(ref, dict) and ref.get("branch") == branch:
-            return cast("dict[str, object]", ref)
-    return None
+def _patch_refresh_adapters(refresh: object) -> None:
+    namespace = cast("dict[str, object]", refresh.__dict__)
+    namespace.update(
+        workspace_status=workspace_status,
+        changed_paths=changed_paths,
+        _is_ancestor=_is_ancestor,
+        _git=_git,
+    )
 
 
-def _branch_binding(
-    status: dict[str, object],
-    branch: str,
-) -> dict[str, object] | None:
-    bindings = status.get("branch_bindings")
-    if not isinstance(bindings, list):
-        return None
-    for binding in bindings:
-        if isinstance(binding, dict) and binding.get("branch") == branch:
-            return cast("dict[str, object]", binding)
-    return None
-
-
-def _retirement_lane(repo: Path, lane: dict[str, object]) -> dict[str, object]:
-    gaps: list[str] = []
-    branch = str(lane["branch"])
-    path = Path(str(lane["path"]))
-    if not _is_ancestor(repo, branch, "HEAD"):
-        gaps.append("work_lane_not_merged")
-    if changed_paths(path):
-        gaps.append("work_lane_dirty")
-    return {
-        "branch": branch,
-        "path": path.as_posix(),
-        "head": str(lane["head"]),
-        "retire_ready": not gaps,
-        "required_gaps": gaps,
-    }
+def _restore_refresh_adapters(refresh: object, previous: dict[str, object]) -> None:
+    cast("dict[str, object]", refresh.__dict__).update(previous)
 
 
 def _slug(name: str) -> str:
@@ -709,11 +339,6 @@ def _branch_exists(root: Path, branch: str) -> bool:
     return completed.returncode == 0
 
 
-def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
-    completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
-    return completed.returncode == 0
-
-
 def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
     head = _git(path, "rev-parse", "HEAD").stdout.strip()
     return {
@@ -725,11 +350,60 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
     }
 
 
-def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=check,
-        text=True,
-        capture_output=True,
-    )
+def retire_landed_work_lanes(
+    *,
+    root: Path,
+    branch: str | None = None,
+    apply: bool = False,
+) -> dict[str, object]:
+    """Retire landed lanes while preserving this module's patchable adapters."""
+    previous = {
+        "workspace_status": _retire.workspace_status,
+        "delete_lease": _retire.delete_lease,
+        "_is_ancestor": _retire.__dict__["_is_ancestor"],
+        "_git": _retire.__dict__["_git"],
+    }
+    try:
+        _retire.workspace_status = workspace_status
+        _retire.delete_lease = delete_lease
+        _retire.__dict__["_is_ancestor"] = _is_ancestor
+        _retire.__dict__["_git"] = _git
+        return _retire_landed_work_lanes(root=root, branch=branch, apply=apply)
+    finally:
+        _retire.workspace_status = previous["workspace_status"]
+        _retire.delete_lease = previous["delete_lease"]
+        _retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
+        _retire.__dict__["_git"] = previous["_git"]
+
+
+def retire_unbound_work_lane_ref(
+    *,
+    root: Path,
+    branch: str,
+    expect_head: str | None = None,
+    reason: str = "",
+    apply: bool = False,
+    authorized: bool = False,
+) -> dict[str, object]:
+    """Retire an unbound lane ref while preserving this module's patchable adapters."""
+    previous = {
+        "workspace_status": _retire.workspace_status,
+        "delete_lease": _retire.delete_lease,
+        "_git": _retire.__dict__["_git"],
+    }
+    try:
+        _retire.workspace_status = workspace_status
+        _retire.delete_lease = delete_lease
+        _retire.__dict__["_git"] = _git
+        return _retire_unbound_work_lane_ref(
+            root=root,
+            branch=branch,
+            expect_head=expect_head,
+            reason=reason,
+            apply=apply,
+            authorized=authorized,
+        )
+    finally:
+        _retire.workspace_status = previous["workspace_status"]
+        _retire.delete_lease = previous["delete_lease"]
+        _retire.__dict__["_git"] = previous["_git"]

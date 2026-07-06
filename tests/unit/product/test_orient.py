@@ -171,10 +171,19 @@ def test_orient_reports_current_head_from_status_branch_binding() -> None:
     status = run_ethos("status", "--json")
 
     orientation = payload["data"]["orientation"]
-    branch = status["data"]["branch"]
-    binding = next(item for item in status["data"]["branch_bindings"] if item["branch"] == branch)
-    assert orientation["where"]["head"] == binding["head"]
+    # orient's head is the repository HEAD status reports at the top level — coherent
+    # whether attached or detached (GitLab CI checks HEAD out detached, so head must not
+    # depend on a branch binding existing).
+    assert orientation["where"]["head"] == status["data"]["head"]
     assert orientation["where"]["head"]
+    # When on a branch, that head must also agree with the branch's binding.
+    branch = status["data"]["branch"]
+    binding = next(
+        (item for item in status["data"]["branch_bindings"] if item["branch"] == branch),
+        None,
+    )
+    if binding is not None:
+        assert orientation["where"]["head"] == binding["head"]
 
 
 def _orientation_line_packet(**overrides: object) -> dict[str, object]:

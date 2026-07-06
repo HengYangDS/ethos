@@ -14,13 +14,4 @@ if ! command -v npx >/dev/null 2>&1; then
 fi
 printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec "$@"' > /usr/local/bin/openspec
 chmod +x /usr/local/bin/openspec
-# GitLab checks out CI_COMMIT_SHA as a detached HEAD; tests/unit/product/test_orient.py
-# reads ambient git state and needs an attached branch (detached -> orient reports an
-# empty head -> test_orient_* red in ethos:verify). Re-attach to a branch at the SAME
-# commit, CI-only (the CI_COMMIT_SHA guard keeps developer/local checkouts untouched, so
-# bootstrap-as-local-SSOT never silently creates a branch). No content change:
-# `git rev-parse HEAD` for prove --expect-head (.gitlab-ci.yml) is unchanged.
-if [ -n "${CI_COMMIT_SHA:-}" ] && ! git symbolic-ref -q HEAD >/dev/null 2>&1; then
-  git checkout -B "${CI_COMMIT_REF_NAME:-ci}" "${CI_COMMIT_SHA}"
-fi
 uv --version

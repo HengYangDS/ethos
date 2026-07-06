@@ -30,6 +30,9 @@
     "branch": {
       "type": "string"
     },
+    "head": {
+      "type": "string"
+    },
     "dirty": {
       "type": "boolean"
     },

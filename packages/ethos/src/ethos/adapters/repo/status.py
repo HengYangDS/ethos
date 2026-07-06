@@ -280,6 +280,7 @@ def workspace_status(root: Path) -> dict[str, object]:
     entries = cast("list[dict[str, str]]", provenance["entries"])
     paths = tuple(str(entry["path"]) for entry in entries)
     branch = current_branch(root)
+    head = _safe_ref(root, "HEAD")
     policy = load_branch_role_policy(repo)
     role = policy.role_for_branch(branch)
     worktrees = _worktrees(root, current_path=current_path, policy=policy)
@@ -338,6 +339,7 @@ def workspace_status(root: Path) -> dict[str, object]:
     return {
         "root": str(root),
         "branch": branch,
+        "head": head,
         "dirty": bool(paths),
         "changed_paths": list(paths),
         "dirty_provenance": provenance,

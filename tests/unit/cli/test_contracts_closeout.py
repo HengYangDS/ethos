@@ -474,6 +474,40 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert payload["required_gaps"] == []
 
 
+def test_publish_dry_run_blocks_release_root_active_openspec_residue(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    git(repo, "checkout", "-b", "main")
+    leak = repo / "openspec" / "changes" / "release-leak"
+    leak.mkdir(parents=True)
+    (leak / "proposal.md").write_text("# release leak\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "leak active openspec carrier on release root",
+    )
+    git(repo, "checkout", "dev")
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    gap = "openspec_protected_branch_active_change_unarchived:main:release_root:release-leak"
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert gap in payload["required_gaps"]
+    assert payload["data"]["release_root_open_spec"] == {
+        "required_gaps": [gap],
+        "blocking": True,
+    }
+
+
 def test_land_dry_run_blocks_accepted_root_without_closeout(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

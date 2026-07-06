@@ -294,6 +294,29 @@ def test_openspec_shape_surfaces_active_change_on_non_current_protected_branch(
     assert gap not in report["required_gaps"]
 
 
+def test_release_readiness_blocks_active_change_on_non_current_release_root(
+    tmp_path: Path,
+) -> None:
+    """Publication cannot ignore a release-root active OpenSpec carrier."""
+    from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
+
+    repo = tmp_path / "repo"
+    leaked = _seed_repo_with_active_openspec_change(repo)
+
+    _git(repo, "checkout", "-b", "dev")
+    (leaked / "proposal.md").unlink()
+    leaked.rmdir()
+    archive = repo / "openspec" / "changes" / "archive" / "2026-01-01-leaked-change"
+    archive.mkdir(parents=True)
+    (archive / "proposal.md").write_text("# archived\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "archive change on accepted root")
+
+    assert protected_branch_active_change_required_gaps(repo, current_branch="dev") == [
+        "openspec_protected_branch_active_change_unarchived:main:release_root:leaked-change"
+    ]
+
+
 def test_openspec_shape_blocks_active_change_on_current_release_root(tmp_path: Path) -> None:
     """The current release root cannot retain active OpenSpec carriers."""
     repo = tmp_path / "repo"

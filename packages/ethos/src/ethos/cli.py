@@ -27,6 +27,7 @@ from ethos.domain import prove as _prove
 from ethos.domain import status as _status
 from ethos.domain.report import scorecard_report
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
 from ethos.repository.evidence.core import AdapterProofResult
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -513,18 +514,25 @@ def publish(
         current_head=_gitio.current_head(repo),
     )
     audit = _land.repository_audit_after_admission(repo, decision)
-    gaps = tuple(audit["required_gaps"]) + decision.gaps
-    ok = bool(audit["ok"]) and decision.ok
     branch = workspace_status(repo)["branch"]
+    release_carrier_gaps = tuple(
+        protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
+    )
+    gaps = tuple(audit["required_gaps"]) + decision.gaps + release_carrier_gaps
+    ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
     remote_availability = _gitio.remote_availability(repo)
     result = EthosResult(
         command="publish",
         ok=ok,
-        state=("ready_to_publish" if ok and not apply else decision.state),
+        state=("ready_to_publish" if ok and not apply else "blocked" if gaps else decision.state),
         required_gaps=gaps,
         next_actions=("ethos report",) if ok else ("ethos land --json",),
         data={
             "repository_audit": audit,
+            "release_root_open_spec": {
+                "required_gaps": list(release_carrier_gaps),
+                "blocking": bool(release_carrier_gaps),
+            },
             "remote_push": "not_performed",
             "remote_availability": remote_availability,
             "local_ci_fallback": _land.local_ci_fallback_package(

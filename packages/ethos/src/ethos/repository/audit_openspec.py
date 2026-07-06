@@ -67,6 +67,30 @@ def protected_branch_active_change_report(root: Path, *, current_branch: str) ->
     }
 
 
+def protected_branch_active_change_required_gaps(
+    root: Path, *, current_branch: str, roles: set[str] | None = None
+) -> list[str]:
+    """Return protected-branch active carriers that block release readiness.
+
+    The lifecycle read model exposes all non-current protected residue as advisory
+    because observing another branch does not authorize mutation. Publication is
+    stricter: a release-root active OpenSpec carrier means the governed release
+    tree still contains an unclosed Change carrier, so publish readiness must fail
+    until that carrier is archived on its owning branch.
+    """
+    blocked_roles = roles or {ROLE_RELEASE_ROOT}
+    report = protected_branch_active_change_report(root, current_branch=current_branch)
+    gaps: list[str] = []
+    for record in report["records"]:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("role") or "") in blocked_roles:
+            gap = str(record.get("gap") or "")
+            if gap:
+                gaps.append(gap)
+    return gaps
+
+
 def _branch_exists(root: Path, branch: str) -> bool:
     completed = subprocess.run(
         ["git", "rev-parse", "--verify", "--quiet", f"{branch}^{{commit}}"],

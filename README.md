@@ -57,10 +57,11 @@ README / docs index / AGENTS.md -> ethos orient -> status -> plan -> prove -> la
 - Agents start from [AGENTS.md](AGENTS.md), load the matching rule and skill,
   then run `ethos orient --json` before planning mutation.
 - Both treat `ethos orient` as a reader view: it makes role, capability, foreign
-  Work Lanes, gaps, and next commands visible without minting truth.
-- Foreign Work Lanes are observe-only unless the owner hands them off or a
-  maintainer records break-glass evidence. Visibility is collaboration, not
-  authority.
+  Work Lanes, unbound Work Lane refs, gaps, and next commands visible without
+  minting truth.
+- Foreign Work Lanes and unbound Work Lane refs are coordination signals.
+  Visibility is collaboration, not authority; write, land, retire, or cleanup
+  requires owner handoff or maintainer break-glass evidence.
 
 ## Kernel
 

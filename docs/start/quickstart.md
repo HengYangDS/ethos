@@ -25,9 +25,10 @@ ethos orient
 ```
 
 `ethos orient` is a first-glance projection for humans and agents. It answers
-where you are, what you may do, which foreign Work Lanes are visible, whether
-readiness is gapped, and which command should run next. It reads `status` and
-`report`; it is not a transition verb and does not mint repository truth.
+where you are, what you may do, which foreign Work Lanes and unbound Work Lane
+refs are visible, whether readiness is gapped, and which command should run
+next. It reads `status` and `report`; it is not a transition verb and does not
+mint repository truth.
 
 Use `--json` when an agent or script needs stable evidence, then choose a profile:
 

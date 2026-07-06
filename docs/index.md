@@ -47,9 +47,10 @@ truth.
 | Maintainer | [Command Plane](reference/command-plane.md) | `ethos report --json` and HEAD-bound `ethos prove` | Scorecards explain readiness; executed proof supports claims. |
 | Adopter | [Adoption Profiles](architecture/adoption-profiles.md) | `ethos adopt --dry-run --json` | Profiles change gates and adapters, not the governed repository kind. |
 
-In multi-agent work, visible foreign Work Lanes are read models over Git, lease,
-claim, and evidence facts. Use them to coordinate, not to write, land, or retire
-another lane without owner handoff or maintainer break-glass evidence.
+In multi-agent work, visible foreign Work Lanes and unbound Work Lane refs are
+read models over Git, lease, claim, and evidence facts. Use them to coordinate,
+not to write, land, retire, or clean another lane or ref without owner handoff
+or maintainer break-glass evidence.
 
 ## Maps
 

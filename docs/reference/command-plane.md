@@ -28,11 +28,11 @@ ethos publish
 
 `ethos orient` is a read-only first-glance orientation view over `status` and
 `report`: it tells a human or agent where it is, what it may do, which foreign
-Work Lanes are visible, what remains gapped, and which command should run next.
-It is a projection (`truth_boundary = repository-reader-view`, `mints_truth =
-false`), not a transition verb and not a truth store. Its current HEAD field is
-derived from workspace-status branch bindings when the status payload does not
-carry a direct top-level head.
+Work Lanes and unbound Work Lane refs are visible, what remains gapped, and
+which command should run next. It is a projection (`truth_boundary =
+repository-reader-view`, `mints_truth = false`), not a transition verb and not a
+truth store. Its current HEAD field is derived from workspace-status branch
+bindings when the status payload does not carry a direct top-level head.
 
 `ethos report` is the read-only scorecard over that workflow. It is not a
 transition command:
@@ -173,13 +173,15 @@ to the configured candidate branch, which target path would be updated, who owns
 the lease when known, which claim is bound when known, and which mutation gap
 blocks closeout.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
-coordination state. Plain presence remains advisory through `advisory_gaps` such
-as `foreign_work_lane_present` or `work_lane_missing_lease:<branch>`. Candidate
-integration from a Work Lane is blocked only when a required coordination gap is
-present, such as unknown current or foreign scope. Same-file or ancestor-scope
-overlap is surfaced as advisory contention through
-`coordination_gap:scope_overlap:<branch>` so Git's fast-forward land remains the
-mutation arbiter without serializing unrelated agents that share a directory.
+coordination state and unbound Work Lane refs with their relation to accepted
+truth. Plain presence remains advisory through `advisory_gaps` such as
+`foreign_work_lane_present`, `unbound_work_lane_ref_present`, or
+`work_lane_missing_lease:<branch>`. Candidate integration from a Work Lane is
+blocked only when a required coordination gap is present, such as unknown current
+or foreign scope. Same-file or ancestor-scope overlap is surfaced as advisory
+contention through `coordination_gap:scope_overlap:<branch>` so Git's
+fast-forward land remains the mutation arbiter without serializing unrelated
+agents that share a directory.
 Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is

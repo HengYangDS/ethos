@@ -111,10 +111,12 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
     readiness = _dict(packet.get("readiness"))
     coordination = _dict(packet.get("coordination"))
     capability = _dict(packet.get("capability"))
+    head = str(where.get("head") or "")
+    head_text = f" @ {head[:12]}" if head else ""
     lines = [
         str(packet.get("human_summary") or "orientation"),
         (
-            f"where: {where.get('role')} on {where.get('branch')} "
+            f"where: {where.get('role')} on {where.get('branch')}{head_text} "
             f"({where.get('changed_path_count')} changed paths)"
         ),
         f"can: {capability.get('current_actor_capability')} — {capability.get('reason')}",

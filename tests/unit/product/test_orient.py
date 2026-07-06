@@ -87,7 +87,10 @@ def test_orient_human_output_is_concise_and_actionable() -> None:
     lines = completed.stdout.splitlines()
     assert 4 <= len(lines) <= 6
     assert lines[0].startswith(("ready:", "dirty:", "gapped:"))
-    assert any(line.startswith("where:") for line in lines)
+    where_line = next(line for line in lines if line.startswith("where:"))
+    json_payload = run_ethos("orient", "--json")
+    head = json_payload["data"]["orientation"]["where"]["head"]
+    assert f"@ {head[:12]}" in where_line
     assert any(line.startswith("can:") for line in lines)
     assert any(line.startswith("next:") for line in lines)
 

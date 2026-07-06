@@ -359,13 +359,17 @@ def retire_landed_work_lanes(
 ) -> dict[str, object]:
     """Retire landed lanes while preserving this module's patchable adapters."""
     previous = {
+        "_repo_root": _retire.__dict__["_repo_root"],
         "workspace_status": _retire.workspace_status,
+        "active_leases": _retire.active_leases,
         "delete_lease": _retire.delete_lease,
         "_is_ancestor": _retire.__dict__["_is_ancestor"],
         "_git": _retire.__dict__["_git"],
     }
     try:
+        _retire.__dict__["_repo_root"] = _repo_root
         _retire.workspace_status = workspace_status
+        _retire.active_leases = active_leases
         _retire.delete_lease = delete_lease
         _retire.__dict__["_is_ancestor"] = _is_ancestor
         _retire.__dict__["_git"] = _git
@@ -376,7 +380,9 @@ def retire_landed_work_lanes(
             apply=apply,
         )
     finally:
+        _retire.__dict__["_repo_root"] = previous["_repo_root"]
         _retire.workspace_status = previous["workspace_status"]
+        _retire.active_leases = previous["active_leases"]
         _retire.delete_lease = previous["delete_lease"]
         _retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
         _retire.__dict__["_git"] = previous["_git"]

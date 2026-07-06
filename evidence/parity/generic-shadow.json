@@ -5,10 +5,10 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
-    "target_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
-    "product_semantic_sha256": "190b1e9c893878b84e4122a611144683e6ec093cf85f0bfa0441b5e68196ff6b",
-    "target_semantic_sha256": "190b1e9c893878b84e4122a611144683e6ec093cf85f0bfa0441b5e68196ff6b",
+    "product_head": "003ef1728104e950f42259d64bf2fd31c9f0f7cd",
+    "target_head": "003ef1728104e950f42259d64bf2fd31c9f0f7cd",
+    "product_semantic_sha256": "3efc244fb7ce83562662221d6e42c530d1bfe2c86bdb67a2c384ab480da56e25",
+    "target_semantic_sha256": "3efc244fb7ce83562662221d6e42c530d1bfe2c86bdb67a2c384ab480da56e25",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility",
-    "target_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
-    "product_head": "39b67c4903c03e05fb5dc400a3eff5e595401b90",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary",
+    "target_head": "003ef1728104e950f42259d64bf2fd31c9f0f7cd",
+    "product_head": "003ef1728104e950f42259d64bf2fd31c9f0f7cd",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json",
-      "/Users/yheng/projects/ethos-worktrees/openspec-residue-visibility/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/openspec-residue-visibility --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-owner-boundary/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-owner-boundary --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "2f2c271227c3b0559ec02cc3a97150d6b96ceb7477eefeb80917491c835308c8"
+        "sha256": "78cd05d4e18548238d60aded0e04cc486dbe06367b3481470313310668fd0025"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "b6461df5c3784d3735dfb52a00fd7700e3d0534d9f90bc545d890e1233cbc1e5"
+        "sha256": "ef9db634f6414d7c56a6bacde3c3c75d9f515c5714335939d84d2085b9d080df"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "99580055f86583a7e8ab1a9af7240a10f7c1e437fae0ac64da522c68adc349db"
+        "sha256": "6ca659a6c422b2cd2415c69455e0cfe4bf2b8f223c1a12af0cca5510074658cf"
       },
       {
         "path": "rules",

@@ -16,6 +16,7 @@ import pytest
 from ethos.adapters import shadow
 from ethos.adapters.mutation import lanes
 from ethos.adapters.store import retrieval
+from ethos.adapters.store import state
 from ethos.repository.evidence import parity
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -224,6 +225,13 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         return cp(returncode=0)
 
     monkeypatch.setattr(lanes, "_git", git_retire)
+    state.acquire_lease(
+        tmp_path / ".ethos" / "state" / "state.sqlite",
+        subject="work/x",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     monkeypatch.setattr(lanes, "delete_lease", lambda *args, **kwargs: {"ok": True})
     assert (
         lanes.retire_landed_work_lanes(

@@ -755,7 +755,9 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     assert payload["data"]["openspec_lifecycle"]["root"] == candidate.as_posix()
 
 
-def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) -> None:
+def test_configured_branch_roles_drive_local_lifecycle_commands(
+    monkeypatch, tmp_path: Path
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     git(repo, "branch", "integration", "dev")
@@ -889,6 +891,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(tmp_path: Path) 
         "required_gaps": [],
     }
 
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     retire_payload = run_ethos(
         "lane",
         "retire-landed",

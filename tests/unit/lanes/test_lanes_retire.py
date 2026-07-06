@@ -10,6 +10,7 @@ from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo import status as repo_status
 from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.store import state
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -129,6 +130,32 @@ def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None
     assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
 
 
+def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    db = repo / ".ethos" / "state" / "state.sqlite"
+    state.acquire_lease(db, subject="work/landed", owner="agent-a", ttl_seconds=3600)
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-b")
+    blocked = retire_landed_work_lanes(root=repo, branch="work/landed")
+
+    assert blocked["ok"] is False
+    assert blocked["state"] == "blocked"
+    assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
+    assert landed.exists()
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    allowed = retire_landed_work_lanes(root=repo, branch="work/landed")
+
+    assert allowed["ok"] is True
+    assert allowed["state"] == "planned"
+    assert allowed["required_gaps"] == []
+
+
 def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
@@ -142,12 +169,19 @@ def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
     assert landed.exists()
 
 
-def test_retire_landed_work_lane_apply_requires_expected_head(tmp_path: Path) -> None:
+def test_retire_landed_work_lane_apply_requires_expected_head(monkeypatch, tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
 
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     report = retire_landed_work_lanes(root=repo, branch="work/landed", apply=True)
 
     assert report["ok"] is False
@@ -157,13 +191,20 @@ def test_retire_landed_work_lane_apply_requires_expected_head(tmp_path: Path) ->
 
 
 def test_retire_landed_work_lane_apply_rejects_mismatched_expected_head(
-    tmp_path: Path,
+    monkeypatch, tmp_path: Path
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
 
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     report = retire_landed_work_lanes(
         root=repo,
         branch="work/landed",
@@ -178,7 +219,7 @@ def test_retire_landed_work_lane_apply_rejects_mismatched_expected_head(
 
 
 def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
-    tmp_path: Path,
+    monkeypatch, tmp_path: Path
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
@@ -186,6 +227,13 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
     landed_head = git(landed, "rev-parse", "HEAD")
 
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     report = retire_landed_work_lanes(
         root=repo,
         branch="work/landed",

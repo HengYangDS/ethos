@@ -175,6 +175,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         return cp(returncode=0)
 
     monkeypatch.setattr(lanes, "_git", remove_fails)
+    monkeypatch.setenv("ETHOS_ACTOR", "me")
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
         branch="work/x",

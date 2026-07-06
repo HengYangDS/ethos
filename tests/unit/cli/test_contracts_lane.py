@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.adapters.store import state
 from ethos.repository.adoption.planner import adoption_plan
 
 if TYPE_CHECKING:
@@ -585,6 +586,38 @@ def test_lane_candidate_apply_default_path_uses_configured_candidate_role(
     assert git(expected_candidate_path, "branch", "--show-current") == "stage/dev"
 
 
+def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    foreign = tmp_path / "repo-work-foreign"
+    git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
+
+    payload = run_ethos_blocked(
+        "lane",
+        "retire-landed",
+        "--branch",
+        "work/foreign",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire-landed"
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
+    assert foreign.exists()
+
+
 def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
@@ -615,7 +648,7 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
     assert worktree.exists()
 
 
-def test_lane_retire_landed_apply_requires_expected_head(tmp_path: Path) -> None:
+def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
         repo,
@@ -629,6 +662,13 @@ def test_lane_retire_landed_apply_requires_expected_head(tmp_path: Path) -> None
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
 
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     payload = run_ethos_blocked(
         "lane",
         "retire-landed",
@@ -647,7 +687,7 @@ def test_lane_retire_landed_apply_requires_expected_head(tmp_path: Path) -> None
     assert worktree.exists()
 
 
-def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> None:
+def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
         repo,
@@ -662,6 +702,13 @@ def test_lane_retire_landed_apply_removes_selected_branch(tmp_path: Path) -> Non
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
     worktree_head = git(worktree, "rev-parse", "HEAD")
 
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     payload = run_ethos(
         "lane",
         "retire-landed",

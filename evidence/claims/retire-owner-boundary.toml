@@ -1,0 +1,23 @@
+schema_version = 1
+id = "retire-owner-boundary"
+summary = "Landed Work Lane retirement is bound to lane lease ownership instead of visibility alone."
+state = "accepted"
+subject = "repository-governance:retire-owner-boundary"
+evidence = "evidence/chronicle/retire-owner-boundary/2026-07-07.md"
+
+[bindings]
+head = "20af266fb262f71f77045ded84110840fc9a2e7a"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-retire-owner-boundary"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority"
+
+[[claim_bindings]]
+kind = "test"
+ref = "tests/unit/lanes/test_lanes_retire.py::test_retire_landed_work_lane_requires_matching_owner_for_leased_lane"
+
+[[promotion_targets]]
+path = "packages/ethos/src/ethos/adapters/mutation/lanes_retire.py"

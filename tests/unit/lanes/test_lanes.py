@@ -128,6 +128,12 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "path_scope": [],
             "scope_state": "empty",
             "coordination_state": "advisory",
+            "current_actor_capability": "observe",
+            "allowed_actions": ["observe"],
+            "forbidden_actions": ["write", "land", "retire"],
+            "write_policy": "owner_only",
+            "retire_policy": "owner_handoff_or_maintainer_break_glass",
+            "handoff_required": True,
         }
     ]
     assert status["required_gaps"] == []
@@ -537,6 +543,7 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     assert status["foreign_work_lanes"][0]["path_scope"] == ["README.md"]
     assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
     assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
+    assert status["foreign_work_lanes"][0]["current_actor_capability"] == "observe"
     # scope_overlap is same-file-only (git's ff-only land backstops a genuine conflict),
     # so it is advisory, not blocking: concurrent lanes sharing a directory no longer
     # serialize.

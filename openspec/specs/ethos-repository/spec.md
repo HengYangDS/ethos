@@ -511,6 +511,17 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** `unbound_work_lane_count` equals the number of emitted residue objects
 - **AND** the signal remains advisory unless another gate reports a required gap
 
+#### Scenario: Foreign Work Lanes are observable but not owned by the current actor
+
+- **GIVEN** a repository has a linked foreign `work/*` worktree
+- **WHEN** `ethos status --json` reports that lane in `data.foreign_work_lanes`
+- **THEN** the lane item exposes `current_actor_capability=observe`
+- **AND** `allowed_actions` contains only `observe`
+- **AND** `forbidden_actions` includes `write`, `land`, and `retire`
+- **AND** write authority remains owner-only
+- **AND** retirement requires the owner, accepted handoff, or maintainer
+  break-glass evidence
+
 ### Requirement: Unbound Work Lane Ref Retirement
 
 ETHOS SHALL govern local unbound Work Lane ref cleanup through explicit,
@@ -533,4 +544,3 @@ head-bound command semantics rather than raw Git branch deletion.
   has a mismatched expected head, lacks a reason, or apply lacks authorization
 - **THEN** ETHOS refuses deletion and reports deterministic required gaps
 - **AND** the branch ref remains present
-

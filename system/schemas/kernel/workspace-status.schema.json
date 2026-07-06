@@ -300,7 +300,13 @@
         "dirty_paths",
         "path_scope",
         "scope_state",
-        "coordination_state"
+        "coordination_state",
+        "current_actor_capability",
+        "allowed_actions",
+        "forbidden_actions",
+        "write_policy",
+        "retire_policy",
+        "handoff_required"
       ],
       "properties": {
         "path": {
@@ -368,6 +374,36 @@
             "overlap",
             "unknown"
           ]
+        },
+        "current_actor_capability": {
+          "const": "observe"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "observe"
+            ]
+          }
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "write",
+              "land",
+              "retire"
+            ]
+          }
+        },
+        "write_policy": {
+          "const": "owner_only"
+        },
+        "retire_policy": {
+          "const": "owner_handoff_or_maintainer_break_glass"
+        },
+        "handoff_required": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -511,11 +547,21 @@
         "next_action"
       ],
       "properties": {
-        "branch": {"type": "string"},
-        "head": {"type": "string"},
-        "claim_id": {"type": "string"},
+        "branch": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string"
+        },
+        "claim_id": {
+          "type": "string"
+        },
         "claim_binding": {
-          "enum": ["bound", "missing", "unbound"]
+          "enum": [
+            "bound",
+            "missing",
+            "unbound"
+          ]
         },
         "relation_to_accepted": {
           "enum": [

@@ -5,8 +5,8 @@
   "generated_on": "2026-07-06",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d8fdecda28d43a41bbf81b00f5f322b49dbae372",
-    "target_head": "d8fdecda28d43a41bbf81b00f5f322b49dbae372",
+    "product_head": "bcd994f2555e306ec4b2215bc469d7362f3dd3c7",
+    "target_head": "bcd994f2555e306ec4b2215bc469d7362f3dd3c7",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {

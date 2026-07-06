@@ -167,10 +167,17 @@ blocks closeout.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
 coordination state. Plain presence remains advisory through `advisory_gaps` such
 as `foreign_work_lane_present` or `work_lane_missing_lease:<branch>`. Candidate
-integration from a Work Lane becomes blocking when a foreign lane's path scope
-overlaps the current lane, or when either side's scope cannot be computed; those
-conditions surface as `coordination_gap:*` in both `coordination.required_gaps`
-and `closeout_support.required_gaps`.
+integration from a Work Lane is blocked only when a required coordination gap is
+present, such as unknown current or foreign scope. Same-file or ancestor-scope
+overlap is surfaced as advisory contention through
+`coordination_gap:scope_overlap:<branch>` so Git's fast-forward land remains the
+mutation arbiter without serializing unrelated agents that share a directory.
+Each `foreign_work_lanes[]` item also exposes the current actor's capability:
+`current_actor_capability=observe`, `allowed_actions=["observe"]`, and
+`forbidden_actions=["write", "land", "retire"]`. The write policy is
+`owner_only`; retirement requires the owner, an accepted handoff, or maintainer
+break-glass. This is a product read model, not a host message bus: assistant hosts, MCP, editor hosts, and CI adapters all see the same
+repository fact and must route mutation through their own owned lane.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.

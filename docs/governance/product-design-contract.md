@@ -151,6 +151,16 @@ source and cannot override it.
 
 Folders and packages follow the kernel chain. Package names do not create
 separate truth centers.
+### Creative change with net gain
+
+ETHOS does not preserve inherited shape for its own sake. Creative, destructive,
+or simplifying changes are admissible when they produce provable net gain:
+clearer authority, fewer entities, smaller surface area, stronger evidence,
+better rollback, lower coordination risk, or removal of stale projections. A
+disruptive change must declare what it deletes, what invariant it strengthens,
+which evidence proves the gain, and how the repository can recover if the claim
+fails.
+
 
 ### Contracts before providers
 
@@ -190,6 +200,15 @@ When multiple agents change the repository concurrently, integration is judged
 by repository truth, authority order, lifecycle legality, and bound evidence.
 Candidate integration fuses or rejects conflicts by those measures; it is never
 last-writer-wins and never a host-side overwrite race.
+Foreign Work Lanes are product-observable and observe-only by default. Status
+payloads may reveal their branch, head, lease owner, claim binding, dirty state,
+path scope, coordination state, and current actor capability, but another agent
+does not gain write, land, or retire authority from visibility. Write authority
+belongs to the lane owner. Retiring or absorbing a foreign lane requires the
+owner, an accepted handoff, or maintainer break-glass evidence. Collaboration
+therefore starts as a read model over Git, lease, claim, and evidence facts; a
+host-specific chat, thread, or message bus may project those facts but cannot
+become the semantic center.
 
 ### Binding taxonomy
 

@@ -320,6 +320,14 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     )
     assert required == ["coordination_gap:current_scope_unknown"]
     assert "coordination_gap:scope_overlap:work/x" in advisory
+    assert coordination.foreign_work_lane_capability() == {
+        "current_actor_capability": "observe",
+        "allowed_actions": ["observe"],
+        "forbidden_actions": ["write", "land", "retire"],
+        "write_policy": "owner_only",
+        "retire_policy": "owner_handoff_or_maintainer_break_glass",
+        "handoff_required": True,
+    }
     package = coordination.coordination_package(
         [{"lease_state": "missing", "coordination_state": "unknown"}],
         required_gaps=["g"],

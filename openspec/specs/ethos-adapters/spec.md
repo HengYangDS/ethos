@@ -35,8 +35,11 @@ Lanes without entering their file trees.
   linked `work/*` lane outside the current checkout
 - **THEN** ETHOS reports the foreign lane path, branch, head, and role from git
   worktree metadata
-- **AND** ETHOS reports `foreign_work_lane_present` as a required gap
+- **AND** ETHOS reports `foreign_work_lane_present` as a coordination signal
 - **AND** ETHOS does not read, modify, close, or clean the foreign lane
+- **AND** ETHOS reports the current actor capability as observe-only, with
+  foreign lane write, land, and retire actions forbidden unless a later owner,
+  handoff, or maintainer break-glass path admits them
 
 ### Requirement: Prewrite Admission
 ETHOS SHALL gate tracked writes through the current Work Lane role and editor
@@ -155,4 +158,3 @@ change is explicitly selected.
   OpenSpec list output
 - **AND** each change is checked for carriers, claim binding, proposal metadata,
   capability profile health, and out-of-scope boundaries.
-

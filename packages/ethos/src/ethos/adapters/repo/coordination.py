@@ -8,6 +8,12 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 if TYPE_CHECKING:
     from pathlib import Path
 
+FOREIGN_WORK_LANE_ALLOWED_ACTIONS = ("observe",)
+FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
+FOREIGN_WORK_LANE_WRITE_POLICY = "owner_only"
+FOREIGN_WORK_LANE_RETIRE_POLICY = "owner_handoff_or_maintainer_break_glass"
+FOREIGN_WORK_LANE_HANDOFF_REQUIRED = True
+
 
 def branch_path_scope(
     root: Path,
@@ -87,6 +93,18 @@ def foreign_work_lane(
             foreign_path_scope=path_scope,
             foreign_scope_state=scope_state,
         ),
+        **foreign_work_lane_capability(),
+    }
+
+
+def foreign_work_lane_capability() -> dict[str, object]:
+    return {
+        "current_actor_capability": "observe",
+        "allowed_actions": list(FOREIGN_WORK_LANE_ALLOWED_ACTIONS),
+        "forbidden_actions": list(FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS),
+        "write_policy": FOREIGN_WORK_LANE_WRITE_POLICY,
+        "retire_policy": FOREIGN_WORK_LANE_RETIRE_POLICY,
+        "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
     }
 
 

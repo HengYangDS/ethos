@@ -415,6 +415,12 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
     assert lane["lease_owner"] == "agent:test"
     assert lane["path_scope"] == []
     assert lane["coordination_state"] == "advisory"
+    assert lane["current_actor_capability"] == "observe"
+    assert lane["allowed_actions"] == ["observe"]
+    assert lane["forbidden_actions"] == ["write", "land", "retire"]
+    assert lane["write_policy"] == "owner_only"
+    assert lane["retire_policy"] == "owner_handoff_or_maintainer_break_glass"
+    assert lane["handoff_required"] is True
 
 
 def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> None:

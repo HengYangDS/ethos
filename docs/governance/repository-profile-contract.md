@@ -46,6 +46,10 @@ The profile may declare:
 - references to tool configuration and boundary configuration;
 - durable, generated, and host-local evidence roots;
 - migration backend selection, when dual backends are still active.
+- adopter retirement boundaries: the generic binding manifest, the execution
+  config root, forbidden product-core adopter roots, external backend state,
+  embedded fallback state, and the tracked policy/evidence path proving the
+  rollback window.
 
 The profile must not declare:
 
@@ -137,6 +141,30 @@ A repository profile validator must fail closed when:
 - a profile redefines public command semantics;
 - an adapter command lacks declared output shape or exit semantics;
 - changed paths cannot be classified and no explicit unknown-path policy exists.
+
+## Retirement Readiness
+
+Embedded-adopter retirement is a profile and evidence verdict, not a product
+directory convention. ETHOS checks it through:
+
+```bash
+ethos fleet retirement-readiness --target <repo> --json
+```
+
+The verdict is generic across monorepos, single repositories, documentation
+repositories, data repositories, and infrastructure repositories. It requires:
+
+- `.ethos/profile.toml` as the binding manifest;
+- `.config/` as the adopter-owned execution/config root when the adopter uses
+  repository-native gate configuration;
+- `external_backend.minimum_version = "external>=embedded"`;
+- shadow parity evidence with zero false negatives;
+- a reversible external-default phase;
+- embedded backend freeze as fallback/reference;
+- rollback-window evidence before a separate Retirement Decision;
+- absence of adopter-private product roots such as `adopters/<repo>`,
+  `profiles/<repo>`, or `tests/fixtures/adopters/<repo>` unless the adopter
+  profile explicitly marks them as fixture-only outside product ontology.
 
 ## Product Boundary
 

@@ -103,6 +103,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos playbooks check",
     "ethos fleet",
     "ethos fleet inspect",
+    "ethos fleet retirement-readiness",
     "ethos lane",
     "ethos lane status",
     "ethos lane candidate",

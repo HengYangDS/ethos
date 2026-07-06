@@ -98,6 +98,18 @@ Only after the rollback window may a separate Retirement Decision decide whether
 the embedded implementation is deleted, archived, or kept as a long-term frozen
 fallback.
 
+The executable pre-decision gate is:
+
+```bash
+ethos fleet retirement-readiness --target <repo> --json
+```
+
+This gate reads the adopter's `.ethos/profile.toml`, rejects product-core
+adopter directories declared forbidden by that profile, checks tracked/live
+shadow parity, requires `external>=embedded`, requires the embedded backend to
+be frozen as fallback/reference, and keeps rollback-window evidence separate
+from the final Retirement Decision.
+
 The decision must answer:
 
 - what rollback path remains;

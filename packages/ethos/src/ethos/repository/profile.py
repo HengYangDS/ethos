@@ -26,26 +26,32 @@ class RepositoryProfile:
     exists: bool
     valid: bool
     source: str
+    identity: dict[str, str]
     roots: dict[str, str]
     evidence: dict[str, tuple[str, ...]]
     previous_projection: dict[str, str]
+    tables: dict[str, dict[str, Any]]
 
 
 def load_repository_profile(root: Path) -> RepositoryProfile:
     repo = root.resolve()
     profile_path = repo / ".ethos" / "profile.toml"
     roots = dict(DEFAULT_ROOTS)
+    identity: dict[str, str] = {}
     evidence: dict[str, tuple[str, ...]] = {}
     previous_projection: dict[str, str] = {}
+    tables: dict[str, dict[str, Any]] = {}
     if not profile_path.exists():
         return RepositoryProfile(
             root=repo,
             exists=False,
             valid=True,
             source="",
+            identity=identity,
             roots=roots,
             evidence=evidence,
             previous_projection=previous_projection,
+            tables=tables,
         )
     try:
         payload = tomllib.loads(profile_path.read_text(encoding="utf-8"))
@@ -55,10 +61,19 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
             exists=True,
             valid=False,
             source=".ethos/profile.toml",
+            identity=identity,
             roots=roots,
             evidence=evidence,
             previous_projection=previous_projection,
+            tables=tables,
         )
+    identity = {
+        str(key): str(value)
+        for key, value in payload.items()
+        if key in {"profile_id", "profile_version", "ethos_contract_version"}
+        and isinstance(value, (str, int))
+    }
+    tables = {str(key): value for key, value in payload.items() if isinstance(value, dict)}
     raw_roots = payload.get("roots")
     if isinstance(raw_roots, dict):
         for key, value in raw_roots.items():
@@ -81,9 +96,11 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
         exists=True,
         valid=True,
         source=".ethos/profile.toml",
+        identity=identity,
         roots=roots,
         evidence=evidence,
         previous_projection=previous_projection,
+        tables=tables,
     )
 
 
@@ -112,6 +129,11 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     for key in ("durable_roots", "generated_roots", "host_local_roots"):
         candidates.extend(profile.evidence.get(key, ()))
     return tuple(dict.fromkeys(item for item in candidates if item))
+
+
+def profile_table(root: Path, key: str) -> dict[str, Any]:
+    profile = load_repository_profile(root)
+    return dict(profile.tables.get(key, {}))
 
 
 def table_version(payload: dict[str, Any]) -> int:

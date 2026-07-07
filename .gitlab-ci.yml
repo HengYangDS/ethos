@@ -7,6 +7,20 @@ variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: .uv-cache
 
+# Auto-retry every job on infrastructure failures only (image-pull timeouts to
+# Docker Hub, runner crashes, API hiccups) — the runner's egress to external
+# registries is intermittently flaky, and a governance gate that goes red on a
+# transient pull is noise, not a real breach. Never retries script_failure, so a
+# genuine gate breach still fails the pipeline.
+default:
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - scheduler_failure
+
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
 # (architecture), docstrings, bandit (security), config (TOML/YAML format+lint),

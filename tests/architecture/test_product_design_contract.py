@@ -57,12 +57,13 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     assert "not current scope" in text
 
 
-def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -> None:
-    tao = read("system/tao.md")
+def test_axioms_and_kernel_keep_root_text_subordinate_and_restrained() -> None:
+    contract = read("docs/governance/product-design-contract.md")
+    axioms = read("system/axioms.md")
     kernel = read("docs/concepts/kernel-model.md")
     spec = read("openspec/specs/kernel/spec.md")
 
-    for phrase in (
+    root_phrases = (
         "道隐无名",
         "几动于微",
         "法乎自然",
@@ -75,46 +76,46 @@ def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -
         "物遂其性",
         "化育无穷",
         "玄德",
-    ):
-        assert phrase in tao
-        assert phrase in kernel
+    )
+    for phrase in root_phrases:
+        assert phrase in contract
+        assert phrase not in axioms
 
     for anchor in (
-        "root generative constraint",
-        "hidden authority",
-        "one kernel",
-        "domain-fit measure",
-        "boundary-preserving growth",
-        "future frameworks enter by contract",
+        "machine-adjacent engineering reading",
+        "canonical root text lives only in the Product Design Contract",
+        "does not restate the verse",
+        "does not create a second truth center",
+        "Authority before surface",
+        "Evidence before claim",
+        "Parsimony before expansion",
     ):
-        assert anchor in tao
+        assert anchor in axioms
 
     for anchor in (
-        "Root Philosophy Derivation",
-        "deeper than any named vendor",
-        "truth and projection",
-        "product semantics and adapter boundary",
-        "local models",
-        "future frameworks",
+        "Root Interpretation Boundary",
+        "not a translation of that text",
+        "not a philosophical subsystem",
+        "engineering compression",
         "which kernel object it projects",
+        "does not own the root text",
     ):
         assert anchor in kernel
 
     for anchor in (
-        "compact root philosophy as a generative constraint",
-        "Root philosophy constrains future projections",
-        "local model",
-        "tool framework",
+        "root text as a judgment constraint",
+        "subsystem, feature map, or low-level implementation label",
+        "Root text remains canonical and restrained",
+        "concrete engineering invariants rather than philosophical labels",
         "new truth center",
-        "authority, subject, boundary, evidence, and projection role",
     ):
         assert anchor in spec
 
 
-def test_product_design_contract_operationalizes_root_philosophy() -> None:
+def test_product_design_contract_operationalizes_root_constraint() -> None:
     text = read("docs/governance/product-design-contract.md")
 
-    assert "## Root Philosophy" in text
+    assert "## Root Constraint" in text
     for phrase in (
         "道隐无名",
         "几动于微",
@@ -132,15 +133,16 @@ def test_product_design_contract_operationalizes_root_philosophy() -> None:
         assert phrase in text
 
     for operational_anchor in (
+        "ETHOS 为名" + chr(0xFF0C) + "问道为根",
         "not an external slogan",
-        "JudgmentSource",
-        "single kernel",
-        "truth boundary",
-        "profile or adapter boundary",
-        "binding taxonomy",
-        "command JSON",
-        "evidence",
-        "adapters remain adapters",
+        "line-by-line",
+        "module map",
+        "one kernel keeps the",
+        "center",
+        "truth and projection remain separate",
+        "evidence limits claims",
+        "adapters stay adapters",
+        "system/axioms.md` is only a machine-adjacent derivation",
     ):
         assert operational_anchor in text
 
@@ -456,3 +458,37 @@ def test_product_package_and_migration_host_sets_are_disjoint() -> None:
     assert "ethos" in target_packages
     assert "ethos" not in migration_hosts
     assert ontology["migration_host_lifecycle"] == {}
+
+
+def test_low_level_active_surfaces_do_not_use_philosophy_labels() -> None:
+    scanned_roots = (
+        ROOT / "packages",
+        ROOT / "system",
+        ROOT / ".config",
+        ROOT / ".githooks",
+    )
+    allowed = {ROOT / "system" / "axioms.md"}
+    forbidden = (
+        "system/" + "tao",
+        "tao " + "First",
+        "tao " + "FP",
+        "ETHOS " + "Ta" + "o",
+        "道" + ":",
+    )
+    offenders: list[str] = []
+    for base in scanned_roots:
+        for path in base.rglob("*"):
+            if not path.is_file() or path in allowed:
+                continue
+            if any(part in {"__pycache__", ".pytest_cache", ".ruff_cache"} for part in path.parts):
+                continue
+            if path.suffix in {".pyc", ".coverage"}:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if any(term in text for term in forbidden):
+                offenders.append(path.relative_to(ROOT).as_posix())
+
+    assert offenders == []

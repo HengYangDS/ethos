@@ -2,8 +2,8 @@ schema = "system/schemas/contracts/invalid_states.schema.json"
 
 # ETHOS invalid-state taxonomy — the SSOT.
 #
-# First axiom (system/tao.md): a governance product is worth only the invalid states
-# it makes unreachable. ETHOS is therefore a repository trust-transition system: a
+# Derived from system/axioms.md: governance must make invalid states
+# unreachable. ETHOS is therefore a repository trust-transition system: a
 # state transition is trustworthy iff every node of the kernel chain is satisfied —
 #
 #   Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle

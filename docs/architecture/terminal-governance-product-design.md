@@ -4,7 +4,7 @@ role: target-design
 state: active
 relations:
   canonical_for: destructive terminal redesign target after user authorization
-  derives_from: product design conversation, ETHOS current docs, dmgr rules, di-effect Tao
+  derives_from: product design conversation, ETHOS current docs, dmgr rules, di-effect governance patterns
 ---
 
 # Terminal Governance Product Design
@@ -57,7 +57,7 @@ The terminal model uses five layers:
 
 | Layer | Meaning | Repository carrier |
 | --- | --- | --- |
-| Tao | Aesthetic and value judgment. What is worth preserving, simplifying, or rejecting. | `system/tao.md`, `ETHOS.md` |
+| Axioms | Machine-adjacent engineering invariants derived from the root text. | `system/axioms.md`, `ETHOS.md` |
 | Contract | Machine-checkable obligations and boundaries. | `system/*.toml`, `system/schemas/`, OpenSpec specs |
 | Method | Workflows and procedures for safe change. | `system/workflows.toml`, `rules/`, OpenSpec changes |
 | Instrumentation | Mature tools used well, or small tools built to fit. | `.config/`, `system/tools.toml`, `extensions/` |
@@ -71,7 +71,7 @@ The writing standard is:
 | Expressive | Humans and machines can recover intent. | Markdown for judgment, TOML for durable config, JSON for API output. |
 | Elegant | No excess surface. | Delete parallel entities, wrappers, and historical residue. |
 
-## First Principles
+## Axioms
 
 1. A repository governance product is useful only when it reduces invalid states.
 1. Failure blocking must move upstream. The best gate is the one that makes an
@@ -107,7 +107,7 @@ Use formats by author and lifecycle, not by habit.
 
 | Carrier | Use | Not for |
 | --- | --- | --- |
-| Markdown | Human judgment, Tao, design, reviews, retrospectives, docs. | Machine-only state or large append-only event streams. |
+| Markdown | Human judgment, design, reviews, retrospectives, docs. | Machine-only state or large append-only event streams. |
 | TOML | Durable repository config, routing, workflows, manifests, tool catalog, extension manifests. | Public API output or high-volume events. |
 | JSON | Command output, MCP payloads, external standards, JSON Schema instances, SPDX, SLSA, in-toto. | Hand-authored repository truth when TOML is clearer. |
 | YAML | Ecosystem-native files only: CI, Kubernetes, OpenAPI, action metadata. | ETHOS-owned semantics. |
@@ -335,7 +335,7 @@ This is the desired repository shape after destructive migration:
 |-- pyproject.toml
 |-- uv.lock
 |-- system/
-|   |-- tao.md
+|   |-- axioms.md
 |   |-- authority.toml
 |   |-- formats.toml
 |   |-- routing.toml
@@ -417,7 +417,7 @@ This is the desired repository shape after destructive migration:
 | Path | Semantic duty |
 | --- | --- |
 | `README.md` | Product overview and first-hour usage. |
-| `ETHOS.md` | Human governance entrypoint and compressed Tao. |
+| `ETHOS.md` | Human governance entrypoint and compressed root reading. |
 | `AGENTS.md` | Thin neutral entrypoint that points to canonical surfaces. |
 | `CONTRIBUTING.md` | Human contribution workflow. |
 | `CHANGELOG.md` | Release history generated or checked by release policy. |
@@ -441,7 +441,7 @@ Required files:
 
 | Path | Duty |
 | --- | --- |
-| `system/tao.md` | Human source for value judgment and compression. |
+| `system/axioms.md` | Machine-adjacent engineering invariants derived from the root text. |
 | `system/authority.toml` | Authority order and conflict resolution. |
 | `system/formats.toml` | Carrier policy. |
 | `system/routing.toml` | Subject resolver, stage map, proof-set routing. |
@@ -701,7 +701,7 @@ Plugin execution:
 | Third-party or untrusted | Subprocess JSON protocol. |
 | Data-only | TOML manifest, schemas, templates, no Python execution. |
 
-Extensions cannot define Tao, override contracts, bypass workflows, or promote
+Extensions cannot define root judgment, override contracts, bypass workflows, or promote
 truth without evidence.
 
 ### `scaffolds/`

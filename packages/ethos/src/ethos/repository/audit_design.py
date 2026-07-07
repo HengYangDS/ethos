@@ -16,9 +16,9 @@ DESIGN_INTEGRITY_REQUIRED_TERMS = {
     "docs/governance/product-design-contract.md": (
         "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle",
         "not an external slogan",
-        "single kernel",
-        "truth boundary",
-        "profile or adapter boundary",
+        "one kernel keeps the center",
+        "truth and projection remain separate",
+        "adapters stay adapters",
         "Configuration follows separation of concerns, MECE, SSOT, and DRY",
         "OpenSpec remains mandatory governance, not a product substrate",
         "not a generic VCS abstraction",
@@ -29,9 +29,9 @@ DESIGN_INTEGRITY_REQUIRED_TERMS = {
         "publish",
     ),
     "docs/concepts/kernel-model.md": (
-        "Root Philosophy Derivation",
-        "truth and projection",
-        "product semantics and adapter boundary",
+        "Root Interpretation Boundary",
+        "not a translation of that text",
+        "engineering compression",
         "which kernel object it projects",
     ),
     "docs/reference/command-plane.md": (
@@ -87,7 +87,7 @@ def _design_integrity_report(root: Path) -> dict[str, object]:
 
     This is deliberately a projection over existing canonical docs, not a new
     source of product truth. It catches small design drifts where the transition
-    loop, Tao/kernel constraint, configuration separation, or provider boundary
+    loop, root/axiom constraint, configuration separation, or provider boundary
     silently disappears while lower-level tests still pass.
     """
     required_gaps: list[str] = []

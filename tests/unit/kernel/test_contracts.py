@@ -172,7 +172,7 @@ def test_system_contracts_all_load() -> None:
     contracts = report["contracts"]
     assert isinstance(contracts, dict)
     # Every declared system-tier contract is present and parseable — system/ is
-    # load-bearing, not inert prose (tao First Principle #5: derive don't store).
+    # load-bearing, not inert prose (the parsimony invariant: derive rather than store twice).
     assert all(contracts.values())
     assert set(contracts) >= {"authority", "evidence_boundaries", "workflows"}
 

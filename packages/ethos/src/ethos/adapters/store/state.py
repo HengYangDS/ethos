@@ -221,7 +221,7 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
 
     Called on lane retirement so a lease cannot outlive its lane — a destroyed and
     later recreated same-named branch must not present a resolvable stale lease
-    (tao First Principle #3: a truth store that cannot be proved is not one).
+    (a truth store that cannot be proved is not a trustworthy store).
     """
     if not db_path.exists():
         return 0

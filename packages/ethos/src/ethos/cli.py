@@ -606,8 +606,8 @@ def init(
     hooks_armed = False
     if do_apply and ok:
         # Arm write-admission by construction: wire core.hooksPath so the pre-commit
-        # gate is active without a manual `ethos hook install` (tao FP#2 — the gate
-        # must not depend on being remembered).
+        # gate is active without a manual `ethos hook install`; admission must not
+        # depend on being remembered.
         hooks_armed = _gitio.set_hooks_path(target, ".githooks")
     result = EthosResult(
         command="init",
@@ -656,7 +656,7 @@ def adopt(
     ok = not required_gaps
     hooks_armed = False
     if do_apply and ok:
-        # Arm write-admission by construction (tao FP#2 — not dependent on a manual step).
+        # Arm write-admission by construction; admission must not depend on a manual step.
         hooks_armed = _gitio.set_hooks_path(target, ".githooks")
     result = EthosResult(
         command="adopt",

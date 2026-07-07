@@ -6,7 +6,7 @@
 # the verdict is "block" (a protected-root tracked write from a non-authorized
 # role). This is the local commit entrance that consumes the admission verdict's
 # non-zero exit code — failure-blocking moved upstream from CI to the commit
-# (tao First Principle #2).
+# (the proof-binding invariant).
 #
 # Work-lane commits pass (editor-root declared = this repo). Only protected
 # accepted-root tracked writes are refused here.

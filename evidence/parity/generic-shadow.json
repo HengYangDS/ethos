@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b525f944c82e777235348f0eb2767236fa62fc41",
-    "target_head": "b525f944c82e777235348f0eb2767236fa62fc41",
-    "product_semantic_sha256": "a341d94864085bc02aaec589497cf0b6e4d97c698fbe263da3ea6abfb17c79c9",
-    "target_semantic_sha256": "a341d94864085bc02aaec589497cf0b6e4d97c698fbe263da3ea6abfb17c79c9",
+    "product_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
+    "target_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
+    "product_semantic_sha256": "6fc2ed74018b616edd268853b3ceda1d3b385b3d0d1c0b5be366e2c6bd579738",
+    "target_semantic_sha256": "6fc2ed74018b616edd268853b3ceda1d3b385b3d0d1c0b5be366e2c6bd579738",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-proof-closeout-carry",
-    "target_head": "b525f944c82e777235348f0eb2767236fa62fc41",
-    "product_head": "b525f944c82e777235348f0eb2767236fa62fc41",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity",
+    "target_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
+    "product_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-proof-closeout-carry --json",
-      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-proof-closeout-carry --json"
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
+      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,27 +76,27 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "9608ac87eb524c01e616e6b7fd5efbbfd555f9fe25a2e9280b5c0240ff938f2c"
+        "sha256": "df0d14373226bbd51e8404455f1791129579bd72a6166a1bc8a187ec52406c32"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "715acdb1763b150955670cea1dcaf6f38a3eb192a20856ec430ecd2ba8b70fed"
+        "sha256": "da528d86c421a372a2bd273d7a6523fe470fb3753dfe2020d5b44af56e05d50b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "97387f56adcd318a002bd5799f97db3ec86fd01e3d18c11179d9cd419f97ec31"
+        "sha256": "bde7e96711e4b518ccd4deeb3451e47fbba4635fa257dee022ebdfc19ce2309c"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "b7985c1d4b78d18dc43b9a7d51cce21ae5b72fbf748060f58a359aa6d22ffd65"
+        "sha256": "541f89802b0e818c5515dbe8bdd8dce08becf09de54ed8ae2dad6f9e85d24fca"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "70098ec7835955125f5582b41e7fe54e03e29dff7a87d2e5483ba70641a7c167"
+        "sha256": "73cf75207ab822b642badea82cfa07a1f5898ad9cb5ebb6e8e1b17bdc44e0230"
       }
     ]
   },

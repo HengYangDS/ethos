@@ -3,13 +3,13 @@ id = "ethos-root-philosophy-kernel"
 change_id = "root-philosophy-kernel-20260705"
 subject = "ethos:root-philosophy-kernel"
 state = "active"
-summary = "ETHOS carries the compact root philosophy as an operational Tao and kernel constraint for future projections, tools, local models, adapters, and frameworks."
+summary = "ETHOS keeps the root text bound to the kernel as a restrained judgment constraint while the current derived machine-adjacent reading lives in system/axioms.md."
 
 [evidence]
 dated = "evidence/chronicle/root-philosophy-kernel/2026-07-05.md"
 sha256 = "5f2eb18fd2a4e0c887b428a933daddc2ace274e6df8caacd915734c620e875b8"
 evidence_ids = ["evidence:ethos-root-philosophy-kernel"]
-binding = "semantic root philosophy kernel evidence binding"
+binding = "semantic root-constraint kernel evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/governance/test_docs_registry.py",
@@ -21,18 +21,18 @@ tests = [
 
 [boundary]
 owner = "ethos-core"
-scope = "Root philosophy as Tao and kernel generative constraint for boundary-preserving future surfaces"
+scope = "Root text as restrained kernel judgment constraint for boundary-preserving future surfaces"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705"
-fallback = "Keep the Product Design Contract root philosophy section as the reader-facing explanation if the Tao or kernel derivation needs revision."
+fallback = "Keep the Product Design Contract root constraint section as the reader-facing explanation if the derived axiom file needs revision."
 kill_signal = "Future tools, models, assistants, hosts, or frameworks become truth centers instead of projections derived from the ETHOS kernel chain."
 
 [promotion]
 targets = [
   "evidence/claims/ethos-root-philosophy-kernel.toml",
   "evidence/chronicle/root-philosophy-kernel/2026-07-05.md",
-  "system/tao.md",
+  "system/axioms.md",
   "docs/concepts/kernel-model.md",
   "docs/governance/product-design-contract.md",
   "docs/architecture/package-ontology.md",

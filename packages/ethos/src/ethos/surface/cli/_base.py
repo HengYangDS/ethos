@@ -90,7 +90,7 @@ def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> Non
     with a non-zero status AFTER printing — so every verdict is consumable by any
     caller (git hook, CI, MCP host, `&& deploy` chains) via exit status, not just
     readable as JSON. This is the edge that turns "reports a verdict" into "a process
-    that refuses" (tao First Principle #2: failure-blocking moves upstream).
+    that refuses" (failure-blocking moves upstream).
 
     Read-only / report commands that legitimately return a non-ok scorecard WITHOUT
     refusing (status, plan, report, rules listing) must pass enforce=False EXPLICITLY

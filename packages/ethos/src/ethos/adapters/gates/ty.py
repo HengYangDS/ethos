@@ -5,7 +5,7 @@ The ty ratchet (.config/checks/ty/policy.toml) declared enforcement via an
 (packages/ethos grew past its pin with nothing blocking). This adapter is the
 runner that binds the policy to a real gate: it runs ty per package and fails when a
 zero-tolerance package has ANY diagnostic or a ratchet package exceeds its baseline
-(tao First Principle #2: failure-blocking moves upstream; the ratchet may only shrink).
+(failure-blocking moves upstream; the ratchet may only shrink).
 """
 
 from __future__ import annotations

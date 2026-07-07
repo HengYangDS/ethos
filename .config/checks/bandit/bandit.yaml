@@ -1,7 +1,7 @@
 # Bandit security-gate config — separated from pyproject.toml (SoC).
 # Run: bandit -r packages/ -c .config/checks/bandit/bandit.yaml
 #
-# 道: catch REAL security issues (hardcoded secrets, shell=True, eval, unsafe
+# Catch real security issues (hardcoded secrets, shell=True, eval, unsafe
 # yaml/pickle) with zero tolerance for HIGH/MEDIUM. A small set of by-design
 # patterns is documented and skipped — not blanket-disabled.
 

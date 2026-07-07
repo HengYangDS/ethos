@@ -65,7 +65,7 @@ ethos explain
 ethos docs
 ```
 
-## Root Philosophy
+## Root Constraint
 
 ETHOS keeps this root text:
 
@@ -76,23 +76,26 @@ ETHOS keeps this root text:
 > 万象昭幽，度协畛域，枢得环中；
 > 物遂其性，化育无穷，是谓玄德。
 
-This is not an external slogan and not a feature map. It is the product's root
-constraint: authority must stay deeper than named surfaces, small repository
-signals must become visible before they become disorder, measures must fit their
-boundaries, and governance must let Git, OpenSpec, evidence, claims, adapters,
-local state, and assistant projections keep their own nature instead of being
-absorbed into a false center.
+ETHOS 为名，问道为根. This text is not an external slogan, subsystem,
+feature map, or naming scheme. It is the product's root constraint on
+judgment: truth stays deeper than any named tool; small disorder is treated as
+an early signal; governance follows the natural shape of the repository and of
+the systems it touches; distinctions are made only when they decide action;
+conflict is closed through bounded change, evidence, claim, and chronicle;
+hidden state is made inspectable; measures stay inside their domains; and Git,
+OpenSpec, CI, local state, agents, adapters, evidence, and claims are allowed
+to remain what they are rather than being absorbed into ETHOS.
 
-Do not turn this root text into a line-by-line module map. Its engineering
-reading is deliberately plain: JudgmentSource preserves authority; one single kernel keeps the center; truth boundary and profile or adapter boundary prevent
-false absorption; binding taxonomy keeps measures domain-appropriate; command
-JSON and evidence make hidden state inspectable; adapters remain adapters.
-`system/tao.md` may restate these axioms for machine-adjacent review, but it is
-not a separate product truth center and must stay derivable from this contract
-and the kernel model.
+Read the root text as a constraint on how ETHOS judges, not as a line-by-line
+module map. The engineering reading is deliberately plain: one kernel keeps the center;
+truth and projection remain separate; evidence limits claims; measures fit their
+boundary; transition commands close the loop; adapters stay adapters.
+`system/axioms.md` is only a machine-adjacent derivation for checks and reviews.
+It does not restate the root text, does not create another truth center, and
+must remain subordinate to this contract.
 
-Engineering names remain plain and precise: kernel, evidence, claim, chronicle,
-adapter, profile, and transition loop mean what they say.
+Engineering names therefore stay ordinary: kernel, evidence, claim, chronicle,
+adapter, profile, transition loop, and axiom mean what they say.
 
 ## Kernel Chain
 

@@ -16,8 +16,8 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 [lint]
-# Maximalist rule set toward di-effect's 57-family posture (道: raise the quality
-# floor, make low-quality unrepresentable). Correctness + determinism + elegance +
+# Maximalist rule set toward di-effect's 57-family posture: raise the quality
+# floor and make low-quality code unrepresentable. Correctness + determinism + elegance +
 # security + exception hygiene + boolean-trap + private-access + logging.
 select = [
   "E",

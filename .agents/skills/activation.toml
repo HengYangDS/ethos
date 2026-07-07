@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:ef060e14f2fa1ab6f4ea41b8dbe6644a89901d1561b356c4137d9628950633be"
+expected_registry_digest = "sha256:06cca8221ffdf0fcdf1dc672776beb948f79ac51cb9c9afd546422797867063f"
 expected_generator_digest = "sha256:eb3b84583ee7cc26a50336a0384fe7bb4745e04c38d1ec23770c56d6a47f235a"
 
 [coverage]
@@ -92,7 +92,7 @@ intent_tokens = [
   "change",
   "loop",
 ]
-pre_reads = ["AGENTS.md", "rules/mutation.md", "system/tao.md"]
+pre_reads = ["AGENTS.md", "rules/mutation.md", "system/axioms.md"]
 during_rules = [
   "read the decision verdict; never assume success",
   "dry-run readiness is not executed proof",

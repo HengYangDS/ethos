@@ -1,0 +1,51 @@
+[claim]
+id = "root-philosophy-clarity"
+change_id = "root-philosophy-clarity"
+subject = "ethos:root-constraint-clarity"
+state = "active"
+summary = "ETHOS keeps 问道 as the Product Design Contract root constraint while derived axioms remain subordinate and active low-level surfaces use concrete engineering invariants."
+
+[evidence]
+dated = "evidence/chronicle/root-philosophy-clarity/2026-07-07.md"
+sha256 = "94fbe36b1b690d1936dc7f314ec8dc7698cdc287bb92446b0928a327d1ca3b30"
+evidence_ids = ["evidence:root-philosophy-clarity"]
+binding = "semantic root constraint clarity evidence binding"
+verifier = "semantic"
+tests = [
+  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev pytest tests/architecture/test_product_design_contract.py tests/unit/kernel/test_contracts.py -q",
+  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --change root-philosophy-clarity --json",
+  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos audit --mode shape --json",
+  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --lifecycle --json",
+  ".config/ci/scripts/run-python-lint.sh",
+  ".config/ci/scripts/run-config-lint.sh",
+  ".config/ci/scripts/run-shell-lint.sh",
+  "git diff --check",
+]
+
+[boundary]
+owner = "ethos-core"
+scope = "Root text, derived axioms, kernel interpretation boundary, and active low-level philosophy-label restraint"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-root-philosophy-clarity"
+fallback = "Keep the Product Design Contract root constraint section canonical and treat system/axioms.md as subordinate review vocabulary."
+kill_signal = "A tool, provider, derived axiom file, or philosophical label becomes a new truth center or low-level implementation ontology."
+
+[promotion]
+targets = [
+  "evidence/claims/root-philosophy-clarity.toml",
+  "evidence/chronicle/root-philosophy-clarity/2026-07-07.md",
+  "system/axioms.md",
+  "docs/governance/product-design-contract.md",
+  "docs/concepts/kernel-model.md",
+  "rules/module_layout.md",
+  "openspec/specs/kernel/spec.md",
+  "openspec/changes/archive/2026-07-07-root-philosophy-clarity/proposal.md",
+  "openspec/changes/archive/2026-07-07-root-philosophy-clarity/design.md",
+  "openspec/changes/archive/2026-07-07-root-philosophy-clarity/tasks.md",
+  "openspec/changes/archive/2026-07-07-root-philosophy-clarity/specs/kernel/spec.md",
+  "tests/architecture/test_product_design_contract.py",
+  "tests/unit/kernel/test_contracts.py",
+  "packages/ethos/src/ethos/repository/audit_design.py",
+  ".agents/skills/activation.toml",
+]

@@ -6,8 +6,8 @@ organization is a correctness property, not a matter of taste: a reader or a too
 must be able to tell, from name and place alone, what a symbol is for and whether
 it may be depended upon.
 
-Derived from `system/tao.md` (Writing Standard: Elegant — no excess surface) and
-the di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
+Derived from the parsimony axiom in `system/axioms.md` and the
+di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
 
 ---
 
@@ -53,7 +53,7 @@ the di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
   `from ethos.domain.plan import graph_for_paths`, not a re-export shell.
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
-  (`from x import y as main`). Compatibility residue is a cost center (tao FP#8).
+  (`from x import y as main`). Compatibility residue is a cost center.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
   cyclopts command signatures, whose annotation types must stay runtime imports.
@@ -101,7 +101,7 @@ architecture; these rules make the claim honest and checkable.
   2. a module is bound as a namespace and its dotted path is too long to repeat
      (`import ethos_repository.repository_audit as repository_audit_module`).
 - **Do NOT use `as` to add a `_` prefix** (`emit as _emit`, `resolve_root as
-  _root`). That is compatibility residue (tao FP#8) — it exists only to preserve old
+  _root`). That is compatibility residue — it exists only to preserve old
   call sites. Use the real public name (`emit`, `resolve_root`) and update callers.
   A leading `_` marks a definition private in ITS OWN module; it is not an import
   decoration.

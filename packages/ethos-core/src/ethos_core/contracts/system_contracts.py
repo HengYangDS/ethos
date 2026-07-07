@@ -1,10 +1,9 @@
 """System-contract loader — makes system/*.toml load-bearing.
 
 Reads the machine governance kernel's declarative contracts off disk so downstream
-code DERIVES behavior from the contract instead of hardcoding it (tao First
-Principle #5). Lives in ethos-contracts (the layer permitted TOML IO); the kernel
-stays a pure leaf (ethos-contracts must not import ethos_core per the pure-leaf
-contract), so the contract-name list is owned here.
+code derives behavior from the contract instead of hardcoding it. This loader
+lives in ethos-contracts, the layer permitted TOML IO; the kernel stays a pure
+leaf, so the contract-name list is owned here.
 """
 
 from __future__ import annotations
@@ -63,7 +62,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
     A gap means the machine governance kernel's contract surface is missing, malformed,
     or claims a schema that does not exist — all blocking, because downstream
     derivation reads from these contracts and a decorative `schema=` ref is an
-    unenforced claim (tao First Principle #2: the reference must bind, not decorate).
+    unenforced claim (the reference must bind, not decorate).
     """
     loaded: dict[str, bool] = {}
     gaps: list[str] = []

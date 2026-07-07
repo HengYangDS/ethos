@@ -24,7 +24,7 @@ def _proof_gaps(root: Path, current_head: str) -> list[str]:
     Binds the mutation to executed proof: a land/publish cannot proceed unless
     `ethos prove --execute` recorded a proof at this HEAD. This is the runtime
     precondition that turns "only proven evidence may satisfy land/publish" from
-    prose into an enforced barrier (tao First Principle #2 / #3).
+    prose into an enforced barrier (the proof and executability invariants).
     """
     record = executed_proof_record(root, current_head)
     if record is None:

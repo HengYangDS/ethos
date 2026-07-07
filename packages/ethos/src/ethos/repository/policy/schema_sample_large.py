@@ -270,6 +270,7 @@ def _workspace_status_contract_sample() -> dict[str, Any]:
             "blocking": False,
             "required_gaps": [],
             "advisory_gaps": [],
+            "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
             "foreign_work_lane_count": 0,
             "unbound_work_lane_count": 0,
             "unbound_work_lane_refs": [],

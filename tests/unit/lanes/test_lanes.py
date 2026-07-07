@@ -221,6 +221,16 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "foreign_work_lane_present",
             "work_lane_missing_lease:work/foreign",
         ],
+        "invalid_states": {
+            "categories": {
+                "change_unbounded": [
+                    "foreign_work_lane_present",
+                    "work_lane_missing_lease:work/foreign",
+                ]
+            },
+            "category_count": 1,
+            "gap_count": 2,
+        },
         "foreign_work_lane_count": 1,
         "unbound_work_lane_count": 0,
         "unbound_work_lane_refs": [],

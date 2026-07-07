@@ -4,6 +4,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.invalid_states import invalid_state_projection
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -168,6 +169,7 @@ def coordination_package(
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "advisory_gaps": list(advisory_gaps),
+        "invalid_states": invalid_state_projection([*required_gaps, *advisory_gaps]),
         "foreign_work_lane_count": len(foreign_work_lanes),
         "unbound_work_lane_count": len(unbound_refs),
         "unbound_work_lane_refs": unbound_refs,

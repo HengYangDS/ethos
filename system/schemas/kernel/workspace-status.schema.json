@@ -588,6 +588,7 @@
         "blocking",
         "required_gaps",
         "advisory_gaps",
+        "invalid_states",
         "foreign_work_lane_count",
         "unbound_work_lane_count",
         "unbound_work_lane_refs",
@@ -615,6 +616,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "invalid_states": {
+          "type": "object"
         },
         "foreign_work_lane_count": {
           "type": "integer",

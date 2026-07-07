@@ -1,0 +1,52 @@
+[claim]
+id = "coordination-invalid-state-projection"
+subject = "ethos:coordination-invalid-state-projection"
+state = "active"
+summary = "ETHOS status projects Work Lane coordination required and advisory gaps into the shared invalid-state taxonomy."
+
+[evidence]
+dated = "evidence/chronicle/coordination-invalid-state-projection/2026-07-07.md"
+sha256 = "b276ca4bba7349afdd0f4ab1d352a9a3dd6bd272fc03ad76a56531d6374f68e8"
+evidence_ids = ["evidence:coordination-invalid-state-projection"]
+binding = "semantic Work Lane coordination invalid-state projection"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/governance/test_validation_gates.py tests/unit/kernel/test_invalid_states.py -q",
+  ".config/ci/scripts/run-python-lint.sh && .config/ci/scripts/run-config-lint.sh",
+  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection uv run --group dev ethos status --json",
+]
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = [
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/kernel/test_invalid_states.py",
+]
+schemas = ["system/schemas/kernel/workspace-status.schema.json"]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Work Lane coordination read-model invalid-state projection"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection"
+fallback = "Keep coordination advisory gaps visible without taxonomy projection."
+kill_signal = "status coordination advisory gaps are visible but cannot be grouped by invalid-state category."
+
+[promotion]
+targets = [
+  "evidence/claims/coordination-invalid-state-projection.toml",
+  "evidence/chronicle/coordination-invalid-state-projection/2026-07-07.md",
+  "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/proposal.md",
+  "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/design.md",
+  "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/tasks.md",
+  "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/repository/policy/schema_sample_large.py",
+  "system/invalid_states.toml",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/kernel/test_invalid_states.py",
+  "tests/unit/lanes/test_lanes.py",
+]

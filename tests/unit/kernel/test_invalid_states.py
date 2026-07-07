@@ -102,6 +102,11 @@ def test_longest_prefix_wins_on_overlap() -> None:
     assert classify("push_to_protected_role_not_proven") == "evidence_missing_or_stale"
 
 
+def test_coordination_advisories_reduce_to_change_unbounded() -> None:
+    assert classify("foreign_work_lane_present") == "change_unbounded"
+    assert classify("work_lane_missing_lease:work/raw") == "change_unbounded"
+
+
 def test_runtime_and_projection_failures_reduce_to_substrate() -> None:
     assert classify("python_entrypoint_invalid:.venv/bin/python") == "substrate_untrusted"
     assert classify("uv_interpreter_probe_stuck") == "substrate_untrusted"

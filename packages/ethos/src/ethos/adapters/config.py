@@ -24,7 +24,7 @@ def rules_config(root: Path) -> dict[str, object]:
 def code_size_policy(root: Path) -> dict[str, object]:
     """Project the [quality.code_size] sub-table out of the rules config."""
     rules = rules_config(root)
-    quality = rules.get("quality") if isinstance(rules.get("quality"), dict) else {}
+    quality = rules.get("quality")
     if not isinstance(quality, dict):
         return {}
     code_size = quality.get("code_size")

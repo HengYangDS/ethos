@@ -340,7 +340,7 @@ OpenSpec records, and the `ethos ...` command plane.
 1. Repository source code, tests, schemas, and package metadata.
 1. Canonical docs under `docs/`.
 1. Evidence under `evidence/`.
-1. Repo-local skills under `skills/`.
+1. Repo-local skills under `.agents/skills/`.
 
 ## Operating Rules
 

@@ -696,6 +696,7 @@ def test_quality_schema_gate_and_commit_commands_are_available() -> None:
         ("quality", "schemas", "--json"),
         ("quality", "gates", "--json"),
         ("quality", "generated-artifacts", "--json"),
+        ("quality", "docs-topology", "--json"),
         ("quality", "commits", "--json"),
         ("quality", "release", "--json"),
     ):
@@ -721,6 +722,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "coverage",
         "docs",
         "docs-registry",
+        "docs-topology",
         "docstrings",
         "evidence-freshness",
         "format-policy",
@@ -846,7 +848,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     payload = run_ethos("prove", "--json")
 
     assert payload["ok"] is True
-    assert payload["summary"]["gate_count"] == 14
+    assert payload["summary"]["gate_count"] == 15
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert {
         "ruff",
@@ -855,6 +857,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
         "shell-lint",
         "format-policy",
         "generated-artifacts",
+        "docs-topology",
     } <= set(node_ids)
 
 
@@ -877,11 +880,12 @@ root_subject = \"sample\"
 
     payload = run_ethos("prove", "--root", str(repo), "--json")
 
-    assert payload["summary"]["gate_count"] == 9
+    assert payload["summary"]["gate_count"] == 10
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert set(node_ids) == {
         "repository-audit",
         "claims",
+        "docs-topology",
         "schemas",
         "playbooks-v2",
         "generated-artifacts",

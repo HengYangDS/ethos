@@ -12,7 +12,21 @@ from ethos.repository.adoption.scaffold_docs import _adoption_profile_skill_pack
 from ethos.repository.adoption.scaffold_docs import _agents_doc
 from ethos.repository.adoption.scaffold_docs import _changelog_doc
 from ethos.repository.adoption.scaffold_docs import _contributing_doc
+from ethos.repository.adoption.scaffold_docs import _decision_code_links
+from ethos.repository.adoption.scaffold_docs import _decision_dependency_map
+from ethos.repository.adoption.scaffold_docs import _decision_index
+from ethos.repository.adoption.scaffold_docs import _decision_record_template
+from ethos.repository.adoption.scaffold_docs import _decision_records
+from ethos.repository.adoption.scaffold_docs import _decisions_accepted
+from ethos.repository.adoption.scaffold_docs import _decisions_superseded
+from ethos.repository.adoption.scaffold_docs import _decisions_templates
+from ethos.repository.adoption.scaffold_docs import _docs_current
+from ethos.repository.adoption.scaffold_docs import _docs_evidence
+from ethos.repository.adoption.scaffold_docs import _docs_future
+from ethos.repository.adoption.scaffold_docs import _docs_history
 from ethos.repository.adoption.scaffold_docs import _docs_index
+from ethos.repository.adoption.scaffold_docs import _docs_readme
+from ethos.repository.adoption.scaffold_docs import _docs_reference
 from ethos.repository.adoption.scaffold_docs import _governance_doc
 from ethos.repository.adoption.scaffold_docs import _governance_skill
 from ethos.repository.adoption.scaffold_docs import _governance_skill_package
@@ -73,7 +87,21 @@ BASE_ADOPTION_FILES = (
     "openspec/changes/template.md",
     "openspec/changes/.gitkeep",
     "openspec/changes/archive/.gitkeep",
+    "docs/README.md",
     "docs/index.md",
+    "docs/current/README.md",
+    "docs/decisions/README.md",
+    "docs/decisions/decision-index.md",
+    "docs/decisions/decision-dependency-map.md",
+    "docs/decisions/decision-code-links.md",
+    "docs/decisions/accepted/README.md",
+    "docs/decisions/superseded/README.md",
+    "docs/decisions/templates/README.md",
+    "docs/decisions/templates/decision-record.md",
+    "docs/evidence/README.md",
+    "docs/future/README.md",
+    "docs/history/README.md",
+    "docs/reference/README.md",
     "docs/start/quickstart.md",
     "docs/governance/ethos.md",
     "evidence/.gitkeep",
@@ -297,7 +325,21 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         ".agents/skills/ethos-adoption-profile-governance/package.toml": (
             _adoption_profile_skill_package(adoption_profile_digest)
         ),
+        "docs/README.md": _docs_readme(root),
         "docs/index.md": _docs_index(root),
+        "docs/current/README.md": _docs_current(),
+        "docs/decisions/README.md": _decision_records(),
+        "docs/decisions/decision-index.md": _decision_index(),
+        "docs/decisions/decision-dependency-map.md": _decision_dependency_map(),
+        "docs/decisions/decision-code-links.md": _decision_code_links(),
+        "docs/decisions/accepted/README.md": _decisions_accepted(),
+        "docs/decisions/superseded/README.md": _decisions_superseded(),
+        "docs/decisions/templates/README.md": _decisions_templates(),
+        "docs/decisions/templates/decision-record.md": _decision_record_template(),
+        "docs/evidence/README.md": _docs_evidence(),
+        "docs/future/README.md": _docs_future(),
+        "docs/history/README.md": _docs_history(),
+        "docs/reference/README.md": _docs_reference(),
         "docs/start/quickstart.md": _quickstart(),
         "docs/governance/ethos.md": _governance_doc(),
         **STATIC_DEFAULT_FILES,

@@ -15,5 +15,6 @@ Purpose: connect ETHOS Decision Records to code, tests, and command surfaces.
 | Decision | Code | Tests | Command |
 | --- | --- | --- | --- |
 | [DR-0001](accepted/DR-0001-generated-artifact-topology-contract.md) | `packages/ethos-core/src/ethos_core/contracts/generated_artifact_topology.py`, `packages/ethos/src/ethos/repository/policy/artifacts.py` | `tests/unit/governance/test_generated_artifact_topology.py`, `tests/unit/cli/test_generated_artifact_topology_cli.py`, `tests/architecture/test_generated_artifact_topology_docs.py` | `ethos quality generated-artifacts --json` |
+| [DR-0002](accepted/DR-0002-documentation-topology-isomorphism-contract.md) | `packages/ethos-core/src/ethos_core/contracts/docs_topology.py`, `packages/ethos/src/ethos/repository/policy/docs_topology.py`, `packages/ethos/src/ethos/repository/adoption/scaffold.py` | `tests/unit/governance/test_docs_topology.py`, `tests/unit/cli/test_docs_topology_cli.py`, `tests/architecture/test_generated_artifact_topology_docs.py` | `ethos quality docs-topology --json` |
 
 See also: [Decision Index](decision-index.md).

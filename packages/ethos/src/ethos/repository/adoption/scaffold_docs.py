@@ -404,3 +404,354 @@ provider = "github"
 ci = ".github/workflows/ethos.yml"
 """
     return text
+
+
+def _docs_readme(root: Path) -> str:
+    return f"""---
+subject: docs:root
+role: index
+state: canonical
+relations: canonical_for: documentation navigation
+---
+
+# {root.name} Documentation
+
+Status: canonical.
+
+Purpose: route current contracts, decisions, evidence, references, future design,
+and history through the common ETHOS-governed documentation topology.
+
+See also: [ETHOS Product Index](index.md), [Current Docs](current/README.md),
+[Decision Records](decisions/README.md), [Evidence Docs](evidence/README.md),
+and [Reference Docs](reference/README.md).
+
+## Lanes
+
+| Lane | Owns |
+| --- | --- |
+| `current/` | Implemented contracts, runbooks, and development rules. |
+| `decisions/` | Durable rulings with explicit scope and revisit triggers. |
+| `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
+| `future/` | Target designs and roadmap material not yet current truth. |
+| `reference/` | Stable vocabulary, boundaries, and governance references. |
+| `history/` | Retired rationale and archival logs. |
+
+Required kernel paths include `docs/current/README.md`,
+`docs/decisions/README.md`, `docs/evidence/README.md`,
+`docs/future/README.md`, `docs/history/README.md`, and
+`docs/reference/README.md`.
+"""
+
+
+def _docs_current() -> str:
+    return """---
+subject: docs:current
+role: index
+state: canonical
+relations: canonical_for: current documentation
+---
+
+# Current Documentation
+
+Status: canonical.
+
+Purpose: hold implemented behavior, active runbooks, and development governance
+for this adopted repository.
+
+See also: [Documentation Index](../README.md), [Evidence Docs](../evidence/README.md),
+and [Decision Records](../decisions/README.md).
+
+No detailed current docs are scaffolded yet. Promote implemented contracts here
+after they are backed by source, tests, package metadata, or evidence.
+"""
+
+
+def _docs_reference() -> str:
+    return """---
+subject: docs:reference
+role: index
+state: canonical
+relations: canonical_for: reference documentation
+---
+
+# Reference Documentation
+
+Status: canonical.
+
+Purpose: hold stable vocabulary, repository boundaries, and governance references.
+
+See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+and [ETHOS Governance](../governance/ethos.md).
+
+Reference docs explain terms and boundaries; runtime truth still comes from
+source, tests, current docs, and evidence.
+"""
+
+
+def _docs_evidence() -> str:
+    return """---
+subject: docs:evidence
+role: index
+state: canonical
+relations: canonical_for: evidence documentation
+---
+
+# Evidence Documentation
+
+Status: canonical.
+
+Purpose: hold dated proof, manifests, smoke notes, closeout records, and scope
+limits for this adopted repository.
+
+See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+and [Decision Records](../decisions/README.md).
+
+Evidence supports claims; it is not the current API or a generated log dump.
+"""
+
+
+def _docs_future() -> str:
+    return """---
+subject: docs:future
+role: index
+state: canonical
+relations: canonical_for: future documentation
+---
+
+# Future Documentation
+
+Status: canonical.
+
+Purpose: hold target designs and roadmap material that are not yet current truth.
+
+See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+and [Decision Records](../decisions/README.md).
+
+Future docs must be promoted into source, tests, package metadata, current docs,
+or evidence before they can justify runtime claims.
+"""
+
+
+def _docs_history() -> str:
+    return """---
+subject: docs:history
+role: index
+state: canonical
+relations: canonical_for: historical documentation
+---
+
+# History Documentation
+
+Status: canonical.
+
+Purpose: hold retired rationale, archival logs, and migration history.
+
+See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+and [Reference Docs](../reference/README.md).
+
+History preserves context; it does not override current contracts or evidence.
+"""
+
+
+def _decision_records() -> str:
+    return """---
+subject: docs:decisions
+role: index
+state: canonical
+relations: canonical_for: decision records
+---
+
+# Decision Records
+
+Status: canonical.
+
+Purpose: hold durable repository rulings future agents must respect before
+reopening architecture, governance, tooling, or process choices.
+
+See also: [Decision Index](decision-index.md), [Accepted Decisions](accepted/README.md),
+[Superseded Decisions](superseded/README.md), and
+[Decision Record Template](templates/decision-record.md).
+
+## Choose
+
+| Need | Read |
+| --- | --- |
+| Current accepted rulings | [Decision Index](decision-index.md) |
+| Accepted record files | [Accepted Decisions](accepted/README.md) |
+| Superseded record files | [Superseded Decisions](superseded/README.md) |
+| Start a new decision record | [Decision Record Template](templates/decision-record.md) |
+| Review dependencies | [Decision Dependency Map](decision-dependency-map.md) |
+| Review code and check links | [Decision Code Links](decision-code-links.md) |
+
+Decision Records are not a separate truth lane. They bind a decision to scope,
+boundary, proof, consequences, and revisit triggers.
+"""
+
+
+def _decision_index() -> str:
+    return """---
+subject: docs:decisions:index
+role: index
+state: canonical
+relations: canonical_for: decision index
+---
+
+# Decision Index
+
+Status: canonical.
+
+Purpose: route current durable repository rulings.
+
+See also: [Decision Records](README.md) and [Accepted Decisions](accepted/README.md).
+
+No accepted repository-specific Decision Records are scaffolded yet.
+"""
+
+
+def _decision_dependency_map() -> str:
+    return """---
+subject: docs:decisions:dependency-map
+role: reference
+state: canonical
+relations: canonical_for: decision dependency map
+---
+
+# Decision Dependency Map
+
+Status: canonical.
+
+Purpose: show dependencies between durable repository rulings.
+
+See also: [Decision Index](decision-index.md).
+
+No decision dependencies are scaffolded yet.
+"""
+
+
+def _decision_code_links() -> str:
+    return """---
+subject: docs:decisions:code-links
+role: reference
+state: canonical
+relations: canonical_for: decision code links
+---
+
+# Decision Code Links
+
+Status: canonical.
+
+Purpose: connect durable rulings to code, tests, commands, and evidence.
+
+See also: [Decision Index](decision-index.md).
+
+No decision code links are scaffolded yet.
+"""
+
+
+def _decisions_accepted() -> str:
+    return """---
+subject: docs:decisions:accepted
+role: index
+state: canonical
+relations: canonical_for: accepted decision records
+---
+
+# Accepted Decision Records
+
+Status: canonical.
+
+Purpose: list accepted durable repository rulings.
+
+See also: [Decision Records](../README.md).
+
+No accepted Decision Records are scaffolded yet.
+"""
+
+
+def _decisions_superseded() -> str:
+    return """---
+subject: docs:decisions:superseded
+role: index
+state: canonical
+relations: canonical_for: superseded decision records
+---
+
+# Superseded Decision Records
+
+Status: canonical.
+
+Purpose: hold decisions that no longer define current repository rulings.
+
+See also: [Accepted Decision Records](../accepted/README.md).
+
+No superseded Decision Records are scaffolded yet.
+"""
+
+
+def _decisions_templates() -> str:
+    return """---
+subject: docs:decisions:templates
+role: index
+state: canonical
+relations: canonical_for: decision record templates
+---
+
+# Decision Record Templates
+
+Status: canonical.
+
+Purpose: provide reusable templates for durable repository rulings.
+
+See also: [Decision Records](../README.md) and [Decision Record Template](decision-record.md).
+
+Use the template when a judgment must bind future work.
+"""
+
+
+def _decision_record_template() -> str:
+    return """---
+subject: docs:decisions:template
+role: template
+state: canonical
+relations: canonical_for: decision record template
+---
+
+# DR-XXXX: Title
+
+Status: proposed.
+
+Purpose: record one durable repository ruling.
+
+See also: [Decision Records](../README.md) and [Decision Index](../decision-index.md).
+
+## Record
+
+| Field | Value |
+| --- | --- |
+| Decision ID | DR-XXXX |
+| Kind | governance |
+| Decision Makers | TBD |
+| Status | proposed |
+| Decision Date | YYYY-MM-DD |
+| Scope | TBD |
+| Boundary | TBD |
+| Decision | TBD |
+| Proof or Evidence | TBD |
+| Revisit Trigger | TBD |
+
+## Context
+
+TBD.
+
+## Decision
+
+TBD.
+
+## Consequences
+
+TBD.
+
+## Revisit Trigger
+
+TBD.
+"""

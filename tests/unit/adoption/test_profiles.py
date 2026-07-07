@@ -6,6 +6,7 @@ import pytest
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.adoption.planner import available_profiles
+from ethos_core.contracts.docs_topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -110,3 +111,18 @@ def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:
     assert result["profile"] == "monorepo"
     assert 'name = "alpha"' in workspace
     assert 'name = "beta"' in workspace
+
+
+def test_adoption_profiles_share_docs_topology_kernel(tmp_path: Path) -> None:
+    required_docs = set(required_docs_topology_paths())
+
+    generic = adoption_plan(tmp_path / "generic", profile="generic", apply=False)
+    monorepo_root = tmp_path / "monorepo"
+    (monorepo_root / "packages").mkdir(parents=True)
+    monorepo = adoption_plan(monorepo_root, profile="monorepo", apply=False)
+
+    assert required_docs <= set(generic["planned_files"])
+    assert required_docs <= set(monorepo["planned_files"])
+    assert {
+        path for path in generic["planned_files"] if path.startswith("docs/")
+    } == {path for path in monorepo["planned_files"] if path.startswith("docs/")}

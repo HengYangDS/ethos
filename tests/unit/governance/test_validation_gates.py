@@ -684,9 +684,14 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
 def test_gate_registry_has_real_default_gates() -> None:
     registry = gate_registry()
 
-    assert {"repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2"} <= set(
-        registry
-    )
+    assert {
+        "repository-audit",
+        "claims",
+        "docs-registry",
+        "docs-topology",
+        "schemas",
+        "playbooks-v2",
+    } <= set(registry)
     assert registry["repository-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
     assert registry["playbooks-v2"].command[-3:] == (
         "--mode",
@@ -704,7 +709,14 @@ def test_gate_registry_has_real_default_gates() -> None:
 def test_gate_registry_classifies_product_toolchain_profile() -> None:
     registry = gate_registry()
 
-    for gate_id in ("repository-audit", "claims", "docs-registry", "schemas", "playbooks-v2"):
+    for gate_id in (
+        "repository-audit",
+        "claims",
+        "docs-registry",
+        "docs-topology",
+        "schemas",
+        "playbooks-v2",
+    ):
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 
@@ -728,6 +740,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "repository-audit",
         "claims",
         "docs-registry",
+        "docs-topology",
         "schemas",
         "playbooks-v2",
         "generated-artifacts",
@@ -768,6 +781,7 @@ root_subject = \"sample\"
     assert node_ids == [
         "repository-audit",
         "claims",
+        "docs-topology",
         "schemas",
         "playbooks-v2",
         "generated-artifacts",
@@ -896,3 +910,13 @@ def test_gate_registry_includes_generated_artifacts_gate() -> None:
     assert "path-topology" in gate.dimensions
     assert "generated-artifacts" in gate.asset_classes
     assert "generated-artifacts" in [node.id for node in gate_graph().nodes]
+
+
+def test_gate_registry_includes_docs_topology_gate() -> None:
+    gate = gate_registry()["docs-topology"]
+
+    assert gate.command[2:] == ("ethos.cli", "quality", "docs-topology", "--json")
+    assert gate.trust_bearing is True
+    assert "adopter-isomorphism" in gate.dimensions
+    assert "decision-records" in gate.asset_classes
+    assert "docs-topology" in [node.id for node in gate_graph().nodes]

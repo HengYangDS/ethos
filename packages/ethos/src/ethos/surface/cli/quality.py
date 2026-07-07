@@ -28,6 +28,7 @@ from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.coupling import coupling_audit_report
 from ethos.repository.policy.coverage import coverage_quality_report
+from ethos.repository.policy.docs_topology import docs_topology_report
 from ethos.repository.policy.docstrings import docstring_coverage_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema import schema_validation_report
@@ -98,22 +99,59 @@ def quality_docs(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Report documentation quality profile and registry health."""
+    """Report documentation quality profile, registry health, and topology."""
     repo = resolve_root(root)
     profile = docs_quality_profile()
     report = docs_quality_report(repo)
+    topology = docs_topology_report(repo)
+    required_gaps = tuple(cast("list[str]", report["required_gaps"])) + tuple(
+        cast("list[str]", topology["required_gaps"])
+    )
+    ok = bool(report["ok"]) and bool(topology["ok"])
     result = EthosResult(
         command="quality docs",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        ok=ok,
+        state="clean" if ok else "blocked",
+        required_gaps=required_gaps,
         data={
             "profile": profile,
             "style_goals": profile["style_goals"],
             "health": report,
+            "topology": topology,
         },
     )
     emit(result, json_output=json_output, enforce=False)
+
+
+@quality_app.command(name="docs-topology")
+def docs_topology(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Audit the high-isomorphism documentation topology contract."""
+    repo = resolve_root(root)
+    report = docs_topology_report(repo)
+    result = EthosResult(
+        command="quality docs-topology",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(cast("dict[str, object]", report["summary"])),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=(
+            (
+                "restore docs README/current/reference/evidence/future/history and "
+                "docs/decisions kernel"
+            )
+            if report["required_gaps"]
+            else (
+                "ethos prove --execute --gate docs-topology --expect-head "
+                "$(git rev-parse HEAD) --json"
+            ),
+        ),
+        data=report,
+    )
+    emit(result, json_output)
 
 
 @quality_app.command

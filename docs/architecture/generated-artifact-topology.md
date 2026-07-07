@@ -63,4 +63,4 @@ has already been reviewed and promoted.
 
 ## Documentation Isomorphism
 
-ETHOS uses `docs/decisions/` for durable rulings so governed repositories can share a high-isomorphism documentation topology.
+ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel defined in [Documentation Topology](docs-topology.md), so governed repositories preserve high-isomorphism authority, evidence, decision, future, current, reference, and history lanes.

@@ -84,6 +84,7 @@ ethos quality tool-profiles
 ethos quality package-ontology
 ethos quality claims
 ethos quality docs-registry
+ethos quality docs-topology
 ethos quality generated-artifacts
 ethos quality gates
 ethos quality provenance
@@ -117,6 +118,8 @@ ethos report
 ethos docs
 ethos explain <gap-or-signal>
 ```
+
+`ethos quality docs-topology --json` audits the Documentation Topology Isomorphism Contract. It requires the common docs kernel (`docs/README.md`, `docs/current/`, `docs/decisions/`, `docs/evidence/`, `docs/future/`, `docs/history/`, and `docs/reference/`) while allowing product or adopter extension roots.
 
 `ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, current-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
 

@@ -22,9 +22,13 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
         assert "adopter" in text.lower()
         assert "rollback" in text.lower()
 
+    docs_topology = (ROOT / "docs/architecture/docs-topology.md").read_text(encoding="utf-8")
+
     assert "ethos quality generated-artifacts --json" in architecture
     assert "ethos quality generated-artifacts" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
+    assert "ethos quality docs-topology --json" in docs_topology
+    assert "Documentation Topology Isomorphism Contract" in command_plane
 
 
 def test_generated_artifact_topology_is_in_docs_index() -> None:
@@ -58,3 +62,24 @@ def test_decision_records_surface_is_highly_isomorphic_with_governed_repositorie
     assert "accepted/DR-0001-generated-artifact-topology-contract.md" in (
         ROOT / "docs/decisions/decision-index.md"
     ).read_text(encoding="utf-8")
+
+
+def test_documentation_topology_docs_bind_common_kernel() -> None:
+    topology = (ROOT / "docs/architecture/docs-topology.md").read_text(encoding="utf-8")
+    decision = (
+        ROOT / "docs/decisions/accepted/DR-0002-documentation-topology-isomorphism-contract.md"
+    ).read_text(encoding="utf-8")
+
+    for text in (topology, decision):
+        assert "docs/current" in text
+        assert "docs/decisions" in text
+        assert "docs/evidence" in text
+        assert "docs/future" in text
+        assert "docs/history" in text
+        assert "docs/reference" in text
+        assert "ethos quality docs-topology --json" in text
+
+    assert "DR-0002" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")
+    assert "DR-0002" in (ROOT / "docs/decisions/decision-code-links.md").read_text(
+        encoding="utf-8"
+    )

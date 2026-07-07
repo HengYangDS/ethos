@@ -61,3 +61,13 @@ def test_signature_policy_uses_machine_readable_head_signature_status() -> None:
 
     assert report["head_signature_status"] in {"G", "B", "U", "X", "Y", "R", "E", "N", ""}
     assert report["head_signature_ok"] is (report["head_signature_status"] == "G")
+
+
+def test_commit_policy_defaults_on_malformed_workspace_toml(tmp_path: Path) -> None:
+    # Unparseable workspace.toml -> tomllib.TOMLDecodeError -> identity-agnostic default.
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text("[commit_policy\n", encoding="utf-8")
+    policy = load_commit_policy(tmp_path)
+    assert policy["expected_name"] == ""
+    assert policy["signing_required"] is False

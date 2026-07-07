@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "16e3e3d8112fac1b404efaf8b8db0f04271cf8d3",
-    "target_head": "16e3e3d8112fac1b404efaf8b8db0f04271cf8d3",
-    "product_semantic_sha256": "12636809dad0b324a4073ee6e1911c284eef29ebf291d7cb3e425035324625e7",
-    "target_semantic_sha256": "12636809dad0b324a4073ee6e1911c284eef29ebf291d7cb3e425035324625e7",
+    "product_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
+    "target_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
+    "product_semantic_sha256": "3edd8085d918397f208c1b3dcbf66fe3770ab416db153158616af4a4145634b8",
+    "target_semantic_sha256": "3edd8085d918397f208c1b3dcbf66fe3770ab416db153158616af4a4145634b8",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-cs-mechanism",
-    "target_head": "16e3e3d8112fac1b404efaf8b8db0f04271cf8d3",
-    "product_head": "16e3e3d8112fac1b404efaf8b8db0f04271cf8d3",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux",
+    "target_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
+    "product_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-cs-mechanism --json",
-      "/private/tmp/ethos-cs-mechanism/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-cs-mechanism --json"
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "16dea1a4baf5ad20e6a098b086248ce451f284550ef0d352062abed1883abe26"
+        "sha256": "f5d1161d7583079929641b71ab713b094019f39a83815834376f3a8de4ad5b18"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "01b076778864abd3e1f5842f84dadba4825a8cef08861746ac373344263afba0"
+        "sha256": "f7006b013509b227d37e65ae6a168f5c5d662b329ff8e5384fdfe7657a55e2fc"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "28c35e97e467c01100d4d132d198da1fa8d0ca4d4dca11086979522f1fbd4814"
+        "sha256": "6e077b31c6104939a125665cc5d85c6693e19a3d61ec2867cc34b39e606b612f"
       },
       {
         "path": "rules",

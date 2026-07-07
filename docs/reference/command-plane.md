@@ -236,7 +236,11 @@ candidate train can be reset to the accepted root. Apply mode requires
 closeout reports `candidate_diverged_from_accepted`.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
-remove another active agent's worktree.
+remove another active agent's worktree. Leased lanes are owner-bound: when the
+actor binding does not match the lease owner, the JSON payload reports
+`foreign_work_lane_retire_authority_required`, `actor_source = "ETHOS_ACTOR"`,
+whether an actor is bound, the required lease owner, and a bounded next action to
+bind the actor or obtain handoff.
 `ethos lane retire-unbound` is the maintainer cleanup path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
 It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,

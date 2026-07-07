@@ -160,9 +160,13 @@ def retire_landed_work_lanes(
             "branch": branch or "",
             "lanes": lanes,
             "mutation": _landed_retire_mutation(
-                branch=branch, expect_head=expect_head, actor=_current_actor()
+                branch=branch,
+                expect_head=expect_head,
+                actor=_current_actor(),
+                required_actor=_selected_lease_owner(selected),
             ),
             "required_gaps": sorted(set(gaps)),
+            **_landed_retire_guidance(gaps),
         }
     if not apply:
         return {
@@ -171,7 +175,10 @@ def retire_landed_work_lanes(
             "branch": branch or "",
             "lanes": lanes,
             "mutation": _landed_retire_mutation(
-                branch=branch, expect_head=expect_head, actor=_current_actor()
+                branch=branch,
+                expect_head=expect_head,
+                actor=_current_actor(),
+                required_actor=_selected_lease_owner(selected),
             ),
             "required_gaps": [],
         }
@@ -184,7 +191,10 @@ def retire_landed_work_lanes(
             "branch": branch or "",
             "lanes": lanes,
             "mutation": _landed_retire_mutation(
-                branch=branch, expect_head=expect_head, actor=_current_actor()
+                branch=branch,
+                expect_head=expect_head,
+                actor=_current_actor(),
+                required_actor=_selected_lease_owner(selected),
             ),
             "required_gaps": ["worktree_remove_failed"],
             "stderr": remove.stderr.strip(),
@@ -204,7 +214,10 @@ def retire_landed_work_lanes(
             "branch": branch or "",
             "lanes": lanes,
             "mutation": _landed_retire_mutation(
-                branch=branch, expect_head=expect_head, actor=_current_actor()
+                branch=branch,
+                expect_head=expect_head,
+                actor=_current_actor(),
+                required_actor=_selected_lease_owner(selected),
             ),
             "required_gaps": ["branch_delete_failed"],
             "stderr": delete.stderr.strip(),
@@ -219,7 +232,10 @@ def retire_landed_work_lanes(
         "retired": lane,
         "lanes": lanes,
         "mutation": _landed_retire_mutation(
-            branch=branch, expect_head=expect_head, actor=_current_actor()
+            branch=branch,
+            expect_head=expect_head,
+            actor=_current_actor(),
+            required_actor=_selected_lease_owner(selected),
         ),
         "required_gaps": [],
     }
@@ -228,11 +244,23 @@ def retire_landed_work_lanes(
 def _landed_actor_gaps(selected: list[dict[str, object]]) -> list[str]:
     if not selected:
         return []
-    lease_owner = str(selected[0].get("lease_owner") or "")
+    lease_owner = _selected_lease_owner(selected)
     actor = _current_actor()
     if not lease_owner or actor != lease_owner:
         return ["foreign_work_lane_retire_authority_required"]
     return []
+
+
+def _selected_lease_owner(selected: list[dict[str, object]]) -> str:
+    if not selected:
+        return ""
+    return str(selected[0].get("lease_owner") or "")
+
+
+def _landed_retire_guidance(gaps: list[str]) -> dict[str, str]:
+    if "foreign_work_lane_retire_authority_required" not in gaps:
+        return {}
+    return {"next_action": "set ETHOS_ACTOR to the lane lease owner or obtain handoff"}
 
 
 def _landed_expect_head_gaps(
@@ -256,12 +284,23 @@ def _landed_retire_mutation(
     branch: str | None,
     expect_head: str | None,
     actor: str = "",
+    required_actor: str = "",
 ) -> dict[str, str]:
-    return {
-        "actor": actor.strip(),
+    actor = actor.strip()
+    mutation = {
+        "actor": actor,
         "expect_head": (expect_head or "").strip(),
         "ref": f"refs/heads/{branch}" if branch else "",
     }
+    if required_actor:
+        mutation.update(
+            {
+                "actor_bound": str(bool(actor)).lower(),
+                "actor_source": "ETHOS_ACTOR",
+                "required_actor": required_actor,
+            }
+        )
+    return mutation
 
 
 def _current_actor() -> str:

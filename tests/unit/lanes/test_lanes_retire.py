@@ -130,6 +130,37 @@ def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None
     assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
 
 
+def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/landed",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+
+    landed_head = git(landed, "rev-parse", "HEAD")
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+    blocked = retire_landed_work_lanes(
+        root=repo, branch="work/landed", expect_head=landed_head, apply=True
+    )
+
+    assert blocked["ok"] is False
+    assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
+    assert blocked["mutation"] == {
+        "actor": "",
+        "actor_bound": "false",
+        "actor_source": "ETHOS_ACTOR",
+        "expect_head": landed_head,
+        "ref": "refs/heads/work/landed",
+        "required_actor": "agent-a",
+    }
+    assert blocked["next_action"] == "set ETHOS_ACTOR to the lane lease owner or obtain handoff"
+
+
 def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
     monkeypatch, tmp_path: Path
 ) -> None:

@@ -14,6 +14,7 @@ cd "${repo_root}"
 .config/ci/scripts/run-python-lint.sh
 .config/ci/scripts/run-config-lint.sh
 .config/ci/scripts/run-shell-lint.sh
+.config/ci/scripts/run-markdown-lint.sh
 .config/ci/scripts/run-docstring-coverage.sh
 .config/ci/scripts/run-repository-hygiene.sh
 .config/ci/scripts/run-secrets-scan.sh

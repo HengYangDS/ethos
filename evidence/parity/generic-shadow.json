@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "28394a9f322c5e9a8779401065b3ed7654a44ffe",
-    "target_head": "28394a9f322c5e9a8779401065b3ed7654a44ffe",
-    "product_semantic_sha256": "6d35bc1dfb235d8c64c2c3e34c105f525b5f6489002d894170e13b238cd6527b",
-    "target_semantic_sha256": "6d35bc1dfb235d8c64c2c3e34c105f525b5f6489002d894170e13b238cd6527b",
+    "product_head": "538b393829e7984dd899136be7f4d398b35f4d86",
+    "target_head": "538b393829e7984dd899136be7f4d398b35f4d86",
+    "product_semantic_sha256": "50657f9e96cfe074d7905017dcfd3b419e4bde1605802204585521989a770511",
+    "target_semantic_sha256": "50657f9e96cfe074d7905017dcfd3b419e4bde1605802204585521989a770511",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,10 +35,15 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-secrets-gate",
-    "target_head": "28394a9f322c5e9a8779401065b3ed7654a44ffe",
-    "product_head": "28394a9f322c5e9a8779401065b3ed7654a44ffe",
-    "changed_paths": [],
+    "target_root": "/private/tmp/ethos-markdown-gate",
+    "target_head": "538b393829e7984dd899136be7f4d398b35f4d86",
+    "product_head": "538b393829e7984dd899136be7f4d398b35f4d86",
+    "changed_paths": [
+      ".config/checks/markdown/.markdownlint-cli2.yaml",
+      "docs/plans/self-healing-closeout-intelligence/findings.md",
+      "docs/plans/self-healing-closeout-intelligence/progress.md",
+      "docs/plans/self-healing-closeout-intelligence/task_plan.md"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +56,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-secrets-gate --json",
-      "/private/tmp/ethos-secrets-gate/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-secrets-gate --json"
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-markdown-gate --json",
+      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-markdown-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +81,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "df0d14373226bbd51e8404455f1791129579bd72a6166a1bc8a187ec52406c32"
+        "sha256": "9e9f3a96bfa975197e9a427a5ace8711b96864b94ca1c8cadde277ea68c573eb"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "38d323d5a50cc34d6912536487df7e25722e06e98e7c7f35fea58a306edefe6d"
+        "sha256": "c0ef9321e90f05618a56f4cc854a2c92e534eb721a750ee39a2f63facb10a669"
       },
       {
         "path": "evidence/claims",

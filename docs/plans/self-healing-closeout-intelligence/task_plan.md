@@ -21,7 +21,6 @@ Keep the self-healing closeout intelligence batch recoverable and auditable.
 - `docs/plans/self-healing-closeout-intelligence/findings.md`
 - `docs/plans/self-healing-closeout-intelligence/progress.md`
 
-
 ## Acceptance
 
 This batch is done when ETHOS can surface practical next actions for common closeout failures without weakening existing gates:

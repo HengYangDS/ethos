@@ -21,7 +21,6 @@ Keep the self-healing closeout intelligence batch recoverable and auditable.
 - `docs/plans/self-healing-closeout-intelligence/findings.md`
 - `docs/plans/self-healing-closeout-intelligence/progress.md`
 
-
 - [x] Created work lane `work/self-healing-closeout-intelligence` from `candidate/dev` at `da298d1`.
 - [x] Implement dirty provenance.
 - [x] Implement closeout guidance.

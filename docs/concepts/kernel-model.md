@@ -22,7 +22,6 @@ ETHOS reduces repository operation to:
 JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-
 ## Root Interpretation Boundary
 
 The canonical root text is `问道` in the Product Design Contract. The kernel

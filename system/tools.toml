@@ -104,10 +104,10 @@ gate = ".config/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "markdown_style"
-tool = "markdownlint-cli2,mdformat"
-config = ".config/checks/markdown/"
-profile = "minimal"
-planned = true
+tool = "markdownlint-cli2"
+config = ".config/checks/markdown/.markdownlint-cli2.yaml"
+profile = "product"
+gate = ".config/ci/scripts/run-markdown-lint.sh"
 
 [[tool]]
 concern = "prose"

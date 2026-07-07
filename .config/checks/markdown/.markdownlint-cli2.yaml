@@ -1,0 +1,41 @@
+# markdownlint-cli2 policy for ETHOS. Lint-only (never rewrites files) so it is
+# safe over the sha256-content-pinned evidence/chronicle documents that back
+# governance claims. Machine-managed, generated, frozen, and local-state trees
+# are excluded so the gate governs human-authored prose only.
+globs:
+  - "**/*.md"
+
+ignores:
+  - ".venv/**"
+  - ".cache/**"
+  - "build/**"
+  - "dist/**"
+  - "node_modules/**"
+  # Governance artifacts under version/digest control — not prose to lint.
+  - "evidence/**"
+  # OpenSpec owns the format of its specs and changes (tool-generated shape).
+  - "openspec/**"
+  # Generated projections (SSOT lives in skills/ source; .agents/skills is a build).
+  - ".agents/skills/**"
+  # Local, non-published working state.
+  - ".ethos/**"
+
+config:
+  # Line length is not enforced: governance prose intentionally runs long in
+  # tables, command examples, and digest strings.
+  MD013: false
+  # Allow the inline HTML used for anchors/details in the docs.
+  MD033: false
+  # First line need not be a top-level heading (frontmatter-led files).
+  MD041: false
+  # Repeated section names are legitimate under distinct parents — e.g. an
+  # "Added" block per release in a Keep a Changelog CHANGELOG.
+  MD024:
+    siblings_only: true
+  # Some governance documents carry a second top-level heading as a deliberate
+  # root-constraint marker (e.g. the 问道 section of the Product Design Contract).
+  MD025: false
+  # Trailing punctuation in headings is allowed: the docs registry requires the
+  # literal "Status:", "Purpose:", and "See also:" section headings (colon
+  # included), so stripping it would break ETHOS's own docs gate.
+  MD026: false

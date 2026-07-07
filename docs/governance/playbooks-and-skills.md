@@ -39,7 +39,6 @@ sections, expected digest, and declared capability classes. The manifest is
 package inventory and integrity metadata; activation authority stays in the
 ETHOS activation registry.
 
-
 ## Portfolio Shape
 
 The product skill portfolio is intentionally small and MECE:

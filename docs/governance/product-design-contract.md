@@ -161,6 +161,7 @@ source and cannot override it.
 
 Folders and packages follow the kernel chain. Package names do not create
 separate truth centers.
+
 ### Creative change with net gain
 
 ETHOS does not preserve inherited shape for its own sake. Creative, destructive,
@@ -170,7 +171,6 @@ better rollback, lower coordination risk, or removal of stale projections. A
 disruptive change must declare what it deletes, what invariant it strengthens,
 which evidence proves the gain, and how the repository can recover if the claim
 fails.
-
 
 ### Contracts before providers
 
@@ -268,7 +268,6 @@ commit where comparison ran and the parity-relevant semantic Git tree. This lets
 an evidence-recording commit prove what it actually proves without pretending to
 know its own future commit hash, while any later parity-relevant source or
 contract change still stales the evidence.
-
 
 ## Invalid-State Taxonomy
 

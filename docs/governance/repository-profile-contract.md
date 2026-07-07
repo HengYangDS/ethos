@@ -174,7 +174,6 @@ repositories, data repositories, and infrastructure repositories. It requires:
   `profiles/<repo>`, or `tests/fixtures/adopters/<repo>` unless the adopter
   profile explicitly marks them as fixture-only outside product ontology.
 
-
 A terminal rollback-window profile section is intentionally generic:
 
 ```toml

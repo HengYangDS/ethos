@@ -2,7 +2,7 @@
 id = "ethos-productization-convergence"
 subject = "ethos:productization-convergence"
 state = "active"
-summary = "Records the ETHOS productization convergence batch across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
+summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
 
 [evidence]
 dated = "evidence/chronicle/productization-convergence/2026-07-01.md"
@@ -32,7 +32,7 @@ docs = [
   "README.md",
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",
-  "docs/governance/judgment-source.md",
+  "docs/governance/authority.md",
   "docs/reference/command-plane.md",
   "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",
@@ -40,7 +40,7 @@ docs = [
 
 [boundary]
 owner = "ethos-repository"
-scope = "Productization convergence across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
+scope = "Productization convergence across authority kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence"
@@ -55,7 +55,7 @@ targets = [
   "README.md",
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",
-  "docs/governance/judgment-source.md",
+  "docs/governance/authority.md",
   "docs/reference/command-plane.md",
   "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",

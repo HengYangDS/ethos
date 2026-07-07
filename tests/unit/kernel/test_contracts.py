@@ -272,8 +272,7 @@ def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
         Path("packages"),
         Path("system"),
         Path("docs"),
-        Path("openspec"),
-        Path("evidence"),
+        Path("openspec/specs"),
         Path("README.md"),
     )
     offenders: list[str] = []

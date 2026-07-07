@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import cast
@@ -17,6 +18,14 @@ def _repo_root(root: Path) -> Path:
         return Path(_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
     except subprocess.CalledProcessError:
         return root.resolve()
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
+
+
+def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
+    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
 
 
 def retire_unbound_work_lane_ref(

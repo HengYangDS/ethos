@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-07",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --json",
   "freshness": {
-    "product_head": "008c3f75783eea36b16df655383ecaafb4234beb",
-    "target_head": "008c3f75783eea36b16df655383ecaafb4234beb",
-    "product_semantic_sha256": "2a03f01f064c12de74b8ce1e31a81d04eb4bc9ba0fdcb7bb37357e169cfae787",
-    "target_semantic_sha256": "2a03f01f064c12de74b8ce1e31a81d04eb4bc9ba0fdcb7bb37357e169cfae787",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "a4f938859e8ecd8c8b35e348d5f750cda35ddbb7",
+    "target_head": "a4f938859e8ecd8c8b35e348d5f750cda35ddbb7",
+    "product_semantic_sha256": "1a3241a0d592fe00d1f067e7f166d5b31fef752c737a4b3267a35b056181ee71",
+    "target_semantic_sha256": "1a3241a0d592fe00d1f067e7f166d5b31fef752c737a4b3267a35b056181ee71",
+    "command_sha256": "55a9b26896be118dea328835abb837053bc7d7f3720cd0dc568de0fdd2e7f1fb"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection",
-    "target_head": "008c3f75783eea36b16df655383ecaafb4234beb",
-    "product_head": "008c3f75783eea36b16df655383ecaafb4234beb",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout",
+    "target_head": "a4f938859e8ecd8c8b35e348d5f750cda35ddbb7",
+    "product_head": "a4f938859e8ecd8c8b35e348d5f750cda35ddbb7",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
-      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json"
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-helper-residue-closeout --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e1264afe74ac20294f2e8aca144786f921642f9d276c9847edc8c2d7bf3c618c"
+        "sha256": "b5fb598ce381fe127f1403b0484c2da17fb685c12c3f9a913cfd0effc20f109a"
       },
       {
         "path": "evidence/claims",

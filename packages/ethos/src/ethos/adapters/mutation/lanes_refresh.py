@@ -1,29 +1,17 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.mutation.lanes_retire import _default_candidate_path
 from ethos.adapters.mutation.lanes_retire import _git
 from ethos.adapters.mutation.lanes_retire import _is_ancestor
+from ethos.adapters.mutation.lanes_retire import _repo_root
 from ethos.adapters.repo.status import changed_paths
 from ethos.adapters.repo.status import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-
-
-def _repo_root(root: Path) -> Path:
-    completed = _git(root, "rev-parse", "--show-toplevel")
-    return Path(completed.stdout.strip()).resolve()
-
-
-def _slug(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
-
-
-def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
-    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
 
 
 def bootstrap_candidate(

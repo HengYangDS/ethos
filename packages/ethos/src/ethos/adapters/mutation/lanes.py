@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import cast
 
@@ -8,6 +7,8 @@ import ethos.adapters.mutation.lanes_refresh as _refresh
 import ethos.adapters.mutation.lanes_retire as _retire
 from ethos.adapters.mutation.lanes_retire import _git
 from ethos.adapters.mutation.lanes_retire import _is_ancestor
+from ethos.adapters.mutation.lanes_retire import _repo_root
+from ethos.adapters.mutation.lanes_retire import _slug
 from ethos.adapters.mutation.lanes_retire import (
     retire_landed_work_lanes as _retire_landed_work_lanes,
 )
@@ -24,12 +25,18 @@ from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
+
+# Keep the historical private helper surface on this module for internal tests
+# and patchable adapters. lanes_refresh uses the shared implementation in
+# lanes_retire; this compatibility helper preserves the old private surface.
+def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
+    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
+
+
 __all__ = (
     "retire_landed_work_lanes",
     "retire_unbound_work_lane_ref",
 )
-
-_SLUG_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 def start_work_lane(
@@ -287,11 +294,6 @@ def _restore_refresh_adapters(refresh: object, previous: dict[str, object]) -> N
     cast("dict[str, object]", refresh.__dict__).update(previous)
 
 
-def _slug(name: str) -> str:
-    slug = _SLUG_PATTERN.sub("-", name.strip().lower()).strip("-")
-    return slug or "work"
-
-
 def _status_work_lane(
     status: dict[str, object],
     branch: str,
@@ -323,15 +325,6 @@ def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:
         if lease["subject"] == subject:
             return lease
     return None
-
-
-def _repo_root(root: Path) -> Path:
-    completed = _git(root, "rev-parse", "--show-toplevel")
-    return Path(completed.stdout.strip()).resolve()
-
-
-def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
-    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
 
 
 def _branch_exists(root: Path, branch: str) -> bool:

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
-    "target_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
-    "product_semantic_sha256": "9b89d9976864bdafc7ad34d72ba4d3d9ffc0ee5ea87e72ce0ef01132b918ea7f",
-    "target_semantic_sha256": "9b89d9976864bdafc7ad34d72ba4d3d9ffc0ee5ea87e72ce0ef01132b918ea7f",
+    "product_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
+    "target_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
+    "product_semantic_sha256": "0034e19c82e6b1c96627d4f88a08b6e994b3168486bedcf938e6fc8a1aa345dd",
+    "target_semantic_sha256": "0034e19c82e6b1c96627d4f88a08b6e994b3168486bedcf938e6fc8a1aa345dd",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding",
-    "target_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
-    "product_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
+    "target_root": "/private/tmp/ethos-fsc2",
+    "target_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
+    "product_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json"
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-fsc2 --json",
+      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-fsc2 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "07cd244c3cab7403f6e788ff18a880534a55fd101ead5f07c41702629b532afd"
+        "sha256": "3c4bdba8964a67dac2ef7a7201ab94b97c6481e59fb00f87677e5013e0746ad7"
       },
       {
         "path": "evidence/claims",

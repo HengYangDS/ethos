@@ -80,8 +80,11 @@ ethos:verify:
   <<: *python_setup
   stage: verify
   script:
-    # Arm write-admission so the runner checkout is a real governed ETHOS working
-    # copy: the dogfood audit/prove gates and tests assert core.hooksPath is wired.
+    # Make the runner checkout a real governed ETHOS working copy: wire the git
+    # identity from .ethos/workspace.toml [commit_policy] and arm write-admission,
+    # so the dogfood signature/audit/prove gates and tests see the same setup a
+    # developer's checkout has.
+    - .config/ci/scripts/configure-git-identity.sh
     - uv run --package ethos ethos hook install --json
     - openspec --version
     - .config/ci/scripts/run-python-tests.sh

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -159,9 +158,6 @@ def release_files_report(root: Path) -> dict[str, object]:
         "ok": not release_files_missing,
         "missing": release_files_missing,
     }
-
-
-OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 
 
 def _write_admission_armed_gaps(root: Path) -> list[str]:

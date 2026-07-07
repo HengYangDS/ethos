@@ -151,7 +151,7 @@ def docs_topology(
         ),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command

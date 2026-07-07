@@ -83,7 +83,7 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> None:
+def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> None:
     """Print an EthosResult as JSON or a short human line, then enforce the verdict.
 
     Fail-CLOSED by default: a blocked verdict (result.ok is False) exits the process

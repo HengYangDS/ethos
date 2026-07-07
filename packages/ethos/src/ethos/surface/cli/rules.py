@@ -47,7 +47,7 @@ def rules_check(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="eval")
@@ -99,7 +99,7 @@ def rules_eval(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @rules_app.command(name="coverage")
@@ -130,7 +130,7 @@ def rules_coverage(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="compile")
@@ -149,7 +149,7 @@ def rules_compile(
         summary={"rule_count": len(cast("list[object]", report["rules"]))},
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="explain")
@@ -170,7 +170,7 @@ def rules_explain(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="exceptions")
@@ -188,4 +188,4 @@ def rules_exceptions(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

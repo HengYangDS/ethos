@@ -40,7 +40,7 @@ def fleet_inspect(
         required_gaps=tuple(required_gaps),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @fleet_app.command(name="retirement-readiness")
@@ -107,4 +107,4 @@ def fleet_retirement_readiness(
         next_actions=tuple(next_actions),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

@@ -26,9 +26,12 @@ Purpose: define tracked write admission and Work Lane discipline.
 - If a write tool cannot bind target root, branch role, editor root, and target
   paths before mutation, treat it as degraded mode and run explicit prewrite
   immediately before the write.
-- If protected-root mutation is detected after the fact, stop normal work. Only
-  rollback, migration to a Work Lane, recovery evidence, or violation reporting
-  is allowed until the protected root is clean.
+- If protected-root mutation is detected after the fact, stop normal work. The
+  change must be classified before any further product work: useful work is
+  absorbed into an owned Work Lane with visible evidence, and useless or unsafe
+  pollution is reverted from the protected root. Only rollback, migration to a
+  Work Lane, recovery evidence, or violation reporting is allowed until the
+  protected root is clean.
 
 - Do not use `git stash` as a backup, handoff, residue, or closeout carrier.
   Dirty work must either be absorbed into an owned Work Lane with visible

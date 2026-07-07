@@ -40,6 +40,16 @@ repository truth surfaces.
 - **AND** the command is not admitted as a backup, handoff, residue, or closeout
   carrier
 
+#### Scenario: Protected-root pollution is classified before recovery
+
+- **GIVEN** tracked dirty work is discovered in an accepted, candidate, or
+  release-root checkout outside audited closeout semantics
+- **WHEN** the work is evaluated for recovery
+- **THEN** useful work is moved into an owned Work Lane with visible evidence
+- **AND** useless or unsafe pollution is reverted from the protected root
+- **AND** hidden carriers such as Git stash are forbidden as backup, handoff,
+  residue, or closeout state
+
 #### Scenario: Stash observation remains available for forensics
 
 - **WHEN** hook admission evaluates `git stash list` or `git stash show`

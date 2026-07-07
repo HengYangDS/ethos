@@ -106,7 +106,9 @@ def scorecard_report(repo: Path) -> dict[str, object]:
         "data": {
             "governance_context": audit["governance_context"],
             "scores": scores,
-            "first_hour": _first_hour(product_profile, result_required_gaps),
+            "first_hour": _first_hour(
+                product_profile=product_profile, required_gaps=result_required_gaps
+            ),
             "scorecards": [_skills_scorecard(playbooks)],
             "repository_audit": audit,
             "docs": docs_report,
@@ -207,7 +209,7 @@ def _product_scores(
     }
 
 
-def _first_hour(product_profile: bool, required_gaps: tuple[str, ...]) -> dict[str, object]:
+def _first_hour(*, product_profile: bool, required_gaps: tuple[str, ...]) -> dict[str, object]:
     if product_profile:
         return {}
     evidence_gap_count = len(required_gaps)

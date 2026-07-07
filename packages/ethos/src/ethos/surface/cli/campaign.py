@@ -40,7 +40,7 @@ def campaign_status(
         next_actions=("ethos campaign closeout --json",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @campaign_app.command
@@ -60,7 +60,7 @@ def hypotheses(
         next_actions=("ethos audit --mode shape",),
         data=ledger,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @campaign_app.command(name="closeout")
@@ -93,4 +93,4 @@ def campaign_closeout(
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

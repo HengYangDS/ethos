@@ -53,7 +53,7 @@ def lane_status(
         next_actions=("ethos lane prewrite <path>",),
         data=status_payload,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @lane_app.command
@@ -92,7 +92,7 @@ def candidate(
         next_actions=("ethos lane start <name>",) if report["ok"] else ("ethos status",),
         data=report,
     )
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @lane_app.command
@@ -124,7 +124,7 @@ def prewrite(
         next_actions=("ethos lane start <name>",) if not report["ok"] else (),
         data=report,
     )
-    emit(result, json_output, enforce=True)
+    emit(result, json_output=json_output, enforce=True)
 
 
 @lane_app.command
@@ -160,7 +160,7 @@ def start(
         next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @lane_app.command(name="refresh-base")
@@ -194,7 +194,7 @@ def lane_refresh_base(
         next_actions=("ethos land --json",) if report["ok"] else ("ethos status --json",),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @lane_app.command(name="bind-claim")
@@ -226,7 +226,7 @@ def lane_bind_claim(
         next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @lane_app.command(name="retire-unbound")
@@ -263,7 +263,7 @@ def lane_retire_unbound(
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @lane_app.command(name="retire-landed")
@@ -295,4 +295,4 @@ def lane_retire_landed(
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)

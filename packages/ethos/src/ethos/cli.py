@@ -135,7 +135,7 @@ def status(
         data=status_payload,
     )
     if json_output:
-        emit(result, json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=False)
         return
     for line in _orient.human_orientation_lines(orientation):
         print(line)
@@ -178,7 +178,7 @@ def orient(
         data={"orientation": packet},
     )
     if json_output:
-        emit(result, json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=False)
         return
     for line in _orient.human_orientation_lines(packet):
         print(line)
@@ -215,7 +215,7 @@ def plan(
             "action_graph": graph.to_dict(),
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command
@@ -347,7 +347,7 @@ def prove(
             },
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command
@@ -422,7 +422,7 @@ def land(
                 },
             },
         )
-        emit(result, json_output, enforce=apply)
+        emit(result, json_output=json_output, enforce=apply)
         return
     status_payload = workspace_status(repo)
     closeout_support = dict(status_payload.get("closeout_support", {}))
@@ -489,7 +489,7 @@ def land(
             },
         },
     )
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @app.command
@@ -553,7 +553,7 @@ def publish(
             },
         },
     )
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @app.command(show=False)
@@ -576,7 +576,7 @@ def doctor(
         next_actions=("ethos status",),
         data={"state_db": str(db_path), "initialized": init_state},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command
@@ -627,7 +627,7 @@ def init(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @app.command
@@ -676,7 +676,7 @@ def adopt(
         "expect_head": expect_head,
         "current_head": current_head,
     }
-    emit(result, json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=apply)
 
 
 @app.command
@@ -696,7 +696,7 @@ def report(
         next_actions=tuple(payload["next_actions"]),
         data=payload["data"],
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -714,7 +714,7 @@ def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
         ),
         data=data,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -746,7 +746,7 @@ def docs(
         required_gaps=() if path else (f"docs_topic_missing:{topic}",),
         data={"path": path, "matches": matches},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -767,7 +767,7 @@ def audit(
             next_actions=("ethos audit --mode shape", "ethos audit --mode deep"),
             data={"mode": mode, "allowed_modes": ["shape", "deep"]},
         )
-        emit(result, json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=False)
         return
     audit_payload = _status.audit_for_root(repo, openspec_mode=mode)
     result = EthosResult(
@@ -779,7 +779,7 @@ def audit(
         next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @app.command(show=False)
@@ -806,7 +806,7 @@ def openspec(
         next_actions=("ethos audit",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 def main() -> None:

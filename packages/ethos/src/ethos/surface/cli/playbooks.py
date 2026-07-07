@@ -31,7 +31,7 @@ def playbooks_check(
         next_actions=("ethos playbooks route",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @playbooks_app.command(name="route")
@@ -61,4 +61,4 @@ def playbooks_route(
         required_gaps=tuple(report["required_gaps"]),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

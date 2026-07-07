@@ -2,13 +2,13 @@
 id = "stashless-residue-closeout"
 subject = "ethos:stashless-residue-closeout"
 state = "active"
-summary = "Digest-bound record for blocking git stash as a hidden residue carrier."
+summary = "Digest-bound record for blocking git stash as a hidden residue carrier and requiring protected-root pollution classification."
 
 [evidence]
 dated = "evidence/chronicle/stashless-residue-closeout/2026-07-07.md"
-sha256 = "4e865df085be5c5504b61eefdc42d546e42cb13952c00a7b337661e3e4d213ba"
+sha256 = "3213634486d60f9122d8b85d0946a8fff4b299d57f6d10c547e38a7473ec6bfd"
 evidence_ids = ["evidence:stashless-residue-closeout"]
-binding = "Pre-run admission and repository hygiene bind dirty-work closeout to visible Work Lane or revert paths, not stash."
+binding = "Pre-run admission and repository hygiene bind dirty-work closeout to classify-then-absorb-or-revert paths, not stash."
 verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/coverage/test_cli_admission_final_edges.py -q",
@@ -25,7 +25,7 @@ scope = "stashless residue closeout and pre-run admission"
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707"
 
-fallback = "If hook admission is unavailable, classify dirty work visibly and either absorb it into an owned Work Lane or revert it from the protected root."
+fallback = "If hook admission is unavailable, classify dirty work visibly, absorb useful work into an owned Work Lane, and revert useless or unsafe pollution from the protected root."
 kill_signal = "A tracked rule, skill, or workflow tells agents to use git stash as a backup, handoff, residue, or closeout carrier."
 
 [promotion]

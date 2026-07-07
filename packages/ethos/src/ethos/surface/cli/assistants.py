@@ -43,7 +43,7 @@ def assistants_doctor(
         next_actions=("ethos assistants mcp-manifest",),
         data={"contract": contract},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command
@@ -57,7 +57,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos quality projection-drift",),
         data={"contract": contract},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-manifest")
@@ -75,7 +75,7 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants check-projections",),
         data={"manifest": manifest},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-server")
@@ -90,7 +90,7 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants mcp-manifest",),
         data={"server": descriptor},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context")
@@ -117,7 +117,7 @@ def assistants_context(
         required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
         data={"context": bundle},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="search")
@@ -139,7 +139,7 @@ def assistants_search(
         required_gaps=tuple(report["required_gaps"]),
         data={"selection": report["selection"]},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-index")
@@ -164,7 +164,7 @@ def assistants_context_index(
         else (),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-purge")
@@ -186,7 +186,7 @@ def assistants_context_purge(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-eval")
@@ -208,4 +208,4 @@ def assistants_context_eval(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

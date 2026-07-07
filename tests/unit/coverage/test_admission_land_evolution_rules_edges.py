@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, FBT002, FBT003, FLY002
+# ruff: noqa: ARG005, FBT003, FLY002
 from __future__ import annotations
 
 import subprocess
@@ -20,7 +20,7 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 
 
 def status(
-    role: str = ROLE_WORK_LANE, dirty: bool = False, changed: list[str] | None = None
+    role: str = ROLE_WORK_LANE, *, dirty: bool = False, changed: list[str] | None = None
 ) -> dict[str, object]:
     return {
         "role": role,

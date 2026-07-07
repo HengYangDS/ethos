@@ -9,19 +9,20 @@ parallel Change carrier without a Subject, Evidence, Claim, or Chronicle.
 
 Keep the rule minimal and upstream:
 
-1. Mutation rules define the formal residue choice: absorb into an owned Work
-   Lane or revert from the protected root after classification.
+1. Mutation rules define the formal residue choice: classify first, then absorb
+   useful work into an owned Work Lane with visible evidence or revert useless
+   and unsafe pollution from the protected root.
 2. Pre-run hook admission rejects stash mutation commands before they can create
    or consume hidden change carriers.
 3. Repository hygiene prevents current docs, rules, skills, and notes from
-   teaching agents to use stash as a backup or closeout path.
+   teaching agents that `git stash` is forbidden for backup or closeout.
 4. Observation remains legal: `git stash list` and `git stash show` can reveal
    hidden state during forensics, but they do not authorize using stash as the
    carrier.
 
 This adds no new entity. It removes a hidden carrier and forces dirty work back
 into the existing kernel chain: Work Lane -> evidence -> claim -> chronicle, or
-revert.
+revert. Accepted roots remain judgment records, not scratchpads.
 
 ## Proof Strategy
 

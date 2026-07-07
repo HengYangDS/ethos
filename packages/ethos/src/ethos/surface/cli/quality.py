@@ -69,7 +69,7 @@ def asset_policy(
         summary={"asset_class_count": len(cast("list[object]", profile["asset_classes"]))},
         data=profile,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="types")
@@ -89,7 +89,7 @@ def quality_types(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command(name="docs")
@@ -113,7 +113,7 @@ def quality_docs(
             "health": report,
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -130,7 +130,7 @@ def proof_policy(
         summary={"state_count": len(cast("list[object]", lattice["states"]))},
         data=lattice,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="tool-profiles")
@@ -147,7 +147,7 @@ def tool_profiles_command(
         summary={"tool_adapter_count": len(cast("list[object]", profiles["tool_adapters"]))},
         data=profiles,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="markdown-links")
@@ -183,7 +183,7 @@ def markdown_links(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="shell")
@@ -209,7 +209,7 @@ def shell_quality(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="toml")
@@ -235,7 +235,7 @@ def toml_quality(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="yaml")
@@ -261,7 +261,7 @@ def yaml_quality(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="coverage")
@@ -288,7 +288,7 @@ def coverage(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command(name="docstrings")
@@ -317,7 +317,7 @@ def docstrings(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command(name="code-size")
@@ -336,7 +336,7 @@ def code_size(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="npm")
@@ -362,7 +362,7 @@ def npm_quality(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="generated-artifacts")
@@ -390,7 +390,7 @@ def generated_artifacts(
         ),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command
@@ -409,7 +409,7 @@ def command_surface(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -440,7 +440,7 @@ def format_policy(
             "standards": policy.get("standards", {}),
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -508,7 +508,7 @@ def projection_drift(
             ],
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -524,7 +524,7 @@ def standards(
         state="clean",
         data={"adapters": registry},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="package-ontology")
@@ -590,7 +590,7 @@ def package_ontology(
         next_actions=("ethos repository audit",),
         data=data,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -609,7 +609,7 @@ def schemas(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -647,7 +647,7 @@ def gates(
             }
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="coupling-audit")
@@ -676,7 +676,7 @@ def coupling_audit(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])) + validation_gaps,
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -701,7 +701,7 @@ def commits(
         required_gaps=tuple(gaps),
         data={**report, "enforce_head": enforce_head},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -725,7 +725,7 @@ def release(
             "host_profile": policy["host_profile"],
         },
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -745,7 +745,7 @@ def release_policy(
         next_actions=("ethos quality release-attestation",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -764,7 +764,7 @@ def sbom(
         summary={"package_count": len(projection["packages"])},
         data={"sbom": projection},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="release-attestation")
@@ -788,7 +788,7 @@ def release_attestation_command(
         summary={"tag": attestation["predicate"]["tag"]},
         data={"attestation": attestation},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -808,7 +808,7 @@ def command_registry(
         next_actions=("ethos repository audit",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -829,7 +829,7 @@ def evidence_freshness(
         next_actions=("ethos prove --json",),
         data={"stale": [], "claims": claim_report},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -849,7 +849,7 @@ def claims(
         next_actions=("ethos prove --json",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -869,7 +869,7 @@ def docs_registry(
         next_actions=("ethos docs",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -888,7 +888,7 @@ def command_examples(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command
@@ -922,4 +922,4 @@ def provenance(
         next_actions=("ethos prove --json",),
         data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

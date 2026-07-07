@@ -60,7 +60,7 @@ def admit(
         next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
         data=report,
     )
-    emit(result, json_output, enforce=True)
+    emit(result, json_output=json_output, enforce=True)
 
 
 @hook_app.command
@@ -94,7 +94,7 @@ def pre_push(
         next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
         data=report,
     )
-    emit(result, json_output, enforce=True)
+    emit(result, json_output=json_output, enforce=True)
 
 
 @hook_app.command
@@ -129,7 +129,7 @@ def ref_transaction(
         next_actions=(("ethos land --closeout",) if not report["ok"] else ()),
         data=report,
     )
-    emit(result, json_output, enforce=True)
+    emit(result, json_output=json_output, enforce=True)
 
 
 @hook_app.command
@@ -175,4 +175,4 @@ def install(
             "wired": wired,
         },
     )
-    emit(result, json_output, enforce=True)
+    emit(result, json_output=json_output, enforce=True)

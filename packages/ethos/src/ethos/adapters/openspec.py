@@ -163,9 +163,9 @@ def openspec_governance_report(
         _cached_openspec_governance_report(
             root.resolve().as_posix(),
             change,
-            lifecycle,
-            base_command,
-            signature,
+            lifecycle=lifecycle,
+            base_command=base_command,
+            _signature=signature,
         )
     )
 
@@ -472,6 +472,7 @@ def _openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...
 def _cached_openspec_governance_report(
     root_posix: str,
     change: str | None,
+    *,
     lifecycle: bool,
     base_command: tuple[str, ...],
     _signature: tuple[tuple[str, int, int], ...],

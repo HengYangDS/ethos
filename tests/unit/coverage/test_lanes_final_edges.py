@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, TC003, FBT002, C901
+# ruff: noqa: ARG005, TC003, C901
 # Monkeypatch-heavy coverage edge tests intentionally preserve callable signatures
 # matching patched runtime functions; unused parameters document those contracts.
 
@@ -21,7 +21,10 @@ POLICY = SimpleNamespace(candidate_branch="candidate/dev")
 
 
 def status(
-    role: str = ROLE_ACCEPTED_ROOT, dirty: bool = False, candidate: dict[str, object] | None = None
+    role: str = ROLE_ACCEPTED_ROOT,
+    *,
+    dirty: bool = False,
+    candidate: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "role": role,

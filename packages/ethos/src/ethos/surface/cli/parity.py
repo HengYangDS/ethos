@@ -31,7 +31,7 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos parity gaps --adopter <adopter>",),
         data={"records": report["records"]},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @parity_app.command(name="gaps")
@@ -77,7 +77,7 @@ def parity_gaps(
         ),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @parity_app.command(name="shadow")
@@ -142,4 +142,4 @@ def parity_shadow(
         next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

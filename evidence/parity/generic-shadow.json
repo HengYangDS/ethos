@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
-    "target_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
-    "product_semantic_sha256": "6d1ab9772d6cf1100ce3feb16ad8684d8b05310ee58017d24bfa5ccde5d47d1e",
-    "target_semantic_sha256": "6d1ab9772d6cf1100ce3feb16ad8684d8b05310ee58017d24bfa5ccde5d47d1e",
+    "product_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
+    "target_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
+    "product_semantic_sha256": "5ecadcd2ec08053e5904f830bfa4ccd6195146de6b2d512323d52d3fcb19d9fe",
+    "target_semantic_sha256": "5ecadcd2ec08053e5904f830bfa4ccd6195146de6b2d512323d52d3fcb19d9fe",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,13 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy",
-    "target_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
-    "product_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
-    "changed_paths": [
-      "tests/unit/coverage/test_cli_admission_final_edges.py",
-      "tests/unit/coverage/test_cov_v3_clidomain_edges.py"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild",
+    "target_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
+    "product_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -54,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json"
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -79,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "dcff3e319e1936ec30b9366db1bcc464af924d078d0fb0cae3770e87fa45dbd8"
+        "sha256": "32309e77011f5643dc43d53de948f33398bf9f321817214b9b103e44517d1738"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "aee67942c5d94e264e59cb9c16b4bc95ab7b0d28f5ad0ee5051922e66dbb6129"
+        "sha256": "a19c1cc2d6ed683361ad9b8ccb84e9106dd4daa03365d1e0503533a181617f81"
       },
       {
         "path": "evidence/claims",

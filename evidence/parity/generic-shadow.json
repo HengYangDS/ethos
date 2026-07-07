@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
-    "target_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
-    "product_semantic_sha256": "066890dfbb29dad90bf4388f301b06b621f64cc61a412461e060332bf67a24e3",
-    "target_semantic_sha256": "066890dfbb29dad90bf4388f301b06b621f64cc61a412461e060332bf67a24e3",
+    "product_head": "008c3f75783eea36b16df655383ecaafb4234beb",
+    "target_head": "008c3f75783eea36b16df655383ecaafb4234beb",
+    "product_semantic_sha256": "2a03f01f064c12de74b8ce1e31a81d04eb4bc9ba0fdcb7bb37357e169cfae787",
+    "target_semantic_sha256": "2a03f01f064c12de74b8ce1e31a81d04eb4bc9ba0fdcb7bb37357e169cfae787",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-free-surface-quality",
-    "target_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
-    "product_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection",
+    "target_head": "008c3f75783eea36b16df655383ecaafb4234beb",
+    "product_head": "008c3f75783eea36b16df655383ecaafb4234beb",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-free-surface-quality --json",
-      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-free-surface-quality --json"
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json",
+      "/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "fa52cdbc57c0c8d7556bd80e1a055b84ced31e21520b6ccc855b3e324d0c8172"
+        "sha256": "e1264afe74ac20294f2e8aca144786f921642f9d276c9847edc8c2d7bf3c618c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "466cdce28b5653a7ab490cd29dfaec5dc3b0cabdf1b72a17feb65622ccfc1175"
+        "sha256": "97387f56adcd318a002bd5799f97db3ec86fd01e3d18c11179d9cd419f97ec31"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "04f984d87ff392b9d00118e168d0fc7643582743c7ee6a25ea66122ba1b4984c"
+        "sha256": "b7985c1d4b78d18dc43b9a7d51cce21ae5b72fbf748060f58a359aa6d22ffd65"
       },
       {
         "path": "rules",

@@ -156,7 +156,8 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
 
     def flaky_connect(target, *args, **kwargs):
         if target == db_path:
-            raise sqlite3.OperationalError("unable to open database file")
+            message = "unable to open database file"
+            raise sqlite3.OperationalError(message)
         return real_connect(target, *args, **kwargs)
 
     monkeypatch.setattr(state.sqlite3, "connect", flaky_connect)

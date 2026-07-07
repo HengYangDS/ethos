@@ -20,8 +20,8 @@ instead of making coordination invisible.
   active code, schemas, product docs, authority graph, and current kernel spec.
 - Keep archived OpenSpec and historical evidence text as historical record rather
   than rewriting what prior changes said at the time.
-- Classify `.claude`, `CLAUDE.md`, `.gitnexus`, and `.ethos/decomp-recipes` as
-  forbidden protected-root projection/scratch paths.
+- Classify `.claude`, `CLAUDE.md`, `.gitnexus`, `.ethos/decomp-recipes`, and
+  `docs/superpowers` as forbidden protected-root projection/scratch paths.
 - Add a read-only SQLite fallback for active lease reads when the default local
   connection cannot open the state database.
 

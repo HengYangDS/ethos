@@ -57,10 +57,7 @@ SUPPORTED_REPOSITORY_FORMS = ("single-repository", "monorepo", "multi-repository
 
 def normalize_docs_path(path: Path | str) -> str:
     """Return a repository-relative POSIX docs path without current-directory noise."""
-    text = Path(path).as_posix()
-    while text.startswith("./"):
-        text = text[2:]
-    return text.rstrip("/")
+    return Path(path).as_posix().rstrip("/")
 
 
 def docs_topology_contract() -> dict[str, Any]:

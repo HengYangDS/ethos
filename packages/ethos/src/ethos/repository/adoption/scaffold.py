@@ -46,9 +46,6 @@ OPENSPEC_CAPABILITIES = (
     "quality",
     "proof-hosts",
 )
-if len(OPENSPEC_CAPABILITIES) != len(set(OPENSPEC_CAPABILITIES)):
-    msg = "OPENSPEC_CAPABILITIES contains duplicate entries"
-    raise ValueError(msg)
 BASE_ADOPTION_FILES = (
     "AGENTS.md",
     "CONTRIBUTING.md",

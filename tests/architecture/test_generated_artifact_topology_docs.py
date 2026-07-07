@@ -80,6 +80,4 @@ def test_documentation_topology_docs_bind_common_kernel() -> None:
         assert "ethos quality docs-topology --json" in text
 
     assert "DR-0002" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")
-    assert "DR-0002" in (ROOT / "docs/decisions/decision-code-links.md").read_text(
-        encoding="utf-8"
-    )
+    assert "DR-0002" in (ROOT / "docs/decisions/decision-code-links.md").read_text(encoding="utf-8")

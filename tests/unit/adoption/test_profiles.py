@@ -123,6 +123,6 @@ def test_adoption_profiles_share_docs_topology_kernel(tmp_path: Path) -> None:
 
     assert required_docs <= set(generic["planned_files"])
     assert required_docs <= set(monorepo["planned_files"])
-    assert {
-        path for path in generic["planned_files"] if path.startswith("docs/")
-    } == {path for path in monorepo["planned_files"] if path.startswith("docs/")}
+    assert {path for path in generic["planned_files"] if path.startswith("docs/")} == {
+        path for path in monorepo["planned_files"] if path.startswith("docs/")
+    }

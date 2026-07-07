@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.docs_topology import docs_topology_report
 from ethos_core.contracts.docs_topology import docs_topology_contract
+from ethos_core.contracts.docs_topology import is_product_docs_extension_root
+from ethos_core.contracts.docs_topology import normalize_docs_path
 from ethos_core.contracts.docs_topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
@@ -46,6 +48,13 @@ def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
     for form, paths in contract["required_paths_by_repository_form"].items():
         assert form in contract["supported_repository_forms"]
         assert tuple(paths) == required
+
+
+def test_docs_topology_path_helpers_normalize_and_classify_extensions() -> None:
+    assert normalize_docs_path("./docs/architecture/") == "docs/architecture"
+    assert normalize_docs_path("docs/current/README.md") == "docs/current/README.md"
+    assert is_product_docs_extension_root("./docs/architecture/details.md") is True
+    assert is_product_docs_extension_root("docs/current/README.md") is False
 
 
 def test_docs_topology_report_accepts_product_docs_kernel() -> None:

@@ -44,6 +44,7 @@ _NON_GAP_TOKENS = {
     "required_gap",  # policy-result field name, not an emitted gap
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap
+    "missing_required_path_count",  # docs-topology report field, not an emitted gap
     *NODE_ORDER,  # the category ids themselves are not gaps
     "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
     "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted

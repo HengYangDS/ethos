@@ -170,9 +170,9 @@ planned = true
 concern = "secrets"
 tool = "gitleaks"
 optional = "trufflehog"
-config = ".config/checks/secrets/"
-profile = "minimal"
-planned = true
+config = ".gitleaks.toml"
+profile = "product"
+gate = ".config/ci/scripts/run-secrets-scan.sh"
 
 [[tool]]
 concern = "python_vuln"

@@ -16,6 +16,7 @@ configuration plane, not a truth center.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `.config/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.
 - `.config/checks/yaml/yamllint.yaml` owns YAML linting; CI invokes it through `.config/ci/scripts/run-config-lint.sh`.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `.config/ci/scripts/run-shell-lint.sh` is the runner.
+- The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `.config/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
 - `.config/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
 - `.config/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.

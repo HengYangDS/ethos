@@ -83,6 +83,18 @@ ethos:security:
   script:
     - uv run --no-project --with bandit bandit -r packages -c .config/checks/bandit/bandit.yaml --severity-level medium -q
 
+ethos:secrets:
+  <<: *python_setup
+  stage: quality
+  script:
+    # Secret scanning via gitleaks (prebuilt binary installed by the runner).
+    # Policy: root .gitleaks.toml. A tracked secret fails the pipeline.
+    - .config/ci/scripts/run-secrets-scan.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/secrets/
+
 ethos:docs-links:
   <<: *python_setup
   stage: quality

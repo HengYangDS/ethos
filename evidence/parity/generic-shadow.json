@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
-    "target_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
-    "product_semantic_sha256": "0034e19c82e6b1c96627d4f88a08b6e994b3168486bedcf938e6fc8a1aa345dd",
-    "target_semantic_sha256": "0034e19c82e6b1c96627d4f88a08b6e994b3168486bedcf938e6fc8a1aa345dd",
+    "product_head": "a9f43d3c86b054681786dd057a5c447cbfa0ce45",
+    "target_head": "a9f43d3c86b054681786dd057a5c447cbfa0ce45",
+    "product_semantic_sha256": "de23582d875a06e9abf92f1500db3b3fbdaf4c7272eef9d4db1ea0af91ea6c67",
+    "target_semantic_sha256": "de23582d875a06e9abf92f1500db3b3fbdaf4c7272eef9d4db1ea0af91ea6c67",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-fsc2",
-    "target_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
-    "product_head": "6db3c6e9e7702a6811c49dacf1683e78a314339a",
+    "target_root": "/private/tmp/ethos-b314",
+    "target_head": "a9f43d3c86b054681786dd057a5c447cbfa0ce45",
+    "product_head": "a9f43d3c86b054681786dd057a5c447cbfa0ce45",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-fsc2 --json",
-      "/private/tmp/ethos-fsc2/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-fsc2 --json"
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-b314 --json",
+      "/private/tmp/ethos-b314/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-b314 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3c4bdba8964a67dac2ef7a7201ab94b97c6481e59fb00f87677e5013e0746ad7"
+        "sha256": "9f38092abadf70c4128a80391f08f8aa2ac645cbd023a2599ca13018ebfea2ac"
       },
       {
         "path": "evidence/claims",

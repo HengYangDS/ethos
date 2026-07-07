@@ -4,6 +4,14 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
+GENERATED_OR_LOCAL_ROOTS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+}
 
 
 def test_ci_quality_stage_invokes_config_and_shell_owner_scripts() -> None:
@@ -34,7 +42,7 @@ def test_config_quality_has_dedicated_policy_not_pyproject_dumping_ground() -> N
 def test_toml_files_have_exactly_one_final_newline_and_no_trailing_space() -> None:
     bad: list[str] = []
     for path in sorted(ROOT.rglob("*.toml")):
-        if any(part in {".git", ".venv"} for part in path.parts):
+        if any(part in GENERATED_OR_LOCAL_ROOTS for part in path.relative_to(ROOT).parts):
             continue
         data = path.read_bytes()
         if data and not data.endswith(b"\n"):

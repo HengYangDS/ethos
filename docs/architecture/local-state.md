@@ -33,6 +33,24 @@ replace Git history, OpenSpec records, claims, or evidence. Current prewrite and
 apply-mode admission are enforced by checkout role, editor-root binding, and
 HEAD checks; lease ownership enforcement is a later lifecycle extension.
 
+
+## Adopted Repository Control Roots
+
+When external ETHOS inspects an adopted repository from a linked Work Lane, the
+accepted-root checkout remains the local coordination control root. ETHOS may
+read the adopter's ignored `.cache/local-state/worktree/leases.json` projection
+from that accepted root to preserve existing embedded Work Lane leases during
+shadow parity and rollback-window checks. This compatibility read is local
+runtime coordination only: it does not promote `.cache/local-state/` to durable
+truth, does not replace `.ethos/profile.toml`, and does not let product code own
+adopter-specific profiles or fixtures.
+
+SQLite `.ethos/state/state.sqlite` remains the product-native local-state store;
+when both SQLite and JSON projections contain the same branch, the SQLite lease
+wins. Expired or malformed JSON projection leases are ignored. The JSON
+projection exists so external ETHOS can be at least as strong as an adopter's
+embedded backend while the adopter is still in migration.
+
 Status: see front matter.
 
 Purpose: explain the repository truth represented by this ETHOS document.

@@ -9,6 +9,7 @@ from typing import cast
 if TYPE_CHECKING:
     from pathlib import Path
 
+from ethos.repository.policy.docs_topology import docs_topology_report
 from ethos.repository.profile import load_repository_profile
 
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}
@@ -76,6 +77,7 @@ def retirement_readiness_report(
             },
         ),
         "product_boundary": _product_boundary_checks(product, adoption_boundary),
+        "docs_topology": _docs_topology_checks(repo),
         "parity": _parity_checks(parity_gaps),
         "shadow": _shadow_checks(shadow),
     }
@@ -391,6 +393,22 @@ def _product_boundary_checks(
     }
 
 
+def _docs_topology_checks(repo: Path) -> dict[str, object]:
+    report = docs_topology_report(repo)
+    gaps = [f"retirement_docs_topology:{gap}" for gap in _string_list(report.get("required_gaps"))]
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    return {
+        "ok": not gaps,
+        "state": report.get("state", ""),
+        "missing_paths": _string_list(report.get("missing_paths")),
+        "required_gaps": gaps,
+        "summary": {
+            "required_path_count": summary.get("required_path_count", 0),
+            "missing_required_path_count": summary.get("missing_required_path_count", 0),
+        },
+    }
+
+
 def _parity_checks(parity_gaps: dict[str, object] | None) -> dict[str, object]:
     if parity_gaps is None:
         return {
@@ -434,6 +452,8 @@ def _shadow_checks(shadow: dict[str, object] | None) -> dict[str, object]:
 
 
 def _report_state(lifecycle_stage: str, gaps: list[str]) -> str:
+    if any(gap.startswith("retirement_docs_topology:") for gap in gaps):
+        return "docs_topology_open"
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         return "rollback_window_evidence_open"
     return lifecycle_stage
@@ -479,6 +499,8 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
         actions.append("switch adopter default backend to external under a reversible control")
     if any(gap.startswith("retirement_embedded_backend_not_frozen") for gap in gaps):
         actions.append("freeze embedded backend as fallback/reference during rollback window")
+    if any(gap.startswith("retirement_docs_topology:") for gap in gaps):
+        actions.append(f"ethos quality docs-topology --root {repo.as_posix()} --json")
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         actions.append(
             "populate [rollback_window] with a manifest and completed proof_report, "

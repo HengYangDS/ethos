@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import subprocess
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 from ethos.adapters.store.state import active_leases
@@ -248,8 +251,67 @@ def _leases_by_branch(
         if worktree["role"] == ROLE_ACCEPTED_ROOT and worktree["path"]:
             control_root = Path(worktree["path"])
             break
-    leases = active_leases(control_root / ".ethos" / "state" / "state.sqlite")
-    return {str(lease["subject"]): lease for lease in leases}
+    leases = {str(lease["subject"]): lease for lease in _json_projection_leases(control_root)}
+    leases.update(
+        {
+            str(lease["subject"]): lease
+            for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+        }
+    )
+    return leases
+
+
+def _json_projection_leases(control_root: Path) -> list[dict[str, object]]:
+    path = control_root / ".cache" / "local-state" / "worktree" / "leases.json"
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    rows = payload.get("leases") if isinstance(payload, dict) else []
+    if not isinstance(rows, list):
+        return []
+    now = datetime.now(UTC)
+    leases: list[dict[str, object]] = []
+    for row in rows:
+        lease = _json_projection_lease(row, now=now)
+        if lease:
+            leases.append(lease)
+    return leases
+
+
+def _json_projection_lease(row: object, *, now: datetime) -> dict[str, object]:
+    if not isinstance(row, dict):
+        return {}
+    branch = str(row.get("branch") or row.get("subject") or "")
+    owner = str(row.get("owner") or "")
+    expires_at = str(row.get("expires_at") or "")
+    if not branch or not owner or not _lease_expires_after(expires_at, now=now):
+        return {}
+    return {
+        "id": str(row.get("id") or f"json:{branch}"),
+        "subject": branch,
+        "owner": owner,
+        "expires_at": expires_at,
+        "payload": {
+            "branch": branch,
+            "claim_id": str(row.get("claim_id") or ""),
+            "path": str(row.get("worktree_path") or row.get("path") or ""),
+            "session_id": str(row.get("session_id") or ""),
+        },
+    }
+
+
+def _lease_expires_after(value: str, *, now: datetime) -> bool:
+    try:
+        normalized = value.replace("Z", "+00:00")
+        expires_at = datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    return expires_at > now
 
 
 def _lease_claim_id(lease: dict[str, object]) -> str:

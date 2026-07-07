@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import subprocess
 from contextlib import closing
@@ -510,6 +511,262 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
         "owner": "agent:test",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": [],
+    }
+
+
+def test_workspace_status_reads_control_root_json_lease_projection(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/feature",
+                        "owner": "agent:test",
+                        "expires_at": "2999-01-01T00:00:00Z",
+                        "worktree_path": worktree.as_posix(),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": True,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "agent:test",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": [],
+    }
+    assert "work_lane_missing_lease:work/feature" not in status["required_gaps"]
+
+
+def test_workspace_status_prefers_sqlite_lease_over_json_projection(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:sqlite",
+        apply=True,
+    )
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/feature",
+                        "owner": "agent:json",
+                        "expires_at": "2999-01-01T00:00:00Z",
+                        "worktree_path": worktree.as_posix(),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": True,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "agent:sqlite",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": [],
+    }
+
+
+def test_workspace_status_ignores_expired_json_lease_projection(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/feature",
+                        "owner": "agent:expired",
+                        "expires_at": "2000-01-01T00:00:00Z",
+                        "worktree_path": worktree.as_posix(),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": ["work_lane_missing_lease:work/feature"],
+    }
+
+
+def test_workspace_status_ignores_malformed_json_lease_projection(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text("[", encoding="utf-8")
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": ["work_lane_missing_lease:work/feature"],
+    }
+
+
+def test_workspace_status_ignores_invalid_json_lease_rows(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps({"schema_version": 1, "leases": "not-a-list"}),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": ["work_lane_missing_lease:work/feature"],
+    }
+
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    "not-a-dict",
+                    {
+                        "branch": "work/feature",
+                        "owner": "agent:bad-date",
+                        "expires_at": "not-a-date",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": False,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "",
+        "claim_id": "",
+        "claim_binding": "missing",
+        "required_gaps": ["work_lane_missing_lease:work/feature"],
+    }
+
+
+def test_workspace_status_accepts_naive_json_lease_expiry_as_utc(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/feature",
+                        "owner": "agent:naive",
+                        "expires_at": "2999-01-01T00:00:00",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"] == {
+        "supported": True,
+        "branch": "work/feature",
+        "target_branch": "candidate/dev",
+        "target_path": candidate.as_posix(),
+        "operation": "land_to_candidate",
+        "owner": "agent:naive",
         "claim_id": "",
         "claim_binding": "missing",
         "required_gaps": [],

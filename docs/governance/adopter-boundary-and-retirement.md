@@ -54,10 +54,11 @@ profile contract
 
 An embedded implementation may be retired only after external ETHOS is proven
 at least as strong for the adopter. This proof must be same repository, same
-HEAD, same changed paths, same evidence inputs, and structured shadow diff.
-The first retirement gate is the shadow identity envelope: tracked evidence must
-bind target root, target HEAD, product HEAD, compared command identities, changed
-paths, and evidence input digests before semantic diff results can be used.
+HEAD, same changed paths, same evidence inputs, structured shadow diff, and a
+clean documentation-topology audit for the adopter target. The first retirement
+gate is the shadow identity envelope: tracked evidence must bind target root,
+target HEAD, product HEAD, compared command identities, changed paths, and
+evidence input digests before semantic diff results can be used.
 
 Allowed outcomes:
 
@@ -79,6 +80,7 @@ external accepts stale evidence
 external turns blocking into advisory
 external treats dry-run as live proof
 external loses domain gate planning obligations
+external permits embedded retirement while the common docs kernel is missing
 ```
 
 ## Rollback Window

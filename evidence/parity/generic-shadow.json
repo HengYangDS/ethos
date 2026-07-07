@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
-    "target_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
-    "product_semantic_sha256": "3edd8085d918397f208c1b3dcbf66fe3770ab416db153158616af4a4145634b8",
-    "target_semantic_sha256": "3edd8085d918397f208c1b3dcbf66fe3770ab416db153158616af4a4145634b8",
+    "product_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
+    "target_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
+    "product_semantic_sha256": "efb6dcc2467fcc42dc5edab6a976a33a2aa3fdb9718912fb9c3cd2f8adc8c138",
+    "target_semantic_sha256": "efb6dcc2467fcc42dc5edab6a976a33a2aa3fdb9718912fb9c3cd2f8adc8c138",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,10 +35,12 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux",
-    "target_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
-    "product_head": "0383b47216982c576259d12bbbd9caa3e074bac5",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate",
+    "target_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
+    "product_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
+    "changed_paths": [
+      "evidence/parity/alphasim-dmgr-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +53,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-retire-actor-ux --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +78,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "f5d1161d7583079929641b71ab713b094019f39a83815834376f3a8de4ad5b18"
+        "sha256": "af23f964853bfabd69b39d76907fe784e428af26f9556c0c8015da019913e17f"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f7006b013509b227d37e65ae6a168f5c5d662b329ff8e5384fdfe7657a55e2fc"
+        "sha256": "057b69b12e39fbe35f80c3362cf5db02a58406fd12af3c5f12c3892a341a3557"
       },
       {
         "path": "evidence/claims",

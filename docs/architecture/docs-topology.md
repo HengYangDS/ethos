@@ -66,3 +66,9 @@ ethos prove --execute --gate docs-topology --expect-head <git-head> --json
 must converge toward the same kernel before embedded ETHOS retirement can be
 claimed, because retirement depends on shared current/evidence/decision routing,
 not just passing runtime tests.
+
+`ethos fleet retirement-readiness --target <repo> --root <product> --json`
+therefore treats `ethos quality docs-topology --root <repo> --json` gaps as
+blocking retirement gaps. A repository may keep richer domain-specific docs, but
+it cannot retire an embedded ETHOS backend while the common docs kernel is
+missing or structurally divergent.

@@ -91,6 +91,29 @@ def _terminal_report(adopter: Path, product: Path) -> dict[str, object]:
     )
 
 
+def _write_docs_kernel(root: Path) -> None:
+    entries = {
+        "docs/README.md": "# Docs\n",
+        "docs/current/README.md": "# Current\n",
+        "docs/decisions/README.md": "# Decisions\n",
+        "docs/decisions/decision-index.md": "# Decision Index\n",
+        "docs/decisions/decision-dependency-map.md": "# Decision Dependency Map\n",
+        "docs/decisions/decision-code-links.md": "# Decision Code Links\n",
+        "docs/decisions/accepted/README.md": "# Accepted Decisions\n",
+        "docs/decisions/superseded/README.md": "# Superseded Decisions\n",
+        "docs/decisions/templates/README.md": "# Decision Templates\n",
+        "docs/decisions/templates/decision-record.md": "# Decision Record Template\n",
+        "docs/evidence/README.md": "# Evidence\n",
+        "docs/future/README.md": "# Future\n",
+        "docs/history/README.md": "# History\n",
+        "docs/reference/README.md": "# Reference\n",
+    }
+    for relative, content in entries.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+
 def _write_profile(
     root: Path,
     *,
@@ -100,8 +123,8 @@ def _write_profile(
 ) -> None:
     (root / ".ethos").mkdir(parents=True)
     (root / ".config").mkdir()
-    (root / "docs/current/development/workflow").mkdir(parents=True)
-    (root / "docs/evidence").mkdir(parents=True)
+    _write_docs_kernel(root)
+    (root / "docs/current/development/workflow").mkdir(parents=True, exist_ok=True)
     (root / "claims").mkdir()
     (root / "rules").mkdir()
     (root / "openspec").mkdir()
@@ -340,6 +363,25 @@ def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
     assert report["ok"] is True
     assert report["state"] == "ready"
     assert report["required_gaps"] == []
+
+
+def test_retirement_readiness_blocks_missing_docs_topology_kernel(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "docs/decisions/decision-code-links.md").unlink()
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert report["state"] == "docs_topology_open"
+    assert (
+        "retirement_docs_topology:docs_topology_missing:docs/decisions/decision-code-links.md"
+        in report["required_gaps"]
+    )
+    assert report["checks"]["docs_topology"]["ok"] is False
+    assert any("ethos quality docs-topology" in action for action in report["next_actions"])
 
 
 def test_retirement_readiness_rejects_placeholder_rollback_manifest(

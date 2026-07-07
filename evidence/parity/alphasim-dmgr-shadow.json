@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "adopter": "alphasim-dmgr",
-  "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev",
-  "generated_on": "2026-07-06",
-  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --execute --timeout-seconds 30 --json",
+  "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness",
+  "generated_on": "2026-07-07",
+  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
-    "target_head": "ccb9cbcc60dcd22c33c0cc244b6ab7e233dc2e12",
-    "product_semantic_sha256": "543300f5c0026b0d3fd53a5e48ba6fb0ff741ba7ed27db29b386aac5ceed83d0",
+    "product_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
+    "target_head": "fb031fdd544a9e057ef8068aeb7b1eb984c2627a",
+    "product_semantic_sha256": "efb6dcc2467fcc42dc5edab6a976a33a2aa3fdb9718912fb9c3cd2f8adc8c138",
     "target_semantic_sha256": "384174cea2ee8863e14725e98af02cbef17d3b0b3e4ccb3a272023abc735f892",
-    "command_sha256": "355ebf6beb9cf39ce36a629b0cb5b6894a825edf0fb5de10597cf775ede3c3c5"
+    "command_sha256": "f45d26668a45ff2cee59d660900c07a32cd785585851f00cc4c0971177f99f5b"
   },
   "shadow": {
     "ok": true,
@@ -28,18 +28,16 @@
       "ethos publish --json"
     ],
     "accepted_summary": {
-      "total_count": 1,
-      "kind_counts": {
-        "external_stricter_required_gap": 1
-      },
-      "command_count": 1
+      "total_count": 0,
+      "kind_counts": {},
+      "command_count": 0
     },
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev",
-    "target_head": "ccb9cbcc60dcd22c33c0cc244b6ab7e233dc2e12",
-    "product_head": "ccbd488b063881bd0fdf5719b91fd9a7514abe96",
+    "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness",
+    "target_head": "fb031fdd544a9e057ef8068aeb7b1eb984c2627a",
+    "product_head": "2edcdaf0295414e966085b275f6afbb017fc6790",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -53,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-isomorphism-retirement-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3-worktrees/external-ethos-adoption-readiness --json"
     ],
     "embedded_commands": [
       "pixi run ethos status --json",
@@ -78,22 +76,12 @@
       {
         "path": ".cache/local-state",
         "kind": "directory",
-        "sha256": "3d9b4756f029a43e2a2a1e942a885422d29169a6a0edd2ded48e73d0afae2543"
+        "sha256": "42013ef036afcf5150643edb2c8b228c40426f1ec268469e76bf68f1332de0eb"
       },
       {
         "path": ".ethos/profile.toml",
         "kind": "file",
         "sha256": "7c2c7871e60cb73d4262c8a4029dfcf143d86dc8ac6a95e45ad055c99bcce493"
-      },
-      {
-        "path": ".ethos/state",
-        "kind": "directory",
-        "sha256": "1f8a73b72599c1a3ad7abd83f6fa6317ac30fb7514449a488ee5a47e164e161c"
-      },
-      {
-        "path": "build/evidence",
-        "kind": "directory",
-        "sha256": "5d9e8fba7b2466d87be97a94f5c5eccafbc7421f2411f18bde9dfd64b8241876"
       },
       {
         "path": "claims",
@@ -103,12 +91,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "48bf34bc7ebb80f52b95cdcc3c7e995fffba4b865722437c90e348165a9002b4"
+        "sha256": "da301328fff20a17de7157286b996d428d57c16ef6187ce486aece51d3eeda42"
       },
       {
         "path": "docs/evidence",
         "kind": "directory",
-        "sha256": "748552d0b42d4afb9ef60b3ccef86af530cfb94283eb945fd73eb073ae474522"
+        "sha256": "45126c278e6634223fb6e1a8b7d6a6095fc94113f74a93f05da1f90991e97d42"
       },
       {
         "path": "openspec",

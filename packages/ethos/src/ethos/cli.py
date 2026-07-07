@@ -100,6 +100,48 @@ def _missing_gate_dependency_next_actions(
     return (" ".join(command_parts),)
 
 
+KNOWN_PROOF_SCOPES = frozenset(
+    {
+        "repository",
+        "proof-kernel",
+        "code",
+        "docs",
+        "openspec",
+        "quality",
+    }
+)
+
+
+def _proof_scope_binding(scope: str) -> dict[str, object]:
+    """Return the proof-scope compatibility binding for command payloads."""
+    normalized = " ".join(scope.split()) or "repository"
+    known = normalized in KNOWN_PROOF_SCOPES
+    return {
+        "scope": normalized,
+        "accepted": known,
+        "known": known,
+        "known_scopes": sorted(KNOWN_PROOF_SCOPES),
+        "semantics": (
+            "proof-boundary metadata; "
+            "gate selection remains controlled by --gate/--full/profile"
+        ),
+        "required_gaps": [] if known else [f"unknown_proof_scope:{normalized}"],
+    }
+
+
+def _host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
+    """Describe optional host-readiness probe flags without minting proof truth."""
+    return {
+        "requested": host or probe,
+        "host": host,
+        "probe": probe,
+        "evidence_class": "optional_host_readiness",
+        "satisfies_repository_proof": False,
+        "truth_boundary": "host-local projection",
+        "state": "not_requested" if not (host or probe) else "boundary_recorded",
+    }
+
+
 @app.command
 def status(
     *,
@@ -222,10 +264,13 @@ def plan(
 def prove(
     *,
     objective: str = "ethos proof",
+    scope: str = "repository",
     execute: bool = False,
     gate: tuple[str, ...] = (),
     full: bool = False,
     expect_head: str | None = None,
+    host: bool = False,
+    probe: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -289,6 +334,9 @@ def prove(
         if expect_head is not None and expect_head != current_head
         else ()
     )
+    scope_binding = _proof_scope_binding(scope)
+    scope_gaps = tuple(cast("list[str]", scope_binding["required_gaps"]))
+    host_probe = _host_probe_boundary(host=host, probe=probe)
     ok = (
         bool(audit["ok"])
         and runs_ok
@@ -297,6 +345,7 @@ def prove(
         and not proof_gaps
         and not trust_gaps
         and not head_gaps
+        and not scope_gaps
     )
     result_state = "proven" if ok and execute else "ready" if ok else "gapped"
     if result_state == "proven":
@@ -332,11 +381,15 @@ def prove(
             + proof_gaps
             + trust_gaps
             + head_gaps
+            + scope_gaps
         ),
         next_actions=next_actions,
         data={
             "repository_audit": audit,
             "executed": execute,
+            "scope": scope_binding["scope"],
+            "scope_binding": scope_binding,
+            "host_probe": host_probe,
             "action_graph": graph.to_dict(),
             "evidence": evidence.to_dict(),
             "provenance": provenance_envelope(evidence),

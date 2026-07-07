@@ -103,6 +103,8 @@ ethos openspec --lifecycle
 ethos prove --execute
 ethos prove --full --execute
 ethos prove --expect-head <git-head>
+ethos prove --scope proof-kernel
+ethos prove --scope proof-kernel --host --probe
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
@@ -363,6 +365,12 @@ reports `state=ready` with `executed=false` when planning and static admission
 pass. `ethos prove --execute --json` can report `state=proven` because every
 selected gate records an exit code. `ethos prove --full --json` without
 execution is intentionally `gapped` with `full_proof_requires_execute`.
+`ethos prove --scope proof-kernel --json` is a compatibility contract for
+adopters whose existing governance invokes scoped proof-kernel checks; scope is
+proof-boundary metadata and does not override `--gate`, `--full`, or profile gate
+selection. `--host --probe` records an optional host-local readiness boundary in
+`data.host_probe`; it does not satisfy repository proof, hosted CI, publication,
+or adopter retirement readiness by itself.
 
 `ethos quality coupling-audit --json` reports product-semantic hard bindings,
 mandatory governance dependencies, native protocol bindings, product-toolchain

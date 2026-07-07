@@ -204,6 +204,45 @@ def test_default_proof_reports_readiness_not_proven() -> None:
     assert all(run["trust_bearing"] is False for run in payload["data"]["evidence"]["runs"])
 
 
+def test_prove_accepts_proof_scope_compatibility_flag() -> None:
+    payload = run_ethos("prove", "--scope", "proof-kernel", "--json")
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready"
+    assert payload["data"]["scope"] == "proof-kernel"
+    assert payload["data"]["scope_binding"]["accepted"] is True
+    assert payload["data"]["scope_binding"]["known"] is True
+
+
+def test_prove_accepts_host_probe_compatibility_flags_without_claiming_host_truth() -> None:
+    payload = run_ethos(
+        "prove",
+        "--scope",
+        "proof-kernel",
+        "--host",
+        "--probe",
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready"
+    assert payload["data"]["scope"] == "proof-kernel"
+    host_probe = payload["data"]["host_probe"]
+    assert host_probe["requested"] is True
+    assert host_probe["host"] is True
+    assert host_probe["probe"] is True
+    assert host_probe["satisfies_repository_proof"] is False
+
+
+def test_prove_rejects_unknown_proof_scope() -> None:
+    payload = run_ethos("prove", "--scope", "unknown-scope", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert "unknown_proof_scope:unknown-scope" in payload["required_gaps"]
+    assert payload["data"]["scope_binding"]["accepted"] is False
+
+
 def test_prove_accepts_matching_expected_head() -> None:
     head = git(Path.cwd(), "rev-parse", "HEAD")
 

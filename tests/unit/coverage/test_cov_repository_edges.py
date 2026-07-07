@@ -177,3 +177,10 @@ def test_live_skill_package_manifest_malformed_toml(tmp_path: Path) -> None:
         gap.startswith(".agents/skills/demo/package.toml:")
         for gap in manifests["required_gaps"]
     )
+
+
+def test_openspec_capabilities_has_no_duplicates() -> None:
+    # Invariant formerly guarded by an import-time check: the capability list is a
+    # set of distinct families. A duplicate would double-scaffold a spec directory.
+    caps = scaffold.OPENSPEC_CAPABILITIES
+    assert len(caps) == len(set(caps))

@@ -25,6 +25,7 @@ from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
+from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.coupling import coupling_audit_report
 from ethos.repository.policy.coverage import coverage_quality_report
 from ethos.repository.policy.docstrings import docstring_coverage_report
@@ -362,6 +363,34 @@ def npm_quality(
         data=report,
     )
     emit(result, json_output, enforce=False)
+
+
+@quality_app.command(name="generated-artifacts")
+def generated_artifacts(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Audit generated-artifact topology and path routing drift."""
+    repo = resolve_root(root)
+    report = generated_artifact_topology_report(repo)
+    result = EthosResult(
+        command="quality generated-artifacts",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(cast("dict[str, object]", report["summary"])),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=(
+            (
+                "move generated outputs under build/ethos or build/evidence; "
+                "promote curated summaries into docs/evidence"
+            )
+            if report["required_gaps"]
+            else "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+        ),
+        data=report,
+    )
+    emit(result, json_output)
 
 
 @quality_app.command

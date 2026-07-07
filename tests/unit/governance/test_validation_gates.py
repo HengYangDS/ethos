@@ -730,6 +730,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "docs-registry",
         "schemas",
         "playbooks-v2",
+        "generated-artifacts",
         "unit-architecture",
         "ruff",
         "python-types",
@@ -769,6 +770,7 @@ root_subject = \"sample\"
         "claims",
         "schemas",
         "playbooks-v2",
+        "generated-artifacts",
         "format-policy",
         "asset-determinism",
         "schema-contracts",
@@ -884,3 +886,13 @@ def test_repository_audit_blocks_vendor_projection_files(tmp_path: Path) -> None
     assert report["design_integrity"]["ok"] is False
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in gaps
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in report["required_gaps"]
+
+
+def test_gate_registry_includes_generated_artifacts_gate() -> None:
+    gate = gate_registry()["generated-artifacts"]
+
+    assert gate.command[2:] == ("ethos.cli", "quality", "generated-artifacts", "--json")
+    assert gate.trust_bearing is True
+    assert "path-topology" in gate.dimensions
+    assert "generated-artifacts" in gate.asset_classes
+    assert "generated-artifacts" in [node.id for node in gate_graph().nodes]

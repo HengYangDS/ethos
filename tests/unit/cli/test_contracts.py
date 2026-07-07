@@ -695,6 +695,7 @@ def test_quality_schema_gate_and_commit_commands_are_available() -> None:
     for command in (
         ("quality", "schemas", "--json"),
         ("quality", "gates", "--json"),
+        ("quality", "generated-artifacts", "--json"),
         ("quality", "commits", "--json"),
         ("quality", "release", "--json"),
     ):
@@ -723,6 +724,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "docstrings",
         "evidence-freshness",
         "format-policy",
+        "generated-artifacts",
         "gates",
         "markdown-links",
         "npm",
@@ -844,9 +846,9 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     payload = run_ethos("prove", "--json")
 
     assert payload["ok"] is True
-    assert payload["summary"]["gate_count"] == 13
+    assert payload["summary"]["gate_count"] == 14
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
-    assert {"ruff", "toml-config", "yaml-config", "shell-lint", "format-policy"} <= set(node_ids)
+    assert {"ruff", "toml-config", "yaml-config", "shell-lint", "format-policy", "generated-artifacts"} <= set(node_ids)
 
 
 def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:
@@ -868,13 +870,14 @@ root_subject = \"sample\"
 
     payload = run_ethos("prove", "--root", str(repo), "--json")
 
-    assert payload["summary"]["gate_count"] == 8
+    assert payload["summary"]["gate_count"] == 9
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert set(node_ids) == {
         "repository-audit",
         "claims",
         "schemas",
         "playbooks-v2",
+        "generated-artifacts",
         "format-policy",
         "asset-determinism",
         "schema-contracts",

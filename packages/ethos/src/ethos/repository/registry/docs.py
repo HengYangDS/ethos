@@ -67,6 +67,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos quality package-ontology",
     "ethos quality schemas",
     "ethos quality gates",
+    "ethos quality generated-artifacts",
     "ethos quality docs",
     "ethos quality markdown-links",
     "ethos quality shell",

@@ -87,6 +87,16 @@ def gate_registry() -> dict[str, Gate]:
             trust_bearing=True,
             tool_adapter="ethos-docs-registry",
         ),
+        "generated-artifacts": Gate(
+            id="generated-artifacts",
+            kind="governance",
+            command=(python, "-m", "ethos.cli", "quality", "generated-artifacts", "--json"),
+            asset_classes=("generated-artifacts", "evidence", "local-state"),
+            dimensions=("path-topology", "drift", "rollback"),
+            evidence_class="contract",
+            trust_bearing=True,
+            tool_adapter="ethos-generated-artifacts",
+        ),
         "schemas": Gate(
             id="schemas",
             kind="schema",
@@ -217,6 +227,7 @@ PRODUCT_DEFAULT_GATE_IDS = (
     "docs-registry",
     "schemas",
     "playbooks-v2",
+    "generated-artifacts",
     "unit-architecture",
     "ruff",
     "python-types",
@@ -233,6 +244,7 @@ PRODUCT_FULL_GATE_IDS = (
     "docs-registry",
     "schemas",
     "playbooks-v2",
+    "generated-artifacts",
     "openspec",
     "unit-architecture",
     "ruff",
@@ -252,11 +264,15 @@ PRODUCT_FULL_GATE_IDS = (
     "npm-pack",
 )
 
+DEFAULT_GATE_IDS = PRODUCT_DEFAULT_GATE_IDS
+
+
 ADOPTER_DEFAULT_GATE_IDS = (
     "repository-audit",
     "claims",
     "schemas",
     "playbooks-v2",
+    "generated-artifacts",
     "format-policy",
     "asset-determinism",
     "schema-contracts",

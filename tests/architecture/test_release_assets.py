@@ -154,6 +154,29 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
 
 
+def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
+    runner = (ROOT / ".config/ci/scripts/run-module-layout.sh").read_text(encoding="utf-8")
+    local_ci = (ROOT / ".config/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    policy = (ROOT / ".config/checks/module-layout/policy.toml").read_text(encoding="utf-8")
+    tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+    assert "ethos quality module-layout" in runner
+    assert "--flat-directory-limit" not in runner
+    assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
+    assert "flat_directory_limit = 8" in policy
+    assert "baseline_gap_limit = 67" in policy
+    assert "baseline_gap_limit" not in runner
+    assert 'concern = "python_module_layout"' in tools
+    assert 'tool = "ethos-module-layout"' in tools
+    assert 'config = ".config/checks/module-layout/policy.toml"' in tools
+    assert 'gate = ".config/ci/scripts/run-module-layout.sh"' in tools
+    assert ".config/ci/scripts/run-module-layout.sh" in local_ci
+    assert ".config/ci/scripts/run-module-layout.sh" in gitlab
+    assert ".config/ci/scripts/run-module-layout.sh" in precommit
+
+
 def test_python_test_gate_enforces_coverage_floor() -> None:
     runner = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")

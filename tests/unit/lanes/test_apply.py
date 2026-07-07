@@ -10,6 +10,7 @@ from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.mutation.remediation.core import remediation_for_gaps
 
 
 def seed_proof(root: Path, head: str) -> None:
@@ -454,8 +455,6 @@ def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_pat
 
 
 def test_mutation_remediation_explains_dirty_stale_overlap_and_concurrent_advance() -> None:
-    from ethos.adapters.mutation.core import remediation_for_gaps
-
     hints = remediation_for_gaps(
         [
             "work_lane_dirty",
@@ -474,3 +473,18 @@ def test_mutation_remediation_explains_dirty_stale_overlap_and_concurrent_advanc
     assert "dirty_provenance" in " ".join(hints[0]["next_actions"])
     assert "work/base" in " ".join(hints[2]["next_actions"])
     assert "rebase candidate onto it" in " ".join(hints[3]["next_actions"])
+
+
+def test_remediation_for_gaps_lives_in_semantic_subpackage() -> None:
+    hints = remediation_for_gaps(("candidate_base_stale",))
+
+    assert hints == [
+        {
+            "gap": "candidate_base_stale",
+            "kind": "stale_base",
+            "next_actions": [
+                "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
+                "rerun proof after the lane is replayed onto candidate/dev",
+            ],
+        }
+    ]

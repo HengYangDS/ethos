@@ -28,46 +28,58 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 def test_openspec_base_json_selection_and_governance_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("ETHOS_OPENSPEC_BIN", "/opt/openspec")
+    assert openspec_cli.openspec_base_command() == ("/opt/openspec",)
+    monkeypatch.delenv("ETHOS_OPENSPEC_BIN")
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", (tmp_path / "empty-npx-cache").as_posix())
     monkeypatch.setattr(
-        openspec.shutil, "which", lambda name: "/bin/openspec" if name == "openspec" else None
+        openspec_cli.shutil, "which", lambda name: "/bin/openspec" if name == "openspec" else None
     )
-    assert openspec._openspec_base_command() == ("openspec",)
+    assert openspec_cli.openspec_base_command() == ("openspec",)
     monkeypatch.setattr(
-        openspec.shutil, "which", lambda name: "/bin/npx" if name == "npx" else None
+        openspec_cli.shutil, "which", lambda name: "/bin/npx" if name == "npx" else None
     )
-    assert openspec._openspec_base_command() == ("npx", "--yes", openspec.OFFICIAL_NPX_PACKAGE)
-    monkeypatch.setattr(openspec.shutil, "which", lambda name: None)
-    assert openspec._openspec_base_command() is None
+    assert openspec_cli.openspec_base_command() == (
+        "npx",
+        "--yes",
+        openspec_cli.OFFICIAL_NPX_PACKAGE,
+    )
+    monkeypatch.setattr(openspec_cli.shutil, "which", lambda name: None)
+    assert openspec_cli.openspec_base_command() is None
 
-    assert openspec._selected_change({"changes": "bad"}, None) is None
+    assert openspec_core._selected_change({"changes": "bad"}, None) is None
     assert (
-        openspec._selected_change({"changes": [{"name": "a", "status": "in-progress"}]}, None)
+        openspec_core._selected_change({"changes": [{"name": "a", "status": "in-progress"}]}, None)
         == "a"
     )
     assert (
-        openspec._selected_change(
+        openspec_core._selected_change(
             {"changes": [{"name": "a", "lastModified": "1"}, {"name": "b", "lastModified": "2"}]},
             None,
         )
         == "b"
     )
-    assert openspec._validation_failures({"items": "bad"}) == ["openspec_validation_unreadable"]
-    assert openspec._validation_failures(
+    assert openspec_core._validation_failures({"items": "bad"}) == [
+        "openspec_validation_unreadable"
+    ]
+    assert openspec_core._validation_failures(
         {"items": [{"valid": False, "type": "spec", "id": "x"}, "bad"]}
     ) == ["openspec_validation_failed:spec:x"]
 
     monkeypatch.setattr(
-        openspec.subprocess, "run", lambda *args, **kwargs: cp(stdout="[]", returncode=0)
+        openspec_cli.subprocess, "run", lambda *args, **kwargs: cp(stdout="[]", returncode=0)
     )
-    result = openspec._run_json(tmp_path, ("openspec",), ("list", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))
     assert result["parse_error"] == "openspec_json_not_object"
     monkeypatch.setattr(
-        openspec.subprocess, "run", lambda *args, **kwargs: cp(stdout="{bad", returncode=0)
+        openspec_cli.subprocess, "run", lambda *args, **kwargs: cp(stdout="{bad", returncode=0)
     )
-    assert openspec._run_json(tmp_path, ("openspec",), ("list", "--json"))["parse_error"]
+    assert openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))["parse_error"]
 
-    report = openspec._openspec_governance_report(
-        tmp_path, change="c1", lifecycle=True, base_command=None
+    report = openspec_core._openspec_governance_report(
+        tmp_path,
+        request=openspec_core._OpenSpecRequest(change="c1", lifecycle=True),
+        base_command=None,
     )
     assert set(report["required_gaps"]) >= {
         "openspec_directory_missing",
@@ -118,9 +130,11 @@ def test_openspec_base_json_selection_and_governance_edges(
             "command": [],
         }
 
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
-    governed = openspec._openspec_governance_report(
-        tmp_path, change=None, lifecycle=True, base_command=("openspec",)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    governed = openspec_core._openspec_governance_report(
+        tmp_path,
+        request=openspec_core._OpenSpecRequest(change=None, lifecycle=True),
+        base_command=("openspec",),
     )
     assert "openspec_doctor_unhealthy" in governed["required_gaps"]
     assert "openspec_list_failed" in governed["required_gaps"]
@@ -132,8 +146,52 @@ def test_openspec_base_json_selection_and_governance_edges(
     assert any(call[:1] == ("status",) for call in calls)
 
 
+def test_openspec_cached_cli_entry_skips_invalid_cache_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cache = tmp_path / "_npx"
+    bad_json = cache / "bad-json" / "node_modules" / "@fission-ai" / "openspec"
+    missing_bin = cache / "missing-bin" / "node_modules" / "@fission-ai" / "openspec"
+    string_bin = cache / "string-bin" / "node_modules" / "@fission-ai" / "openspec"
+    no_entry = cache / "no-entry" / "node_modules" / "@fission-ai" / "openspec"
+    numeric_bin = cache / "numeric-bin" / "node_modules" / "@fission-ai" / "openspec"
+    for package_root in (bad_json, missing_bin, string_bin, no_entry, numeric_bin):
+        package_root.mkdir(parents=True)
+    (bad_json / "package.json").write_text("{bad", encoding="utf-8")
+    (missing_bin / "package.json").write_text(
+        '{"version":"1.0.0","bin":{"openspec":"missing.js"}}',
+        encoding="utf-8",
+    )
+    (string_bin / "package.json").write_text(
+        '{"version":"2.0.0","bin":"bin/openspec.js"}',
+        encoding="utf-8",
+    )
+    (string_bin / "bin").mkdir()
+    (string_bin / "bin" / "openspec.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (no_entry / "package.json").write_text(
+        '{"version":"3.0.0","bin":{"other":"bin/other.js"}}',
+        encoding="utf-8",
+    )
+    (numeric_bin / "package.json").write_text(
+        '{"version":"4.0.0","bin":123}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", cache.as_posix())
+    monkeypatch.setattr(openspec_cli.shutil, "which", lambda name: "/usr/bin/node")
+
+    assert openspec_cli.cached_official_cli_entry() == (
+        "/usr/bin/node",
+        (string_bin / "bin" / "openspec.js").resolve().as_posix(),
+    )
+
+    (string_bin / "bin" / "openspec.js").unlink()
+    assert openspec_cli.cached_official_cli_entry() is None
+
+
 def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
-    assert openspec.completed_active_changes_report(tmp_path)["ok"] is True
+    assert openspec_core.completed_active_changes_report(tmp_path)["ok"] is True
     archive = tmp_path / "openspec" / "changes" / "archive" / "bad_name"
     (archive / "specs" / "cap").mkdir(parents=True)
     (archive / "proposal.md").write_text("proposal", encoding="utf-8")
@@ -159,7 +217,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         == "openspec_archive_delta_specs_missing:a"
     )
 
-    assert openspec._completed_active_change_names(
+    assert openspec_core._completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
     assert archive_mod._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
@@ -172,7 +230,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         "# Proposal\n\n- `cap`: reuse=wrong; change=sideways; subject=; facet:lifecycle=; facet:surface=; facet:authority=\n",
         encoding="utf-8",
     )
-    lifecycle = openspec._lifecycle_report(
+    lifecycle = openspec_core._lifecycle_report(
         tmp_path, selected_change="c1", list_payload={}, enabled=True
     )
     assert "openspec_design_missing:c1" in lifecycle["required_gaps"]
@@ -314,6 +372,10 @@ def test_schema_live_skill_invalid_and_adopter_profile_edges(
 def test_cli_emit_load_gate_and_hook_install_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    digest_file = tmp_path / "digest.txt"
+    digest_file.write_text("ethos\n", encoding="utf-8")
+    assert _base.sha256_file(digest_file).startswith("sha256:")
+
     ok_result = EthosResult(command="demo", ok=True, state="ready", next_actions=("next action",))
     _base.emit(ok_result, json_output=False)
     captured = capsys.readouterr().out

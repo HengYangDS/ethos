@@ -19,12 +19,12 @@ def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, m
     def fake_run(command, **kwargs):  # type: ignore[no-untyped-def]
         calls.append(tuple(command))
         assert kwargs["cwd"] == tmp_path
-        assert kwargs["timeout"] == openspec.OPENSPEC_COMMAND_TIMEOUT_SECONDS
+        assert kwargs["timeout"] == openspec_cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS
         return Completed()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = openspec._run_json(tmp_path, ("openspec",), ("list", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))
 
     assert calls == [("openspec", "list", "--json")]
     assert result["exit_code"] == 7
@@ -32,7 +32,7 @@ def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, m
     assert result["parse_error"] == "openspec_json_not_object"
 
     Completed.stdout = "not-json"
-    result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("doctor", "--json"))
     assert "Expecting value" in result["parse_error"]
 
 
@@ -42,7 +42,7 @@ def test_run_json_returns_deterministic_timeout_payload(tmp_path: Path, monkeypa
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("doctor", "--json"))
 
     assert result["exit_code"] == 124
     assert result["json"] == {}
@@ -61,7 +61,7 @@ def test_run_json_preserves_timeout_stderr_payload(tmp_path: Path, monkeypatch) 
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("doctor", "--json"))
 
     assert result["stdout"] == "partial stdout"
     assert result["stderr"] == "partial stderr"
@@ -69,10 +69,10 @@ def test_run_json_preserves_timeout_stderr_payload(tmp_path: Path, monkeypatch) 
 
 
 def test_selection_and_validation_helper_edge_cases() -> None:
-    assert openspec._selected_change({"changes": "bad"}, None) is None
-    assert openspec._selected_change({"changes": [{"name": "only"}]}, None) == "only"
+    assert openspec_core._selected_change({"changes": "bad"}, None) is None
+    assert openspec_core._selected_change({"changes": [{"name": "only"}]}, None) == "only"
     assert (
-        openspec._selected_change(
+        openspec_core._selected_change(
             {
                 "changes": [
                     {"name": "older", "lastModified": "2026-01-01"},
@@ -83,9 +83,11 @@ def test_selection_and_validation_helper_edge_cases() -> None:
         )
         == "newer"
     )
-    assert openspec._selected_change({}, "requested") == "requested"
-    assert openspec._validation_failures({"items": "bad"}) == ["openspec_validation_unreadable"]
-    assert openspec._validation_failures(
+    assert openspec_core._selected_change({}, "requested") == "requested"
+    assert openspec_core._validation_failures({"items": "bad"}) == [
+        "openspec_validation_unreadable"
+    ]
+    assert openspec_core._validation_failures(
         {"items": [{"valid": False, "type": "change", "id": "x"}, "skip"]}
     ) == ["openspec_validation_failed:change:x"]
 
@@ -96,14 +98,14 @@ def test_completed_active_changes_report_handles_missing_cli_and_bad_list(
     root = tmp_path / "repo"
     (root / "openspec").mkdir(parents=True)
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: None)
-    report = openspec.completed_active_changes_report(root)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: None)
+    report = openspec_core.completed_active_changes_report(root)
     assert report["ok"] is False
     assert report["required_gaps"] == ["openspec_official_cli_missing"]
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
-        openspec,
+        openspec_core,
         "_run_json",
         lambda *_args: {
             "command": ["openspec", "list", "--json"],
@@ -114,7 +116,7 @@ def test_completed_active_changes_report_handles_missing_cli_and_bad_list(
             "parse_error": "nope",
         },
     )
-    report = openspec.completed_active_changes_report(root)
+    report = openspec_core.completed_active_changes_report(root)
     assert report["completed_changes"] == []
     assert report["required_gaps"] == ["openspec_list_failed", "openspec_list_json_parse_failed"]
 
@@ -161,7 +163,7 @@ def test_openspec_metadata_compatibility_checks_active_and_archived_changes(
         encoding="utf-8",
     )
 
-    report = openspec.openspec_metadata_compatibility_report(root)
+    report = openspec_core.openspec_metadata_compatibility_report(root)
 
     assert report["ok"] is False
     assert report["allowed_keys"] == ["created", "schema", "status"]
@@ -275,10 +277,10 @@ def test_openspec_governance_report_short_circuits_after_doctor_timeout(
             "parse_error": "openspec_command_timeout",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root)
+    report = openspec_core.openspec_governance_report(root)
 
     assert calls == [("doctor", "--json")]
     assert report["official_config"]["ok"] is True
@@ -298,7 +300,7 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: ("openspec",))
 
     def fake_run_json(
         _root: Path, _base: tuple[str, ...], args: tuple[str, ...]
@@ -329,9 +331,9 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
             "parse_error": parse_error,
         }
 
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root)
+    report = openspec_core.openspec_governance_report(root)
 
     gaps = report["required_gaps"]
     assert "openspec_doctor_unhealthy" in gaps
@@ -340,3 +342,19 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
     assert "openspec_doctor_json_parse_failed" in gaps
     assert "openspec_status_json_parse_failed" in gaps
     assert "openspec_validate_json_parse_failed" in gaps
+
+
+def test_openspec_base_command_prefers_cached_official_cli(tmp_path: Path, monkeypatch) -> None:
+    cache = tmp_path / "_npx" / "cached" / "node_modules" / "@fission-ai" / "openspec"
+    bin_path = cache / "bin" / "openspec.js"
+    bin_path.parent.mkdir(parents=True)
+    bin_path.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (cache / "package.json").write_text(
+        '{"version":"1.5.0","bin":{"openspec":"./bin/openspec.js"}}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(openspec_cli.shutil, "which", lambda _name: None)
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", (tmp_path / "_npx").as_posix())
+
+    assert openspec_cli.openspec_base_command() == ("node", bin_path.as_posix())

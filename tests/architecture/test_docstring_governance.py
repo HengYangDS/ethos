@@ -23,7 +23,7 @@ def test_docstring_policy_admits_google_style_with_signature_checks() -> None:
 
 
 def test_docstring_gate_exposes_broader_nonblocking_inventory() -> None:
-    source = (ROOT / "packages/ethos/src/ethos/repository/policy/docstrings.py").read_text(
+    source = (ROOT / "packages/ethos/src/ethos/repository/policy/docstrings/core.py").read_text(
         encoding="utf-8"
     )
     quality = (ROOT / "packages/ethos/src/ethos/surface/cli/quality.py").read_text(encoding="utf-8")

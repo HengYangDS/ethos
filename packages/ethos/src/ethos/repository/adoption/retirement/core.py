@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import subprocess
-import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -15,12 +13,6 @@ from ethos.repository.profile import load_repository_profile
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}
 EXTERNAL_DEFAULT_STATES = RETIREMENT_READY_STATES | {"default", "rollback_window"}
 EMBEDDED_FROZEN_STATES = {"frozen_fallback", "reference_only", "retired"}
-STANDARD_ROLLBACK_SCENARIOS = (
-    "proof_report",
-    "work_lane_closeout",
-    "domain_gate",
-    "assistant_playbook",
-)
 
 
 def retirement_readiness_report(
@@ -65,7 +57,7 @@ def retirement_readiness_report(
         "binding": _binding_checks(repo, adoption_boundary),
         "external_backend": _external_backend_checks(external_backend),
         "embedded_backend": _embedded_backend_checks(repo, embedded_backend),
-        "rollback_window": _rollback_window_checks(
+        "rollback_window": rollback_window_checks(
             repo,
             product,
             rollback_window,
@@ -74,6 +66,8 @@ def retirement_readiness_report(
                 "embedded_state": embedded_state,
                 "parity_ok": parity_ok,
                 "shadow_ok": shadow_ok,
+                "external_default_states": EXTERNAL_DEFAULT_STATES,
+                "embedded_frozen_states": EMBEDDED_FROZEN_STATES,
             },
         ),
         "product_boundary": _product_boundary_checks(product, adoption_boundary),
@@ -183,200 +177,6 @@ def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> di
         "retirement_policy": policy,
         "required_gaps": gaps,
     }
-
-
-def _rollback_window_checks(
-    repo: Path,
-    product: Path,
-    rollback_window: dict[str, Any],
-    *,
-    context: dict[str, object],
-) -> dict[str, object]:
-    external_state = str(context.get("external_state") or "")
-    embedded_state = str(context.get("embedded_state") or "")
-    applicable = (
-        context.get("parity_ok") is True
-        and context.get("shadow_ok") is True
-        and external_state in EXTERNAL_DEFAULT_STATES
-        and embedded_state in EMBEDDED_FROZEN_STATES
-    )
-    configured_required = _string_list(rollback_window.get("required_scenarios"))
-    required_scenarios = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *configured_required)))
-    completed_scenarios = _string_list(rollback_window.get("completed_scenarios"))
-    evidence_manifest = str(rollback_window.get("evidence_manifest") or "")
-    state = str(rollback_window.get("state") or "")
-    gaps = []
-    if applicable:
-        if not rollback_window:
-            gaps.append("retirement_rollback_window_missing")
-        if state != "complete":
-            gaps.append(f"retirement_rollback_window_not_complete:{state or 'missing'}")
-        if not evidence_manifest:
-            gaps.append("retirement_rollback_window_evidence_manifest_missing")
-        else:
-            gaps.extend(
-                _rollback_manifest_gaps(
-                    repo=repo,
-                    product=product,
-                    evidence_manifest=evidence_manifest,
-                    required_scenarios=required_scenarios,
-                )
-            )
-        completed = set(completed_scenarios)
-        gaps.extend(
-            f"retirement_rollback_window_scenario_missing:{scenario}"
-            for scenario in required_scenarios
-            if scenario not in completed
-        )
-    return {
-        "ok": not gaps,
-        "applicable": applicable,
-        "state": state,
-        "evidence_manifest": evidence_manifest,
-        "standard_scenarios": list(STANDARD_ROLLBACK_SCENARIOS),
-        "required_scenarios": required_scenarios,
-        "completed_scenarios": completed_scenarios,
-        "required_gaps": gaps,
-    }
-
-
-def _rollback_manifest_gaps(
-    *,
-    repo: Path,
-    product: Path,
-    evidence_manifest: str,
-    required_scenarios: list[str],
-) -> list[str]:
-    gaps: list[str] = []
-    manifest_path = _repo_relative_path(repo, evidence_manifest)
-    if manifest_path is None:
-        return [
-            f"retirement_rollback_window_evidence_manifest_path_outside_repo:{evidence_manifest}"
-        ]
-    if not manifest_path.exists():
-        return [f"retirement_rollback_window_evidence_manifest_path_missing:{evidence_manifest}"]
-    if not _git_tracked(repo, evidence_manifest):
-        gaps.append(f"retirement_rollback_window_evidence_manifest_not_tracked:{evidence_manifest}")
-
-    manifest, manifest_gaps = _load_rollback_manifest(manifest_path, evidence_manifest)
-    gaps.extend(manifest_gaps)
-    if manifest is None:
-        return gaps
-
-    gaps.extend(_rollback_manifest_head_gaps(repo, product, manifest))
-    gaps.extend(
-        _rollback_manifest_required_scenario_gaps(
-            repo=repo,
-            evidence_manifest=evidence_manifest,
-            manifest=manifest,
-            required_scenarios=required_scenarios,
-        )
-    )
-    return gaps
-
-
-def _load_rollback_manifest(
-    manifest_path: Path, evidence_manifest: str
-) -> tuple[dict[str, object] | None, list[str]]:
-    try:
-        manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError:
-        return None, [f"retirement_rollback_window_evidence_manifest_invalid:{evidence_manifest}"]
-    if not manifest:
-        return None, [f"retirement_rollback_window_evidence_manifest_invalid:{evidence_manifest}"]
-    return cast("dict[str, object]", manifest), []
-
-
-def _rollback_manifest_head_gaps(
-    repo: Path, product: Path, manifest: dict[str, object]
-) -> list[str]:
-    gaps: list[str] = []
-    target_head = str(manifest.get("target_head") or "")
-    product_head = str(manifest.get("product_head") or "")
-    if not _git_commit_reachable(repo, target_head):
-        gaps.append(
-            "retirement_rollback_window_evidence_manifest_target_head_unreachable:"
-            f"{target_head or 'missing'}"
-        )
-    if not _git_commit_reachable(product, product_head):
-        gaps.append(
-            "retirement_rollback_window_evidence_manifest_product_head_unreachable:"
-            f"{product_head or 'missing'}"
-        )
-    return gaps
-
-
-def _rollback_manifest_required_scenario_gaps(
-    *,
-    repo: Path,
-    evidence_manifest: str,
-    manifest: dict[str, object],
-    required_scenarios: list[str],
-) -> list[str]:
-    gaps: list[str] = []
-    target_head = str(manifest.get("target_head") or "")
-    product_head = str(manifest.get("product_head") or "")
-    scenarios = manifest.get("scenarios")
-    if not isinstance(scenarios, dict):
-        gaps.append(f"retirement_rollback_window_evidence_manifest_invalid:{evidence_manifest}")
-        scenarios = {}
-
-    for scenario in required_scenarios:
-        payload = scenarios.get(scenario)
-        if not isinstance(payload, dict):
-            gaps.append(f"retirement_rollback_window_manifest_scenario_missing:{scenario}")
-            continue
-        gaps.extend(
-            _rollback_manifest_scenario_gaps(
-                repo=repo,
-                scenario=scenario,
-                payload=payload,
-                target_head=target_head,
-                product_head=product_head,
-            )
-        )
-    return gaps
-
-
-def _rollback_manifest_scenario_gaps(
-    *,
-    repo: Path,
-    scenario: str,
-    payload: dict[str, object],
-    target_head: str,
-    product_head: str,
-) -> list[str]:
-    gaps: list[str] = []
-    if str(payload.get("target_head") or "") != target_head:
-        gaps.append(f"retirement_rollback_window_manifest_scenario_target_head_mismatch:{scenario}")
-    if str(payload.get("product_head") or "") != product_head:
-        gaps.append(
-            f"retirement_rollback_window_manifest_scenario_product_head_mismatch:{scenario}"
-        )
-    if not str(payload.get("command") or ""):
-        gaps.append(f"retirement_rollback_window_manifest_scenario_command_missing:{scenario}")
-    if not str(payload.get("digest") or ""):
-        gaps.append(f"retirement_rollback_window_manifest_scenario_digest_missing:{scenario}")
-
-    evidence = str(payload.get("evidence") or "")
-    evidence_path = _repo_relative_path(repo, evidence)
-    if not evidence:
-        gaps.append(f"retirement_rollback_window_manifest_scenario_evidence_missing:{scenario}")
-    elif evidence_path is None:
-        gaps.append(
-            f"retirement_rollback_window_manifest_scenario_evidence_outside_repo:{scenario}"
-        )
-    elif not evidence_path.exists():
-        gaps.append(
-            f"retirement_rollback_window_manifest_scenario_evidence_path_missing:"
-            f"{scenario}:{evidence}"
-        )
-    elif not _git_tracked(repo, evidence):
-        gaps.append(
-            f"retirement_rollback_window_manifest_scenario_evidence_not_tracked:"
-            f"{scenario}:{evidence}"
-        )
-    return gaps
 
 
 def _product_boundary_checks(
@@ -543,46 +343,3 @@ def _int_value(value: object) -> int:
         except ValueError:
             return 0
     return 0
-
-
-def _repo_relative_path(repo: Path, path: str) -> Path | None:
-    if not path or path.startswith(("/", "~")):
-        return None
-    resolved = (repo / path).resolve()
-    try:
-        resolved.relative_to(repo)
-    except ValueError:
-        return None
-    return resolved
-
-
-def _git_tracked(repo: Path, path: str) -> bool:
-    if _repo_relative_path(repo, path) is None:
-        return False
-    result = subprocess.run(
-        ["git", "-C", repo.as_posix(), "ls-files", "--error-unmatch", "--", path],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return result.returncode == 0
-
-
-def _git_commit_reachable(repo: Path, commit: str) -> bool:
-    if not commit:
-        return False
-    exists = subprocess.run(
-        ["git", "-C", repo.as_posix(), "cat-file", "-e", f"{commit}^{{commit}}"],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    if exists.returncode != 0:
-        return False
-    ancestor = subprocess.run(
-        ["git", "-C", repo.as_posix(), "merge-base", "--is-ancestor", commit, "HEAD"],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return ancestor.returncode == 0

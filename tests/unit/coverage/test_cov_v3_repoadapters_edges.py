@@ -5,7 +5,8 @@ from __future__ import annotations
 import types
 from typing import TYPE_CHECKING
 
-from ethos.adapters import shadow
+import ethos.adapters.shadow.identity as shadow_identity
+import ethos.adapters.shadow.semantics as shadow_semantics
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import status
 from ethos_core.contracts.branch_roles import load_branch_role_policy
@@ -87,7 +88,7 @@ def test_worktrees_skips_blank_lines_with_empty_current(
     assert entries[0]["path"] == "/linked"
 
 
-# --- adapters/shadow.py -----------------------------------------------------
+# --- adapters/shadow/core.py -----------------------------------------------------
 
 
 def test_changed_paths_skips_empty_rename_target(
@@ -98,14 +99,14 @@ def test_changed_paths_skips_empty_rename_target(
     def _stub_run(_cmd: list[str], *_args: object, **_kwargs: object) -> types.SimpleNamespace:
         return types.SimpleNamespace(returncode=0, stdout="?? kept.txt\nR  old -> \n", stderr="")
 
-    monkeypatch.setattr(shadow.subprocess, "run", _stub_run)
-    assert shadow._changed_paths(tmp_path) == ["kept.txt"]
+    monkeypatch.setattr(shadow_identity.subprocess, "run", _stub_run)
+    assert shadow_identity.changed_paths(tmp_path) == ["kept.txt"]
 
 
 def test_semantic_projection_unknown_command_root_returns_base() -> None:
     # A command root matching none of the projection branches falls through to the base
     # projection return (branch 720->728).
-    projection = shadow._semantic_projection(("mystery",), {"ok": True})
+    projection = shadow_semantics._semantic_projection(("mystery",), {"ok": True})
     assert projection["command"] == "mystery"
     assert "readiness" not in projection
     assert "route_ready" not in projection
@@ -114,5 +115,5 @@ def test_semantic_projection_unknown_command_root_returns_base() -> None:
 def test_mark_projection_ready_unknown_command_is_noop() -> None:
     # A command outside the ready-mark set leaves the projection untouched (branch 741->exit).
     projection: dict[str, object] = {"command": "mystery", "state": "raw"}
-    shadow._mark_projection_ready(projection)
+    shadow_semantics._mark_projection_ready(projection)
     assert projection == {"command": "mystery", "state": "raw"}

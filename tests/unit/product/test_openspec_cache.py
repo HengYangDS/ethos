@@ -53,10 +53,10 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(
+    report = openspec_core.openspec_governance_report(
         root,
         change="sample-change",
         lifecycle=True,
@@ -159,10 +159,10 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(
+    report = openspec_core.openspec_governance_report(
         root,
         change="sample-change",
         lifecycle=True,
@@ -221,10 +221,10 @@ def test_completed_active_changes_report_blocks_complete_openspec_items(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.completed_active_changes_report(root)
+    report = openspec_core.completed_active_changes_report(root)
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
@@ -272,10 +272,10 @@ def test_completed_active_changes_report_blocks_invalid_archives(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.completed_active_changes_report(root)
+    report = openspec_core.completed_active_changes_report(root)
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
@@ -324,11 +324,11 @@ def test_openspec_report_reuses_result_for_unchanged_workspace(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    first = openspec.openspec_governance_report(root)
-    second = openspec.openspec_governance_report(root)
+    first = openspec_core.openspec_governance_report(root)
+    second = openspec_core.openspec_governance_report(root)
 
     assert first == second
     assert calls == [

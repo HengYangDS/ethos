@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:c5e90c4bd87fb69f5637a124d98aa5834c32abd32bd8a5692bf7d82d1c8afed8"
+expected_digest = "sha256:e2a2114685485614f29891777d35a617e1a4834db657d0e871cd6e1ce28df594"
 
 [quality]
 placeholder_allowed = false
@@ -26,6 +26,11 @@ command = ["ethos", "quality", "types", "--json"]
 id = "ethos.quality.docstrings"
 kind = "command_readonly"
 command = ["ethos", "quality", "docstrings", "--json"]
+
+[[capability]]
+id = "ethos.quality.module-layout"
+kind = "command_readonly"
+command = ["ethos", "quality", "module-layout", "--json"]
 
 [[capability]]
 id = "ethos.quality.coverage"

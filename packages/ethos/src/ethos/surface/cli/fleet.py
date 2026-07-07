@@ -13,7 +13,7 @@ from typing import cast
 from ethos.adapters.repo import git as _gitio
 from ethos.domain import land as _land
 from ethos.repository.adoption.fleet import inspect_adopter
-from ethos.repository.adoption.retirement import retirement_readiness_report
+from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import shadow_parity_report
 from ethos.surface.cli._base import JsonFlag
@@ -59,7 +59,7 @@ def fleet_retirement_readiness(
     profile = load_repository_profile(target)
     adopter = profile.identity.get("profile_id") or target.resolve().name
     if execute_shadow:
-        from ethos.adapters.shadow import run_shadow_parity
+        from ethos.adapters.shadow.core import run_shadow_parity
 
         shadow = run_shadow_parity(
             target=target,

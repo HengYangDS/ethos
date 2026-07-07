@@ -9,6 +9,7 @@ from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo import status as repo_status
+from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store import state
 
@@ -383,7 +384,7 @@ def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: 
 
     monkeypatch.setattr(repo_status, "_run_git", fail_git)
 
-    report = repo_status.dirty_provenance(tmp_path)
+    report = dirty_provenance(tmp_path)
 
     assert report["dirty"] is True
     assert report["state"] == "unavailable"
@@ -627,3 +628,13 @@ def test_lanes_retire_handles_malformed_status_fragments() -> None:
     )
     assert lanes_retire._branch_binding({}, "work/x") is None
     assert lanes_retire._branch_binding({"branch_bindings": {}}, "work/x") is None
+
+
+def test_dirty_provenance_lives_in_semantic_subpackage(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    (repo / "new.txt").write_text("new\n", encoding="utf-8")
+
+    report = dirty_provenance(repo)
+
+    assert report["dirty"] is True
+    assert report["summary"]["untracked"] == 1

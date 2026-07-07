@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.dirty.core as repo_dirty
+import ethos.adapters.repo.runtime.core as repo_runtime
 from ethos.adapters.repo import status
 from ethos.repository import audit_openspec
 from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
@@ -44,7 +46,7 @@ def test_source_root_for_module_returns_parent_when_no_workspace_marker(
     module = tmp_path / "pkg" / "mod.py"
     module.parent.mkdir(parents=True)
     module.write_text("", encoding="utf-8")
-    assert status._source_root_for_module(module) == module.parent
+    assert repo_runtime._source_root_for_module(module) == module.parent
 
 
 def test_safe_ref_returns_empty_on_git_failure(tmp_path: Path) -> None:
@@ -53,13 +55,13 @@ def test_safe_ref_returns_empty_on_git_failure(tmp_path: Path) -> None:
 
 
 def test_porcelain_path_extracts_rename_target() -> None:
-    assert status._porcelain_path('"old name" -> "new name"') == "new name"
+    assert repo_dirty._porcelain_path('"old name" -> "new name"') == "new name"
 
 
 def test_dirty_kind_conflicted_and_deleted() -> None:
-    assert status._dirty_kind("U", "U") == "conflicted"
-    assert status._dirty_kind("A", "A") == "conflicted"
-    assert status._dirty_kind("D", " ") == "deleted"
+    assert repo_dirty._dirty_kind("U", "U") == "conflicted"
+    assert repo_dirty._dirty_kind("A", "A") == "conflicted"
+    assert repo_dirty._dirty_kind("D", " ") == "deleted"
 
 
 def test_release_toml_github_profile_appends_host_block() -> None:

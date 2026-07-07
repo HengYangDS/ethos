@@ -13,6 +13,7 @@ configuration plane, not a truth center.
 - `.config/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet.
 - `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, not `.config/`. Pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
+- `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `.config/ci/scripts/run-module-layout.sh` is the reusable runner.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `.config/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.
 - `.config/checks/yaml/yamllint.yaml` owns YAML linting; CI invokes it through `.config/ci/scripts/run-config-lint.sh`.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `.config/ci/scripts/run-shell-lint.sh` is the runner.

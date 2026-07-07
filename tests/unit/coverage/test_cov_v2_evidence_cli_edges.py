@@ -14,8 +14,9 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.shadow as shadow_mod
+import ethos.adapters.shadow.core as shadow_core
 from ethos.assistants import playbooks
+from ethos.assistants.skills import portfolio
 from ethos.repository.evidence import parity
 from ethos.surface.cli import assistants as assistants_cli
 from ethos.surface.cli import parity as parity_cli
@@ -144,7 +145,7 @@ def test_parity_shadow_write_evidence_blocked_when_not_ok(
     # execute=True but the shadow run reports ok!=True -> line 119 blocked gap.
     monkeypatch.setattr(parity_cli, "resolve_root", lambda root: tmp_path)
     monkeypatch.setattr(
-        shadow_mod,
+        shadow_core,
         "run_shadow_parity",
         lambda target, timeout_seconds, product_root: {
             "ok": False,
@@ -280,7 +281,7 @@ def test_root_relative_returns_empty_for_absolute_path(tmp_path: Path) -> None:
 def test_portfolio_coverage_skips_record_with_empty_id() -> None:
     # authority/lifecycle pass the first guard, but the empty id trips the guard at
     # line 431 and skips ownership registration via line 432.
-    result = playbooks._portfolio_coverage(
+    result = portfolio.portfolio_coverage(
         {},
         [{"authority": "primary", "lifecycle": "active", "primary_subject": "subj", "id": ""}],
     )
@@ -308,7 +309,7 @@ def test_portfolio_design_flags_overloaded_package_and_overclaimed_token() -> No
         {"id": "s2", "files": []},
     ]
 
-    result = playbooks._portfolio_design(records, package_reports)
+    result = portfolio.portfolio_design(records, package_reports)
 
     gaps = result["required_gaps"]
     assert any(gap.startswith("skill_portfolio_package_overloaded:s0:7") for gap in gaps)

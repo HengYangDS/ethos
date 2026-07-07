@@ -6,8 +6,9 @@ from __future__ import annotations
 import ast
 from typing import TYPE_CHECKING
 
+import ethos.repository.policy.docstrings.core as docstrings_mod
+import ethos.repository.policy.docstrings.style as docstring_style
 from ethos.repository.policy import coupling as coupling_mod
-from ethos.repository.policy import docstrings as docstrings_mod
 from ethos.repository.policy import gates as gates_mod
 from ethos.repository.policy.gates import Gate
 from ethos.repository.policy.rules.check import rules_layer_report
@@ -119,13 +120,13 @@ def test_signature_issues_empty_when_all_args_documented() -> None:
     ).body[0]
     docstring = ast.get_docstring(node)
 
-    assert docstrings_mod._signature_issues("api.py", "m.f", node, docstring) == []
+    assert docstring_style.signature_issues("api.py", "m.f", node, docstring) == []
 
 
 def test_documented_args_skips_non_matching_line() -> None:
     # A blank/non-identifier line produces no regex match, so the `if match` at
     # docstrings.py 374 is False and control loops back to 369 (374->369).
-    assert docstrings_mod._documented_args(("   ",)) == set()
+    assert docstring_style.documented_args(("   ",)) == set()
 
 
 def test_module_name_without_src_segment() -> None:

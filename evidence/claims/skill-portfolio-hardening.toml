@@ -12,7 +12,7 @@ evidence_ids = ["evidence:skill-portfolio-hardening"]
 binding = "semantic skill portfolio hardening evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skill_packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skills/packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
   "uv run --group dev pytest tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py -q",
   "uv run --package ethos ethos playbooks check --mode v2-strict --json",
   "uv run --package ethos ethos quality projection-drift --json",
@@ -52,7 +52,7 @@ targets = [
   "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-hardening",
   "packages/ethos/src/ethos/assistants/playbooks.py",
-  "packages/ethos/src/ethos/assistants/skill_packages.py",
+  "packages/ethos/src/ethos/assistants/skills/packages.py",
   "tests/unit/assistants/test_playbooks.py",
   "tests/unit/assistants/test_skill_packages.py",
 ]

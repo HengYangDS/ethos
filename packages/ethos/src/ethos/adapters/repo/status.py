@@ -4,12 +4,14 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
-import ethos
 from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps as _scope_coordination_gaps
 from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import workspace_required_gaps
+from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.dirty.core import dirty_provenance
+from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status_bindings import _branch_bindings
 from ethos.adapters.repo.status_bindings import _closeout_support
 from ethos.adapters.repo.status_bindings import _is_ancestor
@@ -21,69 +23,6 @@ from ethos.adapters.repo.status_bindings import _worktree_binding
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-
-
-def _source_root_for_module(module_path: Path) -> Path:
-    """Resolve the repository source root that supplied this ETHOS runner."""
-    for parent in (module_path.parent, *module_path.parents):
-        if (parent / "pyproject.toml").exists() and (
-            parent / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
-        ).exists():
-            return parent
-    return module_path.parent
-
-
-def _schema_source_root(audit_root: Path, runner_source_root: Path) -> Path:
-    """Best-effort source root for workspace-status contract validation.
-
-    Product checkouts normally validate against their own tracked schemas. Adopters
-    without a complete product schema set fall back to the runner's packaged
-    contract source. Keep this read-model lightweight and side-effect free; exact
-    schema diagnostics remain owned by the schema validator.
-    """
-    local = audit_root / "system" / "schemas" / "kernel" / "workspace-status.schema.json"
-    if local.exists():
-        return audit_root
-    runner = runner_source_root / "system" / "schemas" / "kernel" / "workspace-status.schema.json"
-    if runner.exists():
-        return runner_source_root
-    return runner_source_root
-
-
-def runtime_binding(root: Path) -> dict[str, object]:
-    """Expose runner/schema/audit binding for agent- and human-friendly diagnosis."""
-    audit_root = root.resolve()
-    runner_module_path = Path(ethos.__file__).resolve()
-    runner_source_root = _source_root_for_module(runner_module_path)
-    schema_source_root = _schema_source_root(audit_root, runner_source_root).resolve()
-    runner_matches_audit_root = runner_source_root == audit_root
-    schema_matches_audit_root = schema_source_root == audit_root
-    advisory_gaps: list[str] = []
-    if not runner_matches_audit_root:
-        advisory_gaps.append("workspace_status_runner_source_differs_from_audit_root")
-    if not schema_matches_audit_root:
-        advisory_gaps.append("workspace_status_schema_source_differs_from_audit_root")
-    state = "bound_to_audit_root" if not advisory_gaps else "external_current_runner"
-    next_action = (
-        "runner, schema, and audit root are aligned"
-        if not advisory_gaps
-        else (
-            "rerun with a package-bound runner from the audited checkout "
-            "when changing command or schema surfaces"
-        )
-    )
-    return {
-        "kind": "workspace_status_runtime_binding",
-        "state": state,
-        "audit_root": audit_root.as_posix(),
-        "runner_module_path": runner_module_path.as_posix(),
-        "runner_source_root": runner_source_root.as_posix(),
-        "schema_source_root": schema_source_root.as_posix(),
-        "runner_matches_audit_root": runner_matches_audit_root,
-        "schema_matches_audit_root": schema_matches_audit_root,
-        "advisory_gaps": advisory_gaps,
-        "next_action": next_action,
-    }
 
 
 def landing_readiness(
@@ -182,82 +121,6 @@ def _run_git(root: Path, *args: str) -> str:
 
 def current_branch(root: Path) -> str:
     return _run_git(root, "branch", "--show-current") or "detached"
-
-
-def changed_paths(root: Path) -> tuple[str, ...]:
-    entries = cast("list[dict[str, str]]", dirty_provenance(root)["entries"])
-    return tuple(item["path"] for item in entries)
-
-
-def dirty_provenance(root: Path) -> dict[str, object]:
-    """Structured local dirty-state provenance from Git porcelain v1.
-
-    The old status payload only exposed path strings. Closeout repair needs the
-    reason a path is dirty: tracked edit vs deletion vs untracked residue vs index
-    conflict. Keep this Git-native and lightweight so it can run inside status,
-    hooks, and failed-mutation diagnostics without a second state store.
-    """
-    try:
-        output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
-    except subprocess.CalledProcessError as exc:
-        return {
-            "dirty": True,
-            "state": "unavailable",
-            "entries": [],
-            "summary": {
-                "tracked": 0,
-                "untracked": 0,
-                "deleted": 0,
-                "conflicted": 0,
-                "unavailable": 1,
-            },
-            "error": (exc.stderr or str(exc)).strip(),
-        }
-    entries = [_dirty_entry(line) for line in output.splitlines() if line]
-    summary = {
-        "tracked": sum(1 for entry in entries if entry["kind"] == "tracked"),
-        "untracked": sum(1 for entry in entries if entry["kind"] == "untracked"),
-        "deleted": sum(1 for entry in entries if entry["kind"] == "deleted"),
-        "conflicted": sum(1 for entry in entries if entry["kind"] == "conflicted"),
-        "unavailable": 0,
-    }
-    return {
-        "dirty": bool(entries),
-        "state": "dirty" if entries else "clean",
-        "entries": entries,
-        "summary": summary,
-    }
-
-
-def _dirty_entry(line: str) -> dict[str, str]:
-    index = line[0] if line else " "
-    worktree = line[1] if len(line) > 1 else " "
-    raw_path = line[3:] if len(line) > 3 and line[2] == " " else line[2:].strip()
-    path = _porcelain_path(raw_path)
-    return {
-        "path": path,
-        "index": index,
-        "worktree": worktree,
-        "kind": _dirty_kind(index, worktree),
-    }
-
-
-def _porcelain_path(raw: str) -> str:
-    # Git rename/copy porcelain uses "old -> new". The new path is what closeout
-    # commands need to clean or stage.
-    if " -> " in raw:
-        return raw.rsplit(" -> ", 1)[1].strip('"')
-    return raw.strip('"')
-
-
-def _dirty_kind(index: str, worktree: str) -> str:
-    if index == "?" and worktree == "?":
-        return "untracked"
-    if "U" in {index, worktree} or (index, worktree) in {("A", "A"), ("D", "D")}:
-        return "conflicted"
-    if index == "D" or worktree == "D":
-        return "deleted"
-    return "tracked"
 
 
 def workspace_status(root: Path) -> dict[str, object]:

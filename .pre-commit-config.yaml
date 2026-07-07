@@ -11,6 +11,13 @@ repos:
         language: system
         types_or: [python, pyi]
         pass_filenames: false
+
+      - id: module-layout
+        name: semantic module layout
+        entry: .config/ci/scripts/run-module-layout.sh
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
       - id: config-lint
         name: config lint
         entry: .config/ci/scripts/run-config-lint.sh

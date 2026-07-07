@@ -13,7 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from ethos.adapters import shadow
+import ethos.adapters.shadow.execution as shadow_execution
+import ethos.adapters.shadow.semantics as shadow_semantics
 from ethos.adapters.mutation import lanes
 from ethos.adapters.store import state
 from ethos.adapters.store.retrieval import common as retrieval_common
@@ -251,41 +252,44 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
 def test_shadow_process_json_backend_and_semantic_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    assert shadow._parse_json_from_stdout('noise {"ok": true} tail') == {"ok": True}
-    assert shadow._parse_json_from_stdout("[1,2]") == {}
-    assert shadow._parse_json_from_stdout("{bad") == {}
-    assert shadow._process_failed({"exit_code": 124, "json": {}}) is True
-    assert shadow._process_failed({"exit_code": 0, "json": {"ok": True}}) is True
+    assert shadow_execution.parse_json_from_stdout('noise {"ok": true} tail') == {"ok": True}
+    assert shadow_execution.parse_json_from_stdout("[1,2]") == {}
+    assert shadow_execution.parse_json_from_stdout("{bad") == {}
+    assert shadow_execution.process_failed({"exit_code": 124, "json": {}}) is True
+    assert shadow_execution.process_failed({"exit_code": 0, "json": {"ok": True}}) is True
     verdict = {"ok": False, "command": "land", "required_gaps": []}
-    assert shadow._process_failed({"exit_code": 1, "json": verdict}) is False
-    assert shadow._process_failed({"exit_code": 2, "json": verdict}) is True
+    assert shadow_execution.process_failed({"exit_code": 1, "json": verdict}) is False
+    assert shadow_execution.process_failed({"exit_code": 2, "json": verdict}) is True
 
     class TimeoutRun:
         def __call__(self, *args: object, **kwargs: object) -> object:
             raise subprocess.TimeoutExpired(cmd=["x"], timeout=1, output="out", stderr="err")
 
-    monkeypatch.setattr(shadow.subprocess, "run", TimeoutRun())
-    assert shadow._run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["exit_code"] == 124
+    monkeypatch.setattr(shadow_execution.subprocess, "run", TimeoutRun())
+    assert (
+        shadow_execution.run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["exit_code"]
+        == 124
+    )
     monkeypatch.setattr(
-        shadow.subprocess,
+        shadow_execution.subprocess,
         "run",
         lambda *args, **kwargs: cp(
             stdout='prefix {"ok":true,"command":"status","required_gaps":[]} suffix'
         ),
     )
     assert (
-        shadow._run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["json"]["command"]
+        shadow_execution.run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["json"]["command"]
         == "status"
     )
 
-    assert shadow._embedded_backend(tmp_path, ("status",))["kind"] == "missing"
+    assert shadow_execution.embedded_backend(tmp_path, ("status",))["kind"] == "missing"
     (tmp_path / "pixi.toml").write_text("[workspace]\n", encoding="utf-8")
-    assert shadow._embedded_backend(tmp_path, ("status",))["kind"] == "pixi"
+    assert shadow_execution.embedded_backend(tmp_path, ("status",))["kind"] == "pixi"
     (tmp_path / "pixi.toml").unlink()
     (tmp_path / "pyproject.toml").write_text("[tool.uv.workspace]\nmembers=[]\n", encoding="utf-8")
-    assert shadow._embedded_ethos_command(tmp_path, ("status",))[0] == "uv"
+    assert shadow_execution.embedded_ethos_command(tmp_path, ("status",))[0] == "uv"
     (tmp_path / "pyproject.toml").write_text("[bad\n", encoding="utf-8")
-    assert shadow._pyproject_tool(tmp_path) == {}
+    assert shadow_execution.pyproject_tool(tmp_path) == {}
 
     for command, payload, expected_key in [
         (
@@ -326,7 +330,7 @@ def test_shadow_process_json_backend_and_semantic_edges(
             "remote_push",
         ),
     ]:
-        assert expected_key in shadow._semantic_projection(command, payload)
+        assert expected_key in shadow_semantics._semantic_projection(command, payload)
 
     external = {
         "ok": False,
@@ -343,7 +347,7 @@ def test_shadow_process_json_backend_and_semantic_edges(
         "required_gaps": [],
     }
     assert (
-        shadow._accepted_semantic_differences(("report",), external, embedded)[0]["kind"]
+        shadow_semantics.accepted_semantic_differences(("report",), external, embedded)[0]["kind"]
         == "report_parity_evidence_refresh_bootstrap"
     )
     route_external = {
@@ -355,7 +359,7 @@ def test_shadow_process_json_backend_and_semantic_edges(
         "summary": {"changed_requested": True, "changed_path_count": 0},
         "required_gaps": [],
     }
-    filtered, removed = shadow._without_changed_route_noop_gaps(
+    filtered, removed = shadow_semantics._without_changed_route_noop_gaps(
         route_external, route_embedded, ["skill_missing_id"]
     )
     assert filtered == [] and removed == ["skill_missing_id"]

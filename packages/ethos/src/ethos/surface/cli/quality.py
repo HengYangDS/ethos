@@ -9,17 +9,14 @@ quality/repository deps load only when this group is imported (lazy path).
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
 from typing import cast
 
-import ethos.assistants.playbooks as playbooks_module
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.gates import tool as _qtool
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.adapters.repo import git as _gitio
-from ethos.assistants.playbooks import playbooks_report
-from ethos.assistants.projections import projection_contract
+from ethos.assistants.projections import projection_drift_report
 from ethos.domain import prove as _prove
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
@@ -31,6 +28,7 @@ from ethos.repository.policy.coverage import coverage_quality_report
 from ethos.repository.policy.docs_topology import docs_topology_report
 from ethos.repository.policy.docstrings import docstring_coverage_report
 from ethos.repository.policy.gates import gate_registry
+from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs import command_examples_report
@@ -45,8 +43,6 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root
-from ethos.surface.cli._base import sha256_file as _sha256_file
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.package_ontology import package_ontology_report
 from ethos_core.contracts.package_ontology import workspace_package_config_report
 from ethos_core.quality.docs_profile import docs_quality_profile
@@ -377,6 +373,26 @@ def code_size(
     emit(result, json_output=json_output, enforce=False)
 
 
+@quality_app.command(name="module-layout")
+def module_layout(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Check semantic subpackage and import-layout discipline."""
+    repo = resolve_root(root)
+    report = module_layout_report(repo)
+    result = EthosResult(
+        command="quality module-layout",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=cast("dict[str, object]", report["summary"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        data=report,
+    )
+    emit(result, json_output)
+
+
 @quality_app.command(name="npm")
 def npm_quality(
     *,
@@ -489,62 +505,13 @@ def projection_drift(
 ) -> None:
     """Report projection drift readiness."""
     repo = resolve_root(root)
-    contract = projection_contract()
-    playbooks = playbooks_report(repo, mode="v2-strict")
-    registry = cast("dict[str, object]", playbooks["registry"])
-    registry_meta = cast("dict[str, object]", registry["meta"])
-    registry_digest = str(registry["digest"])
-    expected_registry_digest = str(registry_meta.get("expected_registry_digest") or "")
-    generator_digest = _sha256_file(Path(playbooks_module.__file__))
-    expected_generator_digest = str(registry_meta.get("expected_generator_digest") or "")
-    activation_digest = _sha256_file(repo / ".agents" / "skills" / "activation.toml")
-    drift = [
-        {"kind": "skill_package", "gap": gap}
-        for gap in cast("list[str]", playbooks["required_gaps"])
-        if str(gap).startswith("skill_package_")
-    ]
-    if not expected_registry_digest:
-        drift.append({"kind": "skill_registry", "gap": "skill_registry_expected_digest_missing"})
-    elif expected_registry_digest != registry_digest:
-        drift.append({"kind": "skill_registry", "gap": "skill_registry_digest_mismatch"})
-    if not expected_generator_digest:
-        drift.append(
-            {"kind": "projection_generator", "gap": "projection_generator_expected_digest_missing"}
-        )
-    elif expected_generator_digest != generator_digest:
-        drift.append(
-            {"kind": "projection_generator", "gap": "projection_generator_digest_mismatch"}
-        )
-    ok = contract["truth"] == ASSISTANT_TRUTH_BOUNDARY and not drift
+    report = projection_drift_report(repo)
     result = EthosResult(
         command="quality projection-drift",
-        ok=ok,
-        state="clean" if ok else "blocked",
-        required_gaps=tuple(item["gap"] for item in drift)
-        if contract["truth"] == ASSISTANT_TRUTH_BOUNDARY
-        else ("assistant_projection_truth_drift",),
-        data={
-            "contract": contract,
-            "drift": drift,
-            "registry_digest": registry_digest,
-            "registry": {
-                "digest": registry_digest,
-                "expected_digest": expected_registry_digest,
-                "ok": expected_registry_digest == registry_digest,
-            },
-            "generator": {
-                "id": "ethos.assistants.playbooks",
-                "digest": generator_digest,
-                "expected_digest": expected_generator_digest,
-                "ok": expected_generator_digest == generator_digest,
-            },
-            "inputs": [
-                {
-                    "path": ".agents/skills/activation.toml",
-                    "digest": activation_digest,
-                }
-            ],
-        },
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        data=report,
     )
     emit(result, json_output=json_output, enforce=False)
 

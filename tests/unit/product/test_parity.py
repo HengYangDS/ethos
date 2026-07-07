@@ -6,9 +6,11 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters import shadow
-from ethos.adapters.shadow import _run_embedded
-from ethos.adapters.shadow import _run_external
+import ethos.adapters.shadow.core as shadow_core
+import ethos.adapters.shadow.execution as shadow_execution
+import ethos.adapters.shadow.semantics as shadow_semantics
+from ethos.adapters.shadow.execution import run_embedded
+from ethos.adapters.shadow.execution import run_external
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import shadow_parity_report
 from tests.support.ethos_cli_runner import run_ethos
@@ -275,7 +277,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
             "execution_packages": [],
         }
 
-    monkeypatch.setattr(shadow, "run_shadow_parity", fake_shadow)
+    monkeypatch.setattr(shadow_core, "run_shadow_parity", fake_shadow)
 
     payload = run_ethos(
         "parity",
@@ -362,7 +364,7 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
             "execution_packages": [],
         }
 
-    monkeypatch.setattr(shadow, "run_shadow_parity", fake_shadow)
+    monkeypatch.setattr(shadow_core, "run_shadow_parity", fake_shadow)
 
     payload = run_ethos(
         "parity",
@@ -433,8 +435,8 @@ def test_shadow_semantic_diff_accepts_external_required_gap_superset() -> None:
         "required_gaps": ["embedded_gap"],
     }
 
-    assert shadow._semantic_diff(("status",), external, embedded) == {}
-    accepted = shadow._accepted_semantic_differences(("status",), external, embedded)
+    assert shadow_semantics.semantic_diff(("status",), external, embedded) == {}
+    accepted = shadow_semantics.accepted_semantic_differences(("status",), external, embedded)
 
     assert accepted == [
         {
@@ -462,8 +464,8 @@ def test_shadow_semantic_diff_accepts_external_stricter_land_gap() -> None:
         "required_gaps": [],
     }
 
-    assert shadow._semantic_diff(("land",), external, embedded) == {}
-    accepted = shadow._accepted_semantic_differences(("land",), external, embedded)
+    assert shadow_semantics.semantic_diff(("land",), external, embedded) == {}
+    accepted = shadow_semantics.accepted_semantic_differences(("land",), external, embedded)
 
     assert accepted == [
         {
@@ -495,8 +497,8 @@ def test_shadow_semantic_diff_accepts_external_protected_root_mutation_for_land_
             "required_gaps": [],
         }
 
-        assert shadow._semantic_diff(command, external, embedded) == {}
-        accepted = shadow._accepted_semantic_differences(command, external, embedded)
+        assert shadow_semantics.semantic_diff(command, external, embedded) == {}
+        accepted = shadow_semantics.accepted_semantic_differences(command, external, embedded)
 
         assert accepted == [
             {
@@ -524,10 +526,10 @@ def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
         "required_gaps": ["embedded_gap"],
     }
 
-    diff = shadow._semantic_diff(("status",), external, embedded)
+    diff = shadow_semantics.semantic_diff(("status",), external, embedded)
 
     assert diff["required_gaps"] == {"external": [], "embedded": ["embedded_gap"]}
-    assert shadow._false_negative_gaps(("status",), external, embedded) == ["embedded_gap"]
+    assert shadow_semantics.false_negative_gaps(("status",), external, embedded) == ["embedded_gap"]
 
 
 def test_parity_gaps_rejects_shadow_evidence_without_false_negative_gate(
@@ -1127,7 +1129,7 @@ platforms = ["osx-arm64"]
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = _run_embedded(target, ("status",), timeout_seconds=5)
+    result = run_embedded(target, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
     assert result["json"]["ok"] is True
@@ -1174,7 +1176,7 @@ ethos = "python -m ethos.cli"
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = _run_embedded(repo, ("status",), timeout_seconds=5)
+    result = run_embedded(repo, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
     assert result["backend"] == {
@@ -1220,7 +1222,7 @@ members = ["packages/ethos"]
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = _run_embedded(repo, ("status",), timeout_seconds=5)
+    result = run_embedded(repo, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
     assert result["json"]["ok"] is True
@@ -1260,7 +1262,7 @@ def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    _run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
+    run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
 
     assert calls[0][0][-3:] == ["assistants", "doctor", "--json"]
     assert "--root" not in calls[0][0]
@@ -1292,7 +1294,7 @@ def test_external_shadow_runner_uses_root_option_for_rooted_commands(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    _run_external(tmp_path, ("status",), timeout_seconds=5)
+    run_external(tmp_path, ("status",), timeout_seconds=5)
 
     assert calls[0][0][-3:] == ["--root", tmp_path.resolve().as_posix(), "--json"]
     assert calls[0][1] != tmp_path.resolve()
@@ -1318,10 +1320,10 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 1, stdout=json.dumps(payload), stderr="")
 
-    monkeypatch.setattr(shadow, "READ_ONLY_COMMANDS", (("status",),))
+    monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    report = shadow.run_shadow_parity(repo, timeout_seconds=5)
+    report = shadow_core.run_shadow_parity(repo, timeout_seconds=5)
 
     assert report["ok"] is True
     assert not any(gap.startswith("external_command_failed:") for gap in report["required_gaps"])
@@ -1329,7 +1331,7 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
 
 
 def test_shadow_malformed_json_payload_is_process_failure() -> None:
-    assert shadow._process_failed(
+    assert shadow_execution.process_failed(
         {
             "exit_code": 0,
             "stdout": '{"error": "boom"}',
@@ -1340,7 +1342,7 @@ def test_shadow_malformed_json_payload_is_process_failure() -> None:
 
 
 def test_shadow_exit_code_above_one_is_process_failure_even_with_verdict() -> None:
-    assert shadow._process_failed(
+    assert shadow_execution.process_failed(
         {
             "exit_code": 2,
             "stdout": '{"ok": false, "command": "status", "required_gaps": []}',

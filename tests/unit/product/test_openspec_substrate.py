@@ -166,10 +166,10 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root, lifecycle=True)
+    report = openspec_core.openspec_governance_report(root, lifecycle=True)
 
     assert report["ok"] is True
     assert [item["name"] for item in report["lifecycle"]["changes"]] == [
@@ -227,10 +227,10 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root, lifecycle=True)
+    report = openspec_core.openspec_governance_report(root, lifecycle=True)
 
     gap = "openspec_protected_branch_active_change_unarchived:main:release_root:release-leak"
     assert report["ok"] is True

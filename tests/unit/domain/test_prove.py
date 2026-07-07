@@ -71,6 +71,18 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
     ]
 
 
+def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
+    relative = "packages/ethos/src/ethos/domain/deleted.py"
+    monkeypatch.setattr(prove, "code_size_policy", lambda _root: {"default_effective_max_lines": 2})
+    monkeypatch.setattr(prove._git, "git_files", lambda _root, *_patterns: (relative,))
+
+    report = prove.code_size_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["files"] == []
+    assert report["required_gaps"] == []
+
+
 def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path):
     def fake_validate(schema_name, payload, root):
         return {

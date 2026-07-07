@@ -77,6 +77,7 @@ def local_ci_fallback_package(
             ".config/ci/scripts/run-config-lint.sh",
             ".config/ci/scripts/run-shell-lint.sh",
             ".config/ci/scripts/run-docstring-coverage.sh",
+            ".config/ci/scripts/run-module-layout.sh",
             ".config/ci/scripts/run-repository-hygiene.sh",
             ".config/ci/scripts/run-python-tests.sh",
         ],

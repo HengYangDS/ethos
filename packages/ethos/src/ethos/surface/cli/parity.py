@@ -95,7 +95,7 @@ def parity_shadow(
     repo = resolve_root(root)
     adopter_name = adopter or "generic"
     if execute:
-        from ethos.adapters.shadow import run_shadow_parity
+        from ethos.adapters.shadow.core import run_shadow_parity
 
         report = run_shadow_parity(
             target=target, timeout_seconds=timeout_seconds, product_root=repo

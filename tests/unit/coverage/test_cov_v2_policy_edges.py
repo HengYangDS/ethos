@@ -11,7 +11,8 @@ from __future__ import annotations
 import ast
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy import docstrings as docstrings_mod
+import ethos.repository.policy.docstrings.core as docstrings_mod
+import ethos.repository.policy.docstrings.style as docstring_style
 from ethos.repository.policy.rules import check as check_mod
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
@@ -228,9 +229,9 @@ def test_style_issues_short_circuit_for_non_google_style(tmp_path: Path) -> None
 def test_docstring_issues_flag_empty_colon_and_weak_summaries() -> None:
     # Whitespace-only docstring -> empty summary issue (docstrings.py 295);
     # summary ending in ":" -> summary_colon issue (297); weak generic word -> 301.
-    empty = docstrings_mod._docstring_issues("api.py", "m.f", 1, "   ")
-    colon = docstrings_mod._docstring_issues("api.py", "m.f", 1, "Configure things:")
-    weak = docstrings_mod._docstring_issues("api.py", "m.f", 1, "helper")
+    empty = docstring_style.docstring_issues("api.py", "m.f", 1, "   ")
+    colon = docstring_style.docstring_issues("api.py", "m.f", 1, "Configure things:")
+    weak = docstring_style.docstring_issues("api.py", "m.f", 1, "helper")
 
     assert [issue.code for issue in empty] == ["empty"]
     assert [issue.code for issue in colon] == ["summary_colon"]
@@ -242,7 +243,7 @@ def test_signature_arg_names_include_var_and_kw_args() -> None:
     # branch (363); self is filtered out.
     node = ast.parse("def f(self, a, *args, **kwargs): ...").body[0]
 
-    names = docstrings_mod._signature_arg_names(node)
+    names = docstring_style.signature_arg_names(node)
 
     assert names == ("a", "args", "kwargs")
 
@@ -250,7 +251,7 @@ def test_signature_arg_names_include_var_and_kw_args() -> None:
 def test_documented_args_strips_bullet_prefix() -> None:
     # A bullet-prefixed arg line has its leading marker stripped before matching
     # the arg name (docstrings.py 372).
-    assert docstrings_mod._documented_args(("- value (int): Input value.",)) == {"value"}
+    assert docstring_style.documented_args(("- value (int): Input value.",)) == {"value"}
 
 
 def test_sections_resets_current_on_unindented_heading() -> None:
@@ -258,7 +259,7 @@ def test_sections_resets_current_on_unindented_heading() -> None:
     # to None (docstrings.py 390), so the following text is not captured.
     docstring = "Summary.\n\nArgs:\n    value: desc\nCustom:\n    ignored\n"
 
-    sections = docstrings_mod._sections(docstring)
+    sections = docstring_style.sections(docstring)
 
     assert sections["Args"] == ("    value: desc",)
     assert "Custom" not in sections
@@ -266,7 +267,7 @@ def test_sections_resets_current_on_unindented_heading() -> None:
 
 def test_legacy_markers_capture_field_prefix() -> None:
     # A legacy `:param` field line yields its first token as a marker (docstrings.py 411).
-    assert docstrings_mod._legacy_docstring_markers(":param value: input.") == (":param",)
+    assert docstring_style.legacy_docstring_markers(":param value: input.") == (":param",)
 
 
 def test_explicit_exports_skips_non_all_assignment() -> None:

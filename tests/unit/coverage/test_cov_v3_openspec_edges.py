@@ -10,6 +10,7 @@ from ethos.adapters.openspec import archive as archive_mod
 from ethos.adapters.openspec import openspec
 from ethos.adapters.openspec import proposal
 from ethos.repository import audit_openspec
+from ethos.repository import audit_openspec as audit_openspec_core
 from ethos.repository import openspec_metadata
 from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -17,35 +18,46 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 if TYPE_CHECKING:
     import pytest
 
-# --- adapters/openspec.py ----------------------------------------------------
+# --- adapters/openspec/core.py ----------------------------------------------------
 
 
 def test_run_json_skips_parse_when_stdout_empty(tmp_path: Path) -> None:
     # Empty stdout leaves the JSON parse block unentered (branch 77->87).
-    result = openspec._run_json(tmp_path, (sys.executable,), ("-c", "pass"))
+    result = openspec_cli.run_json(tmp_path, (sys.executable,), ("-c", "pass"))
     assert result["json"] == {}
     assert result["parse_error"] == ""
     assert result["exit_code"] == 0
 
 
+def test_core_openspec_cli_forwarders(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        openspec_core.openspec_cli,
+        "cached_official_cli_entry",
+        lambda: ("node", "openspec.js"),
+    )
+
+    assert openspec_core._cached_official_cli_entry() == ("node", "openspec.js")
+    assert openspec_core._version_key("1.20.beta3") == (1, 20, 3)
+
+
 def test_validation_failures_skips_valid_item() -> None:
     # A dict item whose `valid` is not False loops back without appending (branch 125->122).
-    assert openspec._validation_failures({"items": [{"valid": True}]}) == []
+    assert openspec_core._validation_failures({"items": [{"valid": True}]}) == []
 
 
 def test_governance_report_returns_cli_missing_when_no_base_command(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # No official CLI drives the early delegating return (line 138).
-    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: None)
-    result = openspec.openspec_governance_report(tmp_path)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: None)
+    result = openspec_core.openspec_governance_report(tmp_path)
     assert result["official_cli"]["available"] is False
     assert "openspec_official_cli_missing" in result["required_gaps"]
 
 
 def test_completed_active_change_names_non_list() -> None:
     # A non-list `changes` payload short-circuits to an empty list (line 197).
-    assert openspec._completed_active_change_names({"changes": 123}) == []
+    assert openspec_core._completed_active_change_names({"changes": 123}) == []
 
 
 def test_archive_closeout_issues_skips_task_issues_without_tasks_file(tmp_path: Path) -> None:
@@ -73,7 +85,7 @@ def test_archive_delta_issues_specs_dir_without_spec_files(tmp_path: Path) -> No
 
 def test_workspace_signature_empty_without_openspec_dir(tmp_path: Path) -> None:
     # A root with no openspec/ directory yields an empty signature (line 446).
-    assert openspec._openspec_workspace_signature(tmp_path) == ()
+    assert openspec_core._openspec_workspace_signature(tmp_path) == ()
 
 
 def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) -> None:
@@ -89,14 +101,14 @@ def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) 
         '[claim]\nstate = "active"\n[carriers]\nopenspec = "openspec/changes/foo/proposal.md"\n',
         encoding="utf-8",
     )
-    assert openspec._active_claim_openspec_carriers(tmp_path) == {
+    assert openspec_core._active_claim_openspec_carriers(tmp_path) == {
         "openspec/changes/foo/proposal.md"
     }
 
 
 def test_lifecycle_report_non_list_changes_yields_no_change_names(tmp_path: Path) -> None:
     # No selected change and a non-list `changes` payload takes the else branch (line 632).
-    report = openspec._lifecycle_report(
+    report = openspec_core._lifecycle_report(
         tmp_path, selected_change=None, list_payload={"changes": 5}, enabled=True
     )
     assert report["changes"] == []
@@ -135,7 +147,7 @@ def test_required_gaps_filters_non_blocked_role_and_empty_gap(
         }
 
     monkeypatch.setattr(audit_openspec, "protected_branch_active_change_report", _fake_report)
-    gaps = audit_openspec.protected_branch_active_change_required_gaps(
+    gaps = audit_openspec_core.protected_branch_active_change_required_gaps(
         Path("/nonexistent"), current_branch="work/x"
     )
     assert gaps == ["g3"]

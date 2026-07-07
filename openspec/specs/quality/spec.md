@@ -133,6 +133,29 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 - **AND** the command remains read-only and does not replace the reusable Python
   test gate owner script
 
+
+### Requirement: Python Module Layout Gate
+
+ETHOS SHALL gate Python module layout as a quality property so semantic
+sub-packages, package-root visibility, suffix-flat debt, flat-directory debt,
+and import-alias compatibility residue cannot grow through normal write paths.
+
+#### Scenario: Semantic module layout is reported and enforced
+
+- **WHEN** `ethos quality module-layout --json` runs
+- **THEN** ETHOS reports suffix-module, suffix-flat, flat-directory, private import
+  alias, and package `__init__.py` facade findings against
+  `.config/checks/module-layout/policy.toml`
+- **AND** new findings outside the ratchet baseline fail the gate
+- **AND** the ratchet baseline declares `baseline_gap_limit`, fails unless the
+  current allowed-baseline count exactly matches that limit, and fails when
+  baseline entries no longer correspond to current findings
+- **AND** package-root `__init__.py` files remain declaration-only docstring
+  boundaries rather than re-export or compatibility facades
+- **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
+  `.config/ci/scripts/run-module-layout.sh` owner script instead of duplicating
+  the policy inline.
+
 ### Requirement: Python Public-Surface Docstring Gate
 
 ETHOS SHALL gate intent-bearing Google-style docstrings for public Python product surfaces

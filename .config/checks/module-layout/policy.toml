@@ -1,0 +1,83 @@
+paths = ["packages/ethos/src", "packages/ethos-core/src"]
+flat_directory_limit = 8
+suffix_flat_group_min = 3
+baseline_gap_limit = 67
+
+allowed_suffix_modules = [
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/branch_roles.py:branch_roles",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/capability_parity.py:capability_parity",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/context_projection.py:context_projection",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/package_ontology.py:package_ontology",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/skill_activation.py:skill_activation",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/system_contracts.py:system_contracts",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/invalid_states.py:invalid_states",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/quality/docs_profile.py:docs_profile",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/quality/proof_policy.py:proof_policy",
+  "module_layout_suffix_module:packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py:lanes_refresh",
+  "module_layout_suffix_module:packages/ethos/src/ethos/adapters/mutation/lanes_retire.py:lanes_retire",
+  "module_layout_suffix_module:packages/ethos/src/ethos/adapters/repo/status_bindings.py:status_bindings",
+  "module_layout_suffix_module:packages/ethos/src/ethos/assistants/context_selection.py:context_selection",
+  "module_layout_suffix_module:packages/ethos/src/ethos/assistants/playbook_utils.py:playbook_utils",
+  "module_layout_suffix_module:packages/ethos/src/ethos/domain/campaign_closeout.py:campaign_closeout",
+  "module_layout_suffix_module:packages/ethos/src/ethos/domain/land_support.py:land_support",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/adoption/scaffold_docs.py:scaffold_docs",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/adoption/scaffold_openspec.py:scaffold_openspec",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_design.py:audit_design",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_openspec.py:audit_openspec",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/evidence/parity_validation.py:parity_validation",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/openspec_metadata.py:openspec_metadata",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/rules_exceptions.py:rules_exceptions",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_sample_large.py:schema_sample_large",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_sample_shared.py:schema_sample_shared",
+  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_samples.py:schema_samples",
+]
+
+allowed_suffix_flat = [
+  "module_layout_suffix_flat:packages/ethos/src/ethos/repository/policy:schema:3",
+]
+
+allowed_flat_directories = [
+  "module_layout_flat_directory:packages/ethos/src/ethos/repository/policy:9>8",
+  "module_layout_flat_directory:packages/ethos/src/ethos/surface/cli:12>8",
+]
+
+allowed_private_aliases = [
+  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_refresh->_refresh",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire->_retire",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_landed_work_lanes->_retire_landed_work_lanes",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_unbound_work_lane_ref->_retire_unbound_work_lane_ref",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/repo/status.py:ethos.adapters.repo.coordination.coordination_gaps->_scope_coordination_gaps",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.orient->_orient",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.plan->_plan",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.prove->_prove",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.status->_status",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.surface.cli._base.load_command_groups->_load_command_groups",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.surface.cli._gate_runner.run_inprocess_cli_gate->_run_inprocess_cli_gate",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/campaign_closeout.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land_support.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/prove.py:ethos.adapters.repo.git->_git",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.domain.status->_status",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/repository/audit.py:ethos.repository.audit_openspec->_audit_openspec",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/repository/audit.py:ethos.repository.audit_openspec._openspec_shape_report->_openspec_shape_report_impl",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/_gate_runner.py:ethos.surface.cli._base.load_command_groups->_load_command_groups",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/campaign.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/fleet.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/fleet.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/hook.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/intake.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/lane.py:ethos.domain.prove->_prove",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.domain.land->_land",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.adapters.gates.tool->_qtool",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.domain.prove->_prove",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/rules.py:ethos.adapters.repo.git->_gitio",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/rules.py:ethos.domain.plan->_plan",
+  "module_layout_private_import_alias:packages/ethos/src/ethos/testing/fixtures.py:ethos_core.contracts.context_projection.context_retrieval_smoke_queries->_context_retrieval_smoke_queries",
+]

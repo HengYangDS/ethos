@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters import shadow
-from ethos.adapters.shadow import _accepted_semantic_differences
-from ethos.adapters.shadow import _semantic_diff
-from ethos.adapters.shadow import run_shadow_parity
+import ethos.adapters.shadow.core as shadow_core
+import ethos.adapters.shadow.execution as shadow_execution
+import ethos.adapters.shadow.identity as shadow_identity
+import ethos.adapters.shadow.semantics as shadow_semantics
+from ethos.adapters.shadow.core import run_shadow_parity
+from ethos.adapters.shadow.semantics import accepted_semantic_differences
+from ethos.adapters.shadow.semantics import semantic_diff
 from ethos.domain.land import acceptable_parity_product_heads
 from ethos.repository.evidence.parity import _command_matches_identity
 from ethos.repository.evidence.parity import _parity_evidence
@@ -143,7 +146,7 @@ def test_shadow_semantic_diff_compares_plan_gate_dimension() -> None:
         "data": {"required_gates": []},
     }
 
-    diff = shadow._semantic_diff(("plan", "--changed"), external, embedded)
+    diff = shadow_semantics.semantic_diff(("plan", "--changed"), external, embedded)
 
     assert diff == {"required_gate_ids": {"external": ["unit"], "embedded": []}}
 
@@ -165,7 +168,7 @@ def test_shadow_status_projection_accepts_embedded_top_level_fields() -> None:
         "changed_paths": [],
     }
 
-    assert shadow._semantic_diff(("status",), external, embedded) == {}
+    assert shadow_semantics.semantic_diff(("status",), external, embedded) == {}
 
 
 @pytest.mark.parametrize(
@@ -193,7 +196,7 @@ def test_shadow_status_projection_normalizes_legacy_role_aliases(
         "summary": {"role": embedded_role, "dirty": False},
     }
 
-    assert shadow._semantic_diff(("status",), external, embedded) == {}
+    assert shadow_semantics.semantic_diff(("status",), external, embedded) == {}
 
 
 def test_shadow_report_projection_normalizes_missing_blocking_gap_count() -> None:
@@ -206,7 +209,7 @@ def test_shadow_report_projection_normalizes_missing_blocking_gap_count() -> Non
         "scorecards": [{"id": "governance", "ok": True, "required_gaps": []}],
     }
 
-    assert shadow._semantic_diff(("report",), external, embedded) == {}
+    assert shadow_semantics.semantic_diff(("report",), external, embedded) == {}
 
 
 def test_shadow_playbooks_projection_ignores_schema_specific_route_details() -> None:
@@ -224,7 +227,10 @@ def test_shadow_playbooks_projection_ignores_schema_specific_route_details() -> 
         "route_hints": [],
     }
 
-    assert shadow._semantic_diff(("playbooks", "route", "--changed"), external, embedded) == {}
+    assert (
+        shadow_semantics.semantic_diff(("playbooks", "route", "--changed"), external, embedded)
+        == {}
+    )
 
 
 def test_shadow_parse_failure_is_process_failure() -> None:
@@ -235,7 +241,7 @@ def test_shadow_parse_failure_is_process_failure() -> None:
         "json": {},
     }
 
-    assert shadow._process_failed(result) is True
+    assert shadow_execution.process_failed(result) is True
 
 
 def test_shadow_timeout_is_process_failure() -> None:
@@ -246,7 +252,7 @@ def test_shadow_timeout_is_process_failure() -> None:
         "json": {},
     }
 
-    assert shadow._process_failed(result) is True
+    assert shadow_execution.process_failed(result) is True
 
 
 def test_shadow_semantic_diff_derives_state_for_minimal_status_payload() -> None:
@@ -265,7 +271,7 @@ def test_shadow_semantic_diff_derives_state_for_minimal_status_payload() -> None
         "role": "accepted_root",
     }
 
-    assert _semantic_diff(external, embedded) == {}
+    assert semantic_diff(external, embedded) == {}
 
 
 def test_shadow_semantic_diff_derives_state_for_legacy_plan_payload() -> None:
@@ -282,7 +288,7 @@ def test_shadow_semantic_diff_derives_state_for_legacy_plan_payload() -> None:
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
+    assert semantic_diff(external, embedded) == {}
 
 
 def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload() -> None:
@@ -299,7 +305,7 @@ def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
+    assert semantic_diff(external, embedded) == {}
 
 
 def test_shadow_semantic_diff_normalizes_ready_prove_against_minimal_payload() -> None:
@@ -316,7 +322,7 @@ def test_shadow_semantic_diff_normalizes_ready_prove_against_minimal_payload() -
         "required_gaps": [],
     }
 
-    assert _semantic_diff(("prove",), external, embedded) == {}
+    assert semantic_diff(("prove",), external, embedded) == {}
 
 
 @pytest.mark.parametrize(
@@ -356,7 +362,7 @@ def test_shadow_semantic_diff_classifies_external_repository_audit_gaps_for_mini
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
+    assert semantic_diff(external, embedded) == {}
 
 
 def test_shadow_semantic_diff_preserves_external_non_repository_audit_gaps() -> None:
@@ -381,7 +387,7 @@ def test_shadow_semantic_diff_preserves_external_non_repository_audit_gaps() -> 
         "required_gaps": [],
     }
 
-    diff = _semantic_diff(external, embedded)
+    diff = semantic_diff(external, embedded)
 
     assert diff["ok"] == {"external": False, "embedded": True}
     assert diff["required_gaps"] == {"external": ["action_graph_invalid"], "embedded": []}
@@ -417,7 +423,7 @@ def test_shadow_semantic_diff_classifies_changed_route_noop() -> None:
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
+    assert semantic_diff(external, embedded) == {}
 
 
 def test_shadow_semantic_diff_classifies_changed_route_noop_with_strict_activation_gap() -> None:
@@ -448,8 +454,8 @@ def test_shadow_semantic_diff_classifies_changed_route_noop_with_strict_activati
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
-    assert _accepted_semantic_differences(external, embedded) == [
+    assert semantic_diff(external, embedded) == {}
+    assert accepted_semantic_differences(external, embedded) == [
         {
             "kind": "changed_route_noop",
             "classification": "accepted",
@@ -485,8 +491,8 @@ def test_shadow_semantic_diff_classifies_report_parity_evidence_refresh_bootstra
         "required_gaps": [],
     }
 
-    assert _semantic_diff(external, embedded) == {}
-    accepted = _accepted_semantic_differences(external, embedded)
+    assert semantic_diff(external, embedded) == {}
+    accepted = accepted_semantic_differences(external, embedded)
     assert accepted == [
         {
             "kind": "report_parity_evidence_refresh_bootstrap",
@@ -561,7 +567,7 @@ def test_shadow_semantic_diff_preserves_changed_route_gap_when_paths_changed() -
         "required_gaps": [],
     }
 
-    diff = _semantic_diff(external, embedded)
+    diff = semantic_diff(external, embedded)
 
     assert diff["required_gaps"] == {
         "external": ["playbook_route_missing:changed-scope"],
@@ -647,8 +653,8 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
             },
         }
 
-    monkeypatch.setattr("ethos.adapters.shadow._run_external", fake_external)
-    monkeypatch.setattr("ethos.adapters.shadow._run_embedded", fake_embedded)
+    monkeypatch.setattr("ethos.adapters.shadow.execution.run_external", fake_external)
+    monkeypatch.setattr("ethos.adapters.shadow.execution.run_embedded", fake_embedded)
 
     payload = run_shadow_parity(tmp_path, timeout_seconds=5)
 
@@ -719,9 +725,9 @@ def test_shadow_parity_report_includes_identity_envelope(
             "required_gaps": [],
         }
 
-    monkeypatch.setattr(shadow, "READ_ONLY_COMMANDS", (("status",),))
-    monkeypatch.setattr(shadow, "_run_external", fake_external)
-    monkeypatch.setattr(shadow, "_run_embedded", fake_embedded)
+    monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
+    monkeypatch.setattr(shadow_execution, "run_external", fake_external)
+    monkeypatch.setattr(shadow_execution, "run_embedded", fake_embedded)
 
     payload = run_shadow_parity(repo, timeout_seconds=5)
 
@@ -794,7 +800,7 @@ def test_shadow_accepted_difference_has_stable_shape() -> None:
     }
     embedded = {"ok": True, "command": "prove", "required_gaps": []}
 
-    accepted = _accepted_semantic_differences(external, embedded)
+    accepted = accepted_semantic_differences(external, embedded)
 
     assert accepted == [
         {
@@ -980,7 +986,7 @@ host_local_roots = [".ethos/state"]
         path.mkdir(parents=True)
         (path / "item.txt").write_text(rel, encoding="utf-8")
 
-    paths = {item["path"] for item in shadow._evidence_inputs(repo)}
+    paths = {item["path"] for item in shadow_identity.evidence_inputs(repo)}
 
     assert {
         ".ethos/profile.toml",
@@ -1002,7 +1008,7 @@ def test_shadow_identity_evidence_roots_ignore_invalid_profile(tmp_path: Path) -
     (repo / ".ethos" / "profile.toml").write_text("[", encoding="utf-8")
     (repo / "rules").mkdir()
 
-    paths = {item["path"] for item in shadow._evidence_inputs(repo)}
+    paths = {item["path"] for item in shadow_identity.evidence_inputs(repo)}
 
     assert ".ethos/profile.toml" in paths
     assert "rules" in paths
@@ -1016,7 +1022,7 @@ def test_shadow_identity_changed_paths_handles_rename_and_untracked(tmp_path: Pa
     subprocess.run(["git", "mv", "old.txt", "new.txt"], cwd=repo, check=True)
     (repo / "untracked.txt").write_text("new", encoding="utf-8")
 
-    paths = shadow._changed_paths(repo)
+    paths = shadow_identity.changed_paths(repo)
 
     assert paths == ["new.txt", "untracked.txt"]
 
@@ -1029,10 +1035,10 @@ def test_shadow_identity_helpers_fail_closed_for_subprocess_errors(
         message = "boom"
         raise OSError(message)
 
-    monkeypatch.setattr(shadow.subprocess, "run", raise_error)
+    monkeypatch.setattr(shadow_identity.subprocess, "run", raise_error)
 
-    assert shadow._git_head(tmp_path) == ""
-    assert shadow._changed_paths(tmp_path) == []
+    assert shadow_identity.git_head(tmp_path) == ""
+    assert shadow_identity.changed_paths(tmp_path) == []
 
 
 def test_shadow_identity_embedded_labels_fallback_to_backend_probe(
@@ -1044,12 +1050,12 @@ def test_shadow_identity_embedded_labels_fallback_to_backend_probe(
     def fake_backend(target: Path, command: tuple[str, ...]) -> dict[str, object]:
         return {"command": "backend " + " ".join(command)}
 
-    monkeypatch.setattr(shadow, "_embedded_backend", fake_backend)
+    monkeypatch.setattr(shadow_identity, "embedded_backend", fake_backend)
 
-    assert shadow._embedded_command_labels(repo, (("status",),), comparisons=None) == [
+    assert shadow_identity.embedded_command_labels(repo, (("status",),), comparisons=None) == [
         "backend status"
     ]
-    assert shadow._embedded_command_labels(
+    assert shadow_identity.embedded_command_labels(
         repo,
         (("status",),),
         comparisons=[{"embedded": {"backend": {}}}],
@@ -1059,10 +1065,10 @@ def test_shadow_identity_embedded_labels_fallback_to_backend_probe(
 def test_shadow_identity_evidence_inputs_ignore_special_paths(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    missing = shadow._evidence_input(repo, "missing")
+    missing = shadow_identity.evidence_input(repo, "missing")
     link = repo / "link"
     link.symlink_to(repo / "missing-target")
-    linked = shadow._evidence_input(repo, "link")
+    linked = shadow_identity.evidence_input(repo, "link")
     tree = repo / "tree"
     tree.mkdir()
     (tree / "kept.txt").write_text("kept", encoding="utf-8")
@@ -1071,26 +1077,26 @@ def test_shadow_identity_evidence_inputs_ignore_special_paths(tmp_path: Path) ->
 
     assert missing is None
     assert linked is None
-    assert shadow._evidence_input(repo, "tree") == {
+    assert shadow_identity.evidence_input(repo, "tree") == {
         "path": "tree",
         "kind": "directory",
-        "sha256": shadow._tree_sha256(tree),
+        "sha256": shadow_identity.tree_sha256(tree),
     }
 
 
 def test_shadow_small_parsers_cover_invalid_shapes(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text("[", encoding="utf-8")
 
-    assert shadow._pyproject_tool(tmp_path) == {}
-    assert shadow._parse_json_from_stdout("no json") == {}
-    assert shadow._parse_json_from_stdout("[1]") == {}
-    assert shadow._parse_json_from_stdout("{bad}") == {}
-    assert shadow._accepted_summary(["ignored", {"kind": ""}, {"kind": "sample"}]) == {
+    assert shadow_execution.pyproject_tool(tmp_path) == {}
+    assert shadow_execution.parse_json_from_stdout("no json") == {}
+    assert shadow_execution.parse_json_from_stdout("[1]") == {}
+    assert shadow_execution.parse_json_from_stdout("{bad}") == {}
+    assert shadow_semantics.accepted_summary(["ignored", {"kind": ""}, {"kind": "sample"}]) == {
         "total_count": 1,
         "kind_counts": {"sample": 1},
     }
     with pytest.raises(TypeError):
-        shadow._semantic_args(({}, {}, {}, {}))
+        shadow_semantics._semantic_args(({}, {}, {}, {}))
 
 
 def test_shadow_projection_marks_accepted_ready_states() -> None:
@@ -1110,12 +1116,12 @@ def test_shadow_projection_marks_accepted_ready_states() -> None:
             "required_gaps": [],
         }
         embedded = {"ok": True, "command": "report", "state": "ready", "required_gaps": []}
-        projection, _embedded, _accepted = shadow._normalized_semantic_projections(
+        projection, _embedded, _accepted = shadow_semantics._normalized_semantic_projections(
             tuple(command_name.split()), external, embedded
         )
-        shadow._mark_projection_ready(projection)
+        shadow_semantics._mark_projection_ready(projection)
         assert projection[ready_key] is True
-        assert shadow._ready_state_for_command(command_name) == ready_state
+        assert shadow_semantics._ready_state_for_command(command_name) == ready_state
 
 
 def test_shadow_report_refresh_bootstrap_rejects_non_matching_shapes() -> None:
@@ -1140,11 +1146,11 @@ def test_shadow_report_refresh_bootstrap_rejects_non_matching_shapes() -> None:
     for external_patch, embedded_patch in cases:
         external = {**base_external, **external_patch}
         embedded = {**base_embedded, **embedded_patch}
-        projection, embedded_projection, _accepted = shadow._normalized_semantic_projections(
-            ("report",), external, embedded
+        projection, embedded_projection, _accepted = (
+            shadow_semantics._normalized_semantic_projections(("report",), external, embedded)
         )
         assert (
-            shadow._report_parity_evidence_refresh_bootstrap_gaps(
+            shadow_semantics._report_parity_evidence_refresh_bootstrap_gaps(
                 external, embedded, projection, embedded_projection
             )
             == []

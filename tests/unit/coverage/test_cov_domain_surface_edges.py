@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 # ruff: noqa: ARG005, TC002
+from ethos.assistants import projections
 from ethos.domain import land
 from ethos.domain.orient import _current_head
 from ethos.domain.orient import _next_actions
@@ -107,39 +108,31 @@ def test_format_policy_reports_gap_when_rules_toml_absent(
 def test_projection_drift_reports_missing_expected_digests(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    # Empty registry meta -> both expected-digest strings are '', so the
-    # `if not expected_registry_digest` (line 440) and
-    # `if not expected_generator_digest` (line 444) missing-branches fire.
-    monkeypatch.setattr(quality, "resolve_root", lambda root: tmp_path)
-    monkeypatch.setattr(quality, "_sha256_file", lambda path: "sha256:actual")
+    # Empty registry meta -> both expected-digest strings are '', so the missing
+    # branches fire in the assistant projection report owner.
+    monkeypatch.setattr(projections, "_sha256_file", lambda path: "sha256:actual")
     monkeypatch.setattr(
-        quality,
+        projections,
         "playbooks_report",
         lambda root, *, mode="v2-strict": {
             "registry": {"meta": {}, "digest": "sha256:reg-actual"},
             "required_gaps": [],
         },
     )
-    emitted: list[EthosResult] = []
-    monkeypatch.setattr(
-        quality, "emit", lambda result, json_output, enforce=True: emitted.append(result)
-    )
-    quality.projection_drift(root=tmp_path, json_output=True)
-    result = emitted[-1]
-    assert "skill_registry_expected_digest_missing" in result.required_gaps
-    assert "projection_generator_expected_digest_missing" in result.required_gaps
-    assert result.ok is False
+    result = projections.projection_drift_report(tmp_path)
+
+    assert "skill_registry_expected_digest_missing" in result["required_gaps"]
+    assert "projection_generator_expected_digest_missing" in result["required_gaps"]
+    assert result["ok"] is False
 
 
 def test_projection_drift_reports_digest_mismatches(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    # Expected digests present but differ from actual -> the elif mismatch
-    # branches fire: registry mismatch (line 442) and generator mismatch (line 448).
-    monkeypatch.setattr(quality, "resolve_root", lambda root: tmp_path)
-    monkeypatch.setattr(quality, "_sha256_file", lambda path: "sha256:gen-actual")
+    # Expected digests present but differ from actual -> the mismatch branches fire.
+    monkeypatch.setattr(projections, "_sha256_file", lambda path: "sha256:gen-actual")
     monkeypatch.setattr(
-        quality,
+        projections,
         "playbooks_report",
         lambda root, *, mode="v2-strict": {
             "registry": {
@@ -152,12 +145,8 @@ def test_projection_drift_reports_digest_mismatches(
             "required_gaps": [],
         },
     )
-    emitted: list[EthosResult] = []
-    monkeypatch.setattr(
-        quality, "emit", lambda result, json_output, enforce=True: emitted.append(result)
-    )
-    quality.projection_drift(root=tmp_path, json_output=True)
-    result = emitted[-1]
-    assert "skill_registry_digest_mismatch" in result.required_gaps
-    assert "projection_generator_digest_mismatch" in result.required_gaps
-    assert result.ok is False
+    result = projections.projection_drift_report(tmp_path)
+
+    assert "skill_registry_digest_mismatch" in result["required_gaps"]
+    assert "projection_generator_digest_mismatch" in result["required_gaps"]
+    assert result["ok"] is False

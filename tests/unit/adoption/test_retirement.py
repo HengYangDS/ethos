@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.repository.adoption.retirement import retirement_readiness_report
+from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_table
 from tests.support.ethos_cli_runner import run_ethos
@@ -839,7 +839,7 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
         return {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
     monkeypatch.setattr("ethos.surface.cli.fleet.parity_gaps_report", fake_parity_gaps_report)
-    monkeypatch.setattr("ethos.adapters.shadow.run_shadow_parity", fake_run_shadow_parity)
+    monkeypatch.setattr("ethos.adapters.shadow.core.run_shadow_parity", fake_run_shadow_parity)
 
     payload = run_ethos(
         "fleet",

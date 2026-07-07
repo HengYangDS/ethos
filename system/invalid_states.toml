@@ -76,6 +76,7 @@ match_prefixes = [
   "command_missing",
   "guard_missing",
   "context_eval_suite_missing",
+  "module_layout_",
 ]
 
 [[category]]

@@ -48,6 +48,16 @@ def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
         q._prove, "code_size_report", lambda _repo: {"ok": False, "required_gaps": ["too_big"]}
     )
     monkeypatch.setattr(
+        q,
+        "module_layout_report",
+        lambda _repo: {
+            "ok": False,
+            "state": "blocked",
+            "summary": {"suffix_module_count": 1},
+            "required_gaps": ["module_layout_suffix_module:x"],
+        },
+    )
+    monkeypatch.setattr(
         q._qtool,
         "quality_tool_report",
         lambda **kwargs: {"ok": False, "required_gaps": ["npm_bad"], **kwargs},
@@ -55,13 +65,17 @@ def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
     (tmp_path / "package.json").write_text("{}", encoding="utf-8")
 
     q.code_size(root=tmp_path, json_output=True)
+    q.module_layout(root=tmp_path, json_output=True)
     q.npm_quality(root=tmp_path, json_output=True)
 
     assert emitted[0]["command"] == "quality code-size"
     assert emitted[0]["state"] == "blocked"
     assert emitted[0]["required_gaps"] == ["too_big"]
-    assert emitted[1]["command"] == "quality npm"
-    assert emitted[1]["data"]["files"] == ["package.json"]
+    assert emitted[1]["command"] == "quality module-layout"
+    assert emitted[1]["state"] == "blocked"
+    assert emitted[1]["summary"] == {"suffix_module_count": 1}
+    assert emitted[2]["command"] == "quality npm"
+    assert emitted[2]["data"]["files"] == ["package.json"]
 
 
 def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_path: Path):

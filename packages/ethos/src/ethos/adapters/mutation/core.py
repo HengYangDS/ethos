@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status import workspace_status
@@ -101,64 +102,6 @@ class MutationDecision:
     gaps: tuple[str, ...] = ()
 
 
-def remediation_for_gaps(gaps: tuple[str, ...] | list[str]) -> list[dict[str, object]]:
-    """Machine-readable repair hints for common mutation blockers."""
-    hints: list[dict[str, object]] = []
-    gap_set = tuple(str(gap) for gap in gaps)
-    for gap in gap_set:
-        if gap in {"work_lane_dirty", "accepted_root_dirty", "candidate_worktree_dirty"}:
-            hints.append(
-                {
-                    "gap": gap,
-                    "kind": "dirty_state",
-                    "next_actions": [
-                        "inspect dirty_provenance in ethos status --json",
-                        "commit intentional changes or back up and reset generated residue",
-                    ],
-                }
-            )
-        elif gap == "candidate_base_stale":
-            hints.append(
-                {
-                    "gap": gap,
-                    "kind": "stale_base",
-                    "next_actions": [
-                        "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
-                        "rerun proof after the lane is replayed onto candidate/dev",
-                    ],
-                }
-            )
-        elif gap == "accepted_advanced_concurrently":
-            hints.append(
-                {
-                    "gap": gap,
-                    "kind": "accepted_advanced_concurrently",
-                    "next_actions": [
-                        "a concurrent landing advanced accepted after this proof was bound",
-                        "re-read the accepted head and rebase candidate onto it",
-                        "rerun ethos land --closeout --expect-head <new-head> after re-proving",
-                    ],
-                }
-            )
-        elif gap.startswith("coordination_gap:scope_overlap:"):
-            branch = gap.rsplit(":", 1)[-1]
-            hints.append(
-                {
-                    "gap": gap,
-                    "kind": "lane_overlap",
-                    "next_actions": [
-                        "do not land a temporary overlapping lane directly",
-                        (
-                            "move or replay the verified head through "
-                            f"the legitimate leased lane {branch}"
-                        ),
-                        "remove the temporary lane after the legitimate lane is current",
-                    ],
-                }
-            )
-    return hints
-
-
 def evaluate_mutation(
     request: MutationRequest,
     *,
@@ -250,7 +193,7 @@ def apply_land_to_candidate(
             "branch": policy.candidate_branch,
             "head": current_head,
             "required_gaps": list(decision.gaps),
-            "remediation": remediation_for_gaps(decision.gaps),
+            "remediation": remediation.remediation_for_gaps(decision.gaps),
         }
     base_report = candidate_base_report(root=root)
     if not base_report["ok"]:
@@ -265,7 +208,7 @@ def apply_land_to_candidate(
             "head": current_head,
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_update_failed"],
-            "remediation": remediation_for_gaps(["candidate_update_failed"]),
+            "remediation": remediation.remediation_for_gaps(["candidate_update_failed"]),
             "stderr": completed.stderr.strip(),
         }
     proof_carry = carry_executed_proof_record(
@@ -309,7 +252,7 @@ def apply_candidate_to_accepted(
             "head": current_head,
             "previous_head": current_head,
             "required_gaps": list(decision.gaps),
-            "remediation": remediation_for_gaps(decision.gaps),
+            "remediation": remediation.remediation_for_gaps(decision.gaps),
         }
     status = workspace_status(root)
     candidate_info = cast("dict[str, object]", status["candidate"])
@@ -355,7 +298,7 @@ def apply_candidate_to_accepted(
             "head": current_head,
             "previous_head": current_head,
             "required_gaps": ["accepted_advanced_concurrently"],
-            "remediation": remediation_for_gaps(["accepted_advanced_concurrently"]),
+            "remediation": remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
             "stderr": completed.stderr.strip(),
         }
     # CAS won: sync the accepted worktree/index to the ref it now points at. Closeout
@@ -455,7 +398,7 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
             "candidate_head": candidate_head,
             "path": candidate_path.as_posix(),
             "required_gaps": ["candidate_base_stale"],
-            "remediation": remediation_for_gaps(["candidate_base_stale"]),
+            "remediation": remediation.remediation_for_gaps(["candidate_base_stale"]),
         }
     return {
         "ok": True,

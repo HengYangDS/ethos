@@ -698,11 +698,20 @@ def test_gate_registry_has_real_default_gates() -> None:
         "v2-strict",
         "--json",
     )
-    assert {"unit-architecture", "ruff", "build", "python-types", "docstrings"} <= set(registry)
+    assert {
+        "unit-architecture",
+        "ruff",
+        "build",
+        "python-types",
+        "docstrings",
+        "module-layout",
+    } <= set(registry)
     assert registry["ruff"].command == (".config/ci/scripts/run-python-lint.sh",)
     assert registry["ruff"].dimensions == ("lint", "format", "ratchet")
     assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
     assert registry["docstrings"].command == (".config/ci/scripts/run-docstring-coverage.sh",)
+    assert registry["module-layout"].command == (".config/ci/scripts/run-module-layout.sh",)
+    assert registry["module-layout"].execution_mode == "adapter"
     assert registry["python-types"].execution_mode == "inprocess"
 
 
@@ -720,7 +729,14 @@ def test_gate_registry_classifies_product_toolchain_profile() -> None:
         assert registry[gate_id].profile == "product"
         assert registry[gate_id].toolchain == "ethos"
 
-    for gate_id in ("unit-architecture", "ruff", "build", "python-types", "docstrings"):
+    for gate_id in (
+        "unit-architecture",
+        "ruff",
+        "build",
+        "python-types",
+        "docstrings",
+        "module-layout",
+    ):
         assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
@@ -748,6 +764,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "ruff",
         "python-types",
         "docstrings",
+        "module-layout",
         "toml-config",
         "yaml-config",
         "shell-lint",
@@ -755,6 +772,9 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     ]
     nodes = {node.id: node for node in graph.nodes}
     assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
+    assert nodes["module-layout"].to_dict()["command"] == [
+        ".config/ci/scripts/run-module-layout.sh"
+    ]
     assert nodes["toml-config"].to_dict()["command"] == [".config/ci/scripts/run-config-lint.sh"]
     assert nodes["shell-lint"].to_dict()["command"] == [".config/ci/scripts/run-shell-lint.sh"]
 
@@ -794,6 +814,7 @@ root_subject = \"sample\"
     assert [".config/ci/scripts/run-python-lint.sh"] not in commands
     assert [".config/ci/scripts/run-python-tests.sh"] not in commands
     assert [".config/ci/scripts/run-docstring-coverage.sh"] not in commands
+    assert [".config/ci/scripts/run-module-layout.sh"] not in commands
 
 
 def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
@@ -808,6 +829,9 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
+    assert nodes["module-layout"].to_dict()["command"] == [
+        ".config/ci/scripts/run-module-layout.sh"
+    ]
 
 
 def test_repository_audit_reports_design_integrity_contract() -> None:

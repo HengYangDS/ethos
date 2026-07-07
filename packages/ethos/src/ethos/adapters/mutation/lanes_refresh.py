@@ -7,7 +7,7 @@ from ethos.adapters.mutation.lanes_retire import _default_candidate_path
 from ethos.adapters.mutation.lanes_retire import _git
 from ethos.adapters.mutation.lanes_retire import _is_ancestor
 from ethos.adapters.mutation.lanes_retire import _repo_root
-from ethos.adapters.repo.status import changed_paths
+from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE

@@ -70,6 +70,8 @@ def test_gate_plan_uses_quality_descriptors_not_commands_only() -> None:
     assert gates["shell-lint"]["tool_adapter"] == "shellcheck"
     assert gates["shell-lint"]["command"] == [".config/ci/scripts/run-shell-lint.sh"]
     assert gates["python-lint"]["tool_adapter"] == "ruff"
+    assert gates["module-layout"]["command"] == [".config/ci/scripts/run-module-layout.sh"]
+    assert gates["module-layout"]["tool_adapter"] == "ethos-module-layout"
     assert gates["schema-contracts"]["evidence_class"] == "contract"
     assert gates["proof-policy"]["trust_bearing"] is True
     assert all("network_policy" in gate for gate in gates.values())

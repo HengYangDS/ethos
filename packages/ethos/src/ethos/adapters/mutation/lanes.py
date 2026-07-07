@@ -15,7 +15,7 @@ from ethos.adapters.mutation.lanes_retire import (
 from ethos.adapters.mutation.lanes_retire import (
     retire_unbound_work_lane_ref as _retire_unbound_work_lane_ref,
 )
-from ethos.adapters.repo.status import changed_paths
+from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import acquire_lease
 from ethos.adapters.store.state import active_leases

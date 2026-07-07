@@ -16,9 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters import shadow
+import ethos.adapters.shadow.core as shadow_core
+import ethos.adapters.shadow.execution as shadow_execution
+import ethos.adapters.shadow.identity as shadow_identity
+import ethos.adapters.shadow.semantics as shadow_semantics
+import ethos.repository.adoption.retirement.core as retirement_core
+import ethos.repository.adoption.retirement.rollback as retirement_rollback
 from ethos.repository.adoption import evolution
-from ethos.repository.adoption import retirement
 
 # --- repository/adoption/evolution.py ---------------------------------------
 
@@ -162,18 +166,18 @@ def test_campaign_required_gaps_flags_closeout_head_and_evidence(tmp_path: Path)
     assert "campaign_step_closeout_evidence_missing:cid:s1" in gaps
 
 
-# --- repository/adoption/retirement.py --------------------------------------
+# --- repository/adoption/retirement package ---------------------------------
 
 
 def test_binding_checks_flags_non_generic_manifest(tmp_path: Path) -> None:
     # A binding manifest other than .ethos/profile.toml is not generic (lines 126-127).
-    checks = retirement._binding_checks(tmp_path, {"binding_manifest": "custom.toml"})
+    checks = retirement_core._binding_checks(tmp_path, {"binding_manifest": "custom.toml"})
     assert "retirement_binding_manifest_not_generic:custom.toml" in checks["required_gaps"]
 
 
 def test_lifecycle_stage_reports_embedded_not_frozen() -> None:
     # External default + non-frozen embedded (parity/shadow ok) stalls at embedded (line 456).
-    stage = retirement._lifecycle_stage(
+    stage = retirement_core._lifecycle_stage(
         external_state="default",
         embedded_state="active",
         parity_ok=True,
@@ -184,25 +188,25 @@ def test_lifecycle_stage_reports_embedded_not_frozen() -> None:
 
 def test_object_list_non_list_returns_empty() -> None:
     # A non-list value yields an empty object list (lines 510-511).
-    assert retirement._object_list(None) == []
+    assert retirement_core._object_list(None) == []
 
 
 def test_int_value_unparseable_string_returns_zero() -> None:
     # A non-numeric string raises ValueError and falls back to zero (lines 521-522).
-    assert retirement._int_value("notanumber") == 0
+    assert retirement_core._int_value("notanumber") == 0
 
 
 def test_git_tracked_rejects_path_outside_repo(tmp_path: Path) -> None:
     # An absolute path resolves outside the repo, short-circuiting to False (lines 538-539).
-    assert retirement._git_tracked(tmp_path, "/etc/passwd") is False
+    assert retirement_rollback.git_tracked(tmp_path, "/etc/passwd") is False
 
 
 def test_git_commit_reachable_empty_commit_is_false(tmp_path: Path) -> None:
     # An empty commit reference is trivially unreachable (lines 550-551).
-    assert retirement._git_commit_reachable(tmp_path, "") is False
+    assert retirement_rollback.git_commit_reachable(tmp_path, "") is False
 
 
-# --- adapters/shadow.py ------------------------------------------------------
+# --- adapters/shadow/core.py ------------------------------------------------------
 
 
 def _verdict(command: tuple[str, ...], *, ok: bool, gaps: list[str]) -> dict[str, object]:
@@ -214,10 +218,10 @@ def test_run_shadow_parity_flags_external_command_failure(
 ) -> None:
     # A non-verdict external result marks the command failed (line 78). Scoped to a
     # single command with both runners stubbed for a deterministic, subprocess-free run.
-    monkeypatch.setattr(shadow, "READ_ONLY_COMMANDS", (("status",),))
+    monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
     monkeypatch.setattr(
-        shadow,
-        "_run_external",
+        shadow_execution,
+        "run_external",
         lambda t, c, *, timeout_seconds: {
             "exit_code": 2,
             "stdout": "",
@@ -226,8 +230,8 @@ def test_run_shadow_parity_flags_external_command_failure(
         },
     )
     monkeypatch.setattr(
-        shadow,
-        "_run_embedded",
+        shadow_execution,
+        "run_embedded",
         lambda t, c, *, timeout_seconds: {
             "exit_code": 0,
             "stdout": "",
@@ -236,7 +240,7 @@ def test_run_shadow_parity_flags_external_command_failure(
             "required_gaps": [],
         },
     )
-    result = shadow.run_shadow_parity(tmp_path, product_root=tmp_path)
+    result = shadow_core.run_shadow_parity(tmp_path, product_root=tmp_path)
     assert "external_command_failed:status" in result["required_gaps"]
 
 
@@ -245,10 +249,10 @@ def test_run_shadow_parity_flags_false_negative(
 ) -> None:
     # Embedded reports a blocking gap the external backend does not: a false negative
     # (line 85). Neither process fails, isolating the false-negative branch.
-    monkeypatch.setattr(shadow, "READ_ONLY_COMMANDS", (("status",),))
+    monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
     monkeypatch.setattr(
-        shadow,
-        "_run_external",
+        shadow_execution,
+        "run_external",
         lambda t, c, *, timeout_seconds: {
             "exit_code": 0,
             "stdout": "",
@@ -257,8 +261,8 @@ def test_run_shadow_parity_flags_false_negative(
         },
     )
     monkeypatch.setattr(
-        shadow,
-        "_run_embedded",
+        shadow_execution,
+        "run_embedded",
         lambda t, c, *, timeout_seconds: {
             "exit_code": 1,
             "stdout": "",
@@ -267,7 +271,7 @@ def test_run_shadow_parity_flags_false_negative(
             "required_gaps": [],
         },
     )
-    result = shadow.run_shadow_parity(tmp_path, product_root=tmp_path)
+    result = shadow_core.run_shadow_parity(tmp_path, product_root=tmp_path)
     assert "shadow_false_negative:status" in result["required_gaps"]
     assert result["false_negative_count"] == 1
 
@@ -279,34 +283,34 @@ def test_changed_paths_skips_blank_lines(tmp_path: Path, monkeypatch: pytest.Mon
             returncode=0, stdout="?? kept.txt\n\n?? other.txt\n", stderr=""
         )
 
-    monkeypatch.setattr(shadow.subprocess, "run", _fake_run)
-    assert shadow._changed_paths(tmp_path) == ["kept.txt", "other.txt"]
+    monkeypatch.setattr(shadow_identity.subprocess, "run", _fake_run)
+    assert shadow_identity.changed_paths(tmp_path) == ["kept.txt", "other.txt"]
 
 
 def test_evidence_input_non_file_non_dir_returns_none(tmp_path: Path) -> None:
     # A FIFO exists but is neither file nor directory, so it is skipped (lines 254-255).
     os.mkfifo(tmp_path / "fifo")
-    assert shadow._evidence_input(tmp_path, "fifo") is None
+    assert shadow_identity.evidence_input(tmp_path, "fifo") is None
 
 
 def test_pyproject_tool_non_dict_tool_returns_empty(tmp_path: Path) -> None:
     # A parseable pyproject with no [tool] table yields an empty tool map (lines 401-402).
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
-    assert shadow._pyproject_tool(tmp_path) == {}
+    assert shadow_execution.pyproject_tool(tmp_path) == {}
 
 
 def test_accepted_difference_unknown_kind_is_unclassified() -> None:
     # An unrecognized accepted-difference kind falls to the unknown branch (lines 634-635).
-    difference = shadow._accepted_difference("mystery", command="status", gaps=["g"])
+    difference = shadow_semantics._accepted_difference("mystery", command="status", gaps=["g"])
     assert difference["scope"] == "unknown"
     assert difference["reason"] == "unclassified accepted difference"
 
 
 def test_semantic_state_falls_through_to_raw_state() -> None:
     # ok with no string state and an unknown command returns the raw state (line 786).
-    assert shadow._semantic_state({"ok": True}, summary={}, command="mystery") is None
+    assert shadow_semantics._semantic_state({"ok": True}, summary={}, command="mystery") is None
 
 
 def test_ready_state_for_command_unknown_returns_none() -> None:
     # An unknown command has no canonical ready state (line 806).
-    assert shadow._ready_state_for_command("mystery") is None
+    assert shadow_semantics._ready_state_for_command("mystery") is None

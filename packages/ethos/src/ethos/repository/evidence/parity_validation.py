@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 # The shadow-parity command set — the single source of truth for BOTH the executed
-# read-only commands (adapters/shadow.py imports SHADOW_COMMAND_ARGS to run them) and
+# read-only commands (adapters/shadow/core.py imports SHADOW_COMMAND_ARGS to run them) and
 # the display-string identities recorded in parity evidence (SHADOW_PARITY_COMMANDS,
 # derived below). Add or remove a command in ONE place; the two forms cannot drift.
 # Lives in the repository layer so adapters may import it (adapters -> repository is the

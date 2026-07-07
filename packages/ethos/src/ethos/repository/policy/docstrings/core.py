@@ -4,27 +4,17 @@ from __future__ import annotations
 
 import ast
 import fnmatch
-import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ethos.repository.policy.docstrings.style import DocstringStyleIssue
+from ethos.repository.policy.docstrings.style import style_issues
+
 _POLICY_PATH = Path(".config/checks/docstrings/policy.toml")
 _DEFAULT_PATHS = ("packages/ethos/src", "packages/ethos-core/src")
 _DEFAULT_FAIL_UNDER = 95.0
-_GOOGLE_SECTIONS = {
-    "Args",
-    "Arguments",
-    "Attributes",
-    "Examples",
-    "Note",
-    "Notes",
-    "Raises",
-    "Returns",
-    "Yields",
-}
-_LEGACY_FIELD_RE = re.compile(r"^\s*:(?:param|type|returns?|rtype|raises?)\b")
 
 
 @dataclass(frozen=True)
@@ -45,27 +35,6 @@ class PublicSurfaceSymbol:
             "kind": self.kind,
             "line": self.line,
             "documented": self.documented,
-        }
-
-
-@dataclass(frozen=True)
-class DocstringStyleIssue:
-    """A style or signature violation in an existing docstring."""
-
-    path: str
-    qualified_name: str
-    line: int
-    code: str
-    message: str
-
-    def to_dict(self) -> dict[str, object]:
-        """Return the stable JSON form used by the docstring gate."""
-        return {
-            "path": self.path,
-            "qualified_name": self.qualified_name,
-            "line": self.line,
-            "code": self.code,
-            "message": self.message,
         }
 
 
@@ -258,180 +227,11 @@ def _is_overload(node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) ->
 
 
 def _style_issues(root: Path, policy: dict[str, Any]) -> list[DocstringStyleIssue]:
-    if str(policy.get("style", "google")).lower() != "google":
-        return []
-    issues: list[DocstringStyleIssue] = []
-    for path in _python_files(root, policy):
-        rel = path.relative_to(root).as_posix()
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        module_name = _module_name(rel)
-        module_docstring = ast.get_docstring(tree)
-        if module_docstring:
-            issues.extend(_docstring_issues(rel, module_name or "<module>", 1, module_docstring))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-                continue
-            docstring = ast.get_docstring(node)
-            if not docstring:
-                continue
-            qualified = f"{module_name}.{node.name}" if module_name else node.name
-            issues.extend(_docstring_issues(rel, qualified, node.lineno, docstring))
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and bool(
-                policy.get("check_structured_signature", True)
-            ):
-                issues.extend(_signature_issues(rel, qualified, node, docstring))
-    return issues
-
-
-def _docstring_issues(
-    rel: str,
-    qualified_name: str,
-    line: int,
-    docstring: str,
-) -> list[DocstringStyleIssue]:
-    issues: list[DocstringStyleIssue] = []
-    summary = docstring.strip().splitlines()[0].strip() if docstring.strip() else ""
-    if not summary:
-        issues.append(_issue(rel, qualified_name, line, "empty", "docstring must have a summary"))
-    elif summary.endswith(":"):
-        issues.append(
-            _issue(rel, qualified_name, line, "summary_colon", "summary must be a sentence")
-        )
-    if _weak_summary(summary):
-        issues.append(_issue(rel, qualified_name, line, "weak_summary", "summary is too generic"))
-    issues.extend(
-        _issue(rel, qualified_name, line, "legacy_style", f"legacy docstring marker: {marker}")
-        for marker in _legacy_docstring_markers(docstring)
-    )
-    issues.extend(
-        _issue(
-            rel,
-            qualified_name,
-            line,
-            "unknown_section",
-            f"non-Google section heading: {section}",
-        )
-        for section in _section_names(docstring)
-        if section not in _GOOGLE_SECTIONS
-    )
-    return issues
-
-
-def _signature_issues(
-    rel: str,
-    qualified_name: str,
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-    docstring: str,
-) -> list[DocstringStyleIssue]:
-    sections = _sections(docstring)
-    if "Args" not in sections and "Arguments" not in sections:
-        return []
-    documented_args = _documented_args(sections.get("Args", ()) + sections.get("Arguments", ()))
-    signature_args = set(_signature_arg_names(node))
-    missing = sorted(signature_args - documented_args)
-    extra = sorted(documented_args - signature_args)
-    issues: list[DocstringStyleIssue] = []
-    if missing:
-        issues.append(
-            _issue(
-                rel,
-                qualified_name,
-                node.lineno,
-                "args_missing",
-                "Args section missing: " + ", ".join(missing),
-            )
-        )
-    if extra:
-        issues.append(
-            _issue(
-                rel,
-                qualified_name,
-                node.lineno,
-                "args_extra",
-                "Args section documents unknown names: " + ", ".join(extra),
-            )
-        )
-    return issues
-
-
-def _signature_arg_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[str, ...]:
-    args = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
-    names = [arg.arg for arg in args if arg.arg not in {"self", "cls"}]
-    if node.args.vararg is not None:
-        names.append(node.args.vararg.arg)
-    if node.args.kwarg is not None:
-        names.append(node.args.kwarg.arg)
-    return tuple(names)
-
-
-def _documented_args(lines: tuple[str, ...]) -> set[str]:
-    names: set[str] = set()
-    for line in lines:
-        stripped = line.strip()
-        if not stripped or stripped.startswith(("-", "*")):
-            stripped = stripped[1:].strip()
-        match = re.match(r"([*]{0,2}[A-Za-z_][A-Za-z0-9_]*)\s*(?:\(|:|\s-)", stripped)
-        if match:
-            names.add(match.group(1).lstrip("*"))
-    return names
-
-
-def _sections(docstring: str) -> dict[str, tuple[str, ...]]:
-    sections: dict[str, list[str]] = {}
-    current: str | None = None
-    for line in docstring.splitlines()[1:]:
-        stripped = line.strip()
-        if stripped.endswith(":") and stripped[:-1] in _GOOGLE_SECTIONS:
-            current = stripped[:-1]
-            sections.setdefault(current, [])
-            continue
-        if current is not None:
-            if stripped.endswith(":") and not line.startswith((" ", "\t")):
-                current = None
-            else:
-                sections[current].append(line)
-    return {key: tuple(value) for key, value in sections.items()}
-
-
-def _section_names(docstring: str) -> tuple[str, ...]:
-    names = []
-    for line in docstring.splitlines()[1:]:
-        stripped = line.strip()
-        if stripped.endswith(":") and re.match(r"^[A-Z][A-Za-z ]+$", stripped[:-1]):
-            names.append(stripped[:-1])
-    return tuple(names)
-
-
-def _legacy_docstring_markers(docstring: str) -> tuple[str, ...]:
-    markers: list[str] = []
-    lines = docstring.splitlines()
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-        if _LEGACY_FIELD_RE.match(stripped):
-            markers.append(stripped.split()[0])
-        if index + 1 < len(lines) and set(lines[index + 1].strip()) == {"-"}:
-            markers.append(stripped)
-    return tuple(markers)
-
-
-def _weak_summary(summary: str) -> bool:
-    normalized = summary.strip().rstrip(".").lower()
-    return normalized in {"helper", "utility", "todo", "tbd"}
-
-
-def _issue(
-    rel: str,
-    qualified_name: str,
-    line: int,
-    code: str,
-    message: str,
-) -> DocstringStyleIssue:
-    return DocstringStyleIssue(
-        path=rel,
-        qualified_name=qualified_name,
-        line=line,
-        code=code,
-        message=message,
+    return style_issues(
+        root,
+        policy,
+        python_files=_python_files,
+        module_name=_module_name,
     )
 
 

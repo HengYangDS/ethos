@@ -6,7 +6,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos.assistants.skill_packages import compute_skill_package_digest
+from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.domain.report import _advisory_next_actions
 from ethos.domain.report import _gap_layers
 from ethos.repository.adoption.planner import adoption_plan
@@ -416,6 +416,7 @@ def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
     assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
     assert adapters["taplo"]["asset_classes"] == ["toml-config"]
     assert adapters["ethos-docstrings-google"]["asset_classes"] == ["python-code"]
+    assert adapters["ethos-module-layout"]["asset_classes"] == ["python-code"]
 
 
 def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:
@@ -836,6 +837,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "generated-artifacts",
         "gates",
         "markdown-links",
+        "module-layout",
         "npm",
         "package-ontology",
         "projection-drift",
@@ -885,8 +887,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--json")
 

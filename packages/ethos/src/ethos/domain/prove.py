@@ -49,6 +49,8 @@ def code_size_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     for relative in _git.git_files(root, "*.py"):
         path = root / relative
+        if not path.exists():
+            continue
         effective = effective_code_lines(path)
         role = _role_for(relative, surface_globs)
         # One limit per role, no per-file exemption: a governance runtime that

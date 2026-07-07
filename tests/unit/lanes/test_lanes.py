@@ -13,6 +13,7 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
@@ -1132,7 +1133,9 @@ def test_prewrite_blocks_product_root_when_runner_source_differs(
         "[project]\nname='external'\n", encoding="utf-8"
     )
     external_runner.write_text("", encoding="utf-8")
-    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
+    monkeypatch.setattr(
+        "ethos.adapters.repo.runtime.core.ethos.__file__", external_runner.as_posix()
+    )
 
     report = prewrite_guard(
         root=worktree,
@@ -1524,7 +1527,9 @@ def test_workspace_status_runtime_binding_warns_when_runner_is_external(
     )
     external_runner.write_text("", encoding="utf-8")
 
-    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
+    monkeypatch.setattr(
+        "ethos.adapters.repo.runtime.core.ethos.__file__", external_runner.as_posix()
+    )
 
     status = workspace_status(repo)
 
@@ -1607,3 +1612,12 @@ def test_workspace_status_reports_stale_landing_readiness_before_land(tmp_path: 
         "ethos lane prewrite <path>",
         readiness["next_action"],
     ]
+
+
+def test_runtime_binding_lives_in_semantic_subpackage(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    binding = runtime_binding(repo)
+
+    assert binding["kind"] == "workspace_status_runtime_binding"
+    assert binding["audit_root"] == repo.resolve().as_posix()

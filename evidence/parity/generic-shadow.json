@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "7d95304f2fbbb0b3a93b758db7ec570c22cb9632",
-    "target_head": "7d95304f2fbbb0b3a93b758db7ec570c22cb9632",
-    "product_semantic_sha256": "5e6d2c2625d07e7ce22e0863eb23a13f9a6d4b45911577aebd2b4d2ff7142c3e",
-    "target_semantic_sha256": "5e6d2c2625d07e7ce22e0863eb23a13f9a6d4b45911577aebd2b4d2ff7142c3e",
+    "product_head": "b525f944c82e777235348f0eb2767236fa62fc41",
+    "target_head": "b525f944c82e777235348f0eb2767236fa62fc41",
+    "product_semantic_sha256": "a341d94864085bc02aaec589497cf0b6e4d97c698fbe263da3ea6abfb17c79c9",
+    "target_semantic_sha256": "a341d94864085bc02aaec589497cf0b6e4d97c698fbe263da3ea6abfb17c79c9",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-free-surface-coverage",
-    "target_head": "7d95304f2fbbb0b3a93b758db7ec570c22cb9632",
-    "product_head": "7d95304f2fbbb0b3a93b758db7ec570c22cb9632",
+    "target_root": "/private/tmp/ethos-proof-closeout-carry",
+    "target_head": "b525f944c82e777235348f0eb2767236fa62fc41",
+    "product_head": "b525f944c82e777235348f0eb2767236fa62fc41",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-free-surface-coverage --json",
-      "/private/tmp/ethos-free-surface-coverage/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-free-surface-coverage --json"
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-proof-closeout-carry --json",
+      "/private/tmp/ethos-proof-closeout-carry/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-proof-closeout-carry --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "d8502d49ab3d6cb538f5cfff30407db1360ed9c183bfc32dbc7bc2dae50acfe4"
+        "sha256": "715acdb1763b150955670cea1dcaf6f38a3eb192a20856ec430ecd2ba8b70fed"
       },
       {
         "path": "evidence/claims",

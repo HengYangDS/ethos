@@ -38,4 +38,7 @@ if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then
   pytest_args=( -n "${workers}" "${pytest_args[@]}" )
 fi
 
-uv run --group dev pytest "${pytest_args[@]}"
+# --all-packages installs every workspace member's runtime deps (not just the root
+# project + dev group), so tests that import a package dependency (e.g. defusedxml
+# via ethos) resolve in CI's clean environment. Mirrors the ethos:types invocation.
+uv run --all-packages --group dev pytest "${pytest_args[@]}"

@@ -161,3 +161,17 @@ def test_remote_availability_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(git.subprocess, "run", _maybe_timeout)
     result = git.remote_availability(tmp_path, "origin", timeout_seconds=0.1)
     assert result["available"] is False
+
+
+def test_current_head_untracked_when_root_missing(tmp_path: Path) -> None:
+    # A nonexistent cwd raises FileNotFoundError from subprocess; current_head must
+    # treat it as untracked rather than propagating the exception.
+    missing = tmp_path / "does-not-exist"
+    assert git.current_head(missing) == "untracked"
+    assert git.current_tracked_head(missing) == ""
+
+
+def test_git_stdout_empty_when_root_missing(tmp_path: Path) -> None:
+    # Same missing-cwd guard for the generic stdout helper.
+    missing = tmp_path / "gone"
+    assert git.git_stdout(missing, "rev-parse", "HEAD") == ""

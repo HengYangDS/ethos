@@ -14,13 +14,18 @@ from pathlib import Path
 
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        # root does not exist (e.g. a stale or foreign target path): treat as untracked
+        # rather than crashing — the caller reports a gap, not an exception.
+        return "untracked"
     if completed.returncode != 0:
         return "untracked"
     return completed.stdout.strip()
@@ -34,13 +39,17 @@ def current_tracked_head(root: Path) -> str:
 
 def git_stdout(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stripped stdout, or '' on failure."""
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        # root does not exist: no git facts to read, same as a failed command.
+        return ""
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()

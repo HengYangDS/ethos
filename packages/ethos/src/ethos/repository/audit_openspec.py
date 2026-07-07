@@ -16,9 +16,6 @@ if TYPE_CHECKING:
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 
 
-OpenSpecReporter = object
-
-
 def _active_change_names(openspec_root: Path) -> list[str]:
     """Return active OpenSpec change directory names, excluding archive/templates."""
     changes_root = openspec_root / "changes"

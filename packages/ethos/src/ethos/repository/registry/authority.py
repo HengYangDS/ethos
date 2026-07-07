@@ -3,6 +3,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 RELATION_TYPES = {"authority", "derived_view", "decision", "superseded_vocabulary"}
 
@@ -100,9 +101,8 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
             if superseded not in by_id:
                 gaps.append(f"{entry_id}:supersedes_missing:{superseded}")
                 continue
-            superseded_by = by_id[superseded]["superseded_by"]
-            if isinstance(superseded_by, list):
-                superseded_by.append(entry_id)
+            superseded_by = cast("list[str]", by_id[superseded]["superseded_by"])
+            superseded_by.append(entry_id)
         if entry["relation_type"] == "derived_view":
             derived_from = {str(source) for source in entry["derived_from"]}
             authority_sources = {
@@ -114,9 +114,8 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
                 gaps.append(f"{entry_id}:derived_view_missing_authority_derivation")
 
     for entry in entries:
-        superseded_by = entry["superseded_by"]
-        if isinstance(superseded_by, list):
-            superseded_by.sort()
+        superseded_by = cast("list[str]", entry["superseded_by"])
+        superseded_by.sort()
 
     return {
         "ok": not gaps,

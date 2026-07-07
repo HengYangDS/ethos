@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5b34278066d314697ff45add67451357bcfc7fed",
-    "target_head": "5b34278066d314697ff45add67451357bcfc7fed",
-    "product_semantic_sha256": "1697607a7bc67a408a78b5bfe43ec92afd96fc2dc67073ea03808a079c56095f",
-    "target_semantic_sha256": "1697607a7bc67a408a78b5bfe43ec92afd96fc2dc67073ea03808a079c56095f",
+    "product_head": "905ea933e984c096f4662f55329adbe0cc3651d2",
+    "target_head": "905ea933e984c096f4662f55329adbe0cc3651d2",
+    "product_semantic_sha256": "2a054bd75865523c7ddba0b4f3853ef842cfd4522083da2b1be2f3c47b94dbbe",
+    "target_semantic_sha256": "2a054bd75865523c7ddba0b4f3853ef842cfd4522083da2b1be2f3c47b94dbbe",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-hermetic",
-    "target_head": "5b34278066d314697ff45add67451357bcfc7fed",
-    "product_head": "5b34278066d314697ff45add67451357bcfc7fed",
+    "target_root": "/private/tmp/ethos-cov-v3",
+    "target_head": "905ea933e984c096f4662f55329adbe0cc3651d2",
+    "product_head": "905ea933e984c096f4662f55329adbe0cc3651d2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-hermetic --json",
-      "/private/tmp/ethos-hermetic/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-hermetic --json"
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-cov-v3 --json",
+      "/private/tmp/ethos-cov-v3/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-cov-v3 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "905e33f03935598cffbe8ebde78d04d5db1e1d7b0bddd5da4cb9cfb2a00ab654"
+        "sha256": "3aea09bec26446304936f08eeada9ca6dbca286c821881586274e77f7c97a997"
       },
       {
         "path": "evidence/claims",

@@ -390,7 +390,9 @@ def _stage_gates(
         blocker_owner = (
             str(landing_readiness.get("candidate_branch") or branch) if landing_stale else branch
         )
-    elif not accepted_closeout_allowed:
+    else:
+        # accepted_closeout_allowed is a constant False the closeout command owns, so
+        # reaching this final arm means accepted-closeout is the remaining blocked stage.
         blocked_stage = "accepted_closeout"
         blocker_owner = str(closeout_support.get("target_branch") or "")
 

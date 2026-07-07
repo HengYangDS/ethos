@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b09801a24145bfc6c043c161bc3e5aaf68c901a9",
-    "target_head": "b09801a24145bfc6c043c161bc3e5aaf68c901a9",
-    "product_semantic_sha256": "50189c58cd0b659c4db7c00436288619f86bbecfc5aa3429f71bebe03c7eb835",
-    "target_semantic_sha256": "50189c58cd0b659c4db7c00436288619f86bbecfc5aa3429f71bebe03c7eb835",
+    "product_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
+    "target_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
+    "product_semantic_sha256": "025dcb12f6fa6dacf41556f15b2f8224b5b3a1cfc6d6c702bca4ec4188d36588",
+    "target_semantic_sha256": "025dcb12f6fa6dacf41556f15b2f8224b5b3a1cfc6d6c702bca4ec4188d36588",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,11 +36,9 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format",
-    "target_head": "b09801a24145bfc6c043c161bc3e5aaf68c901a9",
-    "product_head": "b09801a24145bfc6c043c161bc3e5aaf68c901a9",
-    "changed_paths": [
-      "packages/ethos/src/ethos/cli.py"
-    ],
+    "target_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
+    "product_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -53,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -83,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6a37b8982af497066787bd0e0888a15ad0a9e231fa38cecbb87ce5bfbfd975da"
+        "sha256": "f83a51f0739a6a6f62b402f93f56a96b412b64dd95cc5b5e2b144754f896964e"
       },
       {
         "path": "evidence/claims",

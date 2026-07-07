@@ -15,6 +15,10 @@ paths = [
   # Test fixtures deliberately contain secret-shaped literals to exercise the
   # retrieval/redaction paths; they are not live credentials.
   '''(^|/)tests/.*\.py$''',
+  # Compiled bytecode is a gitignored build artifact, not tracked source; its
+  # copies of the test fixtures above must not re-trip the gate on a local scan.
+  '''(^|/)__pycache__/''',
+  '''\.pyc$''',
 ]
 regexes = [
   # `key: str` and similar type annotations in kernel contracts are schema

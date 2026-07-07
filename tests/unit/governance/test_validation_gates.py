@@ -883,7 +883,7 @@ def test_repository_audit_blocks_vendor_center_leak(tmp_path: Path) -> None:
     )
 
 
-def test_repository_audit_blocks_vendor_projection_files(tmp_path: Path) -> None:
+def test_repository_audit_blocks_root_projection_pollution(tmp_path: Path) -> None:
     from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
     from ethos.repository.audit import repository_audit
 
@@ -893,13 +893,24 @@ def test_repository_audit_blocks_vendor_projection_files(tmp_path: Path) -> None
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     (tmp_path / "CLAUDE.md").write_text("vendor projection", encoding="utf-8")
+    (tmp_path / ".claude" / "worktrees").mkdir(parents=True)
+    recipe = tmp_path / ".ethos" / "decomp-recipes" / "retirement.py"
+    recipe.parent.mkdir(parents=True)
+    recipe.write_text("# scratch decomposition belongs in a Work Lane, not accepted root\n")
 
     report = repository_audit(tmp_path, openspec_mode="shape")
     gaps = report["design_integrity"]["required_gaps"]
 
     assert report["design_integrity"]["ok"] is False
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in gaps
+    assert "design_integrity_forbidden_projection_path:.claude" in gaps
+    assert "design_integrity_forbidden_projection_path:.ethos/decomp-recipes" in gaps
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in report["required_gaps"]
+    assert "design_integrity_forbidden_projection_path:.claude" in report["required_gaps"]
+    assert (
+        "design_integrity_forbidden_projection_path:.ethos/decomp-recipes"
+        in report["required_gaps"]
+    )
 
 
 def test_gate_registry_includes_generated_artifacts_gate() -> None:

@@ -196,6 +196,7 @@ match_prefixes = [
   "adapter_bypass",
   "adapter_missing",
   "write_admission_not_armed",
+  "design_integrity_forbidden_projection_path",
   "hook_context_root_mismatch",
   "root_binding_mismatch",
   "embedded_backend_missing",

@@ -63,6 +63,7 @@ DESIGN_INTEGRITY_FORBIDDEN_TERMS = (
 DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS = (
     "CLAUDE.md",
     ".claude",
+    ".ethos/decomp-recipes",
     ".gitnexus",
 )
 

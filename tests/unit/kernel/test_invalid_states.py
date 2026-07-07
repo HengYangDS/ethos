@@ -115,6 +115,10 @@ def test_runtime_and_projection_failures_reduce_to_substrate() -> None:
     assert classify("python_entrypoint_invalid:.venv/bin/python") == "substrate_untrusted"
     assert classify("uv_interpreter_probe_stuck") == "substrate_untrusted"
     assert classify("projection_drift:skills") == "substrate_untrusted"
+    assert (
+        classify("design_integrity_forbidden_projection_path:.ethos/decomp-recipes")
+        == "substrate_untrusted"
+    )
 
 
 def test_current_live_gaps_reduce_to_terminal_taxonomy() -> None:

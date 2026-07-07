@@ -50,10 +50,29 @@ def test_commit_policy_reads_adopter_binding(tmp_path: Path) -> None:
 def test_signature_policy_self_certifies_without_configured_identity(tmp_path: Path) -> None:
     # In a repo with no commit_policy binding, a present git identity self-certifies:
     # no mismatch gap is raised, and expected_author is empty (nothing to enforce).
+    # Use an isolated git repo with its own identity so no ambient (global/parent)
+    # git config leaks into the assertion.
+    import subprocess
+
+    def _git(*args: str) -> None:
+        subprocess.run(
+            ["git", *args],
+            cwd=tmp_path,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+    _git("init", "-b", "main")
+    _git("config", "user.name", "Some Contributor")
+    _git("config", "user.email", "contributor@example.com")
+
     report = signature_policy_report(tmp_path)
     assert report["expected_author"] == ""
     assert "git_user_name_mismatch" not in report["required_gaps"]
     assert "git_user_email_mismatch" not in report["required_gaps"]
+    assert "git_user_name_missing" not in report["required_gaps"]
+    assert "git_user_email_missing" not in report["required_gaps"]
 
 
 def test_signature_policy_uses_machine_readable_head_signature_status() -> None:

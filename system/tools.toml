@@ -53,18 +53,21 @@ concern = "import_boundaries"
 tool = "import-linter"
 config = ".config/checks/import-linter/"
 profile = "product"
+gate = ".config/ci/scripts/run-import-linter.sh"
 
 [[tool]]
 concern = "python_sast"
 tool = "bandit"
 config = ".config/checks/bandit/"
 profile = "product"
+gate = ".config/ci/scripts/run-bandit.sh"
 
 [[tool]]
 concern = "links"
 tool = "lychee"
 config = ".config/checks/lychee/"
 profile = "product"
+gate = "ethos quality markdown-links"
 
 [[tool]]
 concern = "coverage"

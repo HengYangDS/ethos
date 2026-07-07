@@ -848,7 +848,14 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     assert payload["ok"] is True
     assert payload["summary"]["gate_count"] == 14
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
-    assert {"ruff", "toml-config", "yaml-config", "shell-lint", "format-policy", "generated-artifacts"} <= set(node_ids)
+    assert {
+        "ruff",
+        "toml-config",
+        "yaml-config",
+        "shell-lint",
+        "format-policy",
+        "generated-artifacts",
+    } <= set(node_ids)
 
 
 def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:

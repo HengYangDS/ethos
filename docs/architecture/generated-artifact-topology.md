@@ -61,7 +61,6 @@ adopter-owned: remove or relax the adopter declaration, move raw generated
 outputs back to an ignored local/build home, and keep only curated evidence that
 has already been reviewed and promoted.
 
-
 ## Documentation Isomorphism
 
 ETHOS uses `docs/decisions/` for durable rulings so governed repositories can share a high-isomorphism documentation topology.

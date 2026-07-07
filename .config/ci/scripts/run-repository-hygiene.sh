@@ -31,7 +31,7 @@ TEXT_SUFFIXES = {
     ".yaml",
     ".yml",
 }
-TEXT_NAMES = {"AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "README.md", "justfile"}
+TEXT_NAMES = {"AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md", "README.md"}
 MAX_TRACKED_BYTES = 1024 * 1024
 failures: list[str] = []
 raw = subprocess.check_output(["git", "ls-files", "-z"])

@@ -205,6 +205,7 @@ match_prefixes = [
   "assistant_projection",
   "assistant_surface_projection_gap",
   "docs_registry_drift",
+  "generated_artifact_",
   "context_index_",
   "skill_registry_",
   "runtime_unresponsive",

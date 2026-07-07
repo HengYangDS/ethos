@@ -23,8 +23,8 @@ default:
 
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
-# (architecture), docstrings, bandit (security), config (TOML/YAML format+lint),
-# shell lint, lychee (doc links), code-size (role-based LOC).
+# (architecture), docstrings, bandit (security), gitleaks (secrets), config
+# (TOML/YAML format+lint), shell lint, markdown lint, lychee (doc links).
 # 道: a gate that does not run in CI is not a gate.
 .python_setup: &python_setup
   image: python:3.12
@@ -81,7 +81,7 @@ ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --no-project --with bandit bandit -r packages -c .config/checks/bandit/bandit.yaml --severity-level medium -q
+    - .config/ci/scripts/run-bandit.sh
 
 ethos:secrets:
   <<: *python_setup

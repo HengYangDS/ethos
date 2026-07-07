@@ -8,6 +8,7 @@ __pycache__/
 !.ethos/state/.gitignore
 dist/
 build/
+.cache/
 *.egg-info/
 node_modules/
 npm-debug.log*

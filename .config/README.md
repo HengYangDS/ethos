@@ -28,10 +28,11 @@ configuration plane, not a truth center.
 ## Root exceptions
 
 Some root files remain because tools or repository substrates require root-native
-discovery: `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `pyproject.toml`,
-`uv.lock`, `pytest.ini`, `ruff.toml`, `.pre-commit-config.yaml`, `.gitlab-ci.yml`,
-`package.json`, `package-lock.json`, and `justfile`. These are admitted root
-surfaces, not permission to move reusable gate policy back into the root.
+discovery: `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`,
+`pyproject.toml`, `uv.lock`, `pytest.ini`, `ruff.toml`, `.gitignore`,
+`.gitleaks.toml`, `.pre-commit-config.yaml`, `.gitlab-ci.yml`, `package.json`, and
+`package-lock.json`. These are admitted root surfaces, not permission to move
+reusable gate policy back into the root.
 
 ## Boundary rule
 

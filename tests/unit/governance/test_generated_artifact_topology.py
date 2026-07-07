@@ -25,9 +25,7 @@ def _init_repo(root: Path) -> None:
 def test_contract_is_generic_and_declares_artifact_homes() -> None:
     contract = generated_artifact_contract()
 
-    assert {item["prefix"] for item in contract["declarative_prefixes"]} == {
-        ".config/ethos"
-    }
+    assert {item["prefix"] for item in contract["declarative_prefixes"]} == {".config/ethos"}
     assert {item["prefix"] for item in contract["allowed_prefixes"]} >= {
         ".cache/local-state",
         "build/ethos",

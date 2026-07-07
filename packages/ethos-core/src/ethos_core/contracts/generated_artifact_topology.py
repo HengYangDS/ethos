@@ -74,10 +74,9 @@ _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
 
 def normalize_artifact_path(path: Path | str) -> str:
     """Return a repository-relative POSIX path without current-directory noise."""
-    text = Path(path).as_posix()
-    while text.startswith("./"):
-        text = text[2:]
-    return text.rstrip("/")
+    # Path.as_posix() already collapses "./" segments, so only a trailing slash
+    # can remain to strip.
+    return Path(path).as_posix().rstrip("/")
 
 
 def _matches_prefix(rel: str, prefix: str) -> bool:
@@ -153,7 +152,7 @@ def _policy(
     }
 
 
-def _product_adopter_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+def _product_adopter_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     if not is_product_adopter_path(rel):
         return None
     return _policy(
@@ -165,7 +164,7 @@ def _product_adopter_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     )
 
 
-def _declarative_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+def _declarative_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     if generated:
         return None
     if not any(_matches_prefix(rel, prefix) for prefix in DECLARATIVE_PREFIXES):
@@ -178,7 +177,7 @@ def _declarative_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     )
 
 
-def _allowed_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+def _allowed_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _ALLOWED_PREFIXES:
         if _matches_prefix(rel, prefix):
             return _policy(
@@ -190,7 +189,7 @@ def _allowed_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     return None
 
 
-def _review_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+def _review_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _REVIEW_PREFIXES:
         if _matches_prefix(rel, prefix):
             review_gap = (
@@ -208,7 +207,7 @@ def _review_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     return None
 
 
-def _generated_denial_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+def _generated_denial_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     if not generated:
         return None
     for prefix, gap in _DENIED_GENERATED_PREFIXES:
@@ -236,11 +235,11 @@ def path_policy_for(path: Path | str) -> dict[str, Any]:
     rel = normalize_artifact_path(path)
     generated = is_generated_artifact_path(rel)
     for candidate in (
-        _product_adopter_policy(rel, generated),
-        _declarative_policy(rel, generated),
-        _allowed_policy(rel, generated),
-        _review_policy(rel, generated),
-        _generated_denial_policy(rel, generated),
+        _product_adopter_policy(rel, generated=generated),
+        _declarative_policy(rel, generated=generated),
+        _allowed_policy(rel, generated=generated),
+        _review_policy(rel, generated=generated),
+        _generated_denial_policy(rel, generated=generated),
     ):
         if candidate is not None:
             return candidate

@@ -6,7 +6,7 @@ summary = "Records the ETHOS productization convergence batch across authority k
 
 [evidence]
 dated = "evidence/chronicle/productization-convergence/2026-07-01.md"
-sha256 = "f92e1ddb853843ee09fdb7d9d8700b6e0277879f8c4b176a99bbddc5dc976a36"
+sha256 = "302b557d4f807f3ca87062c565a13eebe67c0b21602eec50cc4708a4335a4e94"
 evidence_ids = ["evidence:ethos-productization-convergence"]
 binding = "digest-bound convergence evidence binding"
 verifier = "digest_only"

@@ -26,10 +26,10 @@ than disappearing.
 
 ## Alternatives
 
-- Keeping `JudgmentSource` preserves compatibility but keeps a long name as a
-  semantic center. This conflicts with parsimony and the user's explicit naming
-  concern.
-- Rewriting archived evidence makes grep results look cleaner but weakens the
+- Keeping the superseded predecessor vocabulary preserves compatibility but keeps
+  a long name as a semantic center. This conflicts with parsimony and the
+  user's explicit naming concern.
+- Leaving tracked historical vocabulary unnormalized makes grep results noisy and weakens the
   truth/history distinction.
 - Allowing `.ethos/decomp-recipes` in accepted roots would turn scratch planning
   into product truth.

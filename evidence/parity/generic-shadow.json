@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "538b393829e7984dd899136be7f4d398b35f4d86",
-    "target_head": "538b393829e7984dd899136be7f4d398b35f4d86",
-    "product_semantic_sha256": "50657f9e96cfe074d7905017dcfd3b419e4bde1605802204585521989a770511",
-    "target_semantic_sha256": "50657f9e96cfe074d7905017dcfd3b419e4bde1605802204585521989a770511",
+    "product_head": "c42bf7f7879520e9146325c5da3d40764ecbf9c4",
+    "target_head": "c42bf7f7879520e9146325c5da3d40764ecbf9c4",
+    "product_semantic_sha256": "8dcf5234c1603471348f9a578cac39a47323bb960e8c86bfaaa35236e7625387",
+    "target_semantic_sha256": "8dcf5234c1603471348f9a578cac39a47323bb960e8c86bfaaa35236e7625387",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,15 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-markdown-gate",
-    "target_head": "538b393829e7984dd899136be7f4d398b35f4d86",
-    "product_head": "538b393829e7984dd899136be7f4d398b35f4d86",
-    "changed_paths": [
-      ".config/checks/markdown/.markdownlint-cli2.yaml",
-      "docs/plans/self-healing-closeout-intelligence/findings.md",
-      "docs/plans/self-healing-closeout-intelligence/progress.md",
-      "docs/plans/self-healing-closeout-intelligence/task_plan.md"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild",
+    "target_head": "c42bf7f7879520e9146325c5da3d40764ecbf9c4",
+    "product_head": "c42bf7f7879520e9146325c5da3d40764ecbf9c4",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -56,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-markdown-gate --json",
-      "/private/tmp/ethos-markdown-gate/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-markdown-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
+      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "9e9f3a96bfa975197e9a427a5ace8711b96864b94ca1c8cadde277ea68c573eb"
+        "sha256": "48aaeca31cd942236e3abd86e5c8485c8d3e474ef50b71c4ef6c8a70bcec0699"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c0ef9321e90f05618a56f4cc854a2c92e534eb721a750ee39a2f63facb10a669"
+        "sha256": "f0f5be0123acbf90b789d25aac36f2b4090fb76bcb6145c907f7ffc61c9c1c80"
       },
       {
         "path": "evidence/claims",

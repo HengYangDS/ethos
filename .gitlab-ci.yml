@@ -80,6 +80,9 @@ ethos:verify:
   <<: *python_setup
   stage: verify
   script:
+    # Arm write-admission so the runner checkout is a real governed ETHOS working
+    # copy: the dogfood audit/prove gates and tests assert core.hooksPath is wired.
+    - uv run --package ethos ethos hook install --json
     - openspec --version
     - .config/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json

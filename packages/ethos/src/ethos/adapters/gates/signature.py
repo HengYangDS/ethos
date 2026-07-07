@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
-EXPECTED_NAME = "Yang HENG"
-EXPECTED_EMAIL = "heng.yang.ds@hotmail.com"
-EXPECTED_AUTHOR = f"{EXPECTED_NAME} <{EXPECTED_EMAIL}>"
-CONVENTIONAL_RE = re.compile(
-    r"^(feat|fix|docs|test|refactor|perf|build|ci|chore|revert)(\([a-z0-9-]+\))?: .+"
-)
+# Default subject grammar is intentionally permissive: the product ships without
+# imposing one house style. An adopter narrows it (e.g. to Conventional Commits or
+# an imperative-mood rule) through .ethos/workspace.toml [commit_policy].
+DEFAULT_SUBJECT_PATTERN = r".+"
 
 
-def commit_subject_ok(subject: str) -> bool:
-    return bool(CONVENTIONAL_RE.match(subject))
+def _subject_re(pattern: str) -> re.Pattern[str]:
+    return re.compile(pattern)
+
+
+def commit_subject_ok(subject: str, *, pattern: str = DEFAULT_SUBJECT_PATTERN) -> bool:
+    return bool(_subject_re(pattern).match(subject))
 
 
 def _git(root: Path, *args: str) -> str:
@@ -27,8 +30,84 @@ def _git(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def load_commit_policy(root: Path) -> dict[str, object]:
+    """Read the adopter's commit policy from .ethos/workspace.toml [commit_policy].
+
+    ETHOS is a generic product: it hardcodes no author identity or subject grammar.
+    An adopter binds its own expectations (e.g. the identity its forge marks as
+    Verified) through configuration; an unconfigured field means "do not enforce it".
+    """
+    default: dict[str, object] = {
+        "expected_name": "",
+        "expected_email": "",
+        "subject_pattern": DEFAULT_SUBJECT_PATTERN,
+        "signing_required": False,
+        "signing_format": "",
+    }
+    path = root / ".ethos" / "workspace.toml"
+    if not path.exists():
+        return default
+    try:
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError:
+        return default
+    raw = payload.get("commit_policy")
+    if not isinstance(raw, dict):
+        return default
+    return {
+        "expected_name": _str(raw.get("expected_name"), ""),
+        "expected_email": _str(raw.get("expected_email"), ""),
+        "subject_pattern": _str(raw.get("subject_pattern"), DEFAULT_SUBJECT_PATTERN),
+        "signing_required": bool(raw.get("signing_required", False)),
+        "signing_format": _str(raw.get("signing_format"), ""),
+    }
+
+
+def _str(value: object, fallback: str) -> str:
+    return value if isinstance(value, str) else fallback
+
+
+def _authorship_gaps(
+    *, name: str, email: str, expected_name: str, expected_email: str
+) -> list[str]:
+    # A configured expected identity is enforced; otherwise the repo's own git
+    # identity self-certifies, and only its presence is required.
+    gaps: list[str] = []
+    if expected_name:
+        if name != expected_name:
+            gaps.append("git_user_name_mismatch")
+    elif not name:
+        gaps.append("git_user_name_missing")
+    if expected_email:
+        if email != expected_email:
+            gaps.append("git_user_email_mismatch")
+    elif not email:
+        gaps.append("git_user_email_missing")
+    return gaps
+
+
+def _signing_gaps(
+    *, gpgsign: str, gpg_format: str, signing_key: str, expected_format: str
+) -> list[str]:
+    gaps: list[str] = []
+    if gpgsign != "true":
+        gaps.append("commit_signing_disabled")
+    if expected_format and gpg_format != expected_format:
+        gaps.append("commit_signing_format_mismatch")
+    if not signing_key:
+        gaps.append("commit_signing_key_missing")
+    return gaps
+
+
 def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     repo = root or Path.cwd()
+    policy = load_commit_policy(repo)
+    expected_name = str(policy["expected_name"])
+    expected_email = str(policy["expected_email"])
+    subject_pattern = str(policy["subject_pattern"])
+    signing_required = bool(policy["signing_required"])
+    expected_format = str(policy["signing_format"])
+
     name = _git(repo, "config", "--get", "user.name")
     email = _git(repo, "config", "--get", "user.email")
     gpgsign = _git(repo, "config", "--get", "commit.gpgsign")
@@ -36,28 +115,31 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     signing_key = _git(repo, "config", "--get", "user.signingkey")
     subject = _git(repo, "log", "-1", "--pretty=%s")
     signature = _git(repo, "log", "-1", "--pretty=%G?")
-    expected_name, expected_email = EXPECTED_NAME, EXPECTED_EMAIL
-    gaps: list[str] = []
-    if name != expected_name:
-        gaps.append("git_user_name_mismatch")
-    if email != expected_email:
-        gaps.append("git_user_email_mismatch")
-    if gpgsign != "true":
-        gaps.append("commit_signing_disabled")
-    if gpg_format != "ssh":
-        gaps.append("commit_signing_format_not_ssh")
-    if not signing_key:
-        gaps.append("commit_signing_key_missing")
+
+    gaps = _authorship_gaps(
+        name=name, email=email, expected_name=expected_name, expected_email=expected_email
+    )
+    if signing_required:
+        gaps.extend(
+            _signing_gaps(
+                gpgsign=gpgsign,
+                gpg_format=gpg_format,
+                signing_key=signing_key,
+                expected_format=expected_format,
+            )
+        )
+
+    expected_author = f"{expected_name} <{expected_email}>" if expected_name else ""
     return {
         "ok": not gaps,
         "required_gaps": gaps,
-        "expected_author": EXPECTED_AUTHOR,
+        "expected_author": expected_author,
         "configured_author": f"{name} <{email}>",
-        "signing_required": True,
+        "signing_required": signing_required,
         "gpg_format": gpg_format,
         "signing_key": signing_key,
         "head_subject": subject,
-        "head_subject_ok": commit_subject_ok(subject),
+        "head_subject_ok": commit_subject_ok(subject, pattern=subject_pattern),
         "head_signature_status": signature,
         "head_signature_ok": signature == "G",
     }

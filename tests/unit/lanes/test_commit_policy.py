@@ -1,25 +1,63 @@
+# ruff: noqa: TC003
 from __future__ import annotations
 
+from pathlib import Path
+
 from ethos.adapters.gates.signature import commit_subject_ok
+from ethos.adapters.gates.signature import load_commit_policy
 from ethos.adapters.gates.signature import signature_policy_report
 
 
-def test_conventional_commit_subjects_are_enforced() -> None:
+def test_default_subject_policy_accepts_any_nonempty_subject() -> None:
+    # The product ships without a house commit style: any nonempty subject passes.
+    assert commit_subject_ok("Harden ETHOS framework core") is True
     assert commit_subject_ok("feat: mature ETHOS product governance") is True
-    assert commit_subject_ok("Harden ETHOS framework core") is False
+    assert commit_subject_ok("") is False
 
 
-def test_signature_policy_reports_expected_identity() -> None:
-    report = signature_policy_report()
+def test_configured_subject_pattern_is_enforced() -> None:
+    conventional = r"^(feat|fix|docs|test|refactor|perf|build|ci|chore|revert)(\([a-z0-9-]+\))?: .+"
+    assert commit_subject_ok("feat: add gate", pattern=conventional) is True
+    assert commit_subject_ok("Harden core", pattern=conventional) is False
 
-    assert report["expected_author"] == "Yang HENG <heng.yang.ds@hotmail.com>"
-    assert report["signing_required"] is True
-    assert report["gpg_format"] == "ssh"
-    assert report["signing_key"]
+
+def test_commit_policy_defaults_to_identity_agnostic(tmp_path: Path) -> None:
+    # No .ethos/workspace.toml: the product enforces no author identity or signing.
+    policy = load_commit_policy(tmp_path)
+    assert policy["expected_name"] == ""
+    assert policy["expected_email"] == ""
+    assert policy["signing_required"] is False
+
+
+def test_commit_policy_reads_adopter_binding(tmp_path: Path) -> None:
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text(
+        "[commit_policy]\n"
+        'expected_name = "Ada Lovelace"\n'
+        'expected_email = "ada@example.com"\n'
+        "signing_required = true\n"
+        'signing_format = "ssh"\n',
+        encoding="utf-8",
+    )
+    policy = load_commit_policy(tmp_path)
+    assert policy["expected_name"] == "Ada Lovelace"
+    assert policy["expected_email"] == "ada@example.com"
+    assert policy["signing_required"] is True
+    assert policy["signing_format"] == "ssh"
+
+
+def test_signature_policy_self_certifies_without_configured_identity(tmp_path: Path) -> None:
+    # In a repo with no commit_policy binding, a present git identity self-certifies:
+    # no mismatch gap is raised, and expected_author is empty (nothing to enforce).
+    report = signature_policy_report(tmp_path)
+    assert report["expected_author"] == ""
+    assert "git_user_name_mismatch" not in report["required_gaps"]
+    assert "git_user_email_mismatch" not in report["required_gaps"]
 
 
 def test_signature_policy_uses_machine_readable_head_signature_status() -> None:
     report = signature_policy_report()
 
-    assert report["head_signature_status"] in {"G", "B", "U", "X", "Y", "R", "E", "N"}
+    assert report["head_signature_status"] in {"G", "B", "U", "X", "Y", "R", "E", "N", ""}
     assert report["head_signature_ok"] is (report["head_signature_status"] == "G")

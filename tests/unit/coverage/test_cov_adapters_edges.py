@@ -14,94 +14,136 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 
 
-def test_signature_policy_flags_user_name_mismatch(
+def _patch_signature(
     monkeypatch: pytest.MonkeyPatch,
+    *,
+    policy: dict[str, object],
+    git: dict[tuple[str, ...], str],
 ) -> None:
-    responses = {
+    monkeypatch.setattr(signature, "load_commit_policy", lambda _root: policy)
+    monkeypatch.setattr(signature, "_git", lambda _root, *args: git[args])
+
+
+_SIGNED_GIT = {
+    ("config", "--get", "commit.gpgsign"): "true",
+    ("config", "--get", "gpg.format"): "ssh",
+    ("config", "--get", "user.signingkey"): "SHA256:AAAA",
+    ("log", "-1", "--pretty=%s"): "feat: ok",
+    ("log", "-1", "--pretty=%G?"): "G",
+}
+
+
+def test_signature_policy_flags_user_name_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A configured expected_name that differs from git user.name raises a mismatch.
+    policy = {
+        "expected_name": "Ada Lovelace",
+        "expected_email": "ada@example.com",
+        "subject_pattern": ".+",
+        "signing_required": False,
+        "signing_format": "",
+    }
+    git = {
         ("config", "--get", "user.name"): "Someone Else",
-        ("config", "--get", "user.email"): signature.EXPECTED_EMAIL,
-        ("config", "--get", "commit.gpgsign"): "true",
-        ("config", "--get", "gpg.format"): "ssh",
-        ("config", "--get", "user.signingkey"): "SHA256:AAAA",
-        ("log", "-1", "--pretty=%s"): "feat: ok",
-        ("log", "-1", "--pretty=%G?"): "G",
+        ("config", "--get", "user.email"): "ada@example.com",
+        **_SIGNED_GIT,
     }
-    monkeypatch.setattr(signature, "_git", lambda _root, *args: responses[args])
-    assert signature.signature_policy_report()["required_gaps"] == [
-        "git_user_name_mismatch"
-    ]
+    _patch_signature(monkeypatch, policy=policy, git=git)
+    assert signature.signature_policy_report()["required_gaps"] == ["git_user_name_mismatch"]
 
 
-def test_signature_policy_flags_user_email_mismatch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    responses = {
-        ("config", "--get", "user.name"): signature.EXPECTED_NAME,
+def test_signature_policy_flags_user_email_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    policy = {
+        "expected_name": "Ada Lovelace",
+        "expected_email": "ada@example.com",
+        "subject_pattern": ".+",
+        "signing_required": False,
+        "signing_format": "",
+    }
+    git = {
+        ("config", "--get", "user.name"): "Ada Lovelace",
         ("config", "--get", "user.email"): "nope@example.com",
-        ("config", "--get", "commit.gpgsign"): "true",
-        ("config", "--get", "gpg.format"): "ssh",
-        ("config", "--get", "user.signingkey"): "SHA256:AAAA",
-        ("log", "-1", "--pretty=%s"): "feat: ok",
-        ("log", "-1", "--pretty=%G?"): "G",
+        **_SIGNED_GIT,
     }
-    monkeypatch.setattr(signature, "_git", lambda _root, *args: responses[args])
+    _patch_signature(monkeypatch, policy=policy, git=git)
+    assert signature.signature_policy_report()["required_gaps"] == ["git_user_email_mismatch"]
+
+
+def test_signature_policy_flags_missing_identity_when_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # With no configured identity, an EMPTY git identity self-fails on presence only.
+    policy = {
+        "expected_name": "",
+        "expected_email": "",
+        "subject_pattern": ".+",
+        "signing_required": False,
+        "signing_format": "",
+    }
+    git = {
+        ("config", "--get", "user.name"): "",
+        ("config", "--get", "user.email"): "",
+        **_SIGNED_GIT,
+    }
+    _patch_signature(monkeypatch, policy=policy, git=git)
     assert signature.signature_policy_report()["required_gaps"] == [
-        "git_user_email_mismatch"
+        "git_user_name_missing",
+        "git_user_email_missing",
     ]
 
 
-def test_signature_policy_flags_commit_signing_disabled(
+def test_signature_policy_flags_signing_gaps_when_required(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    responses = {
-        ("config", "--get", "user.name"): signature.EXPECTED_NAME,
-        ("config", "--get", "user.email"): signature.EXPECTED_EMAIL,
+    # signing_required with a configured ssh format: disabled signing, wrong format,
+    # and a missing key all surface together.
+    policy = {
+        "expected_name": "",
+        "expected_email": "",
+        "subject_pattern": ".+",
+        "signing_required": True,
+        "signing_format": "ssh",
+    }
+    git = {
+        ("config", "--get", "user.name"): "Ada",
+        ("config", "--get", "user.email"): "ada@example.com",
         ("config", "--get", "commit.gpgsign"): "false",
-        ("config", "--get", "gpg.format"): "ssh",
-        ("config", "--get", "user.signingkey"): "SHA256:AAAA",
-        ("log", "-1", "--pretty=%s"): "feat: ok",
-        ("log", "-1", "--pretty=%G?"): "G",
-    }
-    monkeypatch.setattr(signature, "_git", lambda _root, *args: responses[args])
-    assert signature.signature_policy_report()["required_gaps"] == [
-        "commit_signing_disabled"
-    ]
-
-
-def test_signature_policy_flags_non_ssh_signing_format(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    responses = {
-        ("config", "--get", "user.name"): signature.EXPECTED_NAME,
-        ("config", "--get", "user.email"): signature.EXPECTED_EMAIL,
-        ("config", "--get", "commit.gpgsign"): "true",
         ("config", "--get", "gpg.format"): "openpgp",
-        ("config", "--get", "user.signingkey"): "SHA256:AAAA",
-        ("log", "-1", "--pretty=%s"): "feat: ok",
-        ("log", "-1", "--pretty=%G?"): "G",
-    }
-    monkeypatch.setattr(signature, "_git", lambda _root, *args: responses[args])
-    assert signature.signature_policy_report()["required_gaps"] == [
-        "commit_signing_format_not_ssh"
-    ]
-
-
-def test_signature_policy_flags_missing_signing_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    responses = {
-        ("config", "--get", "user.name"): signature.EXPECTED_NAME,
-        ("config", "--get", "user.email"): signature.EXPECTED_EMAIL,
-        ("config", "--get", "commit.gpgsign"): "true",
-        ("config", "--get", "gpg.format"): "ssh",
         ("config", "--get", "user.signingkey"): "",
         ("log", "-1", "--pretty=%s"): "feat: ok",
         ("log", "-1", "--pretty=%G?"): "G",
     }
-    monkeypatch.setattr(signature, "_git", lambda _root, *args: responses[args])
+    _patch_signature(monkeypatch, policy=policy, git=git)
     assert signature.signature_policy_report()["required_gaps"] == [
-        "commit_signing_key_missing"
+        "commit_signing_disabled",
+        "commit_signing_format_mismatch",
+        "commit_signing_key_missing",
     ]
+
+
+def test_signature_policy_clean_when_signing_not_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # signing_required False: unsigned commits raise no gap (the signing block is skipped).
+    policy = {
+        "expected_name": "",
+        "expected_email": "",
+        "subject_pattern": ".+",
+        "signing_required": False,
+        "signing_format": "",
+    }
+    git = {
+        ("config", "--get", "user.name"): "Ada",
+        ("config", "--get", "user.email"): "ada@example.com",
+        ("config", "--get", "commit.gpgsign"): "false",
+        ("config", "--get", "gpg.format"): "",
+        ("config", "--get", "user.signingkey"): "",
+        ("log", "-1", "--pretty=%s"): "anything at all",
+        ("log", "-1", "--pretty=%G?"): "N",
+    }
+    _patch_signature(monkeypatch, policy=policy, git=git)
+    report = signature.signature_policy_report()
+    assert report["required_gaps"] == []
+    assert report["ok"] is True
 
 
 def test_has_changed_paths_returns_true_when_git_status_fails(tmp_path: Path) -> None:

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+TRUST_BEARING_CONSUMERS = ("claim", "land", "publish", "release", "repository-governance")
+"""Consumers permitted to rely on trust-bearing (proven) proof evidence.
+
+Single source for the two places this policy is emitted machine-readably: the
+``proven`` state's ``allowed_consumers`` and the lattice-level ``trust_consumers``.
+"""
+
 PROOF_STATES = (
     {
         "state": "planned",
@@ -23,7 +30,7 @@ PROOF_STATES = (
         "state": "proven",
         "meaning": "required executed evidence passed for the current proof scope",
         "trust_bearing": True,
-        "allowed_consumers": ["claim", "land", "publish", "release", "repository-governance"],
+        "allowed_consumers": list(TRUST_BEARING_CONSUMERS),
     },
     {
         "state": "blocked",
@@ -50,13 +57,7 @@ def proof_lattice() -> dict[str, object]:
     return {
         "schema_version": 1,
         "states": list(PROOF_STATES),
-        "trust_consumers": [
-            "claim",
-            "land",
-            "publish",
-            "release",
-            "repository-governance",
-        ],
+        "trust_consumers": list(TRUST_BEARING_CONSUMERS),
         "rules": [
             "planned and readiness states never satisfy trust-bearing consumers",
             "executed evidence must still be classified before promotion",

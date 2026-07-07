@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
-    "target_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
-    "product_semantic_sha256": "b36ecc19d01245d29545fdd4688b19957efffe231da2b55e24c98ebbdb9b0b9e",
-    "target_semantic_sha256": "b36ecc19d01245d29545fdd4688b19957efffe231da2b55e24c98ebbdb9b0b9e",
+    "product_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
+    "target_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
+    "product_semantic_sha256": "066890dfbb29dad90bf4388f301b06b621f64cc61a412461e060332bf67a24e3",
+    "target_semantic_sha256": "066890dfbb29dad90bf4388f301b06b621f64cc61a412461e060332bf67a24e3",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile",
-    "target_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
-    "product_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
+    "target_root": "/private/tmp/ethos-free-surface-quality",
+    "target_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
+    "product_head": "3bcc0ef122f8c4ffea39c71a3bb677c468756a9a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
-      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json"
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli status --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli plan --changed --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli prove --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli report --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli quality command-surface --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli land --root /private/tmp/ethos-free-surface-quality --json",
+      "/private/tmp/ethos-free-surface-quality/.venv/bin/python3 -m ethos.cli publish --root /private/tmp/ethos-free-surface-quality --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "13f01de1d2f727dfefa2c3e230b5dec00e6591e7a5d95f10d9af9780b4b9a54d"
+        "sha256": "fa52cdbc57c0c8d7556bd80e1a055b84ced31e21520b6ccc855b3e324d0c8172"
       },
       {
         "path": "evidence/claims",

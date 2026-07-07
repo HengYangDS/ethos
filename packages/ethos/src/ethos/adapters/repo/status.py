@@ -380,6 +380,8 @@ def _stage_gates(
     if not next_commands:
         next_commands.append("ethos lane start <name>")
 
+    blocked_stage = ""
+    blocker_owner = ""
     if not authoring_allowed:
         blocked_stage = "authoring"
         blocker_owner = branch if is_work_lane else ""
@@ -391,9 +393,6 @@ def _stage_gates(
     elif not accepted_closeout_allowed:
         blocked_stage = "accepted_closeout"
         blocker_owner = str(closeout_support.get("target_branch") or "")
-    else:
-        blocked_stage = ""
-        blocker_owner = ""
 
     return {
         "authoring_allowed": authoring_allowed,

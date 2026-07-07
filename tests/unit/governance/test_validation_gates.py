@@ -743,6 +743,41 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     assert nodes["shell-lint"].to_dict()["command"] == [".config/ci/scripts/run-shell-lint.sh"]
 
 
+def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """schema_version = 1
+profile_id = \"sample-adopter\"
+profile_version = \"1\"
+ethos_contract_version = \"1\"
+
+[repository]
+kind = \"software\"
+root_subject = \"sample\"
+""",
+        encoding="utf-8",
+    )
+
+    graph = gate_graph(root=tmp_path)
+    node_ids = [node.id for node in graph.nodes]
+
+    assert node_ids == [
+        "repository-audit",
+        "claims",
+        "schemas",
+        "playbooks-v2",
+        "format-policy",
+        "asset-determinism",
+        "schema-contracts",
+        "proof-policy",
+    ]
+    commands = [node.to_dict()["command"] for node in graph.nodes]
+    assert [".config/ci/scripts/run-python-lint.sh"] not in commands
+    assert [".config/ci/scripts/run-python-tests.sh"] not in commands
+    assert [".config/ci/scripts/run-docstring-coverage.sh"] not in commands
+
+
 def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     graph = gate_graph(full=True)
     nodes = {node.id: node for node in graph.nodes}

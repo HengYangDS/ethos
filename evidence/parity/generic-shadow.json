@@ -2,13 +2,13 @@
   "schema_version": 1,
   "adopter": "generic",
   "target": "<repo>",
-  "generated_on": "2026-07-06",
+  "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "0994293bdc37ab65fcda2b3d948fddb9cdfb7257",
-    "target_head": "0994293bdc37ab65fcda2b3d948fddb9cdfb7257",
-    "product_semantic_sha256": "937a8710d10b1716705744804824010d5813997e978ff70035c01a81798ff25f",
-    "target_semantic_sha256": "937a8710d10b1716705744804824010d5813997e978ff70035c01a81798ff25f",
+    "product_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
+    "target_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
+    "product_semantic_sha256": "b36ecc19d01245d29545fdd4688b19957efffe231da2b55e24c98ebbdb9b0b9e",
+    "target_semantic_sha256": "b36ecc19d01245d29545fdd4688b19957efffe231da2b55e24c98ebbdb9b0b9e",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate",
-    "target_head": "0994293bdc37ab65fcda2b3d948fddb9cdfb7257",
-    "product_head": "0994293bdc37ab65fcda2b3d948fddb9cdfb7257",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile",
+    "target_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
+    "product_head": "b30de6715b0ed90127fc89de2ea0d70c005438e5",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json",
-      "/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate --json"
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json",
+      "/Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/adopter-proof-gate-profile --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "78bad13dfb80cce86b04727b4a77410fdda073d03e04a744f3de508eaf084390"
+        "sha256": "13f01de1d2f727dfefa2c3e230b5dec00e6591e7a5d95f10d9af9780b4b9a54d"
       },
       {
         "path": "evidence/claims",

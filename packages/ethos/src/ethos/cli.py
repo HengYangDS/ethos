@@ -235,7 +235,7 @@ def prove(
     audit = _status.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
-    graph = gate_graph(gate, full=full)
+    graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
     gates_by_id = gate_registry()
     runner = (

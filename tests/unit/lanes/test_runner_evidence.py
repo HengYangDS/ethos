@@ -62,6 +62,29 @@ def test_local_runner_treats_ethos_json_failure_as_failed(tmp_path: Path) -> Non
     )
 
 
+def test_local_runner_reports_missing_command_as_structured_failure(tmp_path: Path) -> None:
+    node = ActionNode(
+        id="missing-script",
+        kind="quality",
+        command=(".config/ci/scripts/missing.sh",),
+    )
+
+    result = LocalSubprocessRunner().run(node, root=tmp_path)
+
+    assert result.action_id == "missing-script"
+    assert result.state == "failed"
+    assert result.exit_code == 127
+    assert "missing.sh" in result.stderr
+    assert result.diagnostics == (
+        {
+            "kind": "command_not_found",
+            "missing": ".config/ci/scripts/missing.sh",
+            "cwd": str(tmp_path),
+            "required_gaps": ["missing_command:.config/ci/scripts/missing.sh"],
+        },
+    )
+
+
 def test_evidence_set_binds_head_and_digests() -> None:
     run = ProofRun(
         action_id="pytest",

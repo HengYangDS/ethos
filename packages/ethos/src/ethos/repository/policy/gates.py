@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
+from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph import ActionGraph
 from ethos_core.action_graph import ActionNode
 from ethos_core.quality.gates import quality_gate_registry
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -206,56 +211,87 @@ def gate_registry() -> dict[str, Gate]:
     return registry
 
 
-def default_gate_ids(*, full: bool = False) -> tuple[str, ...]:
+PRODUCT_DEFAULT_GATE_IDS = (
+    "repository-audit",
+    "claims",
+    "docs-registry",
+    "schemas",
+    "playbooks-v2",
+    "unit-architecture",
+    "ruff",
+    "python-types",
+    "docstrings",
+    "toml-config",
+    "yaml-config",
+    "shell-lint",
+    "format-policy",
+)
+
+PRODUCT_FULL_GATE_IDS = (
+    "repository-audit",
+    "claims",
+    "docs-registry",
+    "schemas",
+    "playbooks-v2",
+    "openspec",
+    "unit-architecture",
+    "ruff",
+    "python-types",
+    "docstrings",
+    "build",
+    "markdown-links",
+    "shell-lint",
+    "toml-config",
+    "yaml-config",
+    "markdown-structure",
+    "format-policy",
+    "asset-determinism",
+    "schema-contracts",
+    "proof-policy",
+    "python-size",
+    "npm-pack",
+)
+
+ADOPTER_DEFAULT_GATE_IDS = (
+    "repository-audit",
+    "claims",
+    "schemas",
+    "playbooks-v2",
+    "format-policy",
+    "asset-determinism",
+    "schema-contracts",
+    "proof-policy",
+)
+
+
+def _has_repository_profile(root: Path | None) -> bool:
+    if root is None:
+        return False
+    return load_repository_profile(root).exists
+
+
+def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[str, ...]:
+    if _has_repository_profile(root):
+        # Adopted repositories expose their proof depth through `.ethos/profile.toml`
+        # and repository-native gates. The product code-correctness floor must not
+        # assume product-owned `.config/ci/scripts/*` exist in every adopter.
+        return ADOPTER_DEFAULT_GATE_IDS
     if full:
-        return (
-            "repository-audit",
-            "claims",
-            "docs-registry",
-            "schemas",
-            "playbooks-v2",
-            "openspec",
-            "unit-architecture",
-            "ruff",
-            "python-types",
-            "docstrings",
-            "build",
-            "markdown-links",
-            "shell-lint",
-            "toml-config",
-            "yaml-config",
-            "markdown-structure",
-            "format-policy",
-            "asset-determinism",
-            "schema-contracts",
-            "proof-policy",
-            "python-size",
-            "npm-pack",
-        )
-    # The default proof floor is the CODE-CORRECTNESS core (tests + lint + types)
-    # alongside the governance self-checks. "proven" must mean the code actually
-    # passes — a proof over only governance self-checks certifies a HEAD whose product
-    # code is broken (the identity-capability defect). `--full` adds the wider gate set.
-    return (
-        "repository-audit",
-        "claims",
-        "docs-registry",
-        "schemas",
-        "playbooks-v2",
-        "unit-architecture",
-        "ruff",
-        "python-types",
-        "docstrings",
-        "toml-config",
-        "yaml-config",
-        "shell-lint",
-        "format-policy",
-    )
+        return PRODUCT_FULL_GATE_IDS
+    # The product default proof floor is the CODE-CORRECTNESS core (tests + lint +
+    # types) alongside governance self-checks. "proven" must mean the ETHOS product
+    # code actually passes; adopter roots get the profile floor above instead.
+    return PRODUCT_DEFAULT_GATE_IDS
 
 
-def gate_graph(gate_ids: tuple[str, ...] = (), *, full: bool = False) -> ActionGraph:
+def gate_graph(
+    gate_ids: tuple[str, ...] = (),
+    *,
+    full: bool = False,
+    root: Path | None = None,
+) -> ActionGraph:
     registry = gate_registry()
-    selected = gate_ids or default_gate_ids(full=full)
+    selected = gate_ids or default_gate_ids(full=full, root=root)
     nodes = []
     for gate_id in selected:
         gate = registry[gate_id]

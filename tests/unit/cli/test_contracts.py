@@ -849,6 +849,42 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     assert {"ruff", "toml-config", "yaml-config", "shell-lint", "format-policy"} <= set(node_ids)
 
 
+def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "adopter")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(exist_ok=True)
+    profile.write_text(
+        """schema_version = 1
+profile_id = \"sample-adopter\"
+profile_version = \"1\"
+ethos_contract_version = \"1\"
+
+[repository]
+kind = \"software\"
+root_subject = \"sample\"
+""",
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("prove", "--root", str(repo), "--json")
+
+    assert payload["summary"]["gate_count"] == 8
+    node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+    assert set(node_ids) == {
+        "repository-audit",
+        "claims",
+        "schemas",
+        "playbooks-v2",
+        "format-policy",
+        "asset-determinism",
+        "schema-contracts",
+        "proof-policy",
+    }
+    assert "ruff" not in node_ids
+    assert "unit-architecture" not in node_ids
+    assert "docstrings" not in node_ids
+
+
 def test_prove_execute_can_select_real_gates() -> None:
     payload = run_ethos(
         "prove",
@@ -886,7 +922,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
     monkeypatch.setattr(
         ethos_cli,
         "gate_graph",
-        lambda gate=(), full=False: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
+        lambda gate=(), full=False, root=None: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
     )
 
     class PassingDiagnosticRunner:

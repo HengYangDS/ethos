@@ -73,13 +73,31 @@ class LocalSubprocessRunner:
             inprocess = self._inprocess_handler(node, root)
             if inprocess is not None:
                 return inprocess
-        completed = subprocess.run(
-            list(node.command),
-            cwd=root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                list(node.command),
+                cwd=root,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            missing = str(exc.filename or node.command[0])
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                state="failed",
+                exit_code=127,
+                stderr=str(exc),
+                diagnostics=(
+                    {
+                        "kind": "command_not_found",
+                        "missing": missing,
+                        "cwd": str(root),
+                        "required_gaps": [f"missing_command:{missing}"],
+                    },
+                ),
+            )
         state, diagnostics = classify_action_result(
             exit_code=completed.returncode,
             stdout=completed.stdout,

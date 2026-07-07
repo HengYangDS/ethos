@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "80b169a631b44f20db6b473535e86082e0e45a00",
-    "target_head": "80b169a631b44f20db6b473535e86082e0e45a00",
-    "product_semantic_sha256": "0874cb856bd6cadcb723ada7e53298c4a0c3a8874737a5da792e2d4d2bcd8e9a",
-    "target_semantic_sha256": "0874cb856bd6cadcb723ada7e53298c4a0c3a8874737a5da792e2d4d2bcd8e9a",
+    "product_head": "132d76cda1a0777dfdb6285eb80cbad677d8236f",
+    "target_head": "132d76cda1a0777dfdb6285eb80cbad677d8236f",
+    "product_semantic_sha256": "9694e08b2c6445c8bfd775aae9fa2967d4d8faaa86b759464adfa835d077e001",
+    "target_semantic_sha256": "9694e08b2c6445c8bfd775aae9fa2967d4d8faaa86b759464adfa835d077e001",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild",
-    "target_head": "80b169a631b44f20db6b473535e86082e0e45a00",
-    "product_head": "80b169a631b44f20db6b473535e86082e0e45a00",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery",
+    "target_head": "132d76cda1a0777dfdb6285eb80cbad677d8236f",
+    "product_head": "132d76cda1a0777dfdb6285eb80cbad677d8236f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json",
-      "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild --json"
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-kernel-recovery/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/authority-kernel-recovery --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "32309e77011f5643dc43d53de948f33398bf9f321817214b9b103e44517d1738"
+        "sha256": "16dea1a4baf5ad20e6a098b086248ce451f284550ef0d352062abed1883abe26"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a315e6c41a41ca479d4ef4c327b14507a8c6f5dd0c3328faf01b56c631219baa"
+        "sha256": "bf7be8653973de6734dc234640c012579651d3b571969eb57294262889029df6"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "12a344a8fa6c6f4f5124becb2e119831cb1ccb960a8405ac73fe2de582a89c3d"
+        "sha256": "eef58b4a025eaa0f15f60ad59dccf2ae8bb0a005f6a84af908d331b85d7a694c"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "3db22f3201be012bc491a241e5a66b25a06fc837009d0013ed4d71a740a81cff"
+        "sha256": "28c35e97e467c01100d4d132d198da1fa8d0ca4d4dca11086979522f1fbd4814"
       },
       {
         "path": "rules",

@@ -169,3 +169,21 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
     assert datetime.fromisoformat(leases[0]["expires_at"]) > datetime.now(UTC) - timedelta(
         seconds=1
     )
+
+
+def test_active_leases_returns_empty_when_all_sqlite_reads_fail(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from ethos.adapters.store import state
+
+    db_path = tmp_path / "state.sqlite"
+    state.acquire_lease(db_path, subject="work/feature", owner="agent:test")
+
+    def always_fails(*_args: object, **_kwargs: object) -> object:
+        message = "sqlite unavailable"
+        raise sqlite3.OperationalError(message)
+
+    monkeypatch.setattr(state.sqlite3, "connect", always_fails)
+
+    assert state.active_leases(db_path) == []

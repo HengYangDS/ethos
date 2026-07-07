@@ -87,10 +87,11 @@ def _matches_prefix(rel: str, prefix: str) -> bool:
 
 def generated_artifact_contract() -> dict[str, object]:
     """Return the stable generated artifact topology contract."""
+    declarative_boundary = "declarative config, policy, and adopter interface only"
     return {
         "schema_version": 1,
         "declarative_prefixes": [
-            {"prefix": prefix.rstrip("/"), "boundary": "declarative config, policy, and adopter interface only"}
+            {"prefix": prefix.rstrip("/"), "boundary": declarative_boundary}
             for prefix in sorted(DECLARATIVE_PREFIXES)
         ],
         "allowed_prefixes": [
@@ -135,36 +136,61 @@ def is_generated_artifact_path(path: Path | str) -> bool:
     return name in GENERATED_FILENAMES or suffix in GENERATED_SUFFIXES
 
 
-def path_policy_for(path: Path | str) -> dict[str, Any]:
-    """Classify a repository-relative path under the generated topology contract."""
-    rel = normalize_artifact_path(path)
-    generated = is_generated_artifact_path(rel)
-    if is_product_adopter_path(rel):
-        return {
-            "path": rel,
-            "decision": "deny",
-            "boundary": "ETHOS product repositories may not own adopter-specific roots",
-            "generated": generated,
-            "required_gap": f"generated_artifact_adopter_specific_product_root:{rel}",
-        }
-    for prefix in DECLARATIVE_PREFIXES:
-        if _matches_prefix(rel, prefix) and not generated:
-            return {
-                "path": rel,
-                "decision": "review",
-                "boundary": "declarative config, policy, and adopter interface only",
-                "generated": generated,
-                "required_gap": "",
-            }
+def _policy(
+    *,
+    path: str,
+    decision: str,
+    boundary: str,
+    generated: bool,
+    required_gap: str = "",
+) -> dict[str, Any]:
+    return {
+        "path": path,
+        "decision": decision,
+        "boundary": boundary,
+        "generated": generated,
+        "required_gap": required_gap,
+    }
+
+
+def _product_adopter_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+    if not is_product_adopter_path(rel):
+        return None
+    return _policy(
+        path=rel,
+        decision="deny",
+        boundary="ETHOS product repositories may not own adopter-specific roots",
+        generated=generated,
+        required_gap=f"generated_artifact_adopter_specific_product_root:{rel}",
+    )
+
+
+def _declarative_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+    if generated:
+        return None
+    if not any(_matches_prefix(rel, prefix) for prefix in DECLARATIVE_PREFIXES):
+        return None
+    return _policy(
+        path=rel,
+        decision="review",
+        boundary="declarative config, policy, and adopter interface only",
+        generated=generated,
+    )
+
+
+def _allowed_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _ALLOWED_PREFIXES:
         if _matches_prefix(rel, prefix):
-            return {
-                "path": rel,
-                "decision": "allow",
-                "boundary": boundary,
-                "generated": generated,
-                "required_gap": "",
-            }
+            return _policy(
+                path=rel,
+                decision="allow",
+                boundary=boundary,
+                generated=generated,
+            )
+    return None
+
+
+def _review_policy(rel: str, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _REVIEW_PREFIXES:
         if _matches_prefix(rel, prefix):
             review_gap = (
@@ -172,34 +198,55 @@ def path_policy_for(path: Path | str) -> dict[str, Any]:
                 if is_config_script_path(rel)
                 else ""
             )
-            return {
-                "path": rel,
-                "decision": "review",
-                "boundary": boundary,
-                "generated": generated,
-                "required_gap": review_gap,
-            }
+            return _policy(
+                path=rel,
+                decision="review",
+                boundary=boundary,
+                generated=generated,
+                required_gap=review_gap,
+            )
+    return None
+
+
+def _generated_denial_policy(rel: str, generated: bool) -> dict[str, Any] | None:
+    if not generated:
+        return None
     for prefix, gap in _DENIED_GENERATED_PREFIXES:
-        if _matches_prefix(rel, prefix) and generated:
-            return {
-                "path": rel,
-                "decision": "deny",
-                "boundary": "generated output may not live in config, current docs, or source",
-                "generated": generated,
-                "required_gap": f"{gap}:{rel}",
-            }
-    if generated and "/" not in rel:
-        return {
-            "path": rel,
-            "decision": "deny",
-            "boundary": "repo root is not a generated artifact owner",
-            "generated": generated,
-            "required_gap": f"generated_artifact_repo_root_drift:{rel}",
-        }
-    return {
-        "path": rel,
-        "decision": "ignore",
-        "boundary": "not a generated artifact topology subject",
-        "generated": generated,
-        "required_gap": "",
-    }
+        if _matches_prefix(rel, prefix):
+            return _policy(
+                path=rel,
+                decision="deny",
+                boundary="generated output may not live in config, current docs, or source",
+                generated=generated,
+                required_gap=f"{gap}:{rel}",
+            )
+    if "/" not in rel:
+        return _policy(
+            path=rel,
+            decision="deny",
+            boundary="repo root is not a generated artifact owner",
+            generated=generated,
+            required_gap=f"generated_artifact_repo_root_drift:{rel}",
+        )
+    return None
+
+
+def path_policy_for(path: Path | str) -> dict[str, Any]:
+    """Classify a repository-relative path under the generated topology contract."""
+    rel = normalize_artifact_path(path)
+    generated = is_generated_artifact_path(rel)
+    for candidate in (
+        _product_adopter_policy(rel, generated),
+        _declarative_policy(rel, generated),
+        _allowed_policy(rel, generated),
+        _review_policy(rel, generated),
+        _generated_denial_policy(rel, generated),
+    ):
+        if candidate is not None:
+            return candidate
+    return _policy(
+        path=rel,
+        decision="ignore",
+        boundary="not a generated artifact topology subject",
+        generated=generated,
+    )

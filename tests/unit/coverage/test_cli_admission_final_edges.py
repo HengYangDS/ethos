@@ -109,6 +109,30 @@ def test_admission_prewrite_and_hook_success_edges(
     assert admission.hook_admission_report(root=tmp_path, layer="git")["state"] == "fallback"
     assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")
 
+    assert admission._git_stash_policy("git stash") == {
+        "forbidden": True,
+        "operation": "push",
+        "reason": "stash_is_hidden_change_carrier",
+    }
+    assert admission._git_stash_policy("git stash -u")["operation"] == "push"
+    malformed_stash = admission._git_stash_policy("git stash '")
+    assert malformed_stash["forbidden"] is True
+    assert malformed_stash["reason"] == "stash_is_hidden_change_carrier"
+    assert (
+        admission._git_stash_policy("git --git-dir=/tmp/repo/.git stash clear")["operation"]
+        == "clear"
+    )
+    assert admission._git_stash_policy("git --bare") == {
+        "forbidden": False,
+        "operation": "",
+        "reason": "not_git_stash",
+    }
+    assert admission._git_stash_policy("git -C") == {
+        "forbidden": False,
+        "operation": "",
+        "reason": "not_git_stash",
+    }
+
     policy = SimpleNamespace(
         accepted_branch="dev",
         candidate_branch="candidate/dev",

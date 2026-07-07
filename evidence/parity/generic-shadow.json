@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "0301a10ea81a2c1902160703989af29cc084ea6a",
-    "target_head": "0301a10ea81a2c1902160703989af29cc084ea6a",
-    "product_semantic_sha256": "ab566bb9fa18416893c89596255ace63ae25e80cb3199541d85ba0b185c160f9",
-    "target_semantic_sha256": "ab566bb9fa18416893c89596255ace63ae25e80cb3199541d85ba0b185c160f9",
+    "product_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
+    "target_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
+    "product_semantic_sha256": "6d1ab9772d6cf1100ce3feb16ad8684d8b05310ee58017d24bfa5ccde5d47d1e",
+    "target_semantic_sha256": "6d1ab9772d6cf1100ce3feb16ad8684d8b05310ee58017d24bfa5ccde5d47d1e",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,10 +35,13 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-config-hardening",
-    "target_head": "0301a10ea81a2c1902160703989af29cc084ea6a",
-    "product_head": "0301a10ea81a2c1902160703989af29cc084ea6a",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy",
+    "target_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
+    "product_head": "3a1eed542c49d89949b1b117e1041b6445411a1c",
+    "changed_paths": [
+      "tests/unit/coverage/test_cli_admission_final_edges.py",
+      "tests/unit/coverage/test_cov_v3_clidomain_edges.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +54,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-config-hardening --json",
-      "/private/tmp/ethos-config-hardening/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-config-hardening --json"
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/closeout-ci-stash-policy --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,22 +84,22 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "7622535961d34b7ae1b37764de24694349d0b1fa31b5ae6dff33132a80171a8f"
+        "sha256": "aee67942c5d94e264e59cb9c16b4bc95ab7b0d28f5ad0ee5051922e66dbb6129"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "bde7e96711e4b518ccd4deeb3451e47fbba4635fa257dee022ebdfc19ce2309c"
+        "sha256": "12a344a8fa6c6f4f5124becb2e119831cb1ccb960a8405ac73fe2de582a89c3d"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "400a7e9f6286db4dd1df081a8513d0d36abbe44910a811c6ca41af6212d0d100"
+        "sha256": "3db22f3201be012bc491a241e5a66b25a06fc837009d0013ed4d71a740a81cff"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "3684c8e966ec505f046f8e0b061eec40c6f11b25e76cab9345b7b4c6fa42b9cb"
+        "sha256": "53b0477b8a1515cede2f29b338ac1a800646ebd3f4e4991487878d2a200be32e"
       }
     ]
   },

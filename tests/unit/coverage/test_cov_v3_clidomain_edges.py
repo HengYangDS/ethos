@@ -237,3 +237,15 @@ def test_hook_admit_handles_non_dict_decision(
 
     result = emitted[-1]
     assert result.summary["decision"] == ""
+
+
+def test_cli_module_entrypoint_invokes_main() -> None:
+    completed = subprocess.run(
+        ["python", "-m", "ethos.cli", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "Usage:" in completed.stdout

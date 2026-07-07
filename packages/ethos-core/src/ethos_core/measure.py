@@ -23,22 +23,9 @@ if TYPE_CHECKING:
 def _string_expr_line_spans(tree: ast.AST) -> set[int]:
     """Line numbers occupied by docstrings and bare string-literal statements."""
     spans: set[int] = set()
-    # Docstrings: leading string Expr of module/class/function bodies.
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-            continue
-        body = getattr(node, "body", None)
-        if not body:
-            continue
-        first = body[0]
-        if (
-            isinstance(first, ast.Expr)
-            and isinstance(first.value, ast.Constant)
-            and isinstance(first.value.value, str)
-        ):
-            end = first.value.end_lineno or first.value.lineno
-            spans.update(range(first.value.lineno, end + 1))
-    # Bare string-literal expression statements anywhere (padding strings).
+    # Bare string-literal expression statements anywhere. A docstring is the leading
+    # bare string Expr of a module/class/function body, so this single walk already
+    # covers docstrings and multi-line-string padding alike.
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)

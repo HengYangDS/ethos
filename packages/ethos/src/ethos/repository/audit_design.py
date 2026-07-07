@@ -65,6 +65,7 @@ DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS = (
     ".claude",
     ".ethos/decomp-recipes",
     ".gitnexus",
+    "docs/superpowers",
 )
 
 DESIGN_INTEGRITY_VENDOR_TERMS = (

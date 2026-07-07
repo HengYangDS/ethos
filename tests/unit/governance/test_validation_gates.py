@@ -897,6 +897,9 @@ def test_repository_audit_blocks_root_projection_pollution(tmp_path: Path) -> No
     recipe = tmp_path / ".ethos" / "decomp-recipes" / "retirement.py"
     recipe.parent.mkdir(parents=True)
     recipe.write_text("# scratch decomposition belongs in a Work Lane, not accepted root\n")
+    plan = tmp_path / "docs" / "superpowers" / "specs" / "projection-plan.md"
+    plan.parent.mkdir(parents=True)
+    plan.write_text("# host-method projection belongs outside product docs\n")
 
     report = repository_audit(tmp_path, openspec_mode="shape")
     gaps = report["design_integrity"]["required_gaps"]
@@ -905,12 +908,16 @@ def test_repository_audit_blocks_root_projection_pollution(tmp_path: Path) -> No
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in gaps
     assert "design_integrity_forbidden_projection_path:.claude" in gaps
     assert "design_integrity_forbidden_projection_path:.ethos/decomp-recipes" in gaps
+    assert "design_integrity_forbidden_projection_path:docs/superpowers" in gaps
     assert "design_integrity_forbidden_projection_path:CLAUDE.md" in report["required_gaps"]
     assert "design_integrity_forbidden_projection_path:.claude" in report["required_gaps"]
     assert (
         "design_integrity_forbidden_projection_path:.ethos/decomp-recipes"
         in report["required_gaps"]
     )
+    assert "design_integrity_forbidden_projection_path:docs/superpowers" in report[
+        "required_gaps"
+    ]
 
 
 def test_gate_registry_includes_generated_artifacts_gate() -> None:

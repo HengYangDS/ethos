@@ -13,12 +13,14 @@ def test_role_for_classifies_tests_surface_and_logic():
     assert prove._role_for("packages/ethos/src/ethos/domain/plan.py", ("**/surface/**",)) == "logic"
 
 
-def test_code_size_report_applies_role_limits_global_cap_and_exceptions(tmp_path, monkeypatch):
+def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypatch):
     files = {
         "packages/ethos/src/ethos/domain/small.py": "a=1\nb=2\n",
         "packages/ethos/src/ethos/surface/cli/big.py": "\n".join(f"x{i}=1" for i in range(4)),
         "tests/unit/test_big.py": "\n".join(f"x{i}=1" for i in range(4)),
-        "packages/ethos/src/ethos/domain/excepted.py": "\n".join(f"x{i}=1" for i in range(10)),
+        # An over-limit logic file is held to its role limit — there is no way to
+        # exempt it, so it fails.
+        "packages/ethos/src/ethos/domain/oversized.py": "\n".join(f"x{i}=1" for i in range(10)),
     }
     for relative, text in files.items():
         path = tmp_path / relative
@@ -32,14 +34,7 @@ def test_code_size_report_applies_role_limits_global_cap_and_exceptions(tmp_path
             "default_effective_max_lines": 3,
             "surface_effective_max_lines": 5,
             "test_effective_max_lines": 8,
-            "global_hard_effective_max_lines": 4,
             "surface_path_globs": ["**/surface/**"],
-            "exception": [
-                {
-                    "path": "packages/ethos/src/ethos/domain/excepted.py",
-                    "effective_max_lines": 10,
-                }
-            ],
         },
     )
     monkeypatch.setattr(prove._git, "git_files", lambda _root, *_patterns: tuple(files))
@@ -47,11 +42,17 @@ def test_code_size_report_applies_role_limits_global_cap_and_exceptions(tmp_path
     report = prove.code_size_report(tmp_path)
     by_path = {record["path"]: record for record in report["files"]}
 
-    assert report["ok"] is True
     assert by_path["packages/ethos/src/ethos/domain/small.py"]["role"] == "logic"
-    assert by_path["packages/ethos/src/ethos/surface/cli/big.py"]["limit"] == 4
+    assert by_path["packages/ethos/src/ethos/domain/small.py"]["limit"] == 3
+    assert by_path["packages/ethos/src/ethos/surface/cli/big.py"]["limit"] == 5
+    assert by_path["tests/unit/test_big.py"]["limit"] == 8
     assert by_path["tests/unit/test_big.py"]["category"] == "test"
-    assert by_path["packages/ethos/src/ethos/domain/excepted.py"]["exception"] is True
+    # An oversized logic file is held to its role limit (3) and therefore fails —
+    # no per-file escape hatch exists.
+    oversized = by_path["packages/ethos/src/ethos/domain/oversized.py"]
+    assert oversized["limit"] == 3
+    assert oversized["ok"] is False
+    assert report["ok"] is False
 
 
 def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, monkeypatch):

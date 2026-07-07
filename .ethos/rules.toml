@@ -34,96 +34,24 @@ generated_outputs_tracked_truth = false
 # Role-based effective-LOC limits (AST-computed, excluding blanks/comments/
 # docstrings). Adopted from the di-effect module_layout study (see
 # .ethos/quality-regime-decision.md §3.1): a flat "every file <=400" rule is crude
-# — it forces a command aggregator and a logic module to the same bar. Instead:
+# — it forces a command aggregator and a logic module to the same bar. Instead,
+# one limit per role, calibrated to the repo's actual effective-LOC distribution
+# (each limit sits near the role's p90–p95 so the genuine tail must split while
+# cohesive mid-size modules stay whole):
 #
-#   role=logic   (domain/adapters/kernel reducers): soft 400 / hard 600
-#   role=surface (CLI command groups / aggregators):  soft 800
-#   role=test    (broad contract coverage):           soft/hard 1200
+#   role=logic   (domain/adapters/kernel reducers):   500
+#   role=surface (CLI command groups / aggregators):  750
+#   role=test    (broad contract coverage):          1000
 #
-# A GLOBAL hard ceiling (global_hard_effective_max_lines) caps every file so a
-# "surface" label cannot be an excuse for unbounded growth (forcing function,
-# principle 2: failure-blocking moves upstream). NEW files get NO per-file
-# exception — they are blocked at their role's hard limit. Existing monoliths keep
-# a SHRINKING ratchet exception pinned to current size until they drop under the
-# role hard limit. Split triggers (public functions / classes / flat siblings) are
-# tracked in the decision doc; the mechanical gate here is size.
-global_hard_effective_max_lines = 1200
-hard_effective_max_lines = 600
-default_effective_max_lines = 400
+# There is NO per-file exemption and NO soft/hard split: a governance runtime that
+# forbids `# pragma: no cover` cannot ship a size-exemption table either. An
+# over-limit file is decomposed into a semantic sub-package (rules/module_layout.md
+# §1), never frozen at its current size.
+default_effective_max_lines = 500
 # Surface role: CLI command modules are legitimately larger thin wiring sheets
-# (bind-args -> domain call -> emit), bounded but not held to the logic 400.
-surface_effective_max_lines = 800
+# (bind-args -> domain call -> emit), bounded but not held to the logic limit.
+surface_effective_max_lines = 750
 surface_path_globs = ["packages/ethos/src/ethos/cli.py", "packages/ethos/src/ethos/surface/**"]
 # Test files carry broad contract coverage; capped at a looser category limit
-# (still bounded to prevent unbounded growth), not the product 400.
-test_effective_max_lines = 1200
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 824
-reason = "surface aggregator mid-split; ratchet caps at current — sink command bodies to domain + split into surface/cli/<group>.py each under surface soft (800)"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/rules.py"
-effective_max_lines = 1083
-reason = "rules engine; relocate to ethos-core/method with sub-module split to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/store/retrieval.py"
-effective_max_lines = 967
-reason = "context index engine; split index/verify/search sub-modules to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/schema.py"
-effective_max_lines = 764
-reason = "schema validation; relocate to ethos-core/contract with split to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/openspec.py"
-effective_max_lines = 688
-reason = "openspec adapter; split by concern to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/adoption/planner.py"
-effective_max_lines = 673
-reason = "adoption planner; split scaffold/detect to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/shadow.py"
-effective_max_lines = 647
-reason = "shadow parity; split classify/report to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/coupling.py"
-effective_max_lines = 640
-reason = "coupling audit; split by binding kind to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/evidence/parity.py"
-effective_max_lines = 554
-reason = "parity report; split evidence/gaps to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/mutation/lanes.py"
-effective_max_lines = 509
-reason = "work lane lifecycle; split by lane operation to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/registry/docs.py"
-effective_max_lines = 500
-reason = "docs registry; split registry/validation to reach 400"
-
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/repo/status.py"
-effective_max_lines = 415
-reason = "workspace status; minor split to reach 400"
-
-[[quality.code_size.exception]]
-path = "tests/unit/cli/test_contracts.py"
-effective_max_lines = 2702
-reason = "broad CLI contract coverage; ratchet caps at current — split per-command test modules as cli.py splits"
-
-[[quality.code_size.exception]]
-path = "tests/unit/product/test_parity.py"
-effective_max_lines = 1512
-reason = "parity/shadow contract coverage; ratchet caps at current — split as parity.py splits"
+# (still bounded to prevent unbounded growth), not the product limit.
+test_effective_max_lines = 1000

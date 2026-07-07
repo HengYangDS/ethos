@@ -32,43 +32,29 @@ def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
 
 
 def code_size_report(root: Path) -> dict[str, object]:
-    """Derive the code-size gate verdict against the role-based ratchet policy."""
+    """Derive the code-size gate verdict against the role-based limits."""
     policy = code_size_policy(root)
     default_limit = int(cast("int | None", policy.get("default_effective_max_lines")) or 400)
     test_limit = int(cast("int | None", policy.get("test_effective_max_lines")) or default_limit)
     surface_limit = int(
         cast("int | None", policy.get("surface_effective_max_lines")) or default_limit
     )
-    global_hard = int(cast("int | None", policy.get("global_hard_effective_max_lines")) or 0)
     surface_globs = tuple(
         str(pattern)
         for pattern in cast("list[object]", policy.get("surface_path_globs", []))
         if pattern
     )
     role_limits = {"test": test_limit, "surface": surface_limit, "logic": default_limit}
-    exception_limits = {
-        str(item.get("path")): int(
-            cast("int | None", item.get("effective_max_lines")) or default_limit
-        )
-        for item in cast("list[object]", policy.get("exception", []))
-        if isinstance(item, dict) and item.get("path")
-    }
     records: list[dict[str, object]] = []
     gaps: list[str] = []
     for relative in _git.git_files(root, "*.py"):
         path = root / relative
         effective = effective_code_lines(path)
         role = _role_for(relative, surface_globs)
-        if relative in exception_limits:
-            # An explicit ratchet exception is known, tracked, shrinking debt — it
-            # is allowed above the global ceiling until it dissolves. It may only
-            # shrink (pinned to current size), so it still converges downward.
-            limit = exception_limits[relative]
-        else:
-            # Role default, capped by the global hard ceiling so no role label buys
-            # unbounded growth.
-            role_limit = role_limits[role]
-            limit = min(role_limit, global_hard) if global_hard else role_limit
+        # One limit per role, no per-file exemption: a governance runtime that
+        # forbids `# pragma: no cover` cannot ship a size-exemption table either.
+        # An over-limit file is decomposed into a semantic sub-package, not frozen.
+        limit = role_limits[role]
         ok = effective <= limit
         records.append(
             {
@@ -77,7 +63,6 @@ def code_size_report(root: Path) -> dict[str, object]:
                 "limit": limit,
                 "role": role,
                 "category": "test" if role == "test" else "product",
-                "exception": relative in exception_limits,
                 "ok": ok,
             }
         )
@@ -88,7 +73,6 @@ def code_size_report(root: Path) -> dict[str, object]:
         "default_effective_max_lines": default_limit,
         "surface_effective_max_lines": surface_limit,
         "test_effective_max_lines": test_limit,
-        "global_hard_effective_max_lines": global_hard,
         "required_gaps": gaps,
         "files": records,
     }

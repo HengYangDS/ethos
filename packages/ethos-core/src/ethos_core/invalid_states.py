@@ -46,12 +46,6 @@ class InvalidStateCategory:
     summary: str
     match_prefixes: tuple[str, ...]
 
-    def matches(self, gap: str) -> bool:
-        stem = gap.split(":", 1)[0]
-        return any(
-            stem.startswith(prefix) or gap.startswith(prefix) for prefix in self.match_prefixes
-        )
-
 
 def _taxonomy_path() -> Path:
     for parent in Path(__file__).resolve().parents:

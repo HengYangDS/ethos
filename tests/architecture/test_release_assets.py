@@ -33,7 +33,11 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
 
     assert "ethos audit" in text
     assert "ethos report" in text
-    assert "image: node:24" in text
+    # The npm jobs run on the layer-cached python:3.12 image and install Node
+    # from nodejs.org (install-node.sh), because the node:24 Docker image is
+    # unreachable through the runner's registry egress. See install-node.sh.
+    assert "image: node:24" not in text
+    assert ".config/ci/scripts/install-node.sh" in text
     assert "npm config set engine-strict true" in text
     assert "npm ci --ignore-scripts" in text
     assert "npm run ethos -- --version" in text
@@ -111,6 +115,21 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "--max-time" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
+
+
+def test_ci_node_installer_is_architecture_aware() -> None:
+    installer = (ROOT / ".config/ci/scripts/install-node.sh").read_text(encoding="utf-8")
+
+    assert "uname -m" in installer
+    assert "arm64" in installer
+    assert "x64" in installer
+    assert "nodejs.org/dist" in installer
+    assert "NODE_VERSION" in installer
+    assert "--retry" in installer
+    assert "--retry-all-errors" in installer
+    assert "--max-time" in installer
+    assert "command -v node" in installer
+    assert "tar xJf" in installer
 
 
 def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:

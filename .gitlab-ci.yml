@@ -109,8 +109,12 @@ ethos:verify:
 
 ethos:npm:
   stage: verify
-  image: node:24
+  # Runs on python:3.12 (kept layer-cached on the runner) with Node installed
+  # from nodejs.org, because the node:24 Docker image is unreachable through this
+  # runner's registry egress — see .config/ci/scripts/install-node.sh.
+  image: python:3.12
   script:
+    - .config/ci/scripts/install-node.sh
     - node --version
     - npm --version
     - npm config set engine-strict true
@@ -130,8 +134,11 @@ ethos:package:
 
 ethos:npm-package:
   stage: package
-  image: node:24
+  # See ethos:npm — python:3.12 + install-node.sh avoids the unreachable
+  # node:24 image.
+  image: python:3.12
   script:
+    - .config/ci/scripts/install-node.sh
     - npm config set engine-strict true
     - npm ci --ignore-scripts
     - npm run test:npm

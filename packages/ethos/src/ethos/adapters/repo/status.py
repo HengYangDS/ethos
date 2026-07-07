@@ -12,6 +12,7 @@ from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.status_bindings import _branch_bindings
 from ethos.adapters.repo.status_bindings import _closeout_support
+from ethos.adapters.repo.status_bindings import _is_ancestor
 from ethos.adapters.repo.status_bindings import _lease_claim_id
 from ethos.adapters.repo.status_bindings import _leases_by_branch
 from ethos.adapters.repo.status_bindings import _ref_head
@@ -166,17 +167,6 @@ def _safe_ref(root: Path, ref: str) -> str:
         return _run_git(root, "rev-parse", ref)
     except subprocess.CalledProcessError:
         return ""
-
-
-def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
-    completed = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    return completed.returncode == 0
 
 
 def _run_git(root: Path, *args: str) -> str:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
@@ -283,9 +284,13 @@ def _pre_run_report(
     require_editor_root: bool,
     command: str,
 ) -> dict[str, object]:
+    stash_policy = _git_stash_policy(command)
     risk = _command_risk(command)
     base["command"] = command
     base["command_risk"] = risk
+    base["git_stash_policy"] = stash_policy
+    if stash_policy["forbidden"] is True:
+        return _blocked(base, "git_stash_forbidden")
     if risk["tracked_mutation_risk"] is not True:
         base["state"] = "admitted"
         base["decision"] = {"action": "allow", "reason": "command_observe_only"}
@@ -309,6 +314,57 @@ def _command_risk(command: str) -> dict[str, object]:
         "tracked_mutation_risk": risky,
         "reason": "command_text_matches_mutation_pattern" if risky else "observe_only_command",
     }
+
+
+def _git_stash_policy(command: str) -> dict[str, object]:
+    tokens = _shell_tokens(command)
+    operation = _git_stash_operation(tokens)
+    if operation is None:
+        return {"forbidden": False, "operation": "", "reason": "not_git_stash"}
+    if operation in {"list", "show"}:
+        return {"forbidden": False, "operation": operation, "reason": "observe_only_stash_read"}
+    return {
+        "forbidden": True,
+        "operation": operation,
+        "reason": "stash_is_hidden_change_carrier",
+    }
+
+
+def _shell_tokens(command: str) -> list[str]:
+    try:
+        return shlex.split(command)
+    except ValueError:
+        return command.split()
+
+
+def _git_stash_operation(tokens: list[str]) -> str | None:
+    for index, token in enumerate(tokens):
+        if token != "git":
+            continue
+        stash_index = _find_git_subcommand(tokens, start=index + 1)
+        if stash_index is None or tokens[stash_index] != "stash":
+            continue
+        if stash_index + 1 >= len(tokens) or tokens[stash_index + 1].startswith("-"):
+            return "push"
+        return tokens[stash_index + 1]
+    return None
+
+
+def _find_git_subcommand(tokens: list[str], *, start: int) -> int | None:
+    index = start
+    while index < len(tokens):
+        token = tokens[index]
+        if token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
+            index += 2
+            continue
+        if token.startswith(("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=")):
+            index += 1
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        return index
+    return None
 
 
 def _post_write_report(

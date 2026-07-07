@@ -1,0 +1,47 @@
+[claim]
+id = "stashless-residue-closeout"
+subject = "ethos:stashless-residue-closeout"
+state = "active"
+summary = "Digest-bound record for blocking git stash as a hidden residue carrier."
+
+[evidence]
+dated = "evidence/chronicle/stashless-residue-closeout/2026-07-07.md"
+sha256 = "4e865df085be5c5504b61eefdc42d546e42cb13952c00a7b337661e3e4d213ba"
+evidence_ids = ["evidence:stashless-residue-closeout"]
+binding = "Pre-run admission and repository hygiene bind dirty-work closeout to visible Work Lane or revert paths, not stash."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest tests/unit/coverage/test_cli_admission_final_edges.py -q",
+  ".config/ci/scripts/run-repository-hygiene.sh",
+  ".config/ci/scripts/run-shell-lint.sh .config/ci/scripts/install-lychee.sh .config/ci/scripts/run-repository-hygiene.sh",
+  "uv run --group dev pytest tests/architecture/test_release_assets.py -q",
+  "openspec validate --all --strict",
+]
+
+[boundary]
+owner = "repository-governance"
+scope = "stashless residue closeout and pre-run admission"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707"
+
+fallback = "If hook admission is unavailable, classify dirty work visibly and either absorb it into an owned Work Lane or revert it from the protected root."
+kill_signal = "A tracked rule, skill, or workflow tells agents to use git stash as a backup, handoff, residue, or closeout carrier."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "tests/unit/coverage/test_cli_admission_final_edges.py",
+  ".config/ci/scripts/run-repository-hygiene.sh",
+  "rules/mutation.md",
+  "rules/hooks.md",
+  "system/invalid_states.toml",
+  ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
+  ".ethos/terminal-landing-plan.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/proposal.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/design.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/tasks.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/specs/repository-governance/spec.md",
+  "evidence/chronicle/stashless-residue-closeout/2026-07-07.md",
+  "evidence/claims/stashless-residue-closeout.toml",
+]

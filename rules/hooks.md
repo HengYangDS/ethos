@@ -39,3 +39,9 @@ Pre-tool hooks must reject tracked writes when the tool call cannot prove:
 An implicit shell working directory, cached chat context, or IDE-selected root is
 not sufficient proof. Wrong-root writes are a hook failure, not just an agent
 mistake.
+
+
+Pre-run hooks must reject `git stash` mutation commands because stash is a hidden
+change carrier. `git stash list` and `git stash show` remain observation-only;
+`push`, `save`, `apply`, `pop`, `drop`, `clear`, `store`, and implicit stash
+creation are blocked with `git_stash_forbidden`.

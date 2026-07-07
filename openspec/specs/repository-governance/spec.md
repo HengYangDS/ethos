@@ -397,11 +397,14 @@ to repository governance semantics.
 - **AND** the agent creates or selects a new non-complete change before editing
 
 ### Requirement: Context-bound mutation admission
+
 ETHOS SHALL bind tracked mutation admission to explicit repository root,
 checkout role, editor root, and target paths before a write-capable tool can
-mutate tracked files.
+mutate tracked files. ETHOS SHALL also reject hidden change carriers that bypass
+repository truth surfaces.
 
 #### Scenario: Implicit-root mutation is blocked
+
 - **WHEN** a write-capable tool does not carry an explicit target root matching
   the current Work Lane
 - **THEN** ETHOS blocks the tracked write before filesystem mutation
@@ -409,6 +412,7 @@ mutate tracked files.
   paths
 
 #### Scenario: Manual prewrite is degraded mode
+
 - **WHEN** a host cannot install a pre-tool mutation hook
 - **THEN** the agent MUST run `ethos lane prewrite <paths> --editor-root <root>
   --require-editor-root --json` before tracked writes
@@ -416,12 +420,27 @@ mutate tracked files.
   bound mutation hook
 
 #### Scenario: Worktree root binding fails closed
+
 - **WHEN** ETHOS resolves mutation admission from inside a linked Work Lane
   subdirectory
 - **THEN** the default target root is the current Git worktree root rather than
   an accepted root or process launch directory
 - **AND** product-repository prewrite blocks when the command runner, schema
   source, and audited root do not bind to the same product checkout
+
+#### Scenario: Stash mutation is rejected before shell execution
+
+- **WHEN** hook admission evaluates a pre-run shell command that would create,
+  apply, pop, drop, clear, store, or implicitly create a Git stash
+- **THEN** ETHOS blocks the command with `git_stash_forbidden`
+- **AND** the command is not admitted as a backup, handoff, residue, or closeout
+  carrier
+
+#### Scenario: Stash observation remains available for forensics
+
+- **WHEN** hook admission evaluates `git stash list` or `git stash show`
+- **THEN** ETHOS treats the command as observation-only
+- **AND** the observation does not authorize using stash as repository truth
 
 ### Requirement: Failure blocking moves upstream
 ETHOS SHALL promote repeated late failures to earlier controls until the normal
@@ -683,7 +702,6 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
   hosted CI policy inline
 - **AND** local fallback evidence does not claim hosted CI pipeline success
 
-
 ### Requirement: OpenSpec active carrier residue is visible across protected branch trees
 
 ETHOS SHALL make active OpenSpec carriers visible when they remain in configured
@@ -737,3 +755,4 @@ reader views without treating them as transition-blocking required gaps.
 - **THEN** orientation readiness includes advisory signal count and items
 - **AND** orientation readiness includes advisory next actions derived from report
 - **AND** the human orientation output can mention advisory signals without granting mutation authority
+

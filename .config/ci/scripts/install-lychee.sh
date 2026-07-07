@@ -30,20 +30,47 @@ else
   url="https://github.com/lycheeverse/lychee/releases/download/${version}/${archive}"
 fi
 
+cache_dir="${LYCHEE_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/lychee}"
+mkdir -p "${cache_dir}"
+archive_path="${cache_dir}/${version}-${archive}"
+partial_path="${archive_path}.part"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-echo "Installing lychee ${version} for ${target} from ${url}"
-curl --fail --location --show-error \
-  --connect-timeout 20 --max-time 180 \
-  --retry 5 --retry-delay 3 --retry-all-errors \
-  --output "${tmpdir}/${archive}" \
-  "${url}"
-tar xzf "${tmpdir}/${archive}" -C "${tmpdir}"
+download_archive() {
+  if [ -s "${archive_path}" ] && tar tzf "${archive_path}" >/dev/null 2>&1; then
+    echo "Using cached lychee archive ${archive_path}"
+    return 0
+  fi
+
+  rm -f "${archive_path}"
+  echo "Installing lychee ${version} for ${target} from ${url}"
+  for attempt in 1 2 3; do
+    echo "lychee download attempt ${attempt}/3"
+    if curl --fail --location --show-error \
+      --connect-timeout 30 --max-time 600 \
+      --retry 8 --retry-delay 5 --retry-all-errors \
+      --continue-at - \
+      --output "${partial_path}" \
+      "${url}"; then
+      mv "${partial_path}" "${archive_path}"
+      if tar tzf "${archive_path}" >/dev/null 2>&1; then
+        return 0
+      fi
+      echo "Downloaded lychee archive is invalid; retrying" >&2
+      rm -f "${archive_path}" "${partial_path}"
+    fi
+    sleep "$((attempt * 5))"
+  done
+  return 1
+}
+
+download_archive
+tar xzf "${archive_path}" -C "${tmpdir}"
 lychee_bin="$(find "${tmpdir}" -type f -name lychee -perm /111 | head -n 1)"
 if [ -z "${lychee_bin}" ]; then
   echo "lychee binary not found in ${archive}" >&2
-  tar tzf "${tmpdir}/${archive}" >&2
+  tar tzf "${archive_path}" >&2
   exit 1
 fi
 install -m 0755 "${lychee_bin}" /usr/local/bin/lychee

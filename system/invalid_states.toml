@@ -102,6 +102,7 @@ match_prefixes = [
   "adopter_missing",
   "accepted_advance_not_candidate_validated",
   "accepted_ref_move_bypasses_candidate_train",
+  "git_stash_forbidden",
   "handoff_required",
   "foreign_work_lane_",
   "retirement_",

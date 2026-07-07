@@ -80,6 +80,18 @@ def test_admission_prewrite_and_hook_success_edges(
         )["decision"]["reason"]
         == "prewrite_admitted"
     )
+    assert admission.hook_admission_report(
+        root=tmp_path, layer="pre-run", command="git stash push -u"
+    )["required_gaps"] == ["git_stash_forbidden"]
+    assert admission.hook_admission_report(
+        root=tmp_path, layer="pre-run", command="git -C /repo stash pop"
+    )["required_gaps"] == ["git_stash_forbidden"]
+    assert (
+        admission.hook_admission_report(root=tmp_path, layer="pre-run", command="git stash list")[
+            "decision"
+        ]["reason"]
+        == "command_observe_only"
+    )
     monkeypatch.setattr(
         admission,
         "workspace_status",

@@ -64,6 +64,40 @@ for path in paths:
         except json.JSONDecodeError as exc:
             failures.append(f"{path}: JSON parse failed: {exc}")
 
+    human_guidance_surface = path.suffix in {".md", ".txt", ".rst"}
+    if human_guidance_surface:
+        forbidden_stash_patterns = (
+            "git stash",
+            "commit or stash",
+            "stash, then retry",
+            "stash-diff",
+        )
+        stash_policy_allowlist = (
+            "do not use",
+            "must not use",
+            "reject",
+            "forbidden",
+            "not an accepted",
+            "not admitted",
+            "does not authorize",
+            "not put into",
+            "observation-only",
+            "observe_only_stash_read",
+            "git_stash_forbidden",
+            "not_git_stash",
+            "hidden change carrier",
+        )
+        lines = text.splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            lowered_line = line.lower()
+            window = "\n".join(lines[max(0, lineno - 2) : min(len(lines), lineno + 2)]).lower()
+            if any(pattern in lowered_line for pattern in forbidden_stash_patterns) and not any(
+                allowed in window for allowed in stash_policy_allowlist
+            ):
+                failures.append(
+                    f"{path}:{lineno}: stash is not an accepted backup or closeout carrier"
+                )
+
 if failures:
     for failure in failures:
         print(failure)

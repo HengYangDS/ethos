@@ -29,5 +29,9 @@ Purpose: define tracked write admission and Work Lane discipline.
 - If protected-root mutation is detected after the fact, stop normal work. Only
   rollback, migration to a Work Lane, recovery evidence, or violation reporting
   is allowed until the protected root is clean.
+
+- Do not use `git stash` as a backup, handoff, residue, or closeout carrier.
+  Dirty work must either be absorbed into an owned Work Lane with visible
+  evidence or reverted from the protected root after classification.
 - Accepted-root closeout is not normal editing. It must run through audited
   closeout command semantics.

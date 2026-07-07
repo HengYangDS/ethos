@@ -6,6 +6,13 @@ stages:
 variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: .uv-cache
+  LYCHEE_CACHE_DIR: build/cache/lychee
+
+cache:
+  key: ${CI_PROJECT_PATH_SLUG}
+  paths:
+    - .uv-cache/
+    - build/cache/lychee/
 
 # Auto-retry every job on infrastructure failures only (image-pull timeouts to
 # Docker Hub, runner crashes, API hiccups) — the runner's egress to external

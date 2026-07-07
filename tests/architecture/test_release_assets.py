@@ -46,6 +46,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert ".config/ci/scripts/bootstrap-python.sh" in text
     assert ".config/ci/scripts/install-lychee.sh" in text
+    assert "LYCHEE_CACHE_DIR: build/cache/lychee" in text
+    assert "build/cache/lychee/" in text
     assert ".config/ci/scripts/run-import-linter.sh" in text
     assert ".config/ci/scripts/run-docstring-coverage.sh" in text
     assert (
@@ -113,6 +115,10 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "--retry" in installer
     assert "--retry-all-errors" in installer
     assert "--max-time" in installer
+    assert "--continue-at -" in installer
+    assert "LYCHEE_CACHE_DIR" in installer
+    assert "build/cache/lychee" in installer
+    assert "tar tzf" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
 

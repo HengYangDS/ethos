@@ -30,7 +30,7 @@ distributions/npm
 
 ### `ethos-core`
 
-Pure kernel and product contracts. Owns JudgmentSource, Subject, Commitment,
+Pure kernel and product contracts. Owns Authority, Subject, Commitment,
 Change, Evidence, Claim, Chronicle, action graph primitives, state machine
 primitives, result envelope primitives, schema contracts, rule contracts,
 quality semantics, determinism semantics, gate semantics, and proof-policy

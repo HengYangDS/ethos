@@ -102,11 +102,11 @@ adapter, profile, transition loop, and axiom mean what they say.
 ETHOS is kernel-first. The product model is:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-- JudgmentSource: authority order, truth boundaries, product principles, and
-  decision policy. North Star is a derived reader view, not the judgment source.
+- Authority: authority order, truth boundaries, product principles, and
+  decision policy. North Star is a derived reader view, not the authority.
 - Subject: the governed object, such as a path, package, domain, surface,
   evidence set, or release target.
 - Commitment: the Subject's contracts, policies, specs, rules, promises, and
@@ -151,9 +151,9 @@ contract.
 
 ## Principles
 
-### Judgment-source first
+### Authority first
 
-Product decisions cite the Judgment Source, user instruction, repository truth,
+Product decisions cite the Authority, user instruction, repository truth,
 or accepted decisions. Reader-facing North Star language is derived from that
 source and cannot override it.
 

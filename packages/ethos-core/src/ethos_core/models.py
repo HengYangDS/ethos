@@ -23,16 +23,16 @@ CLAIM_OVERCLAIM_PHRASES = ("semantic",)
 
 
 @dataclass(frozen=True)
-class JudgmentSource:
+class Authority:
     id: str
-    authority: str
+    order_ref: str
     derived_views: tuple[str, ...] = ()
     policy_refs: tuple[str, ...] = ()
-    chain_term: str = field(default="judgment_source", init=False)
+    chain_term: str = field(default="authority", init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "id", _require_text(self.id, "id"))
-        object.__setattr__(self, "authority", _require_text(self.authority, "authority"))
+        object.__setattr__(self, "order_ref", _require_text(self.order_ref, "order_ref"))
         object.__setattr__(
             self,
             "derived_views",
@@ -47,7 +47,7 @@ class JudgmentSource:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "authority": self.authority,
+            "order_ref": self.order_ref,
             "derived_views": list(self.derived_views),
             "policy_refs": list(self.policy_refs),
         }

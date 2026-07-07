@@ -2,12 +2,12 @@
 
 ## Purpose
 
-ETHOS SHALL model repository operation through JudgmentSource, Subject,
+ETHOS SHALL model repository operation through Authority, Subject,
 Commitment, Change, Evidence, Claim, and Chronicle.
 ## Requirements
 ### Requirement: Kernel Chain
 ETHOS SHALL model repository operation through the kernel chain
-JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
+Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 The chain SHALL preserve the root text as a judgment constraint without turning
 that text into a subsystem, feature map, or low-level implementation label.
 

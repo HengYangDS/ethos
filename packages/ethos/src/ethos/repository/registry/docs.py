@@ -28,7 +28,7 @@ _MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
 GLOSSARY_TERMS = (
     "Command Plane",
-    "JudgmentSource",
+    "Authority",
     "Subject",
     "Commitment",
     "Change",

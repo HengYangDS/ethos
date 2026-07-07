@@ -108,7 +108,7 @@ def test_repository_audit_includes_authority_graph() -> None:
     assert report["authority_graph"]["ok"] is True
     assert report["authority_graph"]["required_gaps"] == []
     ids = {entry["id"] for entry in report["authority_graph"]["entries"]}
-    assert "ethos:judgment-source" in ids
+    assert "ethos:authority" in ids
     assert "ethos:product-design-contract" in ids
 
 

@@ -1,5 +1,5 @@
 ---
-subject: ethos:judgment-source
+subject: ethos:authority
 role: decision
 state: canonical
 relations:
@@ -7,7 +7,7 @@ relations:
   derived_views: README North Star
 ---
 
-# Judgment Source
+# Authority
 
 Status: canonical.
 
@@ -19,13 +19,13 @@ and [Quickstart](../start/quickstart.md).
 
 ETHOS product judgment starts from user instruction, repository truth, accepted
 governance decisions, and fresh proof. A reader-facing North Star is derived
-from this judgment source; it cannot override authority, evidence, or a current
+from this authority; it cannot override authority, evidence, or a current
 decision record.
 
-The judgment source fixes four irreducible anchors:
+The authority fixes four irreducible anchors:
 
 ```text
-JudgmentSource
+Authority
 Subject
 Change
 Chronicle

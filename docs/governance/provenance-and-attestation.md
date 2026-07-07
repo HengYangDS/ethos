@@ -11,7 +11,7 @@ relations:
 ETHOS evidence is designed to project into SLSA-style provenance and
 Sigstore-compatible signing flows.
 
-The kernel records JudgmentSource, Subject, Commitment, Change, Evidence,
+The kernel records Authority, Subject, Commitment, Change, Evidence,
 Claim, and Chronicle facts. Governance adapters may sign those facts, publish
 transparency records, or emit hosted CI artifacts. The adapter output never
 replaces the repository evidence chain.

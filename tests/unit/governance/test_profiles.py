@@ -19,7 +19,7 @@ def test_self_and_product_profiles_are_isomorphic() -> None:
     assert product["kernel_chain"] == self_profile["kernel_chain"]
     assert product["trust_lifecycle"] == self_profile["trust_lifecycle"]
     assert report["shared_kernel"]["kernel_chain"] == [
-        "JudgmentSource",
+        "Authority",
         "Subject",
         "Commitment",
         "Change",

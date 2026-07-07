@@ -38,14 +38,12 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     text = read("docs/governance/product-design-contract.md")
 
     assert "Evidence-grounded Trust for Human-Agent Operational Stewardship" in text
-    kernel_chain = (
-        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
-    )
+    kernel_chain = "Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
     assert kernel_chain in text
-    assert "North Star is a derived reader view, not the judgment source" in text
+    assert "North Star is a derived reader view, not the authority" in text
     assert "Claim binds evidence; it does not own the Change lifecycle" in text
     for principle in (
-        "Judgment-source first",
+        "Authority first",
         "Contracts before providers",
         "Git-native repository substrate",
         "Capability before surface",
@@ -329,7 +327,7 @@ def test_glossary_uses_canonical_kernel_terms() -> None:
     glossary = read("docs/reference/glossary.md")
 
     for term in (
-        "JudgmentSource",
+        "Authority",
         "Subject",
         "Commitment",
         "Change",

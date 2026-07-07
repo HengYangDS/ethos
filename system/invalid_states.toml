@@ -20,9 +20,9 @@ schema = "system/schemas/contracts/invalid_states.schema.json"
 
 [[category]]
 id = "authority_gap"
-node = "JudgmentSource"
+node = "Authority"
 question = "Is the authority for this transition declared and ranked?"
-summary = "The judgment source / authority ordering that would sanction the transition is missing, unranked, or unresolved."
+summary = "The authority order that would sanction the transition is missing, unranked, or unresolved."
 match_prefixes = [
   "authority_graph",
   "governance_rule_gap",

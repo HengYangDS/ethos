@@ -14,7 +14,7 @@ DESIGN_INTEGRITY_DOCS = (
 
 DESIGN_INTEGRITY_REQUIRED_TERMS = {
     "docs/governance/product-design-contract.md": (
-        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle",
+        "Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle",
         "not an external slogan",
         "one kernel keeps the center",
         "truth and projection remain separate",

@@ -151,7 +151,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "assistant-projection.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
-        "judgment-source.schema.json",
+        "authority.schema.json",
         "authority-graph.schema.json",
     }
 
@@ -214,15 +214,15 @@ def test_system_contract_schema_violation_blocks() -> None:
     assert any("schema_violation" in g for g in gaps)
 
 
-def test_judgment_source_does_not_own_downstream_node_duties() -> None:
-    """JudgmentSource is the authority anchor — it must NOT own lifecycle, evidence,
+def test_authority_does_not_own_downstream_node_duties() -> None:
+    """Authority is the authority-order anchor — it must NOT own lifecycle, evidence,
     or history (those belong to Change / Claim / Chronicle). Pins the head-of-chain
     boundary so it cannot silently absorb a sibling node's duty."""
     from dataclasses import fields
 
-    from ethos_core.models import JudgmentSource
+    from ethos_core.models import Authority
 
-    field_names = {f.name for f in fields(JudgmentSource)}
+    field_names = {f.name for f in fields(Authority)}
     forbidden = {
         "state",
         "lifecycle",
@@ -234,11 +234,66 @@ def test_judgment_source_does_not_own_downstream_node_duties() -> None:
         "events",
     }
     leaked = field_names & forbidden
-    assert not leaked, f"JudgmentSource must not own downstream duties: {leaked}"
+    assert not leaked, f"Authority must not own downstream duties: {leaked}"
 
 
-def test_governance_context_head_is_a_real_judgment_source_with_authority() -> None:
-    """The governed-repository context must anchor on a real JudgmentSource carrying
+def test_governance_context_uses_authority_as_only_kernel_head() -> None:
+    """The current governance truth uses Authority only.
+
+    No superseded head model, payload key, schema, or chain term remains as a
+    compatibility surface.
+    """
+    from ethos.repository.context import governance_context
+    from ethos_core import models
+    from ethos_core.kernel import KERNEL_CHAIN
+
+    context = governance_context(Path.cwd(), profile="product")
+
+    assert KERNEL_CHAIN[0] == "Authority"
+    assert context["kernel_chain"][0] == "Authority"
+    assert "authority" in context
+    assert context["authority"]["order_ref"] == "system/authority.toml"
+    assert "user_instruction" in context["authority"]["policy_refs"]
+    old_prefix = "Judgment"
+    assert not hasattr(models, f"{old_prefix}Source")
+
+
+def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
+    """The former head-node vocabulary must not re-enter current truth surfaces.
+
+    This is a drift guard, not a compatibility layer: old vocabulary can be
+    reconstructed only inside the test expression, and repository files must not
+    carry it as code, schema, payload key, filename, heading, or prose phrase.
+    """
+    import re
+
+    old_entity_pattern = re.compile(r"judg(?:e)?ment[ _-]*source", re.IGNORECASE)
+    scanned_roots = (
+        Path("packages"),
+        Path("system"),
+        Path("docs"),
+        Path("openspec"),
+        Path("evidence"),
+        Path("README.md"),
+    )
+    offenders: list[str] = []
+    for root in scanned_roots:
+        paths = root.rglob("*") if root.is_dir() else (root,)
+        for path in paths:
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if old_entity_pattern.search(path.as_posix()) or old_entity_pattern.search(text):
+                offenders.append(path.as_posix())
+
+    assert offenders == []
+
+
+def test_governance_context_head_is_a_real_authority_with_authority() -> None:
+    """The governed-repository context must anchor on a real Authority carrying
     the authority order (not an inline dict) — the chain's production constructor."""
     from ethos.repository.context import governance_context
     from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
@@ -246,10 +301,10 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     from ethos.repository.registry.commands import SCORECARD_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
-    assert context["kernel_chain"][0] == "JudgmentSource"
-    assert context["judgment_source"]["authority"] == "system/authority.toml"
+    assert context["kernel_chain"][0] == "Authority"
+    assert context["authority"]["order_ref"] == "system/authority.toml"
     # The authority order is surfaced (head-of-chain hole filled).
-    assert "user_instruction" in context["judgment_source"]["policy_refs"]
+    assert "user_instruction" in context["authority"]["policy_refs"]
     assert context["subject"]["kind"] == "repository"
     assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
     assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
@@ -268,8 +323,8 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
     from ethos_core import models
 
     forbidden_per_node = {
-        # JudgmentSource: authority anchor only — no downstream lifecycle/evidence.
-        "JudgmentSource": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
+        # Authority: authority anchor only — no downstream lifecycle/evidence.
+        "Authority": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
         # Subject: identity+scope only — no state/obligation/authority.
         "Subject": {"state", "lifecycle", "transition", "authority", "evidence_ids"},
         # Claim: verifier-capped binding — does NOT own lifecycle state or a verdict.

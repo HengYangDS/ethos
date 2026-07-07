@@ -538,7 +538,7 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
     assert context["profile"] == "product"
     assert context["single_kernel"] is True
     assert context["kernel_chain"] == [
-        "JudgmentSource",
+        "Authority",
         "Subject",
         "Commitment",
         "Change",
@@ -547,9 +547,9 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
         "Chronicle",
     ]
     # The head-of-chain nodes are real kernel models, not an inline dict — the
-    # JudgmentSource carries the authority order and the Subject is the governed repo.
-    assert context["judgment_source"]["authority"] == "system/authority.toml"
-    assert context["judgment_source"]["policy_refs"][0] == "user_instruction"
+    # Authority carries the authority order and the Subject is the governed repo.
+    assert context["authority"]["order_ref"] == "system/authority.toml"
+    assert context["authority"]["policy_refs"][0] == "user_instruction"
     assert context["subject"]["kind"] == "repository"
     assert context["subject"]["id"] == str(Path.cwd())
     assert context["shared_commands"] == [

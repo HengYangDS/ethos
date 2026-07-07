@@ -7,7 +7,7 @@ from ethos.repository.registry.commands import READER_VIEW_COMMANDS
 from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos_core.contracts.system_contracts import load_system_contract
 from ethos_core.kernel import KERNEL_CHAIN
-from ethos_core.models import JudgmentSource
+from ethos_core.models import Authority
 from ethos_core.models import Subject
 
 if TYPE_CHECKING:
@@ -33,14 +33,14 @@ def _authority_order(root: Path) -> tuple[str, ...]:
 def governance_context(root: Path, *, profile: str) -> dict[str, object]:
     """Project the governance context, anchored on real kernel-chain head nodes.
 
-    Constructs the actual JudgmentSource (authority head, loaded from
+    Constructs the actual Authority (authority-order head, loaded from
     system/authority.toml) and Subject (the governed repository) kernel models —
     ETHOS's first production constructors of the chain — rather than an inline dict
     doppelganger. The declared chain and the live payload are now one representation.
     """
-    judgment = JudgmentSource(
+    authority = Authority(
         id="repository-authority",
-        authority="system/authority.toml",
+        order_ref="system/authority.toml",
         derived_views=(profile,),
         policy_refs=_authority_order(root),
     )
@@ -53,7 +53,7 @@ def governance_context(root: Path, *, profile: str) -> dict[str, object]:
     return {
         "contract": "governed_repository",
         "profile": profile,
-        "judgment_source": judgment.to_dict(),
+        "authority": authority.to_dict(),
         "subject": subject.to_dict(),
         "single_kernel": True,
         "kernel_chain": list(KERNEL_CHAIN),

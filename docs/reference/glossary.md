@@ -21,7 +21,7 @@ and [Docs Registry](../governance/docs-registry.md).
 The public `ethos ...` command vocabulary. Other tools may execute underneath
 ETHOS, but they do not become public workflow roots.
 
-## JudgmentSource
+## Authority
 
 The authority used for product decisions: user instruction, repository truth,
 accepted decisions, authority order, and truth boundaries. North Star language

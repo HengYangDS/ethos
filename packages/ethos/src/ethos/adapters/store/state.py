@@ -239,17 +239,10 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []
     now = datetime.now(UTC)
-    with closing(sqlite3.connect(db_path)) as connection:
-        columns = _table_columns(connection, "leases")
-        if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
-            return []
-        rows = connection.execute(
-            """
-            select id, subject, owner, expires_at, payload_json
-            from leases
-            order by subject, id
-            """,
-        ).fetchall()
+    try:
+        rows = _lease_rows(db_path)
+    except sqlite3.Error:
+        return []
     leases: list[dict[str, Any]] = []
     for row in rows:
         try:
@@ -268,6 +261,29 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
             }
         )
     return leases
+
+
+def _lease_rows(db_path: Path) -> list[sqlite3.Row | tuple[Any, ...]]:
+    try:
+        with closing(sqlite3.connect(db_path)) as connection:
+            return _select_lease_rows(connection)
+    except sqlite3.Error:
+        uri = f"{db_path.resolve().as_uri()}?mode=ro&immutable=1"
+        with closing(sqlite3.connect(uri, uri=True)) as connection:
+            return _select_lease_rows(connection)
+
+
+def _select_lease_rows(connection: sqlite3.Connection) -> list[sqlite3.Row | tuple[Any, ...]]:
+    columns = _table_columns(connection, "leases")
+    if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
+        return []
+    return connection.execute(
+        """
+        select id, subject, owner, expires_at, payload_json
+        from leases
+        order by subject, id
+        """,
+    ).fetchall()
 
 
 def _table_columns(connection: sqlite3.Connection, table: str) -> set[str]:

@@ -19,7 +19,7 @@ See also: [Package Ontology](../architecture/package-ontology.md) and
 ETHOS reduces repository operation to:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
 ## Root Interpretation Boundary
@@ -31,7 +31,7 @@ repository transitions without becoming a second truth center.
 
 The kernel is compatible with the root text when it preserves these boundaries:
 
-1. `JudgmentSource` keeps authority deeper than named tools, vendors, commands,
+1. `Authority` keeps authority deeper than named tools, vendors, commands,
    models, editors, hosts, and generated projections.
 2. `Subject`, `Commitment`, and `Change` separate the governed object, its
    promises, and the lifecycle of modification without multiplying truth stores.
@@ -44,8 +44,8 @@ A future surface is valid only when it can state which kernel object it projects
 which boundary it occupies, and which evidence proves its claims. `system/axioms.md`
 provides derived engineering phrases for checks; it does not own the root text.
 
-`JudgmentSource` is the authority used for product decisions. The North Star is
-a derived reader view, not the judgment source. `Subject` scopes the governed
+`Authority` anchors product decisions. The North Star is
+a derived reader view, not the authority. `Subject` scopes the governed
 object. `Commitment` unifies contracts, specs, policies, rules, and decisions.
 `Change` carries IR, transition, and inscription — the in-flight lifecycle
 movement, and nothing already judged. `Evidence` stores proof, gate, digest, and

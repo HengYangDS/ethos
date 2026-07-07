@@ -69,10 +69,10 @@ ETHOS product truth is judged from one source and projected through one canonica
 chain:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-`JudgmentSource` is the authority for product decisions. `Subject` names the
+`Authority` anchors product decisions. `Subject` names the
 governed object. `Commitment` collects contracts, policies, specs, and decisions.
 `Change` owns the lifecycle. `Evidence` carries proof material. `Claim` binds
 evidence and does not own lifecycle state. `Chronicle` records judged history,

@@ -14,6 +14,8 @@ from ethos.adapters.store.state import list_events
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import pytest
+
 
 def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
@@ -136,3 +138,33 @@ def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     assert all(lease["subject"] != "work/feature" for lease in active_leases(db_path))
     # A recreated same-named subject starts with no inherited lease.
     assert delete_lease(db_path, subject="work/feature") == 0
+
+
+def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from datetime import UTC
+    from datetime import datetime
+    from datetime import timedelta
+
+    from ethos.adapters.store import state
+
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    lease = state.acquire_lease(db_path, subject="work/feature", owner="agent:test")
+    real_connect = sqlite3.connect
+
+    def flaky_connect(target, *args, **kwargs):
+        if target == db_path:
+            raise sqlite3.OperationalError("unable to open database file")
+        return real_connect(target, *args, **kwargs)
+
+    monkeypatch.setattr(state.sqlite3, "connect", flaky_connect)
+
+    leases = state.active_leases(db_path)
+
+    assert [item["id"] for item in leases] == [lease["id"]]
+    assert leases[0]["subject"] == "work/feature"
+    assert datetime.fromisoformat(leases[0]["expires_at"]) > datetime.now(UTC) - timedelta(
+        seconds=1
+    )

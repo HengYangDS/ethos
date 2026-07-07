@@ -95,9 +95,9 @@ def test_load_branch_role_policy_falls_back_on_non_string_value(tmp_path: Path) 
 
 def test_require_text_rejects_empty_and_whitespace_only_fields() -> None:
     with pytest.raises(ValueError, match="id must be non-empty"):
-        models.JudgmentSource(id="", authority="anthropic")
-    with pytest.raises(ValueError, match="authority must be non-empty"):
-        models.JudgmentSource(id="js:1", authority="   ")
+        models.Authority(id="", order_ref="anthropic")
+    with pytest.raises(ValueError, match="order_ref must be non-empty"):
+        models.Authority(id="authority:1", order_ref="   ")
 
 
 def test_evidence_claim_to_dict_serializes_all_fields() -> None:

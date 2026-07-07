@@ -16,8 +16,3 @@ KERNEL_CHAIN = (
     "Claim",
     "Chronicle",
 )
-
-
-def kernel_chain() -> tuple[str, ...]:
-    """Return the canonical kernel chain."""
-    return KERNEL_CHAIN

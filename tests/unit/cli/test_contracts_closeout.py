@@ -394,15 +394,18 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == ["ethos lane retire-landed --branch <work-branch>"]
-    assert payload["data"]["accepted_update"] == {
-        "ok": True,
-        "state": "accepted_validated",
-        "branch": "dev",
-        "source_branch": "candidate/dev",
-        "head": candidate_head,
-        "previous_head": accepted_head,
-        "required_gaps": [],
-    }
+    accepted_update = payload["data"]["accepted_update"]
+    assert accepted_update["ok"] is True
+    assert accepted_update["state"] == "accepted_validated"
+    assert accepted_update["branch"] == "dev"
+    assert accepted_update["source_branch"] == "candidate/dev"
+    assert accepted_update["head"] == candidate_head
+    assert accepted_update["previous_head"] == accepted_head
+    assert accepted_update["required_gaps"] == []
+    assert accepted_update["proof_carry"]["state"] == "carried"
+    assert accepted_update["proof_carry"]["source_verified"] is True
+    assert accepted_update["proof_carry"]["target_verified"] is True
+    assert accepted_update["proof_carry"]["mints_proof"] is False
     assert git(repo, "rev-parse", "dev") == candidate_head
     assert git(repo, "rev-parse", "HEAD") == candidate_head
 
@@ -915,15 +918,18 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     )
 
     assert closeout_payload["ok"] is True
-    assert closeout_payload["data"]["accepted_update"] == {
-        "ok": True,
-        "state": "accepted_validated",
-        "branch": "integration",
-        "source_branch": "stage/integration",
-        "head": work_head,
-        "previous_head": accepted_head,
-        "required_gaps": [],
-    }
+    accepted_update = closeout_payload["data"]["accepted_update"]
+    assert accepted_update["ok"] is True
+    assert accepted_update["state"] == "accepted_validated"
+    assert accepted_update["branch"] == "integration"
+    assert accepted_update["source_branch"] == "stage/integration"
+    assert accepted_update["head"] == work_head
+    assert accepted_update["previous_head"] == accepted_head
+    assert accepted_update["required_gaps"] == []
+    assert accepted_update["proof_carry"]["state"] == "carried"
+    assert accepted_update["proof_carry"]["source_verified"] is True
+    assert accepted_update["proof_carry"]["target_verified"] is True
+    assert accepted_update["proof_carry"]["same_head_only"] is True
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     retire_payload = run_ethos(

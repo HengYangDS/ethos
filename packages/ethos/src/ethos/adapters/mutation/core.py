@@ -312,7 +312,9 @@ def apply_candidate_to_accepted(
             "remediation": remediation_for_gaps(decision.gaps),
         }
     status = workspace_status(root)
-    candidate_head = str(cast("dict[str, object]", status["candidate"])["head"])
+    candidate_info = cast("dict[str, object]", status["candidate"])
+    candidate_head = str(candidate_info["head"])
+    candidate_path = Path(str(candidate_info["worktree_path"]))
     if not _is_ancestor(root, current_head, candidate_head):
         return {
             "ok": False,
@@ -397,6 +399,9 @@ def apply_candidate_to_accepted(
             "stderr": post_status.stderr.strip(),
             "status": post_status.stdout.strip(),
         }
+    proof_carry = carry_executed_proof_record(
+        source_root=candidate_path, target_root=root, head=candidate_head
+    )
     return {
         "ok": True,
         "state": "accepted_validated",
@@ -404,6 +409,7 @@ def apply_candidate_to_accepted(
         "source_branch": policy.candidate_branch,
         "head": candidate_head,
         "previous_head": current_head,
+        "proof_carry": proof_carry,
         "required_gaps": [],
     }
 

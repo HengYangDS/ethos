@@ -67,22 +67,24 @@ def _str(value: object, fallback: str) -> str:
     return value if isinstance(value, str) else fallback
 
 
+def _identity_ok(actual: str, expected: str) -> bool:
+    # With a configured expectation the value must match it; without one, any
+    # non-empty value self-certifies.
+    return actual == expected if expected else bool(actual)
+
+
 def _authorship_gaps(
     *, name: str, email: str, expected_name: str, expected_email: str
 ) -> list[str]:
     # A configured expected identity is enforced; otherwise the repo's own git
-    # identity self-certifies, and only its presence is required.
+    # identity self-certifies, and only its presence is required. Both the mismatch
+    # and the missing-identity failures reduce to the same governance gap so the
+    # kernel taxonomy classifies them under one node.
     gaps: list[str] = []
-    if expected_name:
-        if name != expected_name:
-            gaps.append("git_user_name_mismatch")
-    elif not name:
-        gaps.append("git_user_name_missing")
-    if expected_email:
-        if email != expected_email:
-            gaps.append("git_user_email_mismatch")
-    elif not email:
-        gaps.append("git_user_email_missing")
+    if not _identity_ok(name, expected_name):
+        gaps.append("git_user_name_mismatch")
+    if not _identity_ok(email, expected_email):
+        gaps.append("git_user_email_mismatch")
     return gaps
 
 

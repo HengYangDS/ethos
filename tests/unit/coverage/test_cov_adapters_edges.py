@@ -71,7 +71,8 @@ def test_signature_policy_flags_user_email_mismatch(monkeypatch: pytest.MonkeyPa
 def test_signature_policy_flags_missing_identity_when_unconfigured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # With no configured identity, an EMPTY git identity self-fails on presence only.
+    # With no configured identity, an EMPTY git identity self-fails on presence,
+    # reported through the same mismatch gaps (one governance vocabulary).
     policy = {
         "expected_name": "",
         "expected_email": "",
@@ -86,8 +87,8 @@ def test_signature_policy_flags_missing_identity_when_unconfigured(
     }
     _patch_signature(monkeypatch, policy=policy, git=git)
     assert signature.signature_policy_report()["required_gaps"] == [
-        "git_user_name_missing",
-        "git_user_email_missing",
+        "git_user_name_mismatch",
+        "git_user_email_mismatch",
     ]
 
 

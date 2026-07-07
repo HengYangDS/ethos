@@ -27,4 +27,4 @@ constraint, and less elegant through slogan-like reuse.
 - No runtime command behavior changes.
 - No new philosophical subsystem or product ontology.
 - No rewrite of archived evidence or archived OpenSpec history.
-- No renaming of kernel objects such as Authority, Evidence, Claim, or Chronicle.
+- No renaming of kernel objects such as JudgmentSource, Evidence, Claim, or Chronicle.

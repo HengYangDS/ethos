@@ -2,7 +2,7 @@
 
 ### Requirement: Kernel Chain
 ETHOS SHALL model repository operation through the kernel chain
-Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
+JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 The chain SHALL preserve the compact root philosophy as a generative constraint:
 hidden authority and small drift detection, one kernel with discriminated
 boundaries, visible and domain-fit measures, and boundary-preserving growth.

@@ -122,8 +122,7 @@ def _proof_scope_binding(scope: str) -> dict[str, object]:
         "known": known,
         "known_scopes": sorted(KNOWN_PROOF_SCOPES),
         "semantics": (
-            "proof-boundary metadata; "
-            "gate selection remains controlled by --gate/--full/profile"
+            "proof-boundary metadata; gate selection remains controlled by --gate/--full/profile"
         ),
         "required_gaps": [] if known else [f"unknown_proof_scope:{normalized}"],
     }

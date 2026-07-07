@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "039b8635a4b9fb7bca5cd13e2ad6b71b35df8f4f",
-    "target_head": "039b8635a4b9fb7bca5cd13e2ad6b71b35df8f4f",
-    "product_semantic_sha256": "b5274f21d594feafc27ada797fb49010c4e186a2dcf049397fcd4769d0e18eba",
-    "target_semantic_sha256": "b5274f21d594feafc27ada797fb49010c4e186a2dcf049397fcd4769d0e18eba",
+    "product_head": "5b662296ac2c1e49e9ba5ebcc303a3201e782ad2",
+    "target_head": "5b662296ac2c1e49e9ba5ebcc303a3201e782ad2",
+    "product_semantic_sha256": "50189c58cd0b659c4db7c00436288619f86bbecfc5aa3429f71bebe03c7eb835",
+    "target_semantic_sha256": "50189c58cd0b659c4db7c00436288619f86bbecfc5aa3429f71bebe03c7eb835",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/local-ci-md012",
-    "target_head": "039b8635a4b9fb7bca5cd13e2ad6b71b35df8f4f",
-    "product_head": "039b8635a4b9fb7bca5cd13e2ad6b71b35df8f4f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate",
+    "target_head": "5b662296ac2c1e49e9ba5ebcc303a3201e782ad2",
+    "product_head": "5b662296ac2c1e49e9ba5ebcc303a3201e782ad2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json",
-      "/Users/yheng/projects/ethos-worktrees/local-ci-md012/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/local-ci-md012 --json"
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-script-executable-gate/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-script-executable-gate --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "1e7d3a327a68863082710248bb4ee7715ea693428aa67234cf7c0b8b2a45ce2d"
+        "sha256": "416057a05d33e540185bbe4f83b1619a3f6f11e2b23942ec6cbf6a9beaf92b94"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "b5471def518a88f2e5efa5583ade25ea526fa3305734920c6031f5c58cf4ca0a"
+        "sha256": "5383f5355d4d1863b53c274872fd1957d2b7aa743069dcf5276ec2fe8c90195a"
       },
       {
         "path": "evidence/claims",

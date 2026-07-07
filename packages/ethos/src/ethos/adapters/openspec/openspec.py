@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import subprocess
 import tomllib
@@ -11,31 +10,16 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.adapters.openspec.archive import openspec_archive_closeout_report
+from ethos.adapters.openspec.proposal import proposal_protocol_report
 from ethos.repository.audit_openspec import official_config_report
 from ethos.repository.audit_openspec import protected_branch_active_change_report
-from ethos.repository.openspec_metadata import ALLOWED_OPENSPEC_METADATA_KEYS
-from ethos.repository.openspec_metadata import is_relative_to as _is_relative_to
 from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
-from ethos.repository.openspec_metadata import read_openspec_metadata as _read_openspec_metadata
 from ethos.repository.profile import profile_root
 
 __all__ = ["openspec_metadata_compatibility_report"]
 
 OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec"
-REQUIRED_PROPOSAL_METADATA = (
-    "subject",
-    "reuse",
-    "change",
-    "facet:lifecycle",
-    "facet:surface",
-    "facet:authority",
-)
-VALID_REUSE_STANCES = {"reuse", "extend", "extract", "new"}
-VALID_CHANGE_DIRECTIONS = {"add", "modify", "remove", "rename", "retire"}
-ARCHIVE_NAME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")
-CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
-DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
-REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 15
 
 
@@ -248,212 +232,6 @@ def _completed_active_changes_payload(
         },
         "required_gaps": required_gaps,
         "commands": {"list": list_result} if list_result else {},
-    }
-
-
-def openspec_archive_closeout_report(root: Path) -> dict[str, Any]:
-    archive_root = root / "openspec" / "changes" / "archive"
-    if not archive_root.is_dir():
-        return {
-            "ok": True,
-            "state": "clean",
-            "archive_root": archive_root.relative_to(root).as_posix()
-            if _is_relative_to(archive_root, root)
-            else archive_root.as_posix(),
-            "archives": [],
-            "issues": [],
-            "required_gaps": [],
-            "summary": {"archive_count": 0, "issue_count": 0},
-        }
-    archives = tuple(path for path in sorted(archive_root.iterdir()) if path.is_dir())
-    issues: list[dict[str, str]] = []
-    for archive in archives:
-        issues.extend(_archive_closeout_issues(archive, root=root))
-    required_gaps = sorted({issue["gap"] for issue in issues})
-    return {
-        "ok": not required_gaps,
-        "state": "blocked" if required_gaps else "clean",
-        "archive_root": archive_root.relative_to(root).as_posix(),
-        "archives": [path.relative_to(root).as_posix() for path in archives],
-        "issues": sorted(issues, key=lambda issue: (issue["gap"], issue["path"])),
-        "required_gaps": required_gaps,
-        "summary": {
-            "archive_count": len(archives),
-            "issue_count": len(issues),
-        },
-    }
-
-
-def _archive_closeout_issues(archive: Path, *, root: Path) -> list[dict[str, str]]:
-    name = archive.name
-    issues: list[dict[str, str]] = []
-    if not ARCHIVE_NAME_PATTERN.fullmatch(name):
-        issues.append(_archive_issue("openspec_archive_name_invalid", archive, name, root=root))
-    for filename in REQUIRED_ARCHIVE_FILES:
-        path = archive / filename
-        if not path.is_file():
-            stem = "metadata" if filename == ".openspec.yaml" else path.stem
-            issues.append(_archive_issue(f"openspec_archive_{stem}_missing", path, name, root=root))
-    metadata = archive / ".openspec.yaml"
-    if metadata.is_file():
-        issues.extend(_archive_metadata_issues(metadata, archive_name=name, root=root))
-    design = archive / "design.md"
-    if design.is_file() and not design.read_text(encoding="utf-8").strip():
-        issues.append(_archive_issue("openspec_archive_design_empty", design, name, root=root))
-    tasks = archive / "tasks.md"
-    if tasks.is_file():
-        issues.extend(_archive_task_issues(tasks, archive_name=name, root=root))
-    issues.extend(_archive_delta_issues(archive / "specs", archive_name=name, root=root))
-    return issues
-
-
-def _archive_metadata_issues(
-    path: Path,
-    *,
-    archive_name: str,
-    root: Path,
-) -> list[dict[str, str]]:
-    metadata = _read_openspec_metadata(path)
-    issues: list[dict[str, str]] = []
-    for key in sorted(set(metadata) - ALLOWED_OPENSPEC_METADATA_KEYS):
-        issues.append(
-            _archive_issue(
-                f"openspec_archive_metadata_key_unsupported:{key}",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    if metadata.get("schema") != "spec-driven":
-        issues.append(
-            _archive_issue(
-                "openspec_archive_metadata_schema_invalid",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    created = metadata.get("created", "")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", created):
-        issues.append(
-            _archive_issue(
-                "openspec_archive_metadata_created_invalid",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    elif ARCHIVE_NAME_PATTERN.fullmatch(archive_name) and created > archive_name[:10]:
-        issues.append(
-            _archive_issue(
-                "openspec_archive_metadata_created_after_archive",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    return issues
-
-
-def _archive_task_issues(
-    path: Path,
-    *,
-    archive_name: str,
-    root: Path,
-) -> list[dict[str, str]]:
-    marks = [
-        match.group(1)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if (match := CHECKBOX_PATTERN.match(line))
-    ]
-    issues: list[dict[str, str]] = []
-    if not marks:
-        issues.append(
-            _archive_issue(
-                "openspec_archive_tasks_no_checkboxes",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    if any(mark == " " for mark in marks):
-        issues.append(
-            _archive_issue(
-                "openspec_archive_tasks_incomplete",
-                path,
-                archive_name,
-                root=root,
-            )
-        )
-    return issues
-
-
-def _archive_delta_issues(
-    specs_root: Path,
-    *,
-    archive_name: str,
-    root: Path,
-) -> list[dict[str, str]]:
-    if not specs_root.is_dir():
-        return [
-            _archive_issue(
-                "openspec_archive_delta_specs_missing",
-                specs_root,
-                archive_name,
-                root=root,
-            )
-        ]
-    spec_paths = tuple(sorted(specs_root.glob("*/spec.md")))
-    if not spec_paths:
-        return [
-            _archive_issue(
-                "openspec_archive_delta_specs_missing",
-                specs_root,
-                archive_name,
-                root=root,
-            )
-        ]
-    issues: list[dict[str, str]] = []
-    for path in spec_paths:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        if not any(DELTA_HEADER_PATTERN.fullmatch(line) for line in lines):
-            issues.append(
-                _archive_issue(
-                    "openspec_archive_delta_header_missing",
-                    path,
-                    archive_name,
-                    root=root,
-                )
-            )
-        if not any(line.startswith("### Requirement:") for line in lines):
-            issues.append(
-                _archive_issue(
-                    "openspec_archive_delta_requirement_missing",
-                    path,
-                    archive_name,
-                    root=root,
-                )
-            )
-        if not any(line.startswith("#### Scenario:") for line in lines):
-            issues.append(
-                _archive_issue(
-                    "openspec_archive_delta_scenario_missing",
-                    path,
-                    archive_name,
-                    root=root,
-                )
-            )
-    return issues
-
-
-def _archive_issue(code: str, path: Path, archive_name: str, *, root: Path) -> dict[str, str]:
-    return {
-        "archive": archive_name,
-        "code": code,
-        "gap": f"{code}:{archive_name}",
-        "path": (
-            path.relative_to(root).as_posix() if _is_relative_to(path, root) else path.as_posix()
-        ),
     }
 
 
@@ -692,7 +470,7 @@ def _lifecycle_report(
                 required_gaps.append(f"openspec_{artifact}_missing:{change_name}")
         if not carriers["claim_binding"]:
             required_gaps.append(f"openspec_claim_binding_missing:{change_name}")
-        proposal_protocol = _proposal_protocol_report(root, change_name)
+        proposal_protocol = proposal_protocol_report(root, change_name)
         required_gaps.extend(proposal_protocol["required_gaps"])
         changes.append(
             {
@@ -712,114 +490,3 @@ def _lifecycle_report(
         "changes": changes,
         "protected_branch_residue": residue,
     }
-
-
-def _proposal_protocol_report(root: Path, change_name: str) -> dict[str, Any]:
-    proposal = root / "openspec" / "changes" / change_name / "proposal.md"
-    if not proposal.exists():
-        return {"ok": True, "required_gaps": [], "capabilities": [], "out_of_scope": False}
-    text = proposal.read_text(encoding="utf-8")
-    gaps: list[str] = []
-    out_of_scope = any(
-        line.strip().casefold() in {"## out of scope", "## out-of-scope"}
-        for line in text.splitlines()
-    )
-    if not out_of_scope:
-        gaps.append(f"openspec_proposal_out_of_scope_missing:{change_name}")
-    capabilities = _proposal_capability_entries(text)
-    if not capabilities:
-        gaps.append(f"openspec_proposal_capabilities_missing:{change_name}")
-    for entry in capabilities:
-        capability = entry["capability"]
-        metadata = entry["metadata"]
-        if not (root / "openspec" / "specs" / capability / "spec.md").exists():
-            gaps.append(f"openspec_proposal_capability_unknown:{change_name}:{capability}")
-        profile_gaps = _capability_profile_gaps(root, change_name, capability)
-        gaps.extend(profile_gaps)
-        for field in REQUIRED_PROPOSAL_METADATA:
-            if not metadata.get(field):
-                gaps.append(
-                    f"openspec_proposal_metadata_missing:{change_name}:{capability}:{field}"
-                )
-        reuse = metadata.get("reuse", "")
-        if reuse and reuse not in VALID_REUSE_STANCES:
-            gaps.append(f"openspec_proposal_reuse_invalid:{change_name}:{capability}:{reuse}")
-        direction = metadata.get("change", "")
-        if direction and direction not in VALID_CHANGE_DIRECTIONS:
-            gaps.append(f"openspec_proposal_change_invalid:{change_name}:{capability}:{direction}")
-    return {
-        "ok": not gaps,
-        "required_gaps": gaps,
-        "capabilities": capabilities,
-        "out_of_scope": out_of_scope,
-    }
-
-
-def _proposal_capability_entries(text: str) -> list[dict[str, Any]]:
-    entries: list[dict[str, Any]] = []
-    current: dict[str, str] | None = None
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- `") and "`:" in stripped:
-            if current:
-                entries.append(_proposal_capability_entry(current["capability"], current["raw"]))
-            capability = stripped.split("`", 2)[1]
-            current = {"capability": capability, "raw": stripped.split("`:", 1)[1]}
-            continue
-        if current and line[:1].isspace() and not stripped.startswith("- `"):
-            current["raw"] = f"{current['raw']} {stripped}"
-            continue
-        if current and stripped.startswith("- "):
-            entries.append(_proposal_capability_entry(current["capability"], current["raw"]))
-            current = None
-    if current:
-        entries.append(_proposal_capability_entry(current["capability"], current["raw"]))
-    return entries
-
-
-def _proposal_capability_entry(capability: str, raw: str) -> dict[str, Any]:
-    metadata: dict[str, str] = {}
-    for part in raw.split(";"):
-        if "=" not in part:
-            continue
-        key, value = part.split("=", 1)
-        metadata[key.strip()] = value.strip().strip("`")
-    return {"capability": capability, "metadata": metadata}
-
-
-def _capability_profile_gaps(root: Path, change_name: str, capability: str) -> list[str]:
-    profile_path = root / "openspec" / "specs" / capability / "capability.toml"
-    if not profile_path.exists():
-        return [f"openspec_capability_profile_missing:{change_name}:{capability}"]
-    try:
-        payload = tomllib.loads(profile_path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError:
-        return [f"openspec_capability_profile_invalid:{change_name}:{capability}"]
-    gaps: list[str] = []
-    for field in ("family", "primary_invariant", "routing_question"):
-        if not payload.get(field):
-            gaps.append(
-                f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}"
-            )
-    for field in ("decision_axes", "recommended_facets"):
-        if not payload.get(field):
-            gaps.append(
-                f"openspec_capability_profile_field_missing:{change_name}:{capability}:{field}"
-            )
-    if not payload.get("boundary_rules"):
-        gaps.append(
-            f"openspec_capability_profile_field_missing:{change_name}:{capability}:boundary_rules"
-        )
-    owner = payload.get("owner", {})
-    for field in ("package", "scope"):
-        if not owner.get(field):
-            gaps.append(
-                f"openspec_capability_profile_field_missing:{change_name}:{capability}:owner.{field}"
-            )
-    proof = payload.get("proof_profile", {})
-    for field in ("default_command", "executed_command", "required_gates"):
-        if not proof.get(field):
-            gaps.append(
-                f"openspec_capability_profile_field_missing:{change_name}:{capability}:proof_profile.{field}"
-            )
-    return gaps

@@ -4,7 +4,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos.adapters import openspec
+from ethos.adapters.openspec import openspec
 from ethos.repository.policy.schema import validate_schema_instance
 
 ROOT = Path(__file__).resolve().parents[3]

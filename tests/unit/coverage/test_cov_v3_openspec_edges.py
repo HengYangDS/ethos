@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters import openspec
+from ethos.adapters.openspec import archive as archive_mod
+from ethos.adapters.openspec import openspec
+from ethos.adapters.openspec import proposal
 from ethos.repository import audit_openspec
 from ethos.repository import openspec_metadata
 from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT
@@ -51,7 +53,9 @@ def test_archive_closeout_issues_skips_task_issues_without_tasks_file(tmp_path: 
     # delta-issue extension (branch 287->289).
     archive = tmp_path / "2026-01-01-sample"
     archive.mkdir()
-    codes = {issue["code"] for issue in openspec._archive_closeout_issues(archive, root=tmp_path)}
+    codes = {
+        issue["code"] for issue in archive_mod._archive_closeout_issues(archive, root=tmp_path)
+    }
     assert "openspec_archive_tasks_missing" in codes
     assert "openspec_archive_tasks_no_checkboxes" not in codes
     assert "openspec_archive_delta_specs_missing" in codes
@@ -61,7 +65,9 @@ def test_archive_delta_issues_specs_dir_without_spec_files(tmp_path: Path) -> No
     # A present-but-empty specs directory yields the delta-specs-missing gap (line 391).
     specs_root = tmp_path / "specs"
     specs_root.mkdir()
-    issues = openspec._archive_delta_issues(specs_root, archive_name="2026-01-01-x", root=tmp_path)
+    issues = archive_mod._archive_delta_issues(
+        specs_root, archive_name="2026-01-01-x", root=tmp_path
+    )
     assert [issue["code"] for issue in issues] == ["openspec_archive_delta_specs_missing"]
 
 
@@ -100,13 +106,13 @@ def test_lifecycle_report_non_list_changes_yields_no_change_names(tmp_path: Path
 def test_proposal_capability_entries_flushes_previous_capability() -> None:
     # A second capability line flushes the in-progress capability first (line 723).
     text = "- `cap-one`: subject=a; reuse=new\n- `cap-two`: subject=b; reuse=extend\n"
-    entries = openspec._proposal_capability_entries(text)
+    entries = proposal._proposal_capability_entries(text)
     assert [entry["capability"] for entry in entries] == ["cap-one", "cap-two"]
 
 
 def test_proposal_capability_entry_skips_part_without_equals() -> None:
     # A metadata part lacking `=` is skipped (line 742).
-    entry = openspec._proposal_capability_entry("cap", "subject=a; noequals; reuse=new")
+    entry = proposal._proposal_capability_entry("cap", "subject=a; noequals; reuse=new")
     assert entry["metadata"] == {"subject": "a", "reuse": "new"}
 
 

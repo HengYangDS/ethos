@@ -13,10 +13,10 @@ from ethos.adapters.mutation.core import candidate_base_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.proof import record_executed_proof
-from ethos.adapters.openspec import (
+from ethos.adapters.openspec.openspec import (
     completed_active_changes_report as openspec_completed_active_changes_report,
 )
-from ethos.adapters.openspec import openspec_governance_report
+from ethos.adapters.openspec.openspec import openspec_governance_report
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import initialize_state

@@ -9,7 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters import openspec
+from ethos.adapters.openspec import archive as archive_mod
+from ethos.adapters.openspec import openspec
+from ethos.adapters.openspec import proposal as proposal_mod
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.registry import docs as docs_registry
 from ethos.surface.cli import _base
@@ -141,7 +143,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         "schema: other\ncreated: 9999-99-99\n", encoding="utf-8"
     )
     (archive / "specs" / "cap" / "spec.md").write_text("No delta\n", encoding="utf-8")
-    report = openspec.openspec_archive_closeout_report(tmp_path)
+    report = archive_mod.openspec_archive_closeout_report(tmp_path)
     gaps = set(report["required_gaps"])
     assert "openspec_archive_name_invalid:bad_name" in gaps
     assert "openspec_archive_metadata_schema_invalid:bad_name" in gaps
@@ -151,18 +153,18 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     assert "openspec_archive_delta_requirement_missing:bad_name" in gaps
     assert "openspec_archive_delta_scenario_missing:bad_name" in gaps
     assert (
-        openspec._archive_delta_issues(tmp_path / "missing-specs", archive_name="a", root=tmp_path)[
-            0
-        ]["gap"]
+        archive_mod._archive_delta_issues(
+            tmp_path / "missing-specs", archive_name="a", root=tmp_path
+        )[0]["gap"]
         == "openspec_archive_delta_specs_missing:a"
     )
 
     assert openspec._completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
-    assert openspec._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
-    assert openspec._is_relative_to(tmp_path / "x", tmp_path) is True
-    assert openspec._is_relative_to(tmp_path.parent, tmp_path) is False
+    assert archive_mod._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
+    assert archive_mod._is_relative_to(tmp_path / "x", tmp_path) is True
+    assert archive_mod._is_relative_to(tmp_path.parent, tmp_path) is False
 
     change_root = tmp_path / "openspec" / "changes" / "c1"
     (change_root / "specs").mkdir(parents=True)
@@ -187,7 +189,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     spec.mkdir(parents=True)
     (spec / "spec.md").write_text("spec", encoding="utf-8")
     (spec / "capability.toml").write_text("[bad\n", encoding="utf-8")
-    assert openspec._capability_profile_gaps(tmp_path, "c1", "cap") == [
+    assert proposal_mod._capability_profile_gaps(tmp_path, "c1", "cap") == [
         "openspec_capability_profile_invalid:c1:cap"
     ]
 

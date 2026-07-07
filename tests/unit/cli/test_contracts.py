@@ -788,7 +788,7 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos.adapters import openspec
+    from ethos.adapters.openspec import openspec
 
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)

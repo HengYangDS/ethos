@@ -3,7 +3,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path  # noqa: TC003
 
-from ethos.adapters import openspec
+from ethos.adapters.openspec import archive as archive_mod
+from ethos.adapters.openspec import openspec
+from ethos.adapters.openspec import proposal as proposal_mod
 
 
 def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, monkeypatch) -> None:
@@ -129,7 +131,7 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
     (archive / "design.md").write_text("   \n", encoding="utf-8")
     (archive / "tasks.md").write_text("No checkboxes here\n", encoding="utf-8")
 
-    report = openspec.openspec_archive_closeout_report(root)
+    report = archive_mod.openspec_archive_closeout_report(root)
 
     assert report["ok"] is False
     gaps = set(report["required_gaps"])
@@ -183,7 +185,7 @@ def test_archive_metadata_created_after_archive_and_delta_detail_gaps(tmp_path: 
     (archive / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
     spec.write_text("# Missing OpenSpec delta markers\n", encoding="utf-8")
 
-    report = openspec.openspec_archive_closeout_report(root)
+    report = archive_mod.openspec_archive_closeout_report(root)
     gaps = set(report["required_gaps"])
 
     assert "openspec_archive_metadata_created_after_archive:2026-07-01-sample" in gaps
@@ -219,7 +221,7 @@ def test_proposal_protocol_accepts_multiline_metadata_and_reports_profile_fields
         encoding="utf-8",
     )
 
-    report = openspec._proposal_protocol_report(root, "sample-change")
+    report = proposal_mod.proposal_protocol_report(root, "sample-change")
 
     assert report["out_of_scope"] is True
     assert report["capabilities"][0]["metadata"]["facet:surface"] == "openspec"

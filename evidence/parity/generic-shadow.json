@@ -2,13 +2,13 @@
   "schema_version": 1,
   "adopter": "generic",
   "target": "<repo>",
-  "generated_on": "2026-07-07",
+  "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
-    "target_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
-    "product_semantic_sha256": "025dcb12f6fa6dacf41556f15b2f8224b5b3a1cfc6d6c702bca4ec4188d36588",
-    "target_semantic_sha256": "025dcb12f6fa6dacf41556f15b2f8224b5b3a1cfc6d6c702bca4ec4188d36588",
+    "product_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
+    "target_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
+    "product_semantic_sha256": "633dee9834bedb51fc33786993d7d753f66fb8f37a7bc02332e2148f9ebed331",
+    "target_semantic_sha256": "633dee9834bedb51fc33786993d7d753f66fb8f37a7bc02332e2148f9ebed331",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/local-ci-cli-format",
-    "target_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
-    "product_head": "31a1391036891310e34ba2ced1c155c8e7da8fc0",
+    "target_root": "/private/tmp/ethos-decomp-openspec",
+    "target_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
+    "product_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/local-ci-cli-format --json"
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-decomp-openspec --json",
+      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-decomp-openspec --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f83a51f0739a6a6f62b402f93f56a96b412b64dd95cc5b5e2b144754f896964e"
+        "sha256": "205d724c3c93ed0cd1639bf7802542ac3362c93b66d82a1246e3e156f73c0634"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "eef58b4a025eaa0f15f60ad59dccf2ae8bb0a005f6a84af908d331b85d7a694c"
+        "sha256": "5c2f8e2581a7656129e0c60156744042683bfb03ca64772359b3a5a607263e97"
       },
       {
         "path": "openspec",

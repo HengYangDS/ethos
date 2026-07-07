@@ -16,7 +16,7 @@ kind = "test"
 ref = "tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory"
 
 [[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/openspec.py"
+path = "packages/ethos/src/ethos/adapters/openspec/openspec.py"
 
 [[promotion_targets]]
 path = "packages/ethos/src/ethos/repository/audit_openspec.py"

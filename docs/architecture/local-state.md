@@ -33,7 +33,6 @@ replace Git history, OpenSpec records, claims, or evidence. Current prewrite and
 apply-mode admission are enforced by checkout role, editor-root binding, and
 HEAD checks; lease ownership enforcement is a later lifecycle extension.
 
-
 ## Adopted Repository Control Roots
 
 When external ETHOS inspects an adopted repository from a linked Work Lane, the

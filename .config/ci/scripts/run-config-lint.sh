@@ -92,10 +92,15 @@ raise SystemExit(1 if failed else 0)
 PY
 
 if ((${#toml_files[@]})); then
-  uv run --no-project --with taplo taplo format --check \
+  # taplo publishes no linux-aarch64 wheel, so `uv run --with taplo` builds a broken
+  # Rust sdist on the ARM runner. install-taplo.sh provides a prebuilt binary (or the
+  # dev's on-PATH taplo) so format/lint run the same everywhere.
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "${script_dir}/install-taplo.sh"
+  taplo format --check \
     --config .config/checks/taplo/taplo.toml \
     "${toml_files[@]}"
-  uv run --no-project --with taplo taplo lint \
+  taplo lint \
     --config .config/checks/taplo/taplo.toml \
     --no-schema \
     "${toml_files[@]}"

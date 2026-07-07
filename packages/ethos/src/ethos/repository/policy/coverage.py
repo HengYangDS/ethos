@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import configparser
 import tomllib
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+import defusedxml.ElementTree as DefusedET
+from defusedxml.ElementTree import ParseError
 
 COVERAGE_CONFIG_DIR = Path(".config/checks/coverage")
 COVERAGE_EVIDENCE_DIR = Path("build/evidence/quality/tests/coverage")
@@ -94,8 +96,8 @@ def _load_artifact(path: Path) -> tuple[dict[str, Any], list[str]]:
             "present": False,
         }, [f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}"]
     try:
-        root = ET.parse(path).getroot()
-    except ET.ParseError:
+        root = DefusedET.parse(path).getroot()
+    except ParseError:
         return {
             "path": ARTIFACT_PATH.as_posix(),
             "present": True,

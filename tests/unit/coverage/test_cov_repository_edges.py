@@ -21,12 +21,7 @@ from ethos.repository.profile import table_version
 def test_read_openspec_metadata_skips_blank_and_comment_lines(tmp_path: Path) -> None:
     path = tmp_path / ".openspec.yaml"
     path.write_text(
-        "# a comment line\n"
-        "\n"
-        "   \n"
-        "schema: spec-driven\n"
-        "  # indented comment\n"
-        "status: active\n",
+        "# a comment line\n\n   \nschema: spec-driven\n  # indented comment\nstatus: active\n",
         encoding="utf-8",
     )
 
@@ -153,9 +148,7 @@ def test_schema_validation_report_records_malformed_schema(
     kernel.mkdir(parents=True)
     (kernel / "broken.schema.json").write_text("{not valid json", encoding="utf-8")
     monkeypatch.setattr(policy_schema, "_effective_schema_dir", lambda root: kernel)
-    monkeypatch.setattr(
-        policy_schema, "_instance_validation_report", lambda root, *, mode: {}
-    )
+    monkeypatch.setattr(policy_schema, "_instance_validation_report", lambda root, *, mode: {})
     report = policy_schema.schema_validation_report(tmp_path)
     assert report["ok"] is False
     assert any(gap.startswith("broken.schema.json:") for gap in report["required_gaps"])
@@ -174,8 +167,7 @@ def test_live_skill_package_manifest_malformed_toml(tmp_path: Path) -> None:
     manifests = result["live-skill-package-manifests"]
     assert manifests["ok"] is False
     assert any(
-        gap.startswith(".agents/skills/demo/package.toml:")
-        for gap in manifests["required_gaps"]
+        gap.startswith(".agents/skills/demo/package.toml:") for gap in manifests["required_gaps"]
     )
 
 

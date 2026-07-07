@@ -122,12 +122,12 @@ def _active_change_names_in_ref(root: Path, ref: str) -> list[str]:
 
 
 def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
-    """Block active OpenSpec carriers on accepted and candidate roles.
+    """Block active OpenSpec carriers on candidate, accepted-root, and release-root roles.
 
     Active changes are legal authoring carriers in Work Lanes. Once a change is
-    promoted to candidate or accepted-root truth, any remaining active carrier is
-    stale state and must be archived so current truth lives in source, specs,
-    claims, evidence, and chronicle rather than in `openspec/changes/<id>`.
+    promoted to candidate, accepted-root, or release-root truth, any remaining active
+    carrier is stale state and must be archived so current truth lives in source,
+    specs, claims, evidence, and chronicle rather than in `openspec/changes/<id>`.
     """
     if role not in {ROLE_RELEASE_ROOT, ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE}:
         return []

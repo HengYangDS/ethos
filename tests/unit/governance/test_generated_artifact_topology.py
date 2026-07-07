@@ -63,6 +63,24 @@ def test_path_policy_treats_package_locks_as_metadata_not_generated_drift() -> N
     assert pyproject["generated"] is False
 
 
+def test_generated_artifact_report_allows_source_owned_json_schemas(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    schema = repo / "packages" / "sample" / "schemas" / "contract.schema.json"
+    schema.parent.mkdir(parents=True)
+    schema.write_text(
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}\n',
+        encoding="utf-8",
+    )
+    _git(repo, "add", "packages/sample/schemas/contract.schema.json")
+    _git(repo, "commit", "-m", "add source-owned schema contract")
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+
+
 def test_generated_artifact_report_blocks_root_generated_output(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)

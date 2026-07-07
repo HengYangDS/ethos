@@ -38,6 +38,7 @@ SOURCE_METADATA_FILENAMES = frozenset(
         "uv.lock",
     }
 )
+SOURCE_SCHEMA_SUFFIX = ".schema.json"
 DECLARATIVE_PREFIXES = frozenset({".config/ethos/"})
 
 PRODUCT_ADOPTER_ROOT_PREFIXES = frozenset(
@@ -130,6 +131,8 @@ def is_generated_artifact_path(path: Path | str) -> bool:
     rel = normalize_artifact_path(path)
     name = rel.rsplit("/", maxsplit=1)[-1]
     if name in SOURCE_METADATA_FILENAMES:
+        return False
+    if name.endswith(SOURCE_SCHEMA_SUFFIX):
         return False
     suffix = Path(name).suffix
     return name in GENERATED_FILENAMES or suffix in GENERATED_SUFFIXES

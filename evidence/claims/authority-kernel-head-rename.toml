@@ -1,0 +1,55 @@
+[claim]
+id = "authority-kernel-head-rename"
+subject = "ethos:authority-kernel-head"
+state = "active"
+summary = "ETHOS current kernel truth names the authority head Authority, preserves historical vocabulary as history, blocks protected-root projection scratch residue, and hardens lease visibility fallback."
+
+[evidence]
+dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
+sha256 = "5fbbf482ffd2a0fa2fbdc84826d7607423a9adf576acf2ec4b9720276c92b109"
+evidence_ids = ["evidence:authority-kernel-head-rename"]
+binding = "semantic authority-kernel-head recovery evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/kernel/test_contracts.py tests/unit/kernel/test_invalid_states.py tests/unit/governance/test_validation_gates.py tests/unit/governance/test_authority_graph.py tests/unit/lanes/test_state.py tests/architecture/test_product_design_contract.py -q",
+  "uv run --all-packages ethos quality claims --json",
+  "uv run --all-packages ethos openspec --lifecycle --json",
+]
+
+[boundary]
+owner = "ethos-core"
+scope = "Authority kernel head rename, protected-root projection pollution guard, and lease read fallback"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-authority-kernel-head-rename"
+fallback = "Keep current truth on Authority while allowing historical records to preserve prior vocabulary."
+kill_signal = "Current code, schema, docs, live OpenSpec specs, or README reintroduce JudgmentSource as a supported truth surface, or protected-root scratch projection paths are allowed as product truth."
+
+[promotion]
+targets = [
+  "README.md",
+  "docs/governance/authority.md",
+  "docs/governance/product-design-contract.md",
+  "docs/concepts/kernel-model.md",
+  "openspec/specs/kernel/spec.md",
+  "packages/ethos-core/src/ethos_core/kernel.py",
+  "packages/ethos-core/src/ethos_core/models.py",
+  "packages/ethos/src/ethos/repository/context.py",
+  "packages/ethos/src/ethos/repository/audit_design.py",
+  "packages/ethos/src/ethos/adapters/store/state.py",
+  "system/schemas/kernel/authority.schema.json",
+  "system/invalid_states.toml",
+  "tests/unit/kernel/test_contracts.py",
+  "tests/unit/kernel/test_invalid_states.py",
+  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/test_authority_graph.py",
+  "tests/unit/lanes/test_state.py",
+  "tests/architecture/test_product_design_contract.py",
+  "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/proposal.md",
+  "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/design.md",
+  "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/tasks.md",
+  "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/specs/kernel/spec.md",
+  "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/specs/repository-governance/spec.md",
+  "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md",
+  "evidence/claims/authority-kernel-head-rename.toml",
+]

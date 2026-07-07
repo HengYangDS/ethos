@@ -9,7 +9,25 @@ if TYPE_CHECKING:
 
 
 def _openspec_config(root: Path) -> str:
-    return f"project: {root.name}\nversion: 1\n"
+    return f"""schema: spec-driven
+context: |
+  {root.name} uses OpenSpec as the official specification-change surface.
+  Source, tests, schemas, claims, and evidence remain the proof carriers for
+  accepted behavior.
+rules:
+  proposal:
+    - Explain the problem, intended change, and explicit out-of-scope boundary.
+    - Name affected capabilities and include routing metadata.
+  specs:
+    - Use ADDED, MODIFIED, REMOVED, or RENAMED Requirements sections.
+    - Include at least one Scenario with WHEN and THEN clauses for each
+      requirement.
+  tasks:
+    - Track implementation, tests, documentation, and closeout evidence as
+      checkable items.
+  design:
+    - Record architecture, tradeoffs, authority boundaries, and migration risks.
+"""
 
 
 def _openspec_readme() -> str:

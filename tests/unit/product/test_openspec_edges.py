@@ -17,7 +17,7 @@ def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, m
     def fake_run(command, **kwargs):  # type: ignore[no-untyped-def]
         calls.append(tuple(command))
         assert kwargs["cwd"] == tmp_path
-        assert kwargs["timeout"] == 120
+        assert kwargs["timeout"] == openspec.OPENSPEC_COMMAND_TIMEOUT_SECONDS
         return Completed()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -32,6 +32,38 @@ def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, m
     Completed.stdout = "not-json"
     result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
     assert "Expecting value" in result["parse_error"]
+
+
+def test_run_json_returns_deterministic_timeout_payload(tmp_path: Path, monkeypatch) -> None:
+    def fake_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        raise subprocess.TimeoutExpired(cmd=["openspec", "doctor"], timeout=15)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+
+    assert result["exit_code"] == 124
+    assert result["json"] == {}
+    assert result["parse_error"] == "openspec_command_timeout"
+    assert "timed out" in result["stderr"]
+
+
+def test_run_json_preserves_timeout_stderr_payload(tmp_path: Path, monkeypatch) -> None:
+    def fake_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        raise subprocess.TimeoutExpired(
+            cmd=["openspec", "doctor"],
+            timeout=15,
+            output="partial stdout",
+            stderr="partial stderr",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = openspec._run_json(tmp_path, ("openspec",), ("doctor", "--json"))
+
+    assert result["stdout"] == "partial stdout"
+    assert result["stderr"] == "partial stderr"
+    assert result["parse_error"] == "openspec_command_timeout"
 
 
 def test_selection_and_validation_helper_edge_cases() -> None:
@@ -209,12 +241,60 @@ def test_proposal_protocol_accepts_multiline_metadata_and_reports_profile_fields
     )
 
 
+def test_openspec_governance_report_short_circuits_after_doctor_timeout(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "repo"
+    (root / "openspec" / "specs").mkdir(parents=True)
+    (root / "openspec" / "config.yaml").write_text(
+        "schema: spec-driven\n"
+        "context: sample\n"
+        "rules:\n"
+        "  proposal:\n"
+        "    - explain\n"
+        "  specs:\n"
+        "    - scenario\n"
+        "  tasks:\n"
+        "    - checklist\n"
+        "  design:\n"
+        "    - tradeoffs\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run_json(_root, _base_command, args):  # type: ignore[no-untyped-def]
+        calls.append(tuple(args))
+        return {
+            "command": ["openspec", *args],
+            "exit_code": 124,
+            "stdout": "",
+            "stderr": "timeout",
+            "json": {},
+            "parse_error": "openspec_command_timeout",
+        }
+
+    monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+
+    report = openspec.openspec_governance_report(root)
+
+    assert calls == [("doctor", "--json")]
+    assert report["official_config"]["ok"] is True
+    assert report["required_gaps"] == [
+        "openspec_doctor_unhealthy",
+        "openspec_doctor_json_parse_failed",
+    ]
+
+
 def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
     tmp_path: Path, monkeypatch
 ) -> None:
     root = tmp_path / "repo"
     (root / "openspec" / "specs").mkdir(parents=True)
-    (root / "openspec" / "config.yaml").write_text("project: sample\n", encoding="utf-8")
+    (root / "openspec" / "config.yaml").write_text(
+        "schema: spec-driven\ncontext: sample\nrules:\n  proposal:\n    - explain\n  specs:\n    - scenario\n  tasks:\n    - checklist\n  design:\n    - tradeoffs\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(openspec, "_openspec_base_command", lambda: ("openspec",))
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.repository.audit_openspec import official_config_report
 from ethos.repository.audit_openspec import protected_branch_active_change_report
 from ethos.repository.openspec_metadata import ALLOWED_OPENSPEC_METADATA_KEYS
 from ethos.repository.openspec_metadata import is_relative_to as _is_relative_to
@@ -35,6 +36,7 @@ ARCHIVE_NAME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$
 CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
 DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
 REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
+OPENSPEC_COMMAND_TIMEOUT_SECONDS = 15
 
 
 def _current_branch(root: Path) -> str:
@@ -64,14 +66,29 @@ def _run_json(
     args: tuple[str, ...],
 ) -> dict[str, Any]:
     command = (*base_command, *args)
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=120,
-    )
+    timeout_seconds = OPENSPEC_COMMAND_TIMEOUT_SECONDS
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout if isinstance(exc.stdout, str) else ""
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        if not stderr:
+            stderr = f"openspec command timed out after {timeout_seconds} seconds"
+        return {
+            "command": list(command),
+            "exit_code": 124,
+            "stdout": stdout,
+            "stderr": stderr,
+            "json": {},
+            "parse_error": "openspec_command_timeout",
+        }
     payload: dict[str, Any] = {}
     parse_error = ""
     if completed.stdout.strip():
@@ -478,8 +495,8 @@ def _openspec_governance_report(
     required_gaps: list[str] = []
     if not openspec_root.exists():
         required_gaps.append("openspec_directory_missing")
-    if not (openspec_root / "config.yaml").exists():
-        required_gaps.append("openspec_config_missing")
+    official_config = official_config_report(root)
+    required_gaps.extend(cast("list[str]", official_config["required_gaps"]))
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
 
@@ -495,6 +512,7 @@ def _openspec_governance_report(
         required_gaps.append("openspec_official_cli_missing")
         return {
             "ok": False,
+            "official_config": official_config,
             "official_cli": {
                 "package": OFFICIAL_NPX_PACKAGE,
                 "available": False,
@@ -514,6 +532,28 @@ def _openspec_governance_report(
         }
 
     doctor = _run_json(root, base_command, ("doctor", "--json"))
+    if doctor["parse_error"] == "openspec_command_timeout":
+        required_gaps.extend(["openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"])
+        return {
+            "ok": False,
+            "official_config": official_config,
+            "official_cli": {
+                "package": OFFICIAL_NPX_PACKAGE,
+                "available": True,
+                "base_command": list(base_command),
+            },
+            "change": change,
+            "schema_name": "",
+            "summary": {},
+            "required_gaps": required_gaps,
+            "advisory_gaps": advisory_gaps,
+            "lifecycle": {
+                "enabled": lifecycle,
+                "changes": [],
+                "protected_branch_residue": protected_branch_residue,
+            },
+            "commands": {"doctor": doctor, "list": {}, "status": {}, "validate": {}},
+        }
     list_result = _run_json(root, base_command, ("list", "--json"))
     selected_change = _selected_change(list_result["json"], change)
     status = (
@@ -549,6 +589,7 @@ def _openspec_governance_report(
 
     return {
         "ok": not required_gaps,
+        "official_config": official_config,
         "official_cli": {
             "package": OFFICIAL_NPX_PACKAGE,
             "available": True,

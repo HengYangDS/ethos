@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 import subprocess
 from typing import TYPE_CHECKING
+from typing import cast
+
+import yaml
 
 from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -14,6 +17,54 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
+
+
+def _load_official_config(path: Path) -> dict[str, object]:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return cast("dict[str, object]", payload) if isinstance(payload, dict) else {}
+
+
+def official_config_report(root: Path) -> dict[str, object]:
+    """Validate `openspec/config.yaml` against the official OpenSpec shape."""
+    path = root / "openspec" / "config.yaml"
+    if not path.exists():
+        return {
+            "ok": False,
+            "path": path.as_posix(),
+            "required_gaps": ["openspec_config_missing"],
+        }
+    try:
+        payload = _load_official_config(path)
+    except yaml.YAMLError as exc:
+        return {
+            "ok": False,
+            "path": path.as_posix(),
+            "required_gaps": [f"openspec_config_invalid:{exc.__class__.__name__}"],
+        }
+    gaps: list[str] = []
+    if not payload:
+        gaps.append("openspec_config_not_mapping")
+        payload = {}
+    if payload.get("schema") != "spec-driven":
+        gaps.append("openspec_config_schema_missing")
+    context = payload.get("context")
+    if not isinstance(context, str) or not context.strip():
+        gaps.append("openspec_config_context_missing")
+    rules = payload.get("rules")
+    if not isinstance(rules, dict):
+        gaps.append("openspec_config_rules_missing")
+        rules = {}
+    for artifact in ("proposal", "specs", "tasks", "design"):
+        values = rules.get(artifact)
+        if not isinstance(values, list) or not all(
+            isinstance(item, str) and item.strip() for item in values
+        ):
+            gaps.append(f"openspec_config_rule_missing:{artifact}")
+    gaps.extend(
+        f"openspec_config_legacy_key:{key}"
+        for key in sorted(key for key in ("project", "version") if key in payload)
+    )
+    return {"ok": not gaps, "path": path.as_posix(), "required_gaps": gaps}
 
 
 def _active_change_names(openspec_root: Path) -> list[str]:
@@ -78,7 +129,7 @@ def protected_branch_active_change_required_gaps(
     blocked_roles = roles or {ROLE_RELEASE_ROOT}
     report = protected_branch_active_change_report(root, current_branch=current_branch)
     gaps: list[str] = []
-    for record in report["records"]:
+    for record in cast("list[object]", report["records"]):
         if not isinstance(record, dict):
             continue
         if str(record.get("role") or "") in blocked_roles:
@@ -216,8 +267,8 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
     required_gaps = []
     if not openspec_root.exists():
         required_gaps.append("openspec_directory_missing")
-    if not (openspec_root / "config.yaml").exists():
-        required_gaps.append("openspec_config_missing")
+    official_config = official_config_report(root)
+    required_gaps.extend(cast("list[str]", official_config["required_gaps"]))
     if not (openspec_root / "specs").exists():
         required_gaps.append("openspec_specs_missing")
     current_branch = _current_branch(root)
@@ -236,6 +287,7 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
     return {
         "ok": not required_gaps,
         "mode": "shape",
+        "official_config": official_config,
         "metadata_compatibility": metadata_compatibility,
         "protected_branch_residue": protected_branch_residue,
         "advisory_gaps": protected_branch_residue["advisory_gaps"],

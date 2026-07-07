@@ -10,6 +10,21 @@ from ethos.repository.policy.schema import validate_schema_instance
 ROOT = Path(__file__).resolve().parents[3]
 
 
+OFFICIAL_OPENSPEC_CONFIG = (
+    "schema: spec-driven\n"
+    "context: sample\n"
+    "rules:\n"
+    "  proposal:\n"
+    "    - explain\n"
+    "  specs:\n"
+    "    - scenario\n"
+    "  tasks:\n"
+    "    - checklist\n"
+    "  design:\n"
+    "    - tradeoffs\n"
+)
+
+
 def test_openspec_product_substrate_files_exist() -> None:
     required = [
         "openspec/README.md",
@@ -66,10 +81,7 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             ),
             encoding="utf-8",
         )
-    (root / "openspec" / "config.yaml").write_text(
-        "project: sample\nversion: 1\n",
-        encoding="utf-8",
-    )
+    (root / "openspec" / "config.yaml").write_text(OFFICIAL_OPENSPEC_CONFIG, encoding="utf-8")
     for change, capability in (
         ("change-one", "repository-governance"),
         ("change-two", "contracts"),
@@ -173,7 +185,7 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
     root = tmp_path / "repo"
     (root / "openspec" / "specs").mkdir(parents=True)
     (root / "openspec" / "changes").mkdir(parents=True)
-    (root / "openspec" / "config.yaml").write_text("project: sample\n", encoding="utf-8")
+    (root / "openspec" / "config.yaml").write_text(OFFICIAL_OPENSPEC_CONFIG, encoding="utf-8")
     subprocess.run(["git", "init", "-b", "dev"], cwd=root, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "ethos@example.test"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "ETHOS Test"], cwd=root, check=True)

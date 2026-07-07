@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
-    "target_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
-    "product_semantic_sha256": "5ecadcd2ec08053e5904f830bfa4ccd6195146de6b2d512323d52d3fcb19d9fe",
-    "target_semantic_sha256": "5ecadcd2ec08053e5904f830bfa4ccd6195146de6b2d512323d52d3fcb19d9fe",
+    "product_head": "d6a1ec0dd53fe49d9a2d0990f7304b809268804d",
+    "target_head": "d6a1ec0dd53fe49d9a2d0990f7304b809268804d",
+    "product_semantic_sha256": "f7ba7e1df57b4abfb6fb0afbda9ee18311a5dcc673f38d1e9ffe1f04c80befcc",
+    "target_semantic_sha256": "f7ba7e1df57b4abfb6fb0afbda9ee18311a5dcc673f38d1e9ffe1f04c80befcc",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,9 +36,11 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/generated-artifact-topology-rebuild",
-    "target_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
-    "product_head": "a8e1a0341de102a8a8b2a96d53e23051e630f02d",
-    "changed_paths": [],
+    "target_head": "d6a1ec0dd53fe49d9a2d0990f7304b809268804d",
+    "product_head": "d6a1ec0dd53fe49d9a2d0990f7304b809268804d",
+    "changed_paths": [
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -81,7 +83,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a19c1cc2d6ed683361ad9b8ccb84e9106dd4daa03365d1e0503533a181617f81"
+        "sha256": "4478bb6d48f5f86857855e30ce811d9b201ce2f297b2ec396fe779e6a773b8fa"
       },
       {
         "path": "evidence/claims",

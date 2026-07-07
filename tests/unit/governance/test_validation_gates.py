@@ -915,9 +915,7 @@ def test_repository_audit_blocks_root_projection_pollution(tmp_path: Path) -> No
         "design_integrity_forbidden_projection_path:.ethos/decomp-recipes"
         in report["required_gaps"]
     )
-    assert "design_integrity_forbidden_projection_path:docs/superpowers" in report[
-        "required_gaps"
-    ]
+    assert "design_integrity_forbidden_projection_path:docs/superpowers" in report["required_gaps"]
 
 
 def test_gate_registry_includes_generated_artifacts_gate() -> None:

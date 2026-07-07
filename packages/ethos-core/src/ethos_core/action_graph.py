@@ -104,10 +104,10 @@ class ActionGraph:
         by_id = {node.id: node for node in self.nodes}
         remaining = {node.id: set(node.depends_on) for node in self.nodes}
         ordered: list[ActionNode] = []
+        # validate() above rejects cycles, so a validated graph is acyclic and Kahn's
+        # algorithm always finds a ready node until `remaining` is exhausted.
         while remaining:
             ready = sorted(node_id for node_id, deps in remaining.items() if not deps)
-            if not ready:
-                return self._stable_nodes()
             for node_id in ready:
                 ordered.append(by_id[node_id])
                 remaining.pop(node_id)

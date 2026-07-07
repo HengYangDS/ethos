@@ -5,10 +5,10 @@
   "generated_on": "2026-07-07",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
-    "target_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
-    "product_semantic_sha256": "6fc2ed74018b616edd268853b3ceda1d3b385b3d0d1c0b5be366e2c6bd579738",
-    "target_semantic_sha256": "6fc2ed74018b616edd268853b3ceda1d3b385b3d0d1c0b5be366e2c6bd579738",
+    "product_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
+    "target_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
+    "product_semantic_sha256": "9b89d9976864bdafc7ad34d72ba4d3d9ffc0ee5ea87e72ce0ef01132b918ea7f",
+    "target_semantic_sha256": "9b89d9976864bdafc7ad34d72ba4d3d9ffc0ee5ea87e72ce0ef01132b918ea7f",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity",
-    "target_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
-    "product_head": "e9ab57b6de42e283ecbe3a1a04f355a0e470b590",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding",
+    "target_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
+    "product_head": "5afcc1bb01b8a5e5f4cc5c1cd51734051d15ac24",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json",
-      "/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/root-philosophy-clarity --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-next-action-head-binding --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "da528d86c421a372a2bd273d7a6523fe470fb3753dfe2020d5b44af56e05d50b"
+        "sha256": "07cd244c3cab7403f6e788ff18a880534a55fd101ead5f07c41702629b532afd"
       },
       {
         "path": "evidence/claims",

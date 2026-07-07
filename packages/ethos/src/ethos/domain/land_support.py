@@ -107,7 +107,7 @@ def closeout_next_actions(
 ) -> tuple[str, ...]:
     """Derive recommended next commands after accepted-root closeout."""
     if ok:
-        return ("ethos lane retire-landed --branch <work-branch>",)
+        return ("ethos lane retire-landed --branch <work-branch> --expect-head <work-lane-head>",)
     if "candidate_diverged_from_accepted" in gaps:
         return (
             "ethos lane candidate --refresh-from-accepted "

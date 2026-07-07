@@ -52,6 +52,7 @@ def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
 
 def test_docs_topology_path_helpers_normalize_and_classify_extensions() -> None:
     assert normalize_docs_path("./docs/architecture/") == "docs/architecture"
+    assert normalize_docs_path("././docs/architecture/") == "docs/architecture"
     assert normalize_docs_path("docs/current/README.md") == "docs/current/README.md"
     assert is_product_docs_extension_root("./docs/architecture/details.md") is True
     assert is_product_docs_extension_root("docs/current/README.md") is False

@@ -1,6 +1,7 @@
 # ruff: noqa: TC003
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from ethos.adapters.gates.signature import commit_subject_ok
@@ -52,8 +53,6 @@ def test_signature_policy_self_certifies_without_configured_identity(tmp_path: P
     # no mismatch gap is raised, and expected_author is empty (nothing to enforce).
     # Use an isolated git repo with its own identity so no ambient (global/parent)
     # git config leaks into the assertion.
-    import subprocess
-
     def _git(*args: str) -> None:
         subprocess.run(
             ["git", *args],

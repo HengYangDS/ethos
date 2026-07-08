@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
-    "target_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
-    "product_semantic_sha256": "633dee9834bedb51fc33786993d7d753f66fb8f37a7bc02332e2148f9ebed331",
-    "target_semantic_sha256": "633dee9834bedb51fc33786993d7d753f66fb8f37a7bc02332e2148f9ebed331",
+    "product_head": "a2c51eafb6228d5e6faec08c028fc37f6c99281b",
+    "target_head": "a2c51eafb6228d5e6faec08c028fc37f6c99281b",
+    "product_semantic_sha256": "4f954ece38c98fa5df2189f5d6be11385f49cab79e7381aec4277eaa3d317be1",
+    "target_semantic_sha256": "4f954ece38c98fa5df2189f5d6be11385f49cab79e7381aec4277eaa3d317be1",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-decomp-openspec",
-    "target_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
-    "product_head": "521219ed37d0920080fc45700838ca6894e5e1a0",
+    "target_root": "/private/tmp/ethos-authority-residue-zero",
+    "target_head": "a2c51eafb6228d5e6faec08c028fc37f6c99281b",
+    "product_head": "a2c51eafb6228d5e6faec08c028fc37f6c99281b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-decomp-openspec --json",
-      "/private/tmp/ethos-decomp-openspec/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-decomp-openspec --json"
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-authority-residue-zero --json",
+      "/private/tmp/ethos-authority-residue-zero/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-authority-residue-zero --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "205d724c3c93ed0cd1639bf7802542ac3362c93b66d82a1246e3e156f73c0634"
+        "sha256": "1d05bd17ae6cde92e0e4e05b328387cfa34c25fbbf476a82fafae4f3bad9eb43"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "5c2f8e2581a7656129e0c60156744042683bfb03ca64772359b3a5a607263e97"
+        "sha256": "ddb579078a42412efd72c09164c09686666dbe703b821e2eb75e8141cf308908"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "6e077b31c6104939a125665cc5d85c6693e19a3d61ec2867cc34b39e606b612f"
+        "sha256": "134a4698844247f8df86100a290c439e77438f063c93a013f94fbf3535ba653a"
       },
       {
         "path": "rules",

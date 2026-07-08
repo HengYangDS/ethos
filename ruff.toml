@@ -7,10 +7,13 @@ extend = ".config/checks/ruff/ruff.toml"
 
 [lint.per-file-ignores]
 ".agents/skills/**/scripts/*.py" = ["T201", "INP001"]
-# Test data lines are legitimately long (assertion payloads/fixtures); logic still wraps.
-# Tests legitimately access private members (SLF001) and test dirs are not import
-# packages (INP001) — both are standard pytest patterns, not product code.
-"tests/**" = ["E501", "SLF001", "INP001", "PLR2004", "S101"]
+# These reflect pytest's DESIGN, not fixable debt: S101 (pytest uses `assert`),
+# INP001 (test dirs are deliberately not import packages), PLR2004 (asserting against
+# a literal expected value is the correct test idiom), E501 (unbreakable assertion
+# payloads/fixtures; logic still wraps). No refactor removes the need for these.
+# SLF001 is NOT here — private-member access IS reducible debt, so it is a shrinking
+# whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=410), not a blanket ignore.
+"tests/**" = ["E501", "INP001", "PLR2004", "S101"]
 # `id` on a widely-called classmethod — rename deferred to the package-split migration.
 # C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
 # and decompose during the package/surface split. New code: cap 10.

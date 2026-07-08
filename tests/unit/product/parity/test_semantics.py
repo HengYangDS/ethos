@@ -139,6 +139,71 @@ def test_shadow_semantic_diff_accepts_external_stricter_command_surface_retired_
     ]
 
 
+def test_shadow_semantic_diff_accepts_external_work_lane_dirty_for_land() -> None:
+    external = {
+        "ok": False,
+        "command": "land",
+        "state": "blocked",
+        "required_gaps": ["work_lane_dirty", "work_lane_dirty"],
+    }
+    embedded = {
+        "ok": True,
+        "command": "land",
+        "state": "ready_to_land",
+        "required_gaps": [],
+    }
+
+    assert shadow_semantics.semantic_diff(("land",), external, embedded) == {}
+    accepted = shadow_semantics.accepted_semantic_differences(("land",), external, embedded)
+
+    assert accepted == [
+        {
+            "kind": "external_stricter_required_gap",
+            "classification": "accepted",
+            "scope": "external_stricter_required_gap",
+            "commands": ["ethos land"],
+            "gaps": ["work_lane_dirty"],
+            "reason": "external product reports a stricter blocking gap allowed by shadow parity",
+        }
+    ]
+
+
+def test_shadow_semantic_diff_accepts_external_profile_route_gap() -> None:
+    external = {
+        "ok": False,
+        "command": "playbooks route",
+        "state": "gapped",
+        "required_gaps": ["playbook_changed_path_unmatched:.ethos/profile.toml"],
+    }
+    embedded = {
+        "ok": True,
+        "command": "playbooks route",
+        "state": "routed",
+        "required_gaps": [],
+    }
+
+    assert (
+        shadow_semantics.semantic_diff(("playbooks", "route", "--changed"), external, embedded)
+        == {}
+    )
+    accepted = shadow_semantics.accepted_semantic_differences(
+        ("playbooks", "route", "--changed"),
+        external,
+        embedded,
+    )
+
+    assert accepted == [
+        {
+            "kind": "external_stricter_required_gap",
+            "classification": "accepted",
+            "scope": "external_stricter_required_gap",
+            "commands": ["ethos playbooks route"],
+            "gaps": ["playbook_changed_path_unmatched:.ethos/profile.toml"],
+            "reason": "external product reports a stricter blocking gap allowed by shadow parity",
+        }
+    ]
+
+
 def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
     external = {
         "ok": True,

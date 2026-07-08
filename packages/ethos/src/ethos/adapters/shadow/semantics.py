@@ -397,7 +397,7 @@ def _without_product_repository_audit_gaps(
 
 
 _EXTERNAL_STRICTER_ONLY_GAPS: dict[tuple[str, ...], set[str]] = {
-    ("land",): {"candidate_base_stale", "protected_root_mutation"},
+    ("land",): {"candidate_base_stale", "protected_root_mutation", "work_lane_dirty"},
     ("publish",): {"protected_root_mutation"},
 }
 
@@ -406,6 +406,7 @@ _EXTERNAL_STRICTER_ONLY_GAP_PREFIXES: dict[tuple[str, ...], tuple[str, ...]] = {
         "retired_public_command_prefix_mention:",
         "retired_public_root_mention:",
     ),
+    ("playbooks", "route", "--changed"): ("playbook_changed_path_unmatched:.ethos/",),
 }
 
 
@@ -533,4 +534,4 @@ def _first_present(*values: Any) -> Any:
 
 
 def _gate_ids(value: Any) -> list[str]:
-    return sorted(str(gate.get("id")) for gate in _list(value) if isinstance(gate, dict))
+    return sorted({str(gate.get("id")) for gate in _list(value) if isinstance(gate, dict)})

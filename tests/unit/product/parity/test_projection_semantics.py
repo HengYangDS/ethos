@@ -30,6 +30,31 @@ def test_shadow_semantic_diff_compares_plan_gate_dimension() -> None:
     assert diff == {"required_gate_ids": {"external": ["unit"], "embedded": []}}
 
 
+def test_shadow_plan_projection_deduplicates_required_gate_ids() -> None:
+    external = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "data": {
+            "required_gates": [
+                {"id": "proof"},
+                {"id": "proof"},
+                {"id": "markdown"},
+            ]
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "data": {"required_gates": [{"id": "markdown"}, {"id": "proof"}]},
+    }
+
+    assert semantic_diff(("plan", "--changed"), external, embedded) == {}
+
+
 def test_shadow_status_projection_accepts_embedded_top_level_fields() -> None:
     external = {
         "ok": True,

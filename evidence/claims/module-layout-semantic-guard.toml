@@ -7,7 +7,7 @@ summary = "ETHOS module-layout gate blocks new-directory flat buckets and dynami
 
 [evidence]
 dated = "evidence/chronicle/module-layout-semantic-guard/2026-07-08.md"
-sha256 = "d9f9b334e4058ca268c2626567b9edf3a8980f63397370af9425646177cf479e"
+sha256 = "c8b8bdf14add8c8362e29dab568ea39cf1d7a850f51e5b0495988aedadd5424b"
 evidence_ids = ["evidence:module-layout-semantic-guard"]
 binding = "Module layout rule, quality gate implementation, OpenSpec carrier, and focused regression tests."
 verifier = "semantic"

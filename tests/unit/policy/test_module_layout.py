@@ -823,3 +823,40 @@ def test_module_layout_blocks_dynamic_compatibility_export_module(tmp_path: Path
         "module_layout_dynamic_compat_facade:packages/ethos/src/ethos/sample/compat.py"
         in report["required_gaps"]
     )
+    assert report["dynamic_compat_facade_findings"] == [
+        {
+            "gap": (
+                "module_layout_dynamic_compat_facade:packages/ethos/src/ethos/sample/compat.py"
+            ),
+            "path": "packages/ethos/src/ethos/sample/compat.py",
+            "reasons": ["dynamic_export", "lazy_import"],
+        }
+    ]
+
+
+def test_module_layout_blocks_dynamic_export_without_lazy_import(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "virtual.py",
+        textwrap.dedent(
+            '''
+            """Dynamic local virtual attribute shell."""
+
+            def __getattr__(name: str) -> object:
+                if name == "value":
+                    return 1
+                raise AttributeError(name)
+            '''
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["dynamic_compat_facade_findings"] == [
+        {
+            "gap": (
+                "module_layout_dynamic_compat_facade:packages/ethos/src/ethos/sample/virtual.py"
+            ),
+            "path": "packages/ethos/src/ethos/sample/virtual.py",
+            "reasons": ["dynamic_export"],
+        }
+    ]

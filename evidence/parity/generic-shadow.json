@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
-    "target_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
-    "product_semantic_sha256": "bb2642545cf124ebae25be047080a893739a1cd8622e409b268a8e3856e1ae45",
-    "target_semantic_sha256": "bb2642545cf124ebae25be047080a893739a1cd8622e409b268a8e3856e1ae45",
+    "product_head": "bbd0cdc1b3c6e5749b268d203e1f8fb752f0540f",
+    "target_head": "bbd0cdc1b3c6e5749b268d203e1f8fb752f0540f",
+    "product_semantic_sha256": "edb44c101055475d65aaf76f4504920e2b4b77f0784fe6939eab284159240484",
+    "target_semantic_sha256": "edb44c101055475d65aaf76f4504920e2b4b77f0784fe6939eab284159240484",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/code-size-coupling",
-    "target_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
-    "product_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-cli-size",
+    "target_head": "bbd0cdc1b3c6e5749b268d203e1f8fb752f0540f",
+    "product_head": "bbd0cdc1b3c6e5749b268d203e1f8fb752f0540f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
-      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json"
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-cli-size/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-cli-size --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "66fa5be22eb74f2d27990ebc11f6f28b459dd389ad39d4f5f4e131f0d1b3d631"
+        "sha256": "16360496b6b49d901075d53d3c0980da4a9bf5eaebef0ff70b3163eddb1eb325"
       },
       {
         "path": "evidence/claims",

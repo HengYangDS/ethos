@@ -83,6 +83,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     assert node_ids == [
         "repository-audit",
         "claims",
+        "evidence-freshness",
         "docs-registry",
         "docs-topology",
         "schemas",
@@ -100,6 +101,12 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "format-policy",
     ]
     nodes = {node.id: node for node in graph.nodes}
+    assert nodes["evidence-freshness"].to_dict()["command"] == [
+        "ethos",
+        "quality",
+        "evidence-freshness",
+        "--json",
+    ]
     assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
     assert nodes["module-layout"].to_dict()["command"] == [
         ".config/ci/scripts/run-module-layout.sh"
@@ -136,6 +143,7 @@ root_subject = \"sample\"
     assert node_ids == [
         "repository-audit",
         "claims",
+        "evidence-freshness",
         "docs-topology",
         "schemas",
         "playbooks-v2",

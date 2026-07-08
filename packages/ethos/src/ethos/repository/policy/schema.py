@@ -7,7 +7,6 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
-from jsonschema.exceptions import ValidationError
 
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema_samples.core import _campaign_contract_sample
@@ -116,10 +115,9 @@ def validate_schema_instance(
     schema_root = root or _repo_root()
     schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
-    try:
-        validator.validate(payload)
-    except ValidationError as exc:
-        return {"ok": False, "required_gaps": [exc.message]}
+    errors = sorted(validator.iter_errors(payload), key=lambda item: item.json_path)
+    if errors:
+        return {"ok": False, "required_gaps": [error.message for error in errors]}
     return {"ok": True, "required_gaps": []}
 
 

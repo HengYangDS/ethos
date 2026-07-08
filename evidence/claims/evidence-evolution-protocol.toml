@@ -1,0 +1,51 @@
+[claim]
+id = "evidence-evolution-protocol"
+subject = "ethos:evidence-evolution-protocol"
+state = "active"
+change_id = "evidence-evolution-protocol"
+summary = "ETHOS evidence freshness checks claim freshness and evolution-ledger protocol health without adding a parallel truth store."
+
+[evidence]
+dated = "evidence/chronicle/evidence-evolution-protocol/2026-07-08.md"
+sha256 = "9b70ebbe301cb4000ed4e35a7c35118d3d991e10af37d538d46c87591ad0bf11"
+evidence_ids = ["evidence:evidence-evolution-protocol"]
+binding = "Evidence freshness binds claims, chronicle records, and evolution ledger protocol checks."
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/governance/test_evolution_ledger.py tests/unit/governance/validation/test_gates.py tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/governance/validation/test_schemas.py -q",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos prove --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/governance/validation/test_schemas.py",
+]
+
+[boundary]
+owner = "ethos"
+scope = "Evidence freshness, evolution ledger protocol validation, default proof gate membership, and schema binding for structural evolution entries"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-evidence-evolution-protocol"
+
+fallback = "Remove evidence-freshness from default proof and keep evolution protocol checks in schema validation only."
+kill_signal = "Evolution records need a separate proof root or command plane to remain trustworthy."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/adoption/evolution.py",
+  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "system/schemas/kernel/evolution-ledger.schema.json",
+  "docs/governance/evolution-campaign.md",
+  "openspec/changes/archive/2026-07-08-evidence-evolution-protocol",
+  "evidence/claims/evidence-evolution-protocol.toml",
+  "evidence/chronicle/evidence-evolution-protocol/2026-07-08.md",
+]

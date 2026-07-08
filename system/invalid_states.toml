@@ -181,6 +181,12 @@ summary = "The Chronicle — judged history, release attestation, evolution ledg
 match_prefixes = [
   "chronicle_missing",
   "evolution_ledger",
+  "evolution_hypotheses_",
+  "entry_evidence_refs_invalid",
+  "entry_decision_refs_invalid",
+  "hypothesis_proof_refs_invalid",
+  "hypothesis_review_refs_invalid",
+  "hypothesis_decision_refs_invalid",
   "release",
   "publish",
   "attestation",

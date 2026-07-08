@@ -145,7 +145,37 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "not": {
+                "properties": {
+                  "type": {
+                    "const": "campaign"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              }
+            },
+            "then": {
+              "required": [
+                "evidence_refs",
+                "decision_refs"
+              ],
+              "properties": {
+                "evidence_refs": {
+                  "minItems": 1
+                },
+                "decision_refs": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        ]
       }
     }
   },

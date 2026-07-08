@@ -629,6 +629,15 @@ def test_quality_determinism_commands_are_available() -> None:
         assert payload["required_gaps"] == []
 
 
+def test_quality_evidence_freshness_reports_evolution_protocol() -> None:
+    payload = run_ethos("quality", "evidence-freshness", "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["evolution"]["ok"] is True
+    assert payload["data"]["evolution"]["required_gaps"] == []
+
+
 def test_quality_coupling_audit_reports_git_native_boundary() -> None:
     payload = run_ethos("quality", "coupling-audit", "--json")
 

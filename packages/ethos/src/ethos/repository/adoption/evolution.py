@@ -4,6 +4,9 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.registry.docs.commands import KNOWN_ETHOS_COMMANDS
+from ethos.repository.registry.docs.commands import best_ethos_command_key
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -50,6 +53,10 @@ def evolution_report(root: Path) -> dict[str, object]:
         or not item.get("decision_refs")
         or not item.get("retirement_conditions")
     ]
+    if not hypotheses:
+        gaps.append("evolution_hypotheses_missing")
+    gaps.extend(_hypothesis_ref_gaps(root, hypotheses))
+    gaps.extend(_entry_ref_gaps(root, ledger["entries"]))
     if ledger.get("parse_error"):
         gaps.append("evolution_ledger_invalid_toml")
     active = [item for item in hypotheses if item.get("state") in {"active", "experimenting"}]
@@ -59,6 +66,91 @@ def evolution_report(root: Path) -> dict[str, object]:
         "required_gaps": gaps,
         "ledger": ledger,
     }
+
+
+def _hypothesis_ref_gaps(root: Path, hypotheses: list[dict[str, Any]]) -> list[str]:
+    gaps: list[str] = []
+    for item in hypotheses:
+        hypothesis_id = str(item.get("id") or "unnamed")
+        proof_refs = item.get("proof_refs", [])
+        review_refs = item.get("review_refs", [])
+        decision_refs = item.get("decision_refs", [])
+        if proof_refs and not isinstance(proof_refs, list):
+            gaps.append(f"hypothesis_proof_refs_invalid:{hypothesis_id}")
+            proof_refs = []
+        if review_refs and not isinstance(review_refs, list):
+            gaps.append(f"hypothesis_review_refs_invalid:{hypothesis_id}")
+            review_refs = []
+        if decision_refs and not isinstance(decision_refs, list):
+            gaps.append(f"hypothesis_decision_refs_invalid:{hypothesis_id}")
+            decision_refs = []
+        for ref in proof_refs:
+            ref_text = str(ref)
+            if not _proof_ref_resolves(root, ref_text):
+                gaps.append(f"hypothesis_proof_ref_unresolved:{hypothesis_id}:{ref_text}")
+        for ref in review_refs:
+            ref_text = str(ref)
+            if not _path_ref_exists(root, ref_text):
+                gaps.append(f"hypothesis_review_ref_missing:{hypothesis_id}:{ref_text}")
+        for ref in decision_refs:
+            ref_text = str(ref)
+            if not _path_ref_exists(root, ref_text):
+                gaps.append(f"hypothesis_decision_ref_missing:{hypothesis_id}:{ref_text}")
+    return gaps
+
+
+def _entry_ref_gaps(root: Path, entries: list[dict[str, Any]]) -> list[str]:
+    gaps: list[str] = []
+    for item in entries:
+        entry_id = str(item.get("id") or "unnamed")
+        entry_type = str(item.get("type") or "")
+        if entry_type == "campaign":
+            continue
+        evidence_refs = item.get("evidence_refs")
+        decision_refs = item.get("decision_refs")
+        if not evidence_refs:
+            gaps.append(f"entry_evidence_refs_missing:{entry_id}")
+        elif not isinstance(evidence_refs, list):
+            gaps.append(f"entry_evidence_refs_invalid:{entry_id}")
+        else:
+            for ref in evidence_refs:
+                ref_text = str(ref)
+                if not _path_ref_exists(root, ref_text):
+                    gaps.append(f"entry_evidence_ref_missing:{entry_id}:{ref_text}")
+        if not decision_refs:
+            gaps.append(f"entry_decision_refs_missing:{entry_id}")
+        elif not isinstance(decision_refs, list):
+            gaps.append(f"entry_decision_refs_invalid:{entry_id}")
+        else:
+            for ref in decision_refs:
+                ref_text = str(ref)
+                if not _path_ref_exists(root, ref_text):
+                    gaps.append(f"entry_decision_ref_missing:{entry_id}:{ref_text}")
+    return gaps
+
+
+def _proof_ref_resolves(root: Path, ref: str) -> bool:
+    if _path_like(ref):
+        return _path_ref_exists(root, ref)
+    if ref.startswith("ethos "):
+        return _known_ethos_command_ref(ref)
+    return False
+
+
+def _known_ethos_command_ref(ref: str) -> bool:
+    key = best_ethos_command_key(ref)
+    return bool(key and (key in KNOWN_ETHOS_COMMANDS))
+
+
+def _path_like(ref: str) -> bool:
+    return "/" in ref or ref.endswith((".md", ".py", ".toml", ".json", ".yml", ".yaml"))
+
+
+def _path_ref_exists(root: Path, ref: str) -> bool:
+    if not ref or ref.startswith("/") or "://" in ref:
+        return False
+    path = root / ref
+    return path.exists()
 
 
 def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, object]:

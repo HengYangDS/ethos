@@ -318,6 +318,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     assert payload["summary"]["gate_count"] == 17
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert {
+        "evidence-freshness",
         "ruff",
         "toml-config",
         "yaml-config",
@@ -348,11 +349,12 @@ root_subject = \"sample\"
 
     payload = run_ethos("prove", "--root", str(repo), "--json")
 
-    assert payload["summary"]["gate_count"] == 10
+    assert payload["summary"]["gate_count"] == 11
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert set(node_ids) == {
         "repository-audit",
         "claims",
+        "evidence-freshness",
         "docs-topology",
         "schemas",
         "playbooks-v2",

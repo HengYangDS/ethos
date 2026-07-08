@@ -209,6 +209,72 @@ def test_campaign_schema_accepts_lane_closeout_steps() -> None:
     assert validation["ok"] is True
 
 
+def test_evolution_ledger_schema_requires_structural_entry_refs() -> None:
+    payload = {
+        "hypothesis": [
+            {
+                "id": "sample-hypothesis",
+                "campaign": "sample",
+                "state": "active",
+                "owner": "ethos-maintainers",
+                "claim": "claim",
+                "challenge": "challenge",
+                "transition": "shape -> canonize",
+                "proof_refs": ["ethos quality evidence-freshness --json"],
+                "review_refs": ["tests/unit/governance/test_evolution_ledger.py"],
+                "decision_refs": ["docs/governance/evolution-campaign.md"],
+                "retirement_conditions": ["refs resolve"],
+            }
+        ],
+        "entry": [
+            {
+                "id": "structural-entry",
+                "type": "experiment",
+                "state": "accepted",
+                "summary": "A structural evolution record.",
+            }
+        ],
+    }
+
+    validation = validate_schema_instance("evolution-ledger.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert any("evidence_refs" in gap for gap in validation["required_gaps"])
+    assert any("decision_refs" in gap for gap in validation["required_gaps"])
+
+
+def test_evolution_ledger_schema_allows_campaign_entries_without_refs() -> None:
+    payload = {
+        "hypothesis": [
+            {
+                "id": "sample-hypothesis",
+                "campaign": "sample",
+                "state": "active",
+                "owner": "ethos-maintainers",
+                "claim": "claim",
+                "challenge": "challenge",
+                "transition": "shape -> canonize",
+                "proof_refs": ["ethos quality evidence-freshness --json"],
+                "review_refs": ["tests/unit/governance/test_evolution_ledger.py"],
+                "decision_refs": ["docs/governance/evolution-campaign.md"],
+                "retirement_conditions": ["refs resolve"],
+            }
+        ],
+        "entry": [
+            {
+                "id": "campaign-entry",
+                "type": "campaign",
+                "state": "active",
+                "summary": "A campaign container.",
+            }
+        ],
+    }
+
+    validation = validate_schema_instance("evolution-ledger.schema.json", payload)
+
+    assert validation["ok"] is True
+
+
 def test_proof_run_schema_uses_trust_bearing_lattice() -> None:
     payload = {
         "action_id": "proof-policy",

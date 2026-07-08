@@ -30,6 +30,14 @@ not create a private command plane or a second product lifecycle.
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.
 
+`ethos quality evidence-freshness --json` checks the ledger as part of the
+evidence freshness read model. Active hypotheses must cite resolvable proof,
+review, and decision references. Proof references may be known ETHOS command
+references; review and decision references are repository paths. Reviewed
+non-campaign evolution entries must bind at least one evidence reference and one
+decision reference, so structural evolution cannot become a second narrative
+store detached from claims, chronicle, and repository truth.
+
 `evolution/campaigns/<campaign-id>/campaign.toml` records long-running product
 work as an ordered campaign manifest. A campaign is not a giant Work Lane. It
 is an orchestration record whose steps name the OpenSpec change, Work Lane

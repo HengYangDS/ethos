@@ -733,6 +733,10 @@ repository-truth ledger at `evolution/ledger.toml`.
   parallel ledger
 - **AND** the ledger schema accepts typed evolution entries and hypothesis
   records in the same document
+- **AND** non-campaign evolution entries bind at least one evidence ref and one
+  decision ref
+- **AND** active hypothesis proof, review, and decision refs resolve to known
+  ETHOS command references or repository paths
 
 ### Requirement: Publish Falls Back To Local CI When Remote Is Unavailable
 

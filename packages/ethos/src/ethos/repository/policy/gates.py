@@ -77,6 +77,17 @@ def gate_registry() -> dict[str, Gate]:
             trust_bearing=True,
             tool_adapter="ethos-claims",
         ),
+        "evidence-freshness": Gate(
+            id="evidence-freshness",
+            kind="governance",
+            command=("ethos", "quality", "evidence-freshness", "--json"),
+            depends_on=("claims",),
+            asset_classes=("evidence",),
+            dimensions=("digest", "freshness", "chronicle", "evolution"),
+            evidence_class="contract",
+            trust_bearing=True,
+            tool_adapter="ethos-evidence-freshness",
+        ),
         "docs-registry": Gate(
             id="docs-registry",
             kind="docs",
@@ -248,6 +259,7 @@ def gate_registry() -> dict[str, Gate]:
 PRODUCT_DEFAULT_GATE_IDS = (
     "repository-audit",
     "claims",
+    "evidence-freshness",
     "docs-registry",
     "docs-topology",
     "schemas",
@@ -268,6 +280,7 @@ PRODUCT_DEFAULT_GATE_IDS = (
 PRODUCT_FULL_GATE_IDS = (
     "repository-audit",
     "claims",
+    "evidence-freshness",
     "docs-registry",
     "docs-topology",
     "schemas",
@@ -299,6 +312,7 @@ DEFAULT_GATE_IDS = PRODUCT_DEFAULT_GATE_IDS
 ADOPTER_DEFAULT_GATE_IDS = (
     "repository-audit",
     "claims",
+    "evidence-freshness",
     "docs-topology",
     "schemas",
     "playbooks-v2",

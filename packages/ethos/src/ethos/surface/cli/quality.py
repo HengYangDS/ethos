@@ -18,6 +18,7 @@ from ethos.adapters.gates.ty import ty_gate_report
 from ethos.adapters.repo import git as _gitio
 from ethos.assistants.projections import projection_drift_report
 from ethos.domain import prove as _prove
+from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -795,14 +796,22 @@ def evidence_freshness(
     """Check declared evidence roots and claim digests."""
     repo = resolve_root(root)
     claim_report = claims_report(repo)
+    evolution = evolution_report(repo)
+    required_gaps = tuple(cast("list[str]", claim_report["required_gaps"])) + tuple(
+        cast("list[str]", evolution["required_gaps"])
+    )
+    ok = bool(claim_report["ok"]) and bool(evolution["ok"])
     result = EthosResult(
         command="quality evidence-freshness",
-        ok=bool(claim_report["ok"]),
-        state="clean" if claim_report["ok"] else "blocked",
-        summary={"evidence_roots": ["evidence"]},
-        required_gaps=tuple(cast("list[str]", claim_report["required_gaps"])),
+        ok=ok,
+        state="clean" if ok else "blocked",
+        summary={
+            "evidence_roots": ["evidence"],
+            "evolution_active_count": evolution["active_count"],
+        },
+        required_gaps=required_gaps,
         next_actions=("ethos prove --json",),
-        data={"stale": [], "claims": claim_report},
+        data={"stale": [], "claims": claim_report, "evolution": evolution},
     )
     emit(result, json_output=json_output, enforce=False)
 

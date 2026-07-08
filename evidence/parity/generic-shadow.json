@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
-    "target_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
-    "product_semantic_sha256": "af646f98046c98787a3b96a183213261a5afc7ba6300d62ddd169b57273415dc",
-    "target_semantic_sha256": "af646f98046c98787a3b96a183213261a5afc7ba6300d62ddd169b57273415dc",
+    "product_head": "5a77fbc3106d592b251600b3c712065f711a944f",
+    "target_head": "5a77fbc3106d592b251600b3c712065f711a944f",
+    "product_semantic_sha256": "a641a9a2d85a0da58a8c86210ce20d4ad8ba356c4930ea213c5c1a2a1dad60ad",
+    "target_semantic_sha256": "a641a9a2d85a0da58a8c86210ce20d4ad8ba356c4930ea213c5c1a2a1dad60ad",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles",
-    "target_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
-    "product_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/history-truth-boundary",
+    "target_head": "5a77fbc3106d592b251600b3c712065f711a944f",
+    "product_head": "5a77fbc3106d592b251600b3c712065f711a944f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json",
-      "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles --json"
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
+      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e3a52f545df5248ef1e802601d29a96d8e694f1105a4412bfcc5602c8dab124b"
+        "sha256": "3124c69e170fc22f12a8da77b9f4096a25cba1301011878c622201df72b53517"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "ddb579078a42412efd72c09164c09686666dbe703b821e2eb75e8141cf308908"
+        "sha256": "0247cef71e86bfddb5a0906529114df96e9241a8792c6cee44a9dda51cf5999e"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "134a4698844247f8df86100a290c439e77438f063c93a013f94fbf3535ba653a"
+        "sha256": "8bedd4f668e5ce75823fe03069159b0db6f973d66d3de0a0aa56f39f99325863"
       },
       {
         "path": "rules",

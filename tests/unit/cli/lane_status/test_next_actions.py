@@ -4,6 +4,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store import state
+from ethos.surface.cli.lane import _lane_status_next_actions
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -94,3 +95,24 @@ def test_lane_status_next_action_keeps_prewrite_for_current_work_lane(
     assert payload["data"]["role"] == "work_lane"
     assert "ethos lane prewrite <path>" in payload["next_actions"]
     assert "ethos land --json" in payload["next_actions"]
+
+
+def test_lane_status_next_action_routes_blocking_gaps_to_orient() -> None:
+    payload = {
+        "role": "accepted_root",
+        "required_gaps": ["work_lane_missing_lease"],
+    }
+
+    assert _lane_status_next_actions(payload) == ("ethos orient --json",)
+
+
+def test_lane_status_next_action_suggests_lane_start_for_clean_root() -> None:
+    payload = {
+        "role": "accepted_root",
+        "required_gaps": [],
+        "coordination": {"advisory_gaps": []},
+    }
+
+    assert _lane_status_next_actions(payload) == (
+        "ethos lane start <name> --path <path> --owner <owner> --apply --json",
+    )

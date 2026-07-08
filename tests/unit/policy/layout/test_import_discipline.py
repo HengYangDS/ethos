@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.layout.imports.core import _status_paths
+from ethos.repository.policy.layout.imports.core import private_from_import_regression_findings
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -164,6 +165,34 @@ def test_import_discipline_status_parser_covers_blank_short_and_normal_paths(
             "name": "_private_helper",
         }
     ]
+
+
+def test_import_discipline_skips_python_files_not_changed_from_reference(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "changed.py",
+        "VALUE = 1\n",
+    )
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "unchanged.py",
+        "from ethos.sample.provider import _private_helper\n",
+    )
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args[:3] == ("diff", "--name-only", "HEAD"):
+            return "packages/ethos/src/ethos/changed.py\n"
+        if args[:2] == ("status", "--porcelain"):
+            return ""
+        return None
+
+    monkeypatch.setattr(
+        "ethos.repository.policy.layout.git.core.layout_reference", lambda _root: "HEAD"
+    )
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    assert private_from_import_regression_findings(tmp_path, {}) == []
 
 
 def test_import_discipline_ignores_package_root_star_and_private_alias(

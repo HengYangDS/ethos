@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from ethos.assistants.playbook_utils import _command_capability_gaps
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.playbooks import route_playbook
 from ethos.assistants.skills.packages import compute_skill_package_digest
+from ethos.assistants.skills.routing import command_capability_gaps
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -182,7 +182,7 @@ post_checks = ["ethos report --json"]
 
 
 def test_playbook_command_split_falls_back_for_unclosed_quote() -> None:
-    gaps = _command_capability_gaps(
+    gaps = command_capability_gaps(
         {"id": "quote-skill", "commands": ["ethos report '"]},
         {"capabilities": [{"command": ["ethos", "report", "'"]}]},
     )

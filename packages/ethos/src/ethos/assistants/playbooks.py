@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
-from ethos.assistants.playbook_utils import _command_capability_gaps
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
@@ -14,6 +13,7 @@ from ethos.assistants.skills.portfolio import empty_portfolio_coverage
 from ethos.assistants.skills.portfolio import empty_portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
+from ethos.assistants.skills.routing import command_capability_gaps
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_relative_root
 from ethos.repository.profile import profile_root
@@ -174,7 +174,7 @@ def _collect_playbook_records(
             )
         )
         if not transition_adopter:
-            v2_gaps.extend(_command_capability_gaps(record, package_report))
+            v2_gaps.extend(command_capability_gaps(record, package_report))
     return {
         "records": records,
         "required_gaps": required_gaps,

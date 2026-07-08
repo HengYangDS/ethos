@@ -4,10 +4,11 @@ import shlex
 from typing import Any
 
 
-def _command_capability_gaps(
+def command_capability_gaps(
     record: dict[str, Any],
     package_report: dict[str, Any],
 ) -> list[str]:
+    """Return skill commands missing from the package capability contract."""
     skill_id = str(record["id"] or "<missing>")
     capability_commands = [
         _command_key(item["command"])
@@ -16,8 +17,10 @@ def _command_capability_gaps(
     ]
     gaps: list[str] = []
     for command in record["commands"]:
-        command_key = _command_key(_split_command(command))
-        if not any(_command_covers(capability, command_key) for capability in capability_commands):
+        required_command = _command_key(_split_command(command))
+        if not any(
+            _command_covers(capability, required_command) for capability in capability_commands
+        ):
             gaps.append(f"skill_package_capability_missing_command:{skill_id}:{command}")
     return gaps
 

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "f7cf8e5d487633fb385992a603e1cc8e6a4f3965",
-    "target_head": "f7cf8e5d487633fb385992a603e1cc8e6a4f3965",
-    "product_semantic_sha256": "220e8f230922342ee7a0f3b016ae8f38250b2815691d959457011ddbe1d2fa1e",
-    "target_semantic_sha256": "220e8f230922342ee7a0f3b016ae8f38250b2815691d959457011ddbe1d2fa1e",
+    "product_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
+    "target_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
+    "product_semantic_sha256": "631c11097cab704365d74da7070a9d7bdc1a87211a3e816411cf32f4f15f11cc",
+    "target_semantic_sha256": "631c11097cab704365d74da7070a9d7bdc1a87211a3e816411cf32f4f15f11cc",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary",
-    "target_head": "f7cf8e5d487633fb385992a603e1cc8e6a4f3965",
-    "product_head": "f7cf8e5d487633fb385992a603e1cc8e6a4f3965",
+    "target_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
+    "product_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "de9116e48743e5e576b73b113aa46269ec56e624ce3445f1bc0a7061ad7e90c4"
+        "sha256": "825de6a6b31566b0978be140f82d7a8905557e00f64e766cd6812eb86d4d5489"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "dc3de4f2468145c4989d4932f51e93f3d1355cdb664828120c6a79aecdbc59ce"
+        "sha256": "58ba720029d17d0be47d8a77d1a5c7785e497860fa4d5e5ff83ce57f9e0da0d2"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "5a1bb4d2da711235bc2c707ca7897578aba52db334a26ba48998e9cea8f6545e"
+        "sha256": "9dacb0dd3c0a044c3edb520658c457d7ba9501e5a7dea225d2c8cf31da17ecff"
       },
       {
         "path": "rules",

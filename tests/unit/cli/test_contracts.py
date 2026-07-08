@@ -733,8 +733,7 @@ def test_report_advisory_layer_classifies_protected_openspec_residue() -> None:
         result_required_gaps=(),
         parity_gaps={"ok": True, "required_gaps": []},
         playbooks={"ok": True, "required_gaps": [], "advisory_gaps": []},
-        advisory_gaps=(protected_residue_gap,),
-        advisory_next_actions=next_actions,
+        advisory=((protected_residue_gap,), next_actions),
     )
 
     advisory_layer = layers["advisory_signals"]

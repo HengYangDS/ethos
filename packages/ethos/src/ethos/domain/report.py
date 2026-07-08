@@ -96,8 +96,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
         result_required_gaps,
         parity_gaps,
         playbooks,
-        advisory_gaps,
-        advisory_next_actions,
+        (advisory_gaps, advisory_next_actions),
         hard_quality_floor,
     )
     next_actions = _scorecard_next_actions(
@@ -345,10 +344,10 @@ def _gap_layers(
     result_required_gaps: tuple[str, ...],
     parity_gaps: dict[str, object],
     playbooks: dict[str, object],
-    advisory_gaps: tuple[str, ...],
-    advisory_next_actions: tuple[str, ...],
+    advisory: tuple[tuple[str, ...], tuple[str, ...]],
     hard_quality_floor: dict[str, object] | None = None,
 ) -> dict[str, dict[str, object]]:
+    advisory_gaps, advisory_next_actions = advisory
     hard_quality_floor = hard_quality_floor or _adopter_quality_floor_report()
     return {
         "governance_audit": _gap_layer(

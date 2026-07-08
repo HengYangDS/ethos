@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from typing import Any
+
 import ethos.adapters.repo.git as git
 import ethos.domain.land as land_domain
 from ethos.adapters.mutation.core import MutationRequest
@@ -21,37 +25,53 @@ from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.result import EthosResult
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def _closeout_result(repo, mutation, decision, audit_root, audit, lifecycle, update, gaps, ok):
+
+@dataclass(frozen=True)
+class _CloseoutPayload:
+    repo: Path
+    mutation: MutationRequest
+    decision: object
+    audit_root: Path
+    audit: dict[str, Any]
+    lifecycle: dict[str, Any]
+    update: dict[str, object]
+    gaps: tuple[str, ...]
+    ok: bool
+
+
+def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     return EthosResult(
         command="land",
-        ok=ok,
+        ok=payload.ok,
         state=(
             "ready_to_closeout"
-            if ok and not mutation.apply
+            if payload.ok and not payload.mutation.apply
             else "blocked"
-            if gaps
-            else str(update.get("state") or mutation.command)
+            if payload.gaps
+            else str(payload.update.get("state") or payload.mutation.command)
         ),
-        required_gaps=gaps,
+        required_gaps=payload.gaps,
         next_actions=land_domain.closeout_next_actions(
-            ok=ok, gaps=gaps, current_head=git.current_head(repo)
+            ok=payload.ok, gaps=payload.gaps, current_head=git.current_head(payload.repo)
         ),
         data={
-            "repository_audit": audit,
-            "openspec_lifecycle": lifecycle,
-            "accepted_update": update,
+            "repository_audit": payload.audit,
+            "openspec_lifecycle": payload.lifecycle,
+            "accepted_update": payload.update,
             "closeout_bootstrap": land_domain.closeout_bootstrap_package(
-                repo=repo,
-                audit_root=audit_root,
-                required_gaps=gaps,
+                repo=payload.repo,
+                audit_root=payload.audit_root,
+                required_gaps=payload.gaps,
             ),
             "mutation": {
-                "apply": mutation.apply,
-                "authorized": mutation.authorized,
-                "expect_head": mutation.expect_head,
-                "current_head": git.current_head(repo),
-                "decision": decision.state,
+                "apply": payload.mutation.apply,
+                "authorized": payload.mutation.authorized,
+                "expect_head": payload.mutation.expect_head,
+                "current_head": git.current_head(payload.repo),
+                "decision": payload.decision.state,
                 "closeout": True,
             },
         },
@@ -97,7 +117,17 @@ def land(
             gaps = gaps + tuple(update["required_gaps"])
             ok = bool(update["ok"])
         result = _closeout_result(
-            repo, request, decision, audit_root, audit, lifecycle, update, gaps, ok
+            _CloseoutPayload(
+                repo=repo,
+                mutation=request,
+                decision=decision,
+                audit_root=audit_root,
+                audit=audit,
+                lifecycle=lifecycle,
+                update=update,
+                gaps=gaps,
+                ok=ok,
+            )
         )
         emit(result, json_output=json_output, enforce=apply)
         return
@@ -151,7 +181,9 @@ def land(
         state=state,
         required_gaps=gaps,
         next_actions=land_domain.land_next_actions(
-            ok=ok, gaps=gaps, current_head=git.current_head(repo)
+            ok=ok,
+            gaps=gaps,
+            current_head=git.current_head(repo),
         ),
         data={
             "repository_audit": audit,

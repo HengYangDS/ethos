@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
-    "target_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
-    "product_semantic_sha256": "3942301461aad05c67bf1b660ae7e2d149a9d2e21cff77280ef833e39e51c5a2",
-    "target_semantic_sha256": "3942301461aad05c67bf1b660ae7e2d149a9d2e21cff77280ef833e39e51c5a2",
+    "product_head": "a5cfe26b01c5fb75853bc1ea9aee691bb3025f15",
+    "target_head": "a5cfe26b01c5fb75853bc1ea9aee691bb3025f15",
+    "product_semantic_sha256": "a95902c6e557ec45980cdc596bd9dd21ffef75f1da5311d680072e34079654a7",
+    "target_semantic_sha256": "a95902c6e557ec45980cdc596bd9dd21ffef75f1da5311d680072e34079654a7",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/private/tmp/ethos-sd-decomp",
-    "target_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
-    "product_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
+    "target_head": "a5cfe26b01c5fb75853bc1ea9aee691bb3025f15",
+    "product_head": "a5cfe26b01c5fb75853bc1ea9aee691bb3025f15",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3685429574ea9235baae71ad19df47611e5198609f1db26b030264662139665e"
+        "sha256": "e960910e2f64c039f29d65afb052b788bc8350b4e91230cd5c4c1c51e1a0c478"
       },
       {
         "path": "evidence/claims",

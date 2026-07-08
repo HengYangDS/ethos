@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "83c5612def201489339b7146f32aeb99830d2977",
-    "target_head": "83c5612def201489339b7146f32aeb99830d2977",
-    "product_semantic_sha256": "98a1926db9e589551a615e49642ec7aef33ba21d9e3033f7bcff14594de679ba",
-    "target_semantic_sha256": "98a1926db9e589551a615e49642ec7aef33ba21d9e3033f7bcff14594de679ba",
+    "product_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
+    "target_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
+    "product_semantic_sha256": "d9196e51569d153063ffe52a475b38d55ab097fb876133658fb44a46a3b8a01f",
+    "target_semantic_sha256": "d9196e51569d153063ffe52a475b38d55ab097fb876133658fb44a46a3b8a01f",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,25 +36,9 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover",
-    "target_head": "83c5612def201489339b7146f32aeb99830d2977",
-    "product_head": "83c5612def201489339b7146f32aeb99830d2977",
-    "changed_paths": [
-      "docs/governance/product-design-contract.md",
-      "evidence/chronicle/ci-runner-boundary/2026-07-08.md",
-      "evidence/claims/ci-runner-boundary.toml",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/.openspec.yaml",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/design.md",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/proposal.md",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/specs/quality/spec.md",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/specs/repository-governance/spec.md",
-      "openspec/changes/archive/2026-07-08-ci-runner-boundary/tasks.md",
-      "openspec/changes/ci-runner-boundary-20260708/.openspec.yaml",
-      "openspec/changes/ci-runner-boundary-20260708/design.md",
-      "openspec/changes/ci-runner-boundary-20260708/proposal.md",
-      "openspec/changes/ci-runner-boundary-20260708/specs/quality/spec.md",
-      "openspec/changes/ci-runner-boundary-20260708/specs/repository-governance/spec.md",
-      "openspec/changes/ci-runner-boundary-20260708/tasks.md"
-    ],
+    "target_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
+    "product_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -67,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json"
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -97,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "8a3275c8db2e54b9c8e003174150bc1ee8e6edaa114c3b738c53004fa7296315"
+        "sha256": "de182f4f02af93cfb22c284de0160f4fbd8c67ba73619de3a724230488931b52"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "85b541e5410cba8709c4e95c291af6012adbf56167e254237defc2da25dd8569"
+        "sha256": "da7040ef61ca5b0dd485bce90fcda01e5a7eb98a515fb7edbe8b6a953ce8d152"
       },
       {
         "path": "openspec",

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import textwrap
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path
 
 import ethos.repository.policy.layout.imports.core as layout_imports
 from ethos.repository.policy.layout.core import module_layout_report
@@ -860,3 +857,15 @@ def test_module_layout_blocks_dynamic_export_without_lazy_import(tmp_path: Path)
             "reasons": ["dynamic_export"],
         }
     ]
+
+
+def test_lane_lifecycle_modules_do_not_import_sibling_private_helpers() -> None:
+    targets = (
+        "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+        "packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py",
+    )
+    forbidden = "from ethos.adapters.mutation.lanes_retire import _"
+
+    offenders = [path for path in targets if forbidden in Path(path).read_text(encoding="utf-8")]
+
+    assert offenders == []

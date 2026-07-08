@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.mutation.lanes_retire import _default_candidate_path
-from ethos.adapters.mutation.lanes_retire import _git
-from ethos.adapters.mutation.lanes_retire import _is_ancestor
-from ethos.adapters.mutation.lanes_retire import _repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
+from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -21,11 +21,11 @@ def bootstrap_candidate(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
-    current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (path or _default_candidate_path(repo, policy.candidate_branch)).resolve()
+    current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    target = (path or default_candidate_path(repo, policy.candidate_branch)).resolve()
     gaps: list[str] = []
     if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
         gaps.append("candidate_bootstrap_requires_clean_accepted_root")
@@ -69,7 +69,7 @@ def bootstrap_candidate(
             "required_gaps": ["candidate_worktree_path_exists"],
         }
     if not candidate["exists"]:
-        completed = _git(repo, "branch", policy.candidate_branch, current_head, check=False)
+        completed = run_git(repo, "branch", policy.candidate_branch, current_head, check=False)
         if completed.returncode != 0:
             return {
                 "ok": False,
@@ -80,7 +80,7 @@ def bootstrap_candidate(
                 "required_gaps": ["candidate_bootstrap_failed"],
                 "stderr": completed.stderr.strip(),
             }
-    completed = _git(
+    completed = run_git(
         repo,
         "worktree",
         "add",
@@ -172,10 +172,10 @@ def refresh_candidate_from_accepted(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
-    current_head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
     candidate_path = str(candidate.get("worktree_path") or "")
@@ -226,7 +226,7 @@ def refresh_candidate_from_accepted(
                 "required_gaps": [],
             }
         )
-    completed = _git(Path(candidate_path), "reset", "--hard", current_head, check=False)
+    completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
     if completed.returncode != 0:
         return _candidate_report(
             {
@@ -262,7 +262,7 @@ def refresh_work_lane_base(
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     status = workspace_status(root)
-    current_head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     branch = str(status.get("branch") or "")
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
@@ -291,7 +291,7 @@ def refresh_work_lane_base(
                 "required_gaps": gaps,
             }
         )
-    if _is_ancestor(root, candidate_head, current_head):
+    if is_ancestor(root, candidate_head, current_head):
         return _work_base_report(
             {
                 "ok": True,
@@ -317,9 +317,9 @@ def refresh_work_lane_base(
                 "required_gaps": [],
             }
         )
-    completed = _git(root, "rebase", policy.candidate_branch, check=False)
+    completed = run_git(root, "rebase", policy.candidate_branch, check=False)
     if completed.returncode != 0:
-        _git(root, "rebase", "--abort", check=False)
+        run_git(root, "rebase", "--abort", check=False)
         return _work_base_report(
             {
                 "ok": False,
@@ -333,7 +333,7 @@ def refresh_work_lane_base(
             },
             stderr=completed.stderr.strip(),
         )
-    refreshed_head = _git(root, "rev-parse", "HEAD").stdout.strip()
+    refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     return _work_base_report(
         {
             "ok": True,

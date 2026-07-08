@@ -11,6 +11,8 @@ from types import SimpleNamespace
 
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
+from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
+from ethos.adapters.mutation.lane_lifecycle.core import slug
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query
@@ -106,9 +108,9 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
 
 
 def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path: Path) -> None:
-    assert lanes._slug("  A b@@c ") == "a-b-c"
-    assert lanes._slug("@@") == "work"
-    assert lanes._default_candidate_path(Path("/tmp/repo"), "candidate/dev") == Path(
+    assert slug("  A b@@c ") == "a-b-c"
+    assert slug("@@") == "work"
+    assert default_candidate_path(Path("/tmp/repo"), "candidate/dev") == Path(
         "/tmp/repo-candidate-dev"
     )
     status = status_for(branch="work/x")
@@ -118,7 +120,7 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
     monkeypatch.setattr(lanes, "active_leases", lambda db: [{"subject": "work/x", "owner": "me"}])
     assert lanes._active_lease(tmp_path / "state.sqlite", "work/x")["owner"] == "me"
 
-    monkeypatch.setattr(lanes, "_repo_root", lambda root: tmp_path)
+    monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status)
     monkeypatch.setattr(lanes, "active_leases", lambda db: [])
     assert lanes.bind_work_lane_claim(root=tmp_path, claim_id="", apply=False)["required_gaps"] == [
@@ -139,14 +141,16 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
     )
 
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(lanes, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n"))
+    monkeypatch.setattr(
+        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n")
+    )
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_ACCEPTED_ROOT))
     assert lanes.bootstrap_candidate(root=tmp_path, apply=True)["state"] == "present"
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_WORK_LANE))
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: True)
     assert lanes.refresh_work_lane_base(root=tmp_path, apply=False)["state"] == "base_current"
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
     assert (
         lanes.refresh_work_lane_base(root=tmp_path, apply=False)["state"] == "ready_to_refresh_base"
     )

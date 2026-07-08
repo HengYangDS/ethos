@@ -1,31 +1,17 @@
 from __future__ import annotations
 
 import os
-import re
-import subprocess
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-
-
-def _repo_root(root: Path) -> Path:
-    try:
-        return Path(_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
-    except subprocess.CalledProcessError:
-        return root.resolve()
-
-
-def _slug(name: str) -> str:
-    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
-
-
-def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
-    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
 
 
 def retire_unbound_work_lane_ref(
@@ -37,7 +23,7 @@ def retire_unbound_work_lane_ref(
     apply: bool = False,
     authorized: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     status = workspace_status(repo)
     branch = branch.strip()
     reason = reason.strip()
@@ -77,7 +63,7 @@ def retire_unbound_work_lane_ref(
         return report
     if not apply:
         return report
-    deleted = _git(
+    deleted = run_git(
         repo,
         "update-ref",
         "-d",
@@ -134,7 +120,7 @@ def retire_landed_work_lanes(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     status = workspace_status(repo)
     leases = _active_lane_leases(repo)
     lanes = [
@@ -183,7 +169,7 @@ def retire_landed_work_lanes(
             "required_gaps": [],
         }
     lane = selected[0]
-    remove = _git(repo, "worktree", "remove", str(lane["path"]), check=False)
+    remove = run_git(repo, "worktree", "remove", str(lane["path"]), check=False)
     if remove.returncode != 0:
         return {
             "ok": False,
@@ -199,7 +185,7 @@ def retire_landed_work_lanes(
             "required_gaps": ["worktree_remove_failed"],
             "stderr": remove.stderr.strip(),
         }
-    delete = _git(
+    delete = run_git(
         repo,
         "update-ref",
         "-d",
@@ -308,12 +294,12 @@ def _current_actor() -> str:
 
 
 def _branch_exists(root: Path, branch: str) -> bool:
-    completed = _git(root, "rev-parse", "--verify", branch, check=False)
+    completed = run_git(root, "rev-parse", "--verify", branch, check=False)
     return completed.returncode == 0
 
 
 def has_changed_paths(root: Path) -> bool:
-    completed = _git(root, "status", "--porcelain", "--untracked-files=all", check=False)
+    completed = run_git(root, "status", "--porcelain", "--untracked-files=all", check=False)
     if completed.returncode != 0:
         return True
     return bool(completed.stdout.strip())
@@ -361,7 +347,7 @@ def _retirement_lane(
     path = Path(str(lane["path"]))
     lease = (leases or {}).get(branch, {})
     lease_owner = str(lease.get("owner") or "")
-    if not _is_ancestor(repo, branch, "HEAD"):
+    if not is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_not_merged")
     if has_changed_paths(path):
         gaps.append("work_lane_dirty")
@@ -374,18 +360,3 @@ def _retirement_lane(
         "retire_ready": not gaps,
         "required_gaps": gaps,
     }
-
-
-def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
-    completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
-    return completed.returncode == 0
-
-
-def _git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=check,
-        text=True,
-        capture_output=True,
-    )

@@ -148,7 +148,7 @@ def test_refresh_candidate_from_accepted_reset_failure(
     _run_git(repo, "commit", "-m", "c2")  # dev advances to C2
     accepted_head = _head(repo)
 
-    real_git = lanes_refresh._git
+    real_git = lanes_refresh.run_git
 
     def _fail_reset(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         if "reset" in args:
@@ -157,7 +157,7 @@ def test_refresh_candidate_from_accepted_reset_failure(
             )
         return real_git(root, *args, check=check)
 
-    monkeypatch.setattr(lanes_refresh, "_git", _fail_reset)
+    monkeypatch.setattr(lanes_refresh, "run_git", _fail_reset)
     result = lanes_refresh.refresh_candidate_from_accepted(
         root=repo, apply=True, authorized=True, expect_head=accepted_head
     )

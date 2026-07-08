@@ -67,7 +67,7 @@ def status_for(
 def test_start_work_lane_blocks_and_success(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(lanes, "_repo_root", lambda root: tmp_path)
+    monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
     assert lanes.start_work_lane(root=tmp_path, name="My Lane", path=tmp_path / "w", owner="")[
         "required_gaps"
@@ -112,7 +112,7 @@ def test_start_work_lane_blocks_and_success(
     )["required_gaps"] == ["branch_already_exists"]
     monkeypatch.setattr(lanes, "_branch_exists", lambda root, branch: False)
     monkeypatch.setattr(
-        lanes, "_git", lambda root, *args, check=True, **kwargs: cp(stderr="nope", returncode=1)
+        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stderr="nope", returncode=1)
     )
     assert lanes.start_work_lane(
         root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
@@ -127,7 +127,7 @@ def test_start_work_lane_blocks_and_success(
             return cp(stdout="newhead\n")
         return cp()
 
-    monkeypatch.setattr(lanes, "_git", fake_git)
+    monkeypatch.setattr(lanes, "run_git", fake_git)
     monkeypatch.setattr(
         lanes,
         "acquire_lease",
@@ -143,9 +143,11 @@ def test_start_work_lane_blocks_and_success(
 def test_candidate_refresh_bootstrap_and_retire_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(lanes, "_repo_root", lambda root: tmp_path)
+    monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(lanes, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n"))
+    monkeypatch.setattr(
+        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n")
+    )
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(dirty=True))
     assert lanes.bootstrap_candidate(root=tmp_path, expect_head="other", apply=True)[
         "required_gaps"
@@ -180,7 +182,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
             return cp(returncode=1, stderr="cannot add")
         return cp()
 
-    monkeypatch.setattr(lanes, "_git", git_bootstrap)
+    monkeypatch.setattr(lanes, "run_git", git_bootstrap)
     assert lanes.bootstrap_candidate(root=tmp_path, path=target, apply=True)["required_gaps"] == [
         "candidate_worktree_add_failed"
     ]
@@ -188,7 +190,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for())
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     monkeypatch.setattr(
-        lanes, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0)
+        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0)
     )
     blocked = lanes.refresh_candidate_from_accepted(root=tmp_path, apply=True, authorized=False)
     assert set(blocked["required_gaps"]) == {"authorization_required", "expect_head_required"}
@@ -206,7 +208,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     ]
     (tmp_path / "w").mkdir()
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(worktrees=worktrees))
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
     assert lanes.retire_landed_work_lanes(root=tmp_path, branch="missing")["required_gaps"] == [
         "retire_branch_not_found"
     ]
@@ -218,7 +220,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         is False
     )
 
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     calls: list[tuple[str, ...]] = []
 
@@ -228,7 +230,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         calls.append(args)
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", git_retire)
+    monkeypatch.setattr(lanes, "run_git", git_retire)
     state.acquire_lease(
         tmp_path / ".ethos" / "state" / "state.sqlite",
         subject="work/x",

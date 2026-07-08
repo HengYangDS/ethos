@@ -5,10 +5,11 @@ from typing import cast
 
 import ethos.adapters.mutation.lanes_refresh as lanes_refresh
 import ethos.adapters.mutation.lanes_retire as lanes_retire
-from ethos.adapters.mutation.lanes_retire import _git
-from ethos.adapters.mutation.lanes_retire import _is_ancestor
-from ethos.adapters.mutation.lanes_retire import _repo_root
-from ethos.adapters.mutation.lanes_retire import _slug
+from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
+from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.lane_lifecycle.core import slug
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import acquire_lease
@@ -20,19 +21,6 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 
-# Keep the historical private helper surface on this module for internal tests
-# and patchable adapters. lanes_refresh uses the shared implementation in
-# lanes_retire; this compatibility helper preserves the old private surface.
-def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
-    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
-
-
-__all__ = (
-    "retire_landed_work_lanes",
-    "retire_unbound_work_lane_ref",
-)
-
-
 def start_work_lane(
     *,
     root: Path,
@@ -42,14 +30,14 @@ def start_work_lane(
     claim_id: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     policy = load_branch_role_policy(repo)
-    slug = _slug(name)
-    branch = policy.work_branch(slug)
+    lane_slug = slug(name)
+    branch = policy.work_branch(lane_slug)
     # Default the lane home to the canonical sibling of the accepted root
     # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
     # still pin an explicit path.
-    target = (path or _default_candidate_path(repo, branch)).resolve()
+    target = (path or default_candidate_path(repo, branch)).resolve()
     if not owner.strip():
         return {
             "ok": False,
@@ -110,7 +98,7 @@ def start_work_lane(
             "path": target.as_posix(),
             "required_gaps": ["branch_already_exists"],
         }
-    completed = _git(
+    completed = run_git(
         repo,
         "worktree",
         "add",
@@ -161,7 +149,7 @@ def bind_work_lane_claim(
     branch: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     status = workspace_status(repo)
     target_branch = branch or str(status["branch"])
     gaps: list[str] = []
@@ -273,7 +261,8 @@ def _call_refresh(name: str, **kwargs: object) -> dict[str, object]:
 def _refresh_previous(refresh: object) -> dict[str, object]:
     namespace = cast("dict[str, object]", refresh.__dict__)
     return {
-        key: namespace[key] for key in ("workspace_status", "changed_paths", "_is_ancestor", "_git")
+        key: namespace[key]
+        for key in ("workspace_status", "changed_paths", "is_ancestor", "run_git")
     }
 
 
@@ -282,8 +271,8 @@ def _patch_refresh_adapters(refresh: object) -> None:
     namespace.update(
         workspace_status=workspace_status,
         changed_paths=changed_paths,
-        _is_ancestor=_is_ancestor,
-        _git=_git,
+        is_ancestor=is_ancestor,
+        run_git=run_git,
     )
 
 
@@ -325,12 +314,14 @@ def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:
 
 
 def _branch_exists(root: Path, branch: str) -> bool:
-    completed = _git(root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False)
+    completed = run_git(
+        root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False
+    )
     return completed.returncode == 0
 
 
 def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
-    head = _git(path, "rev-parse", "HEAD").stdout.strip()
+    head = run_git(path, "rev-parse", "HEAD").stdout.strip()
     return {
         "branch": branch,
         "path": path.as_posix(),
@@ -349,20 +340,20 @@ def retire_landed_work_lanes(
 ) -> dict[str, object]:
     """Retire landed lanes while preserving this module's patchable adapters."""
     previous = {
-        "_repo_root": lanes_retire.__dict__["_repo_root"],
+        "repo_root": lanes_retire.__dict__["repo_root"],
         "workspace_status": lanes_retire.workspace_status,
         "active_leases": lanes_retire.active_leases,
         "delete_lease": lanes_retire.delete_lease,
-        "_is_ancestor": lanes_retire.__dict__["_is_ancestor"],
-        "_git": lanes_retire.__dict__["_git"],
+        "is_ancestor": lanes_retire.__dict__["is_ancestor"],
+        "run_git": lanes_retire.__dict__["run_git"],
     }
     try:
-        lanes_retire.__dict__["_repo_root"] = _repo_root
+        lanes_retire.__dict__["repo_root"] = repo_root
         lanes_retire.workspace_status = workspace_status
         lanes_retire.active_leases = active_leases
         lanes_retire.delete_lease = delete_lease
-        lanes_retire.__dict__["_is_ancestor"] = _is_ancestor
-        lanes_retire.__dict__["_git"] = _git
+        lanes_retire.__dict__["is_ancestor"] = is_ancestor
+        lanes_retire.__dict__["run_git"] = run_git
         return lanes_retire.retire_landed_work_lanes(
             root=root,
             branch=branch,
@@ -370,12 +361,12 @@ def retire_landed_work_lanes(
             apply=apply,
         )
     finally:
-        lanes_retire.__dict__["_repo_root"] = previous["_repo_root"]
+        lanes_retire.__dict__["repo_root"] = previous["repo_root"]
         lanes_retire.workspace_status = previous["workspace_status"]
         lanes_retire.active_leases = previous["active_leases"]
         lanes_retire.delete_lease = previous["delete_lease"]
-        lanes_retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
-        lanes_retire.__dict__["_git"] = previous["_git"]
+        lanes_retire.__dict__["is_ancestor"] = previous["is_ancestor"]
+        lanes_retire.__dict__["run_git"] = previous["run_git"]
 
 
 def retire_unbound_work_lane_ref(
@@ -391,12 +382,12 @@ def retire_unbound_work_lane_ref(
     previous = {
         "workspace_status": lanes_retire.workspace_status,
         "delete_lease": lanes_retire.delete_lease,
-        "_git": lanes_retire.__dict__["_git"],
+        "run_git": lanes_retire.__dict__["run_git"],
     }
     try:
         lanes_retire.workspace_status = workspace_status
         lanes_retire.delete_lease = delete_lease
-        lanes_retire.__dict__["_git"] = _git
+        lanes_retire.__dict__["run_git"] = run_git
         return lanes_retire.retire_unbound_work_lane_ref(
             root=root,
             branch=branch,
@@ -408,4 +399,4 @@ def retire_unbound_work_lane_ref(
     finally:
         lanes_retire.workspace_status = previous["workspace_status"]
         lanes_retire.delete_lease = previous["delete_lease"]
-        lanes_retire.__dict__["_git"] = previous["_git"]
+        lanes_retire.__dict__["run_git"] = previous["run_git"]

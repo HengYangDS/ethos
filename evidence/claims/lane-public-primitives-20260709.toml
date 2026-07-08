@@ -1,0 +1,63 @@
+[claim]
+id = "lane-public-primitives-20260709"
+subject = "ethos:lane-public-primitives-20260709"
+state = "active"
+change_id = "lane-public-primitives-20260709"
+summary = "Work Lane lifecycle shared helpers moved to a semantic public primitives package, and module-layout now blocks changed-file private from-import regressions."
+
+[evidence]
+dated = "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md"
+sha256 = "5babd19dd51da55da123ae48967852a18e1600f7cb2fc80fa8e0e6e20bd66e70"
+evidence_ids = ["evidence:lane-public-primitives-20260709"]
+binding = "Focused lifecycle tests, module-layout regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/policy/test_module_layout.py tests/unit/policy/layout/test_import_discipline.py tests/unit/lanes/test_lanes_retire.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_cov_v2_config_refresh_edges.py tests/unit/coverage/test_ci_95_additional_edges.py tests/unit/coverage/test_lanes_final_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos quality module-layout --json",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --target . --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/policy/test_module_layout.py",
+  "tests/unit/policy/layout/test_import_discipline.py",
+  "tests/unit/lanes/test_lanes_retire.py",
+  "tests/unit/lanes/test_lanes_lifecycle.py",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Work Lane lifecycle helper visibility and changed-file private from-import regression gating only."
+
+[carriers]
+openspec = "openspec/specs/quality/spec.md"
+fallback = "Use public primitives from ethos.adapters.mutation.lane_lifecycle.core; do not restore private sibling imports or compatibility re-export shims."
+kill_signal = "A changed Work Lane lifecycle module imports a private helper from a sibling module, or module-layout permits a changed product file containing from-ellipsis-import-private."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/__init__.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes_retire.py",
+  "packages/ethos/src/ethos/repository/policy/layout/imports/core.py",
+  "packages/ethos/src/ethos/repository/policy/layout/core.py",
+  "openspec/specs/quality/spec.md",
+  "tests/unit/policy/test_module_layout.py",
+  "tests/unit/policy/layout/test_import_discipline.py",
+  "tests/unit/coverage/test_ci_95_additional_edges.py",
+  "tests/unit/coverage/test_cov_v3_mutation_edges.py",
+  "tests/unit/coverage/test_lanes_final_edges.py",
+  "tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
+  "tests/unit/lanes/test_lanes_retire.py",
+  "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md",
+  "evidence/claims/lane-public-primitives-20260709.toml",
+]

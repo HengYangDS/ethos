@@ -179,6 +179,9 @@ import-alias compatibility residue cannot grow through normal write paths.
   facades
 - **AND** ordinary modules cannot act as module-level `__getattr__` dynamic
   compatibility export facades
+- **AND** changed governed Python modules cannot import private symbols from
+  another module with `from ... import _private` as a compatibility or helper
+  dependency
 - **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
   `tools/ci/scripts/run-module-layout.sh` owner script instead of duplicating
   the policy inline.

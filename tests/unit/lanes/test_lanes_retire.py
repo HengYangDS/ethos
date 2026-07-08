@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.status.core as repo_status
 from ethos.adapters.mutation import lanes_retire
+from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -564,9 +565,9 @@ def test_lanes_retire_repo_root_falls_back_when_git_root_unavailable(
         assert args == ("rev-parse", "--show-toplevel")
         raise subprocess.CalledProcessError(128, ["git", *args])
 
-    monkeypatch.setattr(lanes_retire, "_git", fail_git)
+    monkeypatch.setattr(lane_lifecycle_core, "run_git", fail_git)
 
-    assert lanes_retire._repo_root(tmp_path) == tmp_path.resolve()
+    assert lane_lifecycle_core.repo_root(tmp_path) == tmp_path.resolve()
 
 
 def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_path: Path) -> None:
@@ -574,14 +575,14 @@ def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_pa
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
-    real_git = lanes_retire._git
+    real_git = lanes_retire.run_git
 
     def fake_git(root: Path, *args: str, check: bool = True):
         if args[:2] == ("update-ref", "-d"):
             return subprocess.CompletedProcess(["git", *args], 1, "", "locked ref")
         return real_git(root, *args, check=check)
 
-    monkeypatch.setattr(lanes_retire, "_git", fake_git)
+    monkeypatch.setattr(lanes_retire, "run_git", fake_git)
 
     report = lanes_retire.retire_unbound_work_lane_ref(
         root=repo,

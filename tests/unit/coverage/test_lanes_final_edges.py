@@ -45,11 +45,11 @@ def status(
 
 
 def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(lanes, "_repo_root", lambda root: tmp_path)
+    monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
     monkeypatch.setattr(
         lanes,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", stderr="fail", returncode=0),
     )
 
@@ -83,7 +83,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             return cp(returncode=1, stderr="branch fail")
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", branch_fails)
+    monkeypatch.setattr(lanes, "run_git", branch_fails)
     assert lanes.bootstrap_candidate(root=tmp_path, path=tmp_path / "candidate", apply=True)[
         "required_gaps"
     ] == ["candidate_bootstrap_failed"]
@@ -102,7 +102,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     )
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     monkeypatch.setattr(
-        lanes, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0)
+        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0)
     )
     assert lanes.refresh_candidate_from_accepted(root=tmp_path)["state"] == "base_current"
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status(dirty=True))
@@ -131,7 +131,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             },
         ),
     )
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
     calls = []
 
     def rebase_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
@@ -142,7 +142,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             return cp(returncode=1, stderr="rebase fail")
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", rebase_fails)
+    monkeypatch.setattr(lanes, "run_git", rebase_fails)
     failed = lanes.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head="h1"
     )
@@ -154,7 +154,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             return cp(stdout="h2\n")
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", rebase_ok)
+    monkeypatch.setattr(lanes, "run_git", rebase_ok)
     assert (
         lanes.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="h2")[
             "state"
@@ -169,7 +169,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         lanes, "workspace_status", lambda root: {**status(), "worktrees": worktrees}
     )
-    monkeypatch.setattr(lanes, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
 
     def remove_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
@@ -177,7 +177,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             return cp(returncode=1, stderr="remove fail")
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", remove_fails)
+    monkeypatch.setattr(lanes, "run_git", remove_fails)
     monkeypatch.setenv("ETHOS_ACTOR", "me")
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
@@ -191,7 +191,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             return cp(returncode=1, stderr="delete fail")
         return cp(returncode=0)
 
-    monkeypatch.setattr(lanes, "_git", delete_fails)
+    monkeypatch.setattr(lanes, "run_git", delete_fails)
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
         branch="work/x",

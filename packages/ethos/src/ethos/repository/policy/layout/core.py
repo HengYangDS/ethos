@@ -22,6 +22,7 @@ from ethos.repository.policy.layout.filesystem.core import POLICY_PATH
 from ethos.repository.policy.layout.filesystem.core import load_policy
 from ethos.repository.policy.layout.growth.core import flat_growth_findings
 from ethos.repository.policy.layout.imports.core import package_root_submodule_import_findings
+from ethos.repository.policy.layout.imports.core import private_from_import_regression_findings
 from ethos.repository.policy.layout.naming.core import flat_directory_findings
 from ethos.repository.policy.layout.naming.core import suffix_group_findings
 from ethos.repository.policy.layout.naming.core import suffix_module_findings
@@ -39,6 +40,7 @@ DEBT_SUMMARY_KEYS = (
     "module_facade_count",
     "package_root_submodule_import_count",
     "dynamic_compat_facade_count",
+    "private_from_import_regression_count",
 )
 
 
@@ -53,6 +55,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
     module_facades = module_facade_findings(root, policy)
     package_root_submodule_imports = package_root_submodule_import_findings(root, policy)
     dynamic_compat_facades = dynamic_compat_facade_findings(root, policy)
+    private_from_import_regressions = private_from_import_regression_findings(root, policy)
     flat_growth = flat_growth_findings(root, policy)
     baseline = baseline_gap_set(policy)
     baseline_growth = baseline_growth_findings(root, policy, baseline)
@@ -65,6 +68,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         *module_facades,
         *package_root_submodule_imports,
         *dynamic_compat_facades,
+        *private_from_import_regressions,
         *flat_growth,
     ]
     current_gaps = {str(item["gap"]) for item in findings}
@@ -86,6 +90,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "module_facade_count": len(module_facades),
         "package_root_submodule_import_count": len(package_root_submodule_imports),
         "dynamic_compat_facade_count": len(dynamic_compat_facades),
+        "private_from_import_regression_count": len(private_from_import_regressions),
         "flat_growth_count": len(flat_growth),
         "baseline_growth_count": len(baseline_growth),
     }
@@ -138,6 +143,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "module_facade_findings": module_facades,
         "package_root_submodule_import_findings": package_root_submodule_imports,
         "dynamic_compat_facade_findings": dynamic_compat_facades,
+        "private_from_import_regression_findings": private_from_import_regressions,
         "flat_growth_findings": flat_growth,
         "stale_baseline_findings": stale_baselines,
         "baseline_growth_findings": baseline_growth,

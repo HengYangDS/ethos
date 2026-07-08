@@ -11,6 +11,7 @@ from pathlib import Path
 
 import jsonschema
 
+from ethos_core import invalid_states as invalid_states_module
 from ethos_core.invalid_states import NODE_ORDER
 from ethos_core.invalid_states import UNCLASSIFIED
 from ethos_core.invalid_states import classify
@@ -74,6 +75,39 @@ def test_taxonomy_contract_validates_against_schema() -> None:
         (ROOT / "system/schemas/contracts/invalid_states.schema.json").read_text(encoding="utf-8")
     )
     jsonschema.Draft202012Validator(schema).validate(payload)
+
+
+def test_taxonomy_release_resource_matches_system_contract() -> None:
+    system_payload = tomllib.loads(
+        (ROOT / "system/invalid_states.toml").read_text(encoding="utf-8")
+    )
+    release_payload = tomllib.loads(
+        (ROOT / "packages/ethos-core/src/ethos_core/data/invalid_states.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert release_payload == system_payload
+
+
+def test_taxonomy_loads_from_packaged_resource_outside_checkout(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        invalid_states_module,
+        "__file__",
+        str(tmp_path / "site-packages" / "ethos_core" / "invalid_states.py"),
+    )
+    invalid_states_module.invalid_state_categories.cache_clear()
+
+    try:
+        categories = invalid_states_module.invalid_state_categories()
+    finally:
+        invalid_states_module.invalid_state_categories.cache_clear()
+
+    assert tuple(category.id for category in categories) == NODE_ORDER
 
 
 def test_taxonomy_is_mece_over_the_chain() -> None:

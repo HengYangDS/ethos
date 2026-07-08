@@ -16,6 +16,7 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass
 from functools import lru_cache
+from importlib import resources
 from pathlib import Path
 
 # The seven chain-node failures plus carrier/substrate boundary failures, in order.
@@ -33,6 +34,7 @@ NODE_ORDER: tuple[str, ...] = (
 )
 
 UNCLASSIFIED = "unclassified_invalid_state"
+_TAXONOMY_RESOURCE = "data/invalid_states.toml"
 
 
 @dataclass(frozen=True)
@@ -55,10 +57,23 @@ def _taxonomy_path() -> Path:
     return Path("system/invalid_states.toml")
 
 
+def _taxonomy_text() -> str:
+    """Read the invalid-state taxonomy from source checkout or packaged resource.
+
+    Source checkouts keep the governance contract in `system/invalid_states.toml`.
+    Installed wheels run outside that checkout, so they need the release resource
+    mirror packaged inside `ethos_core`.
+    """
+    taxonomy_path = _taxonomy_path()
+    if taxonomy_path.exists():
+        return taxonomy_path.read_text(encoding="utf-8")
+    return resources.files("ethos_core").joinpath(_TAXONOMY_RESOURCE).read_text(encoding="utf-8")
+
+
 @lru_cache(maxsize=1)
 def invalid_state_categories() -> tuple[InvalidStateCategory, ...]:
     """Load the taxonomy in chain order (NODE_ORDER). Cached: the contract is static."""
-    payload = tomllib.loads(_taxonomy_path().read_text(encoding="utf-8"))
+    payload = tomllib.loads(_taxonomy_text())
     by_id = {
         str(entry["id"]): InvalidStateCategory(
             id=str(entry["id"]),

@@ -49,7 +49,7 @@ from ethos_core.contracts.package_ontology import workspace_package_config_repor
 from ethos_core.quality.docs_profile import docs_quality_profile
 from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles
-from ethos_core.quality.proof_policy import proof_lattice
+from ethos_core.quality.proof.policy import proof_lattice
 from ethos_core.result import EthosResult
 
 

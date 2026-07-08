@@ -17,7 +17,7 @@ import ethos.adapters.repo.status.core as status
 from ethos.repository import audit_openspec
 from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
 from ethos_core import invalid_states
-from ethos_core.quality import proof_policy
+from ethos_core.quality.proof import policy as proof_policy
 
 
 def test_taxonomy_path_falls_back_when_no_toml_in_parents(

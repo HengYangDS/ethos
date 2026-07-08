@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
-    "target_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
-    "product_semantic_sha256": "7c7e994418ef1f3b67c7751e4e7b67c61953f03261e79ac1c4b196113a8a1dc7",
-    "target_semantic_sha256": "7c7e994418ef1f3b67c7751e4e7b67c61953f03261e79ac1c4b196113a8a1dc7",
+    "product_head": "3d13b4ed381ba94599212e86826083bcdc4cb9c5",
+    "target_head": "3d13b4ed381ba94599212e86826083bcdc4cb9c5",
+    "product_semantic_sha256": "64e311a82bf33bfe94f3661c17d7ad8b121a91f76d97eefd61dc2b612deeeb06",
+    "target_semantic_sha256": "64e311a82bf33bfe94f3661c17d7ad8b121a91f76d97eefd61dc2b612deeeb06",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory",
-    "target_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
-    "product_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
+    "target_head": "3d13b4ed381ba94599212e86826083bcdc4cb9c5",
+    "product_head": "3d13b4ed381ba94599212e86826083bcdc4cb9c5",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "8ad22e76797c40c8a16e330e529e6e78679cd264324f5059787e3acb567e29b2"
+        "sha256": "3f027088274ba6d285c274ab4c4cde9444438b336933abbf463bb96964ea79d0"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "2769f2929cc2cfd1dfbb7032b8a069f13a8e5c335497728de5f6578646972da2"
+        "sha256": "06c0d2eb8453c5a19b3c2a05a731fe860d08ab425bf6ec114252b055a8becd4b"
       },
       {
         "path": "openspec",

@@ -204,6 +204,66 @@ def test_shadow_semantic_diff_accepts_external_profile_route_gap() -> None:
     ]
 
 
+def test_shadow_semantic_diff_accepts_external_stricter_changed_plan() -> None:
+    external = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "data": {
+            "changed_paths": [
+                ".config/interfaces/external-ethos-backend.toml",
+                ".ethos/profile.toml",
+                "docs/current/development/workflow/external-ethos-adoption.md",
+            ],
+            "matched_rules": [
+                {"id": "ethos-command-plane"},
+                {"id": "governance-records"},
+            ],
+            "required_gates": [
+                {"id": "markdown"},
+                {"id": "openspec"},
+                {"id": "playbooks"},
+                {"id": "proof"},
+                {"id": "redundancy"},
+            ],
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "summary": {
+            "changed_path_count": 0,
+            "matched_rule_count": 0,
+            "required_gate_count": 0,
+        },
+    }
+
+    assert shadow_semantics.semantic_diff(("plan", "--changed"), external, embedded) == {}
+    accepted = shadow_semantics.accepted_semantic_differences(
+        ("plan", "--changed"),
+        external,
+        embedded,
+    )
+
+    assert accepted == [
+        {
+            "kind": "external_stricter_plan_scope",
+            "classification": "accepted",
+            "scope": "external_stricter_plan_scope",
+            "commands": ["ethos plan"],
+            "gaps": [
+                "changed_paths:3",
+                "matched_rules:ethos-command-plane,governance-records",
+                "required_gates:markdown,openspec,playbooks,proof,redundancy",
+            ],
+            "reason": "external product plans a stricter changed-scope gate set allowed by shadow parity",
+        }
+    ]
+
+
 def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
     external = {
         "ok": True,

@@ -156,6 +156,20 @@ def _normalized_semantic_projections(
                     gaps=report_gaps,
                 )
             )
+        plan_scope_gaps = _external_stricter_plan_scope_gaps(
+            command,
+            external_projection,
+            embedded_projection,
+        )
+        if plan_scope_gaps:
+            accepted.append(
+                _accepted_difference(
+                    "external_stricter_plan_scope",
+                    command=external_projection.get("command"),
+                    gaps=plan_scope_gaps,
+                )
+            )
+            _normalize_external_plan_scope(external_projection, embedded_projection)
         external_gaps, stricter_gaps = _without_external_stricter_only_gaps(
             command,
             external_gaps,
@@ -192,6 +206,9 @@ def _accepted_difference(kind: str, *, command: object, gaps: list[str]) -> dict
     elif kind == "external_stricter_required_gap":
         scope = "external_stricter_required_gap"
         reason = "external product reports a stricter blocking gap allowed by shadow parity"
+    elif kind == "external_stricter_plan_scope":
+        scope = "external_stricter_plan_scope"
+        reason = "external product plans a stricter changed-scope gate set allowed by shadow parity"
     else:
         scope = "unknown"
         reason = "unclassified accepted difference"
@@ -423,6 +440,45 @@ def _without_external_stricter_only_gaps(
     return filtered, removed
 
 
+def _external_stricter_plan_scope_gaps(
+    command: tuple[str, ...],
+    external_projection: dict[str, Any],
+    embedded_projection: dict[str, Any],
+) -> list[str]:
+    if command != ("plan", "--changed"):
+        return []
+    if external_projection.get("command") != "plan":
+        return []
+    if embedded_projection.get("command") != "plan":
+        return []
+    if external_projection.get("required_gaps") or embedded_projection.get("required_gaps"):
+        return []
+    external_changed = _int(external_projection.get("changed_path_count"))
+    embedded_changed = _int(embedded_projection.get("changed_path_count"))
+    external_rules = _string_list(external_projection.get("matched_rule_ids"))
+    embedded_rules = _string_list(embedded_projection.get("matched_rule_ids"))
+    external_gates = _string_list(external_projection.get("required_gate_ids"))
+    embedded_gates = _string_list(embedded_projection.get("required_gate_ids"))
+    if external_changed <= embedded_changed:
+        return []
+    if embedded_changed != 0 or embedded_rules or embedded_gates:
+        return []
+    gaps = [f"changed_paths:{external_changed}"]
+    if external_rules:
+        gaps.append(f"matched_rules:{','.join(external_rules)}")
+    if external_gates:
+        gaps.append(f"required_gates:{','.join(external_gates)}")
+    return gaps
+
+
+def _normalize_external_plan_scope(
+    external_projection: dict[str, Any],
+    embedded_projection: dict[str, Any],
+) -> None:
+    for key in ("changed_path_count", "matched_rule_ids", "required_gate_ids"):
+        external_projection[key] = embedded_projection.get(key)
+
+
 _PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = (
     "docs/",
     "schemas/",
@@ -511,6 +567,16 @@ def _report_parity_evidence_refresh_bootstrap_gaps(
 
 def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _int(value: object) -> int:
+    return value if isinstance(value, int) else 0
 
 
 def _canonical_status_role(value: Any) -> Any:

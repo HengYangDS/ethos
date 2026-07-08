@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
-    "target_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
-    "product_semantic_sha256": "72591f2c87ee9b34a829860b708727a34fa0b7e4fb4f90446afc7865f10d3eb2",
-    "target_semantic_sha256": "72591f2c87ee9b34a829860b708727a34fa0b7e4fb4f90446afc7865f10d3eb2",
+    "product_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
+    "target_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
+    "product_semantic_sha256": "0e48346075eb91570bd5b3938cec714d76bdf1bd3003cc6f6677261558687015",
+    "target_semantic_sha256": "0e48346075eb91570bd5b3938cec714d76bdf1bd3003cc6f6677261558687015",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package",
-    "target_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
-    "product_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability",
+    "target_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
+    "product_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json"
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json",
+      "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "a5f58aa1a63df315c3e18b3b29ddc40fd2fed6342d5eef5d8e297ce3217306fb"
+        "sha256": "dfabc617e2391816c5740728993cd4b036a79dbfa70a21d9b1f84f7afa44248b"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "52ee0cc4c37ebcc3197f5bd949c69dc58e3537abcce076b098a62184267b6b41"
+        "sha256": "18d892acad41f9b5a982afdba0fa3f58e3c491cfb1da6e86f189f2e664eb2253"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "f0e87c0c98472beb91cf2b33698823505951f70bacf402cbd3b2f4bff90e3831"
+        "sha256": "09365d006f871941e9cbf008d73c49bba7feef9d807a54caeb3662e954c0b0c5"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "602f9bfaf363796e841a058a2ea8d6136fca1757ba29797a7f236e9c27df9837"
+        "sha256": "04b2b75b9514b89025dbd094d4efe9791e15b064591b90a699d45ce5371cef94"
       },
       {
         "path": "rules",

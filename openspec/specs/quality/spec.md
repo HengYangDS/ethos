@@ -170,10 +170,14 @@ import-alias compatibility residue cannot grow through normal write paths.
 - **AND** adding baseline entries or raising `baseline_gap_limit` fails the gate
 - **AND** adding governed modules to existing crowded directories fails before the
   directory reaches a larger flat-directory breach
+- **AND** creating a brand-new directory with more than the configured direct
+  module burst limit fails before the directory becomes a flat bucket
 - **AND** package-root `__init__.py` files remain declaration-only docstring
   boundaries rather than re-export or compatibility facades
 - **AND** ordinary modules cannot act as import-only compatibility re-export
   facades
+- **AND** ordinary modules cannot act as module-level `__getattr__` dynamic
+  compatibility export facades
 - **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
   `.config/ci/scripts/run-module-layout.sh` owner script instead of duplicating
   the policy inline.

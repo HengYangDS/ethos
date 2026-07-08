@@ -23,7 +23,9 @@ di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
 - **Flat-growth limit**: an already-populated directory is not a dumping ground.
   Adding a governed module to a directory that already has **5** direct modules
   is blocked; adding more than **2** direct modules to the same existing
-  directory in one change is blocked. Create or extend a semantic sub-package
+  directory in one change is blocked. Creating a brand-new directory with more
+  than **2** direct governed modules is also blocked; a new directory must not
+  be used as a one-shot flat bucket. Create or extend semantic sub-packages
   instead.
 - **Anti-pattern — suffix-flat**: `foo_report.py`, `foo_native.py`, `foo_index.py`
   side by side is forbidden as steady state. Prefer `foo/report.py`,
@@ -62,10 +64,11 @@ di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
   (`from x import y as main`). Compatibility residue is a cost center.
-- Ordinary modules must not become import-only compatibility facades either. A
-  module that only imports/re-exports names and optionally declares `__all__`
-  is stale surface; move callers to the concrete defining module and delete the
-  shell.
+- Ordinary modules must not become compatibility facades either. A module that
+  only imports/re-exports names and optionally declares `__all__` is stale
+  surface; a module-level `__getattr__` that dynamically forwards exports is the
+  same violation in lazy form. Move callers to the concrete defining module and
+  delete the shell.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
   cyclopts command signatures, whose annotation types must stay runtime imports.

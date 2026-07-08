@@ -101,9 +101,15 @@ def _flat_growth_records(
     findings: list[dict[str, object]] = []
     for directory, files in sorted(grouped.items()):
         previous_count = context.previous_counts.get(directory, 0)
-        if previous_count == 0 and not _reference_directory_exists(directory, context.previous):
-            continue
+        new_directory = previous_count == 0 and not _reference_directory_exists(
+            directory,
+            context.previous,
+        )
         current_count = context.current_counts.get(directory, 0)
+        if new_directory:
+            if len(files) > context.added_limit:
+                findings.append(_new_directory_burst_record(directory, files, context.added_limit))
+            continue
         if previous_count >= context.existing_limit:
             findings.append(_flat_growth_record(directory, files, previous_count, current_count))
         if len(files) > context.added_limit:
@@ -130,6 +136,20 @@ def _flat_growth_record(
 
 def _flat_burst_record(directory: str, files: list[str], added_limit: int) -> dict[str, object]:
     gap = f"module_layout_flat_growth_burst:{directory}:{len(files)}>{added_limit}"
+    return {
+        "gap": gap,
+        "directory": directory,
+        "added_module_count": len(files),
+        "files": files,
+    }
+
+
+def _new_directory_burst_record(
+    directory: str,
+    files: list[str],
+    added_limit: int,
+) -> dict[str, object]:
+    gap = f"module_layout_new_directory_burst:{directory}:{len(files)}>{added_limit}"
     return {
         "gap": gap,
         "directory": directory,

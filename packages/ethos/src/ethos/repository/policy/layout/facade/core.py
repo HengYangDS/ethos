@@ -56,6 +56,35 @@ def module_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str,
     return findings
 
 
+def dynamic_compat_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+    """Find modules that hide compatibility exports behind module `__getattr__`."""
+    findings: list[dict[str, object]] = []
+    for path in python_files(root, policy):
+        if path.name == "__init__.py":
+            continue
+        rel = path.relative_to(root).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+        reasons = dynamic_compat_facade_reasons(tree)
+        if not reasons:
+            continue
+        gap = f"module_layout_dynamic_compat_facade:{rel}"
+        findings.append({"gap": gap, "path": rel, "reasons": reasons})
+    return findings
+
+
+def dynamic_compat_facade_reasons(tree: ast.Module) -> list[str]:
+    """Return reasons a module-level `__getattr__` acts as a compatibility shell."""
+    reasons: list[str] = []
+    for node in _body_without_docstring(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if node.name == "__getattr__":
+            _append_reason(reasons, "dynamic_export")
+            if any(isinstance(inner, (ast.Import, ast.ImportFrom)) for inner in ast.walk(node)):
+                _append_reason(reasons, "lazy_import")
+    return reasons
+
+
 def package_init_facade_reasons(tree: ast.Module) -> list[str]:
     """Return reasons an `__init__.py` is not declaration-only."""
     reasons: list[str] = []

@@ -768,3 +768,58 @@ def test_module_layout_blocks_same_directory_add_burst(
         "module_layout_flat_growth_burst:packages/ethos/src/ethos/sample:3>2"
         in report["required_gaps"]
     )
+
+
+def test_module_layout_blocks_new_directory_module_burst(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = tmp_path / "packages" / "ethos" / "src" / "ethos" / "new_axis"
+    for name in ("one.py", "two.py", "three.py"):
+        _write(source / name)
+    _write(tmp_path / ".config" / "checks" / "module-layout" / "policy.toml", "")
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args == ("status", "--porcelain"):
+            return "?? packages/ethos/src/ethos/new_axis/one.py\n"
+        if args == ("rev-parse", "--verify", "HEAD"):
+            return "abc\n"
+        if args == ("show", "HEAD:.config/checks/module-layout/policy.toml"):
+            return ""
+        if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
+            return ""
+        return None
+
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    report = module_layout_report(tmp_path)
+
+    assert (
+        "module_layout_new_directory_burst:packages/ethos/src/ethos/new_axis:3>2"
+        in report["required_gaps"]
+    )
+
+
+def test_module_layout_blocks_dynamic_compatibility_export_module(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "compat.py",
+        textwrap.dedent(
+            '''
+            """Dynamic compatibility export shell."""
+            from __future__ import annotations
+
+            def __getattr__(name: str) -> object:
+                from ethos.sample.core import value
+                if name == "value":
+                    return value
+                raise AttributeError(name)
+            '''
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert (
+        "module_layout_dynamic_compat_facade:packages/ethos/src/ethos/sample/compat.py"
+        in report["required_gaps"]
+    )

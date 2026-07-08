@@ -214,3 +214,16 @@ def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
     assert "--cov-fail-under=${coverage_hard_floor}" in audit
     assert "--cov-fail-under={hard_floor:g}" not in audit
     assert "quality_python_tests_missing:--cov-fail-under=100" not in audit
+
+
+def test_quality_gate_reference_uses_coverage_policy_ssot() -> None:
+    reference = (
+        ROOT / ".agents/skills/ethos-quality-gate-governance/references/gate-design.md"
+    ).read_text(encoding="utf-8")
+    audit = (
+        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
+    ).read_text(encoding="utf-8")
+
+    assert "hard floor is 95 percent" not in reference
+    assert ".config/checks/coverage/policy.toml" in reference
+    assert "quality_reference_stale_coverage_floor:95" in audit

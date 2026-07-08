@@ -31,7 +31,8 @@ The product hard floor is intentionally compact:
 - Unit and architecture tests run with branch coverage through
   `.config/ci/scripts/run-python-tests.sh`.
 - Coverage configuration lives in `.config/checks/coverage/coverage.ini`; the
-  hard floor is 95 percent and branch coverage is required.
+  current hard floor is read from `.config/checks/coverage/policy.toml`, mirrored
+  by `coverage.ini`, and branch coverage is required.
 - Public-surface docstring policy lives in `.config/checks/docstrings/policy.toml`
   and is executed by `.config/ci/scripts/run-docstring-coverage.sh`.
 - TOML/YAML config lint, shell lint, import boundaries, security, and link checks

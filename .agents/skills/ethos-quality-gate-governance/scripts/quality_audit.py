@@ -92,6 +92,7 @@ def owner_gaps(root: Path) -> list[str]:
     gaps.extend(_pyproject_policy_gaps(root))
     gaps.extend(_coverage_policy_gaps(root))
     gaps.extend(_python_test_runner_gaps(root))
+    gaps.extend(_quality_reference_gaps(root))
     return gaps
 
 
@@ -179,6 +180,18 @@ def _python_test_runner_gaps(root: Path) -> list[str]:
         for needle in forbidden_needles
         if needle in python_tests
     )
+    return gaps
+
+
+def _quality_reference_gaps(root: Path) -> list[str]:
+    reference = (
+        root / ".agents/skills/ethos-quality-gate-governance/references/gate-design.md"
+    ).read_text(encoding="utf-8")
+    gaps: list[str] = []
+    if "hard floor is 95 percent" in reference:
+        gaps.append("quality_reference_stale_coverage_floor:95")
+    if ".config/checks/coverage/policy.toml" not in reference:
+        gaps.append("quality_reference_missing_coverage_policy_ssot")
     return gaps
 
 

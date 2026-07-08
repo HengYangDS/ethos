@@ -25,8 +25,8 @@ from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.coupling import coupling_audit_report
 from ethos.repository.policy.coverage import coverage_quality_report
-from ethos.repository.policy.docs_topology import docs_topology_report
-from ethos.repository.policy.docstrings import docstring_coverage_report
+from ethos.repository.policy.docs.topology import docs_topology_report
+from ethos.repository.policy.docstrings.core import docstring_coverage_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
@@ -390,7 +390,7 @@ def module_layout(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @quality_app.command(name="npm")

@@ -54,7 +54,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/shadow/semantics.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/repository/evidence/parity_validation.py",
-  "packages/ethos/src/ethos/repository/policy/schema_samples.py",
+  "packages/ethos/src/ethos/repository/policy/schema_samples/core.py",
   "system/schemas/kernel/shadow-parity.schema.json",
   "tests/unit/product/test_parity.py",
   "tests/unit/product/test_parity_generic.py",

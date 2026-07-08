@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ethos.repository.policy.schema_sample_shared import _campaign_package_contract_sample
-from ethos.repository.policy.schema_sample_shared import _intake_projection_contract_sample
-from ethos.repository.policy.schema_sample_shared import _trust_closeout_contract_sample
+from ethos.repository.policy.schema_samples.shared import _campaign_package_contract_sample
+from ethos.repository.policy.schema_samples.shared import _intake_projection_contract_sample
+from ethos.repository.policy.schema_samples.shared import _trust_closeout_contract_sample
 
 
 def _campaign_closeout_contract_sample() -> dict[str, Any]:

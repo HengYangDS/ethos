@@ -10,15 +10,15 @@ from jsonschema.exceptions import SchemaError
 from jsonschema.exceptions import ValidationError
 
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.schema_sample_large import _campaign_closeout_contract_sample
-from ethos.repository.policy.schema_sample_large import _workspace_status_contract_sample
-from ethos.repository.policy.schema_samples import _campaign_contract_sample
-from ethos.repository.policy.schema_samples import _capability_profile_contract_sample
-from ethos.repository.policy.schema_samples import _promotion_target_contract_sample
-from ethos.repository.policy.schema_samples import _shadow_parity_contract_sample
-from ethos.repository.policy.schema_samples import _skill_activation_contract_sample
-from ethos.repository.policy.schema_samples import _skill_package_manifest_contract_sample
-from ethos.repository.policy.schema_samples import _trust_envelope_contract_sample
+from ethos.repository.policy.schema_samples.core import _campaign_contract_sample
+from ethos.repository.policy.schema_samples.core import _capability_profile_contract_sample
+from ethos.repository.policy.schema_samples.core import _promotion_target_contract_sample
+from ethos.repository.policy.schema_samples.core import _shadow_parity_contract_sample
+from ethos.repository.policy.schema_samples.core import _skill_activation_contract_sample
+from ethos.repository.policy.schema_samples.core import _skill_package_manifest_contract_sample
+from ethos.repository.policy.schema_samples.core import _trust_envelope_contract_sample
+from ethos.repository.policy.schema_samples.large import _campaign_closeout_contract_sample
+from ethos.repository.policy.schema_samples.large import _workspace_status_contract_sample
 from ethos.repository.registry.docs import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.skill_activation import normalize_skill_activation

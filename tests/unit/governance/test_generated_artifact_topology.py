@@ -4,8 +4,8 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
-from ethos_core.contracts.generated_artifact_topology import generated_artifact_contract
-from ethos_core.contracts.generated_artifact_topology import path_policy_for
+from ethos_core.contracts.artifacts.topology import generated_artifact_contract
+from ethos_core.contracts.artifacts.topology import path_policy_for
 
 if TYPE_CHECKING:
     from pathlib import Path

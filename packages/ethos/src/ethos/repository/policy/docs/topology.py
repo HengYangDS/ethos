@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos_core.contracts.docs_topology import PRODUCT_EXTENSION_ROOTS
-from ethos_core.contracts.docs_topology import docs_topology_contract
-from ethos_core.contracts.docs_topology import required_docs_topology_paths
+from ethos_core.contracts.docs.topology import PRODUCT_EXTENSION_ROOTS
+from ethos_core.contracts.docs.topology import docs_topology_contract
+from ethos_core.contracts.docs.topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
     from pathlib import Path

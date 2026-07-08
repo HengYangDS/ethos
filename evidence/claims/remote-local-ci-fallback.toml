@@ -48,7 +48,7 @@ targets = [
   "packages/ethos/src/ethos/cli.py",
   "system/tools.toml",
   "system/schemas/kernel/campaign-closeout.schema.json",
-  "packages/ethos/src/ethos/repository/policy/schema_sample_large.py",
+  "packages/ethos/src/ethos/repository/policy/schema_samples/large.py",
   "docs/reference/command-plane.md",
   "docs/governance/product-design-contract.md",
   "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707",

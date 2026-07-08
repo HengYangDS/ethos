@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.docs_topology import docs_topology_report
-from ethos_core.contracts.docs_topology import docs_topology_contract
-from ethos_core.contracts.docs_topology import is_product_docs_extension_root
-from ethos_core.contracts.docs_topology import normalize_docs_path
-from ethos_core.contracts.docs_topology import required_docs_topology_paths
+from ethos.repository.policy.docs.topology import docs_topology_report
+from ethos_core.contracts.docs.topology import docs_topology_contract
+from ethos_core.contracts.docs.topology import is_product_docs_extension_root
+from ethos_core.contracts.docs.topology import normalize_docs_path
+from ethos_core.contracts.docs.topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
     from pathlib import Path

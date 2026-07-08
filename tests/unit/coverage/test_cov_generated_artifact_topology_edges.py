@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy import artifacts as artifacts_mod
-from ethos_core.contracts import generated_artifact_topology as topology
+from ethos_core.contracts.artifacts import topology
 
 if TYPE_CHECKING:
     from pathlib import Path

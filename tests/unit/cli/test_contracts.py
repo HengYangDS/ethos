@@ -858,7 +858,7 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos.adapters.openspec import openspec
+    import ethos.adapters.openspec.cli as openspec_cli
 
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
@@ -957,7 +957,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     payload = run_ethos("prove", "--json")
 
     assert payload["ok"] is True
-    assert payload["summary"]["gate_count"] == 15
+    assert payload["summary"]["gate_count"] == 16
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
     assert {
         "ruff",

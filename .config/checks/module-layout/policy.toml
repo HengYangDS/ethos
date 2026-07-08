@@ -3,7 +3,7 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 67
+baseline_gap_limit = 61
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",
@@ -29,18 +29,12 @@ allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_openspec.py:audit_openspec",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/evidence/parity_validation.py:parity_validation",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/openspec_metadata.py:openspec_metadata",
-  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/rules_exceptions.py:rules_exceptions",
-  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_sample_large.py:schema_sample_large",
-  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_sample_shared.py:schema_sample_shared",
-  "module_layout_suffix_module:packages/ethos/src/ethos/repository/policy/schema_samples.py:schema_samples",
 ]
 
 allowed_suffix_flat = [
-  "module_layout_suffix_flat:packages/ethos/src/ethos/repository/policy:schema:3",
 ]
 
 allowed_flat_directories = [
-  "module_layout_flat_directory:packages/ethos/src/ethos/repository/policy:9>8",
   "module_layout_flat_directory:packages/ethos/src/ethos/surface/cli:12>8",
 ]
 

@@ -12,7 +12,7 @@ binding = "semantic OpenSpec archive closeout evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/product/test_openspec_cache.py",
-  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/openspec/archive.py tests/unit/product/test_openspec_cache.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/openspec/archive/core.py tests/unit/product/test_openspec_cache.py",
   "uv run openspec validate ethos-openspec-archive-closeout --strict --json",
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --group dev pytest -q",
@@ -60,6 +60,6 @@ targets = [
   "openspec/changes/archive/2026-07-01-ethos-openspec-archive-closeout/specs/ethos-repository/spec.md",
   "openspec/specs/adapters/spec.md",
   "openspec/specs/repository-governance/spec.md",
-  "packages/ethos/src/ethos/adapters/openspec/archive.py",
+  "packages/ethos/src/ethos/adapters/openspec/archive/core.py",
   "tests/unit/product/test_openspec_cache.py",
 ]

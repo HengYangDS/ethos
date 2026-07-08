@@ -7,7 +7,8 @@ from typing import cast
 if TYPE_CHECKING:
     from pathlib import Path
 
-from ethos.repository.policy.docs_topology import docs_topology_report
+from ethos.repository.adoption.retirement.rollback import rollback_window_checks
+from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.profile import load_repository_profile
 
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}

@@ -6,7 +6,7 @@ import pytest
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.adoption.planner import available_profiles
-from ethos_core.contracts.docs_topology import required_docs_topology_paths
+from ethos_core.contracts.docs.topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
     from pathlib import Path

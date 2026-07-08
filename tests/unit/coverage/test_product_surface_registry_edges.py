@@ -9,9 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.openspec import archive as archive_mod
-from ethos.adapters.openspec import openspec
-from ethos.adapters.openspec import proposal as proposal_mod
+import ethos.adapters.openspec.archive.core as archive_mod
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.openspec.core as openspec_core
+import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
+import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
+import ethos.adapters.openspec.protocol.core as proposal_mod
+from ethos.repository import openspec_metadata
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.registry import docs as docs_registry
 from ethos.surface.cli import _base
@@ -207,7 +211,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     assert "openspec_archive_delta_requirement_missing:bad_name" in gaps
     assert "openspec_archive_delta_scenario_missing:bad_name" in gaps
     assert (
-        archive_mod._archive_delta_issues(
+        archive_mod.archive_delta_issues(
             tmp_path / "missing-specs", archive_name="a", root=tmp_path
         )[0]["gap"]
         == "openspec_archive_delta_specs_missing:a"
@@ -216,9 +220,9 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     assert openspec_metadata_adapter.completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
-    assert archive_mod._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
-    assert archive_mod._is_relative_to(tmp_path / "x", tmp_path) is True
-    assert archive_mod._is_relative_to(tmp_path.parent, tmp_path) is False
+    assert openspec_metadata.read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
+    assert openspec_metadata.is_relative_to(tmp_path / "x", tmp_path) is True
+    assert openspec_metadata.is_relative_to(tmp_path.parent, tmp_path) is False
 
     change_root = tmp_path / "openspec" / "changes" / "c1"
     (change_root / "specs").mkdir(parents=True)
@@ -243,7 +247,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     spec.mkdir(parents=True)
     (spec / "spec.md").write_text("spec", encoding="utf-8")
     (spec / "capability.toml").write_text("[bad\n", encoding="utf-8")
-    assert proposal_mod._capability_profile_gaps(tmp_path, "c1", "cap") == [
+    assert proposal_mod.capability_profile_gaps(tmp_path, "c1", "cap") == [
         "openspec_capability_profile_invalid:c1:cap"
     ]
 

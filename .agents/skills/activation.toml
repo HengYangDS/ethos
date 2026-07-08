@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:06cca8221ffdf0fcdf1dc672776beb948f79ac51cb9c9afd546422797867063f"
+expected_registry_digest = "sha256:5bb87f8476fb42ed18724b89f3d088d2e9cf4f8d2b5a58bd27c1c9c8b8d7f6c9"
 expected_generator_digest = "sha256:2b8a1f3b58e8d779a6e0b0333a3d157e0cf65b6b291204c3fe2f893b594c1fe7"
 
 [coverage]
@@ -251,7 +251,7 @@ path_globs = [
   "openspec/specs/adapters/**",
   "openspec/specs/repository-governance/**",
   "tests/unit/adoption/**",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity/**",
 ]
 intent_tokens = [
   "adopt",

@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-lifecycle-productization"]
 binding = "semantic governance lifecycle productization evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/governance/validation tests/unit/governance/test_claims.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/product/test_openspec_cache.py tests/unit/product/test_parity.py -q",
+  "uv run --group dev pytest tests/unit/governance/validation tests/unit/governance/test_claims.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/product/test_openspec_cache.py tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_runners.py -q",
   "uv run --group dev pytest tests/unit/adoption/test_apply_sample.py tests/unit/governance/validation tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/test_lifecycle.py tests/architecture/test_product_design_contract.py -q",
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos openspec --lifecycle --json",

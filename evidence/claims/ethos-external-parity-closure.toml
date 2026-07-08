@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-external-parity-closure"]
 binding = "digest-bound external comparison evidence binding"
 verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest -q tests/unit/product/test_parity.py tests/unit/cli/test_contracts.py tests/unit/governance/validation",
+  "uv run --group dev pytest -q tests/unit/product/parity tests/unit/cli/test_contracts.py tests/unit/governance/validation",
   "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
   "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
   "uv run --package ethos ethos prove --json",

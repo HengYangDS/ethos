@@ -71,6 +71,6 @@ targets = [
   "tests/unit/adoption/test_profiles.py",
   "tests/unit/governance/test_authority_graph.py",
   "tests/unit/cli/test_contracts.py",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity",
   "tests/architecture/test_product_design_contract.py",
 ]

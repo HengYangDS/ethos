@@ -11,7 +11,7 @@ evidence_ids = ["evidence:parity-semantic-freshness"]
 binding = "semantic parity freshness evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/product/test_parity.py tests/unit/product/test_parity_generic.py -q",
+  "uv run --group dev pytest tests/unit/product/parity -q",
   ".config/ci/scripts/run-python-tests.sh",
   ".config/ci/scripts/run-python-lint.sh",
   ".config/ci/scripts/run-config-lint.sh",
@@ -25,8 +25,8 @@ tests = [
 [scope]
 packages = ["ethos"]
 tests = [
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
+  "tests/unit/product/parity",
+  "tests/unit/product/parity",
 ]
 
 [boundary]
@@ -53,5 +53,5 @@ targets = [
   "packages/ethos/src/ethos/domain/report.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/repository/evidence/parity_validation.py",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity",
 ]

@@ -11,8 +11,8 @@ evidence_ids = ["evidence:shadow-false-negative-gate"]
 binding = "runtime shadow comparison, tracked parity evidence validation, schema contract, and focused test proof"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/product/test_parity.py -q",
-  "uv run --group dev pytest tests/unit/product/test_parity_generic.py tests/unit/governance/validation tests/unit/cli/test_contracts.py -q",
+  "uv run --group dev pytest tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_runners.py -q",
+  "uv run --group dev pytest tests/unit/product/parity/test_projection_semantics.py tests/unit/product/parity/test_accepted_differences.py tests/unit/product/parity/test_identity.py tests/unit/product/parity/test_validation.py tests/unit/governance/validation tests/unit/cli/test_contracts.py -q",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
 ]
@@ -21,8 +21,8 @@ tests = [
 packages = ["ethos"]
 schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
 tests = [
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
+  "tests/unit/product/parity",
+  "tests/unit/product/parity",
   "tests/unit/governance/validation",
   "tests/unit/cli/test_contracts.py",
 ]
@@ -56,6 +56,6 @@ targets = [
   "packages/ethos/src/ethos/repository/evidence/parity_validation.py",
   "packages/ethos/src/ethos/repository/policy/schema_samples/core.py",
   "system/schemas/kernel/shadow-parity.schema.json",
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
+  "tests/unit/product/parity",
+  "tests/unit/product/parity",
 ]

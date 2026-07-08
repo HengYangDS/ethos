@@ -13,11 +13,17 @@ schemas, docs, evidence, and promoted decisions remain the truth.
 ## Isomorphic Governance
 
 ETHOS governs the ETHOS product repository and adopted repositories through the
-same kernel: authority, subject, commitment, change, evidence, claim, and
-chronicle. Product and adopter work differ by profiles and adapters, not by
-separate command planes or private truth stores. This is not product cloning:
-each governed repository keeps its domain model, provider surfaces, and local
-shape while ETHOS applies one evidence-bound transition loop.
+same kernel: authority, subject, commitment, change, evidence, claim, and chronicle.
+Product and adopter work differ by profiles and adapters, not by separate command
+planes or private truth stores. This is not product cloning: each governed
+repository keeps its domain model, provider surfaces, and local shape while ETHOS
+applies one evidence-bound transition loop.
+
+The same commands answer the same transition questions in every governed
+repository: where am I, what may mutate, which proof is required, can this land,
+and what publication boundary remains. Repository truth stays in source, tests,
+schemas, docs, evidence, and promoted decisions; profiles tune checks and proof
+depth, while adapters project local providers without becoming truth stores.
 
 ## First Hour
 

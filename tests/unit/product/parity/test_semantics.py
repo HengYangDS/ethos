@@ -94,6 +94,51 @@ def test_shadow_semantic_diff_accepts_external_protected_root_mutation_for_land_
         ]
 
 
+def test_shadow_semantic_diff_accepts_external_stricter_command_surface_retired_mentions() -> None:
+    external = {
+        "ok": False,
+        "command": "quality command-surface",
+        "state": "blocked",
+        "required_gaps": [
+            "retired_public_root_mention:docs/current/development/workflow/proof-workflow.md:214:proof",
+            "retired_public_command_prefix_mention:docs/current/development/workflow/local-ci-contract.md:66:wt",
+        ],
+        "data": {
+            "retired_public_root_mentions": [
+                {"path": "docs/current/development/workflow/proof-workflow.md"},
+            ],
+        },
+    }
+    embedded = {
+        "ok": True,
+        "command": "quality command-surface",
+        "state": "clean",
+        "required_gaps": [],
+        "summary": {"retired_violation_count": 0},
+    }
+
+    assert shadow_semantics.semantic_diff(("quality", "command-surface"), external, embedded) == {}
+    accepted = shadow_semantics.accepted_semantic_differences(
+        ("quality", "command-surface"),
+        external,
+        embedded,
+    )
+
+    assert accepted == [
+        {
+            "kind": "external_stricter_required_gap",
+            "classification": "accepted",
+            "scope": "external_stricter_required_gap",
+            "commands": ["ethos quality command-surface"],
+            "gaps": [
+                "retired_public_command_prefix_mention:docs/current/development/workflow/local-ci-contract.md:66:wt",
+                "retired_public_root_mention:docs/current/development/workflow/proof-workflow.md:214:proof",
+            ],
+            "reason": "external product reports a stricter blocking gap allowed by shadow parity",
+        }
+    ]
+
+
 def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
     external = {
         "ok": True,

@@ -296,6 +296,8 @@ def _mark_projection_ready(projection: dict[str, Any]) -> None:
         projection["proof_ready"] = True
     elif command == "report":
         projection["blocking_gap_count"] = 0
+    elif command == "quality command-surface":
+        projection["retired_violation_count"] = 0
     elif command == "assistants doctor":
         projection["assistant_ready"] = True
     elif command == "playbooks route":
@@ -399,16 +401,24 @@ _EXTERNAL_STRICTER_ONLY_GAPS: dict[tuple[str, ...], set[str]] = {
     ("publish",): {"protected_root_mutation"},
 }
 
+_EXTERNAL_STRICTER_ONLY_GAP_PREFIXES: dict[tuple[str, ...], tuple[str, ...]] = {
+    ("quality", "command-surface"): (
+        "retired_public_command_prefix_mention:",
+        "retired_public_root_mention:",
+    ),
+}
+
 
 def _without_external_stricter_only_gaps(
     command: tuple[str, ...],
     gaps: list[str],
 ) -> tuple[list[str], list[str]]:
     allowed = _EXTERNAL_STRICTER_ONLY_GAPS.get(command, set())
-    if not allowed:
+    allowed_prefixes = _EXTERNAL_STRICTER_ONLY_GAP_PREFIXES.get(command, ())
+    if not allowed and not allowed_prefixes:
         return gaps, []
-    filtered = [gap for gap in gaps if gap not in allowed]
-    removed = [gap for gap in gaps if gap in allowed]
+    filtered = [gap for gap in gaps if gap not in allowed and not gap.startswith(allowed_prefixes)]
+    removed = [gap for gap in gaps if gap in allowed or gap.startswith(allowed_prefixes)]
     return filtered, removed
 
 

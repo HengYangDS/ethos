@@ -187,7 +187,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "--flat-directory-limit" not in runner
     assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
     assert "flat_directory_limit = 8" in policy
-    assert "baseline_gap_limit = 51" in policy
+    assert "baseline_gap_limit = 23" in policy
     assert "baseline_gap_limit" not in runner
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools

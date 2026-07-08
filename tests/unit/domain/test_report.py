@@ -115,3 +115,16 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     assert quality_floor["required_gaps"] == [
         "code_size_exceeded:tests/unit/product/test_flat.py:999>800"
     ]
+
+
+def test_scorecard_next_actions_route_module_layout_gaps() -> None:
+    """Module-layout hard floor gaps should point at the module-layout gate."""
+
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={
+            "required_gaps": [
+                "module_layout_baseline_suffix_module_limit:23!=22",
+            ],
+        },
+    ) == ("ethos quality module-layout --json",)

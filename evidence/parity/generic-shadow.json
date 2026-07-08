@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "2b733778ba99b5de0a8c5c33612926fb041987cd",
-    "target_head": "2b733778ba99b5de0a8c5c33612926fb041987cd",
-    "product_semantic_sha256": "e37e00aad4bb0bb641290a744459951fe917155e5989d44572b361a7614edb16",
-    "target_semantic_sha256": "e37e00aad4bb0bb641290a744459951fe917155e5989d44572b361a7614edb16",
+    "product_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
+    "target_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
+    "product_semantic_sha256": "588f8edf3f1aeb9e2a5d708b953016a6c307a8cf625e1f65210f14cf0de125de",
+    "target_semantic_sha256": "588f8edf3f1aeb9e2a5d708b953016a6c307a8cf625e1f65210f14cf0de125de",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/plan-residue-closeout-20260709",
-    "target_head": "2b733778ba99b5de0a8c5c33612926fb041987cd",
-    "product_head": "2b733778ba99b5de0a8c5c33612926fb041987cd",
+    "target_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
+    "product_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3adbcb4794de47a3b681121f2d6076ab393652371eed40c6b2306de9fed65148"
+        "sha256": "97c1356c02d69414af1cdf040ab52a90528a5dc01443015747cb2ce4a6028d8f"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "bf3840fffd80ca1c084822a52599ca068de6fa3c476475e2d26ca0c276e622b9"
+        "sha256": "9bc54fbc5b32fce140338d583b50aad695ffc1d4662d9c99862cbf3e0ff3385f"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "3ef6a3f16181aeeede53b72f708e4404e648513ae4400a11b79632fe9665c06f"
+        "sha256": "121173c2343761b385bff9fa8828fa666d7c4217b69725928e8232a28677c7d8"
       },
       {
         "path": "rules",

@@ -14,6 +14,8 @@ Status: planned.
 Purpose: turn the dmgr and di-effect mechanism comparison into a sequenced
 ETHOS adoption plan without copying adopter tooling into product ontology.
 
+See also: [Mechanism Comparison Audit](../reference/mechanism-comparison-audit.md).
+
 This is a plan, not current runtime truth. A roadmap item becomes current only
 after the corresponding source, tests, schema, OpenSpec, claim, evidence, and
 command output land through the ETHOS lifecycle.

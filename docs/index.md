@@ -21,6 +21,7 @@ Start with [Start](start/quickstart.md), then read
 [Product Design Contract](governance/product-design-contract.md),
 [Terminal Governance Product Design](plans/terminal-governance-product-design.md),
 [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
+[Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
@@ -67,6 +68,7 @@ or maintainer break-glass evidence.
 - History docs: [History Documentation](history/README.md)
 - Terminal target design: [Terminal Governance Product Design](plans/terminal-governance-product-design.md)
 - Tooling adoption roadmap: [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md)
+- Mechanism comparison audit: [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md)
 - Rule system: [Rules System](../rules/README.md)
 - Skills: [Skills](../.agents/skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)

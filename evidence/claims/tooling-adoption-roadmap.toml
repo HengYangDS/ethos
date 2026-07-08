@@ -3,13 +3,13 @@ id = "tooling-adoption-roadmap"
 subject = "ethos:tooling-adoption-roadmap"
 state = "active"
 change_id = "tooling-adoption-roadmap"
-summary = "ETHOS records a provider-neutral tooling adoption roadmap and horizontal dmgr/di-effect mechanism comparison without promoting adopter tools into product ontology."
+summary = "ETHOS records a provider-neutral tooling adoption roadmap and evidence-backed dmgr/di-effect mechanism comparison without promoting adopter tools into product ontology."
 
 [evidence]
 dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
-sha256 = "602eda19e63ae2a5ed321c811cf080bde5402a67b906311ffa970ee53211dcc9"
+sha256 = "aa2603099f8c8221c878966c3915a9537dc724eea82de78faa4c84c957987571"
 evidence_ids = ["evidence:tooling-adoption-roadmap"]
-binding = "Roadmap, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
+binding = "Roadmap, mechanism comparison audit, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
@@ -33,6 +33,7 @@ kill_signal = "A planned adapter is reported as an active ETHOS gate, or GitHub/
 targets = [
   "docs/governance/forge-provider-contract.md",
   "docs/plans/tooling-adoption-roadmap.md",
+  "docs/reference/mechanism-comparison-audit.md",
   "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/proposal.md",
   "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/design.md",
   "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/tasks.md",

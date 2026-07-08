@@ -18,3 +18,7 @@ See also: [Documentation Root](../README.md), [Command Plane](command-plane.md),
 
 Reference docs explain terms and boundaries. Runtime truth still comes from
 source, tests, state-marked canonical docs, and evidence.
+
+## Mechanism References
+
+- [Mechanism Comparison Audit](mechanism-comparison-audit.md) records the current dmgr / di-effect / ETHOS mechanism comparison behind the tooling adoption roadmap.

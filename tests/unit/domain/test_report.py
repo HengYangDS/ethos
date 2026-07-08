@@ -6,6 +6,19 @@ from ethos.domain import report as report_domain
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 
 
+def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:
+    """Hard quality gaps should route to the narrowest available owner command."""
+
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={"required_gaps": ["module_layout_flat_growth:pkg"]},
+    ) == ("ethos quality module-layout --json",)
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={"required_gaps": ["quality_gap_without_specific_owner"]},
+    ) == ("ethos quality --json",)
+
+
 def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     """Report must not claim ready when standalone hard quality gates are blocked."""
 

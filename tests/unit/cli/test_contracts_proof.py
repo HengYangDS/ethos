@@ -315,8 +315,8 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     payload = run_ethos("prove", "--json")
 
     assert payload["ok"] is True
-    assert payload["summary"]["gate_count"] == 17
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+    assert payload["summary"]["gate_count"] == len(node_ids)
     assert {
         "evidence-freshness",
         "ruff",

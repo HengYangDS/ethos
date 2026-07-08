@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5bf8457615b6510be012751062dc284beb44443b",
-    "target_head": "5bf8457615b6510be012751062dc284beb44443b",
+    "product_head": "e64e0d08bda74d27a92b12c83397fc5aeae60fc1",
+    "target_head": "e64e0d08bda74d27a92b12c83397fc5aeae60fc1",
     "product_semantic_sha256": "6436f81c8472ca4da743a93ea07aa4863d0f920cbac14d57e7971478714bceae",
     "target_semantic_sha256": "6436f81c8472ca4da743a93ea07aa4863d0f920cbac14d57e7971478714bceae",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/parity-code-size-split",
-    "target_head": "5bf8457615b6510be012751062dc284beb44443b",
-    "product_head": "5bf8457615b6510be012751062dc284beb44443b",
+    "target_head": "e64e0d08bda74d27a92b12c83397fc5aeae60fc1",
+    "product_head": "e64e0d08bda74d27a92b12c83397fc5aeae60fc1",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "5df89d39329d876002452bd45f14f6d8bc1b560e7cde3437ea85124b6f45d14b"
+        "sha256": "1885528306e55739b61bd96867a021e22dbd27ee16df341e440179c0c0260300"
       },
       {
         "path": "evidence/claims",

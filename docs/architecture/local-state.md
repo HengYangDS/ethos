@@ -9,7 +9,9 @@ relations:
 # Local State
 
 ETHOS stores host-local runtime state in `.ethos/state/state.sqlite`. The
-directory is ignored except for `.ethos/state/.gitignore`.
+directory is ignored except for `.ethos/state/.gitignore`. Tool runtime caches
+live under ignored `build/runtime/tool-cache/`, not under `.config/`, because
+configuration policy and runtime working state are different subjects.
 
 SQLite records coordination and replay aids. It does not pre-create
 speculative cache stores; action cache keys stay in action-graph contracts

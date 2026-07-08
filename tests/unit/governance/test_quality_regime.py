@@ -56,6 +56,14 @@ def test_toml_files_have_exactly_one_final_newline_and_no_trailing_space() -> No
     assert bad == []
 
 
+def test_pytest_runtime_cache_stays_out_of_config_plane() -> None:
+    pytest_ini = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+
+    assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
+    assert "cache_dir = .config/checks/pytest" not in pytest_ini
+    assert not (ROOT / ".config" / "checks" / "pytest" / ".gitignore").exists()
+
+
 def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
     tools = (ROOT / "system" / "tools.toml").read_text(encoding="utf-8")
 

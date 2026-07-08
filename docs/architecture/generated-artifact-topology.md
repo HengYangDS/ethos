@@ -27,6 +27,7 @@ file as source, local state, generated output, or curated evidence.
 | --- | --- | --- | --- |
 | `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
 | `.cache/local-state/` and `.ethos/state/` | Host-local runtime state, leases, locks, executions, sessions. | Yes | No |
+| `build/runtime/` | Tool runtime caches and working state. | Yes | No |
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
 | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
@@ -56,7 +57,8 @@ ethos prove --execute --gate generated-artifacts --expect-head <git-head> --json
 Adopters do not need product-owned `adopters/<name>`, `profiles/<name>`, or
 fixture directories to use this contract. Adoption-side policy should be
 declared in the adopter repository, for example under `.config/ethos/`, and raw
-machine output should move to ignored runtime/build homes. Rollback is likewise
+machine output should move to ignored runtime/build homes such as
+`build/runtime/` or `build/evidence/`. Rollback is likewise
 adopter-owned: remove or relax the adopter declaration, move raw generated
 outputs back to an ignored local/build home, and keep only curated evidence that
 has already been reviewed and promoted.

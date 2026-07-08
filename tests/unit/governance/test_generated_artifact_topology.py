@@ -30,6 +30,7 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     assert {item["prefix"] for item in contract["declarative_prefixes"]} == {".config/ethos"}
     assert {item["prefix"] for item in contract["allowed_prefixes"]} >= {
         ".cache/local-state",
+        "build/runtime",
         "build/ethos",
         "build/evidence",
     }
@@ -49,6 +50,7 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
 def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     config = path_policy_for(".config/ethos/policy.toml")
     build = path_policy_for("build/ethos/proof/report.json")
+    runtime = path_policy_for("build/runtime/tool-cache/pytest/cache.json")
     curated = path_policy_for("docs/evidence/2026-07-07-generated-artifacts.md")
 
     assert config["decision"] == "review"
@@ -56,6 +58,9 @@ def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     assert "declarative" in config["boundary"]
     assert build["decision"] == "allow"
     assert build["generated"] is True
+    assert runtime["decision"] == "allow"
+    assert runtime["generated"] is True
+    assert "runtime" in runtime["boundary"]
     assert curated["decision"] == "review"
 
 

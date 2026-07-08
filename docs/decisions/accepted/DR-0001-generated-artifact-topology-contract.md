@@ -22,8 +22,8 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Decision Makers | Repository owner through current chat instruction; implemented by local ETHOS work lane. |
 | Status | accepted |
 | Decision Date | 2026-07-07 |
-| Decision Version | 1 |
-| Decision Change Date | 2026-07-07 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-09 |
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | None |
@@ -31,7 +31,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Boundary | Owns generic path policy, path router behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
 | Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
 | Decision | Promote the Generated Artifact Topology Contract and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
-| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
+| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/`; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
 | Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
 
@@ -46,8 +46,9 @@ Adopter-specific configuration belongs in the adopting repository through
 `.config/ethos/` or an equivalent declarative interface.
 
 Development-time generated artifacts also need strong physical organization:
-cache/runtime state, generated proof output, curated evidence, semantic docs
-truth, reference docs, and durable rulings have different authority and cleanup rules.
+configuration policy, cache/runtime state, generated proof output, curated evidence,
+semantic docs truth, reference docs, and durable rulings have different authority
+and cleanup rules.
 Without a topology contract, generated output can become a hidden authority store
 and pollute closeout, proof, and retirement decisions.
 
@@ -57,6 +58,7 @@ Adopt the Generated Artifact Topology Contract:
 
 - `.config/ethos/` is declarative config, policy, and adopter interface only.
 - `.cache/local-state/` owns host-local runtime coordination state.
+- `build/runtime/` owns ignored tool runtime caches and working state.
 - `build/ethos/` owns machine generated ETHOS proof, logs, reports, artifacts,
   and projections.
 - `build/evidence/` owns machine generated quality/proof evidence artifacts.

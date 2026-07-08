@@ -51,6 +51,7 @@ PRODUCT_ADOPTER_ROOT_PREFIXES = frozenset(
 
 _ALLOWED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".cache/local-state/", "host-local runtime state, leases, locks, executions, sessions"),
+    ("build/runtime/", "ignored runtime caches and tool working state"),
     ("build/ethos/", "machine generated ETHOS proof, logs, reports, artifacts, projections"),
     ("build/evidence/", "machine generated quality and proof evidence artifacts"),
 )

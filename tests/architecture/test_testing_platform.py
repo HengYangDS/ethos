@@ -23,6 +23,8 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert 'workers="${ETHOS_TEST_WORKERS:-8}"' in script
     assert policy["timeout_seconds"] == 120
     assert policy["default_evidence_root"] == "build/evidence/quality/tests"
+    assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
+    assert ".config/checks/pytest/.pytest_cache" not in pytest_ini
     assert policy["junit_xml"] == "build/evidence/quality/tests/pytest/junit.xml"
     assert "ETHOS_TEST_WORKERS" in script
     assert "--dist=loadscope" in script
@@ -58,6 +60,7 @@ def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None
 def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:
     script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     assert ".config/checks/pytest/junit.xml" not in script
+    assert ".config/checks/pytest/.pytest_cache" not in script
     assert ".config/checks/coverage/coverage.xml" not in script
     assert "build/evidence/quality/tests" in script
     assert "ETHOS_TEST_BASETEMP" in script

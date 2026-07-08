@@ -12,7 +12,7 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
     declarative = {item["prefix"] for item in payload["data"]["contract"]["declarative_prefixes"]}
     assert declarative == {".config/ethos"}
     allowed = {item["prefix"] for item in payload["data"]["contract"]["allowed_prefixes"]}
-    assert {"build/ethos", "build/evidence", ".cache/local-state"} <= allowed
+    assert {"build/runtime", "build/ethos", "build/evidence", ".cache/local-state"} <= allowed
     denied = {item["prefix"] for item in payload["data"]["contract"]["denied_generated_prefixes"]}
     denied_static = {item["prefix"] for item in payload["data"]["contract"]["denied_prefixes"]}
     review = {item["prefix"] for item in payload["data"]["contract"]["review_prefixes"]}

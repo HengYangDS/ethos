@@ -6,12 +6,12 @@ configuration plane, not a truth center.
 ## Separation of concerns
 
 - `pyproject.toml` is limited to Python package/workspace metadata and uv wiring.
-- `pytest.ini` is the pytest source of truth.
+- `pytest.ini` is the pytest source of truth and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`.
 - `ruff.toml` is the Ruff root source of truth because Ruff resolves path globs
   relative to the config file location.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
 - `tools/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet.
-- `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, not `.config/`. Pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth.
+- `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `tools/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.

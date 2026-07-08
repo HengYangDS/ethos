@@ -16,6 +16,7 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
 
     for text in (architecture, decision):
         assert ".config/ethos/" in text
+        assert "build/runtime/" in text
         assert "build/ethos/" in text
         assert "build/evidence/" in text
         assert "docs/evidence/" in text

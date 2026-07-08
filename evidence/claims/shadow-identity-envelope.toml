@@ -12,8 +12,8 @@ binding = "semantic shadow parity identity envelope evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity tests/unit/governance/validation tests/unit/cli/test_command_registry.py -q",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
   "npx --yes @fission-ai/openspec@1.5.0 validate --all --strict",
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos report --json",

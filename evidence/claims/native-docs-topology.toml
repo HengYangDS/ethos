@@ -12,9 +12,9 @@ binding = "semantic docs topology, scaffold, OpenSpec, generated-artifact, and c
 verifier = "semantic"
 tests = [
   "uv run --package ethos ethos plan --changed --json",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-python-tests.sh",
-  ".config/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   "uv run --package ethos ethos quality docs-topology --json",
   "uv run --package ethos ethos quality docs-registry --json",
   "uv run --package ethos ethos quality generated-artifacts --json",

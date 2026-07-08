@@ -16,7 +16,7 @@ tests = [
   "uv run --group dev pytest tests/support tests/unit/kernel/rules tests/unit/cli/test_contracts.py -q",
   "ETHOS_ROOT=$PWD uv run --group dev ethos prove --gate claims --execute --expect-head \"$(git rev-parse HEAD)\" --json",
   ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
-  ".config/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
 ]
 
 [scope]

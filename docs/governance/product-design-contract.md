@@ -255,10 +255,11 @@ translate.
 Configuration follows separation of concerns, MECE, SSOT, and DRY. Package and
 workspace metadata stay in `pyproject.toml`; tool-native config belongs to the
 smallest stable owner (`pytest.ini`, `ruff.toml`, or `.config/checks/<concern>/`);
-hosted CI remains a provider projection over reusable scripts in `.config/ci/`;
-`local-ci` is the repository-local fallback evidence path for the same owner
-gates when hosted remotes are unavailable or delayed; and `system/tools.toml`
-records why a gate exists and where its owning config lives. A provider file
+reusable runner scripts live under `tools/ci/scripts/`; hosted CI remains
+a provider projection over those runner scripts; `local-ci` is the repository-local
+fallback evidence path for the same owner gates when hosted remotes are unavailable
+or delayed; and `system/tools.toml` records why a gate exists and where its
+owning config lives. A provider file
 must invoke the owner instead of copying its policy. Local fallback evidence
 never claims hosted CI success.
 

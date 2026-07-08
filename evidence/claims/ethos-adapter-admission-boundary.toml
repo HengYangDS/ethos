@@ -17,7 +17,7 @@ tests = [
   "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coupling tests/unit/audit/test_coupling.py",
   "uv run --group dev ruff check .",
   "uv run --group dev ruff format --check .",
-  ".config/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-tests.sh",
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality schemas --json",

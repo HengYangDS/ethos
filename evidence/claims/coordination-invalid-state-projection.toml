@@ -12,7 +12,7 @@ binding = "semantic Work Lane coordination invalid-state projection"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/governance/validation tests/unit/kernel/test_invalid_states.py -q",
-  ".config/ci/scripts/run-python-lint.sh && .config/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh && tools/ci/scripts/run-config-lint.sh",
   "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/coordination-invalid-state-projection uv run --group dev ethos status --json",
 ]
 

@@ -33,7 +33,7 @@ tests = [
   "git ls-remote origin refs/heads/dev",
   "uv run --package ethos ethos publish --json",
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
-  ".config/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-ci.sh",
 ]
 
 [boundary]

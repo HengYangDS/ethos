@@ -16,7 +16,7 @@ tests = [
   "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
   "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
   "uv run --group dev ty check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py",
-  ".config/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-tests.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality coverage --json",
 ]
 
@@ -41,7 +41,7 @@ scope = "Read-only Python coverage quality floor and latest artifact visibility"
 [carriers]
 openspec = "openspec/changes/archive/2026-07-05-coverage-quality-readmodel"
 
-fallback = "Use .config/ci/scripts/run-python-tests.sh directly to produce trust-bearing coverage evidence."
+fallback = "Use tools/ci/scripts/run-python-tests.sh directly to produce trust-bearing coverage evidence."
 kill_signal = "Coverage policy can be active in system/tools.toml and proof while lacking a read-only ETHOS command surface."
 
 [promotion]

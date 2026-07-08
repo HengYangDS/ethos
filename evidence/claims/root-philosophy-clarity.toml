@@ -16,9 +16,9 @@ tests = [
   "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --change root-philosophy-clarity --json",
   "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos audit --mode shape --json",
   "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --lifecycle --json",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   "git diff --check",
 ]
 

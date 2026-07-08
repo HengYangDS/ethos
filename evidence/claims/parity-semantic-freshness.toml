@@ -12,10 +12,10 @@ binding = "semantic parity freshness evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity -q",
-  ".config/ci/scripts/run-python-tests.sh",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality schemas --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos report --json",

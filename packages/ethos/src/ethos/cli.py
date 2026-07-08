@@ -35,7 +35,7 @@ from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.registry.docs import build_docs_registry
+from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app

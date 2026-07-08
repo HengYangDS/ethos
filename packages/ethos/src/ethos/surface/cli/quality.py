@@ -31,9 +31,9 @@ from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
-from ethos.repository.registry.docs import command_examples_report
-from ethos.repository.registry.docs import docs_health_report
-from ethos.repository.registry.docs import docs_quality_report
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.quality import docs_quality_report
 from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection

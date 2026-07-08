@@ -10,7 +10,7 @@ from ethos.repository.adoption import planner
 from ethos.repository.adoption import scaffold
 from ethos.repository.registry import authority
 from ethos.repository.registry import commands
-from ethos.repository.registry import docs
+from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.repository.release import core as release_core
 from ethos.testing import fixtures
 from ethos_core.contracts import rules
@@ -49,7 +49,7 @@ def test_scan_retired_prefixes_skips_single_token_fenced_line(tmp_path: Path) ->
 
 def test_stable_paths_report_without_config_file(tmp_path: Path) -> None:
     # No docs/_meta/stable_paths.toml -> docs.py 347->357 skips the exists() block, configured empty.
-    report = docs._stable_paths_report(tmp_path)
+    report = stable_paths_report(tmp_path)
 
     assert report["ok"] is False
     assert report["configured"] == []

@@ -19,7 +19,7 @@ from ethos.repository.policy.schema_samples.core import _skill_package_manifest_
 from ethos.repository.policy.schema_samples.core import _trust_envelope_contract_sample
 from ethos.repository.policy.schema_samples.large import _campaign_closeout_contract_sample
 from ethos.repository.policy.schema_samples.large import _workspace_status_contract_sample
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.skill_activation import normalize_skill_activation
 from ethos_core.contracts.skill_activation import skill_registry_digest

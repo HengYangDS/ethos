@@ -17,7 +17,21 @@ import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
 from ethos.repository import openspec_metadata
 from ethos.repository.policy import schema as policy_schema
-from ethos.repository.registry import docs as docs_registry
+from ethos.repository.registry.docs.commands import best_ethos_command_key
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.commands import command_root
+from ethos.repository.registry.docs.commands import ethos_command_key
+from ethos.repository.registry.docs.commands import ethos_invocation_tokens
+from ethos.repository.registry.docs.commands import has_command_example
+from ethos.repository.registry.docs.commands import known_ethos_command
+from ethos.repository.registry.docs.commands import requires_product_examples
+from ethos.repository.registry.docs.commands import tokens
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.links import glossary_report
+from ethos.repository.registry.docs.links import link_integrity_report
+from ethos.repository.registry.docs.links import markdown_anchors
+from ethos.repository.registry.docs.links import slugify_heading
+from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.surface.cli import _base
 from ethos.surface.cli import _gate_runner
 from ethos.surface.cli import hook as hook_cli
@@ -266,34 +280,28 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
     meta = docs / "_meta"
     meta.mkdir()
     (meta / "taxonomy.toml").write_text("[states]\nallowed=['active']\n", encoding="utf-8")
-    health = docs_registry.docs_health_report(tmp_path)
+    health = docs_health_report(tmp_path)
     assert any(gap.startswith("duplicate_subject:same") for gap in health["required_gaps"])
     assert "missing_visible_section:docs/a.md:status" in health["required_gaps"]
 
-    links = docs_registry._link_integrity_report(tmp_path)
+    links = link_integrity_report(tmp_path)
     assert "broken_link:docs/a.md:8:missing.md" in links["required_gaps"]
     assert "broken_anchor:docs/a.md:9:#nope" in links["required_gaps"]
-    assert docs_registry._markdown_anchors(docs / "b.md") == {"known-anchor"}
-    assert docs_registry._slugify_heading("`Hello_World`!") == "hello-world"
+    assert markdown_anchors(docs / "b.md") == {"known-anchor"}
+    assert slugify_heading("`Hello_World`!") == "hello-world"
 
-    assert docs_registry._tokens("unterminated 'quote") == ["unterminated", "'quote"]
-    assert (
-        docs_registry._command_root("env FOO=1 uv run --package ethos ethos prove --json")
-        == "ethos"
-    )
-    assert docs_registry._ethos_invocation_tokens(["python", "-m", "ethos.cli", "status"]) == [
+    assert tokens("unterminated 'quote") == ["unterminated", "'quote"]
+    assert command_root("env FOO=1 uv run --package ethos ethos prove --json") == "ethos"
+    assert ethos_invocation_tokens(["python", "-m", "ethos.cli", "status"]) == [
         "ethos",
         "status",
     ]
-    assert docs_registry._ethos_command_key("ethos") == "ethos"
-    assert (
-        docs_registry._best_ethos_command_key("ethos playbooks missing")
-        == "ethos playbooks missing"
-    )
-    assert docs_registry._known_ethos_command("ethos playbooks route --changed") is True
-    assert docs_registry._known_ethos_command("ethos playbooks missing") is False
+    assert ethos_command_key("ethos") == "ethos"
+    assert best_ethos_command_key("ethos playbooks missing") == "ethos playbooks missing"
+    assert known_ethos_command("ethos playbooks route --changed") is True
+    assert known_ethos_command("ethos playbooks missing") is False
 
-    examples = docs_registry.command_examples_report(tmp_path)
+    examples = command_examples_report(tmp_path)
     assert any(
         gap.startswith("unknown_command_example:docs/a.md") for gap in examples["required_gaps"]
     )
@@ -302,16 +310,11 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
         for gap in examples["required_gaps"]
     )
     assert (
-        docs_registry._has_command_example(
-            [{"scope": "archive", "command": "ethos prove"}], "ethos prove"
-        )
+        has_command_example([{"scope": "archive", "command": "ethos prove"}], "ethos prove")
         is False
     )
     assert (
-        docs_registry._requires_product_examples(
-            [{"scope": "current", "command": "ethos prove --json"}]
-        )
-        is True
+        requires_product_examples([{"scope": "current", "command": "ethos prove --json"}]) is True
     )
 
     glossary = docs / "reference"
@@ -319,19 +322,17 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
     (glossary / "glossary.md").write_text("## Command Plane\n", encoding="utf-8")
     assert any(
         gap.startswith("glossary_term_missing:")
-        for gap in docs_registry._glossary_report(tmp_path)["required_gaps"]
+        for gap in glossary_report(tmp_path)["required_gaps"]
     )
     (meta / "stable_paths.toml").write_text(
         "[[stable_path]]\npath='docs/missing.md'\n", encoding="utf-8"
     )
     assert (
         "stable_path_target_missing:docs/missing.md"
-        in docs_registry._stable_paths_report(tmp_path)["required_gaps"]
+        in stable_paths_report(tmp_path)["required_gaps"]
     )
     (meta / "stable_paths.toml").write_text("[[stable_path]\n", encoding="utf-8")
-    assert docs_registry._stable_paths_report(tmp_path)["required_gaps"] == [
-        "stable_paths_invalid_toml"
-    ]
+    assert stable_paths_report(tmp_path)["required_gaps"] == ["stable_paths_invalid_toml"]
 
 
 def test_schema_live_skill_invalid_and_adopter_profile_edges(

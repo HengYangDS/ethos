@@ -1,0 +1,1 @@
+"""Documentation registry semantic subpackage."""

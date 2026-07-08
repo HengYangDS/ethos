@@ -22,7 +22,7 @@ import ethos.repository.evidence.parity as evidence_parity
 import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
-import ethos.repository.registry.docs as docs_registry
+import ethos.repository.registry.docs.commands as docs_commands
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -389,18 +389,18 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     )
     assert result is not None and result.exit_code == 1
 
-    monkeypatch.setattr(docs_registry, "known_commands", lambda: {"ethos custom"})
-    assert docs_registry._known_ethos_command("ethos custom") is True
-    assert docs_registry._command_root("env") == ""
+    monkeypatch.setattr(docs_commands, "known_commands", lambda: {"ethos custom"})
+    assert docs_commands.known_ethos_command("ethos custom") is True
+    assert docs_commands.command_root("env") == ""
     assert (
-        docs_registry._has_command_example(
+        docs_commands.has_command_example(
             [{"scope": "current", "command": "env X=1 ethos land --json"}], "ethos land"
         )
         is True
     )
     unfinished = tmp_path / "unfinished.md"
     unfinished.write_text("```bash\nethos prove \\\n --json\n", encoding="utf-8")
-    assert docs_registry._bash_logical_commands(unfinished) == [(2, "ethos prove --json")]
+    assert docs_commands.bash_logical_commands(unfinished) == [(2, "ethos prove --json")]
 
     assert (
         evidence_parity._command_matches_identity(

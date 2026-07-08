@@ -64,7 +64,7 @@ targets = [
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/models.py",
   "packages/ethos/src/ethos/repository/context.py",
-  "packages/ethos/src/ethos/repository/registry/docs.py",
+  "packages/ethos/src/ethos/repository/registry/docs",
   "packages/ethos/src/ethos/repository/adoption/planner.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/cli.py",

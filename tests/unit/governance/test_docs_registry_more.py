@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from ethos.repository.registry import docs
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.health import visible_section_gaps_for_registry
+from ethos.repository.registry.docs.links import glossary_report
+from ethos.repository.registry.docs.links import link_integrity_report
+from ethos.repository.registry.docs.links import stable_paths_report
 
 
 def test_docs_registry_link_integrity_handles_fragments_external_and_encoded_paths(tmp_path):
@@ -32,7 +36,7 @@ See also: target.
     )
     target.write_text("# Target Heading\n", encoding="utf-8")
 
-    report = docs._link_integrity_report(tmp_path)
+    report = link_integrity_report(tmp_path)
 
     assert report["ok"] is False
     assert "broken_anchor:docs/guide.md:15:target%20file.md#missing" in report["required_gaps"]
@@ -70,7 +74,7 @@ custom-tool run
     )
     archive.write_text("```bash\nlegacy-tool ok\n```\n", encoding="utf-8")
 
-    report = docs.command_examples_report(tmp_path)
+    report = command_examples_report(tmp_path)
     normalized = {item["command"]: item["normalized_command"] for item in report["examples"]}
 
     assert normalized["env FOO=1 uv run --package ethos ethos prove --json"] == "ethos prove --json"
@@ -90,14 +94,14 @@ def test_docs_registry_stable_paths_reports_invalid_and_missing_targets(tmp_path
         "[[stable_path]\npath = 'docs/missing.md'\n", encoding="utf-8"
     )
 
-    invalid = docs._stable_paths_report(tmp_path)
+    invalid = stable_paths_report(tmp_path)
     assert invalid == {"ok": False, "required_gaps": ["stable_paths_invalid_toml"]}
 
     (meta / "stable_paths.toml").write_text(
         "[[stable_path]]\npath = 'docs/missing.md'\n",
         encoding="utf-8",
     )
-    report = docs._stable_paths_report(tmp_path)
+    report = stable_paths_report(tmp_path)
     assert "stable_path_target_missing:docs/missing.md" in report["required_gaps"]
     assert "stable_path_missing:docs/index.md" in report["required_gaps"]
 
@@ -111,11 +115,11 @@ def test_docs_registry_glossary_and_visible_sections_boundaries(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# Title\nStatus: ok.\n", encoding="utf-8")
 
-    gaps = docs._visible_section_gaps(tmp_path, [active, archived, evidence])
+    gaps = visible_section_gaps_for_registry(tmp_path, [active, archived, evidence])
     assert gaps == [
         "missing_visible_section:docs/active.md:purpose",
         "missing_visible_section:docs/active.md:see also",
     ]
-    assert docs._glossary_report(tmp_path)["required_gaps"] == [
+    assert glossary_report(tmp_path)["required_gaps"] == [
         "glossary_missing:docs/reference/glossary.md"
     ]

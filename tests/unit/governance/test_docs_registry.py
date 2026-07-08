@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository.registry.docs import DEFAULT_ALLOWED_ROLES
-from ethos.repository.registry.docs import DEFAULT_ALLOWED_STATES
-from ethos.repository.registry.docs import _allowed_roles
-from ethos.repository.registry.docs import build_docs_registry
-from ethos.repository.registry.docs import command_examples_report
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_ROLES
+from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
+from ethos.repository.registry.docs.registry import allowed_roles
+from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos_core.contracts.docs.topology import ROLE_VALUES
 from ethos_core.contracts.docs.topology import STATE_VALUES
 
@@ -31,7 +31,7 @@ def test_allowed_roles_union_kernel_with_taxonomy_never_removes_kernel(tmp_path:
     meta = tmp_path / "docs" / "_meta"
     meta.mkdir(parents=True)
     (meta / "taxonomy.toml").write_text('[roles]\nallowed = ["runbook"]\n', encoding="utf-8")
-    allowed = _allowed_roles(tmp_path)
+    allowed = allowed_roles(tmp_path)
     assert "runbook" in allowed  # taxonomy addition present
     assert frozenset(ROLE_VALUES) <= allowed  # every kernel role still valid
 
@@ -42,7 +42,7 @@ def test_allowed_roles_ignores_malformed_taxonomy_roles(tmp_path: Path) -> None:
     meta = tmp_path / "docs" / "_meta"
     meta.mkdir(parents=True)
     (meta / "taxonomy.toml").write_text('[roles]\nallowed = "not-a-list"\n', encoding="utf-8")
-    assert _allowed_roles(tmp_path) == set(ROLE_VALUES)
+    assert allowed_roles(tmp_path) == set(ROLE_VALUES)
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:
@@ -66,7 +66,7 @@ def test_docs_health_report_has_no_missing_metadata() -> None:
 
 
 def test_docs_quality_report_enforces_taxonomy_and_visible_sections() -> None:
-    from ethos.repository.registry.docs import docs_quality_report
+    from ethos.repository.registry.docs.quality import docs_quality_report
 
     report = docs_quality_report(Path.cwd())
 

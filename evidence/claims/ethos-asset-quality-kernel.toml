@@ -118,7 +118,7 @@ targets = [
   "packages/ethos/pyproject.toml",
   "packages/ethos/src/ethos/cli.py",
   "packages/ethos/pyproject.toml",
-  "packages/ethos/src/ethos/repository/registry/docs.py",
+  "packages/ethos/src/ethos/repository/registry/docs",
   "packages/ethos/src/ethos/repository/evidence/core.py",
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",

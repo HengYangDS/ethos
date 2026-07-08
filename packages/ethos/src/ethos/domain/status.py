@@ -18,7 +18,7 @@ from ethos.repository.adoption.planner import detect_repo_profile
 from ethos.repository.context import governance_context
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.health import docs_health_report
 
 if TYPE_CHECKING:
     from pathlib import Path

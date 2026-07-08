@@ -12,8 +12,16 @@ from pathlib import Path
 import pytest
 
 from ethos.repository.registry import commands
-from ethos.repository.registry import docs
 from ethos.repository.registry import profiles
+from ethos.repository.registry.docs.commands import bash_logical_commands
+from ethos.repository.registry.docs.commands import best_ethos_command_key
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.commands import command_root
+from ethos.repository.registry.docs.commands import ethos_command_key
+from ethos.repository.registry.docs.commands import known_ethos_command
+from ethos.repository.registry.docs.health import visible_section_gaps_for_registry
+from ethos.repository.registry.docs.registry import front_matter
+from ethos.repository.registry.docs.registry import taxonomy
 
 
 def test_front_matter_flushes_nested_block_before_next_top_level_key(tmp_path: Path) -> None:
@@ -26,7 +34,7 @@ def test_front_matter_flushes_nested_block_before_next_top_level_key(tmp_path: P
         encoding="utf-8",
     )
 
-    values = docs._front_matter(path)
+    values = front_matter(path)
 
     assert values["relations"] == "- a; - b"
     assert values["subject"] == "topic"
@@ -39,7 +47,7 @@ def test_taxonomy_returns_empty_on_malformed_toml(tmp_path: Path) -> None:
     meta.mkdir(parents=True)
     (meta / "taxonomy.toml").write_text("[states\nallowed = ['active'\n", encoding="utf-8")
 
-    assert docs._taxonomy(tmp_path) == {}
+    assert taxonomy(tmp_path) == {}
 
 
 def test_visible_section_gaps_skips_registry_entry_without_file(tmp_path: Path) -> None:
@@ -47,23 +55,23 @@ def test_visible_section_gaps_skips_registry_entry_without_file(tmp_path: Path) 
     # absent hits the `if not path.exists(): continue` guard at docs.py:227, yielding no gap.
     registry = [{"path": "docs/ghost.md", "state": "active"}]
 
-    assert docs._visible_section_gaps(tmp_path, registry) == []
+    assert visible_section_gaps_for_registry(tmp_path, registry) == []
 
 
 def test_command_root_strips_residual_env_and_assignment_tokens() -> None:
     # Normalization strips one leading `env` + assignments; a doubled `env` leaves a residual
     # `env` and assignment for _command_root's own stripping at docs.py:380 (env token) and
     # docs.py:382 (assignment token) before returning the real root.
-    assert docs._command_root("env env FOO=1 bar") == "bar"
+    assert command_root("env env FOO=1 bar") == "bar"
 
 
 def test_ethos_command_helpers_reject_non_ethos_invocations() -> None:
     # A command whose first token is not `ethos` short-circuits in each helper:
     # docs.py:404 (_ethos_command_key -> ""), docs.py:413 (_known_ethos_command -> False),
     # docs.py:517 (_best_ethos_command_key -> "").
-    assert docs._ethos_command_key("git status") == ""
-    assert docs._known_ethos_command("git status") is False
-    assert docs._best_ethos_command_key("git status") == ""
+    assert ethos_command_key("git status") == ""
+    assert known_ethos_command("git status") is False
+    assert best_ethos_command_key("git status") == ""
 
 
 def test_command_examples_flags_retired_public_root(tmp_path: Path) -> None:
@@ -75,7 +83,7 @@ def test_command_examples_flags_retired_public_root(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    report = docs.command_examples_report(tmp_path)
+    report = command_examples_report(tmp_path)
 
     assert "retired_command_example:README.md:2:proof" in report["required_gaps"]
 
@@ -89,8 +97,8 @@ def test_bash_logical_commands_flush_on_fence_close_and_eof(tmp_path: Path) -> N
     unclosed = tmp_path / "unclosed.md"
     unclosed.write_text("```bash\nethos prove \\\n", encoding="utf-8")
 
-    assert docs._bash_logical_commands(closed) == [(2, "ethos prove")]
-    assert docs._bash_logical_commands(unclosed) == [(2, "ethos prove")]
+    assert bash_logical_commands(closed) == [(2, "ethos prove")]
+    assert bash_logical_commands(unclosed) == [(2, "ethos prove")]
 
 
 def test_command_surface_policy_returns_empty_on_malformed_toml(tmp_path: Path) -> None:

@@ -19,7 +19,7 @@ from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.standards import standard_adapter_registry
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context_projection import context_projection_contract

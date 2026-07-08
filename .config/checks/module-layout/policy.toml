@@ -3,7 +3,7 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 61
+baseline_gap_limit = 60
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",
@@ -23,7 +23,6 @@ allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos/src/ethos/assistants/playbook_utils.py:playbook_utils",
   "module_layout_suffix_module:packages/ethos/src/ethos/domain/campaign_closeout.py:campaign_closeout",
   "module_layout_suffix_module:packages/ethos/src/ethos/domain/land_support.py:land_support",
-  "module_layout_suffix_module:packages/ethos/src/ethos/repository/adoption/scaffold_docs.py:scaffold_docs",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/adoption/scaffold_openspec.py:scaffold_openspec",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_design.py:audit_design",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_openspec.py:audit_openspec",

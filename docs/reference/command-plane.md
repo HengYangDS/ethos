@@ -67,6 +67,13 @@ ethos init --profile gitlab --dry-run --json
 ethos doctor
 ```
 
+`ethos doctor --json` also exposes host-local command wrapper diagnostics. If
+`PATH` resolves `ethos` to a fixed-root wrapper, the report records
+`data.host_wrapper.advisory_gaps=["host_wrapper_fixed_root"]` and recommends an
+explicit `ETHOS_ROOT` or a package-bound invocation from the target checkout.
+This is projection diagnosis only; repository truth remains the resolved Git
+worktree root and the command payload's runtime binding.
+
 Quality and governance:
 
 ```bash

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import shutil
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from typing import cast
@@ -52,6 +55,50 @@ from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.invalid_states import UNCLASSIFIED
 from ethos_core.invalid_states import explain_gap
 from ethos_core.result import EthosResult
+
+
+def _host_wrapper_report(repo: Path) -> dict[str, object]:
+    """Report whether PATH resolves `ethos` to a host wrapper with fixed root drift."""
+    command_path = shutil.which("ethos") or ""
+    if not command_path:
+        return {
+            "kind": "host_wrapper",
+            "state": "not_found",
+            "path": "",
+            "repository_root": repo.as_posix(),
+            "advisory_gaps": ["host_wrapper_not_found"],
+            "next_action": "run via `uv run --package ethos ethos ...` from the target checkout",
+        }
+    path = Path(command_path).resolve()
+    text = ""
+    with suppress(OSError):
+        text = path.read_text(encoding="utf-8", errors="replace")
+    fixed_root = (
+        "ETHOS_ROOT" in text
+        and "$HOME/projects/ethos" in text
+        and "git rev-parse" not in text
+        and "findSourceRoot" not in text
+    )
+    env_root = os.environ.get("ETHOS_ROOT", "")
+    advisory_gaps: list[str] = []
+    if fixed_root and not env_root:
+        advisory_gaps.append("host_wrapper_fixed_root")
+    state = "fixed_root_wrapper" if fixed_root and not env_root else "ok"
+    next_action = (
+        "set ETHOS_ROOT explicitly or run `uv run --package ethos ethos ...` "
+        "from the target checkout"
+        if advisory_gaps
+        else "host wrapper does not force a different repository root"
+    )
+    return {
+        "kind": "host_wrapper",
+        "state": state,
+        "path": path.as_posix(),
+        "repository_root": repo.as_posix(),
+        "env_ethos_root": env_root,
+        "advisory_gaps": advisory_gaps,
+        "next_action": next_action,
+    }
 
 
 def _missing_gate_dependency_next_actions(
@@ -622,13 +669,24 @@ def doctor(
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     if init_state:
         initialize_state(db_path)
+    status_payload = workspace_status(repo)
+    runtime = status_payload.get("runtime_binding", {})
+    host_wrapper = _host_wrapper_report(repo)
     result = EthosResult(
         command="doctor",
         ok=True,
         state="ready",
-        summary={"state_db_exists": db_path.exists()},
+        summary={
+            "state_db_exists": db_path.exists(),
+            "host_wrapper_state": host_wrapper["state"],
+        },
         next_actions=("ethos status",),
-        data={"state_db": str(db_path), "initialized": init_state},
+        data={
+            "state_db": str(db_path),
+            "initialized": init_state,
+            "runtime_binding": runtime,
+            "host_wrapper": host_wrapper,
+        },
     )
     emit(result, json_output=json_output, enforce=False)
 

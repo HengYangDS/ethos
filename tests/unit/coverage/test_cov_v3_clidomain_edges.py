@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -120,6 +121,59 @@ def test_doctor_skips_state_init_when_flag_false(
     printed = capsys.readouterr().out
     assert '"initialized": false' in printed
     assert not (repo / ".ethos" / "state" / "state.sqlite").exists()
+
+
+def test_doctor_reports_fixed_root_host_wrapper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _init_git_repo(tmp_path / "repo")
+    fixed = tmp_path / "bin" / "ethos"
+    fixed.parent.mkdir()
+    fixed.write_text(
+        "#!/usr/bin/env bash\n"
+        'ETHOS_ROOT="${ETHOS_ROOT:-$HOME/projects/ethos}"\n'
+        'cd "$ETHOS_ROOT"\n'
+        'exec npm run -s ethos -- "$@"\n',
+        encoding="utf-8",
+    )
+    fixed.chmod(0o755)
+    original_path = __import__("os").environ.get("PATH", "")
+    monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
+
+    cli.doctor(root=repo, init_state=False, json_output=True)
+
+    payload = json.loads(capsys.readouterr().out)
+    wrapper = payload["data"]["host_wrapper"]
+    assert wrapper["state"] == "fixed_root_wrapper"
+    assert "host_wrapper_fixed_root" in wrapper["advisory_gaps"]
+    assert wrapper["path"] == fixed.as_posix()
+
+
+def test_doctor_accepts_explicit_ethos_root_for_host_wrapper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _init_git_repo(tmp_path / "repo")
+    fixed = tmp_path / "bin" / "ethos"
+    fixed.parent.mkdir()
+    fixed.write_text(
+        "#!/usr/bin/env bash\n"
+        'ETHOS_ROOT="${ETHOS_ROOT:-$HOME/projects/ethos}"\n'
+        'cd "$ETHOS_ROOT"\n'
+        'exec npm run -s ethos -- "$@"\n',
+        encoding="utf-8",
+    )
+    fixed.chmod(0o755)
+    original_path = __import__("os").environ.get("PATH", "")
+    monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
+    monkeypatch.setenv("ETHOS_ROOT", repo.as_posix())
+
+    cli.doctor(root=repo, init_state=False, json_output=True)
+
+    payload = json.loads(capsys.readouterr().out)
+    wrapper = payload["data"]["host_wrapper"]
+    assert wrapper["state"] == "ok"
+    assert wrapper["env_ethos_root"] == repo.as_posix()
+    assert wrapper["advisory_gaps"] == []
 
 
 # --------------------------------------------------------------------------- #

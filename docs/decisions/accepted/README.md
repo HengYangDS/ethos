@@ -15,7 +15,7 @@ Purpose: list accepted ETHOS durable rulings.
 | Decision | Title | Scope |
 | --- | --- | --- |
 | [DR-0001](DR-0001-generated-artifact-topology-contract.md) | Generated Artifact Topology Contract | Generated artifact path governance, adopter-neutral product roots, evidence promotion, and rollback readiness. |
-| [DR-0002](DR-0002-documentation-topology-isomorphism-contract.md) | Documentation Topology Isomorphism Contract | Common docs kernel and decision-record topology across governed repositories. |
 | [DR-0003](DR-0003-proof-scope-compatibility-contract.md) | Proof Scope Compatibility Contract | Scoped proof command compatibility and host-probe truth boundary for adopter migration. |
+| [DR-0004](DR-0004-native-documentation-topology-contract.md) | Minimal Semantic Documentation Topology Contract | Minimal semantic docs kernel plus product extension roots without current/future physical lanes. |
 
 See also: [Decision Records](../README.md).

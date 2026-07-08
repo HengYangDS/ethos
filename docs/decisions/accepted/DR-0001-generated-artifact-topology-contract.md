@@ -29,7 +29,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Superseded By | None |
 | Scope | Generated artifact topology, adopter-neutral product roots, evidence promotion, proof/report placement, and adoption rollback readiness. |
 | Boundary | Owns generic path policy, path router behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
-| Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping docs organization highly isomorphic across governed repositories. |
+| Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
 | Decision | Promote the Generated Artifact Topology Contract and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
 | Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` remains visible review debt rather than the generic model. |
 | Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
@@ -78,11 +78,10 @@ narrative alone; it needs proof that external ETHOS can audit artifact placement
 keep adopter-specific state in adopter-owned declarative config, and preserve a
 rollback path.
 
-The docs organization should remain highly isomorphic across governed
-repositories: `docs/decisions/` for durable rulings, governance/reference/plans
-pages for promoted contracts, and evidence directories for dated proof. ETHOS may
-adapt lane names to its product docs taxonomy, but not collapse durable rulings
-into general governance prose.
+The docs organization should preserve the shared decisions, evidence,
+reference, and history kernel across governed repositories. Product or domain
+extension roots may exist, but they must not collapse durable rulings into
+general governance prose or become mandatory truth lanes.
 
 ## Proof Or Evidence
 

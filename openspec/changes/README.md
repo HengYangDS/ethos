@@ -1,7 +1,7 @@
 # OpenSpec Changes
 
 Active change folders are ETHOS case carriers. They record intended change and
-review state; they do not supersede source, tests, schemas, current docs,
+review state; they do not supersede source, tests, schemas, governed docs,
 accepted specs, claims, or evidence until closeout promotes those surfaces.
 
 Create a new folder for non-trivial governance semantics. Do not reuse an

@@ -260,7 +260,7 @@ def test_canonical_product_docs_are_provider_neutral() -> None:
             assert term not in text, (doc, term)
 
 
-def test_canonical_product_docs_do_not_expose_legacy_compatibility_language() -> None:
+def test_canonical_product_docs_do_not_expose_predecessor_compatibility_language() -> None:
     canonical_doc_dirs = (
         "docs/governance",
         "docs/architecture",

@@ -19,10 +19,8 @@ from ethos.repository.adoption.scaffold_docs.pages import agents_doc
 from ethos.repository.adoption.scaffold_docs.pages import changelog_doc
 from ethos.repository.adoption.scaffold_docs.pages import contributing_doc
 from ethos.repository.adoption.scaffold_docs.pages import docs_evidence
-from ethos.repository.adoption.scaffold_docs.pages import docs_governance
 from ethos.repository.adoption.scaffold_docs.pages import docs_history
 from ethos.repository.adoption.scaffold_docs.pages import docs_index
-from ethos.repository.adoption.scaffold_docs.pages import docs_plans
 from ethos.repository.adoption.scaffold_docs.pages import docs_readme
 from ethos.repository.adoption.scaffold_docs.pages import docs_reference
 from ethos.repository.adoption.scaffold_docs.pages import governance_doc
@@ -98,11 +96,9 @@ BASE_ADOPTION_FILES = (
     "docs/decisions/templates/README.md",
     "docs/decisions/templates/decision-record.md",
     "docs/evidence/README.md",
-    "docs/plans/README.md",
     "docs/history/README.md",
     "docs/reference/README.md",
     "docs/start/quickstart.md",
-    "docs/governance/README.md",
     "docs/governance/ethos.md",
     "evidence/.gitkeep",
     "evidence/claims/.gitkeep",
@@ -338,11 +334,9 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "docs/decisions/templates/README.md": decisions_templates(),
         "docs/decisions/templates/decision-record.md": decision_record_template(),
         "docs/evidence/README.md": docs_evidence(),
-        "docs/plans/README.md": docs_plans(),
         "docs/history/README.md": docs_history(),
         "docs/reference/README.md": docs_reference(),
         "docs/start/quickstart.md": quickstart(),
-        "docs/governance/README.md": docs_governance(),
         "docs/governance/ethos.md": governance_doc(),
         **STATIC_DEFAULT_FILES,
     }

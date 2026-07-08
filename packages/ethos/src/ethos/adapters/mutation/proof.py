@@ -18,15 +18,41 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
-_PROOF_DIR = Path(".ethos") / "state" / "proof"
+_DEFAULT_PROOF_DIR = Path(".ethos") / "state" / "proof"
+_TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
 
 
 def _stable_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _pytest_state_active() -> bool:
+    """Return whether the current process is running under pytest."""
+    return bool(os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYTEST_XDIST_WORKER"))
+
+
+def proof_state_dir(root: Path) -> Path:
+    """Return the local executed-proof state directory for ``root``.
+
+    Production proof state stays at ``.ethos/state/proof``. Test workers may
+    override the physical directory through ``ETHOS_TEST_PROOF_STATE_DIR`` so
+    xdist workers do not race over one shared mutable local-state projection.
+    The override is ignored outside pytest.
+    """
+    override = os.environ.get(_TEST_PROOF_STATE_DIR_ENV, "").strip()
+    if override and _pytest_state_active():
+        path = Path(override).expanduser()
+        return path if path.is_absolute() else root / path
+    return root / _DEFAULT_PROOF_DIR
+
+
+def _proof_path(root: Path, head: str) -> Path:
+    return proof_state_dir(root) / f"{head}.json"
 
 
 def _evidence_digest(body: dict[str, Any]) -> str:
@@ -64,7 +90,7 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
     self-authenticating: its digest is recomputable from its own contents.
     """
     head = str(evidence.get("head", ""))
-    proof_dir = root / _PROOF_DIR
+    proof_dir = proof_state_dir(root)
     proof_dir.mkdir(parents=True, exist_ok=True)
     path = proof_dir / f"{head}.json"
     record = {
@@ -86,7 +112,7 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     trust-bearing run to have passed. A forged/edited record fails these checks and is
     treated as absent (so the caller falls back to executed_proof_missing).
     """
-    path = root / _PROOF_DIR / f"{head}.json"
+    path = _proof_path(root, head)
     if not path.exists():
         return None
     try:
@@ -139,8 +165,8 @@ def carry_executed_proof_record(
     re-read through the same verifier after writing.
     """
     source_record = executed_proof_record(source_root, head)
-    source_path = source_root / _PROOF_DIR / f"{head}.json"
-    target_path = target_root / _PROOF_DIR / f"{head}.json"
+    source_path = _proof_path(source_root, head)
+    target_path = _proof_path(target_root, head)
     base = _proof_carry_package(
         source_root=source_root,
         target_root=target_root,

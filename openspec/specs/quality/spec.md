@@ -64,7 +64,7 @@ links, anchors, and command examples.
 #### Scenario: Docs profile is reported
 
 - **WHEN** `ethos quality docs --json` runs
-- **THEN** ETHOS reports docs quality profile checks alongside current docs
+- **THEN** ETHOS reports docs quality profile checks alongside governed docs
   registry health
 
 ### Requirement: Parallel Timeout-Bound Test Gate

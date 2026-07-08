@@ -49,6 +49,8 @@ _NON_GAP_TOKENS = {
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap
     "missing_required_path_count",  # docs-topology report field, not an emitted gap
+    "missing_required_state_count",  # docs-topology report field, not an emitted gap
+    "missing_required_state_paths",  # docs-topology report field, not an emitted gap
     *NODE_ORDER,  # the category ids themselves are not gaps
     "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
     "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted
@@ -78,6 +80,17 @@ def test_taxonomy_contract_validates_against_schema() -> None:
         (ROOT / "system/schemas/contracts/invalid_states.schema.json").read_text(encoding="utf-8")
     )
     jsonschema.Draft202012Validator(schema).validate(payload)
+
+
+def test_docs_topology_report_fields_do_not_pollute_taxonomy() -> None:
+    payload = tomllib.loads((ROOT / "system/invalid_states.toml").read_text(encoding="utf-8"))
+    prefixes = {
+        prefix for category in payload["category"] for prefix in category.get("match_prefixes", [])
+    }
+
+    assert "missing_required_state_count" in _NON_GAP_TOKENS
+    assert "missing_required_state_paths" in _NON_GAP_TOKENS
+    assert "missing_required_state" not in prefixes
 
 
 def test_taxonomy_release_resource_matches_system_contract() -> None:

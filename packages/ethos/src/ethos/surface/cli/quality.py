@@ -125,7 +125,7 @@ def docs_topology(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Audit the high-isomorphism documentation topology contract."""
+    """Audit the minimal semantic documentation topology contract."""
     repo = resolve_root(root)
     report = docs_topology_report(repo)
     result = EthosResult(
@@ -136,8 +136,8 @@ def docs_topology(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=(
             (
-                "restore semantic docs kernel: README, index, start, governance, "
-                "decisions, evidence, plans, history, and reference"
+                "restore minimal semantic docs kernel: README, decisions, evidence, "
+                "history, and reference"
             )
             if report["required_gaps"]
             else (

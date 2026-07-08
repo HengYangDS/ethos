@@ -64,12 +64,12 @@ freeze_level = "hard"
 
 [[stable_path]]
 path = "docs/governance/README.md"
-reason = "common governance-docs lane"
+reason = "product governance docs index"
 freeze_level = "hard"
 
 [[stable_path]]
 path = "docs/plans/README.md"
-reason = "common plans-docs lane"
+reason = "product planning docs index"
 freeze_level = "hard"
 
 [[stable_path]]

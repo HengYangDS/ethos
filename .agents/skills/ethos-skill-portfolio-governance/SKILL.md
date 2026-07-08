@@ -51,5 +51,5 @@ ethos prove --execute --gate playbooks-v2 --json
 ## Trust Boundary
 
 This skill governs skill projections only. Repository source, tests, schemas,
-current docs, OpenSpec records, claims, evidence, and ETHOS command JSON remain
+governed docs, OpenSpec records, claims, evidence, and ETHOS command JSON remain
 the source of truth. Skills expose procedures; they do not create product truth.

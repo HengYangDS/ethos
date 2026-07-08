@@ -10,8 +10,10 @@ relations:
 
 Status: canonical.
 
-Purpose: hold decisions that no longer define current ETHOS product rulings.
+Purpose: hold decisions that no longer define ETHOS product rulings.
 
-No superseded ETHOS decision records are tracked yet.
+| Decision | Title | Superseded By |
+| --- | --- | --- |
+| [DR-0002](DR-0002-documentation-topology-isomorphism-contract.md) | Documentation Topology Isomorphism Contract | [DR-0004](../accepted/DR-0004-native-documentation-topology-contract.md) |
 
 See also: [Accepted Decision Records](../accepted/README.md).

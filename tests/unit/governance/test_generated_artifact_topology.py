@@ -127,3 +127,12 @@ def test_path_policy_denies_generated_output_under_config() -> None:
 
     assert report["decision"] == "deny"
     assert report["required_gap"] == "generated_artifact_config_drift:.config/ethos/report.json"
+
+
+def test_path_policy_denies_generated_output_under_governed_docs() -> None:
+    report = path_policy_for("docs/reference/report.json")
+
+    assert report["decision"] == "deny"
+    assert report["required_gap"] == (
+        "generated_artifact_governed_docs_drift:docs/reference/report.json"
+    )

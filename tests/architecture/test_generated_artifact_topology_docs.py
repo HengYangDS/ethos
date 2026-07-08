@@ -28,7 +28,7 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
     assert "ethos quality generated-artifacts" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
     assert "ethos quality docs-topology --json" in docs_topology
-    assert "Documentation Topology Isomorphism Contract" in command_plane
+    assert "Minimal Semantic Documentation Topology Contract" in command_plane
 
 
 def test_generated_artifact_topology_is_in_docs_index() -> None:
@@ -40,7 +40,7 @@ def test_generated_artifact_topology_is_in_docs_index() -> None:
     assert "decisions/README.md" in index
 
 
-def test_decision_records_surface_is_highly_isomorphic_with_governed_repositories() -> None:
+def test_decision_records_surface_is_shared_across_governed_repositories() -> None:
     required = (
         "docs/decisions/README.md",
         "docs/decisions/decision-index.md",
@@ -67,15 +67,15 @@ def test_decision_records_surface_is_highly_isomorphic_with_governed_repositorie
 def test_documentation_topology_docs_bind_common_kernel() -> None:
     topology = (ROOT / "docs/architecture/docs-topology.md").read_text(encoding="utf-8")
     decision = (
-        ROOT / "docs/decisions/accepted/DR-0002-documentation-topology-isomorphism-contract.md"
+        ROOT / "docs/decisions/accepted/DR-0004-native-documentation-topology-contract.md"
+    ).read_text(encoding="utf-8")
+    superseded = (
+        ROOT / "docs/decisions/superseded/DR-0002-documentation-topology-isomorphism-contract.md"
     ).read_text(encoding="utf-8")
 
     for text in (topology, decision):
-        assert "docs/start" in text
-        assert "docs/governance" in text
         assert "docs/decisions" in text
         assert "docs/evidence" in text
-        assert "docs/plans" in text
         assert "docs/history" in text
         assert "docs/reference" in text
         assert "docs/current" in text
@@ -83,5 +83,11 @@ def test_documentation_topology_docs_bind_common_kernel() -> None:
         assert "forbid" in text.lower() or "forbidden" in text.lower()
         assert "ethos quality docs-topology --json" in text
 
-    assert "DR-0002" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")
-    assert "DR-0002" in (ROOT / "docs/decisions/decision-code-links.md").read_text(encoding="utf-8")
+    for optional_root in ("docs/start", "docs/governance", "docs/plans"):
+        assert optional_root in decision
+        required_section = topology.split("Required paths:", 1)[1].split("Forbidden roots:", 1)[0]
+        assert optional_root not in required_section
+
+    assert "Status: superseded" in superseded
+    assert "DR-0004" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")
+    assert "DR-0004" in (ROOT / "docs/decisions/decision-code-links.md").read_text(encoding="utf-8")

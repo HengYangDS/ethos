@@ -1,7 +1,7 @@
 # Pytest execution policy owned by .config/checks/pytest/.
 # pytest.ini remains at repo root because pytest discovers it natively.
 workers_env = "ETHOS_TEST_WORKERS"
-default_workers = "auto"
+default_workers = 8
 durations_env = "ETHOS_TEST_DURATIONS"
 default_durations = 20
 timeout_seconds = 120

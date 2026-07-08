@@ -187,6 +187,9 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "--cov-fail-under=100" in runner
     assert "-W error::ResourceWarning" not in runner
     assert 'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"' in runner
+    assert "rm -f .coverage .coverage.*" in runner
+    assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in runner
+    assert 'rm -f "${pytest_evidence_dir}/junit.xml"' in runner
     assert "--cov-report=term-missing" in runner
     assert '--cov-report="xml:${coverage_evidence_dir}/coverage.xml"' in runner
     assert '--cov-config="${coverage_config_dir}/coverage.ini"' in runner
@@ -196,5 +199,8 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "ethos-pytest" in runner
     assert "fail_under = 100" in coverage
     assert "branch = True" in coverage
+    assert (
+        "data_file = ${COVERAGE_FILE-build/evidence/quality/tests/coverage/.coverage}" in coverage
+    )
     assert "current_hard_floor = 100" in policy
     assert "aspirational_floor = 100" in policy

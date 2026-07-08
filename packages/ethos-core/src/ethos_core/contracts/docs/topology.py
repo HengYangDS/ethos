@@ -1,7 +1,7 @@
 """Documentation topology contract shared by ETHOS and governed repositories.
 
 The contract is intentionally physical and adopter-neutral. It defines the
-minimum semantic documentation information architecture that should be
+minimal semantic documentation information architecture that should be
 recognizable in any repository governed by ETHOS without encoding truth state in
 path names such as ``docs/current`` or ``docs/future``. Truth state belongs in
 front matter and evidence, while directory names describe semantic ownership.
@@ -13,13 +13,9 @@ from pathlib import Path
 from typing import Any
 
 DOCS_ROOT_REQUIRED_PATHS: tuple[tuple[str, str], ...] = (
-    ("docs/README.md", "documentation navigation and semantic lane map"),
-    ("docs/index.md", "audience-oriented documentation navigation"),
-    ("docs/start/quickstart.md", "first-run workflow and command path"),
-    ("docs/governance/README.md", "governance policy and operating model index"),
-    ("docs/reference/README.md", "stable vocabulary, boundaries, and command reference"),
-    ("docs/evidence/README.md", "dated proof and scoped evidence summaries"),
-    ("docs/plans/README.md", "planned work and roadmap material with explicit state"),
+    ("docs/README.md", "documentation navigation and lane map"),
+    ("docs/reference/README.md", "stable vocabulary, boundaries, and command references"),
+    ("docs/evidence/README.md", "dated proof and scoped evidence"),
     ("docs/history/README.md", "retired rationale and archival logs"),
 )
 
@@ -35,11 +31,8 @@ DECISION_RECORD_REQUIRED_PATHS: tuple[tuple[str, str], ...] = (
 )
 
 CANONICAL_DOC_LANES: tuple[tuple[str, str], ...] = (
-    ("start", "operator entrypoints and first-run workflows"),
-    ("governance", "policies, rules, and operating constraints"),
     ("decisions", "durable rulings with explicit scope and revisit trigger"),
     ("evidence", "dated proof, manifests, smoke notes, closeout records"),
-    ("plans", "planned or research-backed work that is not authority until promoted"),
     ("reference", "stable vocabulary, boundaries, and governance references"),
     ("history", "retired rationale and archival logs"),
 )
@@ -51,7 +44,10 @@ PRODUCT_EXTENSION_ROOTS = frozenset(
         "docs/_meta",
         "docs/architecture",
         "docs/concepts",
+        "docs/governance",
+        "docs/plans",
         "docs/research",
+        "docs/start",
     }
 )
 
@@ -69,7 +65,7 @@ def docs_topology_contract() -> dict[str, Any]:
     required_paths = DOCS_ROOT_REQUIRED_PATHS + DECISION_RECORD_REQUIRED_PATHS
     return {
         "schema_version": 1,
-        "principle": "semantic documentation kernel across governed repositories",
+        "principle": "minimal semantic documentation kernel across governed repositories",
         "adopter_neutral": True,
         "requires_identical_subject_matter": False,
         "repository_form_invariant": True,

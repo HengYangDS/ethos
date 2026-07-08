@@ -16,7 +16,7 @@ outside repository proof truth.
 
 See also: [Command Plane](../../reference/command-plane.md),
 [Generated Artifact Topology](DR-0001-generated-artifact-topology-contract.md),
-and [Documentation Topology](DR-0002-documentation-topology-isomorphism-contract.md).
+and [Documentation Topology](DR-0004-native-documentation-topology-contract.md).
 
 ## Record
 

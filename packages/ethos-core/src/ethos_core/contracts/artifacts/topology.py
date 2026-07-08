@@ -65,14 +65,7 @@ _REVIEW_PREFIXES: tuple[tuple[str, str], ...] = (
 )
 _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".config/", "generated_artifact_config_drift"),
-    ("docs/architecture/", "generated_artifact_docs_truth_drift"),
-    ("docs/concepts/", "generated_artifact_docs_truth_drift"),
-    ("docs/decisions/", "generated_artifact_docs_truth_drift"),
-    ("docs/governance/", "generated_artifact_docs_truth_drift"),
-    ("docs/history/", "generated_artifact_docs_truth_drift"),
-    ("docs/plans/", "generated_artifact_docs_truth_drift"),
-    ("docs/reference/", "generated_artifact_docs_truth_drift"),
-    ("docs/start/", "generated_artifact_docs_truth_drift"),
+    ("docs/", "generated_artifact_governed_docs_drift"),
     ("packages/", "generated_artifact_source_drift"),
 )
 

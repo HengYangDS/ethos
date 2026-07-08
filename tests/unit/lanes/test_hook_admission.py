@@ -15,6 +15,7 @@ from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation.core import _proof_gaps
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -243,11 +244,57 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     assert lane["state"] == "admitted"
 
 
-def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
+def _trust_bearing_evidence(head: str) -> dict[str, object]:
+    run = ProofRun(
+        action_id="python-tests",
+        command=("pytest",),
+        exit_code=0,
+        stdout="",
+        stderr="",
+        state="proven",
+        evidence_class="test",
+        verdict="passed",
+        trust_bearing=True,
+        diagnostics=(),
+    )
+    return EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+
+
+def test_proof_state_dir_defaults_to_repository_local_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("ETHOS_TEST_PROOF_STATE_DIR", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+
+    assert proof_state_dir(tmp_path) == tmp_path / ".ethos" / "state" / "proof"
+
+
+def test_proof_state_dir_test_override_is_worker_local(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    head = "abc123"
+    proof_dir = tmp_path / ".ethos" / "state" / "proof-gw1"
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
+    monkeypatch.setenv("ETHOS_TEST_PROOF_STATE_DIR", proof_dir.as_posix())
+
+    path = record_executed_proof(tmp_path, _trust_bearing_evidence(head))
+
+    assert path == proof_dir / f"{head}.json"
+    assert executed_proof_record(tmp_path, head) is not None
+    assert not (tmp_path / ".ethos" / "state" / "proof" / f"{head}.json").exists()
+
+
+def test_executed_proof_record_rejects_forgery(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """The proof record is tamper-evident: a hand-authored file that did not come from
     an executed proof is rejected, so the write-admission moat cannot be minted with
     `echo`. Only a record whose digest recomputes from its own sealed evidence body,
     with every run proven, is accepted."""
+    monkeypatch.delenv("ETHOS_TEST_PROOF_STATE_DIR", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
     head = "a" * 40
     proof_dir = tmp_path / ".ethos" / "state" / "proof"
     proof_dir.mkdir(parents=True)
@@ -258,6 +305,12 @@ def test_executed_proof_record_rejects_forgery(tmp_path) -> None:
     )
     assert executed_proof_record(tmp_path, head) is None
     assert "proof_not_proven" in _proof_gaps(tmp_path, head)
+
+    # Non-proven local state never admits a proof even if the file is present.
+    (proof_dir / f"{head}.json").write_text(
+        json.dumps({"head": head, "state": "pending", "evidence_digest": "x"}), encoding="utf-8"
+    )
+    assert executed_proof_record(tmp_path, head) is None
 
     # forgery with a fabricated failing run + wrong digest
     (proof_dir / f"{head}.json").write_text(

@@ -15,3 +15,4 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
     assert {"build/ethos", "build/evidence", ".cache/local-state"} <= allowed
     denied = {item["prefix"] for item in payload["data"]["contract"]["denied_generated_prefixes"]}
     assert ".config" in denied
+    assert "docs" in denied

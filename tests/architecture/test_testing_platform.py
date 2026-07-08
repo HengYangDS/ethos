@@ -19,7 +19,8 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--strict-markers" in pytest_ini
     assert "required_plugins" in pytest_ini
     assert "pytest-timeout" in pytest_ini
-    assert policy["default_workers"] == "auto"
+    assert policy["default_workers"] == 8
+    assert 'workers="${ETHOS_TEST_WORKERS:-8}"' in script
     assert policy["timeout_seconds"] == 120
     assert policy["default_evidence_root"] == "build/evidence/quality/tests"
     assert policy["junit_xml"] == "build/evidence/quality/tests/pytest/junit.xml"
@@ -27,6 +28,10 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--dist=loadscope" in script
     assert "--junitxml" in script
     assert "--durations" in script
+    assert "COVERAGE_FILE" in script
+    assert "cleanup_root_coverage_artifacts" in script
+    assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in script
+    assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
 
 
 def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None:
@@ -47,6 +52,16 @@ def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:
     assert "build/evidence/quality/tests" in script
     assert "ETHOS_TEST_BASETEMP" in script
     assert "ethos-pytest" in script
+
+
+def test_python_test_gate_isolates_worker_local_proof_state() -> None:
+    conftest = (ROOT / "tests/conftest.py").read_text(encoding="utf-8")
+    coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
+
+    assert "ETHOS_TEST_PROOF_STATE_DIR" in conftest
+    assert "PYTEST_XDIST_WORKER" in conftest
+    assert "proof-{worker}" in conftest
+    assert "data_file = ${COVERAGE_FILE-" in coverage
 
 
 def test_repository_hygiene_gate_is_owner_scripted_and_projected() -> None:

@@ -66,7 +66,7 @@ Earlier product designs used separate Python package homes such as
 inside the two-package topology; they are not active package homes.
 
 Historical references to those package names are stale unless explicitly marked
-as history. Current docs, tests, scorecards, and release checks should use the
+as history. Promoted docs, tests, scorecards, and release checks should use the
 active topology above.
 
 ## Boundary Rule

@@ -16,7 +16,24 @@ pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 
-workers="${ETHOS_TEST_WORKERS:-auto}"
+cleanup_root_coverage_artifacts() {
+  rm -f .coverage .coverage.*
+  rm -f coverage.xml junit.xml
+}
+
+# Start each trust-bearing test run from a clean generated evidence boundary.
+# pytest-cov and xdist create SQLite shards next to COVERAGE_FILE; older or
+# interrupted local runs may also leave root `.coverage*` files behind. Stale
+# shards can corrupt the combined report, and root coverage files violate the
+# generated-artifact topology before tests reach the real product assertions.
+# These files are ignored local evidence, not repository truth.
+cleanup_root_coverage_artifacts
+trap cleanup_root_coverage_artifacts EXIT
+rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
+rm -f "${coverage_evidence_dir}/coverage.xml"
+rm -f "${pytest_evidence_dir}/junit.xml"
+
+workers="${ETHOS_TEST_WORKERS:-8}"
 durations="${ETHOS_TEST_DURATIONS:-20}"
 pytest_args=(
   --cov-config="${coverage_config_dir}/coverage.ini"

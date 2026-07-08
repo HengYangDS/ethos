@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
-    "target_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
-    "product_semantic_sha256": "a627f0d9c2d3bf5d73fc75e83c44efaaa282196c4f197254f406487d983ff6eb",
-    "target_semantic_sha256": "a627f0d9c2d3bf5d73fc75e83c44efaaa282196c4f197254f406487d983ff6eb",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
+    "target_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
+    "product_semantic_sha256": "739d925468d9d9c237d1ec37c24459b7f503c6c0b5ccea711cee8eea402709e6",
+    "target_semantic_sha256": "739d925468d9d9c237d1ec37c24459b7f503c6c0b5ccea711cee8eea402709e6",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/expert-hardening",
-    "target_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
-    "product_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-topology-native",
+    "target_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
+    "product_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "38dbf3fd1d9f125c8aacf48b980ee853012e447c2cba5b81bac612ac440ec3ac"
+        "sha256": "c6d1997cfc2b163083d289a28d22e49b56af91ca0fc4407b7b7df9674d9ac2da"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "76ad43e256302be2ff578f6a39422e73870827a31ac029e405cd9d8f3abb31af"
+        "sha256": "12db9000346d0da2d8232677289a6587e373003445e416d0f2a6ff30e774fbf0"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "60ecedec645dc57e5da4446141b1ce7e237c2e9c94536704c9a9a1cbf6c4e34e"
+        "sha256": "9604de9d5f613b1ef794239823ddae5b5d9c7d2db34730bec76956cddb8e15c5"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "28fe8adb59086c04a7603cd95d69df2775d814274ba14fe246fdac56b5b3550e"
+        "sha256": "af401e35dcbcf7ca12460942ead62b54bf521379991f13cba4858d139ba70006"
       },
       {
         "path": "rules",

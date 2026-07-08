@@ -8,7 +8,11 @@ from contextlib import redirect_stderr
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHONPATH = os.pathsep.join(
@@ -18,6 +22,43 @@ PYTHONPATH = os.pathsep.join(
         "packages/ethos-core",
     )
 )
+
+
+def _test_git_config_overlay_keys(env: MutableMapping[str, str]) -> tuple[str, ...]:
+    """Return pytest's indexed Git config overlay environment keys."""
+    raw_count = env.get("GIT_CONFIG_COUNT", "0")
+    try:
+        count = int(raw_count)
+    except ValueError:
+        count = 0
+    keys = ["GIT_CONFIG_COUNT"]
+    for index in range(count):
+        keys.extend((f"GIT_CONFIG_KEY_{index}", f"GIT_CONFIG_VALUE_{index}"))
+    return tuple(keys)
+
+
+def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
+    """Copy ``env`` without pytest's environment-backed Git config overlay.
+
+    The autouse git fixture disables commit signing through ``GIT_CONFIG_*`` so
+    throwaway test repositories can commit without depending on a developer key.
+    Product CLI checks must inspect repository truth, not that test-only overlay.
+    Keep identity variables, but remove indexed Git config entries.
+    """
+    clean = dict(env)
+    for key in _test_git_config_overlay_keys(env):
+        clean.pop(key, None)
+    return clean
+
+
+def _remove_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
+    """Remove pytest's Git config overlay in-place and return removed values."""
+    removed: dict[str, str] = {}
+    for key in _test_git_config_overlay_keys(env):
+        value = env.pop(key, None)
+        if value is not None:
+            removed[key] = value
+    return removed
 
 
 def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, Any]:
@@ -55,10 +96,12 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
 
     _load_command_groups(list(args))
     previous_cwd = Path.cwd()
+    removed_git_env: dict[str, str] = {}
     stdout = StringIO()
     stderr = StringIO()
     returncode = 0
     try:
+        removed_git_env = _remove_test_git_config_overlay(os.environ)
         os.chdir(cwd or ROOT)
         with redirect_stdout(stdout), redirect_stderr(stderr):
             try:
@@ -71,6 +114,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
         stderr.write(f"{type(exc).__name__}: {exc}")
     finally:
         os.chdir(previous_cwd)
+        os.environ.update(removed_git_env)
     return subprocess.CompletedProcess(
         [sys.executable, "-m", "ethos.cli", *args],
         returncode,
@@ -80,7 +124,7 @@ def _run_inprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedP
 
 
 def _run_subprocess(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
+    env = _without_test_git_config_overlay(os.environ)
     env["PYTHONPATH"] = PYTHONPATH
     return subprocess.run(
         [sys.executable, "-m", "ethos.cli", *args],

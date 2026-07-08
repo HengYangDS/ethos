@@ -10,7 +10,7 @@ relations:
 
 Repo-local skills are ETHOS playbook projections. They help agents choose the
 right command, document, schema, or evidence path, but they do not become a new
-source of truth. Repository truth remains source code, tests, schemas, current
+source of truth. Repository truth remains source code, tests, schemas, governed
 docs, promoted OpenSpec records, claims, evidence, and command JSON.
 
 The canonical local layout is:

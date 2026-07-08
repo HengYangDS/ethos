@@ -93,27 +93,27 @@ def _terminal_report(adopter: Path, product: Path) -> dict[str, object]:
 
 def _write_docs_kernel(root: Path) -> None:
     entries = {
-        "docs/README.md": "# Docs\n",
-        "docs/index.md": "# Docs Index\n",
-        "docs/start/quickstart.md": "# Quickstart\n",
-        "docs/governance/README.md": "# Governance\n",
-        "docs/decisions/README.md": "# Decisions\n",
-        "docs/decisions/decision-index.md": "# Decision Index\n",
-        "docs/decisions/decision-dependency-map.md": "# Decision Dependency Map\n",
-        "docs/decisions/decision-code-links.md": "# Decision Code Links\n",
-        "docs/decisions/accepted/README.md": "# Accepted Decisions\n",
-        "docs/decisions/superseded/README.md": "# Superseded Decisions\n",
-        "docs/decisions/templates/README.md": "# Decision Templates\n",
-        "docs/decisions/templates/decision-record.md": "# Decision Record Template\n",
-        "docs/evidence/README.md": "# Evidence\n",
-        "docs/plans/README.md": "# Plans\n",
-        "docs/history/README.md": "# History\n",
-        "docs/reference/README.md": "# Reference\n",
+        "docs/README.md": "# Docs",
+        "docs/index.md": "# Docs Index",
+        "docs/start/quickstart.md": "# Quickstart",
+        "docs/governance/README.md": "# Governance",
+        "docs/decisions/README.md": "# Decisions",
+        "docs/decisions/decision-index.md": "# Decision Index",
+        "docs/decisions/decision-dependency-map.md": "# Decision Dependency Map",
+        "docs/decisions/decision-code-links.md": "# Decision Code Links",
+        "docs/decisions/accepted/README.md": "# Accepted Decisions",
+        "docs/decisions/superseded/README.md": "# Superseded Decisions",
+        "docs/decisions/templates/README.md": "# Decision Templates",
+        "docs/decisions/templates/decision-record.md": "# Decision Record Template",
+        "docs/evidence/README.md": "# Evidence",
+        "docs/plans/README.md": "# Plans",
+        "docs/history/README.md": "# History",
+        "docs/reference/README.md": "# Reference",
     }
     for relative, content in entries.items():
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        path.write_text(f"---\nstate: canonical\n---\n{content}\n", encoding="utf-8")
 
 
 def _write_profile(

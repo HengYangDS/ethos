@@ -121,6 +121,27 @@ def test_signature_policy_flags_signing_gaps_when_required(
     ]
 
 
+def test_signature_policy_clean_when_signing_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy = {
+        "expected_name": "",
+        "expected_email": "",
+        "subject_pattern": ".+",
+        "signing_required": True,
+        "signing_format": "ssh",
+    }
+    git = {
+        ("config", "--get", "user.name"): "Ada",
+        ("config", "--get", "user.email"): "ada@example.com",
+        **_SIGNED_GIT,
+    }
+    _patch_signature(monkeypatch, policy=policy, git=git)
+    report = signature.signature_policy_report()
+    assert report["required_gaps"] == []
+    assert report["ok"] is True
+
+
 def test_signature_policy_clean_when_signing_not_required(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

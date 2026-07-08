@@ -203,59 +203,32 @@ relations: canonical_for: documentation navigation
 
 Status: canonical.
 
-Purpose: route governance, decisions, evidence, plans, references, and history
-through the common ETHOS-governed semantic documentation topology.
+Purpose: route decisions, evidence, references, and history through the common
+ETHOS-governed documentation topology.
 
 See also: [ETHOS Product Index](index.md), [Quickstart](start/quickstart.md),
-[Governance Docs](governance/README.md), [Decision Records](decisions/README.md),
+[ETHOS Governance](governance/ethos.md), [Decision Records](decisions/README.md),
 [Evidence Docs](evidence/README.md), and [Reference Docs](reference/README.md).
 
-## Semantic Lanes
+## Common Kernel
 
 | Lane | Owns |
 | --- | --- |
-| `start/` | First-run workflows and operator entrypoints. |
-| `governance/` | Policies, rules, operating constraints, and ETHOS boundary. |
 | `decisions/` | Durable rulings with explicit scope and revisit triggers. |
 | `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
-| `plans/` | Planned work and roadmap material with explicit front matter state. |
-| `reference/` | Stable vocabulary, boundaries, and command references. |
+| `reference/` | Stable vocabulary, boundaries, and governance references. |
 | `history/` | Retired rationale and archival logs. |
 
-Truth state is declared in document metadata such as `state: canonical`,
-`state: active`, or `state: planned`; it is not encoded as `current/` or
-`future/` path topology.
+Truth state is declared with explicit metadata such as `state: canonical`,
+`state: active`, `state: planned`, `state: experimental`, `state: superseded`,
+or `state: archived`. Do not use `current` or `future` as state values, and do
+not encode them as path topology. Optional extension roots such as `docs/start/`,
+`docs/governance/`, or repository-specific domain docs may exist for local UX,
+but they are not required truth lanes.
 
-Required kernel paths include `docs/index.md`, `docs/start/quickstart.md`,
-`docs/governance/README.md`, `docs/decisions/README.md`,
-`docs/evidence/README.md`, `docs/plans/README.md`, `docs/history/README.md`,
-and `docs/reference/README.md`.
-"""
-
-
-def docs_governance() -> str:
-    """Return the scaffold text for the docs governance documentation page."""
-    return """---
-subject: docs:governance
-role: index
-state: canonical
-relations: canonical_for: governance documentation
----
-
-# Governance Documentation
-
-Status: canonical.
-
-Purpose: route policies, operating constraints, and ETHOS governance boundary
-material for this adopted repository.
-
-See also: [Documentation Index](../README.md), [Quickstart](../start/quickstart.md),
-[ETHOS Governance](ethos.md), [Evidence Docs](../evidence/README.md), and
-[Decision Records](../decisions/README.md).
-
-Promoted governance truth must be backed by source, tests, package metadata,
-evidence, or accepted decisions. Planned material belongs under `docs/plans/`
-with explicit front matter state until promoted.
+Required kernel paths include `docs/decisions/README.md`,
+`docs/evidence/README.md`, `docs/history/README.md`, and
+`docs/reference/README.md`.
 """
 
 
@@ -274,11 +247,10 @@ Status: canonical.
 
 Purpose: hold stable vocabulary, repository boundaries, and governance references.
 
-See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
-and [ETHOS Governance](../governance/ethos.md).
+See also: [Documentation Index](../README.md) and [ETHOS Governance](../governance/ethos.md).
 
 Reference docs explain terms and boundaries; runtime truth still comes from
-source, tests, state-marked canonical docs, and evidence.
+source, tests, governed docs, and evidence.
 """
 
 
@@ -298,36 +270,9 @@ Status: canonical.
 Purpose: hold dated proof, manifests, smoke notes, closeout records, and scope
 limits for this adopted repository.
 
-See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
-and [Decision Records](../decisions/README.md).
+See also: [Documentation Index](../README.md) and [Decision Records](../decisions/README.md).
 
 Evidence supports claims; it is not the current API or a generated log dump.
-"""
-
-
-def docs_plans() -> str:
-    """Return the scaffold text for the docs plans documentation page."""
-    return """---
-subject: docs:plans
-role: index
-state: planned
-relations: canonical_for: planned work documentation
----
-
-# Plans Documentation
-
-Status: planned.
-
-Purpose: hold target designs, roadmap material, and planned work that are not yet
-promoted repository truth.
-
-See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
-[ETHOS Governance](../governance/ethos.md), and
-[Decision Records](../decisions/README.md).
-
-Plans can guide work, but they must be promoted into source, tests, package
-metadata, accepted decisions, canonical governance/reference docs, or evidence
-before they justify runtime or retirement claims.
 """
 
 
@@ -346,9 +291,7 @@ Status: canonical.
 
 Purpose: hold retired rationale, archival logs, and migration history.
 
-See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
-and [Reference Docs](../reference/README.md).
+See also: [Documentation Index](../README.md) and [Reference Docs](../reference/README.md).
 
-History preserves context; it does not override source, canonical governance/reference docs,
-decisions, or evidence.
+History preserves context; it does not override source, governed docs, decisions, or evidence.
 """

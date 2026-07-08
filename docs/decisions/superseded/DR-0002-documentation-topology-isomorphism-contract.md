@@ -1,19 +1,20 @@
 ---
 subject: ethos:decision:documentation-topology-isomorphism-contract
 role: decision
-state: canonical
+state: superseded
 relations:
   canonical_for: documentation topology isomorphism decision
 ---
 
 # DR-0002: Documentation Topology Isomorphism Contract
 
-Status: accepted.
+Status: superseded.
 
 Purpose: record the durable ruling that ETHOS and governed repositories must
-share a high-isomorphism documentation kernel.
+share a high-isomorphism documentation kernel before DR-0004 replaced `current`/`future` physical lanes with semantic roots.
 
 See also: [Docs Topology](../../architecture/docs-topology.md),
+[DR-0004](../accepted/DR-0004-native-documentation-topology-contract.md),
 [Decision Index](../decision-index.md), and [Generated Artifact Topology](../../architecture/generated-artifact-topology.md).
 
 ## Record
@@ -22,18 +23,18 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | --- | --- |
 | Decision ID | DR-0002 |
 | Kind | governance |
-| Decision Makers | Repository owner through current chat instruction; implemented by local ETHOS work lane. |
-| Status | accepted |
+| Decision Makers | Repository owner through 2026-07-08 chat instruction; implemented by local ETHOS work lane. |
+| Status | superseded |
 | Decision Date | 2026-07-07 |
 | Decision Version | 2 |
 | Decision Change Date | 2026-07-08 |
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
-| Superseded By | None |
+| Superseded By | DR-0004 |
 | Scope | Documentation information architecture across ETHOS and governed repositories. |
 | Boundary | Owns the common docs kernel and decision-record surface across single repositories, monorepos, and multi-repository governed subjects; does not force identical subject matter, product extension roots, or adopter domain docs. |
 | Context | External ETHOS must replace embedded adopter-local ETHOS without making agents relearn repository governance layout per adopter. |
-| Decision | Require a shared semantic docs kernel with `start`, `governance`, `decisions`, `evidence`, `plans`, `history`, and `reference` lanes plus the complete `docs/decisions/` structure; forbid time-state roots such as `docs/current/` and `docs/future/`. |
+| Decision | Require a shared semantic docs kernel with `start`, `governance`, `decisions`, `evidence`, `plans`, `history`, and `reference` lanes plus the complete `docs/decisions/` structure; forbid `current`/`future` roots such as `docs/current/` and `docs/future/`. |
 | Consequences | `ethos adopt` scaffolds the kernel; `ethos quality docs-topology --json` audits it; `ethos fleet retirement-readiness` blocks embedded-backend retirement on docs-topology gaps; product-specific ETHOS roots remain extensions, not substitutes. |
 | Proof or Evidence | `ethos quality docs-topology --json`, `ethos quality docs-registry --json`, focused docs topology tests, and HEAD-bound proof gate execution. |
 | Revisit Trigger | Reopen only if a governed repository cannot preserve the common kernel without losing domain clarity or if a stronger common kernel is accepted. |

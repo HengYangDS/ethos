@@ -61,6 +61,9 @@ adopter-owned: remove or relax the adopter declaration, move raw generated
 outputs back to an ignored local/build home, and keep only curated evidence that
 has already been reviewed and promoted.
 
-## Documentation Isomorphism
+## Documentation Kernel
 
-ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel defined in [Documentation Topology](docs-topology.md), so governed repositories preserve high-isomorphism authority, evidence, decision, plans, governance, reference, and history lanes.
+ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel
+defined in [Documentation Topology](docs-topology.md), so governed repositories
+preserve decisions, evidence, reference vocabulary, and history without turning
+product extension roots into mandatory truth lanes.

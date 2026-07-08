@@ -2,9 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.repository.registry.docs import DEFAULT_ALLOWED_STATES
 from ethos.repository.registry.docs import build_docs_registry
 from ethos.repository.registry.docs import command_examples_report
 from ethos.repository.registry.docs import docs_health_report
+from ethos_core.contracts.docs.topology import STATE_VALUES
+
+
+def test_default_allowed_states_are_sourced_from_topology_contract() -> None:
+    # SSOT: the docs-registry allowed-state vocabulary must be derived from the
+    # topology contract's STATE_VALUES, not an independent hand-maintained copy
+    # that can silently diverge (add a state to the contract and this stays in lockstep).
+    assert frozenset(STATE_VALUES) == DEFAULT_ALLOWED_STATES
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:

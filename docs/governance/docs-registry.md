@@ -34,9 +34,3 @@ observe -> shape -> canonize -> project -> retire
 
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
-
-Status: see front matter.
-
-Purpose: explain the repository truth represented by this ETHOS document.
-
-See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).

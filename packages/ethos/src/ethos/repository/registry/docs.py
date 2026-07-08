@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from ethos.repository.registry.commands import RETIRED_PUBLIC_ROOTS
 from ethos.repository.registry.commands import known_commands
 from ethos.repository.registry.commands import public_commands
+from ethos_core.contracts.docs.topology import STATE_VALUES
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -22,9 +23,10 @@ REQUIRED_COMMAND_EXAMPLES = (
     "ethos report",
 )
 VISIBLE_SECTION_LABELS = ("Status:", "Purpose:", "See also:")
-DEFAULT_ALLOWED_STATES = frozenset(
-    ("active", "archived", "canonical", "experimental", "planned", "superseded")
-)
+# SSOT: derive the allowed-state vocabulary from the topology contract rather
+# than re-listing it here, so a state added to STATE_VALUES cannot silently
+# diverge from what the docs-registry gate accepts.
+DEFAULT_ALLOWED_STATES = frozenset(STATE_VALUES)
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")

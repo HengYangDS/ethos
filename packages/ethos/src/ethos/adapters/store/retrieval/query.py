@@ -22,7 +22,6 @@ from ethos.adapters.store.retrieval.common import latest_manifest_id
 from ethos.adapters.store.retrieval.sources import _tracked_source_paths
 from ethos.adapters.store.retrieval.sources import allowed_sources
 from ethos.adapters.store.retrieval.sources import dirty_allowed_sources
-from ethos_core.contracts.context_projection import redact_secret_like as _contract_redact
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -344,11 +343,6 @@ def verify_candidate(repo: Path, candidate: dict[str, Any]) -> dict[str, Any]:
             "reason": reason,
         },
     }
-
-
-def redact_secret_like(text: str) -> str:
-    """Redact secret-like values from *text* using the context projection contract."""
-    return _contract_redact(text)
 
 
 def empty_selection(

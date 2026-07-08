@@ -13,6 +13,7 @@ from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import schema as retrieval_schema
 from ethos.adapters.store.retrieval import sources as retrieval_sources
+from ethos_core.contracts.context_projection import redact_secret_like
 
 if TYPE_CHECKING:
     import pytest
@@ -112,7 +113,7 @@ def test_verify_candidate_flags_state_path_as_not_allowed(tmp_path: Path) -> Non
 
 def test_redact_secret_like_masks_secret() -> None:
     # Delegates to the contract redactor for a secret-like value.
-    redacted = retrieval_query.redact_secret_like("api_key=ABCDEFGHIJKLMNOP")
+    redacted = redact_secret_like("api_key=ABCDEFGHIJKLMNOP")
 
     assert "<redacted-secret>" in redacted
     assert "ABCDEFGHIJKLMNOP" not in redacted

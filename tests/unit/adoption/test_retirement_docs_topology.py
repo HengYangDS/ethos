@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tests.unit.adoption.test_retirement import _git_add_all
-from tests.unit.adoption.test_retirement import _prepare_terminal_profile
-from tests.unit.adoption.test_retirement import _terminal_report
+from tests.unit.adoption.retirement.fixtures import git_add_all
+from tests.unit.adoption.retirement.fixtures import prepare_terminal_profile
+from tests.unit.adoption.retirement.fixtures import terminal_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def test_retirement_readiness_accepts_adopter_declared_compatibility_docs_roots(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     profile = adopter / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8")
@@ -26,9 +26,9 @@ def test_retirement_readiness_accepts_adopter_declared_compatibility_docs_roots(
         "---\nstate: canonical\nrole: reference\n---\n# Adopter IA\n",
         encoding="utf-8",
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is True
     assert report["required_gaps"] == []
@@ -45,7 +45,7 @@ def test_retirement_readiness_accepts_adopter_declared_compatibility_docs_roots(
 def test_retirement_readiness_accepts_profile_mapped_legacy_status_lines(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     for path in [
         adopter / "docs/README.md",
         adopter / "docs/reference/README.md",
@@ -72,9 +72,9 @@ def test_retirement_readiness_accepts_profile_mapped_legacy_status_lines(
         "---\nstate: canonical\nrole: reference\n---\n# Adopter IA\n",
         encoding="utf-8",
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is True
     assert report["required_gaps"] == []

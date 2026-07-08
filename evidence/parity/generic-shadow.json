@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
-    "target_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
-    "product_semantic_sha256": "cd78cd6419855a4eaa9bfb53225aca2cb2a14ba5065ed2129bde927ca957c135",
-    "target_semantic_sha256": "cd78cd6419855a4eaa9bfb53225aca2cb2a14ba5065ed2129bde927ca957c135",
+    "product_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
+    "target_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
+    "product_semantic_sha256": "574089169feda4593286882e76e96d7db1a2c434c4ff3a2e6cd7e134db6c7563",
+    "target_semantic_sha256": "574089169feda4593286882e76e96d7db1a2c434c4ff3a2e6cd7e134db6c7563",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-work-docs-role-vocab",
-    "target_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
-    "product_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
+    "target_root": "/Users/yheng/projects/ethos-work-docs-role-root-law",
+    "target_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
+    "product_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-docs-role-vocab --json",
-      "/Users/yheng/projects/ethos-work-docs-role-vocab/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-docs-role-vocab --json"
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
+      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-docs-role-root-law --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "b79ddd7c9f37944a1b15d706397a4746c34e440332e6160fecac57d3e2be0101"
+        "sha256": "f70e99d88237ce18caa68edf518849ab39bac90abe557b4785382c508a5d3cd7"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4640925b5e2ad9127eae1223d0929c8fdf5d986b9d5738e0e9b76b8c49447565"
+        "sha256": "ec25f4dfa373931bd9b7e44d555005dd34bf432875b244a816ea46451e900b84"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "8b1712ac135fc13b0ee29b49a1d71493f0d6303dbb4508f28e35a672ccb53006"
+        "sha256": "27a8ae3394a6ed6745be49d4f841c7434f40aa37d970c3fd2c11223915624aa7"
       },
       {
         "path": "openspec",
@@ -96,7 +96,7 @@
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "ed60f2303fea456d57620f7a9ddc222b92a51639f21458bb6857c631513621bd"
+        "sha256": "88bf99703dc2ea9ea78037dfd419fd4ad9517cc72560cfea33288e273435cf00"
       }
     ]
   },

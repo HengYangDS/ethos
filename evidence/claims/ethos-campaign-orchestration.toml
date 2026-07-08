@@ -33,7 +33,7 @@ schemas = [
 ]
 docs = [
   "docs/governance/evolution-campaign.md",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
 ]
 
 [boundary]
@@ -52,7 +52,7 @@ targets = [
   "evidence/parity/generic-shadow.json",
   "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/evolution-campaign.md",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/design.md",

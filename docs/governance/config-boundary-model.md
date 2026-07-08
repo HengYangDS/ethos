@@ -69,4 +69,4 @@ repositories with different shapes and toolchains.
 
 See also: [Repository Profile Contract](repository-profile-contract.md),
 [Product Design Contract](product-design-contract.md), and
-[Terminal Governance Product Design](../architecture/terminal-governance-product-design.md).
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).

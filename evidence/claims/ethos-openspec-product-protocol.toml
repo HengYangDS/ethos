@@ -25,7 +25,7 @@ packages = [
 ]
 docs = [
   "docs/governance/openspec-governance.md",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
 ]
 
 [boundary]

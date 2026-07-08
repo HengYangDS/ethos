@@ -19,7 +19,7 @@ tests = [
 
 [scope]
 docs = [
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
   "docs/governance/openspec-governance.md",
 ]
 openspec = [
@@ -63,6 +63,6 @@ targets = [
   "openspec/specs/contracts/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "system/schemas/kernel/capability-profile.schema.json",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
   "docs/governance/openspec-governance.md",
 ]

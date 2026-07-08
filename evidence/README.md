@@ -32,4 +32,4 @@ record exists.
 - Do not treat runtime logs, command streams, local caches, or build outputs as
   evidence until they are summarized into a tracked, reviewable record.
 
-Authority: docs/architecture/terminal-governance-product-design.md (§`evidence/`).
+Authority: docs/plans/terminal-governance-product-design.md (§`evidence/`).

@@ -1,6 +1,6 @@
 ---
 subject: ethos:adapter-lifecycle
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: adapter lifecycle

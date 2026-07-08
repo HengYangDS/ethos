@@ -4,7 +4,12 @@ The contract is intentionally physical and adopter-neutral. It defines the
 minimal semantic documentation information architecture that should be
 recognizable in any repository governed by ETHOS without encoding truth state in
 path names such as ``docs/current`` or ``docs/future``. Truth state belongs in
-front matter and evidence, while directory names describe semantic ownership.
+front matter and evidence. Documentation is organized on two bound axes: a
+directory names a document's SUBJECT domain, while its ``role`` front-matter
+names the document's FUNCTION. The two are bound by a role->root law — kernel
+roles (``ROLE_KERNEL_ROOTS``) enforced everywhere, plus per-repository extension
+roots declared in the taxonomy — so a document's role must be legal for the
+directory it lives in.
 """
 
 from __future__ import annotations
@@ -88,6 +93,8 @@ ROLE_KERNEL_ROOTS: tuple[tuple[str, tuple[str, ...]], ...] = (
     # reference lives in the reference lane, or alongside the decisions it
     # supports (decision-code-links, decision-dependency-map).
     ("reference", ("docs/reference", "docs/decisions")),
+    # decision-record templates live under the decisions lane.
+    ("template", ("docs/decisions",)),
 )
 
 
@@ -140,6 +147,15 @@ def required_docs_topology_paths() -> tuple[str, ...]:
 def forbidden_docs_topology_roots() -> tuple[str, ...]:
     """Return forbidden docs roots that encode state as directory topology."""
     return tuple(sorted(FORBIDDEN_DOCS_ROOTS))
+
+
+def kernel_role_roots() -> dict[str, tuple[str, ...]]:
+    """Map each kernel role to the docs root(s) a document with that role must use.
+
+    These bindings are universal and adopter-neutral: every governed repository
+    enforces them. Extension roles are bound per repository through the taxonomy.
+    """
+    return dict(ROLE_KERNEL_ROOTS)
 
 
 def is_product_docs_extension_root(path: Path | str) -> bool:

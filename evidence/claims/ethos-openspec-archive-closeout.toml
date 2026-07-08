@@ -30,7 +30,7 @@ packages = [
   "ethos-adapters",
 ]
 docs = [
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
 ]
 
 [boundary]

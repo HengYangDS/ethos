@@ -4,8 +4,45 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos_core.contracts.docs.topology import ROLE_VALUES
+from ethos_core.contracts.docs.topology import STATE_VALUES
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def docs_taxonomy() -> str:
+    """Return the starter docs taxonomy for an adopted repository.
+
+    Seeds the inherited role/state vocabulary and the extension-root role law
+    for the roots this scaffold creates. Adopters extend [extension_roots] with
+    their own docs roots; they never need to edit ETHOS core.
+    """
+    roles = "".join(f'  "{role}",\n' for role in ROLE_VALUES)
+    states = ", ".join(f'"{state}"' for state in STATE_VALUES)
+    return (
+        "[meta]\n"
+        "version = 1\n"
+        'owner = "adopter"\n'
+        "\n"
+        "[semantic_axes]\n"
+        'required = ["subject", "role", "state", "relations"]\n'
+        "\n"
+        "[states]\n"
+        f"allowed = [{states}]\n"
+        "\n"
+        "# Document roles name a document's function; kernel roles are inherited\n"
+        "# from ETHOS and always valid. Add repo-specific roles here as needed.\n"
+        "[roles]\n"
+        f"allowed = [\n{roles}]\n"
+        "\n"
+        "# Map each product/adopter docs root to the roles it may hold. Kernel\n"
+        "# roots (decisions/, evidence/, history/, reference/) are bound by the\n"
+        "# ETHOS contract; declare your own extension roots below.\n"
+        "[extension_roots]\n"
+        '"docs/governance" = ["policy", "explanation", "ledger", "index"]\n'
+        '"docs/start" = ["how-to", "index"]\n'
+    )
 
 
 def docs_index(root: Path) -> str:

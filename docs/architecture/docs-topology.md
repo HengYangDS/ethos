@@ -21,10 +21,15 @@ See also: [Documentation Root](../README.md), [Docs Registry](../governance/docs
 
 ETHOS requires a small common docs kernel across governed repositories so humans
 and agents can recover decisions, evidence, reference vocabulary, and history
-without learning a new information architecture for every repository. Directory
-names describe semantic ownership. Lifecycle state is declared with the explicit
-state vocabulary and backed by HEAD-bound evidence. `current` and `future` are
-not valid documentation state values and must not be encoded as docs roots.
+without learning a new information architecture for every repository.
+Documentation is organized on two bound axes: a directory names a document's
+subject domain, while its `role` front matter names the document's function. A
+role must be legal for its directory — kernel roles (`decision`, `evidence`,
+`history`, `reference`) are bound to their lanes everywhere, and product or
+adopter extension roots declare the roles they accept in the taxonomy. Lifecycle
+state is declared with the explicit state vocabulary and backed by HEAD-bound
+evidence. `current` and `future` are not valid documentation state values and
+must not be encoded as docs roots.
 
 Required paths:
 

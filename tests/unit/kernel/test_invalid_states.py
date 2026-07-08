@@ -51,6 +51,8 @@ _NON_GAP_TOKENS = {
     "missing_required_path_count",  # docs-topology report field, not an emitted gap
     "missing_required_state_count",  # docs-topology report field, not an emitted gap
     "missing_required_state_paths",  # docs-topology report field, not an emitted gap
+    "role_root_mismatch_count",  # docs-topology report field, not an emitted gap
+    "role_root_mismatches",  # docs-topology report field, not an emitted gap
     *NODE_ORDER,  # the category ids themselves are not gaps
     "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
     "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted

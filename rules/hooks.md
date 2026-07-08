@@ -4,7 +4,7 @@ Purpose: place guards at the earliest useful failure point.
 
 | Field | Rule |
 | --- | --- |
-| Authority | [Terminal Governance Product Design](../docs/architecture/terminal-governance-product-design.md), `ethos lane prewrite --json` |
+| Authority | [Terminal Governance Product Design](../docs/plans/terminal-governance-product-design.md), `ethos lane prewrite --json` |
 | Trigger | Any host or tool supports a hook before context use, file write, shell execution, commit, push, or CI publish. |
 | Action | Install the earliest hook that can block the invalid action. |
 | Evidence | Hook report or equivalent command JSON shows target root, role, paths, and decision. |

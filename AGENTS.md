@@ -10,7 +10,7 @@ vendor-specific assistant root canonical.
 - Contribution workflow: [CONTRIBUTING](CONTRIBUTING.md)
 - Product design contract: [Product Design Contract](docs/governance/product-design-contract.md)
 - Terminal target design:
-  [Terminal Governance Product Design](docs/architecture/terminal-governance-product-design.md)
+  [Terminal Governance Product Design](docs/plans/terminal-governance-product-design.md)
 - Rule system: [Rules System](rules/README.md)
 - Agent rules: [Agent Rules](rules/agents.md)
 - Mutation and Work Lane rules: [Mutation Rules](rules/mutation.md)

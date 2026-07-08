@@ -25,7 +25,7 @@ paths = [
   "evidence/chronicle/",
   "evidence/claims/",
   "docs/architecture/product-ontology.md",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
   "tests/architecture/test_evidence_layout.py",
 ]
 

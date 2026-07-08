@@ -23,7 +23,7 @@ tests = [
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/validation",
 ]
-docs = ["docs/architecture/terminal-governance-product-design.md"]
+docs = ["docs/plans/terminal-governance-product-design.md"]
 schemas = ["system/schemas/kernel/workspace-status.schema.json"]
 
 [boundary]
@@ -51,5 +51,5 @@ targets = [
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/validation",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
 ]

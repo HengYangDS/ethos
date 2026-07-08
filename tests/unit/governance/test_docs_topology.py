@@ -140,6 +140,89 @@ def test_docs_topology_report_rejects_current_future_state_values(tmp_path: Path
     ]
 
 
+def test_docs_topology_report_blocks_kernel_role_in_wrong_root(tmp_path: Path) -> None:
+    # A kernel role (decision) is bound to docs/decisions/ everywhere; placing a
+    # decision-role document under docs/reference/ is an enforced mismatch.
+    _write_required_docs(tmp_path)
+    path = tmp_path / "docs/reference/stray-ruling.md"
+    path.write_text("---\nstate: canonical\nrole: decision\n---\n# stray\n", encoding="utf-8")
+
+    report = docs_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["summary"]["role_root_mismatch_count"] == 1
+    assert (
+        "docs_topology_role_root_mismatch:docs/reference/stray-ruling.md:decision:docs/reference"
+        in report["required_gaps"]
+    )
+
+
+def test_docs_topology_report_blocks_role_illegal_for_extension_root(tmp_path: Path) -> None:
+    # An extension root only accepts the roles its taxonomy declares; an
+    # undeclared (root, role) pair is a mismatch. Here architecture/ accepts
+    # explanation and reference but not how-to.
+    _write_required_docs(tmp_path)
+    (tmp_path / "docs/_meta").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs/_meta/taxonomy.toml").write_text(
+        '[extension_roots]\n"docs/architecture" = ["explanation", "reference"]\n',
+        encoding="utf-8",
+    )
+    path = tmp_path / "docs/architecture/walkthrough.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("---\nstate: active\nrole: how-to\n---\n# walk\n", encoding="utf-8")
+
+    report = docs_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert (
+        "docs_topology_role_root_mismatch:docs/architecture/walkthrough.md:how-to:docs/architecture"
+        in report["required_gaps"]
+    )
+
+
+def test_docs_topology_report_allows_index_role_in_any_root(tmp_path: Path) -> None:
+    # A README index is legal in every root regardless of the root's role law.
+    _write_required_docs(tmp_path)
+    path = tmp_path / "docs/architecture/README.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("---\nstate: canonical\nrole: index\n---\n# index\n", encoding="utf-8")
+
+    report = docs_topology_report(tmp_path)
+
+    assert report["summary"]["role_root_mismatch_count"] == 0
+
+
+def test_extension_root_law_ignores_malformed_taxonomy(tmp_path: Path) -> None:
+    meta = tmp_path / "docs/_meta"
+    meta.mkdir(parents=True)
+    # Not valid TOML -> empty law.
+    (meta / "taxonomy.toml").write_text("[extension_roots\n", encoding="utf-8")
+    assert docs_topology_module._extension_root_law(tmp_path) == {}
+
+
+def test_extension_root_law_ignores_non_table_section(tmp_path: Path) -> None:
+    meta = tmp_path / "docs/_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text('extension_roots = "nope"\n', encoding="utf-8")
+    assert docs_topology_module._extension_root_law(tmp_path) == {}
+
+
+def test_extension_root_law_skips_non_list_role_entries(tmp_path: Path) -> None:
+    meta = tmp_path / "docs/_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text(
+        '[extension_roots]\n"docs/architecture" = ["explanation"]\n"docs/bad" = "not-a-list"\n',
+        encoding="utf-8",
+    )
+    law = docs_topology_module._extension_root_law(tmp_path)
+    assert law == {"docs/architecture": {"explanation"}}
+
+
+def test_root_of_handles_top_level_docs_file() -> None:
+    assert docs_topology_module._root_of("docs/README.md") == "docs"
+    assert docs_topology_module._root_of("docs/architecture/x.md") == "docs/architecture"
+
+
 def test_docs_topology_report_tolerates_malformed_internal_state_shape(
     tmp_path: Path, monkeypatch
 ) -> None:

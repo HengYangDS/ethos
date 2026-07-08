@@ -36,6 +36,6 @@ of owning product semantics.
 
 One canonical chain, judged from one source and projected once. The seven-node
 chain and per-node obligations are architecture, documented in
-`docs/architecture/terminal-governance-product-design.md`; enforced per-node
+`docs/plans/terminal-governance-product-design.md`; enforced per-node
 checks live with schemas and kernel-contract tests. This follows **Authority
 before surface**, **Evidence before claim**, and **Parsimony before expansion**.

@@ -1267,7 +1267,7 @@ The terminal redesign is acceptable only when:
 
 If chat history is lost, continue from this page:
 
-1. Read `docs/architecture/terminal-governance-product-design.md`.
+1. Read `docs/plans/terminal-governance-product-design.md`.
 1. Read `docs/index.md`, `README.md`, and `AGENTS.md`.
 1. Inspect current repository shape with `git status --short` and `ethos status --json`.
 1. If the checkout is not an owned Work Lane, create or enter one before
@@ -1286,4 +1286,4 @@ Purpose: define the terminal ETHOS product design and landing path.
 
 See also: [Documentation Index](../index.md),
 [Product Design Contract](../governance/product-design-contract.md), and
-[Package Ontology](package-ontology.md).
+[Package Ontology](../architecture/package-ontology.md).

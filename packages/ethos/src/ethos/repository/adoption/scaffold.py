@@ -23,6 +23,7 @@ from ethos.repository.adoption.scaffold_docs.pages import docs_history
 from ethos.repository.adoption.scaffold_docs.pages import docs_index
 from ethos.repository.adoption.scaffold_docs.pages import docs_readme
 from ethos.repository.adoption.scaffold_docs.pages import docs_reference
+from ethos.repository.adoption.scaffold_docs.pages import docs_taxonomy
 from ethos.repository.adoption.scaffold_docs.pages import governance_doc
 from ethos.repository.adoption.scaffold_docs.pages import quickstart
 from ethos.repository.adoption.scaffold_docs.pages import release_toml
@@ -336,6 +337,7 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "docs/evidence/README.md": docs_evidence(),
         "docs/history/README.md": docs_history(),
         "docs/reference/README.md": docs_reference(),
+        "docs/_meta/taxonomy.toml": docs_taxonomy(),
         "docs/start/quickstart.md": quickstart(),
         "docs/governance/ethos.md": governance_doc(),
         **STATIC_DEFAULT_FILES,

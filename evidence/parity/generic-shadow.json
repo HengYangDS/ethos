@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
-    "target_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
-    "product_semantic_sha256": "d9196e51569d153063ffe52a475b38d55ab097fb876133658fb44a46a3b8a01f",
-    "target_semantic_sha256": "d9196e51569d153063ffe52a475b38d55ab097fb876133658fb44a46a3b8a01f",
+    "product_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
+    "target_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
+    "product_semantic_sha256": "03d8ddec701c2c843f5716facccaf7f40c5beb65d6385f63b894696ea08efa4b",
+    "target_semantic_sha256": "03d8ddec701c2c843f5716facccaf7f40c5beb65d6385f63b894696ea08efa4b",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover",
-    "target_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
-    "product_head": "1b48cf40a8eba707cfd005322f4ccdbd8755bbf5",
+    "target_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
+    "product_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "de182f4f02af93cfb22c284de0160f4fbd8c67ba73619de3a724230488931b52"
+        "sha256": "2f1e906ee627a197f2f202543a265e69cf6d5520e2446eed997a01c41dd262f9"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "d6ebb50bf58997309e4a88bb075813ed43aef325fb9d7d95536337a4651a3528"
+        "sha256": "602f9bfaf363796e841a058a2ea8d6136fca1757ba29797a7f236e9c27df9837"
       },
       {
         "path": "rules",

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -24,7 +23,7 @@ def _git_admissible_paths() -> list[bytes]:
 
 def _read_path_payload(path: Path) -> bytes:
     if path.is_symlink():
-        return os.readlink(path).encode("utf-8", errors="surrogateescape")
+        return str(path.readlink()).encode("utf-8", errors="surrogateescape")
     return path.read_bytes()
 
 

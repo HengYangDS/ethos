@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
-    "target_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
-    "product_semantic_sha256": "69139bd3077eb6e969c6848289c428bbf7e4ad675e3f36b76016230954750021",
-    "target_semantic_sha256": "69139bd3077eb6e969c6848289c428bbf7e4ad675e3f36b76016230954750021",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "28586b773fb6a1e070e5f6dacbbcff2465e52fe1",
+    "target_head": "28586b773fb6a1e070e5f6dacbbcff2465e52fe1",
+    "product_semantic_sha256": "ff82fbd233ef2a23d247e864fe599971f5ed29d32f1925bfac988602cb3a9c6a",
+    "target_semantic_sha256": "ff82fbd233ef2a23d247e864fe599971f5ed29d32f1925bfac988602cb3a9c6a",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation",
-    "target_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
-    "product_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh",
+    "target_head": "28586b773fb6a1e070e5f6dacbbcff2465e52fe1",
+    "product_head": "28586b773fb6a1e070e5f6dacbbcff2465e52fe1",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json"
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/parity-generic-evidence-refresh --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "2ba7158581e6e651a34901dd3a9cbe3227688e6c5020cb97e9f4e490f0b4615c"
+        "sha256": "db04b322570e09d1f750c59bb2b1159cd98434cf8d115d56df8533ae6be277b3"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "9b65e18015c5fab91dabc80ce7d1716a5368a1213fa1b88f5e41c595c15cb323"
+        "sha256": "dede3831f516421462b4f0772c1efdd2512a7cb0aec10608d074c029f77f1ebd"
       },
       {
         "path": "evidence/claims",

@@ -37,7 +37,7 @@ def test_code_size_report_applies_role_limits_and_global_cap(tmp_path, monkeypat
             "surface_path_globs": ["**/surface/**"],
         },
     )
-    monkeypatch.setattr(prove._git, "git_files", lambda _root, *_patterns: tuple(files))
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: tuple(files))
 
     report = prove.code_size_report(tmp_path)
     by_path = {record["path"]: record for record in report["files"]}
@@ -61,7 +61,7 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
     path.parent.mkdir(parents=True)
     path.write_text("a=1\nb=2\nc=3\n", encoding="utf-8")
     monkeypatch.setattr(prove, "code_size_policy", lambda _root: {"default_effective_max_lines": 2})
-    monkeypatch.setattr(prove._git, "git_files", lambda _root, *_patterns: (relative,))
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 
     report = prove.code_size_report(tmp_path)
 
@@ -74,7 +74,7 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
 def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
     relative = "packages/ethos/src/ethos/domain/deleted.py"
     monkeypatch.setattr(prove, "code_size_policy", lambda _root: {"default_effective_max_lines": 2})
-    monkeypatch.setattr(prove._git, "git_files", lambda _root, *_patterns: (relative,))
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 
     report = prove.code_size_report(tmp_path)
 

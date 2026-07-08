@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
-    "target_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
+    "product_head": "683f3417d3b8399b3b72be414b3e9b9ca7a9a040",
+    "target_head": "683f3417d3b8399b3b72be414b3e9b9ca7a9a040",
     "product_semantic_sha256": "588f8edf3f1aeb9e2a5d708b953016a6c307a8cf625e1f65210f14cf0de125de",
     "target_semantic_sha256": "588f8edf3f1aeb9e2a5d708b953016a6c307a8cf625e1f65210f14cf0de125de",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/plan-residue-closeout-20260709",
-    "target_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
-    "product_head": "5ab4794718b7254b3b5b57ba8be05ab5eda6f96c",
+    "target_head": "683f3417d3b8399b3b72be414b3e9b9ca7a9a040",
+    "product_head": "683f3417d3b8399b3b72be414b3e9b9ca7a9a040",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "97c1356c02d69414af1cdf040ab52a90528a5dc01443015747cb2ce4a6028d8f"
+        "sha256": "34c24d7c6244c35de4b471ba2d6eaf93592526bae450e4decbe221c0abe37d8e"
       },
       {
         "path": "evidence/claims",

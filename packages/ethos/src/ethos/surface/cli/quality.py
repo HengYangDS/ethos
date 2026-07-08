@@ -12,7 +12,7 @@ import tomllib
 from typing import cast
 
 import ethos.repository.audit as repository_audit_module
-from ethos.adapters.gates import tool as _qtool
+import ethos.surface.cli.results.tool as tool_results
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.adapters.repo import git as _gitio
@@ -197,7 +197,7 @@ def markdown_links(
         for path in _gitio.git_files(repo, "*.md")
         if not path.startswith(("evidence/", "docs/archive/"))
     ]
-    report = _qtool.quality_tool_report(
+    tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="markdown-links",
         tool="lychee",
@@ -209,15 +209,9 @@ def markdown_links(
             *files,
         ],
         files=files,
+        result_command="quality markdown-links",
+        json_output=json_output,
     )
-    result = EthosResult(
-        command="quality markdown-links",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="shell")
@@ -229,21 +223,15 @@ def shell_quality(
     """Run shell script lint checks through ShellCheck."""
     repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.sh")
-    report = _qtool.quality_tool_report(
+    tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="shell-lint",
         tool="bash",
         command=["bash", ".config/ci/scripts/run-shell-lint.sh", *files],
         files=files,
+        result_command="quality shell",
+        json_output=json_output,
     )
-    result = EthosResult(
-        command="quality shell",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="toml")
@@ -255,21 +243,15 @@ def toml_quality(
     """Run TOML syntax and format checks through Taplo."""
     repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.toml")
-    report = _qtool.quality_tool_report(
+    tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="toml-config",
         tool="bash",
         command=["bash", ".config/ci/scripts/run-config-lint.sh", *files],
         files=files,
+        result_command="quality toml",
+        json_output=json_output,
     )
-    result = EthosResult(
-        command="quality toml",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="yaml")
@@ -281,21 +263,15 @@ def yaml_quality(
     """Run YAML projection checks through yamllint."""
     repo = resolve_root(root)
     files = _gitio.git_files(repo, "*.yml", "*.yaml")
-    report = _qtool.quality_tool_report(
+    tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="yaml-config",
         tool="bash",
         command=["bash", ".config/ci/scripts/run-config-lint.sh", *files],
         files=files,
+        result_command="quality yaml",
+        json_output=json_output,
     )
-    result = EthosResult(
-        command="quality yaml",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="coverage")
@@ -402,21 +378,15 @@ def npm_quality(
     """Run npm distribution pack smoke checks without publishing."""
     repo = resolve_root(root)
     files = ["package.json"] if (repo / "package.json").exists() else []
-    report = _qtool.quality_tool_report(
+    tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="npm-pack",
         tool="npm",
         command=["npm", "run", "test:npm"],
         files=files,
+        result_command="quality npm",
+        json_output=json_output,
     )
-    result = EthosResult(
-        command="quality npm",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
 
 
 @quality_app.command(name="generated-artifacts")

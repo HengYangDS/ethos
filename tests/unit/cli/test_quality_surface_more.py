@@ -7,11 +7,13 @@ from ethos.surface.cli import quality as q
 
 def _capture(monkeypatch):
     emitted = []
-    monkeypatch.setattr(
-        q,
-        "emit",
-        lambda result, json_output=False, enforce=True: emitted.append(result.to_dict()),  # noqa: ARG005
-    )
+
+    def capture_emit(result, *, json_output=False, enforce=True):
+        _ = (json_output, enforce)
+        emitted.append(result.to_dict())
+
+    monkeypatch.setattr(q, "emit", capture_emit)
+    monkeypatch.setattr(q.tool_results, "emit", capture_emit)
     monkeypatch.setattr(q, "resolve_root", lambda root: root or Path.cwd())
     return emitted
 
@@ -23,7 +25,7 @@ def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_p
     def fake_report(**kwargs):
         return {"ok": True, "required_gaps": [], "state": "passed", **kwargs}
 
-    monkeypatch.setattr(q._qtool, "quality_tool_report", fake_report)
+    monkeypatch.setattr(q.tool_results, "quality_tool_report", fake_report)
     q.markdown_links(root=tmp_path, json_output=True)
     q.shell_quality(root=tmp_path, json_output=True)
     q.toml_quality(root=tmp_path, json_output=True)
@@ -58,7 +60,7 @@ def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
         },
     )
     monkeypatch.setattr(
-        q._qtool,
+        q.tool_results,
         "quality_tool_report",
         lambda **kwargs: {"ok": False, "required_gaps": ["npm_bad"], **kwargs},
     )

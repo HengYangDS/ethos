@@ -3,7 +3,7 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 60
+baseline_gap_limit = 59
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",
@@ -69,7 +69,6 @@ allowed_private_aliases = [
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/lane.py:ethos.domain.prove->_prove",
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.adapters.repo.git->_gitio",
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.adapters.gates.tool->_qtool",
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.adapters.repo.git->_gitio",
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.domain.prove->_prove",
   "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/rules.py:ethos.adapters.repo.git->_gitio",

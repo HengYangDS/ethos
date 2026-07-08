@@ -39,11 +39,14 @@ def test_format_selection_config_is_report_first_and_executable() -> None:
     assert len(formats) >= MIN_FORMAT_REGISTRY_ENTRIES
     assert config["policy"]["forbid_tracked_extensions"] == [".pickle", ".pkl", ".joblib"]
     assert any(item["extensions"] == [".c4"] for item in formats)
+    assert any(item["extensions"] == [".mmd"] for item in formats)
 
     payload = _run_json(["tools/ci/scripts/run-format-selection.sh"])
     assert payload["kind"] == "ethos_format_selection_audit"
     assert payload["ok"] is True
     assert payload["format_count"] >= MIN_FORMAT_REGISTRY_ENTRIES
+    assert payload["observed_unregistered_extension_count"] == 0
+    assert payload["observed_unregistered_extensions"] == []
 
 
 def test_architecture_projection_is_checked_from_source_to_mermaid() -> None:

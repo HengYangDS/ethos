@@ -80,6 +80,13 @@ owner = ".config/checks/architecture/projection.toml"
 execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
 truth_boundary = "architecture source projection input"
 
+[[format]]
+extensions = [".mmd"]
+carrier = "Mermaid diagram"
+owner = ".config/checks/architecture/projection.toml"
+execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
+truth_boundary = "generated architecture projection output"
+
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
 jsonl_allowed_roots = ["build/", ".ethos/state/"]

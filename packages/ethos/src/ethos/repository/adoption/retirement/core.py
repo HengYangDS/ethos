@@ -202,6 +202,9 @@ def _docs_topology_checks(repo: Path) -> dict[str, object]:
         "ok": not gaps,
         "state": report.get("state", ""),
         "missing_paths": _string_list(report.get("missing_paths")),
+        "forbidden_roots": _string_list(report.get("forbidden_roots")),
+        "time_state_roots": _string_list(report.get("time_state_roots")),
+        "profile_policy": report.get("profile_policy", {}),
         "required_gaps": gaps,
         "summary": {
             "required_path_count": summary.get("required_path_count", 0),

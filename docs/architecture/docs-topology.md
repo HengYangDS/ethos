@@ -60,6 +60,23 @@ Forbidden roots:
 | `docs/current/` | encodes present truth in topology instead of state metadata and HEAD-bound evidence |
 | `docs/future/` | encodes unlanded intent in topology instead of OpenSpec, plans, research, or promotion status |
 
+By default this list is fail-closed, especially for the ETHOS product repository. An
+existing adopter may keep adopter compatibility time-state roots only when its
+`.ethos/profile.toml` declares `[docs_topology] state_root_policy =
+"adopter_declared_compatibility"`, lists the exact `time_state_roots`, and points
+`compatibility_decision` at a tracked adopter-owned documentation-IA decision or
+reference. Existing adopters may also map a adopter page contract such as
+`Status: index` or `Status: current governance` into ETHOS state vocabulary by
+declaring `state_metadata_policy = "front_matter_or_status_line"`,
+`status_field = "Status"`, and a `[docs_topology.state_value_map]`. This
+profile declaration is a migration boundary, not a product ontology change: the
+listed roots stop being retirement-blocking forbidden-root gaps and mapped
+adopter statuses can satisfy required state metadata, but the shared
+decision/evidence/reference/history kernel, explicit target state vocabulary,
+role/root law, proof evidence, and retirement gates remain required. Unlisted
+`docs/current/` or `docs/future/` roots and unmapped required statuses still
+fail.
+
 The required kernel is repository-form invariant: a single repository, monorepo,
 or multi-repository governed subject uses the same required docs paths. The
 contract does not force all repositories to use identical subject matter or

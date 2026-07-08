@@ -61,7 +61,15 @@ reference vocabulary, and history; it need not reproduce ETHOS product
 extension roots unless its own taxonomy declares equivalent domain needs.
 
 `current` and `future` are forbidden as documentation `state` values and
-forbidden as physical docs roots. They may appear only as ordinary prose when
-describing the rejected anti-pattern; governed lifecycle state uses the explicit
-state vocabulary (`canonical`, `active`, `planned`, `experimental`,
-`superseded`, `archived`) plus HEAD-bound evidence.
+forbidden as physical docs roots by default. They may appear as ordinary prose
+when describing the rejected anti-pattern. For existing adopters,
+`.ethos/profile.toml` may declare an adopter compatibility docs topology policy
+that lists exact adopter compatibility time-state roots, maps an adopter page status field to the
+ETHOS state vocabulary, and binds that compatibility policy to a tracked
+documentation-IA decision. That declaration is adopter-owned compatibility
+policy, not ETHOS product topology: it cannot remove the common kernel, cannot
+make product extension roots mandatory for adopters, cannot accept unmapped
+required statuses, and cannot turn lifecycle state back into a universal
+physical directory law. Governed lifecycle state uses the explicit state
+vocabulary (`canonical`, `active`, `planned`, `experimental`, `superseded`,
+`archived`) plus HEAD-bound evidence.

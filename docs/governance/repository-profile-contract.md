@@ -102,6 +102,40 @@ worktree_closeout = ".config/worktree/closeout.toml"
 worktree_hydration = ".config/worktree/hydration.toml"
 ```
 
+An adopter with a pre-existing documentation IA may also declare a docs topology
+policy:
+
+```toml
+[docs_topology]
+state_root_policy = "adopter_declared_compatibility"
+time_state_roots = ["docs/current", "docs/future"]
+state_metadata_policy = "front_matter_or_status_line"
+status_field = "Status"
+compatibility_decision = "docs/reference/documentation-information-architecture.md"
+
+[docs_topology.state_value_map]
+index = "canonical"
+reference = "canonical"
+"current governance" = "canonical"
+"current implementation" = "canonical"
+"operational guidance" = "canonical"
+evidence = "canonical"
+"delivery evidence" = "canonical"
+"dated evidence" = "canonical"
+"active plan" = "active"
+"target design" = "planned"
+"historical context" = "archived"
+```
+
+This table is generic adopter policy. It does not make `docs/current/` or
+`docs/future/` valid ETHOS product roots, and it does not waive the common
+decision/evidence/reference/history kernel. It tells ETHOS that the adopter owns
+those existing roots and adopter `Status:` vocabulary through a tracked
+documentation-IA decision while it converges or proves retirement readiness.
+Missing `compatibility_decision`, unlisted time-state roots, unmapped required status
+values, missing kernel paths, invalid mapped state metadata, and role/root
+mismatches remain blocking gaps.
+
 During migration from an older ETHOS projection, previous projection files may
 be listed as transition inputs:
 

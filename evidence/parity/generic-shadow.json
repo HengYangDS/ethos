@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "1f81154ed1b6c4bf65be07b879f6a8a6f25444b8",
-    "target_head": "1f81154ed1b6c4bf65be07b879f6a8a6f25444b8",
-    "product_semantic_sha256": "349679da111e9f15d3af97adf743909e8a556a5fbb5a5fa22d9c75603d8fd30e",
-    "target_semantic_sha256": "349679da111e9f15d3af97adf743909e8a556a5fbb5a5fa22d9c75603d8fd30e",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
+    "target_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
+    "product_semantic_sha256": "72591f2c87ee9b34a829860b708727a34fa0b7e4fb4f90446afc7865f10d3eb2",
+    "target_semantic_sha256": "72591f2c87ee9b34a829860b708727a34fa0b7e4fb4f90446afc7865f10d3eb2",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy",
-    "target_head": "1f81154ed1b6c4bf65be07b879f6a8a6f25444b8",
-    "product_head": "1f81154ed1b6c4bf65be07b879f6a8a6f25444b8",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package",
+    "target_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
+    "product_head": "bb43c8fb8dac946d65114624d019c2ded9bcaa76",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-topology-profile-policy --json"
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json",
+      "/Users/yheng/projects/ethos-worktrees/repo-status-bindings-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/repo-status-bindings-package --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "591c19ae411817ef348295fc535afeace482fb5fa9c6f0cc3160974a8600f7f7"
+        "sha256": "a5f58aa1a63df315c3e18b3b29ddc40fd2fed6342d5eef5d8e297ce3217306fb"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0188b20235a1bba9ebebab78ae4465a7ade50c182243b943d76caca2c589932a"
+        "sha256": "52ee0cc4c37ebcc3197f5bd949c69dc58e3537abcce076b098a62184267b6b41"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "750c65e0e0dbb9955dc3b0d138eeed4831ab7756e016caa943ece507dee05bdc"
+        "sha256": "f0e87c0c98472beb91cf2b33698823505951f70bacf402cbd3b2f4bff90e3831"
       },
       {
         "path": "openspec",

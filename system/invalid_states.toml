@@ -217,6 +217,7 @@ match_prefixes = [
   "python_entrypoint_invalid",
   "uv_interpreter_probe_stuck",
   "command_not_found",
+  "host_wrapper_",
   "command_timeout",
   "command_no_output",
 ]

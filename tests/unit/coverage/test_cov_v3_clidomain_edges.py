@@ -123,6 +123,20 @@ def test_doctor_skips_state_init_when_flag_false(
     assert not (repo / ".ethos" / "state" / "state.sqlite").exists()
 
 
+def test_doctor_reports_missing_host_wrapper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = _init_git_repo(tmp_path / "repo")
+    monkeypatch.setattr(cli.shutil, "which", lambda command: "" if command == "ethos" else command)
+
+    cli.doctor(root=repo, init_state=False, json_output=True)
+
+    payload = json.loads(capsys.readouterr().out)
+    wrapper = payload["data"]["host_wrapper"]
+    assert wrapper["state"] == "not_found"
+    assert wrapper["advisory_gaps"] == ["host_wrapper_not_found"]
+
+
 def test_doctor_reports_fixed_root_host_wrapper(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -49,6 +49,13 @@ domain lens or repair surface over that grammar. It must project a kernel
 object, expose its boundary, and reduce its decision back to one of the
 transition questions rather than becoming a parallel command plane.
 
+`ethos plan --changed --json` reports the current change scope under
+`data.changed_paths`. In a dirty accepted-root or non-lane checkout, this is the
+Git porcelain dirty path set. In a Work Lane, it is the union of committed paths
+changed from the configured candidate branch to `HEAD` and any local dirty paths.
+A clean Work Lane can therefore still produce a non-empty changed plan when it
+has committed lane delta waiting to prove or land.
+
 The npm launcher exposes the same root command:
 
 ```bash
@@ -81,6 +88,8 @@ ethos quality command-registry
 ethos quality command-surface
 ethos quality command-examples
 ethos quality format-policy
+ethos quality code-size
+ethos quality module-layout
 ethos quality projection-drift
 ethos quality evidence-freshness
 ethos quality coupling-audit
@@ -131,6 +140,15 @@ ethos explain <gap-or-signal>
 `ethos quality docs-topology --json` audits the Minimal Semantic Documentation Topology Contract. It requires the minimal semantic common docs kernel (`docs/README.md`, `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`) while forbidding `current`/`future` roots such as `docs/current/` and `docs/future/`. Product or adopter roots such as `docs/start/`, `docs/governance/`, and `docs/plans/` are extensions, not required kernel lanes. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
 
 `ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, governed-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
+
+`ethos quality module-layout --json` audits semantic subpackages, suffix-flat
+modules, import-only facades, package-root submodule imports, flat-directory
+growth, and module-layout ratchet baselines. A clean verdict means no new or
+stale layout gaps escaped the configured ratchet; it does not mean historic debt
+is absent. Existing baseline debt is explicit in `summary.debt_count` and
+`data.ratchet`, including `state`, `debt_kinds`, `baseline_gap_count`,
+per-kind baseline counts and limits, and the next action to shrink baselines as
+semantic subpackages remove debt.
 
 Agent projections:
 

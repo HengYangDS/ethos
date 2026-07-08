@@ -59,6 +59,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos quality toml",
     "ethos quality yaml",
     "ethos quality code-size",
+    "ethos quality module-layout",
     "ethos quality npm",
     "ethos quality proof-policy",
     "ethos quality tool-profiles",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status import workspace_status
 from ethos.domain.land_support import acceptable_parity_product_heads
 from ethos.domain.land_support import acceptable_parity_target_heads
@@ -31,14 +31,14 @@ def campaign_closeout_report(
 ) -> dict[str, object]:
     """Compose the full campaign-closeout report (local readiness + parity + trust)."""
     status_payload = workspace_status(repo)
-    claim_report = claims_report(repo, current_head=_gitio.current_tracked_head(repo))
+    claim_report = claims_report(repo, current_head=git_adapter.current_tracked_head(repo))
     intake_projection = intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     campaign = campaign_report(repo)
     release = release_policy_report(repo)
-    current_target_head = _gitio.current_tracked_head(target)
-    current_product_head = _gitio.current_tracked_head(repo)
+    current_target_head = git_adapter.current_tracked_head(target)
+    current_product_head = git_adapter.current_tracked_head(repo)
     acceptable_product_heads = acceptable_parity_product_heads(repo, adopter)
     acceptable_target_heads = acceptable_parity_target_heads(repo, target, adopter)
     parity = parity_gaps_report(

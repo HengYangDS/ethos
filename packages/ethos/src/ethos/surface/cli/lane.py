@@ -9,6 +9,7 @@ from typing import cast
 
 from cyclopts import Parameter
 
+import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import bootstrap_candidate
@@ -18,7 +19,6 @@ from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status import workspace_status
-from ethos.domain import prove as _prove
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -36,8 +36,8 @@ def lane_status(
     """Inspect Work Lane topology and foreign lanes."""
     repo = resolve_root(root)
     status_payload = workspace_status(repo)
-    validation = _prove.workspace_status_validation(repo, status_payload)
-    validation_gaps = _prove.workspace_status_validation_gaps(validation)
+    validation = prove_domain.workspace_status_validation(repo, status_payload)
+    validation_gaps = prove_domain.workspace_status_validation_gaps(validation)
     ok = bool(validation["ok"])
     result = EthosResult(
         command="lane status",

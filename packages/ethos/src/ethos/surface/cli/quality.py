@@ -11,13 +11,13 @@ from __future__ import annotations
 import tomllib
 from typing import cast
 
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.prove as prove_domain
 import ethos.repository.audit as repository_audit_module
 import ethos.surface.cli.results.tool as tool_results
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.adapters.gates.ty import ty_gate_report
-from ethos.adapters.repo import git as _gitio
 from ethos.assistants.projections import projection_drift_report
-from ethos.domain import prove as _prove
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -195,7 +195,7 @@ def markdown_links(
     repo = resolve_root(root)
     files = [
         path
-        for path in _gitio.git_files(repo, "*.md")
+        for path in git_adapter.git_files(repo, "*.md")
         if not path.startswith(("evidence/", "docs/archive/"))
     ]
     tool_results.emit_quality_tool_result(
@@ -223,7 +223,7 @@ def shell_quality(
 ) -> None:
     """Run shell script lint checks through ShellCheck."""
     repo = resolve_root(root)
-    files = _gitio.git_files(repo, "*.sh")
+    files = git_adapter.git_files(repo, "*.sh")
     tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="shell-lint",
@@ -243,7 +243,7 @@ def toml_quality(
 ) -> None:
     """Run TOML syntax and format checks through Taplo."""
     repo = resolve_root(root)
-    files = _gitio.git_files(repo, "*.toml")
+    files = git_adapter.git_files(repo, "*.toml")
     tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="toml-config",
@@ -263,7 +263,7 @@ def yaml_quality(
 ) -> None:
     """Run YAML projection checks through yamllint."""
     repo = resolve_root(root)
-    files = _gitio.git_files(repo, "*.yml", "*.yaml")
+    files = git_adapter.git_files(repo, "*.yml", "*.yaml")
     tool_results.emit_quality_tool_result(
         root=repo,
         gate_id="yaml-config",
@@ -339,7 +339,7 @@ def code_size(
 ) -> None:
     """Check effective source-file size against ratchet limits."""
     repo = resolve_root(root)
-    report = _prove.code_size_report(repo)
+    report = prove_domain.code_size_report(repo)
     result = EthosResult(
         command="quality code-size",
         ok=bool(report["ok"]),
@@ -635,7 +635,7 @@ def coupling_audit(
     """Report product, profile, adapter, and product-toolchain coupling boundaries."""
     repo = resolve_root(root)
     report = coupling_audit_report(repo)
-    validation = _prove.command_data_validation(
+    validation = prove_domain.command_data_validation(
         repo,
         schema_name="coupling-audit.schema.json",
         payload=report,
@@ -754,7 +754,7 @@ def release_attestation_command(
     repo = resolve_root(root)
     attestation = release_attestation(
         root=repo,
-        head=_gitio.current_head(repo),
+        head=git_adapter.current_head(repo),
         evidence_digest=evidence_digest,
     )
     result = EthosResult(
@@ -886,7 +886,7 @@ def provenance(
     )
     evidence = EvidenceSet.from_runs(
         id=f"ethos:{objective}",
-        head=_gitio.current_head(repo),
+        head=git_adapter.current_head(repo),
         runs=(run,),
         durability="local",
     )

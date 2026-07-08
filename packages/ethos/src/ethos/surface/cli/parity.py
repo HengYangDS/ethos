@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 
-from ethos.adapters.repo import git as _gitio
-from ethos.domain import land as _land
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.land as land_domain
 from ethos.repository.evidence.parity import build_tracked_parity_evidence
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
@@ -48,10 +48,10 @@ def parity_gaps(
         adopter=adopter,
         root=repo,
         target=target,
-        current_target_head=_gitio.current_tracked_head(target) if target is not None else "",
-        current_product_head=_gitio.current_tracked_head(repo),
-        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
-        acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
+        current_target_head=git_adapter.current_tracked_head(target) if target is not None else "",
+        current_product_head=git_adapter.current_tracked_head(repo),
+        acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, adopter),
+        acceptable_target_heads=land_domain.acceptable_parity_target_heads(repo, target, adopter),
     )
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
@@ -105,10 +105,12 @@ def parity_shadow(
             target=target,
             root=repo,
             adopter=adopter,
-            current_target_head=_gitio.current_tracked_head(target),
-            current_product_head=_gitio.current_tracked_head(repo),
-            acceptable_product_heads=_land.acceptable_parity_product_heads(repo, adopter),
-            acceptable_target_heads=_land.acceptable_parity_target_heads(repo, target, adopter),
+            current_target_head=git_adapter.current_tracked_head(target),
+            current_product_head=git_adapter.current_tracked_head(repo),
+            acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, adopter),
+            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+                repo, target, adopter
+            ),
         )
     required_gaps = list(report["required_gaps"])
     evidence_path = ""
@@ -122,8 +124,8 @@ def parity_shadow(
                 adopter=adopter_name,
                 target=target,
                 shadow=report,
-                current_product_head=_gitio.current_tracked_head(repo),
-                current_target_head=_gitio.current_tracked_head(target),
+                current_product_head=git_adapter.current_tracked_head(repo),
+                current_target_head=git_adapter.current_tracked_head(target),
                 timeout_seconds=timeout_seconds,
                 root=repo,
             )

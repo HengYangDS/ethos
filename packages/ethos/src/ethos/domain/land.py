@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import ethos
-from ethos.adapters.repo import git as _gitio
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status import workspace_status
 from ethos.domain.campaign_closeout import campaign_closeout_report
 from ethos.domain.land_support import acceptable_parity_product_heads
@@ -105,7 +105,7 @@ def closeout_bootstrap_package(
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
-    accepted_head = _gitio.current_tracked_head(repo)
+    accepted_head = git_adapter.current_tracked_head(repo)
     expect_head = accepted_head or "<HEAD>"
     command = (
         "ethos land --closeout --apply --authorize "

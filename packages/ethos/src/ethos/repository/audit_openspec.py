@@ -262,7 +262,8 @@ def _changed_openspec_spec_obligation_removal_gaps(root: Path) -> list[str]:
     return gaps
 
 
-def _openspec_shape_report(root: Path) -> dict[str, object]:
+def openspec_shape_report(root: Path) -> dict[str, object]:
+    """Report OpenSpec repository shape without invoking the OpenSpec CLI."""
     openspec_root = root / "openspec"
     required_gaps = []
     if not openspec_root.exists():
@@ -296,7 +297,7 @@ def _openspec_shape_report(root: Path) -> dict[str, object]:
 
 
 def _openspec_provider_missing_report(root: Path) -> dict[str, object]:
-    shape = _openspec_shape_report(root)
+    shape = openspec_shape_report(root)
     return {
         "ok": False,
         "mode": "deep",

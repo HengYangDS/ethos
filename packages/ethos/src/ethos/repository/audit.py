@@ -5,7 +5,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-import ethos.repository.audit_openspec as _audit_openspec
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.audit_design import DESIGN_INTEGRITY_DOCS
@@ -18,7 +17,7 @@ from ethos.repository.audit_design import _front_matter_ok
 from ethos.repository.audit_openspec import _active_change_violations_for_role
 from ethos.repository.audit_openspec import _completed_unarchived_changes
 from ethos.repository.audit_openspec import _openspec_provider_missing_report
-from ethos.repository.audit_openspec import _openspec_shape_report as _openspec_shape_report_impl
+from ethos.repository.audit_openspec import openspec_shape_report
 from ethos.repository.context import governance_context
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.coupling.core import coupling_audit_report
@@ -247,7 +246,7 @@ def repository_audit(
     coupling = coupling_audit_report(root)
     design_integrity = _design_integrity_report(root)
     if openspec_mode == "shape":
-        openspec = _openspec_shape_report(root)
+        openspec = openspec_shape_report(root)
     elif openspec_reporter is None:
         openspec = _openspec_provider_missing_report(root)
     else:
@@ -364,8 +363,3 @@ def repository_audit(
         "system_contracts": system_contracts,
         "required_gaps": gaps,
     }
-
-
-def _openspec_shape_report(root: Path) -> dict[str, object]:
-    _audit_openspec.subprocess = subprocess
-    return _openspec_shape_report_impl(root)

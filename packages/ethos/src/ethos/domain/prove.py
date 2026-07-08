@@ -13,8 +13,8 @@ import fnmatch
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.config import code_size_policy
-from ethos.adapters.repo import git as _git
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.measure import effective_code_lines
 
@@ -47,7 +47,7 @@ def code_size_report(root: Path) -> dict[str, object]:
     role_limits = {"test": test_limit, "surface": surface_limit, "logic": default_limit}
     records: list[dict[str, object]] = []
     gaps: list[str] = []
-    for relative in _git.git_files(root, "*.py"):
+    for relative in git_adapter.git_files(root, "*.py"):
         path = root / relative
         if not path.exists():
             continue

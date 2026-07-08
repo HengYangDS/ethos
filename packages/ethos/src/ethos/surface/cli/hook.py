@@ -7,10 +7,10 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
-from ethos.adapters.repo import git as _gitio
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -150,14 +150,14 @@ def install(
         gaps.append("hook_script_missing:.githooks/pre-push")
     if not ref_hook_path.exists():
         gaps.append("hook_script_missing:.githooks/reference-transaction")
-    wired = _gitio.set_hooks_path(repo, ".githooks") if not gaps else False
+    wired = git_adapter.set_hooks_path(repo, ".githooks") if not gaps else False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")
     if wired:
         # Record the accepted branch so the reference-transaction hook knows which ref
         # to fail-closed on (the hook runs as a plain shell script with no ETHOS import).
         accepted = load_branch_role_policy(repo).accepted_branch
-        _gitio.set_config(repo, "ethos.acceptedBranch", accepted)
+        git_adapter.set_config(repo, "ethos.acceptedBranch", accepted)
     result = EthosResult(
         command="hook install",
         ok=not gaps,

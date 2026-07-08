@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.land as land_domain
+import ethos.domain.status as status_domain
 from ethos.adapters.gates.signature import signature_policy_report
-from ethos.adapters.repo import git as _gitio
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
-from ethos.domain import land as _land
-from ethos.domain import status as _status
 from ethos.domain.prove import code_size_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.planner import adoption_scaffold_report
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 def scorecard_report(repo: Path) -> dict[str, object]:
     """Build the read-only report payload without emitting CLI output."""
-    audit = _status.audit_for_root(repo, openspec_mode="shape")
+    audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
     command_report = command_registry_report(repo)
@@ -49,14 +49,14 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     hard_quality_floor = (
         _hard_quality_floor_report(repo) if product_profile else _adopter_quality_floor_report()
     )
-    current_head = _gitio.current_tracked_head(repo)
+    current_head = git_adapter.current_tracked_head(repo)
     parity_gaps = parity_gaps_report(
         root=repo,
         target=repo,
         current_product_head=current_head,
         current_target_head=current_head,
-        acceptable_product_heads=_land.acceptable_parity_product_heads(repo, None),
-        acceptable_target_heads=_land.acceptable_parity_target_heads(repo, repo, None),
+        acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, None),
+        acceptable_target_heads=land_domain.acceptable_parity_target_heads(repo, repo, None),
     )
     context_projection = context_projection_contract()
     context_projection_score = int(

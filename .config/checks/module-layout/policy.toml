@@ -3,12 +3,12 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 51
+baseline_gap_limit = 23
 enforce_baseline_kind_limits = true
 baseline_suffix_module_limit = 22
 baseline_suffix_flat_limit = 0
 baseline_flat_directory_limit = 1
-baseline_private_alias_limit = 28
+baseline_private_alias_limit = 0
 baseline_package_init_facade_limit = 0
 baseline_module_facade_limit = 0
 
@@ -45,32 +45,4 @@ allowed_flat_directories = [
 ]
 
 allowed_private_aliases = [
-  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_refresh->_refresh",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire->_retire",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_landed_work_lanes->_retire_landed_work_lanes",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_unbound_work_lane_ref->_retire_unbound_work_lane_ref",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/repo/status.py:ethos.adapters.repo.coordination.coordination_gaps->_scope_coordination_gaps",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/campaign_closeout.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land_support.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/prove.py:ethos.adapters.repo.git->_git",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/domain/report.py:ethos.domain.status->_status",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/repository/audit.py:ethos.repository.audit_openspec->_audit_openspec",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/repository/audit.py:ethos.repository.audit_openspec._openspec_shape_report->_openspec_shape_report_impl",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/_gate_runner.py:ethos.surface.cli._base.load_command_groups->_load_command_groups",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/campaign.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/fleet.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/fleet.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/hook.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/intake.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/lane.py:ethos.domain.prove->_prove",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/parity.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/quality.py:ethos.domain.prove->_prove",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/rules.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/surface/cli/rules.py:ethos.domain.plan->_plan",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/testing/fixtures.py:ethos_core.contracts.context_projection.context_retrieval_smoke_queries->_context_retrieval_smoke_queries",
 ]

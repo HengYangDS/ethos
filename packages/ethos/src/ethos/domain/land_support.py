@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status import workspace_status
 from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
 
@@ -333,10 +333,10 @@ def acceptable_parity_product_heads(root: Path, adopter: str | None) -> tuple[st
     that changes no parity-relevant source need not re-touch the evidence file, and an
     unrelated commit no longer forces a parity re-run.
     """
-    current_head = _gitio.current_tracked_head(root)
+    current_head = git_adapter.current_tracked_head(root)
     if not current_head:
         return ()
-    return _gitio.commits_equivalent_over_paths(
+    return git_adapter.commits_equivalent_over_paths(
         root, current_head, relevant_paths=PARITY_RELEVANT_PATHS
     )
 
@@ -353,11 +353,11 @@ def acceptable_parity_target_heads(
     """
     if target is None:
         return ()
-    current_head = _gitio.current_tracked_head(target)
+    current_head = git_adapter.current_tracked_head(target)
     if not current_head:
         return ()
-    if not _gitio.same_git_repository(root, target):
+    if not git_adapter.same_git_repository(root, target):
         return (current_head,)
-    return _gitio.commits_equivalent_over_paths(
+    return git_adapter.commits_equivalent_over_paths(
         target, current_head, relevant_paths=PARITY_RELEVANT_PATHS
     )

@@ -3,18 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
-import ethos.adapters.mutation.lanes_refresh as _refresh
-import ethos.adapters.mutation.lanes_retire as _retire
+import ethos.adapters.mutation.lanes_refresh as lanes_refresh
+import ethos.adapters.mutation.lanes_retire as lanes_retire
 from ethos.adapters.mutation.lanes_retire import _git
 from ethos.adapters.mutation.lanes_retire import _is_ancestor
 from ethos.adapters.mutation.lanes_retire import _repo_root
 from ethos.adapters.mutation.lanes_retire import _slug
-from ethos.adapters.mutation.lanes_retire import (
-    retire_landed_work_lanes as _retire_landed_work_lanes,
-)
-from ethos.adapters.mutation.lanes_retire import (
-    retire_unbound_work_lane_ref as _retire_unbound_work_lane_ref,
-)
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store.state import acquire_lease
@@ -268,12 +262,12 @@ def refresh_work_lane_base(
 
 
 def _call_refresh(name: str, **kwargs: object) -> dict[str, object]:
-    previous = _refresh_previous(_refresh)
+    previous = _refresh_previous(lanes_refresh)
     try:
-        _patch_refresh_adapters(_refresh)
-        return cast("dict[str, object]", getattr(_refresh, name)(**kwargs))
+        _patch_refresh_adapters(lanes_refresh)
+        return cast("dict[str, object]", getattr(lanes_refresh, name)(**kwargs))
     finally:
-        _restore_refresh_adapters(_refresh, previous)
+        _restore_refresh_adapters(lanes_refresh, previous)
 
 
 def _refresh_previous(refresh: object) -> dict[str, object]:
@@ -355,33 +349,33 @@ def retire_landed_work_lanes(
 ) -> dict[str, object]:
     """Retire landed lanes while preserving this module's patchable adapters."""
     previous = {
-        "_repo_root": _retire.__dict__["_repo_root"],
-        "workspace_status": _retire.workspace_status,
-        "active_leases": _retire.active_leases,
-        "delete_lease": _retire.delete_lease,
-        "_is_ancestor": _retire.__dict__["_is_ancestor"],
-        "_git": _retire.__dict__["_git"],
+        "_repo_root": lanes_retire.__dict__["_repo_root"],
+        "workspace_status": lanes_retire.workspace_status,
+        "active_leases": lanes_retire.active_leases,
+        "delete_lease": lanes_retire.delete_lease,
+        "_is_ancestor": lanes_retire.__dict__["_is_ancestor"],
+        "_git": lanes_retire.__dict__["_git"],
     }
     try:
-        _retire.__dict__["_repo_root"] = _repo_root
-        _retire.workspace_status = workspace_status
-        _retire.active_leases = active_leases
-        _retire.delete_lease = delete_lease
-        _retire.__dict__["_is_ancestor"] = _is_ancestor
-        _retire.__dict__["_git"] = _git
-        return _retire_landed_work_lanes(
+        lanes_retire.__dict__["_repo_root"] = _repo_root
+        lanes_retire.workspace_status = workspace_status
+        lanes_retire.active_leases = active_leases
+        lanes_retire.delete_lease = delete_lease
+        lanes_retire.__dict__["_is_ancestor"] = _is_ancestor
+        lanes_retire.__dict__["_git"] = _git
+        return lanes_retire.retire_landed_work_lanes(
             root=root,
             branch=branch,
             expect_head=expect_head,
             apply=apply,
         )
     finally:
-        _retire.__dict__["_repo_root"] = previous["_repo_root"]
-        _retire.workspace_status = previous["workspace_status"]
-        _retire.active_leases = previous["active_leases"]
-        _retire.delete_lease = previous["delete_lease"]
-        _retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
-        _retire.__dict__["_git"] = previous["_git"]
+        lanes_retire.__dict__["_repo_root"] = previous["_repo_root"]
+        lanes_retire.workspace_status = previous["workspace_status"]
+        lanes_retire.active_leases = previous["active_leases"]
+        lanes_retire.delete_lease = previous["delete_lease"]
+        lanes_retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
+        lanes_retire.__dict__["_git"] = previous["_git"]
 
 
 def retire_unbound_work_lane_ref(
@@ -395,15 +389,15 @@ def retire_unbound_work_lane_ref(
 ) -> dict[str, object]:
     """Retire an unbound lane ref while preserving this module's patchable adapters."""
     previous = {
-        "workspace_status": _retire.workspace_status,
-        "delete_lease": _retire.delete_lease,
-        "_git": _retire.__dict__["_git"],
+        "workspace_status": lanes_retire.workspace_status,
+        "delete_lease": lanes_retire.delete_lease,
+        "_git": lanes_retire.__dict__["_git"],
     }
     try:
-        _retire.workspace_status = workspace_status
-        _retire.delete_lease = delete_lease
-        _retire.__dict__["_git"] = _git
-        return _retire_unbound_work_lane_ref(
+        lanes_retire.workspace_status = workspace_status
+        lanes_retire.delete_lease = delete_lease
+        lanes_retire.__dict__["_git"] = _git
+        return lanes_retire.retire_unbound_work_lane_ref(
             root=root,
             branch=branch,
             expect_head=expect_head,
@@ -412,6 +406,6 @@ def retire_unbound_work_lane_ref(
             authorized=authorized,
         )
     finally:
-        _retire.workspace_status = previous["workspace_status"]
-        _retire.delete_lease = previous["delete_lease"]
-        _retire.__dict__["_git"] = previous["_git"]
+        lanes_retire.workspace_status = previous["workspace_status"]
+        lanes_retire.delete_lease = previous["delete_lease"]
+        lanes_retire.__dict__["_git"] = previous["_git"]

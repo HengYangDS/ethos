@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.repo.coordination import branch_path_scope
-from ethos.adapters.repo.coordination import coordination_gaps as _scope_coordination_gaps
+from ethos.adapters.repo.coordination import coordination_gaps
 from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import workspace_required_gaps
@@ -159,13 +159,13 @@ def workspace_status(root: Path) -> dict[str, object]:
         lease_by_branch=lease_by_branch,
         root=repo,
     )
-    coordination_required_gaps, coordination_advisory_gaps = _scope_coordination_gaps(
+    coordination_required_gaps, coordination_advisory_gaps = coordination_gaps(
         foreign, current_role=role, current_scope_state=current_scope_state
     )
     unbound_work_lane_refs = _unbound_work_lane_refs(repo, branch_bindings, policy=policy)
     if unbound_work_lane_refs:
         coordination_advisory_gaps.append("unbound_work_lane_ref_present")
-    coordination_gaps = coordination_required_gaps + coordination_advisory_gaps
+    coordination_gap_list = coordination_required_gaps + coordination_advisory_gaps
     coordination = coordination_package(
         foreign,
         required_gaps=coordination_required_gaps,
@@ -204,7 +204,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         "worktrees": worktrees,
         "branch_bindings": branch_bindings,
         "foreign_work_lanes": foreign,
-        "coordination_gaps": coordination_gaps,
+        "coordination_gaps": coordination_gap_list,
         "coordination": coordination,
         "closeout_support": closeout_support,
         "stage_gates": stage_gates,

@@ -356,7 +356,7 @@ def test_audit_coupling_config_and_misc_edges(
     assert "write_admission_not_armed:pre-push_script_missing" in gaps
     assert "write_admission_not_armed:reference-transaction_script_missing" in gaps
     assert "write_admission_not_armed:core.hooksPath" in gaps
-    assert repository_audit._openspec_shape_report(tmp_path)["ok"] is False
+    assert repository_audit.openspec_shape_report(tmp_path)["ok"] is False
     assert repository_audit._openspec_provider_missing_report(tmp_path)["required_gaps"] == [
         "openspec_reporter_not_configured"
     ]
@@ -398,7 +398,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         )
         is None
     )
-    monkeypatch.setattr(_gate_runner, "_load_command_groups", lambda argv: None)
+    monkeypatch.setattr(_gate_runner, "load_command_groups", lambda argv: None)
     monkeypatch.setattr(
         _gate_runner,
         "app",

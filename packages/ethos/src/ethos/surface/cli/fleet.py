@@ -10,8 +10,8 @@ from __future__ import annotations
 from pathlib import Path  # noqa: TC003 - cyclopts needs the runtime type for --target
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
-from ethos.domain import land as _land
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.land as land_domain
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.evidence.parity import parity_gaps_report
@@ -71,10 +71,12 @@ def fleet_retirement_readiness(
             target=target,
             root=product_root,
             adopter=adopter,
-            current_target_head=_gitio.current_tracked_head(target),
-            current_product_head=_gitio.current_tracked_head(product_root),
-            acceptable_product_heads=_land.acceptable_parity_product_heads(product_root, adopter),
-            acceptable_target_heads=_land.acceptable_parity_target_heads(
+            current_target_head=git_adapter.current_tracked_head(target),
+            current_product_head=git_adapter.current_tracked_head(product_root),
+            acceptable_product_heads=land_domain.acceptable_parity_product_heads(
+                product_root, adopter
+            ),
+            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
                 product_root, target, adopter
             ),
         )
@@ -82,10 +84,12 @@ def fleet_retirement_readiness(
         adopter=adopter,
         root=product_root,
         target=target,
-        current_target_head=_gitio.current_tracked_head(target),
-        current_product_head=_gitio.current_tracked_head(product_root),
-        acceptable_product_heads=_land.acceptable_parity_product_heads(product_root, adopter),
-        acceptable_target_heads=_land.acceptable_parity_target_heads(product_root, target, adopter),
+        current_target_head=git_adapter.current_tracked_head(target),
+        current_product_head=git_adapter.current_tracked_head(product_root),
+        acceptable_product_heads=land_domain.acceptable_parity_product_heads(product_root, adopter),
+        acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+            product_root, target, adopter
+        ),
     )
     report = retirement_readiness_report(
         target=target,

@@ -7,7 +7,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.domain import land as _land
+import ethos.domain.land as land_domain
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
@@ -73,7 +73,7 @@ def campaign_closeout(
 ) -> None:
     """Report the local campaign closeout package without publishing remotely."""
     repo = resolve_root(root)
-    report = _land.campaign_closeout_report(
+    report = land_domain.campaign_closeout_report(
         repo=repo,
         adopter=adopter,
         target=(target or repo).resolve(),

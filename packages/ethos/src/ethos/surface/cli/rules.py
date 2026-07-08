@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.plan as plan_domain
 from ethos.adapters.repo.status import workspace_status
-from ethos.domain import plan as _plan
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.coverage import coverage_report
@@ -64,7 +64,7 @@ def rules_eval(
 ) -> None:
     """Evaluate repository rules for a phase."""
     repo = resolve_root(root)
-    current_head = _gitio.current_head(repo)
+    current_head = git_adapter.current_head(repo)
     report = rules_evaluation_report(
         repo,
         phase=phase,
@@ -74,7 +74,7 @@ def rules_eval(
         actor=actor,
         scope=scope,
         head=current_head,
-        fact_snapshot=_plan.rule_fact_snapshot(
+        fact_snapshot=plan_domain.rule_fact_snapshot(
             repo,
             phase=phase,
             changed_paths=tuple(changed_path),
@@ -85,7 +85,7 @@ def rules_eval(
             head=current_head,
         ),
     )
-    attestation = _plan.rule_attestation_for_evaluation(report, actor=actor, scope=scope)
+    attestation = plan_domain.rule_attestation_for_evaluation(report, actor=actor, scope=scope)
     result = EthosResult(
         command="rules eval",
         ok=not report["required_gaps"],

@@ -122,10 +122,11 @@ def docs_topology_contract() -> dict[str, Any]:
         "required_paths": [
             {"path": path, "boundary": boundary} for path, boundary in required_paths
         ],
-        "required_paths_by_repository_form": {
-            form: [path for path, _boundary in required_paths]
-            for form in SUPPORTED_REPOSITORY_FORMS
-        },
+        # The required kernel is deliberately identical for every repository form
+        # (single-repository, monorepo, multi-repository): the whole value of a
+        # shared skeleton is that humans and agents recover the same lanes in any
+        # governed repository without relearning its layout. `required_paths`
+        # above is that single, form-invariant set; see `repository_form_invariant`.
         "decision_record_paths": [
             {"path": path, "boundary": boundary}
             for path, boundary in DECISION_RECORD_REQUIRED_PATHS

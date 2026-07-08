@@ -56,11 +56,16 @@ def test_docs_topology_contract_declares_common_kernel() -> None:
 
 def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
     contract = docs_topology_contract()
-    required = tuple(item["path"] for item in contract["required_paths"])
 
-    for form, paths in contract["required_paths_by_repository_form"].items():
-        assert form in contract["supported_repository_forms"]
-        assert tuple(paths) == required
+    # The kernel is one form-invariant set, not a per-form mapping that pretends
+    # to vary. The contract states the invariant explicitly and exposes a single
+    # required_paths list that applies to every supported repository form.
+    assert contract["repository_form_invariant"] is True
+    assert "required_paths_by_repository_form" not in contract
+    assert len(contract["required_paths"]) == len(required_docs_topology_paths())
+    assert {"single-repository", "monorepo", "multi-repository"} <= set(
+        contract["supported_repository_forms"]
+    )
 
 
 def test_docs_topology_path_helpers_normalize_and_classify_extensions() -> None:

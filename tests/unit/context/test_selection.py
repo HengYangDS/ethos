@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos.assistants.context import context_bundle
-from ethos.assistants.context_selection import selection_report
+from ethos.assistants.context.bundle import context_bundle
+from ethos.assistants.context.selection import selection_report
 from ethos_core.contracts.context_projection import default_context_policy
 
 

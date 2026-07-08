@@ -12,7 +12,7 @@ from ethos.adapters.store.retrieval.indexing import purge_context_index
 from ethos.adapters.store.retrieval.indexing import rebuild_context_index
 from ethos.adapters.store.retrieval.query import context_eval_report
 from ethos.adapters.store.retrieval.query import search_context_index
-from ethos.assistants.context import context_bundle
+from ethos.assistants.context.bundle import context_bundle
 from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.projections import projection_contract
 from ethos.assistants.server import mcp_server_descriptor

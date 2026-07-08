@@ -50,7 +50,7 @@ targets = [
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "packages/ethos/src/ethos/repository/policy/schema.py",
   "packages/ethos/src/ethos/repository/audit.py",
-  "packages/ethos/src/ethos/assistants/context.py",
+  "packages/ethos/src/ethos/assistants/context/bundle.py",
   "system/schemas/kernel/evolution-ledger.schema.json",
   "tools/ci/scripts/run-config-lint.sh",
   "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",

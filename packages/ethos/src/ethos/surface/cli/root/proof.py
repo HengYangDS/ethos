@@ -233,6 +233,7 @@ def prove(
         ),
         next_actions=next_actions,
         data={
+            "governance_context": audit["governance_context"],
             "repository_audit": audit,
             "executed": execute,
             "scope": scope_binding["scope"],

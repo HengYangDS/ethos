@@ -467,6 +467,11 @@ def test_prove_returns_evidence_and_provenance() -> None:
     assert payload["ok"] is True
     assert payload["data"]["evidence"]["digest"]
     assert (
+        payload["data"]["governance_context"]
+        == payload["data"]["repository_audit"]["governance_context"]
+    )
+    assert payload["data"]["governance_context"]["single_kernel"] is True
+    assert (
         payload["data"]["provenance"]["subject"][0]["digest"]["sha256"]
         == (payload["data"]["evidence"]["digest"])
     )
@@ -480,9 +485,15 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
     assert payload["ok"] is True
     assert "self_audit" not in payload["data"]
     assert payload["data"]["repository_audit"]["mode"] == "repository"
+    assert (
+        payload["data"]["governance_context"]
+        == payload["data"]["repository_audit"]["governance_context"]
+    )
+    assert payload["data"]["governance_context"]["contract"] == "governed_repository"
     assert payload["data"]["repository_audit"]["governance_context"]["contract"] == (
         "governed_repository"
     )
+    assert "posture" not in payload["data"]["governance_context"]
     assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
     assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "generic"
     assert (

@@ -7,7 +7,7 @@ summary = "Work Lane lifecycle shared helpers moved to a semantic public primiti
 
 [evidence]
 dated = "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md"
-sha256 = "0ebbe700d010d440b070f85839f14620edbe870eb80c4e7d7ed563c732b0bc4f"
+sha256 = "74307ace66d10db83c153f72f961ec9d4410837395c2822dd2f6cbf7dec18523"
 evidence_ids = ["evidence:lane-public-primitives-20260709"]
 binding = "Focused lifecycle tests, module-layout regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
 verifier = "semantic"

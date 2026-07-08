@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "9c62fcbe8d9042a888b7987e7e50e27269720c05",
-    "target_head": "9c62fcbe8d9042a888b7987e7e50e27269720c05",
-    "product_semantic_sha256": "3fe4d6ace1863c3197b2cad790e8eedb59e4dde6ed36cc93de11e76150e36640",
-    "target_semantic_sha256": "3fe4d6ace1863c3197b2cad790e8eedb59e4dde6ed36cc93de11e76150e36640",
+    "product_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
+    "target_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
+    "product_semantic_sha256": "a627f0d9c2d3bf5d73fc75e83c44efaaa282196c4f197254f406487d983ff6eb",
+    "target_semantic_sha256": "a627f0d9c2d3bf5d73fc75e83c44efaaa282196c4f197254f406487d983ff6eb",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/expert-hardening",
-    "target_head": "9c62fcbe8d9042a888b7987e7e50e27269720c05",
-    "product_head": "9c62fcbe8d9042a888b7987e7e50e27269720c05",
+    "target_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
+    "product_head": "0c8ab2e0088f16f711ddbee1813622f1ea3c3f01",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4bb5f4344ba2954b8259edabe56888874adee0b195d6c7a0833aab2009375491"
+        "sha256": "76ad43e256302be2ff578f6a39422e73870827a31ac029e405cd9d8f3abb31af"
       },
       {
         "path": "evidence/claims",

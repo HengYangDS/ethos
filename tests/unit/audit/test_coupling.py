@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy import coupling
-from ethos.repository.policy.coupling import coupling_audit_report
+import ethos.repository.policy.coupling.core as coupling_core
+from ethos.repository.policy.coupling.core import coupling_audit_report
 
 if TYPE_CHECKING:
     import pytest
@@ -221,7 +221,7 @@ def test_coupling_report_has_no_self_or_legacy_current_surface_terms() -> None:
     report = coupling_audit_report(Path.cwd())
 
     rendered = json.dumps(report, sort_keys=True)
-    assert not hasattr(coupling, "SELF_HOSTING_GATES")
+    assert not hasattr(coupling_core, "SELF_HOSTING_GATES")
     assert "self_hosting" not in rendered
     assert "legacy" not in rendered
 
@@ -316,7 +316,7 @@ def test_coupling_audit_default_branch_role_policy_marks_default_source(
 def test_coupling_audit_flags_missing_work_lane_lifecycle_binding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_without_lifecycle(root: Path) -> list[dict[str, object]]:
         return [
@@ -325,7 +325,7 @@ def test_coupling_audit_flags_missing_work_lane_lifecycle_binding(
             if entry["id"] != "work_lane_lifecycle_command_contract"
         ]
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_without_lifecycle)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_without_lifecycle)
 
     report = coupling_audit_report(Path.cwd())
 
@@ -338,14 +338,14 @@ def test_coupling_audit_flags_missing_work_lane_lifecycle_binding(
 def test_coupling_audit_flags_missing_git_product_binding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_without_git(root: Path) -> list[dict[str, object]]:
         return [
             entry for entry in original_registry(root) if entry["id"] != "git_repository_substrate"
         ]
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_without_git)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_without_git)
 
     report = coupling_audit_report(Path.cwd())
 
@@ -356,7 +356,7 @@ def test_coupling_audit_flags_missing_git_product_binding(
 def test_coupling_audit_flags_openspec_as_product_substrate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_with_wrong_openspec_layer(root: Path) -> list[dict[str, object]]:
         entries = original_registry(root)
@@ -367,7 +367,7 @@ def test_coupling_audit_flags_openspec_as_product_substrate(
                 entry["not_product_substrate"] = False
         return entries
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_with_wrong_openspec_layer)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_with_wrong_openspec_layer)
 
     report = coupling_audit_report(Path.cwd())
 
@@ -383,7 +383,7 @@ def test_coupling_audit_flags_openspec_as_product_substrate(
 def test_coupling_audit_flags_adapter_owning_product_semantics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_with_adapter_semantics(root: Path) -> list[dict[str, object]]:
         entries = original_registry(root)
@@ -393,7 +393,7 @@ def test_coupling_audit_flags_adapter_owning_product_semantics(
                 entry["action"] = "checkout"
         return entries
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_with_adapter_semantics)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_with_adapter_semantics)
 
     report = coupling_audit_report(Path.cwd())
 
@@ -426,7 +426,7 @@ def test_coupling_audit_schema_exposes_adapter_admission_contract() -> None:
 def test_coupling_audit_flags_adapter_without_admission_decision(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_with_unadmitted_adapter(root: Path) -> list[dict[str, object]]:
         entries = original_registry(root)
@@ -435,7 +435,7 @@ def test_coupling_audit_flags_adapter_without_admission_decision(
                 entry.pop("admission", None)
         return entries
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_with_unadmitted_adapter)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_with_unadmitted_adapter)
 
     report = coupling_audit_report(Path.cwd())
 
@@ -449,7 +449,7 @@ def test_coupling_audit_flags_adapter_without_admission_decision(
 def test_coupling_audit_flags_adapter_with_wrong_truth_boundary_or_decision(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_registry = coupling._binding_registry
+    original_registry = coupling_core.binding_registry
 
     def registry_with_wrong_adapter_admission(root: Path) -> list[dict[str, object]]:
         entries = original_registry(root)
@@ -462,7 +462,7 @@ def test_coupling_audit_flags_adapter_with_wrong_truth_boundary_or_decision(
                 }
         return entries
 
-    monkeypatch.setattr(coupling, "_binding_registry", registry_with_wrong_adapter_admission)
+    monkeypatch.setattr(coupling_core, "binding_registry", registry_with_wrong_adapter_admission)
 
     report = coupling_audit_report(Path.cwd())
 

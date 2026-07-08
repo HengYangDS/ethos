@@ -111,6 +111,10 @@ architecture; these rules make the claim honest and checkable.
   module namespace at the call site — usually to disambiguate several same-named
   functions, or when the module name itself carries meaning (`ethos.adapters.git`
   called as `git.current_head(...)`). Prefer the shortest honest name.
+- **Do NOT bind submodules through a package root** (`from package import module`).
+  If the call site genuinely needs a module namespace, import the concrete
+  module (`import package.module as module_name`); otherwise import the concrete
+  symbol from the defining module.
 - **`as` is for necessity, not cosmetics.** Use `as` ONLY when:
   1. two imported names genuinely collide, or
   2. a module is bound as a namespace and its dotted path is too long to repeat

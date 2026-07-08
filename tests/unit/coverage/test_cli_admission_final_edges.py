@@ -10,17 +10,19 @@ from types import SimpleNamespace
 
 import pytest
 
-from ethos import cli
-from ethos.adapters import config
-from ethos.adapters.admission import core as admission
-from ethos.adapters.admission import prewrite
-from ethos.adapters.mutation import core as mutation_core
-from ethos.adapters.store.retrieval import query as retrieval_query
-from ethos.adapters.store.retrieval import sources as retrieval_sources
-from ethos.repository import audit
-from ethos.repository.evidence import parity
-from ethos.repository.policy import coupling
-from ethos.repository.registry import docs as docs_registry
+import ethos.adapters.admission.core as admission
+import ethos.adapters.admission.prewrite as admission_prewrite
+import ethos.adapters.config as adapters_config
+import ethos.adapters.mutation.core as mutation_core
+import ethos.adapters.store.retrieval.query as retrieval_query
+import ethos.adapters.store.retrieval.sources as retrieval_sources
+import ethos.cli as ethos_cli
+import ethos.repository.audit as repository_audit
+import ethos.repository.evidence.parity as evidence_parity
+import ethos.repository.policy.coupling.contracts as coupling_contracts
+import ethos.repository.policy.coupling.registry as coupling_registry
+import ethos.repository.policy.coupling.release as coupling_release
+import ethos.repository.registry.docs as docs_registry
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -36,23 +38,31 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(
-        prewrite, "workspace_status", lambda root: {"role": ROLE_ACCEPTED_ROOT, "branch": "dev"}
+        admission_prewrite,
+        "workspace_status",
+        lambda root: {"role": ROLE_ACCEPTED_ROOT, "branch": "dev"},
     )
-    monkeypatch.setattr(prewrite.subprocess, "run", lambda *args, **kwargs: cp(returncode=1))
-    outside = prewrite.prewrite_guard(
+    monkeypatch.setattr(
+        admission_prewrite.subprocess, "run", lambda *args, **kwargs: cp(returncode=1)
+    )
+    outside = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[tmp_path.parent / "outside.md"], editor_root=tmp_path
     )
     assert outside["error"] == "prewrite_path_outside_worktree"
-    blocked = prewrite.prewrite_guard(
+    blocked = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[tmp_path / "README.md"], editor_root=tmp_path
     )
     assert blocked["error"] == "protected_lane_prewrite_blocked"
     monkeypatch.setattr(
-        prewrite, "workspace_status", lambda root: {"role": ROLE_WORK_LANE, "branch": "work/x"}
+        admission_prewrite,
+        "workspace_status",
+        lambda root: {"role": ROLE_WORK_LANE, "branch": "work/x"},
     )
-    missing_editor = prewrite.prewrite_guard(root=tmp_path, paths=[tmp_path / "README.md"])
+    missing_editor = admission_prewrite.prewrite_guard(
+        root=tmp_path, paths=[tmp_path / "README.md"]
+    )
     assert missing_editor["error"] == "editor_root_missing"
-    mismatch = prewrite.prewrite_guard(
+    mismatch = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[], editor_root=tmp_path / "other", require_editor_root=True
     )
     assert mismatch["error"] == "editor_root_mismatch"
@@ -163,11 +173,11 @@ def test_cli_wrappers_emit_expected_results(
 ) -> None:
     emitted: list[EthosResult] = []
     monkeypatch.setattr(
-        cli, "emit", lambda result, json_output, enforce=True: emitted.append(result)
+        ethos_cli, "emit", lambda result, json_output, enforce=True: emitted.append(result)
     )
-    monkeypatch.setattr(cli, "resolve_root", lambda root: tmp_path)
+    monkeypatch.setattr(ethos_cli, "resolve_root", lambda root: tmp_path)
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "workspace_status",
         lambda repo: {
             "dirty": False,
@@ -178,12 +188,14 @@ def test_cli_wrappers_emit_expected_results(
         },
     )
     monkeypatch.setattr(
-        cli._prove,
+        ethos_cli._prove,
         "workspace_status_validation",
         lambda repo, payload: {"ok": False, "required_gaps": ["bad"]},
     )
-    monkeypatch.setattr(cli._prove, "workspace_status_validation_gaps", lambda validation: ("bad",))
-    cli.status(json_output=True)
+    monkeypatch.setattr(
+        ethos_cli._prove, "workspace_status_validation_gaps", lambda validation: ("bad",)
+    )
+    ethos_cli.status(json_output=True)
     assert emitted[-1].state == "invalid"
     assert emitted[-1].summary["role"] == ""
     assert emitted[-1].summary["foreign_work_lane_count"] == 0
@@ -191,68 +203,68 @@ def test_cli_wrappers_emit_expected_results(
     assert emitted[-1].summary["coordination_blocking"] is False
 
     monkeypatch.setattr(
-        cli._prove,
+        ethos_cli._prove,
         "workspace_status_validation",
         lambda repo, payload: {"ok": True, "required_gaps": []},
     )
-    monkeypatch.setattr(cli._prove, "workspace_status_validation_gaps", lambda validation: ())
+    monkeypatch.setattr(ethos_cli._prove, "workspace_status_validation_gaps", lambda validation: ())
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "evaluate_mutation",
         lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="land_ready"),
     )
     monkeypatch.setattr(
-        cli._land,
+        ethos_cli._land,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "openspec_completed_active_changes_report",
         lambda repo: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "candidate_base_report",
         lambda root: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
     )
-    monkeypatch.setattr(cli._gitio, "current_head", lambda repo: "h1")
-    cli.land(json_output=True)
+    monkeypatch.setattr(ethos_cli._gitio, "current_head", lambda repo: "h1")
+    ethos_cli.land(json_output=True)
     assert emitted[-1].state == "blocked"
 
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "candidate_base_report",
         lambda root: {"ok": True, "required_gaps": [], "state": "base_current"},
     )
-    cli.land(json_output=True)
+    ethos_cli.land(json_output=True)
     assert emitted[-1].state == "ready_to_land"
 
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "apply_land_to_candidate",
         lambda **kwargs: {"ok": True, "required_gaps": [], "state": "candidate_validated"},
     )
-    cli.land(apply=True, authorize=True, expect_head="h1", json_output=True)
+    ethos_cli.land(apply=True, authorize=True, expect_head="h1", json_output=True)
     assert emitted[-1].state == "candidate_validated"
 
     monkeypatch.setattr(
-        cli._land,
+        ethos_cli._land,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": False, "required_gaps": ["audit_gap"]},
     )
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "load_branch_role_policy",
         lambda repo: SimpleNamespace(submit_branch_for_source=lambda branch: "submit/dev"),
     )
-    cli.publish(json_output=True)
+    ethos_cli.publish(json_output=True)
     assert emitted[-1].required_gaps == ("audit_gap",)
 
-    cli.doctor(init_state=True, json_output=True)
+    ethos_cli.doctor(init_state=True, json_output=True)
     assert emitted[-1].summary["state_db_exists"] is True
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "openspec_governance_report",
         lambda repo, change=None, lifecycle=False: {
             "ok": False,
@@ -261,88 +273,95 @@ def test_cli_wrappers_emit_expected_results(
             "required_gaps": ["gap"],
         },
     )
-    cli.openspec(change="c", lifecycle=True, json_output=True)
+    ethos_cli.openspec(change="c", lifecycle=True, json_output=True)
     assert emitted[-1].command == "openspec" and emitted[-1].state == "gapped"
     monkeypatch.setattr(
-        cli,
+        ethos_cli,
         "_load_command_groups",
         lambda argv: emitted.append(EthosResult(command="load", ok=True, state=",".join(argv))),
     )
     monkeypatch.setattr(
-        cli, "app", lambda: emitted.append(EthosResult(command="app", ok=True, state="called"))
+        ethos_cli,
+        "app",
+        lambda: emitted.append(EthosResult(command="app", ok=True, state="called")),
     )
     monkeypatch.setattr("sys.argv", ["ethos", "status"])
-    cli.main()
+    ethos_cli.main()
     assert emitted[-2].command == "load" and emitted[-1].command == "app"
 
 
 def test_audit_coupling_config_and_misc_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    assert config.rules_config(tmp_path) == {}
+    assert adapters_config.rules_config(tmp_path) == {}
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "rules.toml").write_text(
         "[quality]\ncode_size={max=1}\n", encoding="utf-8"
     )
-    assert config.code_size_policy(tmp_path) == {"max": 1}
-    assert config.code_size_policy(tmp_path / "missing") == {}
+    assert adapters_config.code_size_policy(tmp_path) == {"max": 1}
+    assert adapters_config.code_size_policy(tmp_path / "missing") == {}
 
     doc = tmp_path / "doc.md"
-    assert audit._front_matter_ok(doc) is False
+    assert repository_audit._front_matter_ok(doc) is False
     doc.write_text("no frontmatter", encoding="utf-8")
-    assert audit._front_matter_ok(doc) is False
+    assert repository_audit._front_matter_ok(doc) is False
     doc.write_text(
         "---\nsubject: s\nrole: r\nstate: active\nrelations: []\n---\n", encoding="utf-8"
     )
-    assert audit._front_matter_ok(doc) is True
+    assert repository_audit._front_matter_ok(doc) is True
     changes = tmp_path / "openspec" / "changes" / "done"
     changes.mkdir(parents=True)
     (changes / "tasks.md").write_text("- [x] one\n- [X] two\n", encoding="utf-8")
-    assert audit._completed_unarchived_changes(tmp_path / "openspec") == [
+    assert repository_audit._completed_unarchived_changes(tmp_path / "openspec") == [
         "openspec_completed_change_unarchived:done"
     ]
-    assert audit._active_change_violations_for_role(tmp_path / "openspec", "work_lane") == []
-    assert audit._active_change_violations_for_role(tmp_path / "openspec", "accepted_root") == [
-        "openspec_active_change_unarchived:done:accepted_root"
-    ]
-    assert audit._active_change_violations_for_role(tmp_path / "openspec", "candidate") == [
-        "openspec_active_change_unarchived:done:candidate"
-    ]
+    assert (
+        repository_audit._active_change_violations_for_role(tmp_path / "openspec", "work_lane")
+        == []
+    )
+    assert repository_audit._active_change_violations_for_role(
+        tmp_path / "openspec", "accepted_root"
+    ) == ["openspec_active_change_unarchived:done:accepted_root"]
+    assert repository_audit._active_change_violations_for_role(
+        tmp_path / "openspec", "candidate"
+    ) == ["openspec_active_change_unarchived:done:candidate"]
     (tmp_path / ".githooks").mkdir()
     (tmp_path / ".githooks" / "pre-commit").write_text("", encoding="utf-8")
     monkeypatch.setattr(
-        audit.subprocess, "run", lambda *args, **kwargs: cp(stdout="other\n", returncode=0)
+        repository_audit.subprocess,
+        "run",
+        lambda *args, **kwargs: cp(stdout="other\n", returncode=0),
     )
-    gaps = audit._write_admission_armed_gaps(tmp_path)
+    gaps = repository_audit._write_admission_armed_gaps(tmp_path)
     assert "write_admission_not_armed:pre-push_script_missing" in gaps
     assert "write_admission_not_armed:reference-transaction_script_missing" in gaps
     assert "write_admission_not_armed:core.hooksPath" in gaps
-    assert audit._openspec_shape_report(tmp_path)["ok"] is False
-    assert audit._openspec_provider_missing_report(tmp_path)["required_gaps"] == [
+    assert repository_audit._openspec_shape_report(tmp_path)["ok"] is False
+    assert repository_audit._openspec_provider_missing_report(tmp_path)["required_gaps"] == [
         "openspec_reporter_not_configured"
     ]
 
     assert (
-        coupling._release_report(tmp_path / "no-project")["host_profile"]["layer"]
+        coupling_release.release_report(tmp_path / "no-project")["host_profile"]["layer"]
         == "profile_or_adapter_binding"
     )
     (tmp_path / ".ethos" / "branch-roles.toml").write_text("[bad\n", encoding="utf-8")
-    meta = coupling._branch_role_policy_metadata(tmp_path)
+    meta = coupling_registry.branch_role_policy_metadata(tmp_path)
     assert meta["default_policy"] is True
     corrupted = {
-        **coupling.BINDING_CONTRACTS["openspec_workspace"],
+        **coupling_contracts.BINDING_CONTRACTS["openspec_workspace"],
         "id": "openspec_workspace",
         "layer": "wrong",
         "owns_product_semantics": True,
         "not_product_substrate": False,
     }
-    gaps = coupling._binding_taxonomy_gaps(
-        "openspec_workspace", corrupted, coupling.BINDING_CONTRACTS["openspec_workspace"]
+    gaps = coupling_registry.binding_taxonomy_gaps(
+        "openspec_workspace", corrupted, coupling_contracts.BINDING_CONTRACTS["openspec_workspace"]
     )
     assert "binding_registry_layer:openspec_workspace:wrong" in gaps
     assert "binding_registry_product_semantics:openspec_workspace" in gaps
     assert "binding_registry_product_substrate:openspec_workspace" in gaps
-    registry_gaps = coupling._binding_registry_gaps(
+    registry_gaps = coupling_registry.binding_registry_gaps(
         [{**corrupted, "id": ""}, {**corrupted, "label": "bad"}, {**corrupted, "label": "bad"}]
     )
     assert "binding_registry_missing_id" in registry_gaps
@@ -384,18 +403,18 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert docs_registry._bash_logical_commands(unfinished) == [(2, "ethos prove --json")]
 
     assert (
-        parity._command_matches_identity(
+        evidence_parity._command_matches_identity(
             "ethos parity shadow --adopter a --target /t --execute --json", adopter="a", target="/t"
         )
         is True
     )
     assert (
-        parity._command_matches_identity(
+        evidence_parity._command_matches_identity(
             "ethos parity shadow --adopter b --target /t --execute --json", adopter="a", target="/t"
         )
         is False
     )
-    payload = parity.build_tracked_parity_evidence(
+    payload = evidence_parity.build_tracked_parity_evidence(
         adopter="a",
         target=tmp_path,
         shadow={"ok": True, "required_gaps": []},
@@ -404,7 +423,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         timeout_seconds=1,
     )
     payload["shadow"]["comparison_count"] = 0
-    gaps = parity._validate_parity_evidence(payload, "a", target=tmp_path)
+    gaps = evidence_parity._validate_parity_evidence(payload, "a", target=tmp_path)
     assert "parity_evidence_invalid:a:comparison_count" in gaps
 
     assert (

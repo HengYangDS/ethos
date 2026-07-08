@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
-    "target_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
-    "product_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
-    "target_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
+    "product_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
+    "target_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
+    "product_semantic_sha256": "bb2642545cf124ebae25be047080a893739a1cd8622e409b268a8e3856e1ae45",
+    "target_semantic_sha256": "bb2642545cf124ebae25be047080a893739a1cd8622e409b268a8e3856e1ae45",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-work-testfile-decomp",
-    "target_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
-    "product_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/code-size-coupling",
+    "target_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
+    "product_head": "06879309c73e12dfe9a7b6d9e20bf30732b13dc0",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
-      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-testfile-decomp --json"
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json",
+      "/Users/yheng/projects/ethos-worktrees/code-size-coupling/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/code-size-coupling --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "5ab8f1279c045a46d9d83dd7615a64e26770726fda71b6c9e21dfa5206fabe2c"
+        "sha256": "66fa5be22eb74f2d27990ebc11f6f28b459dd389ad39d4f5f4e131f0d1b3d631"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "7077cffc662c0e7416a2fd61bed3485a8ccf7e664fce523f54326b2e2df20c74"
+        "sha256": "4b1eb44c4763d56fc4e52d9e0fb8a8f61b7c7b09de5d2e5ff5e0f1569f0b8427"
       },
       {
         "path": "openspec",
@@ -96,7 +96,7 @@
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "db257ddd26df6bf6cd42a7ef29b3019f19b86201e2342781085b364e0dc5a018"
+        "sha256": "ed60f2303fea456d57620f7a9ddc222b92a51639f21458bb6857c631513621bd"
       }
     ]
   },

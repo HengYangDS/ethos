@@ -24,9 +24,18 @@ if (($#)); then
     esac
   done
 else
-  mapfile -t toml_files < <(git ls-files '*.toml')
-  mapfile -t yaml_files < <(git ls-files '*.yml' '*.yaml')
-  mapfile -t json_files < <(git ls-files '*.json')
+  toml_files=()
+  yaml_files=()
+  json_files=()
+  while IFS= read -r target; do
+    toml_files+=("${target}")
+  done < <(git ls-files '*.toml')
+  while IFS= read -r target; do
+    yaml_files+=("${target}")
+  done < <(git ls-files '*.yml' '*.yaml')
+  while IFS= read -r target; do
+    json_files+=("${target}")
+  done < <(git ls-files '*.json')
 fi
 
 filter_existing_files() {
@@ -36,9 +45,38 @@ filter_existing_files() {
   done
 }
 
-mapfile -t toml_files < <(filter_existing_files "${toml_files[@]}")
-mapfile -t yaml_files < <(filter_existing_files "${yaml_files[@]}")
-mapfile -t json_files < <(filter_existing_files "${json_files[@]}")
+toml_existing=()
+if ((${#toml_files[@]})); then
+  while IFS= read -r target; do
+    toml_existing+=("${target}")
+  done < <(filter_existing_files "${toml_files[@]}")
+fi
+toml_files=()
+if ((${#toml_existing[@]})); then
+  toml_files=("${toml_existing[@]}")
+fi
+
+yaml_existing=()
+if ((${#yaml_files[@]})); then
+  while IFS= read -r target; do
+    yaml_existing+=("${target}")
+  done < <(filter_existing_files "${yaml_files[@]}")
+fi
+yaml_files=()
+if ((${#yaml_existing[@]})); then
+  yaml_files=("${yaml_existing[@]}")
+fi
+
+json_existing=()
+if ((${#json_files[@]})); then
+  while IFS= read -r target; do
+    json_existing+=("${target}")
+  done < <(filter_existing_files "${json_files[@]}")
+fi
+json_files=()
+if ((${#json_existing[@]})); then
+  json_files=("${json_existing[@]}")
+fi
 
 python - "${toml_files[@]}" <<'PY'
 from __future__ import annotations

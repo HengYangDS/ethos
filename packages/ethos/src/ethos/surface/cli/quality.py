@@ -23,7 +23,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
-from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.coverage import coverage_quality_report
 from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.policy.docstrings.core import docstring_coverage_report

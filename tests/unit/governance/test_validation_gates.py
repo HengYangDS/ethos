@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.schema import schema_validation_report

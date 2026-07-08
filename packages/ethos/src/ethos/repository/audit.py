@@ -21,7 +21,7 @@ from ethos.repository.audit_openspec import _openspec_provider_missing_report
 from ethos.repository.audit_openspec import _openspec_shape_report as _openspec_shape_report_impl
 from ethos.repository.context import governance_context
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report
 from ethos.repository.registry.commands import command_registry_report

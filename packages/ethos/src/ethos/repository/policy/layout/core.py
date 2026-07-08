@@ -17,6 +17,7 @@ from ethos.repository.policy.layout.filesystem.core import DEFAULT_SUFFIX_GROUP_
 from ethos.repository.policy.layout.filesystem.core import POLICY_PATH
 from ethos.repository.policy.layout.filesystem.core import load_policy
 from ethos.repository.policy.layout.growth.core import flat_growth_findings
+from ethos.repository.policy.layout.imports.core import package_root_submodule_import_findings
 from ethos.repository.policy.layout.naming.core import flat_directory_findings
 from ethos.repository.policy.layout.naming.core import suffix_group_findings
 from ethos.repository.policy.layout.naming.core import suffix_module_findings
@@ -34,6 +35,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
     private_aliases = private_alias_findings(root, policy)
     package_init_facades = package_init_facade_findings(root, policy)
     module_facades = module_facade_findings(root, policy)
+    package_root_submodule_imports = package_root_submodule_import_findings(root, policy)
     flat_growth = flat_growth_findings(root, policy)
     baseline = baseline_gap_set(policy)
     baseline_growth = baseline_growth_findings(root, policy, baseline)
@@ -44,6 +46,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         *private_aliases,
         *package_init_facades,
         *module_facades,
+        *package_root_submodule_imports,
         *flat_growth,
     ]
     current_gaps = {str(item["gap"]) for item in findings}
@@ -80,6 +83,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
             "private_alias_count": len(private_aliases),
             "package_init_facade_count": len(package_init_facades),
             "module_facade_count": len(module_facades),
+            "package_root_submodule_import_count": len(package_root_submodule_imports),
             "flat_growth_count": len(flat_growth),
             "baseline_growth_count": len(baseline_growth),
         },
@@ -89,6 +93,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "private_alias_findings": private_aliases,
         "package_init_facade_findings": package_init_facades,
         "module_facade_findings": module_facades,
+        "package_root_submodule_import_findings": package_root_submodule_imports,
         "flat_growth_findings": flat_growth,
         "stale_baseline_findings": stale_baselines,
         "baseline_growth_findings": baseline_growth,

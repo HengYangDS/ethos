@@ -8,7 +8,10 @@ cd "${repo_root}"
 if (($#)); then
   shell_files=("$@")
 else
-  mapfile -t shell_files < <(git ls-files '*.sh')
+  shell_files=()
+  while IFS= read -r target; do
+    shell_files+=("${target}")
+  done < <(git ls-files '*.sh')
 fi
 if ((${#shell_files[@]} == 0)); then
   exit 0

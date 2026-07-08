@@ -142,7 +142,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
 
 
 def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
-    from ethos.repository.policy.coupling import coupling_audit_report
+    from ethos.repository.policy.coupling.core import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "evolution" / "ledger.toml"

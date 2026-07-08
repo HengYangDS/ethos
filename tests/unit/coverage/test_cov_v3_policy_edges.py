@@ -6,10 +6,11 @@ from __future__ import annotations
 import ast
 from typing import TYPE_CHECKING
 
+import ethos.repository.policy.coupling.registry as coupling_registry
+import ethos.repository.policy.coupling.toolchain as coupling_toolchain
 import ethos.repository.policy.docstrings.core as docstrings_mod
 import ethos.repository.policy.docstrings.style as docstring_style
-from ethos.repository.policy import coupling as coupling_mod
-from ethos.repository.policy import gates as gates_mod
+import ethos.repository.policy.gates as gates_mod
 from ethos.repository.policy.gates import Gate
 from ethos.repository.policy.rules.check import rules_layer_report
 from ethos.repository.policy.rules.config import configured_gate_tables
@@ -65,9 +66,9 @@ def test_gate_profile_gaps_flag_profile_and_toolchain_mismatch(
             toolchain="uv-python",
         ),
     }
-    monkeypatch.setattr(coupling_mod, "gate_registry", lambda: fake)
+    monkeypatch.setattr(coupling_toolchain, "gate_registry", lambda: fake)
 
-    gaps = coupling_mod._gate_profile_gaps()
+    gaps = coupling_toolchain.gate_profile_gaps()
 
     assert "gate_profile_mismatch:unit-architecture:mismatch" in gaps
     assert "gate_toolchain_mismatch:unit-architecture:mismatch" in gaps
@@ -79,7 +80,7 @@ def test_branch_role_metadata_recovers_from_invalid_workspace_toml(tmp_path: Pat
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "workspace.toml").write_text("[section\n", encoding="utf-8")
 
-    metadata = coupling_mod._branch_role_policy_metadata(tmp_path)
+    metadata = coupling_registry.branch_role_policy_metadata(tmp_path)
 
     assert metadata["default_policy"] is True
 
@@ -87,7 +88,7 @@ def test_branch_role_metadata_recovers_from_invalid_workspace_toml(tmp_path: Pat
 def test_binding_taxonomy_flags_non_hard_binding_owning_semantics() -> None:
     # expected owns_product_semantics is True (so the 559 guard is skipped) while a
     # non-hard-binding entry claims product semantics -> the append at coupling.py 569.
-    gaps = coupling_mod._binding_taxonomy_gaps(
+    gaps = coupling_registry.binding_taxonomy_gaps(
         "x",
         {"layer": "profile_or_adapter_binding", "owns_product_semantics": True},
         {"layer": "product_semantic_hard_binding", "owns_product_semantics": True},
@@ -99,7 +100,7 @@ def test_binding_taxonomy_flags_non_hard_binding_owning_semantics() -> None:
 def test_adapter_admission_flags_missing_required_field() -> None:
     # An adapter entry whose admission dict lacks a required field appends the
     # per-field gap inside the loop (coupling.py 582).
-    gaps = coupling_mod._adapter_admission_gaps(
+    gaps = coupling_registry.adapter_admission_gaps(
         "x",
         {"layer": "profile_or_adapter_binding", "admission": {}},
     )

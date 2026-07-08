@@ -46,7 +46,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/surface/cli/lane.py",
   "packages/ethos/src/ethos/repository/registry/docs.py",
-  "packages/ethos/src/ethos/repository/policy/coupling.py",
+  "packages/ethos/src/ethos/repository/policy/coupling",
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts.py",
 ]

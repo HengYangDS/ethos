@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+import ethos.repository.policy.layout.imports.core as layout_imports
 from ethos.repository.policy.layout.core import module_layout_report
 
 
@@ -48,6 +49,7 @@ def test_module_layout_flags_suffix_flat_groups_and_flat_directory(tmp_path: Pat
         "private_alias_count": 0,
         "package_init_facade_count": 0,
         "module_facade_count": 0,
+        "package_root_submodule_import_count": 0,
         "flat_growth_count": 0,
         "baseline_growth_count": 0,
     }
@@ -86,6 +88,75 @@ def test_module_layout_flags_private_alias_compat_imports(tmp_path: Path) -> Non
         "module_layout_private_import_alias:"
         "packages/ethos/src/ethos/sample.py:ethos.surface.cli._base.emit->_emit"
     ) in report["required_gaps"]
+
+
+def test_module_layout_flags_package_root_submodule_imports(tmp_path: Path) -> None:
+    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "__init__.py")
+    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "registry.py")
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "consumer.py",
+        "from ethos.sample import registry as sample_registry\n",
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["ok"] is False
+    assert (
+        "module_layout_package_root_submodule_import:"
+        "packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
+    ) in report["required_gaps"]
+    assert report["package_root_submodule_import_findings"] == [
+        {
+            "gap": (
+                "module_layout_package_root_submodule_import:"
+                "packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
+            ),
+            "path": "packages/ethos/src/ethos/consumer.py",
+            "module": "ethos.sample.registry",
+            "imported_from": "ethos.sample",
+            "name": "registry",
+        }
+    ]
+    assert report["summary"]["package_root_submodule_import_count"] == 1
+
+
+def test_module_layout_ignores_non_submodule_package_root_import_forms(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path / ".config" / "checks" / "module-layout" / "policy.toml",
+        'paths = ["__init__.py", "pkg", "packages/ethos/src"]\n',
+    )
+    _write(tmp_path / "__init__.py")
+    _write(tmp_path / "pkg" / "plain.py")
+    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "__init__.py")
+    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "registry.py")
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "consumer.py",
+        textwrap.dedent(
+            """
+            from .sample import registry
+            from ethos.sample import *
+            from ethos.sample import missing
+            from ethos.sample import registry as _registry
+            """
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["package_root_submodule_import_findings"] == []
+    assert report["summary"]["package_root_submodule_import_count"] == 0
+
+
+def test_module_layout_import_module_name_handles_plain_and_root_init(tmp_path: Path) -> None:
+    plain = tmp_path / "plain.py"
+    root_init = tmp_path / "__init__.py"
+    _write(plain)
+    _write(root_init)
+
+    assert layout_imports._module_name(tmp_path, plain) == "plain"
+    assert layout_imports._module_name(tmp_path, root_init) == ""
 
 
 def test_module_layout_flags_package_init_facades(tmp_path: Path) -> None:

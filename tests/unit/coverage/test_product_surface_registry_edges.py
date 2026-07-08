@@ -314,7 +314,7 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
         is False
     )
     assert (
-        requires_product_examples([{"scope": "current", "command": "ethos prove --json"}]) is True
+        requires_product_examples([{"scope": "product", "command": "ethos prove --json"}]) is True
     )
 
     glossary = docs / "reference"

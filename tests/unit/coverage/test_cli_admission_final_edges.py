@@ -414,7 +414,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert docs_commands.command_root("env") == ""
     assert (
         docs_commands.has_command_example(
-            [{"scope": "current", "command": "env X=1 ethos land --json"}], "ethos land"
+            [{"scope": "product", "command": "env X=1 ethos land --json"}], "ethos land"
         )
         is True
     )

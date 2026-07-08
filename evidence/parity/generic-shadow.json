@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "c2fbf2fc34b87093f19b3c90f85b9a854f8fc94f",
-    "target_head": "c2fbf2fc34b87093f19b3c90f85b9a854f8fc94f",
-    "product_semantic_sha256": "634f8dcbb876686a849f950cbfd3d4c7717d79a46a6c09887dc0650b344e1be1",
-    "target_semantic_sha256": "634f8dcbb876686a849f950cbfd3d4c7717d79a46a6c09887dc0650b344e1be1",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "89407f1a9c71fb09cbe80c604bb1a3d7afb12762",
+    "target_head": "89407f1a9c71fb09cbe80c604bb1a3d7afb12762",
+    "product_semantic_sha256": "cf05f23014e7ff030b3f422b55e2387b95be601bc501f2194c613658086afd9a",
+    "target_semantic_sha256": "cf05f23014e7ff030b3f422b55e2387b95be601bc501f2194c613658086afd9a",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-retrieval-decomp",
-    "target_head": "c2fbf2fc34b87093f19b3c90f85b9a854f8fc94f",
-    "product_head": "c2fbf2fc34b87093f19b3c90f85b9a854f8fc94f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/expert-hardening",
+    "target_head": "89407f1a9c71fb09cbe80c604bb1a3d7afb12762",
+    "product_head": "89407f1a9c71fb09cbe80c604bb1a3d7afb12762",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-retrieval-decomp --json",
-      "/private/tmp/ethos-retrieval-decomp/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-retrieval-decomp --json"
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/expert-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/expert-hardening --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,27 +76,27 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "416057a05d33e540185bbe4f83b1619a3f6f11e2b23942ec6cbf6a9beaf92b94"
+        "sha256": "38dbf3fd1d9f125c8aacf48b980ee853012e447c2cba5b81bac612ac440ec3ac"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "ecbfa93b76053d65fd36c22a53f717aeb4c726272fd097af2be23a73bf7d7571"
+        "sha256": "fd1c1793950ef522c8b1e8f1b3369c46f31acd31b8fa1e31d7cba902c60445bc"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "304487c2cae1312025df2092b1a0302706ab9318cdc4c66f26d60ee2a6b3c4e1"
+        "sha256": "60ecedec645dc57e5da4446141b1ce7e237c2e9c94536704c9a9a1cbf6c4e34e"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "3d78f4944e6e480408cd4b4af7f3011efd6807f17f628bcc6b27a63d01394ae2"
+        "sha256": "28fe8adb59086c04a7603cd95d69df2775d814274ba14fe246fdac56b5b3550e"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "0aa9ac20c7196b5eee5413356db5afe93690b8b4c44bc995fa0c68b07107bfec"
+        "sha256": "db257ddd26df6bf6cd42a7ef29b3019f19b86201e2342781085b364e0dc5a018"
       }
     ]
   },

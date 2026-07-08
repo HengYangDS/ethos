@@ -27,3 +27,7 @@ claims, or evidence.
 
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
+
+## Archived Plans
+
+- [Self-healing Closeout Intelligence](self-healing-closeout-intelligence/task_plan.md)

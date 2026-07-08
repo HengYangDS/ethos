@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "7a0232ca67a410dea50891b5774b2481fa529533",
-    "target_head": "7a0232ca67a410dea50891b5774b2481fa529533",
-    "product_semantic_sha256": "e1f4edc3c343e1296945f6530d67445c2ab8f7ef644a6ad6f251b9d2b5958b96",
-    "target_semantic_sha256": "e1f4edc3c343e1296945f6530d67445c2ab8f7ef644a6ad6f251b9d2b5958b96",
+    "product_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
+    "target_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
+    "product_semantic_sha256": "84b6eecb6f3fff52b409230c314d0cd48c1736a480deecfa0867aea425313f95",
+    "target_semantic_sha256": "84b6eecb6f3fff52b409230c314d0cd48c1736a480deecfa0867aea425313f95",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh",
-    "target_head": "7a0232ca67a410dea50891b5774b2481fa529533",
-    "product_head": "7a0232ca67a410dea50891b5774b2481fa529533",
+    "target_root": "/Users/yheng/projects/ethos-work-module-layout-semantic-guard",
+    "target_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
+    "product_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
       "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-refresh --json"
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
+      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,22 +81,22 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4425426ca046aff6b36005ac964d4eb6f17a6116283772a0c5c26eb7c08d90a6"
+        "sha256": "c004781b9496c14136b162cfac1cae14697b91021f6ebbea8da940892ebf3742"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "37de836fc5cf3c61fbe92e3b40cb5af677585c9025f204cf36cffb5b88bcf355"
+        "sha256": "707fb9a066fb380b688a91fc27c1c5883e5b1729991c9bf6c378effaa8760847"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "e96d99c481a9b56e93e07b47d5a65529b36a85375ac8cf90aa60184ede700f47"
+        "sha256": "6f1a13419dfe775cc6f8284b2b8bf7cc62dea2d7eee462b3c39f3ac341692e98"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "88bf99703dc2ea9ea78037dfd419fd4ad9517cc72560cfea33288e273435cf00"
+        "sha256": "35225a3c70757449ed2d1d89ef7d4829072c827dac0e52f37fad4132df843bef"
       }
     ]
   },

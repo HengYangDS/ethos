@@ -7,7 +7,7 @@ summary = "ETHOS has current release smoke, external adoption pilot diagnostics,
 
 [evidence]
 dated = "evidence/chronicle/release-adoption-readiness/2026-07-08.md"
-sha256 = "65595b79569d983ec5ce2d13ef7f9574fc95a039138c1af2aa5e8b031b9ba3fd"
+sha256 = "948352410c7526a29b201e4f736390c4035165eb2a16cd2af2177d8003700c3e"
 evidence_ids = ["evidence:release-adoption-readiness"]
 binding = "semantic release artifact, adoption pilot, remote-ref, and hosted-CI boundary evidence binding"
 verifier = "semantic"
@@ -17,8 +17,9 @@ tests = [
   "uv run --package ethos ethos quality release-attestation --json",
   "uv build --all-packages",
   "npm ci --ignore-scripts",
-  "npm run ethos -- --version",
-  "npm run test:npm",
+  "npm exec -- ethos --version",
+  "node distributions/npm/bin/ethos.mjs --version",
+  "npm pack --dry-run",
   "uv run --package ethos ethos adopt --root <generic-pilot> --profile generic --apply --authorize --expect-head <head> --json",
   "uv run --package ethos ethos adopt --root <python-pilot> --profile python --apply --authorize --expect-head <head> --json",
   "uv run --package ethos ethos adopt --root <gitlab-pilot> --profile gitlab --apply --authorize --expect-head <head> --json",

@@ -148,6 +148,14 @@ profile = "minimal"
 planned = true
 
 [[tool]]
+concern = "ci_tool_supply"
+tool = "curl + cached CI artifact installers"
+config = ".config/ci/scripts/download-file.sh"
+artifacts = "build/cache/ci-tools/"
+profile = "product"
+gate = ".config/ci/scripts/install-gitleaks.sh and .config/ci/scripts/install-node.sh"
+
+[[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
 config = ".config/ci/scripts/run-local-ci.sh"

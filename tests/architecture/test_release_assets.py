@@ -47,7 +47,9 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert ".config/ci/scripts/bootstrap-python.sh" in text
     assert ".config/ci/scripts/install-lychee.sh" in text
     assert "LYCHEE_CACHE_DIR: build/cache/lychee" in text
+    assert "ETHOS_CI_TOOL_CACHE_DIR: build/cache/ci-tools" in text
     assert "build/cache/lychee/" in text
+    assert "build/cache/ci-tools/" in text
     assert ".config/ci/scripts/run-import-linter.sh" in text
     assert ".config/ci/scripts/run-docstring-coverage.sh" in text
     assert (
@@ -125,17 +127,36 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
 
 def test_ci_node_installer_is_architecture_aware() -> None:
     installer = (ROOT / ".config/ci/scripts/install-node.sh").read_text(encoding="utf-8")
+    downloader = (ROOT / ".config/ci/scripts/download-file.sh").read_text(encoding="utf-8")
 
     assert "uname -m" in installer
     assert "arm64" in installer
     assert "x64" in installer
     assert "nodejs.org/dist" in installer
     assert "NODE_VERSION" in installer
-    assert "--retry" in installer
-    assert "--retry-all-errors" in installer
-    assert "--max-time" in installer
+    assert "download-file.sh" in installer
+    assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
+    assert "build/cache/ci-tools" in installer
+    assert "tar tJf" in installer
     assert "command -v node" in installer
     assert "tar xJf" in installer
+    assert "--continue-at -" in downloader
+    assert "--speed-limit" in downloader
+    assert "ETHOS_CI_DOWNLOAD_ATTEMPTS" in downloader
+
+
+def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
+    installer = (ROOT / ".config/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
+    tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
+
+    assert "download-file.sh" in installer
+    assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
+    assert "build/cache/ci-tools" in installer
+    assert "tar tzf" in installer
+    assert "gitleaks_${version}_linux_${arch}.tar.gz" in installer
+    assert 'concern = "ci_tool_supply"' in tools
+    assert 'config = ".config/ci/scripts/download-file.sh"' in tools
+    assert 'artifacts = "build/cache/ci-tools/"' in tools
 
 
 def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:

@@ -231,6 +231,64 @@ def test_orient_projects_advisory_signals_from_report_fixture() -> None:
     assert "advisory signals 1" in "\n".join(human_orientation_lines(packet))
 
 
+def test_orient_human_output_names_foreign_lane_detail_counts() -> None:
+    packet = orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "dev",
+            "role": "accepted_root",
+            "head": "abcdef1234567890",
+            "dirty": False,
+            "changed_paths": [],
+            "required_gaps": [],
+            "closeout_support": {},
+            "coordination": {
+                "blocking": False,
+                "foreign_work_lane_count": 2,
+                "unbound_work_lane_count": 0,
+                "missing_lease_count": 1,
+                "dirty_foreign_work_lane_count": 1,
+                "overlap_count": 0,
+                "advisory_gaps": [
+                    "foreign_work_lane_present",
+                    "work_lane_missing_lease:work/example",
+                ],
+                "required_gaps": [],
+                "next_action": "bind or inspect Work Lane leases before candidate integration",
+                "unbound_work_lane_refs": [],
+            },
+            "candidate": {},
+            "runtime_binding": {"state": "bound", "advisory_gaps": []},
+            "landing_readiness": {"state": "not_work_lane", "required_gaps": []},
+            "foreign_work_lanes": [
+                {"branch": "work/example", "dirty": True},
+                {"branch": "work/other", "dirty": False},
+            ],
+        },
+        report_payload={
+            "summary": {
+                "score": 16,
+                "max_score": 16,
+                "governance_gap_count": 0,
+                "parity_pending_count": 0,
+                "advisory_gap_count": 0,
+            },
+            "required_gaps": [],
+            "data": {},
+        },
+    )
+
+    assert "2 foreign lane(s) visible (1 missing lease, 1 dirty)" in packet["human_summary"]
+    assert any(
+        line
+        == (
+            "coordination: 2 foreign lane(s) (1 missing lease, 1 dirty); "
+            "bind or inspect Work Lane leases before candidate integration"
+        )
+        for line in human_orientation_lines(packet)
+    )
+
+
 def test_orient_human_output_is_concise_and_actionable() -> None:
     json_payload = run_ethos("orient", "--json")
     orientation = json_payload["data"]["orientation"]

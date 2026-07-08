@@ -38,15 +38,27 @@ esac
 archive="gitleaks_${version}_linux_${arch}.tar.gz"
 url="https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}"
 
+cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/ci-tools}"
+cache_dir="${cache_root}/gitleaks/${version}"
+archive_path="${cache_dir}/${archive}"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-echo "Installing gitleaks ${version} for linux-${arch} from ${url}"
-curl --fail --location --show-error \
-  --connect-timeout 20 --max-time 180 \
-  --retry 5 --retry-delay 3 --retry-all-errors \
-  --output "${tmpdir}/${archive}" \
-  "${url}"
-tar -xzf "${tmpdir}/${archive}" -C "${tmpdir}" gitleaks
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "${cache_dir}"
+
+if [ ! -s "${archive_path}" ] || ! tar tzf "${archive_path}" >/dev/null 2>&1; then
+  rm -f "${archive_path}"
+  echo "Installing gitleaks ${version} for linux-${arch} from ${url}"
+  "${script_dir}/download-file.sh" "${url}" "${archive_path}"
+fi
+
+if ! tar tzf "${archive_path}" | grep -qx 'gitleaks'; then
+  echo "gitleaks binary not found in ${archive_path}" >&2
+  tar tzf "${archive_path}" >&2
+  exit 1
+fi
+
+tar -xzf "${archive_path}" -C "${tmpdir}" gitleaks
 install -m 0755 "${tmpdir}/gitleaks" /usr/local/bin/gitleaks
 gitleaks version

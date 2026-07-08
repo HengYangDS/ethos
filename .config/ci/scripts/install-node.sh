@@ -37,19 +37,26 @@ esac
 archive="node-v${version}-linux-${arch}.tar.xz"
 url="https://nodejs.org/dist/v${version}/${archive}"
 
+cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/ci-tools}"
+cache_dir="${cache_root}/node/${version}"
+archive_path="${cache_dir}/${archive}"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-echo "Installing node v${version} for linux-${arch} from ${url}"
-curl --fail --location --show-error \
-  --connect-timeout 20 --max-time 180 \
-  --retry 5 --retry-delay 3 --retry-all-errors \
-  --output "${tmpdir}/${archive}" \
-  "${url}"
-tar xJf "${tmpdir}/${archive}" -C "${tmpdir}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "${cache_dir}"
+
+if [ ! -s "${archive_path}" ] || ! tar tJf "${archive_path}" >/dev/null 2>&1; then
+  rm -f "${archive_path}"
+  echo "Installing node v${version} for linux-${arch} from ${url}"
+  "${script_dir}/download-file.sh" "${url}" "${archive_path}"
+fi
+
+tar xJf "${archive_path}" -C "${tmpdir}"
 node_dir="${tmpdir}/node-v${version}-linux-${arch}"
 if [ ! -x "${node_dir}/bin/node" ]; then
-  echo "node binary not found in ${archive}" >&2
+  echo "node binary not found in ${archive_path}" >&2
+  tar tJf "${archive_path}" >&2
   exit 1
 fi
 # Install into a prefix on PATH; the tarball bundles node, npm, and npx.

@@ -127,6 +127,106 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     ]
 
 
+def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_path: Path) -> None:
+    """Report should not hide non-blocking Work Lane residue coordination signals."""
+
+    monkeypatch.setattr(
+        report_domain,
+        "workspace_status",
+        lambda _repo: {
+            "coordination": {
+                "advisory_gaps": [
+                    "foreign_work_lane_present",
+                    "work_lane_missing_lease:work/orphan",
+                ],
+            },
+        },
+    )
+    monkeypatch.setattr(
+        report_domain.status_domain,
+        "audit_for_root",
+        lambda _repo, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {"profile": "product"},
+            "package_ontology": {"ok": True, "adapter_missing": []},
+            "schemas": {"ok": True},
+            "openspec": {"ok": True, "advisory_gaps": []},
+        },
+    )
+    monkeypatch.setattr(report_domain, "docs_health_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "claims_report",
+        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+    )
+    monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "projection_contract",
+        lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY},
+    )
+    monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "playbooks_report",
+        lambda _repo, mode="v2-strict": {
+            "ok": True,
+            "mode": mode,
+            "required_gaps": [],
+            "advisory_gaps": [],
+            "v2_compliance": {"score": 1, "max_score": 1},
+        },
+    )
+    monkeypatch.setattr(report_domain, "adoption_scaffold_report", lambda: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "parity_ledger_report",
+        lambda: {"ok": True, "summary": {"unclassified_count": 0}},
+    )
+    monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", lambda _repo: "head")
+    monkeypatch.setattr(
+        report_domain,
+        "parity_gaps_report",
+        lambda **_kwargs: {"ok": True, "required_gaps": [], "pending_packages": []},
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "context_projection_contract",
+        lambda: {
+            "authority": "projection",
+            "can_close_required_gaps": False,
+            "can_satisfy_proof": False,
+        },
+    )
+    monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
+    monkeypatch.setattr(
+        report_domain,
+        "_hard_quality_floor_report",
+        lambda _repo: {"ok": True, "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "standard_adapter_registry",
+        lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
+    )
+
+    payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == ()
+    assert payload["summary"]["advisory_gap_count"] == 2
+    advisory = payload["data"]["advisory_signals"]
+    assert advisory["blocking"] is False
+    assert advisory["advisory_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_missing_lease:work/orphan",
+    ]
+    assert advisory["next_actions"] == ["ethos orient --json", "ethos lane status --json"]
+
+
 def test_scorecard_next_actions_route_module_layout_gaps() -> None:
     """Module-layout hard floor gaps should point at the module-layout gate."""
 

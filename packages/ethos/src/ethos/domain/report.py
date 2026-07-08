@@ -9,6 +9,7 @@ import ethos.adapters.repo.git as git_adapter
 import ethos.domain.land as land_domain
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.signature import signature_policy_report
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.domain.prove import code_size_report
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 
 def scorecard_report(repo: Path) -> dict[str, object]:
     """Build the read-only report payload without emitting CLI output."""
+    status_payload = workspace_status(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     claim_report = claims_report(repo)
@@ -92,7 +94,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             + tuple(cast("list[str]", hard_quality_floor["required_gaps"]))
         )
     parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
-    advisory_gaps = _advisory_gaps(audit, claim_report, playbooks)
+    advisory_gaps = _advisory_gaps(audit, claim_report, playbooks, status_payload)
     advisory_next_actions = _advisory_next_actions(advisory_gaps)
     gap_layers = _gap_layers(
         result_required_gaps,
@@ -301,6 +303,7 @@ def _advisory_gaps(
     audit: dict[str, object],
     claim_report: dict[str, object],
     playbooks: dict[str, object],
+    status_payload: dict[str, object] | None = None,
 ) -> tuple[str, ...]:
     """Collect non-blocking small signals that should stay visible in report.
 
@@ -311,7 +314,9 @@ def _advisory_gaps(
     truth.
     """
     openspec = cast("dict[str, object]", audit.get("openspec") or {})
+    coordination = cast("dict[str, object]", (status_payload or {}).get("coordination") or {})
     values = [
+        *_strings(coordination.get("advisory_gaps")),
         *_strings(openspec.get("advisory_gaps")),
         *_strings(claim_report.get("advisory_gaps")),
         *_strings(playbooks.get("advisory_gaps")),
@@ -329,6 +334,11 @@ def _advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
     actions: list[str] = []
     for gap in advisory_gaps:
         parts = gap.split(":")
+        if gap in {
+            "foreign_work_lane_present",
+            "unbound_work_lane_ref_present",
+        } or gap.startswith(("work_lane_missing_lease:", "coordination_gap:")):
+            actions.extend(["ethos orient --json", "ethos lane status --json"])
         if len(parts) == 4 and parts[0] == "openspec_protected_branch_active_change_unarchived":
             branch = parts[1]
             role = parts[2]

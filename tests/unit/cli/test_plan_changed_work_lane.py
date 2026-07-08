@@ -74,3 +74,15 @@ evidence = ["unit-test"]
     assert payload["summary"]["matched_rule_count"] == 1
     assert payload["summary"]["required_gate_count"] == 1
     assert payload["data"]["matched_rules"][0]["matched_paths"] == ["src/demo.py"]
+
+
+def test_plan_changed_in_work_lane_tolerates_missing_candidate_ref(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(repo, "checkout", "-b", "work/feature")
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--changed", "--json", cwd=repo)
+
+    assert payload["summary"]["changed"] is True
+    assert payload["data"]["changed_paths"] == []

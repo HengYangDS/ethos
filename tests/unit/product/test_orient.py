@@ -126,7 +126,9 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
     assert payload["summary"]["dirty_foreign_work_lane_count"] == 0
     lane = coordination["foreign_work_lanes"][0]
     assert lane["branch"] == "work/feature"
+    assert lane["lease_owner"] == "agent:test"
     assert lane["lease_state"] == "leased"
+    assert lane["claim_binding"] == "missing"
     assert lane["dirty"] is False
     assert lane["current_actor_capability"] == "observe"
     assert lane["allowed_actions"] == ["observe"]

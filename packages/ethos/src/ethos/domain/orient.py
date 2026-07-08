@@ -282,7 +282,10 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "branch": str(item.get("branch") or ""),
         "path": str(item.get("path") or ""),
         "head": str(item.get("head") or ""),
+        "lease_owner": str(item.get("lease_owner") or ""),
+        "lease_state": str(item.get("lease_state") or ""),
         "claim_id": str(item.get("claim_id") or ""),
+        "claim_binding": str(item.get("claim_binding") or ""),
         "closeout_disposition": str(item.get("closeout_disposition") or ""),
         "coordination_state": str(item.get("coordination_state") or ""),
         "current_actor_capability": str(item.get("current_actor_capability") or "observe"),
@@ -290,7 +293,6 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "forbidden_actions": _strings(item.get("forbidden_actions")),
         "path_scope": _strings(item.get("path_scope")),
         "dirty": bool(item.get("dirty")),
-        "lease_state": str(item.get("lease_state") or ""),
     }
 
 

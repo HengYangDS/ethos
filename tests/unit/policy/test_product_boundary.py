@@ -76,7 +76,11 @@ def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_pat
         boundary._is_text_product_file(tmp_path / "docs" / "history" / "old.md", root=tmp_path)
         is False
     )
+    cache_file = tmp_path / "packages" / "ethos" / "__pycache__" / "module.py"
+    _write(cache_file, "cache\n")
+
     assert boundary._is_text_product_file(tmp_path / "README.bin", root=tmp_path) is False
+    assert boundary._is_text_product_file(cache_file, root=tmp_path) is False
     assert boundary._line_findings(binary, "docs/governance/bad.md", []) == []
     assert boundary.product_boundary_report(tmp_path)["summary"]["scanned_file_count"] == 1
 

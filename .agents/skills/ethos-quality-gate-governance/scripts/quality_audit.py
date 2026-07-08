@@ -154,13 +154,10 @@ def _coverage_policy_gaps(root: Path) -> list[str]:
 
 def _python_test_runner_gaps(root: Path) -> list[str]:
     python_tests = (root / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
-    coverage_policy, coverage_policy_gaps = load_toml(root / ".config/checks/coverage/policy.toml")
-    hard_floor = coverage_policy.get("current_hard_floor")
-    cov_floor_arg = (
-        f"--cov-fail-under={hard_floor:g}" if isinstance(hard_floor, (int, float)) else ""
-    )
+    _coverage_policy, coverage_policy_gaps = load_toml(root / ".config/checks/coverage/policy.toml")
     required_needles = (
-        cov_floor_arg,
+        "coverage_hard_floor=",
+        "--cov-fail-under=${coverage_hard_floor}",
         '--cov-config="${coverage_config_dir}/coverage.ini"',
         '--cov-report="xml:${coverage_evidence_dir}/coverage.xml"',
         'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"',

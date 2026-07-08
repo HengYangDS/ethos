@@ -203,3 +203,14 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "branch = True" in coverage
     assert "current_hard_floor = 100" in policy
     assert "aspirational_floor = 100" in policy
+
+
+def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
+    audit = (
+        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
+    ).read_text(encoding="utf-8")
+
+    assert "coverage_hard_floor=" in audit
+    assert "--cov-fail-under=${coverage_hard_floor}" in audit
+    assert "--cov-fail-under={hard_floor:g}" not in audit
+    assert "quality_python_tests_missing:--cov-fail-under=100" not in audit

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
-    "target_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
-    "product_semantic_sha256": "ae0da6f430fa93f5e97ca6e3c27fe6ab1d95e7c93fab2ee744e08d16a655b3d2",
-    "target_semantic_sha256": "ae0da6f430fa93f5e97ca6e3c27fe6ab1d95e7c93fab2ee744e08d16a655b3d2",
+    "product_head": "8966b1380822d948836493be629cfe6074f77410",
+    "target_head": "8966b1380822d948836493be629cfe6074f77410",
+    "product_semantic_sha256": "8532d96d767038406490dbf7c8e49979655a76bcb069acd0189f28f2a249ab0b",
+    "target_semantic_sha256": "8532d96d767038406490dbf7c8e49979655a76bcb069acd0189f28f2a249ab0b",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol",
-    "target_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
-    "product_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening",
+    "target_head": "8966b1380822d948836493be629cfe6074f77410",
+    "product_head": "8966b1380822d948836493be629cfe6074f77410",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
-      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-topology-module-layout-hardening --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "648bfe2c9958b2be1bd09ec97e53dc19641794497d3099a72900b16bdda98ecb"
+        "sha256": "84ac3eb785c1526931ba151b7b294f5e5d9acb55d3ae023883e6a0789f7c3e49"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6ecebb7baccd295a679a240f3bd80c34770934e7a4e229f87a39bc2e7fa2a9d5"
+        "sha256": "4d3b11c501a61b546a2cbfb384dbeebb4fd0e0d4d5718a9806dd870be2eb1063"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "f5b0c9b94be5ba9573411f32e1d42b2ba25fcb9289c2372d0cc86c41c3b16d93"
+        "sha256": "0051a4cde526b4a6f620e2f137bd80577284d1d47816cb189d1e7f385aabab19"
       },
       {
         "path": "rules",

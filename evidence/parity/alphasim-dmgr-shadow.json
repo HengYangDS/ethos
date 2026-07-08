@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "adopter": "alphasim-dmgr",
-  "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission",
+  "target": "/Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "d548be6b82dd3bd49a1a9550439c4e48f36b445f",
-    "target_head": "748b2bf39266aff3cabc03b9609d663f6b3d43fa",
-    "product_semantic_sha256": "6aa70b48b55750c13a1a52a615f1e5155de12404c33b74479464cbd6f309428a",
+    "product_head": "081b320ddd3f58ccee9da89fbf828b4bb59308c0",
+    "target_head": "718e9f9d05d993be8a6442ecd1f086dea2755a9f",
+    "product_semantic_sha256": "a980e3e712c13b9f8a2b38ca11affc624446aa53a7f6a78f85f91e61e3a66ea9",
     "target_semantic_sha256": "7f04b28235d3052ea0530541a0fc5667a5a1bc6e3c8d1ce38f650a6e149e405a",
-    "command_sha256": "12b7559a0a3b0e33b3c171ebefd564c4ebe7101bd5c909177102156ff309b3cd"
+    "command_sha256": "c537555464f871118a85849d7590cec7680188abbe96753163a19769fcd16123"
   },
   "shadow": {
     "ok": true,
@@ -38,9 +38,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission",
-    "target_head": "748b2bf39266aff3cabc03b9609d663f6b3d43fa",
-    "product_head": "d548be6b82dd3bd49a1a9550439c4e48f36b445f",
+    "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan",
+    "target_head": "718e9f9d05d993be8a6442ecd1f086dea2755a9f",
+    "product_head": "081b320ddd3f58ccee9da89fbf828b4bb59308c0",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -54,15 +54,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-retirement-ready-parity-20260709b/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-retirement-ready-admission --json"
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-embedded-retirement-plan-parity-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/alphasim-dmgr-fix-b3-work-external-ethos-embedded-retirement-plan --json"
     ],
     "embedded_commands": [
       "pixi run ethos status --json",
@@ -79,7 +79,7 @@
       {
         "path": ".cache/local-state",
         "kind": "directory",
-        "sha256": "8c0aaf1f825926226d49ec97601442ac67e5b4fa2757be0c7f674f03bcf2f27d"
+        "sha256": "a9a7ce4108db4b5b4b669e44a0868f837b0a09ea8e709d5e1a418f9e8f08a3a8"
       },
       {
         "path": ".ethos/profile.toml",
@@ -89,7 +89,7 @@
       {
         "path": "build/evidence",
         "kind": "directory",
-        "sha256": "40c8c314468c6a9a4416bbf9784ae114819f88d58985ce45365f367b84eb89a8"
+        "sha256": "dcb8cd36a06578b4ab33adbfb3c297955c5f6e4102ee1289af51f2f844b303d9"
       },
       {
         "path": "claims",
@@ -99,12 +99,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "2cce17f480438837987fcc6740fdf5e420fb064e4bfc01e57bf08b854c5f29fd"
+        "sha256": "63bd67fd9107a6095e2990afb1d2fc71e4c3ebc2b6d64c3ee516c6348d0fc5c7"
       },
       {
         "path": "docs/evidence",
         "kind": "directory",
-        "sha256": "cc9f28bbd89b86b029ce038dcf80608553fdf0dbbc32c7e0330208845beb3d2a"
+        "sha256": "fdc116d5ca3edc3958b5e25b9de8a1ff0105aa168cf4faf6bea5a902fce6506a"
       },
       {
         "path": "openspec",

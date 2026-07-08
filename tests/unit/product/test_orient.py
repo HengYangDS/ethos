@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.cli.test_contracts import git
 from tests.unit.cli.test_contracts import init_git_repo
 

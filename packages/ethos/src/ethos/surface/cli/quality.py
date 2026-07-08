@@ -46,7 +46,7 @@ from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.package_ontology import package_ontology_report
 from ethos_core.contracts.package_ontology import workspace_package_config_report
-from ethos_core.quality.docs_profile import docs_quality_profile
+from ethos_core.quality.docs.profile import docs_quality_profile
 from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles
 from ethos_core.quality.proof.policy import proof_lattice

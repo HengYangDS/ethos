@@ -3,12 +3,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import ethos_core.quality.docs_profile
+import ethos_core.quality.docs.profile
 import ethos_core.quality.gates
 import ethos_core.quality.models
 import ethos_core.quality.profiles
 import ethos_core.quality.proof.policy
-from ethos_core.quality.docs_profile import docs_quality_profile
+from ethos_core.quality.docs.profile import docs_quality_profile
 from ethos_core.quality.gates import product_gate_plan
 from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.proof.policy import proof_lattice
@@ -24,9 +24,10 @@ def test_quality_package_is_focused_and_importable() -> None:
     assert ethos_core.quality.models.__name__ == "ethos_core.quality.models"
     assert ethos_core.quality.profiles.__name__ == "ethos_core.quality.profiles"
     assert ethos_core.quality.gates.__name__ == "ethos_core.quality.gates"
-    assert ethos_core.quality.docs_profile.__name__ == "ethos_core.quality.docs_profile"
+    assert ethos_core.quality.docs.profile.__name__ == "ethos_core.quality.docs.profile"
     assert ethos_core.quality.proof.policy.__name__ == "ethos_core.quality.proof.policy"
     assert not (ROOT / "packages/ethos-core/src/ethos_core/quality/proof_policy.py").exists()
+    assert not (ROOT / "packages/ethos-core/src/ethos_core/quality/docs_profile.py").exists()
 
 
 def test_quality_profile_covers_repository_asset_classes() -> None:

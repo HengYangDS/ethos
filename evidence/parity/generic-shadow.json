@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "021221311eef6a29da476eb878e39845394d985e",
-    "target_head": "021221311eef6a29da476eb878e39845394d985e",
-    "product_semantic_sha256": "d3a1dc5d83e6f54e3dfae965fc2ed93c7881eb9ddeb8636b715e2e3416195979",
-    "target_semantic_sha256": "d3a1dc5d83e6f54e3dfae965fc2ed93c7881eb9ddeb8636b715e2e3416195979",
+    "product_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
+    "target_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
+    "product_semantic_sha256": "3ba5c58cc518ab53e3be0127d1811007ce9afdc410a927260d32f65e58432760",
+    "target_semantic_sha256": "3ba5c58cc518ab53e3be0127d1811007ce9afdc410a927260d32f65e58432760",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,10 +35,13 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package",
-    "target_head": "021221311eef6a29da476eb878e39845394d985e",
-    "product_head": "021221311eef6a29da476eb878e39845394d985e",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package",
+    "target_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
+    "product_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
+    "changed_paths": [
+      ".config/checks/module-layout/policy.toml",
+      "tests/architecture/test_release_assets.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +54,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json",
-      "/Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/assistants-playbook-routing-package --json"
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +84,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "912e2f925780b4d24f7af3800fc0262e6d0c4d6107a5fba9cbb2c41408c4a595"
+        "sha256": "b3c868e09328541a0055db85108e45f97c82d9b933c15957283541feff700d63"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "749ea3f5ed34979d945dccfdedd84ab4209a9c71f890eab1464a2400fe47762c"
+        "sha256": "de3e6d01aef25f7944e61ff3ec1c8c442d5b5c4cbff29fd70d15508a9f7a928c"
       },
       {
         "path": "openspec",

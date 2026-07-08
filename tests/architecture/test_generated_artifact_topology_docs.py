@@ -25,6 +25,8 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
     docs_topology = (ROOT / "docs/architecture/docs-topology.md").read_text(encoding="utf-8")
 
     assert "ethos quality generated-artifacts --json" in architecture
+    assert "fleet retirement-readiness" in architecture
+    assert "ethos quality generated-artifacts --root <repo> --json" in architecture
     assert "ethos quality generated-artifacts" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
     assert "ethos quality docs-topology --json" in docs_topology

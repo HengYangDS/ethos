@@ -371,6 +371,7 @@ def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -
         "Rollback Window",
         "Retirement Decision",
         "must not be deleted automatically",
+        "ethos quality generated-artifacts --root <repo> --json",
     ):
         assert phrase in text
     assert "ALPHASIMDMGR_ETHOS_BACKEND=external" in text

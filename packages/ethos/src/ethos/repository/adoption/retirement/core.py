@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from ethos.repository.adoption.retirement.rollback import rollback_window_checks
+from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.profile import load_repository_profile
 
@@ -73,6 +74,7 @@ def retirement_readiness_report(
         ),
         "product_boundary": _product_boundary_checks(product, adoption_boundary),
         "docs_topology": _docs_topology_checks(repo),
+        "generated_artifacts": _generated_artifacts_checks(repo),
         "parity": _parity_checks(parity_gaps),
         "shadow": _shadow_checks(shadow),
     }
@@ -213,6 +215,28 @@ def _docs_topology_checks(repo: Path) -> dict[str, object]:
     }
 
 
+def _generated_artifacts_checks(repo: Path) -> dict[str, object]:
+    report = generated_artifact_topology_report(repo)
+    gaps = [
+        f"retirement_generated_artifacts:{gap}" for gap in _string_list(report.get("required_gaps"))
+    ]
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    return {
+        "ok": not gaps,
+        "state": report.get("state", ""),
+        "allowed_paths": _string_list(report.get("allowed_paths")),
+        "denied_paths": _string_list(report.get("denied_paths")),
+        "review_paths": _string_list(report.get("review_paths")),
+        "required_gaps": gaps,
+        "summary": {
+            "allowed_path_count": summary.get("allowed_path_count", 0),
+            "denied_path_count": summary.get("denied_path_count", 0),
+            "review_path_count": summary.get("review_path_count", 0),
+            "review_gap_count": summary.get("review_gap_count", 0),
+        },
+    }
+
+
 def _parity_checks(parity_gaps: dict[str, object] | None) -> dict[str, object]:
     if parity_gaps is None:
         return {
@@ -258,6 +282,8 @@ def _shadow_checks(shadow: dict[str, object] | None) -> dict[str, object]:
 def _report_state(lifecycle_stage: str, gaps: list[str]) -> str:
     if any(gap.startswith("retirement_docs_topology:") for gap in gaps):
         return "docs_topology_open"
+    if any(gap.startswith("retirement_generated_artifacts:") for gap in gaps):
+        return "generated_artifacts_open"
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         return "rollback_window_evidence_open"
     return lifecycle_stage
@@ -305,6 +331,8 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
         actions.append("freeze embedded backend as fallback/reference during rollback window")
     if any(gap.startswith("retirement_docs_topology:") for gap in gaps):
         actions.append(f"ethos quality docs-topology --root {repo.as_posix()} --json")
+    if any(gap.startswith("retirement_generated_artifacts:") for gap in gaps):
+        actions.append(f"ethos quality generated-artifacts --root {repo.as_posix()} --json")
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         actions.append(
             "populate [rollback_window] with a manifest and completed proof_report, "

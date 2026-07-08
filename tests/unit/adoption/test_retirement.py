@@ -366,6 +366,25 @@ def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
     assert report["required_gaps"] == []
 
 
+def test_retirement_readiness_blocks_generated_artifact_drift(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _prepare_terminal_profile(tmp_path)
+    (adopter / "report.json").write_text("{}\n", encoding="utf-8")
+    _git_add_all(adopter)
+
+    report = _terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert report["state"] == "generated_artifacts_open"
+    assert (
+        "retirement_generated_artifacts:generated_artifact_repo_root_drift:report.json"
+        in report["required_gaps"]
+    )
+    assert report["checks"]["generated_artifacts"]["ok"] is False
+    assert any("ethos quality generated-artifacts" in action for action in report["next_actions"])
+
+
 def test_retirement_readiness_blocks_missing_docs_topology_kernel(
     tmp_path: Path,
 ) -> None:

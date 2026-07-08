@@ -107,13 +107,15 @@ ethos fleet retirement-readiness --target <repo> --json
 This gate reads the adopter's `.ethos/profile.toml`, rejects product-core
 adopter directories declared forbidden by that profile, checks tracked/live
 shadow parity, requires `external>=embedded`, requires the embedded backend to
-be frozen as fallback/reference, and verifies a generic `[rollback_window]`
-evidence manifest with completed `proof_report`, `work_lane_closeout`,
-`domain_gate`, and `assistant_playbook` scenarios before accepting a
-`retirement_ready` backend state. The manifest must be adopter-repository local,
-Git-tracked, TOML-readable, bound to reachable adopter and external-product
-heads, and backed by scenario entries carrying evidence paths, commands, and
-digests. The final Retirement Decision remains a separate governance act.
+be frozen as fallback/reference, runs the same generated artifact topology audit
+used by product proof (`ethos quality generated-artifacts --root <repo> --json`),
+and verifies a generic `[rollback_window]` evidence manifest with completed
+`proof_report`, `work_lane_closeout`, `domain_gate`, and `assistant_playbook`
+scenarios before accepting a `retirement_ready` backend state. The manifest must
+be adopter-repository local, Git-tracked, TOML-readable, bound to reachable
+adopter and external-product heads, and backed by scenario entries carrying
+evidence paths, commands, and digests. The final Retirement Decision remains a
+separate governance act.
 
 The decision must answer:
 

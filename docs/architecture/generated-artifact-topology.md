@@ -61,6 +61,14 @@ adopter-owned: remove or relax the adopter declaration, move raw generated
 outputs back to an ignored local/build home, and keep only curated evidence that
 has already been reviewed and promoted.
 
+`ethos fleet retirement-readiness --target <repo> --root <product> --json`
+consumes this same audit before it can approve an embedded-backend retirement. A
+retirement candidate must be clean under
+`ethos quality generated-artifacts --root <repo> --json`; generated drift in repo
+root, `.config/`, semantic docs truth, or source trees remains a blocking
+adoption/rollback gap until moved to ignored runtime/build homes or promoted as
+curated evidence.
+
 ## Documentation Kernel
 
 ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel

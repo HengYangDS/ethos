@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
-    "target_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
-    "product_semantic_sha256": "88e0c8c0c3a5b9213df985c043125718ab16fd27297440a7929fc12d462b6854",
-    "target_semantic_sha256": "88e0c8c0c3a5b9213df985c043125718ab16fd27297440a7929fc12d462b6854",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
+    "target_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
+    "product_semantic_sha256": "afbb3736b4e58acc2fb790f44636c506e1e90145f213b0caa7dcc754a0015844",
+    "target_semantic_sha256": "afbb3736b4e58acc2fb790f44636c506e1e90145f213b0caa7dcc754a0015844",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/product-boundary-purity",
-    "target_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
-    "product_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window",
+    "target_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
+    "product_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json"
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
+      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1ee700513c5649e9d030de3680e39879ce3837a4d86af090aacfda816907d048"
+        "sha256": "4a705e94030971c7abf5aed7b47af91e24ed99e4f17db1da0d0ccd0ef0eeb39d"
       },
       {
         "path": "evidence/claims",

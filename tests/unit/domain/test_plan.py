@@ -46,9 +46,7 @@ def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(
     ]
 
 
-def test_contract_profile_matches_filters_invalid_profiles_and_contracts(
-    tmp_path, monkeypatch
-):
+def test_contract_profile_matches_filters_invalid_profiles_and_contracts(tmp_path, monkeypatch):
     policy = tmp_path / "rules" / "contracts.toml"
     policy.parent.mkdir(parents=True)
     policy.write_text(

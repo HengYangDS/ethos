@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "31b92db4e902cdfc6d1a17adac4023e2024d8b4a",
-    "target_head": "31b92db4e902cdfc6d1a17adac4023e2024d8b4a",
-    "product_semantic_sha256": "abd222e99a2379157664c1e0d98c35098ed3cf3397061733f58ed97c1eaa2ccf",
-    "target_semantic_sha256": "abd222e99a2379157664c1e0d98c35098ed3cf3397061733f58ed97c1eaa2ccf",
+    "product_head": "1c0cdc0a0012b7278938af0da8cf1c3b5dee461f",
+    "target_head": "1c0cdc0a0012b7278938af0da8cf1c3b5dee461f",
+    "product_semantic_sha256": "c52b03ef4a778037da995e0315898f739f03e5c0e5180ebf85929a6a8eaf4efa",
+    "target_semantic_sha256": "c52b03ef4a778037da995e0315898f739f03e5c0e5180ebf85929a6a8eaf4efa",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism",
-    "target_head": "31b92db4e902cdfc6d1a17adac4023e2024d8b4a",
-    "product_head": "31b92db4e902cdfc6d1a17adac4023e2024d8b4a",
+    "target_root": "/Users/yheng/projects/ethos-work-docs-isp-kernel",
+    "target_head": "1c0cdc0a0012b7278938af0da8cf1c3b5dee461f",
+    "product_head": "1c0cdc0a0012b7278938af0da8cf1c3b5dee461f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-tool-supply-determinism --json"
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json",
+      "/Users/yheng/projects/ethos-work-docs-isp-kernel/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-docs-isp-kernel --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a400997b325cbc46b97dcce15061f8189604ce7dbbb052047ab13af264126393"
+        "sha256": "492ac3dbc2f79db50ba2a93b7824e7ec33c0acfa5807927d902627701506d603"
       },
       {
         "path": "evidence/claims",

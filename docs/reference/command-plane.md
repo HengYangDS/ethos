@@ -211,10 +211,11 @@ Both commands include a `schema_validation` diagnostic for the live
 workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
 so the workspace-status object remains schema-valid.
-`ethos status --json` also lifts first-glance coordination state into
-`summary.foreign_work_lane_count`, `summary.unbound_work_lane_count`,
-`summary.missing_lease_count`, `summary.dirty_foreign_work_lane_count`,
-`summary.coordination_advisory_count`, and `summary.coordination_blocking`.
+`ethos status --json` and `ethos lane status --json` also lift
+first-glance coordination state into `summary.foreign_work_lane_count`,
+`summary.unbound_work_lane_count`, `summary.missing_lease_count`,
+`summary.dirty_foreign_work_lane_count`, `summary.coordination_advisory_count`,
+`summary.coordination_blocking`, and `summary.coordination_next_action`.
 Those summary fields are derived visibility signals for humans and agents; they
 do not replace `data.coordination`, do not add cleanup authority, and do not
 change whether a coordination signal is advisory or required.

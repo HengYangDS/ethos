@@ -61,17 +61,33 @@ def lane_status(
         command="lane status",
         ok=ok,
         state="ready" if ok else "invalid",
-        summary={
-            "branch": status_payload["branch"],
-            "role": status_payload["role"],
-            "foreign_work_lane_count": len(status_payload["foreign_work_lanes"]),
-        },
+        summary=_lane_status_summary(status_payload),
         diagnostics=(validation,),
         required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
         next_actions=_lane_status_next_actions(status_payload),
         data=status_payload,
     )
     emit(result, json_output=json_output, enforce=False)
+
+
+def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]:
+    coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
+    foreign_lanes = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes", []))
+    advisory_gaps = coordination.get("advisory_gaps", [])
+    advisory_items = advisory_gaps if isinstance(advisory_gaps, list | tuple) else ()
+    return {
+        "branch": status_payload["branch"],
+        "role": status_payload["role"],
+        "foreign_work_lane_count": int(
+            coordination.get("foreign_work_lane_count") or len(foreign_lanes)
+        ),
+        "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
+        "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+        "dirty_foreign_work_lane_count": sum(1 for lane in foreign_lanes if lane.get("dirty")),
+        "coordination_advisory_count": len(advisory_items),
+        "coordination_blocking": bool(coordination.get("blocking")),
+        "coordination_next_action": str(coordination.get("next_action") or ""),
+    }
 
 
 def _lane_status_next_actions(status_payload: dict[str, object]) -> tuple[str, ...]:

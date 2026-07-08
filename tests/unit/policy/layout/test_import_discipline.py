@@ -87,3 +87,38 @@ def test_module_layout_does_not_block_unchanged_private_from_import_debt(
     assert not any(
         str(gap).startswith("module_layout_private_from_import:") for gap in report["required_gaps"]
     )
+
+
+def test_import_discipline_ignores_relative_star_dunder_and_rename_status(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "renamed.py",
+        "from .provider import _relative_private\n"
+        "from ethos.sample.provider import *\n"
+        "from ethos.sample.provider import __dunder_private\n",
+    )
+    _write(tmp_path / ".config" / "checks" / "module-layout" / "policy.toml", "")
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args == ("status", "--porcelain"):
+            return "\nR  packages/ethos/src/ethos/old.py -> packages/ethos/src/ethos/renamed.py\n"
+        if args == ("rev-parse", "--verify", "HEAD"):
+            return "abc\n"
+        if args == ("show", "HEAD:.config/checks/module-layout/policy.toml"):
+            return ""
+        if args[:3] == ("diff", "--name-only", "HEAD"):
+            return "packages/ethos/src/ethos/renamed.py\n"
+        if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
+            return "packages/ethos/src/ethos/renamed.py\n"
+        return None
+
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    report = module_layout_report(tmp_path)
+
+    assert report["private_from_import_regression_findings"] == []
+    assert not any(
+        str(gap).startswith("module_layout_private_from_import:") for gap in report["required_gaps"]
+    )

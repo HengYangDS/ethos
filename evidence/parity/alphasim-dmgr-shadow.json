@@ -5,9 +5,9 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "1d2d52074a0e8095e4158796cdf9f473c1e612b1",
+    "product_head": "2941721cdb61bb3e022b5e8227c7d4adcf31c30b",
     "target_head": "3ddb4824a52ddc2a15786ab771392fc82cddbd22",
-    "product_semantic_sha256": "4f954ece38c98fa5df2189f5d6be11385f49cab79e7381aec4277eaa3d317be1",
+    "product_semantic_sha256": "af646f98046c98787a3b96a183213261a5afc7ba6300d62ddd169b57273415dc",
     "target_semantic_sha256": "9863514be366cedd42b0764081e68c42d7e321c06292bd25b9178488f73b15b5",
     "command_sha256": "355ebf6beb9cf39ce36a629b0cb5b6894a825edf0fb5de10597cf775ede3c3c5"
   },
@@ -39,7 +39,7 @@
   "identity": {
     "target_root": "/Users/yheng/projects/alphasim-dmgr-fix-b3-candidate-dev",
     "target_head": "3ddb4824a52ddc2a15786ab771392fc82cddbd22",
-    "product_head": "1d2d52074a0e8095e4158796cdf9f473c1e612b1",
+    "product_head": "2941721cdb61bb3e022b5e8227c7d4adcf31c30b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",

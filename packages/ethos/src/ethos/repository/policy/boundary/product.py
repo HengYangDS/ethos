@@ -270,6 +270,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         "policy": {
             "product_surfaces": list(PRODUCT_SURFACES),
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
+            "local_state_surface_prefixes": [".ethos/state/"],
             "package_metadata_files": list(PACKAGE_METADATA_FILES),
             "boundary": (
                 "historical evidence may name facts; active product surfaces "

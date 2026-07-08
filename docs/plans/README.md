@@ -22,3 +22,8 @@ A plan may guide future work, but it cannot justify runtime, proof, retirement,
 or publication claims until promoted into source, tests, package metadata,
 accepted decisions, canonical governance/reference docs, OpenSpec records,
 claims, or evidence.
+
+## Current Plans
+
+- [Terminal Governance Product Design](terminal-governance-product-design.md)
+- [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)

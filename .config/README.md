@@ -20,6 +20,33 @@ configuration plane, not a truth center.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
 - The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `tools/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
 - `tools/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
+- `.config/ci/templates/hosted/` owns provider CI template sources.
+  `.github/workflows/ci.yml` and `.gitlab-ci.yml` are checked projections over
+  those templates; `tools/ci/scripts/run-ci-template-check.sh` is the drift gate.
+- `.config/ci/emulators/` owns local provider emulator config for `act` and
+  `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
+  claim hosted GitHub or GitLab status.
+- `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
+  `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate.
+- `.config/checks/format/selection.toml` owns report-first carrier and
+  file-format boundary checks; `tools/ci/scripts/run-format-selection.sh` is the
+  reusable runner.
+- `.config/checks/architecture/projection.toml` owns architecture projection
+  drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated
+  diagram is review aid, not architecture truth.
+- `.config/checks/runbook/registry.toml` owns runbook registry drift;
+  `docs/reference/runbook-registry.md` is the human-facing registry.
+- `.config/checks/mcp/smoke.toml` owns MCP projection smoke. The smoke gate
+  checks local projection configuration only and does not claim MCP semantic
+  correctness or repository proof.
+- `.config/checks/evidence/closeout.toml` owns closeout evidence manifest
+  checks. It hashes reviewed claim, chronicle, and OpenSpec carriers while
+  keeping raw logs/generated reports out of repository truth.
+- `.config/checks/local-state/audit.toml` owns local/generated state boundary
+  checks. Runtime state remains ignored unless promoted into reviewed evidence.
+- `.config/release/supply-chain.toml` owns ETHOS-native release evidence
+  envelopes for SBOM, attestation, and release policy. External signing and SLSA
+  upload adapters remain optional until separately admitted.
 - `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
 - `system/tools.toml` records why each gate exists, which profile owns it, where

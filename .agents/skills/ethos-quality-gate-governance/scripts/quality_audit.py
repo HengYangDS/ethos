@@ -1,9 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
+import shutil
+import sys
+
+if sys.version_info < (3, 11):
+    if os.environ.get("ETHOS_QUALITY_AUDIT_BOOTSTRAPPED") != "1":
+        uv = shutil.which("uv")
+        if uv:
+            env = os.environ.copy()
+            env["ETHOS_QUALITY_AUDIT_BOOTSTRAPPED"] = "1"
+            os.execvpe(uv, [uv, "run", "python", __file__, *sys.argv[1:]], env)
+    sys.stderr.write("quality_audit.py requires Python >= 3.11 or uv on PATH.\n")
+    raise SystemExit(2)
+
 import json
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any

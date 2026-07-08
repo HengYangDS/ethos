@@ -1,0 +1,51 @@
+[claim]
+id = "tooling-adoption-roadmap"
+subject = "ethos:tooling-adoption-roadmap"
+state = "active"
+change_id = "tooling-adoption-roadmap"
+summary = "ETHOS records a provider-neutral tooling adoption roadmap and horizontal dmgr/di-effect mechanism comparison without promoting adopter tools into product ontology."
+
+[evidence]
+dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
+sha256 = "602eda19e63ae2a5ed321c811cf080bde5402a67b906311ffa970ee53211dcc9"
+evidence_ids = ["evidence:tooling-adoption-roadmap"]
+binding = "Roadmap, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos prove --execute --expect-head <head> --json",
+]
+
+[boundary]
+external_signing_image_scan_vuln_adapters = "deferred_follow_up_work_lanes"
+owner = "ethos-governance"
+scope = "Planning, comparison, and selected gate surfaces for GitHub/GitLab provider parity, local CI emulators, quality and architecture tooling, OpenSpec schema customization, Superpowers boundary, optional tool adapters, and remaining external security/release adapters"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap"
+fallback = "Keep current GitLab CI and local owner gate bundle while implementing provider parity in follow-up Work Lanes."
+kill_signal = "A planned adapter is reported as an active ETHOS gate, or GitHub/GitLab/Superpowers/Nox/Pixi/Pants/Backlog becomes product ontology instead of a bounded adapter."
+
+[promotion]
+targets = [
+  "docs/governance/forge-provider-contract.md",
+  "docs/plans/tooling-adoption-roadmap.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/proposal.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/design.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/tasks.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/specs/repository-governance/spec.md",
+  "system/tools.toml",
+  ".config/checks/ci/templates.toml",
+  ".config/checks/format/selection.toml",
+  ".config/checks/architecture/projection.toml",
+  ".config/checks/runbook/registry.toml",
+  ".config/checks/mcp/smoke.toml",
+  ".config/checks/evidence/closeout.toml",
+  ".config/checks/local-state/audit.toml",
+  ".config/release/supply-chain.toml",
+  "evidence/claims/tooling-adoption-roadmap.toml",
+  "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md",
+]

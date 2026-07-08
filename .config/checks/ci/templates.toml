@@ -1,0 +1,67 @@
+schema = "ethos-ci-template-consistency-v1"
+owner = "ethos-quality-gate-governance"
+summary = "Hosted forge CI files are projections over tracked provider templates."
+
+[[projection]]
+provider = "github"
+template = ".config/ci/templates/hosted/github-actions.yml"
+projection = ".github/workflows/ci.yml"
+local_emulator = ".config/ci/emulators/act.yml"
+required_owner_scripts = [
+  "tools/ci/scripts/bootstrap-python.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-bandit.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-product-boundary.sh",
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-ci-template-check.sh",
+  "tools/ci/scripts/run-actionlint.sh",
+  "tools/ci/scripts/run-format-selection.sh",
+  "tools/ci/scripts/run-architecture-projection-drift.sh",
+  "tools/ci/scripts/run-runbook-registry-check.sh",
+  "tools/ci/scripts/run-mcp-smoke.sh",
+  "tools/ci/scripts/run-closeout-evidence-manifest.sh",
+  "tools/ci/scripts/run-local-state-audit.sh",
+  "tools/ci/scripts/run-release-supply-chain.sh",
+]
+
+[[projection]]
+provider = "gitlab"
+template = ".config/ci/templates/hosted/gitlab-ci.yml"
+projection = ".gitlab-ci.yml"
+local_emulator = ".config/ci/emulators/gitlab.yml"
+required_owner_scripts = [
+  "tools/ci/scripts/bootstrap-python.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-bandit.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-product-boundary.sh",
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-ci-template-check.sh",
+  "tools/ci/scripts/run-format-selection.sh",
+  "tools/ci/scripts/run-architecture-projection-drift.sh",
+  "tools/ci/scripts/run-runbook-registry-check.sh",
+  "tools/ci/scripts/run-mcp-smoke.sh",
+  "tools/ci/scripts/run-closeout-evidence-manifest.sh",
+  "tools/ci/scripts/run-local-state-audit.sh",
+  "tools/ci/scripts/run-release-supply-chain.sh",
+]
+
+[evidence]
+local_github_emulator_dir = "build/evidence/local-ci/github"
+local_gitlab_emulator_dir = "build/evidence/local-ci/gitlab"
+hosted_status_claim_boundary = "local emulators MUST NOT claim hosted provider status"

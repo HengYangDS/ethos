@@ -1,0 +1,58 @@
+schema = "ethos-runbook-registry-v1"
+owner = "ethos-quality-gate-governance"
+registry = "docs/reference/runbook-registry.md"
+runner = "tools/ci/scripts/run-runbook-registry-check.sh"
+
+[[entry]]
+id = "RUN-CI-TEMPLATES"
+command = "tools/ci/scripts/run-ci-template-check.sh"
+category = "provider-projection"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-GITHUB-EMULATOR"
+command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-github-local-emulator.sh doctor"
+category = "provider-emulator"
+evidence = "build/evidence/local-ci/github/doctor.json"
+
+[[entry]]
+id = "RUN-GITLAB-EMULATOR"
+command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor"
+category = "provider-emulator"
+evidence = "build/evidence/local-ci/gitlab/doctor.json"
+
+[[entry]]
+id = "RUN-FORMAT-SELECTION"
+command = "tools/ci/scripts/run-format-selection.sh"
+category = "format-boundary"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-ARCHITECTURE-PROJECTION"
+command = "tools/ci/scripts/run-architecture-projection-drift.sh"
+category = "architecture-projection"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-MCP-SMOKE"
+command = "tools/ci/scripts/run-mcp-smoke.sh"
+category = "agent-projection"
+evidence = "build/evidence/agent/mcp/smoke.json"
+
+[[entry]]
+id = "RUN-CLOSEOUT-MANIFEST"
+command = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
+category = "evidence-operation"
+evidence = "build/evidence/workflow/closeout/manifest.json"
+
+[[entry]]
+id = "RUN-LOCAL-STATE-AUDIT"
+command = "tools/ci/scripts/run-local-state-audit.sh"
+category = "local-state"
+evidence = "build/evidence/local-state/audit.json"
+
+[[entry]]
+id = "RUN-RELEASE-SUPPLY-CHAIN"
+command = "tools/ci/scripts/run-release-supply-chain.sh"
+category = "release-supply-chain"
+evidence = "build/evidence/release/supply-chain.json"

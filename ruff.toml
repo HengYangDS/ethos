@@ -6,7 +6,10 @@
 extend = ".config/checks/ruff/ruff.toml"
 
 [lint.per-file-ignores]
-".agents/skills/**/scripts/*.py" = ["T201", "INP001"]
+# Repo-local skill scripts are executable host adapters; `quality_audit.py` keeps
+# a defensive Python<3.11 uv re-exec path for direct host invocation even though
+# the product runtime floor is Python 3.12.
+".agents/skills/**/scripts/*.py" = ["T201", "INP001", "UP036"]
 # These reflect pytest's DESIGN, not fixable debt: S101 (pytest uses `assert`),
 # INP001 (test dirs are deliberately not import packages), PLR2004 (asserting against
 # a literal expected value is the correct test idiom), E501 (unbreakable assertion

@@ -67,6 +67,10 @@ def test_product_boundary_ignores_local_ethos_state(tmp_path: Path) -> None:
 
 def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_path: Path) -> None:
     _write(tmp_path / "docs" / "history" / "old.md", "historical\n")
+    _write(
+        tmp_path / ".ethos" / "state" / "proof" / "local.json",
+        "/" + "Users/person/project\n",
+    )
     _write(tmp_path / "README.bin", "binary-ish\n")
     binary = tmp_path / "docs" / "governance" / "bad.md"
     binary.parent.mkdir(parents=True, exist_ok=True)
@@ -81,6 +85,12 @@ def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_pat
 
     assert boundary._is_text_product_file(tmp_path / "README.bin", root=tmp_path) is False
     assert boundary._is_text_product_file(cache_file, root=tmp_path) is False
+    assert (
+        boundary._is_text_product_file(
+            tmp_path / ".ethos" / "state" / "proof" / "local.json", root=tmp_path
+        )
+        is False
+    )
     assert boundary._line_findings(binary, "docs/governance/bad.md", []) == []
     assert boundary.product_boundary_report(tmp_path)["summary"]["scanned_file_count"] == 1
 

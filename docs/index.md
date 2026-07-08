@@ -20,6 +20,7 @@ Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
 [Product Design Contract](governance/product-design-contract.md),
 [Terminal Governance Product Design](plans/terminal-governance-product-design.md),
+[Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
@@ -65,12 +66,14 @@ or maintainer break-glass evidence.
 - Plans docs: [Plans Documentation](plans/README.md)
 - History docs: [History Documentation](history/README.md)
 - Terminal target design: [Terminal Governance Product Design](plans/terminal-governance-product-design.md)
+- Tooling adoption roadmap: [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md)
 - Rule system: [Rules System](../rules/README.md)
 - Skills: [Skills](../.agents/skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
+- Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
 - Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)

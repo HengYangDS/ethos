@@ -1,0 +1,27 @@
+name: ETHOS local act CI
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  UV_LINK_MODE: copy
+  UV_CACHE_DIR: .uv-cache
+  ETHOS_LOCAL_PROVIDER_EMULATOR: github-act
+
+jobs:
+  local-owner-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bootstrap Python and OpenSpec
+        run: tools/ci/scripts/bootstrap-python.sh
+      - name: Local owner gate bundle
+        run: tools/ci/scripts/run-local-ci.sh
+      - name: CI projection drift
+        run: tools/ci/scripts/run-ci-template-check.sh

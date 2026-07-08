@@ -215,10 +215,11 @@ planned = true
 
 [[tool]]
 concern = "sbom"
-tool = "syft"
-config = ".config/release/"
+tool = "ethos quality sbom"
+config = ".config/release/supply-chain.toml"
+artifacts = "build/evidence/release/"
+gate = "tools/ci/scripts/run-release-supply-chain.sh"
 profile = "release"
-planned = true
 
 [[tool]]
 concern = "image_package_scan"
@@ -230,13 +231,145 @@ planned = true
 [[tool]]
 concern = "signing"
 tool = "sigstore,cosign"
-config = ".config/release/"
+config = ".config/release/supply-chain.toml"
 profile = "release"
 planned = true
+adapter_only = true
 
 [[tool]]
 concern = "attestation"
-tool = "in-toto,slsa"
-config = "evidence/attestations/"
+tool = "ethos quality release-attestation"
+config = ".config/release/supply-chain.toml"
+artifacts = "build/evidence/release/"
+gate = "tools/ci/scripts/run-release-supply-chain.sh"
 profile = "release"
+
+[[tool]]
+concern = "ci_template_consistency"
+tool = "ethos-ci-template-sync"
+config = ".config/ci/templates/hosted/ + .config/checks/ci/templates.toml"
+gate = "tools/ci/scripts/run-ci-template-check.sh"
+profile = "provider"
+
+[[tool]]
+concern = "github_workflow_syntax"
+tool = "actionlint"
+config = ".config/checks/github/actionlint.toml"
+gate = "tools/ci/scripts/run-actionlint.sh"
+profile = "provider"
+
+[[tool]]
+concern = "github_local_emulator"
+tool = "act"
+config = ".config/ci/emulators/act.yml"
+artifacts = "build/evidence/local-ci/github/"
+gate = "tools/ci/scripts/run-github-local-emulator.sh"
+profile = "provider"
+
+[[tool]]
+concern = "gitlab_local_emulator"
+tool = "gitlab-ci-local"
+config = ".config/ci/emulators/gitlab.yml"
+artifacts = "build/evidence/local-ci/gitlab/"
+gate = "tools/ci/scripts/run-gitlab-local-emulator.sh"
+profile = "provider"
+
+[[tool]]
+concern = "architecture_modeling"
+tool = "LikeC4-like source -> Mermaid"
+config = ".config/checks/architecture/"
+artifacts = "docs/architecture/_generated/"
+gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
+profile = "architecture"
+
+[[tool]]
+concern = "architecture_projection_drift"
+tool = "ethos-architecture-projection-drift"
+config = ".config/checks/architecture/projection.toml"
+gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
+profile = "architecture"
+
+[[tool]]
+concern = "format_selection"
+tool = "ethos-format-selection"
+config = ".config/checks/format/selection.toml"
+gate = "tools/ci/scripts/run-format-selection.sh"
+profile = "product"
+
+[[tool]]
+concern = "semantic_owner_redundancy"
+tool = "ethos-semantic-owner + redundancy audit"
+config = ".config/checks/architecture/semantic-owner.toml"
+profile = "product"
 planned = true
+
+[[tool]]
+concern = "local_state_audit"
+tool = "ethos-local-state-audit"
+config = ".config/checks/local-state/audit.toml"
+artifacts = "build/evidence/local-state/"
+gate = "tools/ci/scripts/run-local-state-audit.sh"
+profile = "product"
+
+[[tool]]
+concern = "closeout_evidence_manifest"
+tool = "ethos-closeout-evidence-manifest"
+config = ".config/checks/evidence/closeout.toml"
+artifacts = "build/evidence/workflow/closeout/"
+gate = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
+profile = "product"
+
+[[tool]]
+concern = "runbook_registry"
+tool = "ethos-runbook-registry"
+config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"
+gate = "tools/ci/scripts/run-runbook-registry-check.sh"
+profile = "docs"
+
+[[tool]]
+concern = "mcp_smoke"
+tool = "ethos-mcp-smoke"
+config = ".config/checks/mcp/smoke.toml"
+artifacts = "build/evidence/agent/mcp/"
+gate = "tools/ci/scripts/run-mcp-smoke.sh"
+profile = "agent-projection"
+
+[[tool]]
+concern = "nox_runner_adapter"
+tool = "nox"
+config = "adopter-owned noxfile.py"
+profile = "python-adopter"
+planned = true
+adapter_only = true
+
+[[tool]]
+concern = "pixi_environment_adapter"
+tool = "pixi"
+config = "adopter-owned pixi.toml or pyproject [tool.pixi]"
+profile = "adopter-toolchain"
+planned = true
+adapter_only = true
+
+[[tool]]
+concern = "pants_graph_adapter"
+tool = "pants"
+config = "adopter-owned pants.toml"
+profile = "adopter-toolchain"
+planned = true
+adapter_only = true
+
+[[tool]]
+concern = "task_ledger_adapter"
+tool = "Backlog-compatible task ledger"
+config = "adopter-owned task ledger profile"
+profile = "adopter"
+planned = true
+adapter_only = true
+
+[[tool]]
+concern = "agent_method_pack_adapter"
+tool = "Superpowers-compatible method pack"
+config = "host-installed official plugin or equivalent method pack"
+profile = "agent-projection"
+planned = true
+adapter_only = true

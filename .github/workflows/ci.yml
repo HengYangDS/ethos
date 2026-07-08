@@ -1,0 +1,121 @@
+name: ETHOS CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - candidate/dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_LINK_MODE: copy
+  UV_CACHE_DIR: .uv-cache
+  LYCHEE_CACHE_DIR: build/cache/lychee
+  ETHOS_CI_TOOL_CACHE_DIR: build/cache/ci-tools
+
+jobs:
+  quality:
+    name: quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bootstrap Python and OpenSpec
+        run: tools/ci/scripts/bootstrap-python.sh
+      - name: Python lint
+        run: tools/ci/scripts/run-python-lint.sh
+      - name: Type policy
+        run: uv run --all-packages --group dev ethos quality types --json
+      - name: Import boundaries
+        run: tools/ci/scripts/run-import-linter.sh
+      - name: Config lint
+        run: tools/ci/scripts/run-config-lint.sh
+      - name: Repository hygiene
+        run: tools/ci/scripts/run-repository-hygiene.sh
+      - name: Product boundary
+        run: tools/ci/scripts/run-product-boundary.sh
+      - name: Shell lint
+        run: tools/ci/scripts/run-shell-lint.sh
+      - name: Docstring coverage
+        run: tools/ci/scripts/run-docstring-coverage.sh
+      - name: Module layout
+        run: tools/ci/scripts/run-module-layout.sh
+      - name: Security lint
+        run: tools/ci/scripts/run-bandit.sh
+      - name: Secrets scan
+        run: tools/ci/scripts/run-secrets-scan.sh
+      - name: Markdown lint
+        run: tools/ci/scripts/run-markdown-lint.sh
+      - name: CI projection drift
+        run: tools/ci/scripts/run-ci-template-check.sh
+      - name: GitHub workflow syntax
+        run: tools/ci/scripts/run-actionlint.sh
+      - name: Format selection boundary
+        run: tools/ci/scripts/run-format-selection.sh
+      - name: Architecture projection drift
+        run: tools/ci/scripts/run-architecture-projection-drift.sh
+      - name: Runbook registry
+        run: tools/ci/scripts/run-runbook-registry-check.sh
+      - name: MCP projection smoke
+        run: tools/ci/scripts/run-mcp-smoke.sh
+      - name: Closeout evidence manifest
+        run: tools/ci/scripts/run-closeout-evidence-manifest.sh
+      - name: Local state audit
+        run: tools/ci/scripts/run-local-state-audit.sh
+      - name: Release supply-chain envelope
+        run: tools/ci/scripts/run-release-supply-chain.sh
+
+  verify:
+    name: repository proof
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bootstrap Python and OpenSpec
+        run: tools/ci/scripts/bootstrap-python.sh
+      - name: Configure governed checkout
+        run: tools/ci/scripts/configure-git-checkout.sh
+      - name: Arm write admission
+        run: uv run --package ethos ethos hook install --json
+      - name: Unit and architecture tests
+        run: tools/ci/scripts/run-python-tests.sh
+      - name: OpenSpec strict validation
+        run: openspec validate --all --strict --json
+      - name: ETHOS audit
+        run: uv run --package ethos ethos audit --json
+      - name: ETHOS report
+        run: uv run --package ethos ethos report --json
+      - name: HEAD-bound proof
+        run: uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+
+  package:
+    name: package artifacts
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Bootstrap Python and OpenSpec
+        run: tools/ci/scripts/bootstrap-python.sh
+      - name: Build Python distributions
+        run: uv build --all-packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

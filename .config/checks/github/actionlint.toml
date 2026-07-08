@@ -1,0 +1,17 @@
+schema = "ethos-actionlint-policy-v1"
+owner = "ethos-quality-gate-governance"
+workflow = ".github/workflows/ci.yml"
+runner = "tools/ci/scripts/run-actionlint.sh"
+
+[boundary]
+claim = "GitHub workflow syntax only"
+not_claimed = [
+  "hosted GitHub runner passed",
+  "repository proof passed",
+  "GitLab provider status",
+]
+
+[tool]
+name = "actionlint"
+version_env = "ACTIONLINT_VERSION"
+default_version = "1.7.7"

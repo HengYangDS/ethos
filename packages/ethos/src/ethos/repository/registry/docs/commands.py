@@ -175,7 +175,7 @@ def command_scope(path: str) -> str:
         return "evidence"
     if path.startswith("docs/archive/"):
         return "archive"
-    return "current"
+    return "product"
 
 
 def tokens(command: str) -> list[str]:
@@ -210,10 +210,10 @@ def known_ethos_command(command: str) -> bool:
 
 
 def has_command_example(examples: list[dict[str, str]], required: str) -> bool:
-    """Return whether current docs examples include a required command prefix."""
+    """Return whether product docs examples include a required command prefix."""
     required_tokens = tokens(required)
     for example in examples:
-        if example["scope"] != "current":
+        if example["scope"] != "product":
             continue
         normalized = normalized_command_tokens(example["command"])
         if normalized[: len(required_tokens)] == required_tokens:

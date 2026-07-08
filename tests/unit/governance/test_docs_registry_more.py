@@ -76,7 +76,13 @@ custom-tool run
 
     report = command_examples_report(tmp_path)
     normalized = {item["command"]: item["normalized_command"] for item in report["examples"]}
+    scopes = {item["command"]: item["scope"] for item in report["examples"]}
 
+    assert scopes["env FOO=1 uv run --package ethos ethos prove --json"] == "product"
+    assert scopes["python -m ethos.cli land --json"] == "product"
+    assert scopes["ethos unknown-surface --json"] == "product"
+    assert scopes["custom-tool run"] == "product"
+    assert scopes["legacy-tool ok"] == "archive"
     assert normalized["env FOO=1 uv run --package ethos ethos prove --json"] == "ethos prove --json"
     assert normalized["python -m ethos.cli land --json"] == "ethos land --json"
     assert (

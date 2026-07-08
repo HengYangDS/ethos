@@ -166,7 +166,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
 
     assert "ethos quality docstrings" in runner
     assert "--min-coverage" not in runner
-    assert "fail_under = 95" in policy
+    assert "fail_under = 100" in policy
     assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
     assert "skip_private = true" in policy
     assert 'style = "google"' in policy

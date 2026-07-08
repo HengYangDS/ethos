@@ -194,6 +194,8 @@ store.
 - **THEN** ETHOS reports configured source paths, minimum coverage, documented
   public-surface count, total public-surface count, missing symbols, Google-style
   conformance, and a non-blocking broader public-definition inventory
+- **AND** the configured minimum coverage floor is 100 percent for product
+  public surfaces
 - **AND** the gate fails when public-surface coverage is below the configured
   threshold
 - **AND** existing structured docstrings must use Google-style sections and their

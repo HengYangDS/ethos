@@ -1,0 +1,51 @@
+[claim]
+id = "docstring-floor-100"
+subject = "ethos:docstring-floor-100"
+state = "active"
+summary = "ETHOS enforces 100 percent public Python product-surface docstring coverage through repository-owned policy and architecture tests."
+
+[evidence]
+dated = "evidence/chronicle/docstring-floor-100/2026-07-09.md"
+sha256 = "b6db6f288aa077b1b2a0a1f30c5fbe94138e4c8392c5f5192285511d21c22082"
+evidence_ids = ["evidence:docstring-floor-100"]
+binding = "docstring policy floor, architecture tests, OpenSpec carrier, and quality gate output"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_docstring_governance.py tests/architecture/test_release_assets.py::test_docstring_gate_is_owned_by_separated_policy_and_ci_script tests/unit/policy/test_docstrings.py",
+  "uv run --package ethos ethos quality docstrings --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+]
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = [
+  "tests/architecture/test_docstring_governance.py",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/policy/test_docstrings.py",
+]
+docs = ["openspec/specs/quality/spec.md"]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Public Python product-surface docstring coverage floor"
+
+[carriers]
+openspec = "openspec/changes/docstring-floor-100"
+
+fallback = "Keep the prior docstring gate behavior while treating 100 percent as an observed metric rather than an enforced floor."
+kill_signal = "A public ETHOS command, explicit export, or package boundary can regress below 100 percent documented coverage while docstring quality remains clean."
+
+[promotion]
+targets = [
+  ".config/checks/docstrings/policy.toml",
+  "tests/architecture/test_docstring_governance.py",
+  "tests/architecture/test_release_assets.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/docstring-floor-100/proposal.md",
+  "openspec/changes/docstring-floor-100/design.md",
+  "openspec/changes/docstring-floor-100/tasks.md",
+  "openspec/changes/docstring-floor-100/specs/quality/spec.md",
+  "evidence/chronicle/docstring-floor-100/2026-07-09.md",
+  "evidence/claims/docstring-floor-100.toml",
+]

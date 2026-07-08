@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
+from typing import cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,4 +29,4 @@ def code_size_policy(root: Path) -> dict[str, object]:
     if not isinstance(quality, dict):
         return {}
     code_size = quality.get("code_size")
-    return code_size if isinstance(code_size, dict) else {}
+    return cast("dict[str, object]", code_size) if isinstance(code_size, dict) else {}

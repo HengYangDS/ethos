@@ -14,30 +14,37 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _string_list(value: object) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
 def docs_quality_report(root: Path) -> dict[str, object]:
     """Report composite documentation quality across registry, links, glossary, and examples."""
     health = docs_health_report(root)
     link_integrity = link_integrity_report(root)
     glossary = glossary_report(root)
+    invalid_state = _string_list(health.get("invalid_state"))
+    duplicate_subjects = _string_list(health.get("duplicate_subjects"))
+    missing_visible_sections = _string_list(health.get("missing_visible_sections"))
     checks = {
         "taxonomy": {
-            "ok": not health["invalid_state"] and not health["duplicate_subjects"],
-            "required_gaps": list(health["invalid_state"]) + list(health["duplicate_subjects"]),
+            "ok": not invalid_state and not duplicate_subjects,
+            "required_gaps": invalid_state + duplicate_subjects,
         },
         "visible_structure": {
-            "ok": not health["missing_visible_sections"],
-            "required_gaps": list(health["missing_visible_sections"]),
+            "ok": not missing_visible_sections,
+            "required_gaps": missing_visible_sections,
         },
         "stable_paths": stable_paths_report(root),
         "link_integrity": link_integrity,
         "glossary": glossary,
     }
     command_examples = command_examples_report(root)
-    required_gaps = [gap for check in checks.values() for gap in check["required_gaps"]] + list(
-        command_examples["required_gaps"]
-    )
+    required_gaps = [
+        gap for check in checks.values() for gap in _string_list(check.get("required_gaps"))
+    ] + _string_list(command_examples.get("required_gaps"))
     return {
-        "ok": not required_gaps and health["ok"] and command_examples["ok"],
+        "ok": not required_gaps and health.get("ok") is True and command_examples.get("ok") is True,
         "style_goals": ["faithful", "expressive", "elegant"],
         "required_gaps": required_gaps,
         "checks": checks,

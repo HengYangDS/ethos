@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "2c0bf2793deb758e4f01f35e26403bb61f72e31a",
-    "target_head": "2c0bf2793deb758e4f01f35e26403bb61f72e31a",
-    "product_semantic_sha256": "07710099f0216036958382bb2687514ac8b89d22a2348f961010ce36c8ca032c",
-    "target_semantic_sha256": "07710099f0216036958382bb2687514ac8b89d22a2348f961010ce36c8ca032c",
+    "product_head": "1a2d1a98ed1ceaac2bcdec2c9fee33379deb3696",
+    "target_head": "1a2d1a98ed1ceaac2bcdec2c9fee33379deb3696",
+    "product_semantic_sha256": "e89cbd662828e3adb1fa019c36fe940ed4f3de4ff0793e7fe7a78a8daab5e2be",
+    "target_semantic_sha256": "e89cbd662828e3adb1fa019c36fe940ed4f3de4ff0793e7fe7a78a8daab5e2be",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split",
-    "target_head": "2c0bf2793deb758e4f01f35e26403bb61f72e31a",
-    "product_head": "2c0bf2793deb758e4f01f35e26403bb61f72e31a",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot",
+    "target_head": "1a2d1a98ed1ceaac2bcdec2c9fee33379deb3696",
+    "product_head": "1a2d1a98ed1ceaac2bcdec2c9fee33379deb3696",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json",
-      "/Users/yheng/projects/ethos-worktrees/kernel-rules-test-split/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/kernel-rules-test-split --json"
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-audit-ssot/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-audit-ssot --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "ea88123ae059d3590b68a2c0e6be1ca350705bbbc8e3cb6ba6f1c0078a3af1cb"
+        "sha256": "1540d3499c6c296d05cbb4294ac03aa4269714e6f358288f494ab17d6feea4f5"
       },
       {
         "path": "evidence/claims",

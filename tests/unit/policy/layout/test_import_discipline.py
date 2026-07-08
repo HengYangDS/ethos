@@ -23,6 +23,10 @@ def test_module_layout_blocks_private_from_import_regression(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "consumer.py",
         "from ethos.sample.provider import _private_helper\n",
     )
+    _write(
+        tmp_path / "packages" / "ethos" / "src" / "ethos" / "unchanged.py",
+        "from ethos.sample.provider import _legacy_private_helper\n",
+    )
     _write(tmp_path / ".config" / "checks" / "module-layout" / "policy.toml", "")
 
     def fake_git(_root: Path, *args: str) -> str | None:
@@ -35,7 +39,7 @@ def test_module_layout_blocks_private_from_import_regression(
         if args[:3] == ("diff", "--name-only", "HEAD"):
             return "packages/ethos/src/ethos/consumer.py\n"
         if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
-            return "packages/ethos/src/ethos/consumer.py\n"
+            return "packages/ethos/src/ethos/consumer.py\npackages/ethos/src/ethos/unchanged.py\n"
         return None
 
     monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
-    "target_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
-    "product_semantic_sha256": "1103993abef33d8ff23275823ca48e0c9856889091eab23137f33f961566f7bb",
-    "target_semantic_sha256": "1103993abef33d8ff23275823ca48e0c9856889091eab23137f33f961566f7bb",
+    "product_head": "a68c43621d03b9dd0518d9453675be1ad8c3169b",
+    "target_head": "a68c43621d03b9dd0518d9453675be1ad8c3169b",
+    "product_semantic_sha256": "fbe0c7d94af5879affa5a8de73cf29c05a60ca7b604fd5242b43d70bc405afe6",
+    "target_semantic_sha256": "fbe0c7d94af5879affa5a8de73cf29c05a60ca7b604fd5242b43d70bc405afe6",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/docstring-floor-100",
-    "target_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
-    "product_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
+    "target_head": "a68c43621d03b9dd0518d9453675be1ad8c3169b",
+    "product_head": "a68c43621d03b9dd0518d9453675be1ad8c3169b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "732c8ee37fa6d952ba0530ffabd6cdb36ab03edf77cf68cc9d3ec5b27540864c"
+        "sha256": "66c779f1945f421608860b27341d50af80eaab644e9c75e316365f243d022376"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "44ef83651d139d82f7ddfe6b90caeb0fc8feada00a88d8f4025fe8a45d931f86"
+        "sha256": "8315464708c9a3d68a9fe7e30d099a90683e577602b9e70e35b3fe024190aeae"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "90df6324b69249c891d935ab32fc2c252081bae8ccdd01ef6ea8d31876f9073b"
+        "sha256": "a386760046b0732dbef49de0afb04ef5dd3f5234243bbf4abd023b8af2486e11"
       },
       {
         "path": "rules",

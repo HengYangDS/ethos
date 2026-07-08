@@ -28,7 +28,7 @@ packages = ["ethos"]
 tests = [
   "tests/unit/governance/test_evolution_ledger.py",
   "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
-  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/validation",
   "tests/unit/audit/test_depth.py",
   "tests/unit/cli/test_contracts.py",
 ]

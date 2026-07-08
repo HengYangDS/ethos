@@ -12,7 +12,7 @@ binding = "semantic source-verified context projection evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/context/test_contracts.py tests/unit/context/test_schemas.py tests/unit/context/test_index_state.py tests/unit/context/test_retrieval.py tests/unit/context/test_selection.py tests/unit/context/test_cli.py -q",
-  "uv run --group dev pytest tests/unit/assistants/test_context_provider.py tests/unit/assistants/test_server.py tests/unit/governance/test_validation_gates.py -q",
+  "uv run --group dev pytest tests/unit/assistants/test_context_provider.py tests/unit/assistants/test_server.py tests/unit/governance/validation -q",
   "uv run --group dev ruff check packages/ethos-adapters/src/ethos_adapters/context_index.py packages/ethos-assistants/src/ethos_assistants/context.py packages/ethos-assistants/src/ethos_assistants/context_selection.py packages/ethos-assistants/src/ethos_assistants/mcp.py packages/ethos-test/src/ethos_test/fixtures.py packages/ethos/src/ethos/cli.py tests/unit/context/test_*.py -q",
   "uv run --group dev pytest tests/unit tests/architecture -q",
   "uv run --group dev ruff check .",

@@ -12,8 +12,8 @@ binding = "semantic role-binding projection hardening evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
-  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/test_validation_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/test_validation_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
-  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/test_validation_gates.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/test_validation_gates.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/validation/test_schemas.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/validation/test_schemas.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
+  "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/validation/test_schemas.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/validation/test_schemas.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
   "uv run --package ethos ethos quality coupling-audit --json",
   "uv run --package ethos ethos quality schemas --json",
   "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling tests/unit/audit/test_coupling.py tests/architecture/test_product_design_contract.py",

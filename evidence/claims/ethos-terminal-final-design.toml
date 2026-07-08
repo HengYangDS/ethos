@@ -12,7 +12,7 @@ binding = "digest-bound terminal final design evidence"
 verifier = "semantic"
 tests = [
   "ethos openspec --lifecycle --json",
-  "pytest -q tests/unit/product/test_openspec_substrate.py tests/unit/product/test_openspec_cache.py tests/unit/governance/test_validation_gates.py tests/unit/adoption/test_apply_sample.py",
+  "pytest -q tests/unit/product/test_openspec_substrate.py tests/unit/product/test_openspec_cache.py tests/unit/governance/validation tests/unit/adoption/test_apply_sample.py",
   "openspec archive ethos-terminal-final-design --yes --json",
   "ethos prove --json",
 ]

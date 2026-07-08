@@ -31,7 +31,7 @@ def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -
         "tests/unit/kernel/test_quality.py",
         "tests/unit/lanes/test_runner_evidence.py",
         "tests/unit/cli/test_contracts.py",
-        "tests/unit/governance/test_validation_gates.py",
+        "tests/unit/governance/validation",
         "docs/reference/command-plane.md",
         "docs/reference/glossary.md",
         "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel/proposal.md",

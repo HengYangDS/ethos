@@ -13,7 +13,7 @@ verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_repository_audit_reports_governed_repository_shape tests/unit/cli/test_contracts.py::test_prove_uses_repository_audit_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
   "uv run --group dev pytest -q tests/unit/adoption/test_apply_sample.py::test_adopt_rules_use_single_kernel_governance_entrypoints tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_governed_repository",
-  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/audit/test_depth.py tests/unit/governance/test_validation_gates.py tests/unit/adoption/test_apply_sample.py",
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/audit/test_depth.py tests/unit/governance/validation tests/unit/adoption/test_apply_sample.py",
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_repository_audit_reports_governed_repository_shape tests/unit/cli/test_contracts.py::test_prove_uses_repository_audit_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/cli/test_contracts.py::test_prove_returns_evidence_and_provenance",
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos audit --mode shape --json",

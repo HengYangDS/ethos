@@ -31,7 +31,7 @@ claim = "Every public JSON command can be validated against tracked ETHOS schema
 challenge = "A command without schema validation remains a product risk."
 transition = "shape -> canonize"
 proof_refs = ["ethos quality schemas --json"]
-review_refs = ["tests/unit/governance/test_validation_gates.py"]
+review_refs = ["tests/unit/governance/validation/test_schemas.py"]
 decision_refs = ["docs/governance/evolution-campaign.md"]
 retirement_conditions = ["all public JSON commands declare schema-bound output contracts"]
 

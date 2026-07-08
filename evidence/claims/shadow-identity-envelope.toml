@@ -11,7 +11,7 @@ evidence_ids = ["evidence:shadow-identity-envelope"]
 binding = "semantic shadow parity identity envelope evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev pytest tests/unit/product/test_parity.py tests/unit/product/test_parity_generic.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_command_registry.py -q",
+  "uv run --group dev pytest tests/unit/product/test_parity.py tests/unit/product/test_parity_generic.py tests/unit/governance/validation tests/unit/cli/test_command_registry.py -q",
   ".config/ci/scripts/run-python-lint.sh",
   ".config/ci/scripts/run-config-lint.sh",
   "npx --yes @fission-ai/openspec@1.5.0 validate --all --strict",
@@ -26,7 +26,7 @@ schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
 tests = [
   "tests/unit/product/test_parity.py",
   "tests/unit/product/test_parity_generic.py",
-  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/validation",
   "tests/unit/cli/test_command_registry.py",
 ]
 docs = [

@@ -13,7 +13,7 @@ verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/governance/test_profiles.py -q",
   "uv run --group dev pytest tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_isomorphic_governance_profiles -q",
-  "uv run --group dev pytest tests/unit/governance/test_validation_gates.py::test_schema_validation_report_covers_all_ethos_schemas tests/unit/governance/test_profiles.py -q",
+  "uv run --group dev pytest tests/unit/governance/validation/test_schemas.py::test_schema_validation_report_covers_all_ethos_schemas tests/unit/governance/test_profiles.py -q",
   "uv run --package ethos ethos quality schemas --json",
   "uv run openspec validate --all --strict --json",
   "uv run --group dev pytest tests/unit tests/architecture -q",

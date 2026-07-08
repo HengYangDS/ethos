@@ -12,7 +12,7 @@ binding = "runtime shadow comparison, tracked parity evidence validation, schema
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/product/test_parity.py -q",
-  "uv run --group dev pytest tests/unit/product/test_parity_generic.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py -q",
+  "uv run --group dev pytest tests/unit/product/test_parity_generic.py tests/unit/governance/validation tests/unit/cli/test_contracts.py -q",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
 ]
@@ -23,7 +23,7 @@ schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
 tests = [
   "tests/unit/product/test_parity.py",
   "tests/unit/product/test_parity_generic.py",
-  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/validation",
   "tests/unit/cli/test_contracts.py",
 ]
 docs = [

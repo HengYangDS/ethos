@@ -185,11 +185,20 @@ def _taxonomy(root: Path) -> dict[str, object]:
         return {}
 
 
-def _allowed_states(root: Path) -> set[str]:
+def _taxonomy_allowed(root: Path, section: str) -> set[str]:
+    """Return the `allowed` string list under a taxonomy section (e.g. states/roles)."""
     taxonomy = _taxonomy(root)
-    states = taxonomy.get("states") if isinstance(taxonomy, dict) else {}
-    allowed = states.get("allowed") if isinstance(states, dict) else []
-    configured = {str(item) for item in allowed if isinstance(item, str)}
+    block = taxonomy.get(section)
+    if not isinstance(block, dict):
+        return set()
+    allowed = block.get("allowed")
+    if not isinstance(allowed, list):
+        return set()
+    return {item for item in allowed if isinstance(item, str)}
+
+
+def _allowed_states(root: Path) -> set[str]:
+    configured = _taxonomy_allowed(root, "states")
     return configured or set(DEFAULT_ALLOWED_STATES)
 
 
@@ -197,11 +206,7 @@ def _allowed_roles(root: Path) -> set[str]:
     # Union, not replace: kernel roles from the contract are always valid; the
     # taxonomy may only ADD repo-specific roles. This keeps the inherited role
     # vocabulary stable across every governed repository.
-    taxonomy = _taxonomy(root)
-    roles = taxonomy.get("roles") if isinstance(taxonomy, dict) else {}
-    allowed = roles.get("allowed") if isinstance(roles, dict) else []
-    configured = {str(item) for item in allowed if isinstance(item, str)}
-    return set(DEFAULT_ALLOWED_ROLES) | configured
+    return set(DEFAULT_ALLOWED_ROLES) | _taxonomy_allowed(root, "roles")
 
 
 def docs_health_report(root: Path) -> dict[str, object]:

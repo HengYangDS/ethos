@@ -95,7 +95,7 @@ def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> Non
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: guide\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
+        "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
         encoding="utf-8",
     )
 

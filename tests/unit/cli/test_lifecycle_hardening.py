@@ -110,7 +110,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: guide\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
+        "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
         encoding="utf-8",
     )
 

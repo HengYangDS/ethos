@@ -12,7 +12,7 @@ def docs_index(root: Path) -> str:
     """Return the scaffold text for the docs index documentation page."""
     return f"""---
 subject: docs:index
-role: reference
+role: index
 state: canonical
 relations: canonical_for: navigation
 ---
@@ -35,7 +35,7 @@ def quickstart() -> str:
     """Return the scaffold text for the quickstart guide."""
     return """---
 subject: docs:start
-role: workflow
+role: how-to
 state: active
 relations: canonical_for: first run
 ---

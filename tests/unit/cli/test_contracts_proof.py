@@ -77,7 +77,7 @@ def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: guide\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
+        "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
         encoding="utf-8",
     )
 

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
-    "target_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
-    "product_semantic_sha256": "b0b1a313677e089d2d53115558775b44436c79e33a27cbe80266d4580335971b",
-    "target_semantic_sha256": "b0b1a313677e089d2d53115558775b44436c79e33a27cbe80266d4580335971b",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "67f85bcc47bb501f7f5e35532b0abedcdac986b2",
+    "target_head": "67f85bcc47bb501f7f5e35532b0abedcdac986b2",
+    "product_semantic_sha256": "7b84835c41c5bbf728cfcea6381fd154164c8be4369d80bd1001f4b4591d8f8c",
+    "target_semantic_sha256": "7b84835c41c5bbf728cfcea6381fd154164c8be4369d80bd1001f4b4591d8f8c",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state",
-    "target_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
-    "product_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package",
+    "target_head": "67f85bcc47bb501f7f5e35532b0abedcdac986b2",
+    "product_head": "67f85bcc47bb501f7f5e35532b0abedcdac986b2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json",
-      "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/product-boundary-local-state --json"
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json",
+      "/Users/yheng/projects/ethos-worktrees/quality-proof-policy-package/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-proof-policy-package --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "886007312c5a8915711805348244f85f51895f81f4c38cdd73fd8460cae7547f"
+        "sha256": "5460210c3a958bf740f35a9157e727b2b3f9093cdc0a20a2a70754878d6b5e6b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "4aaf317e1084474fa78a505887d4bd3c6f11a2aee9787b8a9d8c03315d7c1244"
+        "sha256": "d947fe42cf376e411daa316d0dd684866b8f1bb65c38a2015202929c94d413a9"
       },
       {
         "path": "openspec",

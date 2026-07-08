@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
-    "target_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
-    "product_semantic_sha256": "574089169feda4593286882e76e96d7db1a2c434c4ff3a2e6cd7e134db6c7563",
-    "target_semantic_sha256": "574089169feda4593286882e76e96d7db1a2c434c4ff3a2e6cd7e134db6c7563",
+    "product_head": "7330ced3a55a3bac078c5b60e16231fb66cda95f",
+    "target_head": "7330ced3a55a3bac078c5b60e16231fb66cda95f",
+    "product_semantic_sha256": "df1bada85a4fb63a9123b20664d03f8ea3d6437e2b6725ad4ba2bf3f0626f7ec",
+    "target_semantic_sha256": "df1bada85a4fb63a9123b20664d03f8ea3d6437e2b6725ad4ba2bf3f0626f7ec",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-work-docs-role-root-law",
-    "target_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
-    "product_head": "f6efd8c95c6d0675daa201c3ade8acca302c4d55",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-registry-split",
+    "target_head": "7330ced3a55a3bac078c5b60e16231fb66cda95f",
+    "product_head": "7330ced3a55a3bac078c5b60e16231fb66cda95f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-docs-role-root-law --json",
-      "/Users/yheng/projects/ethos-work-docs-role-root-law/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-docs-role-root-law --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-registry-split/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-registry-split --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "ec25f4dfa373931bd9b7e44d555005dd34bf432875b244a816ea46451e900b84"
+        "sha256": "9b058e05726df6e72d8e80ea4e5fead1f674d288dc3efc19f2fff9df09ab3a1a"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "27a8ae3394a6ed6745be49d4f841c7434f40aa37d970c3fd2c11223915624aa7"
+        "sha256": "224a0231a38ff3d708be8ba4651bda0222d9b8964d8cd2f8da47546485a359e2"
       },
       {
         "path": "openspec",

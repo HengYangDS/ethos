@@ -586,6 +586,64 @@ def test_lane_candidate_apply_default_path_uses_configured_candidate_role(
     assert git(expected_candidate_path, "branch", "--show-current") == "stage/dev"
 
 
+def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    active = tmp_path / "repo-work-active"
+    git(repo, "worktree", "add", "-b", "work/active", active.as_posix(), "dev")
+    (active / "README.md").write_text("# active\n", encoding="utf-8")
+    git(active, "add", "README.md")
+    git(
+        active,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "active work",
+    )
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/active",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+
+    payload = run_ethos_blocked(
+        "lane",
+        "retire-landed",
+        "--branch",
+        "work/active",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["work_lane_not_merged"]
+    assert payload["summary"] == {
+        "landed_lane_count": 1,
+        "selected_branch": "work/active",
+        "selected_retire_ready": False,
+        "selected_required_gaps": ["work_lane_not_merged"],
+    }
+
+
 def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(

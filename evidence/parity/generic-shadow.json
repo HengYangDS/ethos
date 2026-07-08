@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "9c4c9aa5ccb1055e8408cce457e1e1a4c32f3f6f",
-    "target_head": "9c4c9aa5ccb1055e8408cce457e1e1a4c32f3f6f",
-    "product_semantic_sha256": "d0d86e8cd3162e70dbddec23345da589ba64cc5f08a3ec14a7d64ef26d1635c8",
-    "target_semantic_sha256": "d0d86e8cd3162e70dbddec23345da589ba64cc5f08a3ec14a7d64ef26d1635c8",
+    "product_head": "66b396e589fd162e98d868981a81e208a2eafb30",
+    "target_head": "66b396e589fd162e98d868981a81e208a2eafb30",
+    "product_semantic_sha256": "8a64c2382b8f508db519e75288e7e7c1d37297d32c528db3054aa47b8bf927c1",
+    "target_semantic_sha256": "8a64c2382b8f508db519e75288e7e7c1d37297d32c528db3054aa47b8bf927c1",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,12 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/validation-gates-size",
-    "target_head": "9c4c9aa5ccb1055e8408cce457e1e1a4c32f3f6f",
-    "product_head": "9c4c9aa5ccb1055e8408cce457e1e1a4c32f3f6f",
-    "changed_paths": [
-      "evidence/parity/generic-shadow.json"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-work-docs-ssot-dry",
+    "target_head": "66b396e589fd162e98d868981a81e208a2eafb30",
+    "product_head": "66b396e589fd162e98d868981a81e208a2eafb30",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -53,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json",
-      "/Users/yheng/projects/ethos-worktrees/validation-gates-size/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/validation-gates-size --json"
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json",
+      "/Users/yheng/projects/ethos-work-docs-ssot-dry/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-docs-ssot-dry --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -78,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "c6d1997cfc2b163083d289a28d22e49b56af91ca0fc4407b7b7df9674d9ac2da"
+        "sha256": "5a83a7800c3b94b242fb7a47a8ebc795d3f17f80fdbb9590e77bbe718f591d52"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0ab1d0a9cd3417bb8dd237e57d594296d363b8caab6d7a05284adc2810683db5"
+        "sha256": "734a82d62e246ad222d16b42404fe1fdf131da709aa1e9a49aa825de0e53f87c"
       },
       {
         "path": "evidence/claims",

@@ -85,6 +85,38 @@ def test_ty_gate_report_flags_zero_tolerance_and_ratchet_violations(
     assert report["state"] == "blocked"
 
 
+def test_ty_gate_report_allows_counts_at_or_below_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # zero-tolerance count==0 and ratchet count==baseline take the non-gap branches
+    # (ty.py 57->59 and 62->59), preserving the frozen ratchet without raising it.
+    _write_policy(
+        tmp_path,
+        "\n".join(
+            [
+                "[zero_tolerance]",
+                'packages = ["packages/zt"]',
+                "",
+                "[ratchet]",
+                '"packages/rt" = 2',
+                "",
+            ]
+        ),
+    )
+
+    def count(_root: Path, package_src: str) -> int:
+        return 0 if package_src.startswith("packages/zt") else 2
+
+    monkeypatch.setattr(ty_mod, "_diagnostic_count", count)
+
+    report = ty_gate_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["state"] == "clean"
+    assert report["required_gaps"] == []
+    assert report["packages"]["packages/rt"]["count"] == 2
+
+
 # ---------------------------------------------------------------------------
 # ethos.adapters.gates.runner
 # ---------------------------------------------------------------------------

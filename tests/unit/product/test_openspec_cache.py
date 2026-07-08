@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.adapters.openspec import openspec
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.openspec.core as openspec_core
+import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,8 +55,8 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     report = openspec_core.openspec_governance_report(
         root,
@@ -159,8 +161,8 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     report = openspec_core.openspec_governance_report(
         root,
@@ -221,10 +223,10 @@ def test_completed_active_changes_report_blocks_complete_openspec_items(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
-    report = openspec_core.completed_active_changes_report(root)
+    report = openspec_metadata_adapter.completed_active_changes_report(root)
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
@@ -272,10 +274,10 @@ def test_completed_active_changes_report_blocks_invalid_archives(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
-    report = openspec_core.completed_active_changes_report(root)
+    report = openspec_metadata_adapter.completed_active_changes_report(root)
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
@@ -324,8 +326,8 @@ def test_openspec_report_reuses_result_for_unchanged_workspace(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     first = openspec_core.openspec_governance_report(root)
     second = openspec_core.openspec_governance_report(root)

@@ -887,8 +887,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--json")
 

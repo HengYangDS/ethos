@@ -47,22 +47,24 @@ def test_openspec_base_json_selection_and_governance_edges(
     monkeypatch.setattr(openspec_cli.shutil, "which", lambda name: None)
     assert openspec_cli.openspec_base_command() is None
 
-    assert openspec_core._selected_change({"changes": "bad"}, None) is None
+    assert openspec_lifecycle.selected_change({"changes": "bad"}, None) is None
     assert (
-        openspec_core._selected_change({"changes": [{"name": "a", "status": "in-progress"}]}, None)
+        openspec_lifecycle.selected_change(
+            {"changes": [{"name": "a", "status": "in-progress"}]}, None
+        )
         == "a"
     )
     assert (
-        openspec_core._selected_change(
+        openspec_lifecycle.selected_change(
             {"changes": [{"name": "a", "lastModified": "1"}, {"name": "b", "lastModified": "2"}]},
             None,
         )
         == "b"
     )
-    assert openspec_core._validation_failures({"items": "bad"}) == [
+    assert openspec_lifecycle.validation_failures({"items": "bad"}) == [
         "openspec_validation_unreadable"
     ]
-    assert openspec_core._validation_failures(
+    assert openspec_lifecycle.validation_failures(
         {"items": [{"valid": False, "type": "spec", "id": "x"}, "bad"]}
     ) == ["openspec_validation_failed:spec:x"]
 
@@ -76,11 +78,8 @@ def test_openspec_base_json_selection_and_governance_edges(
     )
     assert openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))["parse_error"]
 
-    report = openspec_core._openspec_governance_report(
-        tmp_path,
-        request=openspec_core._OpenSpecRequest(change="c1", lifecycle=True),
-        base_command=None,
-    )
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: None)
+    report = openspec_core.openspec_governance_report(tmp_path, change="c1", lifecycle=True)
     assert set(report["required_gaps"]) >= {
         "openspec_directory_missing",
         "openspec_official_cli_missing",
@@ -130,12 +129,9 @@ def test_openspec_base_json_selection_and_governance_edges(
             "command": [],
         }
 
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
-    governed = openspec_core._openspec_governance_report(
-        tmp_path,
-        request=openspec_core._OpenSpecRequest(change=None, lifecycle=True),
-        base_command=("openspec",),
-    )
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    governed = openspec_core.openspec_governance_report(tmp_path, lifecycle=True)
     assert "openspec_doctor_unhealthy" in governed["required_gaps"]
     assert "openspec_list_failed" in governed["required_gaps"]
     assert "openspec_status_incomplete:c1" in governed["required_gaps"]
@@ -191,7 +187,7 @@ def test_openspec_cached_cli_entry_skips_invalid_cache_candidates(
 
 
 def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
-    assert openspec_core.completed_active_changes_report(tmp_path)["ok"] is True
+    assert openspec_metadata_adapter.completed_active_changes_report(tmp_path)["ok"] is True
     archive = tmp_path / "openspec" / "changes" / "archive" / "bad_name"
     (archive / "specs" / "cap").mkdir(parents=True)
     (archive / "proposal.md").write_text("proposal", encoding="utf-8")
@@ -217,7 +213,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         == "openspec_archive_delta_specs_missing:a"
     )
 
-    assert openspec_core._completed_active_change_names(
+    assert openspec_metadata_adapter.completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
     assert archive_mod._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
@@ -230,8 +226,8 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         "# Proposal\n\n- `cap`: reuse=wrong; change=sideways; subject=; facet:lifecycle=; facet:surface=; facet:authority=\n",
         encoding="utf-8",
     )
-    lifecycle = openspec_core._lifecycle_report(
-        tmp_path, selected_change="c1", list_payload={}, enabled=True
+    lifecycle = openspec_lifecycle.lifecycle_report(
+        tmp_path, selected="c1", list_payload={}, enabled=True
     )
     assert "openspec_design_missing:c1" in lifecycle["required_gaps"]
     assert "openspec_tasks_missing:c1" in lifecycle["required_gaps"]

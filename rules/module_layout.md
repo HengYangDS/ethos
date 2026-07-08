@@ -20,11 +20,19 @@ di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
 - **Flat-directory limit**: no more than **8** governed `*.py` modules at one
   directory level (excluding `__init__.py`). Beyond that, introduce semantic
   sub-packages. (Borrowed from di-effect's flat_directories trigger.)
+- **Flat-growth limit**: an already-populated directory is not a dumping ground.
+  Adding a governed module to a directory that already has **5** direct modules
+  is blocked; adding more than **2** direct modules to the same existing
+  directory in one change is blocked. Create or extend a semantic sub-package
+  instead.
 - **Anti-pattern — suffix-flat**: `foo_report.py`, `foo_native.py`, `foo_index.py`
   side by side is forbidden as steady state. Prefer `foo/report.py`,
   `foo/native.py`, `foo/index.py` — a `foo/` sub-package with a semantic interior.
 - The canonical entry module of a sub-package is `<pkg>/core.py` (or the concept
   name); siblings are named by their role slice (`normalize.py`, `report.py`).
+- **Ratchet baseline is debt, not permission**: baseline entries in
+  `.config/checks/module-layout/policy.toml` may shrink only. Adding a new
+  `allowed_*` entry or raising `baseline_gap_limit` is a gate failure.
 
 ## 2. Logical organization — public vs private
 
@@ -54,6 +62,10 @@ di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
   (`from x import y as main`). Compatibility residue is a cost center.
+- Ordinary modules must not become import-only compatibility facades either. A
+  module that only imports/re-exports names and optionally declares `__all__`
+  is stale surface; move callers to the concrete defining module and delete the
+  shell.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
   cyclopts command signatures, whose annotation types must stay runtime imports.
@@ -87,6 +99,9 @@ architecture; these rules make the claim honest and checkable.
    need, so a group's heavy dependencies load only when that group is imported —
    keeping common commands fast. This is why command bodies live in group modules,
    not one monolith.
+8. **No import-only compatibility modules:** do not preserve old import paths by
+   turning `core.py`, `foo.py`, or any ordinary module into a re-export shell.
+   Concrete defining modules are the migration target.
 
 ### 2.5.1 `import` vs `from ... import`, and when to use `as`
 

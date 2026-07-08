@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.openspec.openspec import openspec_governance_report
+from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.repository import audit as repository_audit_module
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.adoption.planner import detect_repo_profile

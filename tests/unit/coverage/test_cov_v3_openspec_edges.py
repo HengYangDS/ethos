@@ -29,27 +29,27 @@ def test_run_json_skips_parse_when_stdout_empty(tmp_path: Path) -> None:
     assert result["exit_code"] == 0
 
 
-def test_core_openspec_cli_forwarders(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_openspec_cli_helpers_live_in_cli_module(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        openspec_core.openspec_cli,
+        openspec_cli,
         "cached_official_cli_entry",
         lambda: ("node", "openspec.js"),
     )
 
-    assert openspec_core._cached_official_cli_entry() == ("node", "openspec.js")
-    assert openspec_core._version_key("1.20.beta3") == (1, 20, 3)
+    assert openspec_cli.cached_official_cli_entry() == ("node", "openspec.js")
+    assert openspec_cli.version_key("1.20.beta3") == (1, 20, 3)
 
 
 def test_validation_failures_skips_valid_item() -> None:
     # A dict item whose `valid` is not False loops back without appending (branch 125->122).
-    assert openspec_core._validation_failures({"items": [{"valid": True}]}) == []
+    assert openspec_lifecycle.validation_failures({"items": [{"valid": True}]}) == []
 
 
 def test_governance_report_returns_cli_missing_when_no_base_command(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # No official CLI drives the early delegating return (line 138).
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", lambda: None)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: None)
     result = openspec_core.openspec_governance_report(tmp_path)
     assert result["official_cli"]["available"] is False
     assert "openspec_official_cli_missing" in result["required_gaps"]
@@ -57,7 +57,7 @@ def test_governance_report_returns_cli_missing_when_no_base_command(
 
 def test_completed_active_change_names_non_list() -> None:
     # A non-list `changes` payload short-circuits to an empty list (line 197).
-    assert openspec_core._completed_active_change_names({"changes": 123}) == []
+    assert openspec_metadata_adapter.completed_active_change_names({"changes": 123}) == []
 
 
 def test_archive_closeout_issues_skips_task_issues_without_tasks_file(tmp_path: Path) -> None:
@@ -85,7 +85,7 @@ def test_archive_delta_issues_specs_dir_without_spec_files(tmp_path: Path) -> No
 
 def test_workspace_signature_empty_without_openspec_dir(tmp_path: Path) -> None:
     # A root with no openspec/ directory yields an empty signature (line 446).
-    assert openspec_core._openspec_workspace_signature(tmp_path) == ()
+    assert openspec_workspace.openspec_workspace_signature(tmp_path) == ()
 
 
 def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) -> None:
@@ -101,15 +101,15 @@ def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) 
         '[claim]\nstate = "active"\n[carriers]\nopenspec = "openspec/changes/foo/proposal.md"\n',
         encoding="utf-8",
     )
-    assert openspec_core._active_claim_openspec_carriers(tmp_path) == {
+    assert openspec_lifecycle.active_claim_openspec_carriers(tmp_path) == {
         "openspec/changes/foo/proposal.md"
     }
 
 
 def test_lifecycle_report_non_list_changes_yields_no_change_names(tmp_path: Path) -> None:
     # No selected change and a non-list `changes` payload takes the else branch (line 632).
-    report = openspec_core._lifecycle_report(
-        tmp_path, selected_change=None, list_payload={"changes": 5}, enabled=True
+    report = openspec_lifecycle.lifecycle_report(
+        tmp_path, selected=None, list_payload={"changes": 5}, enabled=True
     )
     assert report["changes"] == []
     assert report["required_gaps"] == []

@@ -1,0 +1,1 @@
+"""OpenSpec lifecycle semantic subpackage."""

@@ -4,7 +4,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos.adapters.openspec import openspec
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.openspec.core as openspec_core
 from ethos.repository.policy.schema import validate_schema_instance
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -166,8 +167,8 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     report = openspec_core.openspec_governance_report(root, lifecycle=True)
 
@@ -227,8 +228,8 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec_core, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_core, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     report = openspec_core.openspec_governance_report(root, lifecycle=True)
 

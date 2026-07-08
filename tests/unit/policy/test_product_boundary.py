@@ -81,6 +81,21 @@ def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_pat
     assert boundary.product_boundary_report(tmp_path)["summary"]["scanned_file_count"] == 1
 
 
+def test_product_boundary_skips_local_ethos_state_proof_records(tmp_path: Path) -> None:
+    _write(tmp_path / "README.md", "# ETHOS\n")
+    _write(
+        tmp_path / ".ethos" / "state" / "proof" / ("a" * 40 + ".json"),
+        '{"source_root": "/Users/person/projects/ethos"}\n',
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["state"] == "clean"
+    assert report["summary"]["scanned_file_count"] == 1
+    assert report["findings"] == []
+
+
 def test_product_boundary_reports_package_metadata_person_attribution(tmp_path: Path) -> None:
     _write(tmp_path / "package.json", '{"name":"x","author":"One Person"}\n')
     _write(

@@ -223,6 +223,8 @@ policy organization-native rather than person-native or adopter-private.
   local workstation paths, private infrastructure URLs, adopter-specific
   literals, generic lifecycle bucket phrases, session-authority phrases, and
   person attribution fields in release/package metadata
+- **AND** ignored host-local state under `.ethos/state/**` is not scanned as an
+  active product surface
 - **AND** historical evidence and archived change records may retain factual
   names only as historical records, not as active product defaults or authority
 

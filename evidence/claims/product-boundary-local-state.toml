@@ -1,0 +1,51 @@
+[claim]
+id = "product-boundary-local-state"
+subject = "ethos:product-boundary-local-state"
+state = "active"
+summary = "Product-boundary scanning excludes ignored .ethos/state local proof records while preserving active surface checks."
+
+[evidence]
+dated = "evidence/chronicle/product-boundary-local-state/2026-07-09.md"
+sha256 = "0a1eb1f500959da71999ff3359cf1f0c21782637e1be9d4dc2dd6c261c41116f"
+evidence_ids = ["evidence:product-boundary-local-state"]
+binding = "product-boundary local-state regression, OpenSpec quality carrier, and report gate"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/policy/test_product_boundary.py tests/unit/cli/test_quality_boundary.py tests/architecture/test_testing_platform.py::test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/boundary/product.py tests/unit/policy/test_product_boundary.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/boundary/product.py tests/unit/policy/test_product_boundary.py",
+  "uv run --package ethos ethos quality product-boundary --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/policy/test_product_boundary.py",
+  "tests/unit/cli/test_quality_boundary.py",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Product-boundary scanner treatment of ignored .ethos/state local proof records"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-product-boundary-local-state"
+
+fallback = "Treat .ethos/state as ignored host-local state while preserving product-boundary checks for active .ethos configuration."
+kill_signal = "Product-boundary scanning reports local_workstation_path gaps from ignored .ethos/state/proof records or stops scanning active .ethos configuration."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/policy/boundary/product.py",
+  "tests/unit/policy/test_product_boundary.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-product-boundary-local-state/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-product-boundary-local-state/proposal.md",
+  "openspec/changes/archive/2026-07-09-product-boundary-local-state/design.md",
+  "openspec/changes/archive/2026-07-09-product-boundary-local-state/tasks.md",
+  "openspec/changes/archive/2026-07-09-product-boundary-local-state/specs/quality/spec.md",
+  "evidence/chronicle/product-boundary-local-state/2026-07-09.md",
+  "evidence/claims/product-boundary-local-state.toml",
+]

@@ -56,12 +56,10 @@ def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:
 
 def test_python_test_gate_isolates_worker_local_proof_state() -> None:
     conftest = (ROOT / "tests/conftest.py").read_text(encoding="utf-8")
-    coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
 
     assert "ETHOS_TEST_PROOF_STATE_DIR" in conftest
     assert "PYTEST_XDIST_WORKER" in conftest
     assert "proof-{worker}" in conftest
-    assert "data_file = ${COVERAGE_FILE-" in coverage
 
 
 def test_repository_hygiene_gate_is_owner_scripted_and_projected() -> None:

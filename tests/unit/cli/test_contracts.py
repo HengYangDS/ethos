@@ -873,7 +873,7 @@ def test_quality_types_enforces_ty_policy_tiers() -> None:
     assert packages["packages/ethos-core"]["limit"] == 0
     assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
     assert packages["packages/ethos"]["tier"] == "ratchet"
-    assert packages["packages/ethos"]["limit"] == 75
+    assert packages["packages/ethos"]["limit"] == 66
     assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
     # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
     assert completed.returncode == (0 if payload["ok"] else 1)

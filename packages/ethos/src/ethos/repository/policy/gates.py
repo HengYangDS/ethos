@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ethos.repository.profile import load_repository_profile
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.quality.gates import quality_gate_registry
 
 if TYPE_CHECKING:

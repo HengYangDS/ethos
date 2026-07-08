@@ -111,7 +111,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/gates/runner.py",
   "packages/ethos-core/src/ethos_core/contracts/capability_parity.py",
   "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
-  "packages/ethos-core/src/ethos_core/action_graph.py",
+  "packages/ethos-core/src/ethos_core/action_graph/core.py",
   "packages/ethos-core/README.md",
   "pyproject.toml",
   "uv.lock",

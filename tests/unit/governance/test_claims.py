@@ -27,7 +27,7 @@ def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -
         "packages/ethos/src/ethos/repository/evidence/core.py",
         "packages/ethos/src/ethos/repository/registry/docs",
         "packages/ethos/src/ethos/repository/policy/schema.py",
-        "packages/ethos-core/src/ethos_core/action_graph.py",
+        "packages/ethos-core/src/ethos_core/action_graph/core.py",
         "tests/unit/kernel/test_quality.py",
         "tests/unit/lanes/test_runner_evidence.py",
         "tests/unit/cli/test_contracts.py",

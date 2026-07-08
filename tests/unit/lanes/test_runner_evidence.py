@@ -10,7 +10,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 
 
 def test_dry_run_runner_records_action_without_execution() -> None:

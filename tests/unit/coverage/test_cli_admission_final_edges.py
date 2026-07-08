@@ -30,7 +30,7 @@ import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
 import ethos.surface.cli.root.registry as root_registry
 from ethos.surface.cli import _gate_runner
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.result import EthosResult

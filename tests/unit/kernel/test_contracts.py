@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from ethos_core import models
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.system_contracts import load_system_contract
 from ethos_core.contracts.system_contracts import system_contracts_report
 from ethos_core.result import EthosResult

@@ -35,7 +35,7 @@ from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.surface.cli import _base
 from ethos.surface.cli import _gate_runner
 from ethos.surface.cli import hook as hook_cli
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.result import EthosResult
 
 

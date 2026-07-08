@@ -92,6 +92,10 @@ def _identity_entries(value: object) -> list[dict[str, str]]:
     return entries
 
 
+def _policy_allowed_identities(policy: dict[str, object]) -> list[dict[str, str]]:
+    return _identity_entries(policy.get("allowed_identities"))
+
+
 def _matches_allowed_identity(
     *, name: str, email: str, allowed_identities: list[dict[str, str]]
 ) -> bool:
@@ -155,7 +159,7 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     policy = load_commit_policy(repo)
     expected_name = str(policy["expected_name"])
     expected_email = str(policy["expected_email"])
-    allowed_identities = list(policy.get("allowed_identities", []))
+    allowed_identities = _policy_allowed_identities(policy)
     identity_mode = str(policy.get("identity_mode", "presence"))
     subject_pattern = str(policy["subject_pattern"])
     signing_required = bool(policy["signing_required"])

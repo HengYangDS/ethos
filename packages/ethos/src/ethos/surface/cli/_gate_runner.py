@@ -21,7 +21,7 @@ from ethos.surface.cli._base import app
 from ethos.surface.cli._base import load_command_groups
 
 if TYPE_CHECKING:
-    from ethos_core.action_graph import ActionNode
+    from ethos_core.action_graph.core import ActionNode
 
 
 def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:

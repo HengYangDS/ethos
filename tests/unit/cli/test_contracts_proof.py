@@ -393,7 +393,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
     import ethos.surface.cli.root.proof as proof_cli
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos.repository.policy.gates import Gate
-    from ethos_core.action_graph import ActionGraph
+    from ethos_core.action_graph.core import ActionGraph
 
     diagnostic_gate = Gate(
         id="diagnostic-only",

@@ -50,6 +50,7 @@ HISTORICAL_SURFACE_PREFIXES = (
     "docs/decisions/superseded/",
 )
 SKIPPED_PRODUCT_DIR_PARTS = {
+    ".ethos/state",
     ".git",
     ".mypy_cache",
     ".pytest_cache",
@@ -150,6 +151,8 @@ class Finding:
 
 def _is_text_product_file(path: Path, *, root: Path) -> bool:
     rel = path.relative_to(root).as_posix()
+    if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
+        return False
     if any(rel.startswith(prefix) for prefix in HISTORICAL_SURFACE_PREFIXES):
         return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):

@@ -21,8 +21,8 @@ from ethos.domain.status import status_worktree_gaps
 from ethos.domain.status import string_list
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.registry.commands import command_registry_report
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleFactSnapshot

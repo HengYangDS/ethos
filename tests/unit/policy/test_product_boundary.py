@@ -51,6 +51,20 @@ def test_product_boundary_reports_literal_leaks_and_sorts_counts(tmp_path: Path)
     assert all(":" in gap for gap in report["required_gaps"])
 
 
+def test_product_boundary_ignores_local_ethos_state(tmp_path: Path) -> None:
+    _write(tmp_path / "README.md", "# ETHOS\n")
+    _write(
+        tmp_path / ".ethos" / "state" / "proof" / "head.json",
+        term_from_parts("runner=/", "Users", "/person/project/.venv/bin/python\n"),
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["findings"] == []
+    assert report["summary"]["scanned_file_count"] == 1
+
+
 def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_path: Path) -> None:
     _write(tmp_path / "docs" / "history" / "old.md", "historical\n")
     _write(tmp_path / "README.bin", "binary-ish\n")

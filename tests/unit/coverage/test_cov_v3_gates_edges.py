@@ -10,7 +10,7 @@ from ethos.adapters.gates import ty as ty_mod
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import LocalSubprocessRunner
 from ethos.adapters.gates.ty import ty_gate_report
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 
 if TYPE_CHECKING:
     from pathlib import Path

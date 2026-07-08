@@ -166,3 +166,10 @@ def test_scorecard_next_actions_route_contributor_policy_gaps() -> None:
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": ["identity_mode_missing:.ethos/workspace.toml:1"]},
     ) == ("ethos quality contributor-policy --json",)
+
+
+def test_scorecard_next_actions_route_clean_ready_state_to_full_proof() -> None:
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={"required_gaps": []},
+    ) == ("ethos prove --full",)

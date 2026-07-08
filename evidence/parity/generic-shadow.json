@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
-    "target_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
-    "product_semantic_sha256": "afbb3736b4e58acc2fb790f44636c506e1e90145f213b0caa7dcc754a0015844",
-    "target_semantic_sha256": "afbb3736b4e58acc2fb790f44636c506e1e90145f213b0caa7dcc754a0015844",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "d1cb1bf9a0d14c20054f794c8f5fdd3800e1ffd7",
+    "target_head": "d1cb1bf9a0d14c20054f794c8f5fdd3800e1ffd7",
+    "product_semantic_sha256": "7bdff4707de0e1a7acc05efc47b3085cf027e38aaf306166a9279e5f4a868cdc",
+    "target_semantic_sha256": "7bdff4707de0e1a7acc05efc47b3085cf027e38aaf306166a9279e5f4a868cdc",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window",
-    "target_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
-    "product_head": "f6b0f1721eeb46850b6a392b080b9429ed3673d5",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph",
+    "target_head": "d1cb1bf9a0d14c20054f794c8f5fdd3800e1ffd7",
+    "product_head": "d1cb1bf9a0d14c20054f794c8f5fdd3800e1ffd7",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json",
-      "/Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/shadow-diff-rollback-window --json"
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-action-graph/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/module-layout-action-graph --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4a705e94030971c7abf5aed7b47af91e24ed99e4f17db1da0d0ccd0ef0eeb39d"
+        "sha256": "1566f4f3b26f25ff1ffa1636ca65ba85c8a0926986a7b8ba3c1efd38de039bbf"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "58ba720029d17d0be47d8a77d1a5c7785e497860fa4d5e5ff83ce57f9e0da0d2"
+        "sha256": "490dbd82e69f7ddb77c612df997ae2b3c12473da4bc1d96445ff350763220fd5"
       },
       {
         "path": "openspec",

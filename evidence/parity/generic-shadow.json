@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "6417a4990f33bf8388346285dc7dc1916124cf16",
-    "target_head": "6417a4990f33bf8388346285dc7dc1916124cf16",
-    "product_semantic_sha256": "ab71e60b7f9787d0579aa67d9f04a10b410af66c0baa2199bea34e48411e1863",
-    "target_semantic_sha256": "ab71e60b7f9787d0579aa67d9f04a10b410af66c0baa2199bea34e48411e1863",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
+    "target_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
+    "product_semantic_sha256": "8c80b11efb349dce2e61955c03b9283cb00066da677db58ddcb3ed6a2bbe3c38",
+    "target_semantic_sha256": "8c80b11efb349dce2e61955c03b9283cb00066da677db58ddcb3ed6a2bbe3c38",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,10 +35,13 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709",
-    "target_head": "6417a4990f33bf8388346285dc7dc1916124cf16",
-    "product_head": "6417a4990f33bf8388346285dc7dc1916124cf16",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d",
+    "target_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
+    "product_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
+    "changed_paths": [
+      "evidence/parity/alphasim-dmgr-shadow.json",
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +54,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-apply-verdict-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
+      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +84,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1e198d323a487314edacd696fd2db1f7d920267afff1c82ed2b43497af148395"
+        "sha256": "e24a03a51ce098c8791600cef45b255d1b5a3deba182e309ece3e3306346c649"
       },
       {
         "path": "evidence/claims",

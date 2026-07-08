@@ -571,6 +571,10 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
         "run local-ci fallback when remote publication is unavailable"
         in publication["local_submit_package"]["required_steps"]
     )
+    assert payload["next_actions"] == [
+        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
+        "ethos report",
+    ]
 
 
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:

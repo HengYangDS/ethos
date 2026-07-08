@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 import ethos.adapters.repo.git as git
 import ethos.domain.land as land_domain
@@ -76,6 +77,17 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             },
         },
     )
+
+
+def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[str, ...]:
+    """Return top-level publish actions without hiding publication work."""
+    if not ok:
+        return ("ethos land --json",)
+
+    publication_actions = cast("list[object]", publication.get("next_actions", []))
+    actions = [str(action) for action in publication_actions]
+    actions.append("ethos report")
+    return tuple(dict.fromkeys(actions))
 
 
 @app.command
@@ -263,7 +275,7 @@ def publish(
         state=("ready_to_publish" if ok and not apply else "blocked" if gaps else decision.state),
         summary=publish_summary,
         required_gaps=gaps,
-        next_actions=("ethos report",) if ok else ("ethos land --json",),
+        next_actions=_publish_next_actions(ok=ok, publication=publication),
         data={
             "repository_audit": audit,
             "release_root_open_spec": {

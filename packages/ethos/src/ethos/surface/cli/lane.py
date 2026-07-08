@@ -283,23 +283,39 @@ def lane_retire_landed(
         expect_head=expect_head,
         apply=apply,
     )
-    lanes = cast("list[dict[str, object]]", report["lanes"])
-    selected_lane = next((lane for lane in lanes if lane["branch"] == branch), {})
-    selected_blockers = tuple(
-        cast("tuple[str, ...] | list[str]", selected_lane.get("required_gaps", ()))
-    )
+    summary = _retire_landed_summary(report, branch=branch)
     result = EthosResult(
         command="lane retire-landed",
         ok=bool(report["ok"]),
         state=str(report["state"]),
-        summary={
-            "landed_lane_count": sum(1 for lane in lanes if lane["retire_ready"]),
-            "selected_branch": branch or "",
-            "selected_retire_ready": bool(selected_lane.get("retire_ready")),
-            "selected_blockers": selected_blockers,
-        },
+        summary=summary,
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
     emit(result, json_output=json_output)
+
+
+def _retire_landed_summary(report: dict[str, object], *, branch: str | None) -> dict[str, object]:
+    lanes = cast("list[dict[str, object]]", report["lanes"])
+    selected_lane = next((lane for lane in lanes if lane["branch"] == branch), {})
+    retired = report.get("retired")
+    retired_lane = retired if isinstance(retired, dict) else {}
+    if not selected_lane and retired_lane.get("branch") == branch:
+        selected_lane = cast("dict[str, object]", retired_lane)
+    selected_blockers = tuple(
+        cast("tuple[str, ...] | list[str]", selected_lane.get("required_gaps", ()))
+    )
+    landed_lane_count = sum(1 for lane in lanes if lane["retire_ready"])
+    retired_branch = retired_lane.get("branch")
+    retired_missing_from_lanes = bool(retired_branch) and all(
+        lane.get("branch") != retired_branch for lane in lanes
+    )
+    if retired_missing_from_lanes and retired_lane.get("retire_ready"):
+        landed_lane_count += 1
+    return {
+        "landed_lane_count": landed_lane_count,
+        "selected_branch": branch or "",
+        "selected_retire_ready": bool(selected_lane.get("retire_ready")),
+        "selected_blockers": selected_blockers,
+    }

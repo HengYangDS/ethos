@@ -95,6 +95,15 @@ def status(
             "changed_path_count": len(cast("list[object]", status_payload["changed_paths"])),
             "foreign_work_lane_count": coordination.get("foreign_work_lane_count", 0),
             "unbound_work_lane_count": coordination.get("unbound_work_lane_count", 0),
+            "missing_lease_count": coordination.get("missing_lease_count", 0),
+            "dirty_foreign_work_lane_count": sum(
+                1
+                for lane in cast("list[object]", status_payload.get("foreign_work_lanes") or [])
+                if isinstance(lane, dict) and bool(lane.get("dirty"))
+            ),
+            "coordination_advisory_count": len(
+                cast("list[object]", coordination.get("advisory_gaps") or [])
+            ),
             "coordination_blocking": bool(coordination.get("blocking")),
         },
         diagnostics=(validation,),
@@ -137,6 +146,9 @@ def orient(
             "capability": capability["current_actor_capability"],
             "foreign_work_lane_count": coordination["foreign_work_lane_count"],
             "unbound_work_lane_count": coordination["unbound_work_lane_count"],
+            "missing_lease_count": coordination.get("missing_lease_count", 0),
+            "dirty_foreign_work_lane_count": coordination.get("dirty_foreign_work_lane_count", 0),
+            "coordination_advisory_count": len(coordination.get("advisory_items", [])),
             "coordination_blocking": coordination["blocking"],
             "governance_gap_count": readiness["governance_gap_count"],
             "parity_pending_count": readiness["parity_pending_count"],

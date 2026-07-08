@@ -82,6 +82,10 @@ def orientation_packet(
             "blocking": bool(coordination.get("blocking")),
             "foreign_work_lane_count": int(coordination.get("foreign_work_lane_count") or 0),
             "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
+            "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+            "dirty_foreign_work_lane_count": sum(
+                1 for lane in foreign_lanes if bool(lane.get("dirty"))
+            ),
             "overlap_count": int(coordination.get("overlap_count") or 0),
             "advisory_items": _strings(coordination.get("advisory_gaps")),
             "required_items": _strings(coordination.get("required_gaps")),
@@ -127,6 +131,8 @@ def orientation_packet(
                 "capability": capability,
                 "foreign_count": len(foreign_lanes),
                 "unbound_count": len(unbound_refs),
+                "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+                "dirty_foreign_count": sum(1 for lane in foreign_lanes if bool(lane.get("dirty"))),
                 "gaps": gaps,
                 "advisory_count": int(
                     report_summary.get("advisory_gap_count") or len(report_advisory)
@@ -196,8 +202,16 @@ def _coordination_line(coordination: Mapping[str, Any]) -> str:
     foreign_count = int(coordination.get("foreign_work_lane_count") or 0)
     unbound_count = int(coordination.get("unbound_work_lane_count") or 0)
     required_items = _strings(coordination.get("required_items"))
+    missing_lease_count = int(coordination.get("missing_lease_count") or 0)
+    dirty_foreign_count = int(coordination.get("dirty_foreign_work_lane_count") or 0)
     if foreign_count:
-        parts.append(f"{foreign_count} foreign lane(s)")
+        detail: list[str] = []
+        if missing_lease_count:
+            detail.append(f"{missing_lease_count} missing lease")
+        if dirty_foreign_count:
+            detail.append(f"{dirty_foreign_count} dirty")
+        suffix = f" ({', '.join(detail)})" if detail else ""
+        parts.append(f"{foreign_count} foreign lane(s){suffix}")
     if unbound_count:
         parts.append(f"{unbound_count} unbound ref(s)")
     if bool(coordination.get("blocking")) or required_items:
@@ -274,6 +288,8 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "allowed_actions": _strings(item.get("allowed_actions")),
         "forbidden_actions": _strings(item.get("forbidden_actions")),
         "path_scope": _strings(item.get("path_scope")),
+        "dirty": bool(item.get("dirty")),
+        "lease_state": str(item.get("lease_state") or ""),
     }
 
 
@@ -356,8 +372,19 @@ def _human_summary(context: Mapping[str, Any]) -> str:
     actor = capability.get("current_actor_capability")
     foreign_count = int(context["foreign_count"])
     unbound_count = int(context["unbound_count"])
+    missing_lease_count = int(context.get("missing_lease_count") or 0)
+    dirty_foreign_count = int(context.get("dirty_foreign_count") or 0)
     advisory_count = int(context.get("advisory_count") or 0)
-    foreign = f", {foreign_count} foreign lane(s) visible" if foreign_count else ""
+    if foreign_count:
+        detail: list[str] = []
+        if missing_lease_count:
+            detail.append(f"{missing_lease_count} missing lease")
+        if dirty_foreign_count:
+            detail.append(f"{dirty_foreign_count} dirty")
+        suffix = f" ({', '.join(detail)})" if detail else ""
+        foreign = f", {foreign_count} foreign lane(s) visible{suffix}"
+    else:
+        foreign = ""
     unbound = f", {unbound_count} unbound ref(s) visible" if unbound_count else ""
     advisory = f", {advisory_count} advisory signal(s)" if advisory_count else ""
     next_action = f"; next: {next_actions[0]}" if next_actions else ""

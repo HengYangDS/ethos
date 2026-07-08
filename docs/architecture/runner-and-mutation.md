@@ -115,9 +115,12 @@ runner is allowed to execute the protected closeout with an explicit
 worktree is audited and proven before accepted-root movement.
 
 `ethos publish` is a local readiness command until a remote publication adapter
-is available. It reports `remote_push = "not_performed"` and a
+is available. It reports `remote_push = "not_performed"`,
+`summary.remote_publication_state = "deferred"`, and a
 `publication.mode = "local_readiness"` package with the planned submit branch
-under the configured submit prefix. Remote push is deliberately deferred; local
+under the configured submit prefix. Remote reachability is reported separately
+under `remote_availability.state`; an available remote does not mean remote push
+or hosted CI has been performed. Remote push is deliberately deferred; local
 proof and candidate closeout are still the required preparation.
 
 The publication payload also carries `publication.local_submit_package`, a

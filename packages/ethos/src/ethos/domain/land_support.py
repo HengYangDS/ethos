@@ -232,7 +232,9 @@ def publication_readiness(
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
-        "remote_state": "available" if remote_available else "deferred",
+        # This is remote *publication* state, not remote reachability.
+        # Reachability remains visible under remote_availability.state.
+        "remote_state": "deferred",
         "remote_availability": availability,
         "fallback_evidence": local_ci_fallback_package(remote_availability=availability),
         "submit_branch": submit_branch,

@@ -52,6 +52,17 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     )
     assert payload["summary"]["coordination_blocking"] == orientation["coordination"]["blocking"]
     assert (
+        payload["summary"]["missing_lease_count"]
+        == orientation["coordination"]["missing_lease_count"]
+    )
+    assert (
+        payload["summary"]["dirty_foreign_work_lane_count"]
+        == orientation["coordination"]["dirty_foreign_work_lane_count"]
+    )
+    assert payload["summary"]["coordination_advisory_count"] == len(
+        orientation["coordination"]["advisory_items"]
+    )
+    assert (
         orientation["coordination"]["next_action"] == status["data"]["coordination"]["next_action"]
     )
     assert payload["next_actions"] == orientation["next_actions"]
@@ -80,6 +91,11 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["dirty"] == data["dirty"]
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"]
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"]
+    assert summary["missing_lease_count"] == coordination["missing_lease_count"]
+    assert summary["dirty_foreign_work_lane_count"] == sum(
+        1 for lane in data["foreign_work_lanes"] if lane["dirty"]
+    )
+    assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] == coordination["blocking"]
 
 
@@ -106,8 +122,12 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
 
     coordination = payload["data"]["orientation"]["coordination"]
     assert coordination["foreign_work_lane_count"] == 1
+    assert payload["summary"]["missing_lease_count"] == 0
+    assert payload["summary"]["dirty_foreign_work_lane_count"] == 0
     lane = coordination["foreign_work_lanes"][0]
     assert lane["branch"] == "work/feature"
+    assert lane["lease_state"] == "leased"
+    assert lane["dirty"] is False
     assert lane["current_actor_capability"] == "observe"
     assert lane["allowed_actions"] == ["observe"]
     assert lane["forbidden_actions"] == ["write", "land", "retire"]
@@ -172,6 +192,7 @@ def test_orient_projects_advisory_signals_from_report_fixture() -> None:
                 "blocking": False,
                 "foreign_work_lane_count": 0,
                 "unbound_work_lane_count": 0,
+                "missing_lease_count": 0,
                 "overlap_count": 0,
                 "advisory_gaps": [],
                 "required_gaps": [],

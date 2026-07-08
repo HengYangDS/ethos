@@ -412,6 +412,12 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     publish_payload = run_ethos("publish", "--json", cwd=worktree)
 
     assert publish_payload["ok"] is True
+    assert publish_payload["summary"]["mode"] == "local_readiness"
+    assert publish_payload["summary"]["local_readiness"] is True
+    assert publish_payload["summary"]["remote_push"] == "not_performed"
+    assert publish_payload["summary"]["remote_publication_state"] == "deferred"
+    assert publish_payload["summary"]["hosted_ci_status_claimed"] is False
+    assert publish_payload["summary"]["submit_branch"] == "review/configured"
     assert publish_payload["data"]["publication"]["submit_branch"] == "review/configured"
     local_submit = publish_payload["data"]["publication"]["local_submit_package"]
     assert local_submit["kind"] == "submit_branch_plan"
@@ -419,6 +425,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     assert local_submit["submit_branch"] == "review/configured"
     assert local_submit["remote_push"] == "not_performed"
     assert local_submit["remote_state"] == "deferred"
+    assert publish_payload["data"]["publication"]["remote_state"] == "deferred"
     assert local_submit["blocking"] is False
     assert local_submit["remote_availability"]["blocking"] is False
     assert local_submit["local_ci_fallback"]["kind"] == "local_ci_fallback"
@@ -527,6 +534,10 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     submit_branch = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
 
+    assert payload["summary"]["mode"] == "local_readiness"
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert payload["summary"]["remote_publication_state"] == "deferred"
+    assert payload["summary"]["hosted_ci_status_claimed"] is False
     assert payload["data"]["remote_push"] == "not_performed"
     assert payload["data"]["remote_availability"]["blocking"] is False
     assert (
@@ -542,6 +553,7 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     publication = payload["data"]["publication"]
     assert publication["mode"] == "local_readiness"
     assert publication["remote_push"] == "not_performed"
+    assert publication["remote_state"] == "deferred"
     assert publication["submit_branch"] == submit_branch
     assert publication["required_gaps"] == (
         [] if payload["ok"] else ["local_publish_readiness_blocked"]

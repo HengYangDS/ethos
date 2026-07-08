@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "08b1ee990845d1d339bc045ad8c868e62d3c5c5c",
-    "target_head": "08b1ee990845d1d339bc045ad8c868e62d3c5c5c",
-    "product_semantic_sha256": "b01263e19aa1d7764959049ee40444a9423d2419225d5f81247777bcf09eecad",
-    "target_semantic_sha256": "b01263e19aa1d7764959049ee40444a9423d2419225d5f81247777bcf09eecad",
+    "product_head": "6b8ee67aec541cd9676f25d51bc0af3e5044fccb",
+    "target_head": "6b8ee67aec541cd9676f25d51bc0af3e5044fccb",
+    "product_semantic_sha256": "487d3c64962124f026052f1c43a330a365b4aeebb580e5753097fb7b4f0b3c94",
+    "target_semantic_sha256": "487d3c64962124f026052f1c43a330a365b4aeebb580e5753097fb7b4f0b3c94",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,10 +35,12 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout",
-    "target_head": "08b1ee990845d1d339bc045ad8c868e62d3c5c5c",
-    "product_head": "08b1ee990845d1d339bc045ad8c868e62d3c5c5c",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening",
+    "target_head": "6b8ee67aec541cd9676f25d51bc0af3e5044fccb",
+    "product_head": "6b8ee67aec541cd9676f25d51bc0af3e5044fccb",
+    "changed_paths": [
+      "tests/unit/product/test_orient.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +53,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/release-adoption-evidence-closeout --json"
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-lane-readmodel-hardening --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +78,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "84ac3eb785c1526931ba151b7b294f5e5d9acb55d3ae023883e6a0789f7c3e49"
+        "sha256": "87c1f2abcb282a38c1f4c85b80d73e71cc54cdc623f1f603d0e5414f79d28547"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1b4c103dc03582b570bdab813d910b1a9f5dd111406582689279c36e5042f61c"
+        "sha256": "995d23caf3174114f294bb5957d2fe34d17911262807649eea11a094ff831d61"
       },
       {
         "path": "evidence/claims",

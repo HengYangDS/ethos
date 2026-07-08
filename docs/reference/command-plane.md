@@ -191,11 +191,12 @@ workspace-status payload. The diagnostic validates `data` against
 `workspace-status.schema.json`; the validation result is not embedded in `data`
 so the workspace-status object remains schema-valid.
 `ethos status --json` also lifts first-glance coordination state into
-`summary.foreign_work_lane_count`, `summary.unbound_work_lane_count`, and
-`summary.coordination_blocking`. Those summary fields are derived visibility
-signals for humans and agents; they do not replace `data.coordination`, do not
-add cleanup authority, and do not change whether a coordination signal is
-advisory or required.
+`summary.foreign_work_lane_count`, `summary.unbound_work_lane_count`,
+`summary.missing_lease_count`, `summary.dirty_foreign_work_lane_count`,
+`summary.coordination_advisory_count`, and `summary.coordination_blocking`.
+Those summary fields are derived visibility signals for humans and agents; they
+do not replace `data.coordination`, do not add cleanup authority, and do not
+change whether a coordination signal is advisory or required.
 `ethos orient --json` projects `data.coordination.next_action` into
 `data.orientation.coordination.next_action` for first-glance coordination
 guidance. That field is distinct from the top-level transition `next_actions`:
@@ -296,8 +297,11 @@ ethos publish --apply --authorize --expect-head <git-head>
 
 Those commands still report readiness in the current implementation; remote
 publication remains an adapter responsibility. `publish --json` reports
-`data.remote_push = "not_performed"` and `data.publication.remote_state =
-"deferred"` while still exposing the configured submit branch plan.
+`summary.remote_push = "not_performed"`,
+`summary.remote_publication_state = "deferred"`, and
+`data.publication.remote_state = "deferred"` while still exposing the configured
+submit branch plan. Remote reachability is separate and appears under
+`data.remote_availability.state` and `data.publication.remote_availability.state`.
 `land --apply` from an admitted Work Lane advances the configured candidate
 branch; it does not advance the accepted root.
 Accepted-root closeout is also an ETHOS mutation. The current ETHOS runner may

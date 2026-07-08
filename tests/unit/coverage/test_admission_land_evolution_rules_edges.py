@@ -365,7 +365,8 @@ def test_remote_availability_reports_configured_remote_available(
         policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
         remote_availability=availability,
     )
-    assert package["remote_state"] == "available"
+    assert package["remote_state"] == "deferred"
+    assert package["remote_availability"]["state"] == "available"
     assert package["next_actions"] == [
         "create configured submit branch when remote publication is available"
     ]

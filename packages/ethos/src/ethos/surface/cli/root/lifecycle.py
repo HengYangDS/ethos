@@ -231,10 +231,37 @@ def publish(
     gaps = tuple(audit["required_gaps"]) + decision.gaps + release_carrier_gaps
     ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
     remote_availability = git.remote_availability(repo)
+    local_ci_fallback = land_domain.local_ci_fallback_package(
+        remote_availability=remote_availability,
+    )
+    publication = land_domain.publication_readiness(
+        branch=str(branch),
+        local_ok=ok,
+        policy=load_branch_role_policy(repo),
+        remote_availability=remote_availability,
+    )
+    remote_state = str(publication.get("remote_state") or "deferred")
+    remote_push = str(publication.get("remote_push") or "not_performed")
+    remote_availability_state = str(remote_availability.get("state") or "not_probed")
+    publish_summary = {
+        "mode": "local_readiness",
+        "local_readiness": ok,
+        "remote_push": remote_push,
+        "remote_publication_state": remote_state,
+        "remote_availability_state": remote_availability_state,
+        "hosted_ci_status_claimed": False,
+        "submit_branch": str(publication.get("submit_branch") or ""),
+        "next_publication_action": str(
+            (publication.get("next_actions") or [""])[0]
+            if isinstance(publication.get("next_actions"), list)
+            else ""
+        ),
+    }
     result = EthosResult(
         command="publish",
         ok=ok,
         state=("ready_to_publish" if ok and not apply else "blocked" if gaps else decision.state),
+        summary=publish_summary,
         required_gaps=gaps,
         next_actions=("ethos report",) if ok else ("ethos land --json",),
         data={
@@ -243,17 +270,10 @@ def publish(
                 "required_gaps": list(release_carrier_gaps),
                 "blocking": bool(release_carrier_gaps),
             },
-            "remote_push": "not_performed",
+            "remote_push": remote_push,
             "remote_availability": remote_availability,
-            "local_ci_fallback": land_domain.local_ci_fallback_package(
-                remote_availability=remote_availability,
-            ),
-            "publication": land_domain.publication_readiness(
-                branch=str(branch),
-                local_ok=ok,
-                policy=load_branch_role_policy(repo),
-                remote_availability=remote_availability,
-            ),
+            "local_ci_fallback": local_ci_fallback,
+            "publication": publication,
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,

@@ -3,11 +3,11 @@ id = "release-adoption-evidence"
 subject = "ethos:release-adoption-readiness"
 state = "active"
 change_id = "2026-07-08-release-adoption-readiness"
-summary = "ETHOS has current release smoke, external adoption pilot diagnostics, local publish-readiness, and local-vs-remote publication-boundary evidence without claiming hosted CI or registry publication."
+summary = "ETHOS has 2026-07-09 release smoke, external adoption pilot diagnostics, local publish-readiness, and local-vs-remote publication-boundary evidence without claiming hosted CI or registry publication."
 
 [evidence]
-dated = "evidence/chronicle/release-adoption-readiness/2026-07-08.md"
-sha256 = "82bb77c6f4cfde67ca5971f6223683312251f1368c830c99d785ddeb9ac16910"
+dated = "evidence/chronicle/release-adoption-readiness/2026-07-09.md"
+sha256 = "4cad1f6fd33f1a8c79bbaf13a492f240b43233813d018e105c68d7c2f6b59612"
 evidence_ids = ["evidence:release-adoption-readiness"]
 binding = "semantic release artifact, adoption pilot, remote-ref, and hosted-CI boundary evidence binding"
 verifier = "semantic"
@@ -47,7 +47,7 @@ kill_signal = "Local release or adoption readiness is presented as hosted CI suc
 
 [promotion]
 targets = [
-  "evidence/chronicle/release-adoption-readiness/2026-07-08.md",
+  "evidence/chronicle/release-adoption-readiness/2026-07-09.md",
   "evidence/claims/release-adoption-readiness.toml",
   "evidence/parity/generic-shadow.json",
   "openspec/changes/archive/2026-07-08-release-adoption-readiness/proposal.md",

@@ -20,7 +20,7 @@ def _capture(monkeypatch):
 
 def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_path: Path):
     emitted = _capture(monkeypatch)
-    monkeypatch.setattr(q._gitio, "git_files", lambda _repo, *patterns: [f"file{patterns[0]}"])
+    monkeypatch.setattr(q.git_adapter, "git_files", lambda _repo, *patterns: [f"file{patterns[0]}"])
 
     def fake_report(**kwargs):
         return {"ok": True, "required_gaps": [], "state": "passed", **kwargs}
@@ -47,7 +47,9 @@ def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_p
 def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(
-        q._prove, "code_size_report", lambda _repo: {"ok": False, "required_gaps": ["too_big"]}
+        q.prove_domain,
+        "code_size_report",
+        lambda _repo: {"ok": False, "required_gaps": ["too_big"]},
     )
     monkeypatch.setattr(
         q,
@@ -102,7 +104,7 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
         },
     )
     monkeypatch.setattr(q, "sbom_projection", lambda _repo: {"packages": [{"name": "ethos"}]})
-    monkeypatch.setattr(q._gitio, "current_head", lambda _repo: "abc123")
+    monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "abc123")
 
     def fake_release_attestation(root, head, evidence_digest):
         return {"predicate": {"tag": "v1"}, "head": head, "digest": evidence_digest}

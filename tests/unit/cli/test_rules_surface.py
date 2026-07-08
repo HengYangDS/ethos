@@ -50,7 +50,7 @@ def test_rules_check_surface_emits_kernel_readiness(monkeypatch, tmp_path: Path)
 def test_rules_eval_surface_binds_head_snapshot_and_attestation(monkeypatch, tmp_path: Path):
     emitted = _capture_emit(monkeypatch)
     monkeypatch.setattr(rules_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(rules_cli._gitio, "current_head", lambda _repo: "abc123")
+    monkeypatch.setattr(rules_cli.git_adapter, "current_head", lambda _repo: "abc123")
 
     def fake_snapshot(repo, **kwargs):
         assert kwargs["head"] == "abc123"
@@ -68,10 +68,10 @@ def test_rules_eval_surface_binds_head_snapshot_and_attestation(monkeypatch, tmp
             "next_action_contract": ["run tests"],
         }
 
-    monkeypatch.setattr(rules_cli._plan, "rule_fact_snapshot", fake_snapshot)
+    monkeypatch.setattr(rules_cli.plan_domain, "rule_fact_snapshot", fake_snapshot)
     monkeypatch.setattr(rules_cli, "rules_evaluation_report", fake_report)
     monkeypatch.setattr(
-        rules_cli._plan,
+        rules_cli.plan_domain,
         "rule_attestation_for_evaluation",
         lambda report, actor, scope: {"actor": actor, "scope": scope, "digest": report["digest"]},
     )

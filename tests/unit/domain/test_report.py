@@ -23,7 +23,7 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     """Report must not claim ready when standalone hard quality gates are blocked."""
 
     monkeypatch.setattr(
-        report_domain._status,
+        report_domain.status_domain,
         "audit_for_root",
         lambda _repo, **_kwargs: {
             "ok": True,
@@ -66,7 +66,7 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
         "parity_ledger_report",
         lambda: {"ok": True, "summary": {"unclassified_count": 0}},
     )
-    monkeypatch.setattr(report_domain._gitio, "current_tracked_head", lambda _repo: "head")
+    monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", lambda _repo: "head")
     monkeypatch.setattr(
         report_domain,
         "parity_gaps_report",

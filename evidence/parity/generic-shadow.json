@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "55629fee4b5cfc5f6de1815a9bc2b0492bbe854a",
-    "target_head": "55629fee4b5cfc5f6de1815a9bc2b0492bbe854a",
+    "product_head": "12e7924a10b9672b536e019c754546cde395c8c1",
+    "target_head": "12e7924a10b9672b536e019c754546cde395c8c1",
     "product_semantic_sha256": "63879facc6056a745704b380212912704d6e380f0e1c112d8dc004aa1dc71bbb",
     "target_semantic_sha256": "63879facc6056a745704b380212912704d6e380f0e1c112d8dc004aa1dc71bbb",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709",
-    "target_head": "55629fee4b5cfc5f6de1815a9bc2b0492bbe854a",
-    "product_head": "55629fee4b5cfc5f6de1815a9bc2b0492bbe854a",
+    "target_head": "12e7924a10b9672b536e019c754546cde395c8c1",
+    "product_head": "12e7924a10b9672b536e019c754546cde395c8c1",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "68b3bedf5c29bf1640d2e08da1dc9e9797b9ce3c6362d99fb579901f862d0c7e"
+        "sha256": "b2776c4a552e42336691fb417c39d57508415535336ed5d7c7cb11f6feccd5fc"
       },
       {
         "path": "evidence/claims",

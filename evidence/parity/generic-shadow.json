@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "1d34d1eaeccc93f660cf28c924d7e0cb28dd2231",
-    "target_head": "1d34d1eaeccc93f660cf28c924d7e0cb28dd2231",
-    "product_semantic_sha256": "d544bcbeaedd67b3e1bc354244bd3840b0933da71f176fcc05f8fee772c6aac8",
-    "target_semantic_sha256": "d544bcbeaedd67b3e1bc354244bd3840b0933da71f176fcc05f8fee772c6aac8",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
+    "target_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
+    "product_semantic_sha256": "1103993abef33d8ff23275823ca48e0c9856889091eab23137f33f961566f7bb",
+    "target_semantic_sha256": "1103993abef33d8ff23275823ca48e0c9856889091eab23137f33f961566f7bb",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package",
-    "target_head": "1d34d1eaeccc93f660cf28c924d7e0cb28dd2231",
-    "product_head": "1d34d1eaeccc93f660cf28c924d7e0cb28dd2231",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/docstring-floor-100",
+    "target_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
+    "product_head": "2f53f71da40f4e0bfe2670c3f5454371fb83f493",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json",
-      "/Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/repository-openspec-metadata-package --json"
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json",
+      "/Users/yheng/projects/ethos-worktrees/docstring-floor-100/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docstring-floor-100 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "08b2a32ba39a8c5e5ae9c6a3bdfd4a3107e80dba91512fa4667687a2e87f9665"
+        "sha256": "732c8ee37fa6d952ba0530ffabd6cdb36ab03edf77cf68cc9d3ec5b27540864c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "5179801343270bb0c3e09086a5d2ca90535ef8a93d1e809456972b3bc61354a6"
+        "sha256": "44ef83651d139d82f7ddfe6b90caeb0fc8feada00a88d8f4025fe8a45d931f86"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "0a79f797ed25eb6322d8c975f8a0cf3211e4c3a7e2a6a22c5955bc6f56f700eb"
+        "sha256": "90df6324b69249c891d935ab32fc2c252081bae8ccdd01ef6ea8d31876f9073b"
       },
       {
         "path": "rules",

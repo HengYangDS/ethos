@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
+import ethos.adapters.shadow.planning as shadow_planning
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -156,7 +158,7 @@ def _normalized_semantic_projections(
                     gaps=report_gaps,
                 )
             )
-        plan_scope_gaps = _external_stricter_plan_scope_gaps(
+        plan_scope_gaps = shadow_planning.external_stricter_gaps(
             command,
             external_projection,
             embedded_projection,
@@ -169,7 +171,7 @@ def _normalized_semantic_projections(
                     gaps=plan_scope_gaps,
                 )
             )
-            _normalize_external_plan_scope(external_projection, embedded_projection)
+            shadow_planning.normalize_external(external_projection, embedded_projection)
         external_gaps, stricter_gaps = _without_external_stricter_only_gaps(
             command,
             external_gaps,
@@ -440,45 +442,6 @@ def _without_external_stricter_only_gaps(
     return filtered, removed
 
 
-def _external_stricter_plan_scope_gaps(
-    command: tuple[str, ...],
-    external_projection: dict[str, Any],
-    embedded_projection: dict[str, Any],
-) -> list[str]:
-    if command != ("plan", "--changed"):
-        return []
-    if external_projection.get("command") != "plan":
-        return []
-    if embedded_projection.get("command") != "plan":
-        return []
-    if external_projection.get("required_gaps") or embedded_projection.get("required_gaps"):
-        return []
-    external_changed = _int(external_projection.get("changed_path_count"))
-    embedded_changed = _int(embedded_projection.get("changed_path_count"))
-    external_rules = _string_list(external_projection.get("matched_rule_ids"))
-    embedded_rules = _string_list(embedded_projection.get("matched_rule_ids"))
-    external_gates = _string_list(external_projection.get("required_gate_ids"))
-    embedded_gates = _string_list(embedded_projection.get("required_gate_ids"))
-    if external_changed <= embedded_changed:
-        return []
-    if embedded_changed != 0 or embedded_rules or embedded_gates:
-        return []
-    gaps = [f"changed_paths:{external_changed}"]
-    if external_rules:
-        gaps.append(f"matched_rules:{','.join(external_rules)}")
-    if external_gates:
-        gaps.append(f"required_gates:{','.join(external_gates)}")
-    return gaps
-
-
-def _normalize_external_plan_scope(
-    external_projection: dict[str, Any],
-    embedded_projection: dict[str, Any],
-) -> None:
-    for key in ("changed_path_count", "matched_rule_ids", "required_gate_ids"):
-        external_projection[key] = embedded_projection.get(key)
-
-
 _PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = (
     "docs/",
     "schemas/",
@@ -567,16 +530,6 @@ def _report_parity_evidence_refresh_bootstrap_gaps(
 
 def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
-def _int(value: object) -> int:
-    return value if isinstance(value, int) else 0
 
 
 def _canonical_status_role(value: Any) -> Any:

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import textwrap
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tests.unit.policy.test_module_layout import _write
 from ethos.repository.policy.layout.core import module_layout_report
-import ethos.repository.policy.layout.imports.core as layout_imports
+from tests.unit.policy.test_module_layout import _write
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 def test_module_layout_baseline_growth_skips_without_reference(
     tmp_path: Path,

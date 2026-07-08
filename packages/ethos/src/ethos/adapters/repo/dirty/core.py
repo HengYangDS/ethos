@@ -24,6 +24,33 @@ def changed_paths(root: Path) -> tuple[str, ...]:
     return tuple(item["path"] for item in entries)
 
 
+def committed_change_paths(root: Path, base_ref: str) -> tuple[str, ...]:
+    """Return committed paths changed from ``base_ref`` to ``HEAD``.
+
+    This is intentionally separate from ``changed_paths``: a clean Work Lane can
+    still carry committed product changes relative to the candidate train.
+    """
+    if not base_ref:
+        return ()
+    completed = subprocess.run(
+        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return ()
+    return tuple(path for path in completed.stdout.splitlines() if path)
+
+
+def change_scope_paths(root: Path, *, base_ref: str = "") -> tuple[str, ...]:
+    """Return committed and dirty paths that define the current change scope."""
+    committed = committed_change_paths(root, base_ref)
+    dirty = changed_paths(root)
+    return tuple(dict.fromkeys((*committed, *dirty)))
+
+
 def dirty_provenance(root: Path) -> dict[str, object]:
     """Structured local dirty-state provenance from Git porcelain v1.
 

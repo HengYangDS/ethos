@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "80a07490d9049ab07ee6d6b1281ae397d2d8b81c",
-    "target_head": "80a07490d9049ab07ee6d6b1281ae397d2d8b81c",
-    "product_semantic_sha256": "eae57162d32c763e494ac8f8e4e8d2df0be166e598d5687fbca587f6a40a2d6b",
-    "target_semantic_sha256": "eae57162d32c763e494ac8f8e4e8d2df0be166e598d5687fbca587f6a40a2d6b",
+    "product_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
+    "target_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
+    "product_semantic_sha256": "6aa70b48b55750c13a1a52a615f1e5155de12404c33b74479464cbd6f309428a",
+    "target_semantic_sha256": "6aa70b48b55750c13a1a52a615f1e5155de12404c33b74479464cbd6f309428a",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c",
-    "target_head": "80a07490d9049ab07ee6d6b1281ae397d2d8b81c",
-    "product_head": "80a07490d9049ab07ee6d6b1281ae397d2d8b81c",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel",
+    "target_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
+    "product_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json",
-      "/Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-status-next-action-20260709c --json"
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
+      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "d816dfe6107a2e957b16d9041798e152b61e65f07ad15b364fe401ade4930c93"
+        "sha256": "62e5e2f84f65806d6f77d389e3e289a8d76968d122994cec21f1d03d39f402c9"
       },
       {
         "path": "evidence/claims",

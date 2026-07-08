@@ -54,6 +54,42 @@ PRODUCT_EXTENSION_ROOTS = frozenset(
 SUPPORTED_REPOSITORY_FORMS = ("single-repository", "monorepo", "multi-repository")
 STATE_VALUES = ("canonical", "active", "planned", "experimental", "superseded", "archived")
 
+# Universal, adopter-neutral document role vocabulary. Every governed repository
+# inherits this kernel set; a repository may ADD roles via its taxonomy but can
+# never remove a kernel role. Roles name the FUNCTION of a document; directory
+# names describe its SUBJECT domain. The two axes are bound by ROLE_KERNEL_ROOTS
+# (kernel, below) and per-repository extension-root declarations.
+ROLE_VALUES = (
+    "index",
+    "explanation",
+    "reference",
+    "decision",
+    "policy",
+    "evidence",
+    "history",
+    "template",
+    "plan",
+    "research",
+    "findings",
+    "progress",
+    "ledger",
+    "how-to",
+)
+
+# Kernel role -> the docs root(s) a document with that role MUST live under.
+# These are the immutable warrant-type bindings enforced in every governed
+# repository. Extension roles (explanation, policy, plan, ...) are bound per
+# repository through the taxonomy's extension-root declarations, not here.
+# `index` is intentionally absent: a README index is legal in any root.
+ROLE_KERNEL_ROOTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("decision", ("docs/decisions",)),
+    ("evidence", ("docs/evidence",)),
+    ("history", ("docs/history",)),
+    # reference lives in the reference lane, or alongside the decisions it
+    # supports (decision-code-links, decision-dependency-map).
+    ("reference", ("docs/reference", "docs/decisions")),
+)
+
 
 def normalize_docs_path(path: Path | str) -> str:
     """Return a repository-relative POSIX docs path without current-directory noise."""
@@ -72,6 +108,8 @@ def docs_topology_contract() -> dict[str, Any]:
         "state_metadata_required": True,
         "time_state_directories_allowed": False,
         "supported_state_values": list(STATE_VALUES),
+        "supported_role_values": list(ROLE_VALUES),
+        "role_kernel_roots": {role: list(roots) for role, roots in ROLE_KERNEL_ROOTS},
         "forbidden_roots": sorted(FORBIDDEN_DOCS_ROOTS),
         "supported_repository_forms": list(SUPPORTED_REPOSITORY_FORMS),
         "required_paths": [
@@ -102,6 +140,16 @@ def required_docs_topology_paths() -> tuple[str, ...]:
 def forbidden_docs_topology_roots() -> tuple[str, ...]:
     """Return forbidden docs roots that encode state as directory topology."""
     return tuple(sorted(FORBIDDEN_DOCS_ROOTS))
+
+
+def kernel_role_values() -> tuple[str, ...]:
+    """Return the universal, adopter-neutral document role vocabulary."""
+    return ROLE_VALUES
+
+
+def kernel_role_roots() -> dict[str, tuple[str, ...]]:
+    """Return kernel roles mapped to the docs roots a document with that role must use."""
+    return dict(ROLE_KERNEL_ROOTS)
 
 
 def is_product_docs_extension_root(path: Path | str) -> bool:

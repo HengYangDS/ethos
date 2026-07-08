@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.repository.registry.docs import DEFAULT_ALLOWED_ROLES
 from ethos.repository.registry.docs import DEFAULT_ALLOWED_STATES
+from ethos.repository.registry.docs import _allowed_roles
 from ethos.repository.registry.docs import build_docs_registry
 from ethos.repository.registry.docs import command_examples_report
 from ethos.repository.registry.docs import docs_health_report
+from ethos_core.contracts.docs.topology import ROLE_VALUES
 from ethos_core.contracts.docs.topology import STATE_VALUES
 
 
@@ -14,6 +17,23 @@ def test_default_allowed_states_are_sourced_from_topology_contract() -> None:
     # topology contract's STATE_VALUES, not an independent hand-maintained copy
     # that can silently diverge (add a state to the contract and this stays in lockstep).
     assert frozenset(STATE_VALUES) == DEFAULT_ALLOWED_STATES
+
+
+def test_default_allowed_roles_are_sourced_from_topology_contract() -> None:
+    # SSOT: the docs-registry allowed-role vocabulary is the contract's kernel
+    # ROLE_VALUES, never an independent copy.
+    assert frozenset(ROLE_VALUES) == DEFAULT_ALLOWED_ROLES
+
+
+def test_allowed_roles_union_kernel_with_taxonomy_never_removes_kernel(tmp_path: Path) -> None:
+    # Extension roles declared in a repo taxonomy are ADDED to the kernel set;
+    # a taxonomy can never shrink the inherited role vocabulary.
+    meta = tmp_path / "docs" / "_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text('[roles]\nallowed = ["runbook"]\n', encoding="utf-8")
+    allowed = _allowed_roles(tmp_path)
+    assert "runbook" in allowed  # taxonomy addition present
+    assert frozenset(ROLE_VALUES) <= allowed  # every kernel role still valid
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:

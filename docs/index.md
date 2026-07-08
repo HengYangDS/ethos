@@ -1,6 +1,6 @@
 ---
 subject: docs:index
-role: reference
+role: index
 state: canonical
 relations:
   canonical_for: docs navigation

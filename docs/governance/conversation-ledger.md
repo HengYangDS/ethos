@@ -1,6 +1,6 @@
 ---
 subject: ethos:conversation-ledger
-role: governance-ledger
+role: ledger
 state: active
 relations:
   canonical_for: conversation-derived product gaps

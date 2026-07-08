@@ -1,6 +1,6 @@
 ---
 subject: ethos:product-design-contract
-role: decision
+role: policy
 state: canonical
 relations:
   canonical_for: product truth, migration boundary, and repository governance design

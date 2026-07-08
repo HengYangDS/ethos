@@ -1,6 +1,6 @@
 ---
 subject: ethos:docs-registry
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: documentation governance

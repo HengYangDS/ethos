@@ -1,6 +1,6 @@
 ---
 subject: ethos:standards-adoption
-role: decision
+role: policy
 state: canonical
 relations:
   canonical_for: standards adoption

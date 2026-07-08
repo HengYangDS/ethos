@@ -1,6 +1,6 @@
 ---
 subject: ethos:kernel
-role: concept
+role: explanation
 state: canonical
 relations:
   canonical_for: kernel model

@@ -1,6 +1,6 @@
 ---
 subject: ethos:runner-mutation
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: workspace execution boundary

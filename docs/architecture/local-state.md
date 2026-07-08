@@ -1,6 +1,6 @@
 ---
 subject: ethos:local-state
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: ignored runtime state

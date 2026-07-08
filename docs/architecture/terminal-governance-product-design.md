@@ -1,6 +1,6 @@
 ---
 subject: ethos:terminal-governance-product-design
-role: target-design
+role: plan
 state: active
 relations:
   canonical_for: destructive terminal redesign target after user authorization

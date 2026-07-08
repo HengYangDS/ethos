@@ -1,6 +1,6 @@
 ---
 subject: ethos:target-package-ontology
-role: decision
+role: explanation
 state: canonical
 relations:
   canonical_for: target product package topology

@@ -1,6 +1,6 @@
 ---
 subject: ethos:distribution
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: npm and package distribution adapters

@@ -1,6 +1,6 @@
 ---
 subject: ethos:evolution
-role: workflow
+role: explanation
 state: canonical
 relations:
   canonical_for: repository governance

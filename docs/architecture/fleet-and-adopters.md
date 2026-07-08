@@ -1,6 +1,6 @@
 ---
 subject: ethos:fleet-adopters
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: external repository governance

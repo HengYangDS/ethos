@@ -13,7 +13,7 @@ def test_conversation_ledger_is_governance_truth_with_metadata() -> None:
     header = text.split("---", 2)[1]
 
     assert "subject: ethos:conversation-ledger" in header
-    assert "role: governance-ledger" in header
+    assert "role: ledger" in header
     assert "state: active" in header
     assert "relations:" in header
     assert "canonical_for: conversation-derived product gaps" in header

@@ -1,6 +1,6 @@
 ---
 subject: ethos:provenance
-role: concept
+role: explanation
 state: canonical
 relations:
   canonical_for: evidence attestation

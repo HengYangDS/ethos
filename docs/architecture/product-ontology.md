@@ -1,6 +1,6 @@
 ---
 subject: ethos:package-ontology
-role: decision
+role: explanation
 state: canonical
 relations:
   canonical_for: package topology summary

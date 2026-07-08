@@ -1,6 +1,6 @@
 ---
 subject: ethos:adoption-profiles
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: repository adoption

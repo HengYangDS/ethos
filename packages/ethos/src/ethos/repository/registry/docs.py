@@ -9,6 +9,7 @@ from urllib.parse import unquote
 from ethos.repository.registry.commands import RETIRED_PUBLIC_ROOTS
 from ethos.repository.registry.commands import known_commands
 from ethos.repository.registry.commands import public_commands
+from ethos_core.contracts.docs.topology import ROLE_VALUES
 from ethos_core.contracts.docs.topology import STATE_VALUES
 
 if TYPE_CHECKING:
@@ -27,6 +28,9 @@ VISIBLE_SECTION_LABELS = ("Status:", "Purpose:", "See also:")
 # than re-listing it here, so a state added to STATE_VALUES cannot silently
 # diverge from what the docs-registry gate accepts.
 DEFAULT_ALLOWED_STATES = frozenset(STATE_VALUES)
+# SSOT: the kernel role vocabulary comes from the contract; the taxonomy may add
+# repo-specific roles on top (union), but never remove a kernel role.
+DEFAULT_ALLOWED_ROLES = frozenset(ROLE_VALUES)
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
@@ -189,6 +193,17 @@ def _allowed_states(root: Path) -> set[str]:
     return configured or set(DEFAULT_ALLOWED_STATES)
 
 
+def _allowed_roles(root: Path) -> set[str]:
+    # Union, not replace: kernel roles from the contract are always valid; the
+    # taxonomy may only ADD repo-specific roles. This keeps the inherited role
+    # vocabulary stable across every governed repository.
+    taxonomy = _taxonomy(root)
+    roles = taxonomy.get("roles") if isinstance(taxonomy, dict) else {}
+    allowed = roles.get("allowed") if isinstance(roles, dict) else []
+    configured = {str(item) for item in allowed if isinstance(item, str)}
+    return set(DEFAULT_ALLOWED_ROLES) | configured
+
+
 def docs_health_report(root: Path) -> dict[str, object]:
     registry = build_docs_registry(root)
     missing = [
@@ -200,6 +215,12 @@ def docs_health_report(root: Path) -> dict[str, object]:
         for entry in registry
         if allowed_states and entry["state"] and entry["state"] not in allowed_states
     ]
+    allowed_roles = _allowed_roles(root)
+    invalid_role = [
+        f"invalid_role:{entry['path']}:{entry['role']}"
+        for entry in registry
+        if allowed_roles and entry["role"] and entry["role"] not in allowed_roles
+    ]
     subject_paths: dict[str, list[str]] = {}
     for entry in registry:
         if entry["subject"]:
@@ -210,12 +231,15 @@ def docs_health_report(root: Path) -> dict[str, object]:
         if len(paths) > 1
     ]
     visible_section_gaps = _visible_section_gaps(root, registry)
-    required_gaps = missing + invalid_state + duplicate_subjects + visible_section_gaps
+    required_gaps = (
+        missing + invalid_state + invalid_role + duplicate_subjects + visible_section_gaps
+    )
     return {
         "ok": not required_gaps,
         "document_count": len(registry),
         "missing_metadata": missing,
         "invalid_state": invalid_state,
+        "invalid_role": invalid_role,
         "duplicate_subjects": duplicate_subjects,
         "missing_visible_sections": visible_section_gaps,
         "required_gaps": required_gaps,

@@ -1,6 +1,6 @@
 ---
 subject: ethos:action-graph
-role: concept
+role: explanation
 state: canonical
 relations:
   canonical_for: deterministic planning

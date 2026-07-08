@@ -1,6 +1,6 @@
 ---
 subject: docs:start
-role: workflow
+role: how-to
 state: active
 relations:
   canonical_for: first run

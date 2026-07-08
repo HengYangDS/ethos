@@ -1,6 +1,6 @@
 ---
 subject: ethos:capability-parity-ledger
-role: governance-ledger
+role: ledger
 state: active
 relations:
   canonical_for: product migration parity and adopter switch readiness

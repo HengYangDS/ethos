@@ -1,6 +1,6 @@
 ---
 subject: ethos:agent-projections
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: assistant and protocol surfaces

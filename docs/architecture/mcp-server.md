@@ -1,6 +1,6 @@
 ---
 subject: ethos:mcp-server
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: MCP adapter

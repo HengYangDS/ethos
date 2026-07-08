@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "327e05f7db9f8638f85177280a36c54c446e7402",
-    "target_head": "327e05f7db9f8638f85177280a36c54c446e7402",
-    "product_semantic_sha256": "98f88524f34bf9f29adb4de9c9180650f2a08c04bf7c85c75fd3f54901aa70d6",
-    "target_semantic_sha256": "98f88524f34bf9f29adb4de9c9180650f2a08c04bf7c85c75fd3f54901aa70d6",
+    "product_head": "ef35c9a14b6a5338708021b4154c6910ad98a446",
+    "target_head": "ef35c9a14b6a5338708021b4154c6910ad98a446",
+    "product_semantic_sha256": "10f4ad1ab2cd267b3150a4bf7a52fffb4139a668485f8a58becccf530f214646",
+    "target_semantic_sha256": "10f4ad1ab2cd267b3150a4bf7a52fffb4139a668485f8a58becccf530f214646",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/private/tmp/ethos-rules-decomp",
-    "target_head": "327e05f7db9f8638f85177280a36c54c446e7402",
-    "product_head": "327e05f7db9f8638f85177280a36c54c446e7402",
+    "target_head": "ef35c9a14b6a5338708021b4154c6910ad98a446",
+    "product_head": "ef35c9a14b6a5338708021b4154c6910ad98a446",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "983020c543fe8ecf8abd7ffa925d8cdbea29edd6bca94186462a0bcd3ecd9a09"
+        "sha256": "a6c4359a37443ba7409b7b14270634d43b0404d03c8fcf4a34a7a49ae0ea8283"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "ddb579078a42412efd72c09164c09686666dbe703b821e2eb75e8141cf308908"
+        "sha256": "0247cef71e86bfddb5a0906529114df96e9241a8792c6cee44a9dda51cf5999e"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "134a4698844247f8df86100a290c439e77438f063c93a013f94fbf3535ba653a"
+        "sha256": "8bedd4f668e5ce75823fe03069159b0db6f973d66d3de0a0aa56f39f99325863"
       },
       {
         "path": "rules",

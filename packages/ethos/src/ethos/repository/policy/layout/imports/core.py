@@ -144,10 +144,9 @@ def _private_from_imports(
 def _status_paths(status: str) -> set[str]:
     paths: set[str] = set()
     for line in status.splitlines():
-        text = line.strip()
-        if not text:
+        if not line.strip():
             continue
-        path = text[3:] if len(text) > 3 else ""
+        path = line[3:] if len(line) > 3 else ""
         if " -> " in path:
             _old, path = path.rsplit(" -> ", maxsplit=1)
         if path:

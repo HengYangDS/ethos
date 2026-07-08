@@ -7,9 +7,9 @@ summary = "Work Lane lifecycle shared helpers moved to a semantic public primiti
 
 [evidence]
 dated = "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md"
-sha256 = "74307ace66d10db83c153f72f961ec9d4410837395c2822dd2f6cbf7dec18523"
+sha256 = "5c84b7a6394dd718e95a176d7e4081ce351e26945229e6121afa0b377d79e658"
 evidence_ids = ["evidence:lane-public-primitives-20260709"]
-binding = "Focused lifecycle tests, module-layout regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
+binding = "Focused lifecycle tests, module-layout regression tests, status parser regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/policy/test_module_layout.py tests/unit/policy/layout/test_import_discipline.py tests/unit/lanes/test_lanes_retire.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_cov_v2_config_refresh_edges.py tests/unit/coverage/test_ci_95_additional_edges.py tests/unit/coverage/test_lanes_final_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",

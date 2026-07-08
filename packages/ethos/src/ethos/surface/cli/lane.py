@@ -50,10 +50,26 @@ def lane_status(
         },
         diagnostics=(validation,),
         required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
-        next_actions=("ethos lane prewrite <path>",),
+        next_actions=_lane_status_next_actions(status_payload),
         data=status_payload,
     )
     emit(result, json_output=json_output, enforce=False)
+
+
+def _lane_status_next_actions(status_payload: dict[str, object]) -> tuple[str, ...]:
+    role = str(status_payload.get("role") or "")
+    if role == "work_lane":
+        gates = cast("dict[str, object]", status_payload.get("stage_gates", {}))
+        commands = cast("list[object]", gates.get("next_commands", []))
+        return tuple(str(command) for command in commands) or ("ethos lane prewrite <path>",)
+    raw_gaps = status_payload.get("required_gaps", ())
+    gap_items = raw_gaps if isinstance(raw_gaps, list | tuple) else ()
+    if gap_items:
+        return ("ethos orient --json",)
+    coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
+    if coordination.get("advisory_gaps"):
+        return ("ethos orient --json", "ethos lane status --json")
+    return ("ethos lane start <name> --path <path> --owner <owner> --apply --json",)
 
 
 @lane_app.command

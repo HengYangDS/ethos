@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
-    "target_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
-    "product_semantic_sha256": "8c80b11efb349dce2e61955c03b9283cb00066da677db58ddcb3ed6a2bbe3c38",
-    "target_semantic_sha256": "8c80b11efb349dce2e61955c03b9283cb00066da677db58ddcb3ed6a2bbe3c38",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
+    "target_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
+    "product_semantic_sha256": "a25870d5d8bd6252784e5c29fe17a7502d129aa6f921170c461302d3c594590a",
+    "target_semantic_sha256": "a25870d5d8bd6252784e5c29fe17a7502d129aa6f921170c461302d3c594590a",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,13 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d",
-    "target_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
-    "product_head": "02012e0f38ecc3c7fe1f0d60b10ddabdd6b9671f",
-    "changed_paths": [
-      "evidence/parity/alphasim-dmgr-shadow.json",
-      "evidence/parity/generic-shadow.json"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709",
+    "target_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
+    "product_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -54,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709d --json"
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -84,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e24a03a51ce098c8791600cef45b255d1b5a3deba182e309ece3e3306346c649"
+        "sha256": "dc78cfe5289ae9ec0dc92c16c6f64c01b0a07ee99a13edfd4ccd7e3e178db105"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "92692d4944b540b56b16a8a7e3621a7a1065c13ddd09816f0713b13ae2c01a51"
+        "sha256": "1b720a742dcf2f7f4ea385eb681b4127a5ab6a465dfff0d19cbf1f0699025d4c"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "9374975ddf8d73cc681f2a36373b02c1511a20ab13093589dcab5f133cf70756"
+        "sha256": "3f0e1d3773767bd2acc3d1acae68161cb71aff63db2cfc58c2a8e71f75b048f0"
       },
       {
         "path": "rules",

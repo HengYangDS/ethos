@@ -12,7 +12,7 @@ from ethos.repository.evidence.parity_validation import _command_matches_identit
 from ethos.repository.evidence.parity_validation import _validate_freshness
 from ethos.repository.evidence.parity_validation import _validate_verified_capabilities
 from ethos.repository.evidence.parity_validation import semantic_tree_digest
-from ethos.repository.openspec_metadata import read_openspec_metadata
+from ethos.repository.openspec.metadata import read_openspec_metadata
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import table_version

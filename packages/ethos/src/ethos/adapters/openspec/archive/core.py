@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from ethos.repository.openspec_metadata import ALLOWED_OPENSPEC_METADATA_KEYS
-from ethos.repository.openspec_metadata import is_relative_to
-from ethos.repository.openspec_metadata import read_openspec_metadata
+from ethos.repository.openspec.metadata import ALLOWED_OPENSPEC_METADATA_KEYS
+from ethos.repository.openspec.metadata import is_relative_to
+from ethos.repository.openspec.metadata import read_openspec_metadata
 
 if TYPE_CHECKING:
     from pathlib import Path

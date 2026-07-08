@@ -7,7 +7,7 @@ from typing import cast
 
 import yaml
 
-from ethos.repository.openspec_metadata import openspec_metadata_compatibility_report
+from ethos.repository.openspec.metadata import openspec_metadata_compatibility_report
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT

@@ -13,9 +13,9 @@ import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal
 import ethos.adapters.openspec.workspace.core as openspec_workspace
+import ethos.repository.openspec.metadata as openspec_metadata
 from ethos.repository import audit_openspec
 from ethos.repository import audit_openspec as audit_openspec_core
-from ethos.repository import openspec_metadata
 from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 
@@ -155,7 +155,7 @@ def test_required_gaps_filters_non_blocked_role_and_empty_gap(
     assert gaps == ["g3"]
 
 
-# --- repository/openspec_metadata.py -----------------------------------------
+# --- repository/openspec/metadata.py ----------------------------------------
 
 
 def test_read_metadata_skips_non_matching_line(tmp_path: Path) -> None:

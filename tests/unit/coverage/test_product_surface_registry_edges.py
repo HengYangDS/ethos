@@ -15,7 +15,7 @@ import ethos.adapters.openspec.core as openspec_core
 import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
-from ethos.repository import openspec_metadata
+import ethos.repository.openspec.metadata as openspec_metadata
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.registry.docs.commands import best_ethos_command_key
 from ethos.repository.registry.docs.commands import command_examples_report

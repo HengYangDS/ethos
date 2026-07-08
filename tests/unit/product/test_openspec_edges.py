@@ -9,7 +9,7 @@ import ethos.adapters.openspec.core as openspec_core
 import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
-from ethos.repository import openspec_metadata
+import ethos.repository.openspec.metadata as openspec_metadata
 
 
 def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, monkeypatch) -> None:

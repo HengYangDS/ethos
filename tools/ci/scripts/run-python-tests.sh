@@ -13,14 +13,36 @@ coverage_policy_path="${coverage_config_dir}/policy.toml"
 evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
 coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
+coverage_lock_dir="${coverage_evidence_dir}/.write.lock"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
+coverage_lock_acquired="false"
 
 cleanup_root_coverage_artifacts() {
   rm -f .coverage .coverage.*
   rm -f coverage.xml junit.xml
 }
+
+release_coverage_lock() {
+  if [[ "${coverage_lock_acquired}" == "true" ]]; then
+    rmdir "${coverage_lock_dir}" 2>/dev/null || true
+  fi
+}
+
+cleanup_and_release() {
+  cleanup_root_coverage_artifacts
+  release_coverage_lock
+}
+
+# The latest coverage XML and pytest-cov SQLite shards are one generated evidence
+# boundary. Concurrent proof/local-ci runs must not clean or combine the same files
+# while another run is writing them; coverage evidence writes are serialized here.
+while ! mkdir "${coverage_lock_dir}" 2>/dev/null; do
+  echo "waiting for coverage evidence lock: ${coverage_lock_dir}" >&2
+  sleep 1
+done
+coverage_lock_acquired="true"
 
 # Start each trust-bearing test run from a clean generated evidence boundary.
 # pytest-cov and xdist create SQLite shards next to COVERAGE_FILE; older or
@@ -29,7 +51,7 @@ cleanup_root_coverage_artifacts() {
 # generated-artifact topology before tests reach the real product assertions.
 # These files are ignored local evidence, not repository truth.
 cleanup_root_coverage_artifacts
-trap cleanup_root_coverage_artifacts EXIT
+trap cleanup_and_release EXIT
 rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
 rm -f "${coverage_evidence_dir}/coverage.xml"
 rm -f "${pytest_evidence_dir}/junit.xml"

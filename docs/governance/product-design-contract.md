@@ -277,6 +277,13 @@ an evidence-recording commit prove what it actually proves without pretending to
 know its own future commit hash, while any later parity-relevant source or
 contract change still stales the evidence.
 
+Generated proof artifacts are physical evidence projections, not truth stores.
+When multiple local or hosted runners can write the same latest artifact, the
+owner gate must serialize cleanup and writes or use an equivalent per-run
+promotion protocol. The current Python test gate uses a local lock around the
+coverage evidence directory so concurrent `prove` and local-CI runs cannot mix
+coverage shards or publish a false latest coverage XML.
+
 ## Invalid-State Taxonomy
 
 ETHOS reduces every emitted gap to one terminal invalid-state category. This is

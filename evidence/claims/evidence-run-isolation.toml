@@ -1,0 +1,43 @@
+[claim]
+id = "evidence-run-isolation"
+subject = "ethos:evidence-run-isolation"
+state = "active"
+summary = "ETHOS serializes shared generated coverage evidence writes for deterministic local proof gates."
+
+[evidence]
+dated = "evidence/chronicle/evidence-run-isolation/2026-07-09.md"
+sha256 = "97c241eeb4e531279bbe98793d02bd7cc405d08281aa4767742354d551eb1db8"
+evidence_ids = ["evidence:evidence-run-isolation"]
+binding = "owner-script lock contract, architecture regression test, and OpenSpec carrier"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_testing_platform.py::test_python_test_gate_serializes_shared_coverage_evidence_writes",
+  "tools/ci/scripts/run-local-ci.sh",
+]
+
+[scope]
+packages = ["ethos"]
+tests = ["tests/architecture/test_testing_platform.py"]
+
+[boundary]
+owner = "repository-governance"
+scope = "Generated coverage evidence physical write boundary for repository proof gates"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-evidence-run-isolation"
+
+fallback = "Run the Python owner test gate sequentially until the coverage evidence lock contract is restored."
+kill_signal = "The lock blocks indefinitely, creates a tracked truth store, or masks hosted CI status."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "tests/architecture/test_testing_platform.py",
+  "docs/governance/product-design-contract.md",
+  "openspec/changes/archive/2026-07-08-evidence-run-isolation/proposal.md",
+  "openspec/changes/archive/2026-07-08-evidence-run-isolation/design.md",
+  "openspec/changes/archive/2026-07-08-evidence-run-isolation/tasks.md",
+  "openspec/changes/archive/2026-07-08-evidence-run-isolation/specs/repository-governance/spec.md",
+  "evidence/chronicle/evidence-run-isolation/2026-07-09.md",
+  "evidence/claims/evidence-run-isolation.toml",
+]

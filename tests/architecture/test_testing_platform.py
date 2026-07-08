@@ -34,6 +34,16 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
 
 
+def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+
+    assert "coverage_lock_dir" in script
+    assert 'mkdir "${coverage_lock_dir}"' in script
+    assert 'rmdir "${coverage_lock_dir}"' in script
+    assert "waiting for coverage evidence lock" in script
+    assert "coverage evidence writes are serialized" in script
+
+
 def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
-    "target_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
-    "product_semantic_sha256": "66a04866a43a55d81d3836cc5b183455b09989270743fd3f847787c7b88c9758",
-    "target_semantic_sha256": "66a04866a43a55d81d3836cc5b183455b09989270743fd3f847787c7b88c9758",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
+    "target_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
+    "product_semantic_sha256": "69139bd3077eb6e969c6848289c428bbf7e4ad675e3f36b76016230954750021",
+    "target_semantic_sha256": "69139bd3077eb6e969c6848289c428bbf7e4ad675e3f36b76016230954750021",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/context-projection-package",
-    "target_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
-    "product_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation",
+    "target_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
+    "product_head": "ec9c908e222489258ef06771fb406d3afd1a65e9",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json"
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-run-isolation/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-run-isolation --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "dfabc617e2391816c5740728993cd4b036a79dbfa70a21d9b1f84f7afa44248b"
+        "sha256": "2ba7158581e6e651a34901dd3a9cbe3227688e6c5020cb97e9f4e490f0b4615c"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "faef95266b969d8851b74f2309e63c09c6b30ec73437a2dfc310b23b345bcede"
+        "sha256": "9b65e18015c5fab91dabc80ce7d1716a5368a1213fa1b88f5e41c595c15cb323"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "1de6211c685e94777f8f03d279ff1ae33ea873314fac0aa22b47efcce8e6f187"
+        "sha256": "a314874ae5bad0f55b10f8c6b6087f3937a43a6f94110e7fe2db6de256d77eed"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "a386760046b0732dbef49de0afb04ef5dd3f5234243bbf4abd023b8af2486e11"
+        "sha256": "938971b7bbc3ee63beb799f256d99bb769fc11c71adf001336dab0bf95ece291"
       },
       {
         "path": "rules",

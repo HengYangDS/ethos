@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
-    "target_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
-    "product_semantic_sha256": "96a450ec3dd23967ae08750918047259d53d77a7eaf67b5dafab7451d3c28fa2",
-    "target_semantic_sha256": "96a450ec3dd23967ae08750918047259d53d77a7eaf67b5dafab7451d3c28fa2",
+    "product_head": "b004cb1ff8908629b45ca3f93c339f5ae13d2138",
+    "target_head": "b004cb1ff8908629b45ca3f93c339f5ae13d2138",
+    "product_semantic_sha256": "a980e3e712c13b9f8a2b38ca11affc624446aa53a7f6a78f85f91e61e3a66ea9",
+    "target_semantic_sha256": "a980e3e712c13b9f8a2b38ca11affc624446aa53a7f6a78f85f91e61e3a66ea9",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709",
-    "target_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
-    "product_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709",
+    "target_head": "b004cb1ff8908629b45ca3f93c339f5ae13d2138",
+    "product_head": "b004cb1ff8908629b45ca3f93c339f5ae13d2138",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-next-actions-discoverability-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "d59fb279e4ec665c33605dfbf1cfce15e423fed3244e6730490be4e45207fc6f"
+        "sha256": "246ee6e3e6b3ca8c6036ee6ab3260fa62a661159112c3ae4c5abb6ee1ed11e70"
       },
       {
         "path": "evidence/claims",

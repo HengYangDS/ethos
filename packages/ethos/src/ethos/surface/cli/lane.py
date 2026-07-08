@@ -283,18 +283,20 @@ def lane_retire_landed(
         expect_head=expect_head,
         apply=apply,
     )
-    selected_lanes = [lane for lane in report["lanes"] if lane["branch"] == branch]
-    selected_lane = selected_lanes[0] if selected_lanes else {}
-    selected_required_gaps = tuple(selected_lane.get("required_gaps", ()))
+    lanes = cast("list[dict[str, object]]", report["lanes"])
+    selected_lane = next((lane for lane in lanes if lane["branch"] == branch), {})
+    selected_blockers = tuple(
+        cast("tuple[str, ...] | list[str]", selected_lane.get("required_gaps", ()))
+    )
     result = EthosResult(
         command="lane retire-landed",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
-            "landed_lane_count": sum(1 for lane in report["lanes"] if lane["retire_ready"]),
+            "landed_lane_count": sum(1 for lane in lanes if lane["retire_ready"]),
             "selected_branch": branch or "",
             "selected_retire_ready": bool(selected_lane.get("retire_ready")),
-            "selected_required_gaps": selected_required_gaps,
+            "selected_blockers": selected_blockers,
         },
         required_gaps=tuple(report["required_gaps"]),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),

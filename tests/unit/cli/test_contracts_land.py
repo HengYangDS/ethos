@@ -498,7 +498,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
         "landed_lane_count": 1,
         "selected_branch": "lane/configured",
         "selected_retire_ready": True,
-        "selected_required_gaps": [],
+        "selected_blockers": [],
     }
     assert retire_payload["data"]["mutation"]["expect_head"] == work_head
 

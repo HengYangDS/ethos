@@ -640,7 +640,7 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
         "landed_lane_count": 1,
         "selected_branch": "work/active",
         "selected_retire_ready": False,
-        "selected_required_gaps": ["work_lane_not_merged"],
+        "selected_blockers": ["work_lane_not_merged"],
     }
 
 

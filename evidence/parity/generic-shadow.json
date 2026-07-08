@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
-    "target_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
-    "product_semantic_sha256": "0e48346075eb91570bd5b3938cec714d76bdf1bd3003cc6f6677261558687015",
-    "target_semantic_sha256": "0e48346075eb91570bd5b3938cec714d76bdf1bd3003cc6f6677261558687015",
+    "product_head": "89c7cd26c2371d6d01582a23135c58d81dca7ab1",
+    "target_head": "89c7cd26c2371d6d01582a23135c58d81dca7ab1",
+    "product_semantic_sha256": "70bf884b6d2accc1ea98ddada4d5f767616d5560d22b3c3def07580e50553d2e",
+    "target_semantic_sha256": "70bf884b6d2accc1ea98ddada4d5f767616d5560d22b3c3def07580e50553d2e",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-discoverability",
-    "target_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
-    "product_head": "15fdd18d0b67b6feaeb874cb26a890945ea16293",
+    "target_head": "89c7cd26c2371d6d01582a23135c58d81dca7ab1",
+    "product_head": "89c7cd26c2371d6d01582a23135c58d81dca7ab1",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "18d892acad41f9b5a982afdba0fa3f58e3c491cfb1da6e86f189f2e664eb2253"
+        "sha256": "43ee50d947731609aa3c27a6c247886695a5913a0eb3109d7d0b4ee02417cb07"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "04b2b75b9514b89025dbd094d4efe9791e15b064591b90a699d45ce5371cef94"
+        "sha256": "5f3aa8acb528b221cd4243d082744bec09a2e3ca04be079f933e726494de8331"
       },
       {
         "path": "rules",

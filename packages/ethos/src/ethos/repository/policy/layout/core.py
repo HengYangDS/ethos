@@ -29,6 +29,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+DEBT_SUMMARY_KEYS = (
+    "suffix_module_count",
+    "suffix_flat_count",
+    "flat_directory_count",
+    "private_alias_count",
+    "package_init_facade_count",
+    "module_facade_count",
+    "package_root_submodule_import_count",
+)
+
+
 def module_layout_report(root: Path) -> dict[str, object]:
     """Report module-layout violations enforced from `rules/module_layout.md`."""
     policy = load_policy(root)
@@ -62,6 +73,36 @@ def module_layout_report(root: Path) -> dict[str, object]:
     gaps.extend(baseline_limit_gaps(len(baseline), limit))
     gaps.extend(str(item["gap"]) for item in kind_limit_findings)
     gaps.extend(str(item["gap"]) for item in baseline_growth)
+    summary = {
+        "suffix_module_count": len(suffix_modules),
+        "suffix_flat_count": len(suffix_groups),
+        "flat_directory_count": len(flat_directories),
+        "private_alias_count": len(private_aliases),
+        "package_init_facade_count": len(package_init_facades),
+        "module_facade_count": len(module_facades),
+        "package_root_submodule_import_count": len(package_root_submodule_imports),
+        "flat_growth_count": len(flat_growth),
+        "baseline_growth_count": len(baseline_growth),
+    }
+    debt_count = sum(int(summary[key]) for key in DEBT_SUMMARY_KEYS)
+    baseline_kind_limit_map = baseline_kind_limits(policy)
+    ratchet = {
+        "state": "debt_tracked" if debt_count else "clear",
+        "debt_count": debt_count,
+        "debt_kinds": [key for key in DEBT_SUMMARY_KEYS if int(summary[key]) > 0],
+        "baseline_gap_count": len(baseline),
+        "baseline_limit": limit,
+        "baseline_kind_counts": kind_counts,
+        "baseline_kind_limits": baseline_kind_limit_map,
+        "next_action": (
+            "shrink .config/checks/module-layout/policy.toml baselines when semantic "
+            "subpackages remove debt; do not add compatibility facades or suffix-flat modules"
+            if debt_count
+            else "keep module-layout debt at zero"
+        ),
+    }
+    summary["debt_count"] = debt_count
+
     return {
         "ok": not gaps,
         "state": "clean" if not gaps else "blocked",
@@ -82,17 +123,8 @@ def module_layout_report(root: Path) -> dict[str, object]:
                 DEFAULT_FLAT_GROWTH_ADDED_MODULE_LIMIT,
             )
         ),
-        "summary": {
-            "suffix_module_count": len(suffix_modules),
-            "suffix_flat_count": len(suffix_groups),
-            "flat_directory_count": len(flat_directories),
-            "private_alias_count": len(private_aliases),
-            "package_init_facade_count": len(package_init_facades),
-            "module_facade_count": len(module_facades),
-            "package_root_submodule_import_count": len(package_root_submodule_imports),
-            "flat_growth_count": len(flat_growth),
-            "baseline_growth_count": len(baseline_growth),
-        },
+        "summary": summary,
+        "ratchet": ratchet,
         "suffix_module_findings": suffix_modules,
         "suffix_flat_findings": suffix_groups,
         "flat_directory_findings": flat_directories,
@@ -106,7 +138,7 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "baseline_gap_count": len(baseline),
         "baseline_limit": limit,
         "baseline_kind_counts": kind_counts,
-        "baseline_kind_limits": baseline_kind_limits(policy),
+        "baseline_kind_limits": baseline_kind_limit_map,
         "baseline_kind_limit_findings": kind_limit_findings,
         "required_gaps": gaps,
     }

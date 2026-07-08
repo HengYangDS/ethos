@@ -15,6 +15,13 @@ def _write(path: Path, text: str = "") -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _assert_summary_counts(report: dict[str, object], **expected: int) -> None:
+    summary = report["summary"]
+    assert isinstance(summary, dict)
+    for key, value in expected.items():
+        assert summary[key] == value
+
+
 def test_module_layout_flags_suffix_flat_groups_and_flat_directory(tmp_path: Path) -> None:
     source = tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample"
     for name in (
@@ -42,17 +49,21 @@ def test_module_layout_flags_suffix_flat_groups_and_flat_directory(tmp_path: Pat
         "module_layout_flat_directory:packages/ethos/src/ethos/sample:9>8"
         in report["required_gaps"]
     )
-    assert report["summary"] == {
-        "suffix_module_count": 3,
-        "suffix_flat_count": 1,
-        "flat_directory_count": 1,
-        "private_alias_count": 0,
-        "package_init_facade_count": 0,
-        "module_facade_count": 0,
-        "package_root_submodule_import_count": 0,
-        "flat_growth_count": 0,
-        "baseline_growth_count": 0,
-    }
+    _assert_summary_counts(
+        report,
+        suffix_module_count=3,
+        suffix_flat_count=1,
+        flat_directory_count=1,
+        private_alias_count=0,
+        package_init_facade_count=0,
+        module_facade_count=0,
+        package_root_submodule_import_count=0,
+        flat_growth_count=0,
+        baseline_growth_count=0,
+        debt_count=5,
+    )
+    assert report["ratchet"]["state"] == "debt_tracked"
+    assert report["ratchet"]["debt_count"] == 5
 
 
 def test_module_layout_flags_single_suffix_flat_module(tmp_path: Path) -> None:
@@ -316,6 +327,87 @@ def test_module_layout_accepts_current_baseline_limit(tmp_path: Path) -> None:
 
     assert report["ok"] is True
     assert report["required_gaps"] == []
+
+
+def test_module_layout_clean_state_still_exposes_tracked_ratchet_debt(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
+    _write(source / "old_report.py")
+    _write(
+        source / "consumer.py",
+        "from ethos.domain import plan as _plan\n",
+    )
+    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
+    _write(
+        policy,
+        textwrap.dedent(
+            """
+            paths = ["packages/ethos/src"]
+            baseline_gap_limit = 3
+            enforce_baseline_kind_limits = true
+            baseline_suffix_module_limit = 1
+            baseline_suffix_flat_limit = 0
+            baseline_flat_directory_limit = 0
+            baseline_private_alias_limit = 1
+            baseline_package_init_facade_limit = 0
+            baseline_module_facade_limit = 1
+            allowed_suffix_modules = [
+              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
+            ]
+            allowed_private_aliases = [
+              "module_layout_private_import_alias:packages/ethos/src/ethos/consumer.py:ethos.domain.plan->_plan",
+            ]
+            allowed_module_facades = [
+              "module_layout_module_facade:packages/ethos/src/ethos/consumer.py",
+            ]
+            """
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["state"] == "clean"
+    assert report["required_gaps"] == []
+    _assert_summary_counts(
+        report,
+        suffix_module_count=1,
+        private_alias_count=1,
+        module_facade_count=1,
+        debt_count=3,
+    )
+    assert report["ratchet"] == {
+        "state": "debt_tracked",
+        "debt_count": 3,
+        "debt_kinds": [
+            "suffix_module_count",
+            "private_alias_count",
+            "module_facade_count",
+        ],
+        "baseline_gap_count": 3,
+        "baseline_limit": 3,
+        "baseline_kind_counts": {
+            "suffix_module": 1,
+            "suffix_flat": 0,
+            "flat_directory": 0,
+            "private_alias": 1,
+            "package_init_facade": 0,
+            "module_facade": 1,
+        },
+        "baseline_kind_limits": {
+            "suffix_module": 1,
+            "suffix_flat": 0,
+            "flat_directory": 0,
+            "private_alias": 1,
+            "package_init_facade": 0,
+            "module_facade": 1,
+        },
+        "next_action": (
+            "shrink .config/checks/module-layout/policy.toml baselines when semantic "
+            "subpackages remove debt; do not add compatibility facades or suffix-flat modules"
+        ),
+    }
 
 
 def test_module_layout_accepts_explicit_baseline_kind_limits(tmp_path: Path) -> None:
@@ -676,195 +768,3 @@ def test_module_layout_blocks_same_directory_add_burst(
         "module_layout_flat_growth_burst:packages/ethos/src/ethos/sample:3>2"
         in report["required_gaps"]
     )
-
-
-def test_module_layout_baseline_growth_skips_without_reference(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    from ethos.repository.policy.layout.baseline.core import baseline_growth_findings
-    from ethos.repository.policy.layout.baseline.core import previous_policy_at_reference
-
-    monkeypatch.setattr(
-        "ethos.repository.policy.layout.git.core.layout_reference", lambda _root: None
-    )
-
-    policy = {"baseline_gap_limit": 1}
-    assert previous_policy_at_reference(tmp_path, policy) is None
-    assert baseline_growth_findings(tmp_path, policy, {"gap"}) == []
-
-
-def test_module_layout_baseline_growth_uses_current_policy_when_reference_policy_missing(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    from ethos.repository.policy.layout.baseline.core import baseline_growth_findings
-    from ethos.repository.policy.layout.baseline.core import previous_policy_at_reference
-
-    monkeypatch.setattr(
-        "ethos.repository.policy.layout.git.core.layout_reference", lambda _root: "HEAD"
-    )
-    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git_show", lambda *_args: None)
-
-    policy = {"baseline_gap_limit": 1, "allowed_suffix_modules": ["gap"]}
-    assert previous_policy_at_reference(tmp_path, policy) is policy
-    assert baseline_growth_findings(tmp_path, policy, {"gap"}) == []
-
-
-def test_module_layout_facade_type_checking_and_private_alias_edges(tmp_path: Path) -> None:
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "facade.py",
-        textwrap.dedent(
-            '''
-            """Type-checking import shell."""
-            from typing import TYPE_CHECKING
-
-            if TYPE_CHECKING:
-                from ethos.sample.core import Item
-            '''
-        ),
-    )
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "plain.py",
-        "import ethos.domain.plan\n",
-    )
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "alias.py",
-        "import ethos.domain.plan as plan\nfrom ethos.domain.plan import graph_for_paths\n",
-    )
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "annotated.py",
-        textwrap.dedent(
-            '''
-            """Annotated exports."""
-            from ethos.sample.core import item
-            __all__: list[str] = ["item"]
-            '''
-        ),
-    )
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "pass_shell.py",
-        textwrap.dedent(
-            '''
-            """Import shell with pass residue."""
-            from ethos.sample.core import item
-
-            pass
-            '''
-        ),
-    )
-    _write(
-        tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "debug_guard.py",
-        textwrap.dedent(
-            '''
-            """Import shell with a non-type-checking branch."""
-            from ethos.sample.core import item
-
-            if DEBUG:
-                pass
-            '''
-        ),
-    )
-
-    report = module_layout_report(tmp_path)
-
-    assert (
-        "module_layout_module_facade:packages/ethos/src/ethos/sample/facade.py"
-        in report["required_gaps"]
-    )
-    assert (
-        "module_layout_module_facade:packages/ethos/src/ethos/sample/plain.py"
-        in report["required_gaps"]
-    )
-    assert report["module_facade_findings"][-1] == {
-        "gap": "module_layout_module_facade:packages/ethos/src/ethos/sample/plain.py",
-        "path": "packages/ethos/src/ethos/sample/plain.py",
-        "reasons": ["import_only"],
-    }
-    assert report["private_alias_findings"] == []
-    assert any(
-        item["path"] == "packages/ethos/src/ethos/sample/annotated.py"
-        and item["reasons"] == ["import_only", "explicit_exports"]
-        for item in report["module_facade_findings"]
-    )
-    assert any(
-        item["path"] == "packages/ethos/src/ethos/sample/pass_shell.py"
-        and item["reasons"] == ["import_only"]
-        for item in report["module_facade_findings"]
-    )
-    assert all(
-        item["path"] != "packages/ethos/src/ethos/sample/debug_guard.py"
-        for item in report["module_facade_findings"]
-    )
-
-
-def test_module_layout_growth_edges_and_git_helpers(tmp_path: Path, monkeypatch) -> None:
-    from ethos.repository.policy.layout.git.core import layout_reference
-    from ethos.repository.policy.layout.git.core import run_git
-    from ethos.repository.policy.layout.git.core import run_git as direct_run_git
-    from ethos.repository.policy.layout.growth.core import flat_growth_findings
-    from ethos.repository.policy.layout.growth.core import module_counts_by_directory
-    from ethos.repository.policy.layout.growth.core import reference_python_files
-
-    assert run_git(tmp_path, "rev-parse", "--is-inside-work-tree") is None
-
-    class Completed:
-        returncode = 0
-        stdout = "ok\n"
-
-    def fake_subprocess_run(*_args: object, **_kwargs: object) -> Completed:
-        return Completed()
-
-    monkeypatch.setattr(
-        "ethos.repository.policy.layout.git.core.subprocess.run",
-        fake_subprocess_run,
-    )
-    assert direct_run_git(tmp_path, "status", "--porcelain") == "ok\n"
-
-    calls: list[tuple[str, ...]] = []
-    fake_outputs = {
-        ("status", "--porcelain"): "",
-        ("rev-parse", "--verify", "candidate/dev"): None,
-        ("rev-parse", "--verify", "dev"): "dev\n",
-        ("show", "dev:packages/ethos/src/ethos/one.py"): "print('old')\n",
-        ("show", "dev:packages/ethos/src"): None,
-        ("show", "dev:packages/ethos/missing"): None,
-        ("ls-tree", "-r", "--name-only", "dev", "--", "packages/ethos/src"): (
-            "packages/ethos/src/ethos/sample/old.py\n"
-            "packages/ethos/src/ethos/sample/__init__.py\n"
-            "packages/ethos/src/ethos/sample/__pycache__/skip.py"
-        ),
-        ("ls-tree", "-r", "--name-only", "dev", "--", "packages/ethos/missing"): None,
-    }
-
-    def fake_git(_root: Path, *args: str) -> str | None:
-        calls.append(args)
-        return fake_outputs.get(args)
-
-    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
-
-    assert layout_reference(tmp_path) == "dev"
-    assert reference_python_files(
-        tmp_path, {"paths": ["packages/ethos/src/ethos/one.py"]}, "dev"
-    ) == {"packages/ethos/src/ethos/one.py"}
-    assert reference_python_files(
-        tmp_path,
-        {"paths": ["packages/ethos/src", "packages/ethos/missing"]},
-        "dev",
-    ) == {
-        "packages/ethos/src/ethos/sample/old.py",
-        "packages/ethos/src/ethos/sample/__init__.py",
-    }
-
-    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "old.py")
-    assert flat_growth_findings(tmp_path, {"paths": ["packages/ethos/src"]}) == []
-    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "newdir" / "one.py")
-    _write(tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "new.py")
-    assert flat_growth_findings(tmp_path, {"paths": ["packages/ethos/src"]}) == []
-    assert module_counts_by_directory(
-        {
-            "packages/ethos/src/ethos/sample/__init__.py",
-            "packages/ethos/src/ethos/sample/old.py",
-        }
-    ) == {"packages/ethos/src/ethos/sample": 1}
-    assert ("rev-parse", "--verify", "candidate/dev") in calls

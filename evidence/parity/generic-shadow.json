@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "1010a989c2d4185213397e255e3fc75a9cf8ecb3",
-    "target_head": "1010a989c2d4185213397e255e3fc75a9cf8ecb3",
-    "product_semantic_sha256": "fdd51f47aecb11af3008875e47492ac17c2f06100eba40fe06fce53fd83a177f",
-    "target_semantic_sha256": "fdd51f47aecb11af3008875e47492ac17c2f06100eba40fe06fce53fd83a177f",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
+    "target_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
+    "product_semantic_sha256": "b0b1a313677e089d2d53115558775b44436c79e33a27cbe80266d4580335971b",
+    "target_semantic_sha256": "b0b1a313677e089d2d53115558775b44436c79e33a27cbe80266d4580335971b",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -36,13 +36,9 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/product-boundary-local-state",
-    "target_head": "1010a989c2d4185213397e255e3fc75a9cf8ecb3",
-    "product_head": "1010a989c2d4185213397e255e3fc75a9cf8ecb3",
-    "changed_paths": [
-      "evidence/chronicle/product-boundary-local-state/2026-07-09.md",
-      "evidence/claims/product-boundary-local-state.toml",
-      "packages/ethos/src/ethos/repository/policy/boundary/product.py"
-    ],
+    "target_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
+    "product_head": "9d63de7beab792a4fad50eb345aaca2774fc7000",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -85,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "94c49a19c2e4e692fb789b4e37fb01da6e0b863e1239cc3c1b1941a43516de6a"
+        "sha256": "886007312c5a8915711805348244f85f51895f81f4c38cdd73fd8460cae7547f"
       },
       {
         "path": "evidence/claims",

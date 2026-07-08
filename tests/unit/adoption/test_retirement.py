@@ -189,6 +189,152 @@ def test_retirement_readiness_rejects_missing_backend_control_manifest(
     )
 
 
+def test_retirement_readiness_rejects_backend_control_path_and_parse_gaps(
+    tmp_path: Path,
+) -> None:
+    product = tmp_path / "product"
+    product.mkdir()
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    write_profile(
+        outside,
+        external_state="default",
+        embedded_state="reference_only",
+        control={"path": "../external-ethos-backend.toml"},
+    )
+    outside_report = retirement_readiness_report(target=outside, product_root=product)
+
+    assert (
+        "retirement_backend_control_path_outside_repo:../external-ethos-backend.toml"
+        in outside_report["required_gaps"]
+    )
+    assert outside_report["state"] == "backend_control_open"
+
+    invalid = tmp_path / "invalid-control"
+    invalid.mkdir()
+    write_profile(
+        invalid,
+        external_state="default",
+        embedded_state="reference_only",
+        control={},
+    )
+    (invalid / ".config/interfaces/external-ethos-backend.toml").write_text(
+        "[",
+        encoding="utf-8",
+    )
+    invalid_report = retirement_readiness_report(target=invalid, product_root=product)
+
+    assert (
+        "retirement_backend_control_invalid:.config/interfaces/external-ethos-backend.toml"
+        in invalid_report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_reports_backend_control_contract_and_state_gaps(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    write_profile(
+        adopter,
+        external_state="default",
+        embedded_state="reference_only",
+        control={
+            "state": "adoption_preview",
+            "default_backend": "embedded",
+            "external_backend": "preview",
+            "rollback_mode": "direct_flip",
+        },
+    )
+    control_path = adopter / ".config/interfaces/external-ethos-backend.toml"
+    control_path.write_text(
+        control_path.read_text(encoding="utf-8")
+        .replace('asset_kind = "ExternalEthosBackendSwitch"', 'asset_kind = "WrongKind"')
+        .replace('profile_binding = ".ethos/profile.toml"', 'profile_binding = "other.toml"')
+        .replace("repo_local_execution_wrapper = true", "repo_local_execution_wrapper = false"),
+        encoding="utf-8",
+    )
+
+    report = retirement_readiness_report(target=adopter, product_root=product)
+
+    gaps = report["required_gaps"]
+    assert "retirement_backend_control_asset_kind_invalid:WrongKind" in gaps
+    assert "retirement_backend_control_profile_binding_invalid:other.toml" in gaps
+    assert "retirement_backend_control_state_mismatch:default:adoption_preview" in gaps
+    assert "retirement_backend_control_default_mismatch:external:embedded" in gaps
+    assert "retirement_backend_control_external_backend_mismatch:default:preview" in gaps
+    assert "retirement_backend_control_rollback_mode_invalid:direct_flip" in gaps
+    assert "retirement_backend_control_forbidden_not_true:repo_local_execution_wrapper" in gaps
+
+
+def test_retirement_readiness_accepts_default_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    write_profile(
+        adopter,
+        external_state="default",
+        embedded_state="reference_only",
+        control={
+            "state": "default",
+            "default_backend": "external",
+            "external_backend": "default",
+        },
+    )
+    control_path = adopter / ".config/interfaces/external-ethos-backend.toml"
+    control_path.write_text(
+        f'{control_path.read_text(encoding="utf-8")}\n[rollback_window]\nstate = "planned"\n',
+        encoding="utf-8",
+    )
+
+    report = retirement_readiness_report(target=adopter, product_root=product)
+
+    assert report["checks"]["backend_control"]["ok"] is True
+    assert not any(gap.startswith("retirement_backend_control_") for gap in report["required_gaps"])
+
+
+def test_retirement_readiness_requires_backend_control_rollback_window_for_ready_state(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        control={"default_backend": "external", "external_backend": "default"},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": "unknown", "adopter": "sample"}
+    shadow = {
+        "ok": False,
+        "state": "different",
+        "required_gaps": [],
+        "false_negative_count": "not-a-number",
+    }
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    gaps = report["required_gaps"]
+    assert "retirement_backend_control_external_backend_mismatch:retirement_ready:default" in gaps
+    assert "retirement_backend_control_rollback_window_not_declared" in gaps
+    assert "retirement_shadow:retirement_shadow_not_matched" in gaps
+    assert report["checks"]["parity"]["summary"]["pending_package_count"] == 0
+    assert report["checks"]["shadow"]["summary"]["false_negative_count"] == 0
+
+
 def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_state(
     tmp_path: Path,
 ) -> None:
@@ -622,6 +768,7 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     profile_path = adopter / ".ethos/profile.toml"
     profile_path.write_text(
         profile_path.read_text(encoding="utf-8")
+        .replace('binding_manifest = ".ethos/profile.toml"', 'binding_manifest = "profile.toml"')
         .replace('execution_config_root = ".config"', 'execution_config_root = "tooling"')
         .replace('minimum_version = "external>=embedded"', 'minimum_version = "external<embedded"')
         .replace("shadow_required = true", "shadow_required = false")
@@ -647,6 +794,8 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     )
 
     gaps = report["required_gaps"]
+    assert "retirement_binding_manifest_not_generic:profile.toml" in gaps
+    assert "retirement_binding_manifest_missing:profile.toml" in gaps
     assert "retirement_execution_config_root_not_config:tooling" in gaps
     assert "retirement_execution_config_root_missing:tooling" in gaps
     assert "retirement_external_minimum_version_not_ge_embedded" in gaps
@@ -655,6 +804,26 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     assert "retirement_parity:retirement_parity_not_clean" in gaps
     assert "retirement_shadow:retirement_shadow_not_matched" in gaps
     assert "retirement_shadow:retirement_shadow_false_negative_count:2" in gaps
+
+
+def test_retirement_readiness_reports_embedded_not_frozen_stage(tmp_path: Path) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    write_profile(adopter, external_state="default", embedded_state="active")
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["state"] == "embedded_not_frozen"
+    assert "retirement_lifecycle_incomplete:embedded_not_frozen" in report["required_gaps"]
 
 
 def test_retirement_readiness_distinguishes_shadow_and_rollback_stages(

@@ -2,13 +2,13 @@
 id = "history-truth-boundary"
 subject = "ethos:history-truth-boundary"
 state = "active"
-summary = "ETHOS current truth keeps Authority while historical evidence and archived OpenSpec records may preserve predecessor vocabulary as history."
+summary = "ETHOS current truth keeps Authority while historical evidence and archived OpenSpec records preserve chronology and meaning without retaining retired authority-head tokens."
 
 [evidence]
 dated = "evidence/chronicle/history-truth-boundary/2026-07-08.md"
-sha256 = "b37814a676e65c7dcee3760cb728aeacbcc1b129c2b1c75009fb84fa39d4d065"
+sha256 = "3af85009d8740a713667b882ee7d5a5f0920630485800d055a1d34a33fad2626"
 evidence_ids = ["evidence:history-truth-boundary"]
-binding = "Current-truth guard is scoped away from Chronicle and archived OpenSpec history."
+binding = "Repository-wide guard covers Chronicle and archived OpenSpec records while preserving historical meaning."
 verifier = "semantic"
 tests = [
   "uv run --all-packages pytest tests/architecture/test_authority_residue_zero.py -q",
@@ -18,12 +18,12 @@ tests = [
 
 [boundary]
 owner = "repository-governance"
-scope = "current truth versus historical record boundary for authority predecessor vocabulary"
+scope = "repository-wide zero-residue boundary for retired authority-head vocabulary while preserving historical meaning"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-08-history-truth-boundary"
-fallback = "If a cleanup scan finds the predecessor term, classify whether the file is current truth or historical record before editing."
-kill_signal = "Current code, schemas, docs, rules, hooks, config, README, or live OpenSpec specs expose the authority predecessor term as current truth, or historical records are rewritten only to satisfy a whole-repository vocabulary scan."
+fallback = "If a cleanup scan finds retired authority-head vocabulary anywhere in repository records, remove the token while preserving the record meaning."
+kill_signal = "Any repository record, current or archived, exposes retired authority-head vocabulary, or historical meaning is lost while removing the token."
 
 [promotion]
 targets = [

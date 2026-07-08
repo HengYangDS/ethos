@@ -2,20 +2,21 @@
 
 ### Requirement: Authority and historical truth boundaries
 
-ETHOS SHALL keep current authority vocabulary clean without rewriting historical
-repository records.
+ETHOS SHALL keep authority vocabulary clean across repository records while
+preserving historical chronology and meaning.
 
-#### Scenario: Current truth excludes predecessor vocabulary
+#### Scenario: Repository records exclude retired authority-head vocabulary
 
-- **WHEN** repository architecture tests inspect tracked current truth surfaces
-- **THEN** source code, schemas, active docs, rules, hooks, config, README, and
-  live OpenSpec specs do not expose the authority predecessor term
+- **WHEN** repository architecture tests inspect git-admissible repository records
+- **THEN** source code, schemas, docs, rules, hooks, config, README, evidence,
+  claims, and archived OpenSpec records do not expose retired authority-head
+  vocabulary
 - **AND** the current kernel head remains `Authority`
 
-#### Scenario: Historical records preserve predecessor vocabulary
+#### Scenario: Historical records preserve meaning without retired tokens
 
 - **WHEN** evidence chronicles, evidence claims, or archived OpenSpec changes
-  recorded a predecessor term at the time
-- **THEN** ETHOS may preserve that vocabulary as historical evidence
-- **AND** current-truth cleanup tests do not require Chronicle or archives to be
-  rewritten into today's vocabulary
+  recorded earlier authority-head terminology at the time
+- **THEN** ETHOS preserves the historical meaning and chronology without retaining
+  retired authority-head tokens
+- **AND** cleanup tests cover Chronicle and archives instead of exempting them

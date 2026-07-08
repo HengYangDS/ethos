@@ -1,4 +1,4 @@
-- [x] Restore historical evidence and archived OpenSpec predecessor vocabulary.
-- [x] Scope authority predecessor residue guard to current truth surfaces.
-- [x] Add regression that historical records preserve predecessor vocabulary.
+- [x] Preserve historical evidence and archived OpenSpec meaning without retired authority-head tokens.
+- [x] Apply authority residue guard to all git-admissible repository records.
+- [x] Replace positive-preservation regression with repository-wide zero-residue invariant.
 - [x] Keep active current truth on `Authority` only.

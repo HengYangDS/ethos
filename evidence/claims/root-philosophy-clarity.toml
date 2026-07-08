@@ -7,7 +7,7 @@ summary = "ETHOS keeps 问道 as the Product Design Contract root constraint whi
 
 [evidence]
 dated = "evidence/chronicle/root-philosophy-clarity/2026-07-07.md"
-sha256 = "94fbe36b1b690d1936dc7f314ec8dc7698cdc287bb92446b0928a327d1ca3b30"
+sha256 = "599e299e4e5268611892531900bffde82a1dcdab5c6346326acebbdf6e068e33"
 evidence_ids = ["evidence:root-philosophy-clarity"]
 binding = "semantic root constraint clarity evidence binding"
 verifier = "semantic"

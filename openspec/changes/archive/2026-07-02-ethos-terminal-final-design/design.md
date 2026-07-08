@@ -14,7 +14,7 @@ closeout evidence, and worktree-first coordination. ETHOS absorbs those as
 product mechanisms while preserving its own kernel chain:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
 Claim binds evidence and carriers; Change owns lifecycle. OpenSpec remains a

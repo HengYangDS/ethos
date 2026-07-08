@@ -2,12 +2,11 @@
 
 ## Why
 
-`JudgmentSource` was a correct early boundary marker, but it became a long and
-opaque name for the head of the kernel chain. The current truth needs the plainer
+The retired authority-head token was a correct early boundary marker, but it
+became a long and opaque name for the head of the kernel chain. The current truth needs the plainer
 and more general term `Authority`: the ordered source of decision legitimacy,
 truth boundary, and policy reference. The old term may remain in historical
-records, but it must not remain a current code, schema, docs, or OpenSpec spec
-surface.
+records, but the token itself must not remain in repository records, current or archived.
 
 The recovery also surfaced two related protected-root lessons: host projection
 or scratch decomposition paths must stay out of accepted roots, and local lease
@@ -16,10 +15,10 @@ instead of making coordination invisible.
 
 ## What Changes
 
-- Rename the current kernel head from `JudgmentSource` to `Authority` across
+- Rename the current kernel head to `Authority` across
   active code, schemas, product docs, authority graph, and current kernel spec.
-- Keep archived OpenSpec and historical evidence text as historical record rather
-  than rewriting what prior changes said at the time.
+- Keep archived OpenSpec and historical evidence meaning as historical record
+  while removing the retired token.
 - Classify `.claude`, `CLAUDE.md`, `.gitnexus`, `.ethos/decomp-recipes`, and
   `docs/superpowers` as forbidden protected-root projection/scratch paths.
 - Add a read-only SQLite fallback for active lease reads when the default local
@@ -32,6 +31,6 @@ instead of making coordination invisible.
 
 ## Out Of Scope
 
-- No rewrite of historical chronicle text or archived OpenSpec history.
-- No compatibility alias named `JudgmentSource` in current code.
+- No loss of historical chronicle or archived OpenSpec meaning.
+- No compatibility alias using the retired authority-head token in current code.
 - No change to transition command semantics.

@@ -2,23 +2,24 @@
 
 ## Why
 
-The authority rename guard must protect current repository truth without
-rewriting historical evidence. A whole-repository predecessor-vocabulary ban
-made hidden drift visible, but it also erased what earlier Chronicle and
-archived OpenSpec records actually said at the time.
+The authority rename guard first separated current repository truth from
+historical chronology. That distinction was useful, but its preservation rule was
+too loose: it allowed archived evidence and OpenSpec records to keep retired
+authority-head vocabulary. Under the later zero-residue policy, the stronger
+boundary is: history keeps its meaning and chronology, but retired tokens are not
+kept anywhere in repository records.
 
-ETHOS needs the sharper distinction: current code, schemas, docs, and live
-OpenSpec specs use `Authority`; historical evidence and archived change records
-may preserve the predecessor vocabulary as history.
+ETHOS therefore treats this archived change as an intermediate correction
+superseded by repository-wide zero-residue closeout.
 
 ## What Changes
 
-- Restore historical Chronicle, claim, and archived OpenSpec text that recorded
-  the predecessor term at the time.
-- Scope the architecture guard to current truth surfaces instead of all tracked
-  historical records.
-- Add a positive regression that historical records retain the predecessor term
-  so future cleanup cannot silently rewrite Chronicle into current narrative.
+- Preserve historical Chronicle, claim, and archived OpenSpec meaning without
+  retaining retired authority-head tokens.
+- Apply the authority residue guard to all git-admissible repository records,
+  including evidence and archived OpenSpec records.
+- Remove the positive-preservation regression and replace it with a single
+  zero-residue invariant.
 
 ## Capabilities
 
@@ -28,7 +29,7 @@ may preserve the predecessor vocabulary as history.
 
 ## Out Of Scope
 
-- No compatibility alias for the predecessor term in current code.
-- No reintroduction of the predecessor term into current docs, schemas, code, or
-  live OpenSpec specs.
+- No compatibility alias for retired authority-head vocabulary.
+- No reintroduction of retired authority-head vocabulary into current or archived
+  repository records.
 - No change to transition command semantics.

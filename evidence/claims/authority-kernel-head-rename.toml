@@ -2,11 +2,11 @@
 id = "authority-kernel-head-rename"
 subject = "ethos:authority-kernel-head"
 state = "active"
-summary = "ETHOS current kernel truth names the authority head Authority, preserves historical vocabulary as history, blocks protected-root projection scratch residue, and hardens lease visibility fallback."
+summary = "ETHOS current kernel truth names the authority head Authority, removes retired authority-head vocabulary across repository records, blocks protected-root projection scratch residue, and hardens lease visibility fallback."
 
 [evidence]
 dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
-sha256 = "9f88a50cb29dae908ecefe1eaf591920ae70f48dd2a6c0312bd2947319fcfa8e"
+sha256 = "84fc665f41acefb7e483cc317cd6b53612eb4072b99ff2f94d0bc3e1355b85e9"
 evidence_ids = ["evidence:authority-kernel-head-rename"]
 binding = "semantic authority-kernel-head recovery evidence binding"
 verifier = "semantic"
@@ -22,8 +22,8 @@ scope = "Authority kernel head rename, protected-root projection pollution guard
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-08-authority-kernel-head-rename"
-fallback = "Keep current truth on Authority while allowing historical records to preserve prior vocabulary."
-kill_signal = "Current code, schema, docs, live OpenSpec specs, or README reintroduce JudgmentSource as a supported truth surface, or protected-root scratch projection paths are allowed as product truth."
+fallback = "Keep current truth on Authority while preserving historical meaning without retaining retired authority-head tokens."
+kill_signal = "Current code, schema, docs, live OpenSpec specs, README, evidence, archive, or generated repository content reintroduces retired authority-head vocabulary, or protected-root scratch projection paths are allowed as product truth."
 
 [promotion]
 targets = [

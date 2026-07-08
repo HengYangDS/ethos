@@ -12,8 +12,8 @@ single ETHOS kernel chain and the protected-root mutation discipline.
 derived views, and policy references; downstream lifecycle, evidence, claim, and
 chronicle duties remain outside it. Current truth surfaces use `Authority` in
 code, JSON schema, docs, authority graph, invalid-state taxonomy, and tests.
-Historical evidence and archived OpenSpec records are not rewritten merely to
-match current vocabulary; they remain chronicle/history.
+Historical evidence and archived OpenSpec records keep their chronology and
+meaning, but they do not retain retired authority-head tokens.
 
 Protected-root projection pollution is treated as substrate untrusted state:
 accepted roots must not contain host plans or scratch decomposition paths. Such
@@ -26,11 +26,12 @@ than disappearing.
 
 ## Alternatives
 
-- Keeping `JudgmentSource` preserves compatibility but keeps a long name as a
-  semantic center. This conflicts with parsimony and the user's explicit naming
-  concern.
-- Rewriting archived evidence makes grep results look cleaner but weakens the
-  truth/history distinction.
+- Keeping the retired authority-head token would preserve compatibility but keep
+  a long name as a semantic center. This conflicts with parsimony and the user's
+  explicit naming concern.
+- Rewriting archived evidence without preserving meaning would weaken the
+  truth/history distinction; this change preserves meaning while removing the
+  retired token.
 - Allowing `.ethos/decomp-recipes` in accepted roots would turn scratch planning
   into product truth.
 

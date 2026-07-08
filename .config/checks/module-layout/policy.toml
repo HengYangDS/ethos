@@ -4,6 +4,13 @@ suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
 baseline_gap_limit = 51
+enforce_baseline_kind_limits = true
+baseline_suffix_module_limit = 22
+baseline_suffix_flat_limit = 0
+baseline_flat_directory_limit = 1
+baseline_private_alias_limit = 28
+baseline_package_init_facade_limit = 0
+baseline_module_facade_limit = 0
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",

@@ -10,14 +10,14 @@ relations:
 
 Status: canonical.
 
-Purpose: hold durable ETHOS product rulings that future agents must respect
+Purpose: hold durable ETHOS product rulings that later agents must respect
 before reopening architecture, governance, tooling, or process choices.
 
 ## Choose
 
 | Need | Read |
 | --- | --- |
-| Current accepted rulings | [Decision Index](decision-index.md) |
+| Accepted durable rulings | [Decision Index](decision-index.md) |
 | Accepted record files | [Accepted Decisions](accepted/README.md) |
 | Superseded record files | [Superseded Decisions](superseded/README.md) |
 | Start a new decision record | [Decision Record Template](templates/decision-record.md) |
@@ -26,7 +26,7 @@ before reopening architecture, governance, tooling, or process choices.
 
 ## Boundary
 
-Owns: durable rulings that future agents must cite before reopening a settled
+Owns: durable rulings that later agents must cite before reopening a settled
 judgment.
 
 Does not own: routine task notes, proof transcripts, OpenSpec deltas, runtime

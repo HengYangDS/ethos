@@ -318,6 +318,118 @@ def test_module_layout_accepts_current_baseline_limit(tmp_path: Path) -> None:
     assert report["required_gaps"] == []
 
 
+def test_module_layout_accepts_explicit_baseline_kind_limits(tmp_path: Path) -> None:
+    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
+    _write(source / "old_report.py")
+    _write(source / "wide" / "one.py")
+    _write(source / "wide" / "two.py")
+    _write(source / "wide" / "three.py")
+    _write(source / "wide" / "four.py")
+    _write(source / "wide" / "five.py")
+    _write(source / "wide" / "six.py")
+    _write(source / "wide" / "seven.py")
+    _write(source / "wide" / "eight.py")
+    _write(source / "wide" / "nine.py")
+    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
+    _write(
+        policy,
+        textwrap.dedent(
+            """
+            paths = ["packages/ethos/src"]
+            baseline_gap_limit = 2
+            enforce_baseline_kind_limits = true
+            baseline_suffix_module_limit = 1
+            baseline_suffix_flat_limit = 0
+            baseline_flat_directory_limit = 1
+            baseline_private_alias_limit = 0
+            baseline_package_init_facade_limit = 0
+            baseline_module_facade_limit = 0
+            allowed_suffix_modules = [
+              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
+            ]
+            allowed_flat_directories = [
+              "module_layout_flat_directory:packages/ethos/src/ethos/wide:9>8",
+            ]
+            """
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["baseline_kind_counts"] == {
+        "suffix_module": 1,
+        "suffix_flat": 0,
+        "flat_directory": 1,
+        "private_alias": 0,
+        "package_init_facade": 0,
+        "module_facade": 0,
+    }
+    assert report["baseline_kind_limit_findings"] == []
+
+
+def test_module_layout_blocks_missing_baseline_kind_limit(tmp_path: Path) -> None:
+    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
+    _write(source / "old_report.py")
+    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
+    _write(
+        policy,
+        textwrap.dedent(
+            """
+            paths = ["packages/ethos/src"]
+            baseline_gap_limit = 1
+            enforce_baseline_kind_limits = true
+            baseline_suffix_module_limit = 1
+            allowed_suffix_modules = [
+              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
+            ]
+            """
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert "module_layout_baseline_suffix_flat_limit_missing" in report["required_gaps"]
+    assert "module_layout_baseline_flat_directory_limit_missing" in report["required_gaps"]
+
+
+def test_module_layout_blocks_stale_baseline_kind_limit(tmp_path: Path) -> None:
+    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
+    _write(source / "old_report.py")
+    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
+    _write(
+        policy,
+        textwrap.dedent(
+            """
+            paths = ["packages/ethos/src"]
+            baseline_gap_limit = 1
+            enforce_baseline_kind_limits = true
+            baseline_suffix_module_limit = 2
+            baseline_suffix_flat_limit = 0
+            baseline_flat_directory_limit = 0
+            baseline_private_alias_limit = 0
+            baseline_package_init_facade_limit = 0
+            baseline_module_facade_limit = 0
+            allowed_suffix_modules = [
+              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
+            ]
+            """
+        ),
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert "module_layout_baseline_suffix_module_limit:1!=2" in report["required_gaps"]
+    assert report["baseline_kind_limit_findings"] == [
+        {
+            "gap": "module_layout_baseline_suffix_module_limit:1!=2",
+            "kind": "suffix_module",
+            "count": 1,
+            "limit": 2,
+        }
+    ]
+
+
 def test_module_layout_accepts_single_file_policy_path(tmp_path: Path) -> None:
     target = tmp_path / "packages" / "ethos" / "src" / "ethos" / "one_report.py"
     _write(target)

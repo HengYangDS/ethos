@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.layout.baseline.core import baseline_gap_set
 from ethos.repository.policy.layout.baseline.core import baseline_growth_findings
+from ethos.repository.policy.layout.baseline.core import baseline_kind_counts
+from ethos.repository.policy.layout.baseline.core import baseline_kind_limit_findings
+from ethos.repository.policy.layout.baseline.core import baseline_kind_limits
 from ethos.repository.policy.layout.baseline.core import baseline_limit
 from ethos.repository.policy.layout.baseline.core import baseline_limit_gaps
 from ethos.repository.policy.layout.baseline.core import stale_baseline_findings
@@ -52,9 +55,12 @@ def module_layout_report(root: Path) -> dict[str, object]:
     current_gaps = {str(item["gap"]) for item in findings}
     stale_baselines = stale_baseline_findings(baseline, current_gaps)
     limit = baseline_limit(policy)
+    kind_counts = baseline_kind_counts(policy)
+    kind_limit_findings = baseline_kind_limit_findings(policy, kind_counts)
     gaps = [str(item["gap"]) for item in findings if item["gap"] not in baseline]
     gaps.extend(str(item["gap"]) for item in stale_baselines)
     gaps.extend(baseline_limit_gaps(len(baseline), limit))
+    gaps.extend(str(item["gap"]) for item in kind_limit_findings)
     gaps.extend(str(item["gap"]) for item in baseline_growth)
     return {
         "ok": not gaps,
@@ -99,5 +105,8 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "baseline_growth_findings": baseline_growth,
         "baseline_gap_count": len(baseline),
         "baseline_limit": limit,
+        "baseline_kind_counts": kind_counts,
+        "baseline_kind_limits": baseline_kind_limits(policy),
+        "baseline_kind_limit_findings": kind_limit_findings,
         "required_gaps": gaps,
     }

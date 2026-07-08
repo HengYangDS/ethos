@@ -163,6 +163,10 @@ import-alias compatibility residue cannot grow through normal write paths.
 - **AND** the ratchet baseline declares `baseline_gap_limit`, fails unless the
   current allowed-baseline count exactly matches that limit, and fails when
   baseline entries no longer correspond to current findings
+- **AND** the ratchet baseline declares per-kind baseline limits for suffix
+  modules, suffix-flat groups, flat directories, private import aliases, package
+  init facades, and ordinary module facades, so one debt category cannot grow
+  while the total count appears unchanged
 - **AND** adding baseline entries or raising `baseline_gap_limit` fails the gate
 - **AND** adding governed modules to existing crowded directories fails before the
   directory reaches a larger flat-directory breach

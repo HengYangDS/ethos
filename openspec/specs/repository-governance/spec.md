@@ -210,7 +210,7 @@ than by `current`/`future` directory names.
 - **AND** present repository truth is proven by HEAD, authority order, contracts,
   evidence, claims, and proof rather than by directory name
 - **AND** unlanded intent belongs in OpenSpec changes, plans, research, or
-  decision revisit triggers rather than in a generic future truth store
+  decision revisit triggers rather than in a generic intent directory
 
 #### Scenario: Product pseudo-lanes do not become common kernel
 
@@ -815,4 +815,3 @@ reader views without treating them as transition-blocking required gaps.
 - **THEN** orientation readiness includes advisory signal count and items
 - **AND** orientation readiness includes advisory next actions derived from report
 - **AND** the human orientation output can mention advisory signals without granting mutation authority
-

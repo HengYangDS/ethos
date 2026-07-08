@@ -12,16 +12,71 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+BASELINE_KINDS: tuple[tuple[str, str, str], ...] = (
+    ("suffix_module", "allowed_suffix_modules", "baseline_suffix_module_limit"),
+    ("suffix_flat", "allowed_suffix_flat", "baseline_suffix_flat_limit"),
+    ("flat_directory", "allowed_flat_directories", "baseline_flat_directory_limit"),
+    ("private_alias", "allowed_private_aliases", "baseline_private_alias_limit"),
+    (
+        "package_init_facade",
+        "allowed_package_init_facades",
+        "baseline_package_init_facade_limit",
+    ),
+    ("module_facade", "allowed_module_facades", "baseline_module_facade_limit"),
+)
+
+
 def baseline_gap_set(policy: dict[str, Any]) -> set[str]:
     """Return all currently allowed module-layout debt gaps."""
+    gaps: set[str] = set()
+    for _kind, key, _limit_key in BASELINE_KINDS:
+        gaps.update(string_list(policy.get(key)))
+    return gaps
+
+
+def baseline_kind_counts(policy: dict[str, Any]) -> dict[str, int]:
+    """Return module-layout debt counts by explicit policy kind."""
     return {
-        *set(string_list(policy.get("allowed_suffix_modules"))),
-        *set(string_list(policy.get("allowed_suffix_flat"))),
-        *set(string_list(policy.get("allowed_flat_directories"))),
-        *set(string_list(policy.get("allowed_private_aliases"))),
-        *set(string_list(policy.get("allowed_package_init_facades"))),
-        *set(string_list(policy.get("allowed_module_facades"))),
+        kind: len(set(string_list(policy.get(key)))) for kind, key, _limit_key in BASELINE_KINDS
     }
+
+
+def baseline_kind_limits(policy: dict[str, Any]) -> dict[str, int | None]:
+    """Return per-kind baseline debt limits when declared."""
+    return {kind: _integer_value(policy.get(limit_key)) for kind, _key, limit_key in BASELINE_KINDS}
+
+
+def baseline_kind_limit_findings(
+    policy: dict[str, Any],
+    counts: dict[str, int],
+) -> list[dict[str, object]]:
+    """Return gaps for missing or stale per-kind debt ratchets."""
+    if not bool(policy.get("enforce_baseline_kind_limits")):
+        return []
+    limits = baseline_kind_limits(policy)
+    findings: list[dict[str, object]] = []
+    for kind, _key, _limit_key in BASELINE_KINDS:
+        count = counts.get(kind, 0)
+        limit = limits.get(kind)
+        if limit is None:
+            findings.append(
+                {
+                    "gap": f"module_layout_baseline_{kind}_limit_missing",
+                    "kind": kind,
+                    "count": count,
+                }
+            )
+            continue
+        if count != limit:
+            findings.append(
+                {
+                    "gap": f"module_layout_baseline_{kind}_limit:{count}!={limit}",
+                    "kind": kind,
+                    "count": count,
+                    "limit": limit,
+                }
+            )
+    return findings
 
 
 def stale_baseline_findings(
@@ -37,10 +92,7 @@ def stale_baseline_findings(
 
 def baseline_limit(policy: dict[str, Any]) -> int | None:
     """Return the declared baseline gap limit when present."""
-    value = policy.get("baseline_gap_limit")
-    if isinstance(value, int):
-        return value
-    return None
+    return _integer_value(policy.get("baseline_gap_limit"))
 
 
 def baseline_limit_gaps(count: int, limit: int | None) -> list[str]:
@@ -91,3 +143,9 @@ def previous_policy_at_reference(root: Path, policy: dict[str, Any]) -> dict[str
     if raw is None:
         return policy
     return tomllib.loads(raw)
+
+
+def _integer_value(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    return None

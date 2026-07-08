@@ -11,8 +11,8 @@ relations:
 
 Status: accepted.
 
-Purpose: replace `current`/`future` documentation lanes with a minimal
-minimal semantic kernel that matches ETHOS product semantics.
+Purpose: replace lifecycle-labeled documentation lanes with a minimal semantic
+kernel that matches ETHOS product semantics.
 
 See also: [Docs Topology](../../architecture/docs-topology.md),
 [Decision Index](../decision-index.md), and

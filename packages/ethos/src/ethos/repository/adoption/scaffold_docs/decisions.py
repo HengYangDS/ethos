@@ -16,7 +16,7 @@ relations: canonical_for: decision records
 
 Status: canonical.
 
-Purpose: hold durable repository rulings future agents must respect before
+Purpose: hold durable repository rulings later agents must respect before
 reopening architecture, governance, tooling, or process choices.
 
 See also: [Decision Index](decision-index.md), [Accepted Decisions](accepted/README.md),
@@ -27,7 +27,7 @@ See also: [Decision Index](decision-index.md), [Accepted Decisions](accepted/REA
 
 | Need | Read |
 | --- | --- |
-| Current accepted rulings | [Decision Index](decision-index.md) |
+| Accepted durable rulings | [Decision Index](decision-index.md) |
 | Accepted record files | [Accepted Decisions](accepted/README.md) |
 | Superseded record files | [Superseded Decisions](superseded/README.md) |
 | Start a new decision record | [Decision Record Template](templates/decision-record.md) |

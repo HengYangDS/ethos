@@ -63,7 +63,8 @@ def lane_status(
         state="ready" if ok else "invalid",
         summary=_lane_status_summary(status_payload),
         diagnostics=(validation,),
-        required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
+        required_gaps=tuple(_object_list(status_payload.get("required_gaps", ())))
+        + validation_gaps,
         next_actions=_lane_status_next_actions(status_payload),
         data=status_payload,
     )
@@ -73,21 +74,36 @@ def lane_status(
 def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]:
     coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
     foreign_lanes = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes", []))
-    advisory_gaps = coordination.get("advisory_gaps", [])
-    advisory_items = advisory_gaps if isinstance(advisory_gaps, list | tuple) else ()
+    advisory_items = _object_list(coordination.get("advisory_gaps", []))
     return {
         "branch": status_payload["branch"],
         "role": status_payload["role"],
-        "foreign_work_lane_count": int(
-            coordination.get("foreign_work_lane_count") or len(foreign_lanes)
+        "foreign_work_lane_count": _int_value(
+            coordination.get("foreign_work_lane_count"),
+            default=len(foreign_lanes),
         ),
-        "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
-        "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+        "unbound_work_lane_count": _int_value(coordination.get("unbound_work_lane_count")),
+        "missing_lease_count": _int_value(coordination.get("missing_lease_count")),
         "dirty_foreign_work_lane_count": sum(1 for lane in foreign_lanes if lane.get("dirty")),
         "coordination_advisory_count": len(advisory_items),
         "coordination_blocking": bool(coordination.get("blocking")),
         "coordination_next_action": str(coordination.get("next_action") or ""),
     }
+
+
+def _object_list(value: object) -> list[object]:
+    return list(value) if isinstance(value, list | tuple) else []
+
+
+def _int_value(value: object, *, default: int = 0) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
 
 
 def _lane_status_next_actions(status_payload: dict[str, object]) -> tuple[str, ...]:

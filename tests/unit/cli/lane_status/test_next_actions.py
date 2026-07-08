@@ -182,3 +182,51 @@ def test_lane_status_cli_summary_exposes_coordination_reader_signals(
     assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] is coordination["blocking"] is False
     assert summary["coordination_next_action"] == coordination["next_action"]
+
+
+def test_lane_status_summary_normalizes_string_counts() -> None:
+    from ethos.surface.cli.lane import _lane_status_summary
+
+    payload = {
+        "role": "accepted_root",
+        "branch": "dev",
+        "foreign_work_lanes": [],
+        "coordination": {
+            "foreign_work_lane_count": "2",
+            "unbound_work_lane_count": "not-a-count",
+            "missing_lease_count": "1",
+            "advisory_gaps": (),
+            "blocking": False,
+            "next_action": "inspect coordination",
+        },
+    }
+
+    summary = _lane_status_summary(payload)
+
+    assert summary["foreign_work_lane_count"] == 2
+    assert summary["unbound_work_lane_count"] == 0
+    assert summary["missing_lease_count"] == 1
+
+
+def test_lane_status_summary_defaults_non_numeric_counts() -> None:
+    from ethos.surface.cli.lane import _lane_status_summary
+
+    payload = {
+        "role": "accepted_root",
+        "branch": "dev",
+        "foreign_work_lanes": [],
+        "coordination": {
+            "foreign_work_lane_count": None,
+            "unbound_work_lane_count": None,
+            "missing_lease_count": None,
+            "advisory_gaps": [],
+            "blocking": False,
+            "next_action": "inspect coordination",
+        },
+    }
+
+    summary = _lane_status_summary(payload)
+
+    assert summary["foreign_work_lane_count"] == 0
+    assert summary["unbound_work_lane_count"] == 0
+    assert summary["missing_lease_count"] == 0

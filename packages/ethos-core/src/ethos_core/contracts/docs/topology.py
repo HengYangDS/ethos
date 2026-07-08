@@ -142,16 +142,6 @@ def forbidden_docs_topology_roots() -> tuple[str, ...]:
     return tuple(sorted(FORBIDDEN_DOCS_ROOTS))
 
 
-def kernel_role_values() -> tuple[str, ...]:
-    """Return the universal, adopter-neutral document role vocabulary."""
-    return ROLE_VALUES
-
-
-def kernel_role_roots() -> dict[str, tuple[str, ...]]:
-    """Return kernel roles mapped to the docs roots a document with that role must use."""
-    return dict(ROLE_KERNEL_ROOTS)
-
-
 def is_product_docs_extension_root(path: Path | str) -> bool:
     """Return whether a docs path is an ETHOS product extension, not common kernel."""
     rel = normalize_docs_path(path)

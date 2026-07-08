@@ -36,6 +36,15 @@ def test_allowed_roles_union_kernel_with_taxonomy_never_removes_kernel(tmp_path:
     assert frozenset(ROLE_VALUES) <= allowed  # every kernel role still valid
 
 
+def test_allowed_roles_ignores_malformed_taxonomy_roles(tmp_path: Path) -> None:
+    # A taxonomy whose [roles].allowed is not a list is ignored; the kernel
+    # vocabulary still applies unchanged.
+    meta = tmp_path / "docs" / "_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text('[roles]\nallowed = "not-a-list"\n', encoding="utf-8")
+    assert _allowed_roles(tmp_path) == set(ROLE_VALUES)
+
+
 def test_docs_registry_indexes_subject_metadata() -> None:
     registry = build_docs_registry(Path.cwd())
 

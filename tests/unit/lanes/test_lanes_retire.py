@@ -9,6 +9,7 @@ from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo import status as repo_status
+from ethos.adapters.repo.dirty.core import committed_change_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.status import workspace_status
 from ethos.adapters.store import state
@@ -375,6 +376,14 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
             ],
         }
     ]
+
+
+def test_committed_change_paths_returns_empty_when_diff_fails(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    paths = committed_change_paths(repo, "missing-candidate-ref")
+
+    assert paths == ()
 
 
 def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: Path) -> None:

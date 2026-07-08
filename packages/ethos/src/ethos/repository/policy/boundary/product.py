@@ -60,7 +60,6 @@ SKIPPED_PRODUCT_DIR_PARTS = {
     "build",
     "node_modules",
 }
-SKIPPED_PRODUCT_PREFIXES = (".ethos/state",)
 TEXT_SUFFIXES = {".md", ".toml", ".yaml", ".yml", ".json", ".py", ".sh", ".txt"}
 PERSONAL_PATTERNS = (
     # Product surfaces may use placeholders, reserved example domains, or
@@ -155,8 +154,6 @@ def _is_text_product_file(path: Path, *, root: Path) -> bool:
     if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
         return False
     if any(rel.startswith(prefix) for prefix in HISTORICAL_SURFACE_PREFIXES):
-        return False
-    if any(rel == prefix or rel.startswith(f"{prefix}/") for prefix in SKIPPED_PRODUCT_PREFIXES):
         return False
     if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
         return False

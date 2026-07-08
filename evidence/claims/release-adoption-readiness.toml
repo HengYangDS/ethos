@@ -7,7 +7,7 @@ summary = "ETHOS has current release smoke, external adoption pilot diagnostics,
 
 [evidence]
 dated = "evidence/chronicle/release-adoption-readiness/2026-07-08.md"
-sha256 = "948352410c7526a29b201e4f736390c4035165eb2a16cd2af2177d8003700c3e"
+sha256 = "82bb77c6f4cfde67ca5971f6223683312251f1368c830c99d785ddeb9ac16910"
 evidence_ids = ["evidence:release-adoption-readiness"]
 binding = "semantic release artifact, adoption pilot, remote-ref, and hosted-CI boundary evidence binding"
 verifier = "semantic"

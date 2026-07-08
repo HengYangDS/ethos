@@ -1,0 +1,52 @@
+[claim]
+id = "domain-campaign-closeout-package"
+subject = "ethos:domain-campaign-closeout-package"
+state = "active"
+change_id = "domain-campaign-closeout-package-20260709"
+summary = "ETHOS moved campaign closeout domain logic out of a suffix-flat module into a semantic campaign subpackage and shrank the module-layout ratchet to the refreshed candidate baseline."
+
+[evidence]
+dated = "evidence/chronicle/domain-campaign-closeout-package/2026-07-09.md"
+sha256 = "f133829559a0c8bc61efafe3a58a20187eda027aef7624456ed7db5dbba23c67"
+evidence_ids = ["evidence:domain-campaign-closeout-package"]
+binding = "Semantic subpackage migration, direct concrete imports, no compatibility facade, module-layout ratchet shrink, focused tests, and quality audits."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/domain/test_report.py::test_scorecard_next_actions_route_module_layout_gaps",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --group dev pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/cli/test_quality_surface_more.py tests/unit/domain/test_report.py tests/unit/governance/validation/test_gates.py tests/unit/kernel/test_quality.py",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 30 --json",
+  "uv run --group dev pytest -q tests/architecture/test_release_assets.py::test_module_layout_gate_is_owned_by_policy_and_runner_surfaces",
+  "tools/ci/scripts/run-python-tests.sh",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/domain/test_report.py",
+  "tests/architecture/test_release_assets.py",
+]
+
+[boundary]
+owner = "ethos"
+scope = "Campaign closeout domain module layout and module-layout ratchet evidence."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard"
+fallback = "Restore campaign_closeout.py and revert module-layout baseline shrink if campaign closeout semantics regress."
+kill_signal = "campaign closeout, module-layout, lint, or proof gate reports required gaps after the migration."
+
+[promotion]
+targets = [
+  ".config/checks/module-layout/policy.toml",
+  "packages/ethos/src/ethos/domain/campaign/__init__.py",
+  "packages/ethos/src/ethos/domain/campaign/closeout.py",
+  "packages/ethos/src/ethos/domain/land.py",
+  "packages/ethos/src/ethos/surface/cli/campaign.py",
+  "evidence/chronicle/domain-campaign-closeout-package/2026-07-09.md",
+  "evidence/claims/domain-campaign-closeout-package.toml",
+  "evidence/parity/generic-shadow.json",
+]

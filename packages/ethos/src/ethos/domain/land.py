@@ -13,7 +13,6 @@ from typing import cast
 import ethos
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.campaign_closeout import campaign_closeout_report
 from ethos.domain.land_support import acceptable_parity_product_heads
 from ethos.domain.land_support import acceptable_parity_target_heads
 from ethos.domain.land_support import closeout_next_actions
@@ -31,7 +30,6 @@ from ethos_core.contracts.branch_roles import load_branch_role_policy
 __all__ = (
     "acceptable_parity_product_heads",
     "acceptable_parity_target_heads",
-    "campaign_closeout_report",
     "closeout_audit_root",
     "closeout_bootstrap_package",
     "closeout_next_actions",

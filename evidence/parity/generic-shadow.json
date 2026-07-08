@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "67f8ebe702af5c1637dd0496e05ab8c25b719e4f",
-    "target_head": "67f8ebe702af5c1637dd0496e05ab8c25b719e4f",
-    "product_semantic_sha256": "369a551b37bd70e1d89e044cc6284b857f44681cc044e6873239df4195573dc0",
-    "target_semantic_sha256": "369a551b37bd70e1d89e044cc6284b857f44681cc044e6873239df4195573dc0",
+    "product_head": "5bf8457615b6510be012751062dc284beb44443b",
+    "target_head": "5bf8457615b6510be012751062dc284beb44443b",
+    "product_semantic_sha256": "6436f81c8472ca4da743a93ea07aa4863d0f920cbac14d57e7971478714bceae",
+    "target_semantic_sha256": "6436f81c8472ca4da743a93ea07aa4863d0f920cbac14d57e7971478714bceae",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot",
-    "target_head": "67f8ebe702af5c1637dd0496e05ab8c25b719e4f",
-    "product_head": "67f8ebe702af5c1637dd0496e05ab8c25b719e4f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/parity-code-size-split",
+    "target_head": "5bf8457615b6510be012751062dc284beb44443b",
+    "product_head": "5bf8457615b6510be012751062dc284beb44443b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-reference-ssot/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-reference-ssot --json"
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-code-size-split/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/parity-code-size-split --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "f70e99d88237ce18caa68edf518849ab39bac90abe557b4785382c508a5d3cd7"
+        "sha256": "487784cdb138ff71ec681c338ac8bc2d2cfa564347d9b0e621cfe0d7312e0bdf"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "710a0728a741a4dd4ca484c3a859c9822aced69216e0ae9b582008f9a3fd2735"
+        "sha256": "5df89d39329d876002452bd45f14f6d8bc1b560e7cde3437ea85124b6f45d14b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "eeaf658c21695bde209747495e5e7d00af90873e5b54bb07f271a73b21178569"
+        "sha256": "ea1087dc0131b5c8139acbd3330bc9ce089b21c8483972e0313b374c20e1a761"
       },
       {
         "path": "openspec",

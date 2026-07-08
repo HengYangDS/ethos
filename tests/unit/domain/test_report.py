@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from ethos.domain import report as report_domain
 from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
@@ -96,6 +100,12 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
     monkeypatch.setattr(
+        report_domain, "product_boundary_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
+        report_domain, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         report_domain,
         "standard_adapter_registry",
         lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
@@ -128,3 +138,31 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
             ],
         },
     ) == ("ethos quality module-layout --json",)
+
+
+def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(report_domain, "code_size_report", lambda _repo: {"required_gaps": []})
+    monkeypatch.setattr(report_domain, "module_layout_report", lambda _repo: {"required_gaps": []})
+    monkeypatch.setattr(
+        report_domain,
+        "product_boundary_report",
+        lambda _repo: {"required_gaps": ["product-boundary:README.md:1"]},
+    )
+    monkeypatch.setattr(
+        report_domain, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+    )
+
+    floor = report_domain._hard_quality_floor_report(tmp_path)
+
+    assert floor["ok"] is False
+    assert "product-boundary:README.md:1" in floor["required_gaps"]
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0, hard_quality_floor=floor
+    ) == ("ethos quality product-boundary --json",)
+
+
+def test_scorecard_next_actions_route_contributor_policy_gaps() -> None:
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={"required_gaps": ["identity_mode_missing:.ethos/workspace.toml:1"]},
+    ) == ("ethos quality contributor-policy --json",)

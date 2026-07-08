@@ -48,6 +48,33 @@ def test_commit_policy_reads_adopter_binding(tmp_path: Path) -> None:
     assert policy["signing_format"] == "ssh"
 
 
+def test_commit_policy_reads_multi_contributor_identity_policy(tmp_path: Path) -> None:
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text(
+        "[commit_policy]\n"
+        'identity_mode = "allowlist"\n'
+        "[[commit_policy.allowed_identities]]\n"
+        'role = "maintainer"\n'
+        'name = "Ada Lovelace"\n'
+        'email = "ada@example.com"\n'
+        "[[commit_policy.allowed_identities]]\n"
+        'role = "bot"\n'
+        'name = "Build Bot"\n'
+        'email = "bot@example.com"\n',
+        encoding="utf-8",
+    )
+
+    policy = load_commit_policy(tmp_path)
+
+    assert policy["identity_mode"] == "allowlist"
+    assert policy["expected_name"] == ""
+    assert policy["allowed_identities"] == [
+        {"role": "maintainer", "name": "Ada Lovelace", "email": "ada@example.com"},
+        {"role": "bot", "name": "Build Bot", "email": "bot@example.com"},
+    ]
+
+
 def test_signature_policy_self_certifies_without_configured_identity(tmp_path: Path) -> None:
     # In a repo with no commit_policy binding, a present git identity self-certifies:
     # no mismatch gap is raised, and expected_author is empty (nothing to enforce).
@@ -89,3 +116,75 @@ def test_commit_policy_defaults_on_malformed_workspace_toml(tmp_path: Path) -> N
     policy = load_commit_policy(tmp_path)
     assert policy["expected_name"] == ""
     assert policy["signing_required"] is False
+
+
+def _isolated_git_repo(root: Path, *, name: str, email: str) -> None:
+    subprocess.run(
+        ["git", "init", "-b", "main"], cwd=root, check=True, text=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", name], cwd=root, check=True, text=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", email], cwd=root, check=True, text=True, capture_output=True
+    )
+
+
+def test_commit_policy_filters_non_table_allowed_identity_entries(tmp_path: Path) -> None:
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text(
+        "[commit_policy]\n"
+        "allowed_identities = [\n"
+        '  "ignored",\n'
+        '  { role = "bot", name = "Build Service", email = "build@example.invalid" },\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    policy = load_commit_policy(tmp_path)
+
+    assert policy["identity_mode"] == "allowlist"
+    assert policy["allowed_identities"] == [
+        {"role": "bot", "name": "Build Service", "email": "build@example.invalid"}
+    ]
+
+
+def test_signature_policy_allowlist_accepts_matching_identity(tmp_path: Path) -> None:
+    _isolated_git_repo(tmp_path, name="Build Service", email="build@example.invalid")
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text(
+        "[commit_policy]\n"
+        'identity_mode = "allowlist"\n'
+        "[[commit_policy.allowed_identities]]\n"
+        'role = "service"\n'
+        'name = "Build Service"\n'
+        'email = "build@example.invalid"\n',
+        encoding="utf-8",
+    )
+
+    report = signature_policy_report(tmp_path)
+
+    assert report["configured_identity_allowed"] is True
+    assert "git_identity_not_allowed" not in report["required_gaps"]
+
+
+def test_signature_policy_allowlist_blocks_unlisted_identity(tmp_path: Path) -> None:
+    _isolated_git_repo(tmp_path, name="Unlisted Contributor", email="person@example.invalid")
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text(
+        "[commit_policy]\n"
+        'identity_mode = "allowlist"\n'
+        "[[commit_policy.allowed_identities]]\n"
+        'role = "service"\n'
+        'name = "Build Service"\n'
+        'email = "build@example.invalid"\n',
+        encoding="utf-8",
+    )
+
+    report = signature_policy_report(tmp_path)
+
+    assert report["configured_identity_allowed"] is False
+    assert "git_identity_not_allowed" in report["required_gaps"]

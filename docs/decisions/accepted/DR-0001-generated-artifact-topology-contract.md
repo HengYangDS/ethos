@@ -19,7 +19,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | --- | --- |
 | Decision ID | DR-0001 |
 | Kind | governance |
-| Decision Makers | Repository owner through current chat instruction; implemented by local ETHOS work lane. |
+| Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-07 |
 | Decision Version | 2 |
@@ -40,8 +40,8 @@ See also: [Generated Artifact Topology](../../architecture/generated-artifact-to
 ## Context
 
 ETHOS is a generic governance product. Its product repository must not accumulate
-adopter-private roots such as `adopters/alphasim-dmgr`,
-`profiles/alphasim-dmgr`, or `tests/fixtures/adopters/alphasim-dmgr`.
+adopter-private roots such as `adopters/<adopter-id>`,
+`profiles/<adopter-id>`, or `tests/fixtures/adopters/<adopter-id>`.
 Adopter-specific configuration belongs in the adopting repository through
 `.config/ethos/` or an equivalent declarative interface.
 
@@ -65,7 +65,7 @@ Adopt the Generated Artifact Topology Contract:
 - `docs/evidence/`, `evidence/chronicle/`, and `evidence/parity/` own curated
   or promoted evidence after explicit review or command promotion.
 - `docs/decisions/` owns durable rulings and follows the same high-level
-  information architecture used by governed repositories such as alphasim-dmgr.
+  information architecture used by governed repositories.
 - Generated drift in repo root, `.config/`, semantic docs truth roots, or source
   directories is denied.
 - Product-owned adopter-specific roots are denied.

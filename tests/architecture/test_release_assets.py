@@ -25,7 +25,9 @@ def test_contributing_declares_commit_and_signature_policy() -> None:
 
     assert "Conventional Commits" in text
     assert "SSH signing" in text
-    assert "Yang HENG <heng.yang.ds@hotmail.com>" in text
+    assert "allowed_identities" in text
+    assert "<your-name-or-team>" in text
+    assert "single built-in author" in text
 
 
 def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
@@ -99,6 +101,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
     assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
+    assert 'concern = "product_boundary"' in tools
+    assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
     assert 'concern = "local_ci_fallback"' in tools
     assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
@@ -196,6 +201,9 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "tools/ci/scripts/run-module-layout.sh" in local_ci
     assert "tools/ci/scripts/run-module-layout.sh" in gitlab
     assert "tools/ci/scripts/run-module-layout.sh" in precommit
+    assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
+    assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
+    assert "tools/ci/scripts/run-product-boundary.sh" in precommit
 
 
 def test_python_test_gate_enforces_coverage_floor() -> None:

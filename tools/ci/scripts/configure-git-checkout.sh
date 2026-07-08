@@ -34,8 +34,27 @@ def _str(key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
+def _configured_identity() -> tuple[str, str]:
+    expected_name = _str("expected_name")
+    expected_email = _str("expected_email")
+    if expected_name or expected_email:
+        return expected_name, expected_email
+    identities = policy.get("allowed_identities")
+    if isinstance(identities, list):
+        role_order = {"maintainer": 0, "team": 1, "bot": 2, "service": 3}
+        candidates = [identity for identity in identities if isinstance(identity, dict)]
+        candidates.sort(key=lambda identity: role_order.get(str(identity.get("role", "")), 99))
+        for identity in candidates:
+            name = identity.get("name")
+            email = identity.get("email")
+            if isinstance(name, str) and isinstance(email, str) and name and email:
+                return name, email
+    return "", ""
+
+
 required = "1" if policy.get("signing_required") is True else ""
-print(f"{_str('expected_name')}\t{_str('expected_email')}\t{required}\t{_str('signing_format')}")
+name, email = _configured_identity()
+print(f"{name}\t{email}\t{required}\t{_str('signing_format')}")
 PY
 )
 EOF

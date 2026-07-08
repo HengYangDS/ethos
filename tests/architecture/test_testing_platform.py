@@ -87,3 +87,20 @@ def test_repository_hygiene_gate_is_owner_scripted_and_projected() -> None:
     assert "tools/ci/scripts/run-repository-hygiene.sh" in gitlab
     assert "tools/ci/scripts/run-repository-hygiene.sh" in precommit
     assert by_concern["repository_hygiene"]["gate"] == "tools/ci/scripts/run-repository-hygiene.sh"
+
+
+def test_product_boundary_gate_is_owner_scripted_and_projected() -> None:
+    script = (ROOT / "tools/ci/scripts/run-product-boundary.sh").read_text(encoding="utf-8")
+    local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
+    by_concern = {tool["concern"]: tool for tool in tools}
+
+    assert "ethos.cli quality product-boundary" in script
+    assert "ethos.cli quality contributor-policy" in script
+    assert "active product surfaces and release metadata neutral" in script
+    assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
+    assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
+    assert "tools/ci/scripts/run-product-boundary.sh" in precommit
+    assert by_concern["product_boundary"]["gate"] == "tools/ci/scripts/run-product-boundary.sh"

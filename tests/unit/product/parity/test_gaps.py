@@ -89,20 +89,20 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
     }
 
 
-def test_parity_gaps_reports_alphasim_dmgr_tracked_evidence_state() -> None:
-    payload = run_ethos("parity", "gaps", "--adopter", "alphasim-dmgr", "--json")
+def test_parity_gaps_reports_generic_tracked_evidence_state() -> None:
+    payload = run_ethos("parity", "gaps", "--adopter", "generic", "--target", ".", "--json")
 
-    assert payload["data"]["evidence"]["path"] == "evidence/parity/alphasim-dmgr-shadow.json"
+    assert payload["data"]["evidence"]["path"] == "evidence/parity/generic-shadow.json"
     assert payload["data"]["evidence"]["freshness"]["command_sha256"]
     if payload["ok"] is True:
         assert (payload["required_gaps"], payload["data"]["pending_packages"]) == ([], [])
     else:
         refresh = payload["data"]["evidence"]["refresh_package"]
-        assert "parity_evidence_invalid:alphasim-dmgr" in payload["required_gaps"]
+        assert "parity_evidence_invalid:generic" in payload["required_gaps"]
         assert (refresh["kind"], refresh["blocking"], refresh["adopter"]) == (
             "parity_evidence_refresh",
             True,
-            "alphasim-dmgr",
+            "generic",
         )
 
 

@@ -36,7 +36,7 @@ def test_conversation_ledger_preserves_critical_chat_requirements() -> None:
         "assistant host memory",
         "backlog-md",
         "tools/agent",
-        "dmgr reference adopter",
+        "reference-adopter concerns",
         ".mailmap",
         "__init__.py",
         "delta-to-canonical",

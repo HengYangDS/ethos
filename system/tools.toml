@@ -99,6 +99,13 @@ profile = "product"
 planned = true
 
 [[tool]]
+concern = "product_boundary"
+tool = "ethos-product-boundary"
+config = "packages/ethos/src/ethos/repository/policy/boundary/product.py"
+profile = "product"
+gate = "tools/ci/scripts/run-product-boundary.sh"
+
+[[tool]]
 concern = "repository_hygiene"
 tool = "python stdlib + git ls-files"
 config = "tools/ci/scripts/run-repository-hygiene.sh"

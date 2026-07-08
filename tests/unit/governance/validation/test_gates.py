@@ -33,6 +33,7 @@ def test_gate_registry_has_real_default_gates() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "product-boundary",
     } <= set(registry)
     assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
     assert registry["ruff"].dimensions == ("lint", "format", "ratchet")
@@ -40,6 +41,8 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["docstrings"].command == ("tools/ci/scripts/run-docstring-coverage.sh",)
     assert registry["module-layout"].command == ("tools/ci/scripts/run-module-layout.sh",)
     assert registry["module-layout"].execution_mode == "adapter"
+    assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
+    assert registry["product-boundary"].execution_mode == "adapter"
     assert registry["python-types"].execution_mode == "inprocess"
 
 
@@ -68,6 +71,9 @@ def test_gate_registry_classifies_product_toolchain_profile() -> None:
         assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
+    assert registry["product-boundary"].profile == "product"
+    assert registry["product-boundary"].toolchain == "ethos"
+
 
 def test_gate_graph_can_select_requested_gates() -> None:
     graph = gate_graph(("repository-audit", "claims"))
@@ -89,6 +95,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "schemas",
         "playbooks-v2",
         "generated-artifacts",
+        "product-boundary",
         "unit-architecture",
         "ruff",
         "python-types",
@@ -109,6 +116,9 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     ]
     assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
+    assert nodes["product-boundary"].to_dict()["command"] == [
+        "tools/ci/scripts/run-product-boundary.sh"
+    ]
     assert nodes["python-size"].to_dict()["command"] == [
         "ethos",
         "quality",
@@ -171,6 +181,19 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
+    assert nodes["product-boundary"].to_dict()["command"] == [
+        "tools/ci/scripts/run-product-boundary.sh"
+    ]
+
+
+def test_gate_registry_includes_product_boundary_gate() -> None:
+    gate = gate_registry()["product-boundary"]
+
+    assert gate.command == ("tools/ci/scripts/run-product-boundary.sh",)
+    assert gate.trust_bearing is True
+    assert "product-boundary" in gate.dimensions
+    assert "identity" in gate.dimensions
+    assert "product-boundary" in [node.id for node in gate_graph().nodes]
 
 
 def test_gate_registry_includes_generated_artifacts_gate() -> None:

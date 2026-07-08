@@ -32,6 +32,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
             "tools/ci/scripts/run-shell-lint.sh",
             "tools/ci/scripts/run-docstring-coverage.sh",
             "tools/ci/scripts/run-module-layout.sh",
+            "tools/ci/scripts/run-product-boundary.sh",
             "tools/ci/scripts/run-repository-hygiene.sh",
             "tools/ci/scripts/run-python-tests.sh",
         ],
@@ -64,7 +65,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
     }
     shadow_provenance = {
         "mode": "tracked_evidence",
-        "evidence_path": "evidence/parity/example-shadow.json",
+        "evidence_path": "evidence/parity/generic-shadow.json",
         "freshness": {
             "ok": True,
             "required_gaps": [],
@@ -83,7 +84,7 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "kind": "shadow_parity_evidence",
         "state": "matched",
         "target": "/repo",
-        "evidence_path": "evidence/parity/example-shadow.json",
+        "evidence_path": "evidence/parity/generic-shadow.json",
         "comparison_count": 9,
         "commands": ["ethos status --json"],
         "semantic_dimensions": ["branch role"],

@@ -12,13 +12,13 @@
     "workflow",
     "repository"
   ],
-  "homepage": "http://192.168.64.101:18086/dig/research/agentic-workflow/ethos",
+  "homepage": "https://example.invalid/ethos",
   "bugs": {
-    "url": "http://192.168.64.101:18086/dig/research/agentic-workflow/ethos/-/issues"
+    "url": "https://example.invalid/ethos/issues"
   },
   "repository": {
     "type": "git",
-    "url": "ssh://git@192.168.64.101:1122/dig/research/agentic-workflow/ethos.git"
+    "url": "https://example.invalid/ethos.git"
   },
   "bin": {
     "ethos": "bin/ethos.mjs"

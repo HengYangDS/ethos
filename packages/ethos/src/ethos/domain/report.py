@@ -18,6 +18,8 @@ from ethos.repository.adoption.planner import available_profiles
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.policy.boundary.product import contributor_policy_report
+from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
@@ -225,9 +227,13 @@ def _hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     code_size = code_size_report(repo)
     module_layout = module_layout_report(repo)
+    product_boundary = product_boundary_report(repo)
+    contributor_policy = contributor_policy_report(repo)
     gate_reports = {
         "python-size": code_size,
         "module-layout": module_layout,
+        "product-boundary": product_boundary,
+        "contributor-policy": contributor_policy,
     }
     required_gaps: list[str] = []
     for report in gate_reports.values():
@@ -266,6 +272,10 @@ def _scorecard_next_actions(
             commands.append("ethos quality code-size --json")
         if any(gap.startswith("module_layout_") for gap in quality_gaps):
             commands.append("ethos quality module-layout --json")
+        if any("product-boundary" in gap or "product_boundary" in gap for gap in quality_gaps):
+            commands.append("ethos quality product-boundary --json")
+        if any("contributor" in gap or "identity" in gap for gap in quality_gaps):
+            commands.append("ethos quality contributor-policy --json")
         return tuple(commands or ["ethos quality --json"])
     if parity_pending_count:
         return ("ethos parity gaps --adopter <adopter>",)

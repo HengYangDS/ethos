@@ -575,16 +575,14 @@ def test_campaign_status_reports_manifest_steps() -> None:
 def test_campaign_closeout_reports_local_campaign_packages() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
-    evidence = json.loads(
-        Path("evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
-    )
-    target = Path(str(evidence["target"]))
+    evidence = json.loads(Path("evidence/parity/generic-shadow.json").read_text(encoding="utf-8"))
+    target = Path.cwd() if evidence.get("target") == "<repo>" else Path(str(evidence["target"]))
 
     payload = run_ethos(
         "campaign",
         "closeout",
         "--adopter",
-        "alphasim-dmgr",
+        "generic",
         "--target",
         target.as_posix(),
         "--json",
@@ -635,7 +633,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["parity"]["blocking"] is False
     assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
     if payload["data"]["parity"]["required_gaps"]:
-        assert "parity_evidence_invalid:alphasim-dmgr" in payload["data"]["parity"]["required_gaps"]
+        assert "parity_evidence_invalid:generic" in payload["data"]["parity"]["required_gaps"]
     if payload["state"] == "gapped" and not payload["data"]["parity"]["required_gaps"]:
         assert any(
             package.get("required_gaps")
@@ -644,9 +642,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         )
     assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
     assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
-    assert packages["shadow_parity"]["evidence_path"] == (
-        "evidence/parity/alphasim-dmgr-shadow.json"
-    )
+    assert packages["shadow_parity"]["evidence_path"] == ("evidence/parity/generic-shadow.json")
     assert packages["shadow_parity"]["blocking"] == bool(packages["shadow_parity"]["required_gaps"])
     assert packages["intake_projection"]["kind"] == "intake_projection"
     assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"

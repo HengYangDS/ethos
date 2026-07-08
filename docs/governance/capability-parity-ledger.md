@@ -11,8 +11,8 @@ relations:
 This ledger classifies capabilities across:
 
 ```text
-alphasim-dmgr embedded ETHOS
-~/projects/ethos product ETHOS
+reference-adopter embedded governance
+ETHOS product governance
 ```
 
 The executable product view is available through:
@@ -39,16 +39,17 @@ criterion, and rollback impact together. Adopter shadow checks add a
 `shadow_parity_pending:<adopter>` package until tracked shadow evidence closes
 the adopter-specific gap.
 
-The current alphasim-dmgr adopter parity evidence is:
+Reference-adopter parity evidence uses repository-local identifiers and
+paths supplied by the adopter profile:
 
 ```bash
-ethos parity gaps --adopter alphasim-dmgr --json
-ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
-ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --timeout-seconds 30 --json
+ethos parity gaps --adopter <adopter-id> --json
+ethos parity shadow --adopter <adopter-id> --target <repo> --execute --timeout-seconds 30 --json
+ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --timeout-seconds 30 --json
 ```
 
-The tracked evidence file is
-`evidence/parity/alphasim-dmgr-shadow.json`.
+The tracked evidence file is `evidence/parity/<adopter-id>-shadow.json` unless
+the adopter profile declares a different evidence target.
 
 Reference adopters are evidence and profile fixtures, not product ontology.
 Adopter-private terms may appear in parity evidence, profile fixtures, and this
@@ -143,11 +144,11 @@ reusing a stale path from old evidence.
 
 - already-in-product: the product repository already owns the generic
   capability.
-- migrate-to-product: a generic mechanism exists in alphasim-dmgr and must move
+- migrate-to-product: a generic mechanism exists in reference-adopter and must move
   to ETHOS product truth.
 - adopter-profile-only: the capability is generic profile glue and remains in
   adopter configuration or thin profile code.
-- adopter-domain-only: the capability is dmgr-specific domain governance and
+- adopter-domain-only: the capability is domain-specific governance and
   must not enter product core.
 - obsolete: the capability should be retired.
 - split: part of the capability migrates and part remains adopter-specific.
@@ -175,7 +176,7 @@ reusing a stale path from old evidence.
 | quality determinism | product governance checks and embedded quality package | `ethos-repository` + adapters | migrate-to-product | format, artifact, command, and evidence policy fixtures | same required gates and deterministic policies | embedded quality remains reference |
 | Hatchling local build | embedded Hatchling package metadata and product metadata | all Python packages | already-in-product | `uv build --all-packages` | all Python packages build wheel and sdist locally | no remote release needed |
 | npm launcher design | npm launcher distribution adapter | `distributions/npm` | migrate-to-product | launcher smoke and no-second-implementation tests | npm only launches Python command plane | launcher can be disabled |
-| dmgr raw/cache/conf/alphasim rules | alphasim-dmgr `rules/dmgr` and profile adapters | adopter profile only | adopter-domain-only | dmgr adapter fixture and gate mapping tests | generic ETHOS plans dmgr gates without hardcoding domain details | embedded dmgr gates remain fallback |
+| domain data-contract rules | reference-adopter `rules/domain` and profile adapters | adopter profile only | adopter-domain-only | domain adapter fixture and gate mapping tests | generic ETHOS plans domain gates without hardcoding domain details | embedded domain gates remain fallback |
 
 ## Use
 

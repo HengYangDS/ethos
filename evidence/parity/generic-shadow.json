@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
-    "target_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
-    "product_semantic_sha256": "631c11097cab704365d74da7070a9d7bdc1a87211a3e816411cf32f4f15f11cc",
-    "target_semantic_sha256": "631c11097cab704365d74da7070a9d7bdc1a87211a3e816411cf32f4f15f11cc",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
+    "target_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
+    "product_semantic_sha256": "88e0c8c0c3a5b9213df985c043125718ab16fd27297440a7929fc12d462b6854",
+    "target_semantic_sha256": "88e0c8c0c3a5b9213df985c043125718ab16fd27297440a7929fc12d462b6854",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary",
-    "target_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
-    "product_head": "75839dbf872017e05279ccb2bc1b89537e33a454",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/product-boundary-purity",
+    "target_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
+    "product_head": "94e3be7a9533aa48ef6c98f6b87bff636149bf36",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/runtime-cache-boundary/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/runtime-cache-boundary --json"
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json",
+      "/Users/yheng/projects/ethos-worktrees/product-boundary-purity/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/product-boundary-purity --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "5f9ca754fe1f99ab4a60bc3c44cc65df5efdbee76948af91c02052e6b83d1840"
+        "sha256": "bbc4158cbc2fc657e546978e5a0cda33752f866e9615ae0cc8b7e3a528830a39"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "825de6a6b31566b0978be140f82d7a8905557e00f64e766cd6812eb86d4d5489"
+        "sha256": "1ee700513c5649e9d030de3680e39879ce3837a4d86af090aacfda816907d048"
       },
       {
         "path": "evidence/claims",
@@ -91,12 +91,12 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "9dacb0dd3c0a044c3edb520658c457d7ba9501e5a7dea225d2c8cf31da17ecff"
+        "sha256": "d83a021d596034c5aa5c3b0e7c6d4d47b188612e8b0e0ba03e4a8e4ff316bcee"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "35225a3c70757449ed2d1d89ef7d4829072c827dac0e52f37fad4132df843bef"
+        "sha256": "655f7a93e0c1beb8822658b18750463476fb72cca20a509ef39096c0476cf91e"
       }
     ]
   },

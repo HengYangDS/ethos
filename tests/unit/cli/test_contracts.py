@@ -243,32 +243,32 @@ command = "nox -s raw_changed"
 blocking = true
 
 [[contract_profile]]
-id = "dmgr"
-policy = "rules/dmgr/contracts.toml"
+id = "reference"
+policy = "rules/reference/contracts.toml"
 
 [[rule]]
-id = "dmgr-raw-cache"
+id = "reference-cache"
 risk = "raw-cache-contract"
-paths = ["packages/dmgr-cache/**"]
+paths = ["packages/reference-cache/**"]
 requires = ["raw_changed"]
 evidence = ["cache-tree"]
 """.lstrip(),
         encoding="utf-8",
     )
-    contracts = repo / "rules" / "dmgr" / "contracts.toml"
+    contracts = repo / "rules" / "reference" / "contracts.toml"
     contracts.parent.mkdir(parents=True)
     contracts.write_text(
         """
 [[contract]]
 id = "cache-shape-metadata-sidecars-checkpoint"
 surface = "cache"
-paths = ["packages/dmgr-cache/**"]
+paths = ["packages/reference-cache/**"]
 protects = ["NIO cache shape"]
 required_evidence = ["cache-tree"]
 """.lstrip(),
         encoding="utf-8",
     )
-    source = repo / "packages" / "dmgr-cache" / "src" / "dmgr_cache" / "__init__.py"
+    source = repo / "packages" / "reference-cache" / "src" / "reference_cache" / "__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text('"""Cache package."""\n', encoding="utf-8")
     git(repo, "add", ".")
@@ -288,13 +288,13 @@ required_evidence = ["cache-tree"]
 
     payload = run_ethos("plan", "--root", repo.as_posix(), "--changed", "--json", cwd=repo)
 
-    assert payload["data"]["matched_rules"][0]["id"] == "dmgr-raw-cache"
+    assert payload["data"]["matched_rules"][0]["id"] == "reference-cache"
     assert payload["data"]["domain_contracts"] == [
         {
-            "profile": "dmgr",
+            "profile": "reference",
             "contract": "cache-shape-metadata-sidecars-checkpoint",
             "surface": "cache",
-            "matched_paths": ["packages/dmgr-cache/src/dmgr_cache/__init__.py"],
+            "matched_paths": ["packages/reference-cache/src/reference_cache/__init__.py"],
             "protects": ["NIO cache shape"],
             "required_evidence": ["cache-tree"],
         }
@@ -450,6 +450,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "commits",
         "coupling-audit",
         "coverage",
+        "contributor-policy",
         "docs",
         "docs-registry",
         "docs-topology",
@@ -462,6 +463,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "module-layout",
         "npm",
         "package-ontology",
+        "product-boundary",
         "projection-drift",
         "proof-policy",
         "provenance",

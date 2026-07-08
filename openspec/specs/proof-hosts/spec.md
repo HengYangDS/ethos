@@ -72,7 +72,7 @@ outside runtime semantic packages.
 
 #### Scenario: adopter migration replay remains readable
 
-- **WHEN** Skills V2 migration replay tests run against ETHOS v1, dmgr v1, and
-  di-effect style activation records
+- **WHEN** Skills V2 migration replay tests run against ETHOS v1, a reference-adopter v1, and
+  external style activation records
 - **THEN** each input normalizes into the provider-neutral IR without losing
   historical fixture fields

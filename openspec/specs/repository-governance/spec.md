@@ -102,8 +102,8 @@ migration safety before code migration.
 - **WHEN** architecture tests inspect ETHOS current governance docs
 - **THEN** the product design contract, package ontology, boundary convergence
   policy, and capability parity ledger are present
-- **AND** alphasim-dmgr embedded ETHOS is treated as migration oracle and
-  rollback anchor rather than deleted automatically
+- **AND** a reference-adopter embedded governance implementation is treated as a
+  migration oracle and rollback anchor rather than deleted automatically
 
 ### Requirement: Intake Status Surface
 ETHOS SHALL expose intake ledger readiness through the public command plane

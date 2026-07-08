@@ -16,8 +16,8 @@ Purpose: define tracked write admission and Work Lane discipline.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.
 - Before writing, run `ethos status --json` and `ethos lane prewrite`.
 - Write-capable tools must carry an explicit target root or working directory
-  matching the admitted Work Lane. Do not rely on the chat session's default
-  filesystem context for tracked writes.
+  matching the admitted Work Lane. Do not rely on the host launch context's default
+  filesystem path for tracked writes.
 - When no `--root` is supplied, ETHOS commands bind to the current Git worktree
   root, not an accepted-root checkout or host launch directory.
 - Product-repository mutation admission must fail closed when the command

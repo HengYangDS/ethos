@@ -24,7 +24,7 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | --- | --- |
 | Decision ID | DR-0004 |
 | Kind | governance |
-| Decision Makers | Repository owner through 2026-07-08 chat instruction; implemented by local ETHOS Work Lane. |
+| Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-08 |
 | Decision Version | 1 |

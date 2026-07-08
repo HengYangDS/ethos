@@ -8,20 +8,27 @@ relations:
 
 # Commit Signature Policy
 
-Maintainer commits use:
+Maintainer and automation commits use the repository's configured
+contributor policy rather than a product-hardcoded person:
 
 ```bash
-git config user.name "Yang HENG"
-git config user.email "heng.yang.ds@hotmail.com"
+git config user.name "<your-name-or-team>"
+git config user.email "<your-approved-email>"
 git config commit.gpgsign true
 git config gpg.format ssh
 ```
 
-Commit subjects follow Conventional Commits. `ethos quality commits --json`
-checks local identity and signing configuration; `ethos quality commits
---enforce-head --json` additionally requires the current HEAD subject and
-signature to pass release policy. ETHOS does not use tracked historical alias
-metadata as a product governance mechanism.
+`.ethos/workspace.toml` owns the concrete policy: subject grammar, signing
+requirement, signing format, identity mode, and the allowed human, team, and bot
+identities. Multi-contributor repositories extend that policy with additional
+role-based human, team, reviewer, contributor, service, or bot identities rather
+than by hardcoding a product author. Commit subjects follow Conventional
+Commits in this repository. `ethos quality commits --json` checks local identity
+membership and signing
+configuration; `ethos quality commits --enforce-head --json` additionally
+requires the current HEAD subject and signature to pass release policy. ETHOS
+does not use tracked historical alias metadata as a product governance
+mechanism.
 
 Status: see front matter.
 

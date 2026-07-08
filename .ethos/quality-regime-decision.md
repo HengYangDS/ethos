@@ -1,7 +1,7 @@
 # ETHOS 质量规范决策明晰 — 相对 di-effect 的吸收/拒绝矩阵
 
 > 状态:决策 SSOT(工作记录,`.ethos/` ignored,非 tracked truth)。
-> 依据:全面研究 `~/projects/di-effect`(3 并行 Explore agent,全部落实文件)+ ETHOS `system/tao.md`。
+> 依据:全面研究 `<reference-quality-repo>`(3 并行 Explore agent,全部落实文件)+ ETHOS `system/tao.md`。
 > 目的:用**严格准则**替代此前局部片面的门禁收紧。每条 di-effect 规范走五关判定。
 
 ---

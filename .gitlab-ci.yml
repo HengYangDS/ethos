@@ -32,8 +32,9 @@ default:
 
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
-# (architecture), docstrings, bandit (security), gitleaks (secrets), config
-# (TOML/YAML format+lint), shell lint, markdown lint, lychee (doc links).
+# (architecture), docstrings, product-boundary/contributor policy, bandit
+# (security), gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
+# markdown lint, lychee (doc links).
 # 道: a gate that does not run in CI is not a gate.
 .python_setup: &python_setup
   image: python:3.12
@@ -73,6 +74,13 @@ ethos:hygiene:
   stage: quality
   script:
     - tools/ci/scripts/run-repository-hygiene.sh
+
+
+ethos:product-boundary:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-product-boundary.sh
 
 ethos:shell:
   <<: *python_setup

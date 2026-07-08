@@ -389,7 +389,10 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     imported: list[str] = []
     monkeypatch.setattr("importlib.import_module", lambda name: imported.append(name))
     _base.load_command_groups(["quality", "docs"])
-    assert imported == ["ethos.surface.cli.quality"]
+    assert imported == [
+        "ethos.surface.cli.quality",
+        "ethos.surface.cli.boundary.product",
+    ]
     imported.clear()
     _base.load_command_groups([])
     assert "ethos.surface.cli.hook" in imported

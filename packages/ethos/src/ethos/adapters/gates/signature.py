@@ -40,6 +40,8 @@ def load_commit_policy(root: Path) -> dict[str, object]:
     default: dict[str, object] = {
         "expected_name": "",
         "expected_email": "",
+        "allowed_identities": [],
+        "identity_mode": "presence",
         "subject_pattern": DEFAULT_SUBJECT_PATTERN,
         "signing_required": False,
         "signing_format": "",
@@ -54,9 +56,15 @@ def load_commit_policy(root: Path) -> dict[str, object]:
     raw = payload.get("commit_policy")
     if not isinstance(raw, dict):
         return default
+    identities = _identity_entries(raw.get("allowed_identities"))
+    identity_mode = _str(raw.get("identity_mode"), "")
+    if not identity_mode:
+        identity_mode = "allowlist" if identities else "presence"
     return {
         "expected_name": _str(raw.get("expected_name"), ""),
         "expected_email": _str(raw.get("expected_email"), ""),
+        "allowed_identities": identities,
+        "identity_mode": identity_mode,
         "subject_pattern": _str(raw.get("subject_pattern"), DEFAULT_SUBJECT_PATTERN),
         "signing_required": bool(raw.get("signing_required", False)),
         "signing_format": _str(raw.get("signing_format"), ""),
@@ -67,24 +75,65 @@ def _str(value: object, fallback: str) -> str:
     return value if isinstance(value, str) else fallback
 
 
-def _identity_ok(actual: str, expected: str) -> bool:
-    # With a configured expectation the value must match it; without one, any
-    # non-empty value self-certifies.
-    return actual == expected if expected else bool(actual)
+def _identity_entries(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    entries: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        entries.append(
+            {
+                "role": _str(item.get("role"), ""),
+                "name": _str(item.get("name"), ""),
+                "email": _str(item.get("email"), ""),
+            }
+        )
+    return entries
+
+
+def _matches_allowed_identity(
+    *, name: str, email: str, allowed_identities: list[dict[str, str]]
+) -> bool:
+    return any(
+        name == identity.get("name", "") and email == identity.get("email", "")
+        for identity in allowed_identities
+    )
 
 
 def _authorship_gaps(
-    *, name: str, email: str, expected_name: str, expected_email: str
+    *,
+    actual_identity: tuple[str, str],
+    expected_identity: tuple[str, str],
+    allowed_identities: list[dict[str, str]],
+    identity_mode: str,
 ) -> list[str]:
-    # A configured expected identity is enforced; otherwise the repo's own git
-    # identity self-certifies, and only its presence is required. Both the mismatch
-    # and the missing-identity failures reduce to the same governance gap so the
-    # kernel taxonomy classifies them under one node.
+    # Legacy adopter configs may still set a single expected identity; when they
+    # do, preserve exact matching for backwards compatibility. New product
+    # configs use role-based identity modes so authority is not a single author.
+    name, email = actual_identity
+    expected_name, expected_email = expected_identity
     gaps: list[str] = []
-    if not _identity_ok(name, expected_name):
+    if expected_name or expected_email:
+        if name != expected_name:
+            gaps.append("git_user_name_mismatch")
+        if email != expected_email:
+            gaps.append("git_user_email_mismatch")
+        return gaps
+    if not name:
         gaps.append("git_user_name_mismatch")
-    if not _identity_ok(email, expected_email):
+    if not email:
         gaps.append("git_user_email_mismatch")
+    if (
+        name
+        and email
+        and identity_mode == "allowlist"
+        and allowed_identities
+        and not _matches_allowed_identity(
+            name=name, email=email, allowed_identities=allowed_identities
+        )
+    ):
+        gaps.append("git_identity_not_allowed")
     return gaps
 
 
@@ -106,6 +155,8 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     policy = load_commit_policy(repo)
     expected_name = str(policy["expected_name"])
     expected_email = str(policy["expected_email"])
+    allowed_identities = list(policy.get("allowed_identities", []))
+    identity_mode = str(policy.get("identity_mode", "presence"))
     subject_pattern = str(policy["subject_pattern"])
     signing_required = bool(policy["signing_required"])
     expected_format = str(policy["signing_format"])
@@ -119,7 +170,10 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
     signature = _git(repo, "log", "-1", "--pretty=%G?")
 
     gaps = _authorship_gaps(
-        name=name, email=email, expected_name=expected_name, expected_email=expected_email
+        actual_identity=(name, email),
+        expected_identity=(expected_name, expected_email),
+        allowed_identities=allowed_identities,
+        identity_mode=identity_mode,
     )
     if signing_required:
         gaps.extend(
@@ -132,10 +186,21 @@ def signature_policy_report(root: Path | None = None) -> dict[str, object]:
         )
 
     expected_author = f"{expected_name} <{expected_email}>" if expected_name else ""
+    allowed_roles = sorted(
+        {
+            str(identity.get("role", ""))
+            for identity in allowed_identities
+            if isinstance(identity, dict)
+        }
+    )
     return {
         "ok": not gaps,
         "required_gaps": gaps,
         "expected_author": expected_author,
+        "allowed_identity_count": len(allowed_identities),
+        "allowed_identity_roles": allowed_roles,
+        "configured_identity_allowed": not any(gap.startswith("git_identity") for gap in gaps),
+        "identity_mode": identity_mode,
         "configured_author": f"{name} <{email}>",
         "signing_required": signing_required,
         "gpg_format": gpg_format,

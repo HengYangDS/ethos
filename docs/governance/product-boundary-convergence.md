@@ -3,19 +3,20 @@ subject: ethos:product-boundary-convergence
 role: policy
 state: canonical
 relations:
-  canonical_for: alphasim-dmgr embedded ETHOS migration and retirement safety
+  canonical_for: reference-adopter migration and retirement safety
 ---
 
 # Product Boundary Convergence
 
-`~/projects/ethos` is the ETHOS product truth target.
+The ETHOS product repository is the product truth target.
 
-`/Users/yheng/projects/alphasim-dmgr-fix-b3` is an adopter, reference
-integration, dogfood repository, migration oracle, and rollback anchor.
+A reference adopter is any governed repository selected through an adoption
+profile as an integration fixture, migration oracle, or rollback anchor. The
+identity and path of that adopter belong in profile and evidence records, not
+in product semantics.
 
-The alphasim-dmgr embedded ETHOS implementation must not be deleted automatically.
-It currently contains capability evidence that the product
-repository has not fully absorbed.
+An embedded adopter-side governance implementation must not be deleted automatically. It may contain capability evidence that the product repository
+has not fully absorbed.
 
 ## Lifecycle
 
@@ -51,8 +52,8 @@ The adopter switch must be reversible. A representative control should preserve
 both backends:
 
 ```text
-ALPHASIMDMGR_ETHOS_BACKEND=external pixi run ethos status
-ALPHASIMDMGR_ETHOS_BACKEND=embedded pixi run ethos status
+ETHOS_BACKEND=external <adopter-runner> ethos status
+ETHOS_BACKEND=embedded <adopter-runner> ethos status
 ```
 
 The exact variable name may change, but the semantics must not: external and
@@ -61,7 +62,7 @@ during the rollback window.
 
 ## External Shadow Parity
 
-External Shadow Parity compares external ETHOS with the embedded alphasim-dmgr
+External Shadow Parity compares external ETHOS with the embedded reference-adopter
 reference without changing the default backend.
 
 Required comparisons include:
@@ -89,7 +90,7 @@ The rollback window must include representative real use:
 
 - multiple proof and report runs;
 - at least one real Work Lane closeout;
-- at least one dmgr raw/cache gate planning path;
+- at least one adopter-declared domain gate planning path;
 - at least one assistant, playbook, or projection gate planning path.
 
 ## Retirement Decision
@@ -120,7 +121,7 @@ separate governance act.
 The decision must answer:
 
 - what rollback path remains;
-- what evidence proves external ETHOS can operate alphasim-dmgr safely;
+- what evidence proves external ETHOS can operate the reference adopter safely;
 - which fixtures and tests migrate to `ethos-test`;
 - whether an embedded snapshot is retained;
 - which docs become historical material;

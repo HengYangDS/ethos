@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import runpy
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,9 +24,11 @@ import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
 import ethos.repository.registry.docs.commands as docs_commands
+import ethos.surface.cli._base as cli_base
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
+import ethos.surface.cli.root.registry as root_registry
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -308,6 +311,22 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr("sys.argv", ["ethos", "status"])
     cli_entrypoint.main()
     assert emitted[-2].command == "load" and emitted[-1].command == "app"
+
+    monkeypatch.setattr(root_registry, "load_root_commands", lambda: None)
+    monkeypatch.setattr(
+        cli_base,
+        "load_command_groups",
+        lambda argv: emitted.append(
+            EthosResult(command="runpy-load", ok=True, state=",".join(argv))
+        ),
+    )
+    monkeypatch.setattr(
+        cli_base,
+        "app",
+        lambda: emitted.append(EthosResult(command="runpy-app", ok=True, state="called")),
+    )
+    runpy.run_module("ethos.cli", run_name="__main__")
+    assert emitted[-2].command == "runpy-load" and emitted[-1].command == "runpy-app"
 
 
 def test_audit_coupling_config_and_misc_edges(

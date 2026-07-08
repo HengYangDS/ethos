@@ -143,6 +143,13 @@ adapters, and proof depth; it does not change the subject kind or the command
 semantics. The governing form is profiles and adapters over one kernel; it is
 not product cloning.
 
+ETHOS is organization-native, not author-native. Git author, Git committer,
+Work Lane actor, reviewer, maintainer, bot, team, and adopter-side owner are
+distinct identity facts. Authority comes from configured roles, lane ownership,
+claims, evidence, handoff, and break-glass policy; it must not depend on a
+single built-in personal name, email address, workstation path, or domain
+repository.
+
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
 single-kernel flag, kernel chain, shared transition commands, reader-view
@@ -361,20 +368,21 @@ exit codes and the evidence is bound to a claim.
 
 ## Build And Release Contract
 
-The current build contract is:
+The active build contract is:
 
 ```text
 uv workspace = dev, lock, run, and test orchestration
 Hatchling = canonical PEP 517 build backend for Python packages
 wheel/sdist = local smoke artifacts
-PyPI/TestPyPI = future Python release channel, not current scope
-npm = future thin launcher only, not a second implementation
-Homebrew/Docker/CI = future distribution or runner adapters, not current scope
+PyPI/TestPyPI = deferred Python release channel, not active scope
+npm = deferred thin launcher only, not a second implementation
+Homebrew/Docker/CI = deferred distribution or runner adapters, not active scope
 ```
 
-The current phase explicitly does not perform PyPI/TestPyPI publish, npm
-registry publish, Homebrew publish, Docker/OCI push, GitHub Action marketplace
-publish, or GitLab Component publish.
+The active local closeout phase explicitly does not perform PyPI/TestPyPI
+publish, npm registry publish, Homebrew publish, Docker/OCI push, GitHub Action
+marketplace publish, GitLab Component publish, or remote Git push. Those are
+separate publication adapters and require their own evidence when activated.
 
 Status: see front matter.
 

@@ -52,6 +52,8 @@ HOST_PROJECTION_LABELS = (
     "Open Worktree",
     "Checkout",
 )
+
+
 CURRENT_COMPATIBILITY_RESIDUE = (
     "legacy",
     "legacy-compat",
@@ -102,7 +104,6 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
         "sqlite3",
         "subprocess",
         "tools",
-        "dmgr",
     }
 
     for path in (ROOT / "packages/ethos-core/src").rglob("*.py"):
@@ -138,11 +139,50 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
             assert imported_modules(path).isdisjoint(forbidden), path
 
 
+def test_product_surfaces_are_author_and_adopter_neutral() -> None:
+    from ethos.repository.policy.boundary.product import product_boundary_report
+
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+
+
+def test_workspace_contributor_policy_is_multi_actor() -> None:
+    from ethos.repository.policy.boundary.product import contributor_policy_report
+
+    report = contributor_policy_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+    summary = report["summary"]
+    assert summary["identity_count"] >= 2
+    assert {"maintainer", "team", "bot"} <= set(summary["roles"])
+
+
+def test_product_release_metadata_has_no_person_attribution() -> None:
+    import json
+    import tomllib
+
+    npm_manifest = json.loads((ROOT / "distributions/npm/package.json").read_text())
+    assert "author" not in npm_manifest
+    assert "authors" not in npm_manifest
+    assert "maintainers" not in npm_manifest
+
+    for rel in (
+        "pyproject.toml",
+        "packages/ethos/pyproject.toml",
+        "packages/ethos-core/pyproject.toml",
+    ):
+        project = tomllib.loads((ROOT / rel).read_text(encoding="utf-8"))["project"]
+        assert "authors" not in project
+        assert "maintainers" not in project
+
+
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
-    for path in (ROOT / "packages").glob("*/src/**/*.py"):
-        text = path.read_text(encoding="utf-8")
-        assert "alphasim" not in text.lower(), path
-        assert "dmgr" not in text.lower(), path
+    from ethos.repository.policy.boundary.product import product_boundary_report
+
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
 
 
 def test_current_product_surfaces_do_not_use_retired_self_terms() -> None:
@@ -419,9 +459,9 @@ def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
     assert manifest["name"] == "@agentic-workflow/ethos"
     assert manifest["bin"] == {"ethos": "bin/ethos.mjs"}
     assert manifest["private"] is False
-    assert manifest["repository"]["url"].endswith("/dig/research/agentic-workflow/ethos.git")
-    assert manifest["homepage"].endswith("/dig/research/agentic-workflow/ethos")
-    assert manifest["bugs"]["url"].endswith("/dig/research/agentic-workflow/ethos/-/issues")
+    assert manifest["repository"]["url"] == "https://example.invalid/ethos.git"
+    assert manifest["homepage"] == "https://example.invalid/ethos"
+    assert manifest["bugs"]["url"] == "https://example.invalid/ethos/issues"
     assert manifest["publishConfig"]["access"] == "public"
     assert "governance" in manifest["keywords"]
 

@@ -207,6 +207,37 @@ store.
 - **AND** hosted CI invokes the reusable docstring coverage script instead of
   duplicating the policy inline.
 
+### Requirement: Product Boundary and Contributor Policy Gate
+
+ETHOS SHALL keep active product surfaces, release metadata, and contributor
+policy organization-native rather than person-native or adopter-private.
+
+#### Scenario: Active product boundary is enforced
+
+- **WHEN** hosted CI, pre-commit, local CI, or `ethos prove --execute --json`
+  runs the product boundary gate
+- **THEN** ETHOS invokes `tools/ci/scripts/run-product-boundary.sh`
+- **AND** the owner script runs `ethos quality product-boundary --json` and
+  `ethos quality contributor-policy --json`
+- **AND** active product surfaces reject hardcoded personal identity literals,
+  local workstation paths, private infrastructure URLs, adopter-specific
+  literals, generic lifecycle bucket phrases, session-authority phrases, and
+  person attribution fields in release/package metadata
+- **AND** historical evidence and archived change records may retain factual
+  names only as historical records, not as active product defaults or authority
+
+#### Scenario: Contributor policy is role-based
+
+- **WHEN** `ethos quality contributor-policy --json` runs
+- **THEN** ETHOS reports identity mode, allowed identity count, allowed roles,
+  and contributor-policy findings
+- **AND** single built-in author policy is rejected for active product
+  governance
+- **AND** the configured policy includes at least one maintainer or team role
+  and at least one bot or service role
+- **AND** Git author, Git committer, Work Lane actor, reviewer, maintainer,
+  bot, team, and adopter-side owner remain distinct identity facts
+
 ### Requirement: Evidence Freshness Protocol Gate
 
 ETHOS SHALL treat evidence freshness as the read model that checks claim

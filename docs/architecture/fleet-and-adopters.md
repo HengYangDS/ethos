@@ -18,10 +18,10 @@ inspection is data-driven: adopter names, domain contracts, branch roles,
 assistant surfaces, and hosted providers belong in the adopter repository or
 profile.
 
-This keeps ETHOS core reusable. A dmgr-style repository can declare raw/cache
-contracts, assistant projections, Backlog intake, and OpenSpec changes in its
-own tracked profile and configuration without adding dmgr terms to product
-packages.
+This keeps ETHOS core reusable. A domain-specific repository can declare its
+own data contracts, assistant projections, intake adapters, and OpenSpec
+changes in its tracked profile and configuration without adding that domain's
+terms to product packages.
 
 Status: see front matter.
 

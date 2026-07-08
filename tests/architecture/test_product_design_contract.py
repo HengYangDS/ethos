@@ -55,8 +55,8 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
         "Proof separation",
     ):
         assert principle in text
-    assert "PyPI/TestPyPI publish" in text
-    assert "not current scope" in text
+    assert "PyPI/TestPyPI" in text
+    assert "not active scope" in text
 
 
 def test_axioms_and_kernel_keep_root_text_subordinate_and_restrained() -> None:
@@ -241,6 +241,9 @@ def test_product_design_contract_defines_governed_repository() -> None:
         assert "adopter_repository" not in text
         assert "dual-posture" not in text
 
+    assert "organization-native, not author-native" in product
+    assert "Git author, Git committer" in product
+    assert "single built-in personal name" in product
     assert "do not create separate command planes" in product
     assert "`transition_commands`" in product
     assert "`reader_view_commands`" in product
@@ -388,8 +391,11 @@ def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -
         "profile-declared backend control manifest",
     ):
         assert phrase in text
-    assert "ALPHASIMDMGR_ETHOS_BACKEND=external" in text
-    assert "ALPHASIMDMGR_ETHOS_BACKEND=embedded" in text
+    assert "ETHOS_BACKEND=external <adopter-runner> ethos status" in text
+    assert "ETHOS_BACKEND=embedded <adopter-runner> ethos status" in text
+    assert "<adopter-runner>" in text
+    assert "reference adopter" in text
+    assert "identity and path" in text
 
 
 def test_capability_parity_ledger_classifies_required_capabilities() -> None:
@@ -406,7 +412,7 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
         "OpenSpec",
         "Backlog / intake",
         "campaign / mission",
-        "dmgr raw/cache/conf/alphasim rules",
+        "domain data-contract rules",
         "MCP / ACP / Superpowers",
     )
     for capability in required_capabilities:
@@ -430,6 +436,7 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
     ):
         assert field in text
     assert "accepted_summary" in text
+    assert "shadow-parity.schema.json" in text
     assert "shadow-parity.schema.json" in text
 
 

@@ -10,7 +10,13 @@ from ethos.adapters.repo import git as gitio
 from ethos.domain import land
 from ethos.domain import land_support
 from ethos.repository.adoption import evolution
-from ethos.repository.policy import rules as policy_rules
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.evaluation import scope_matches_path
+from ethos.repository.policy.rules.exceptions import date_or_none
+from ethos.repository.policy.rules.exceptions import policy_exceptions_report
+from ethos.repository.policy.rules.exceptions import ttl_days_or_none
+from ethos.repository.policy.rules.migration import toml_table_key
+from ethos.repository.policy.rules.migration import toml_value
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 
@@ -241,24 +247,24 @@ def test_land_support_additional_boundary_edges(monkeypatch, tmp_path: Path) -> 
 
 
 def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
-    assert policy_rules._scope_matches_path("repository", "a/b") is True
-    assert policy_rules._scope_matches_path("path:docs", "docs/a.md") is True
-    assert policy_rules._scope_matches_path("path:", "docs/a.md") is False
-    assert policy_rules._toml_value(True) == "true"
-    assert policy_rules._toml_value(["a", "b"]) == '["a", "b"]'
-    assert policy_rules._toml_table_key("with space") == '"with space"'
-    assert policy_rules._ttl_days_or_none("7d") == 7
-    assert policy_rules._ttl_days_or_none("bad") is None
-    assert policy_rules._date_or_none("not-date") is None
+    assert scope_matches_path("repository", "a/b") is True
+    assert scope_matches_path("path:docs", "docs/a.md") is True
+    assert scope_matches_path("path:", "docs/a.md") is False
+    assert toml_value(True) == "true"
+    assert toml_value(["a", "b"]) == '["a", "b"]'
+    assert toml_table_key("with space") == '"with space"'
+    assert ttl_days_or_none("7d") == 7
+    assert ttl_days_or_none("bad") is None
+    assert date_or_none("not-date") is None
 
     rules_dir = tmp_path / "rules" / "ethos"
     rules_dir.mkdir(parents=True)
     (rules_dir / "policy-exceptions.toml").write_text("[[exception]\n", encoding="utf-8")
-    assert str(policy_rules.policy_exceptions_report(tmp_path)["required_gaps"][0]).startswith(
+    assert str(policy_exceptions_report(tmp_path)["required_gaps"][0]).startswith(
         "policy_exception_parse_error:"
     )
     (rules_dir / "policy-exceptions.toml").write_text("exception = 'bad'\n", encoding="utf-8")
-    assert policy_rules.policy_exceptions_report(tmp_path)["exceptions"] == []
+    assert policy_exceptions_report(tmp_path)["exceptions"] == []
 
     config = tmp_path / ".ethos"
     config.mkdir()
@@ -289,7 +295,7 @@ def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    gaps = policy_rules.rules_check_report(tmp_path)["required_gaps"]
+    gaps = rules_check_report(tmp_path)["required_gaps"]
     assert "duplicate_rule_id:r1" in gaps
     assert "unknown_rule_gate:r1:missing-gate" in gaps
 

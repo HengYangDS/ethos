@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5a77fbc3106d592b251600b3c712065f711a944f",
-    "target_head": "5a77fbc3106d592b251600b3c712065f711a944f",
-    "product_semantic_sha256": "a641a9a2d85a0da58a8c86210ce20d4ad8ba356c4930ea213c5c1a2a1dad60ad",
-    "target_semantic_sha256": "a641a9a2d85a0da58a8c86210ce20d4ad8ba356c4930ea213c5c1a2a1dad60ad",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "327e05f7db9f8638f85177280a36c54c446e7402",
+    "target_head": "327e05f7db9f8638f85177280a36c54c446e7402",
+    "product_semantic_sha256": "98f88524f34bf9f29adb4de9c9180650f2a08c04bf7c85c75fd3f54901aa70d6",
+    "target_semantic_sha256": "98f88524f34bf9f29adb4de9c9180650f2a08c04bf7c85c75fd3f54901aa70d6",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/history-truth-boundary",
-    "target_head": "5a77fbc3106d592b251600b3c712065f711a944f",
-    "product_head": "5a77fbc3106d592b251600b3c712065f711a944f",
+    "target_root": "/private/tmp/ethos-rules-decomp",
+    "target_head": "327e05f7db9f8638f85177280a36c54c446e7402",
+    "product_head": "327e05f7db9f8638f85177280a36c54c446e7402",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json",
-      "/Users/yheng/projects/ethos-worktrees/history-truth-boundary/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/history-truth-boundary --json"
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-rules-decomp --json",
+      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-rules-decomp --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3124c69e170fc22f12a8da77b9f4096a25cba1301011878c622201df72b53517"
+        "sha256": "983020c543fe8ecf8abd7ffa925d8cdbea29edd6bca94186462a0bcd3ecd9a09"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "0247cef71e86bfddb5a0906529114df96e9241a8792c6cee44a9dda51cf5999e"
+        "sha256": "ddb579078a42412efd72c09164c09686666dbe703b821e2eb75e8141cf308908"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "8bedd4f668e5ce75823fe03069159b0db6f973d66d3de0a0aa56f39f99325863"
+        "sha256": "134a4698844247f8df86100a290c439e77438f063c93a013f94fbf3535ba653a"
       },
       {
         "path": "rules",

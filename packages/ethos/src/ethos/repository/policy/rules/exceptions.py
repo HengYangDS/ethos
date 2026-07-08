@@ -1,3 +1,5 @@
+"""Policy exceptions: validate and report on policy-exceptions.toml entries."""
+
 from __future__ import annotations
 
 import tomllib
@@ -5,6 +7,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import PolicyException
 
@@ -12,10 +15,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _compile_rules(root: Path) -> dict[str, object]:
-    from ethos.repository.policy.rules import compile_rules
-
-    return compile_rules(root)
+def _exceptions_path(root: Path) -> Path:
+    return root / "rules" / "ethos" / "policy-exceptions.toml"
 
 
 def _is_product_root(root: Path) -> bool:
@@ -24,11 +25,40 @@ def _is_product_root(root: Path) -> bool:
     ).exists()
 
 
-def _exceptions_path(root: Path) -> Path:
-    return root / "rules" / "ethos" / "policy-exceptions.toml"
+def date_or_none(value: str) -> date | None:
+    """Parse an ISO-8601 date string, returning None if invalid."""
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
+def ttl_days_or_none(value: str) -> int | None:
+    """Parse a TTL string like '30d' to an integer day count, returning None if invalid."""
+    if not value.endswith("d"):
+        return None
+    raw = value.removesuffix("d")
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def minimal_rule_skeleton(path: str) -> dict[str, object]:
+    """Return a minimal rule skeleton dict for a given path glob."""
+    return {
+        "id": "custom.example",
+        "owner": "team",
+        "authority_ref": "docs/governance/example.md",
+        "contract_ref": "docs/governance/example.md",
+        "path_globs": [path] if path else [],
+        "severity": "advisory",
+        "required_gates": [],
+        "stop_condition": "custom_rule_gap",
+    }
 
 
 def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[str, object]:
+    """Validate and report on all entries in rules/ethos/policy-exceptions.toml."""
     path = _exceptions_path(root)
     if not path.exists():
         return {
@@ -53,12 +83,12 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
         "dict[str, dict[str, object]]",
         {
             str(rule.get("id")): rule
-            for rule in cast("list[object]", _compile_rules(root)["rules"])
+            for rule in cast("list[object]", compile_rules(root)["rules"])
             if isinstance(rule, dict) and rule.get("id")
         },
     )
     known_rule_ids = set(known_rules)
-    today_date = _date_or_none(today or date.today().isoformat())
+    today_date = date_or_none(today or date.today().isoformat())
     normalized: list[dict[str, object]] = []
     gaps: list[str] = []
     for item in exceptions:
@@ -170,8 +200,8 @@ def _policy_exception_scope_gaps(
     evidence_ref = str(record["evidence_ref"])
     if evidence_ref and not (root / evidence_ref).exists():
         gaps.append(f"policy_exception_evidence_missing:{record['id']}:{evidence_ref}")
-    created_at = _date_or_none(str(record["created_at"]))
-    expires_at = _date_or_none(str(record["expires_at"]))
+    created_at = date_or_none(str(record["created_at"]))
+    expires_at = date_or_none(str(record["expires_at"]))
     gaps.extend(_policy_exception_date_gaps(record, created_at, expires_at, today_date))
     return gaps
 
@@ -189,7 +219,7 @@ def _policy_exception_date_gaps(
         gaps.append(f"policy_exception_date_invalid:{record['id']}:expires_at")
     max_ttl = str(record.get("max_ttl", ""))
     if max_ttl:
-        ttl_days = _ttl_days_or_none(max_ttl)
+        ttl_days = ttl_days_or_none(max_ttl)
         if ttl_days is None:
             gaps.append(f"policy_exception_ttl_invalid:{record['id']}")
         elif created_at and expires_at and (expires_at - created_at).days > ttl_days:
@@ -200,11 +230,12 @@ def _policy_exception_date_gaps(
 
 
 def rules_docs_manifest_report(root: Path) -> dict[str, object]:
+    """Report missing doc refs in authority_ref and contract_ref of compiled rules."""
     product_root = _is_product_root(root)
     refs = sorted(
         {
             str(ref)
-            for rule in cast("list[object]", _compile_rules(root)["rules"])
+            for rule in cast("list[object]", compile_rules(root)["rules"])
             if isinstance(rule, dict) and (product_root or rule.get("owner") != "ethos")
             for ref in (rule.get("authority_ref"), rule.get("contract_ref"))
             if isinstance(ref, str) and ref.endswith(".md")
@@ -217,33 +248,4 @@ def rules_docs_manifest_report(root: Path) -> dict[str, object]:
         "refs": refs,
         "missing": missing,
         "required_gaps": [f"missing_doc_ref:{ref}" for ref in missing],
-    }
-
-
-def _date_or_none(value: str) -> date | None:
-    try:
-        return date.fromisoformat(value[:10])
-    except ValueError:
-        return None
-
-
-def _ttl_days_or_none(value: str) -> int | None:
-    if not value.endswith("d"):
-        return None
-    raw = value.removesuffix("d")
-    if not raw.isdigit():
-        return None
-    return int(raw)
-
-
-def _minimal_rule_skeleton(path: str) -> dict[str, object]:
-    return {
-        "id": "custom.example",
-        "owner": "team",
-        "authority_ref": "docs/governance/example.md",
-        "contract_ref": "docs/governance/example.md",
-        "path_globs": [path] if path else [],
-        "severity": "advisory",
-        "required_gates": [],
-        "stop_condition": "custom_rule_gap",
     }

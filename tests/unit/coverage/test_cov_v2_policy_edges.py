@@ -12,16 +12,17 @@ import ast
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy import docstrings as docstrings_mod
-from ethos.repository.policy import rules as rules_mod
-from ethos.repository.policy.rules import _fact_gaps
-from ethos.repository.policy.rules import _is_product_root
-from ethos.repository.policy.rules import _match_waiver
-from ethos.repository.policy.rules import _scope_matches_path
-from ethos.repository.policy.rules import migrate_legacy_rules
-from ethos.repository.policy.rules import rules_check_report
-from ethos.repository.policy.rules import rules_evaluation_report
-from ethos.repository.policy.rules_exceptions import _ttl_days_or_none
-from ethos.repository.policy.rules_exceptions import policy_exceptions_report
+from ethos.repository.policy.rules import check as check_mod
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.evaluation import fact_gaps
+from ethos.repository.policy.rules.evaluation import match_waiver
+from ethos.repository.policy.rules.evaluation import rules_evaluation_report
+from ethos.repository.policy.rules.evaluation import scope_matches_path
+from ethos.repository.policy.rules.exceptions import _is_product_root
+from ethos.repository.policy.rules.exceptions import policy_exceptions_report
+from ethos.repository.policy.rules.exceptions import ttl_days_or_none
+from ethos.repository.policy.rules.migration import migrate_legacy_rules
 from ethos_core.contracts.rules import RuleEvalRequest
 from ethos_core.contracts.rules import RuleFactSnapshot
 
@@ -110,9 +111,9 @@ def test_rules_check_skips_non_dict_compiled_rule(
 ) -> None:
     # A non-dict entry inside compiled["rules"] is skipped by the `if not isinstance`
     # guard inside rules_check_report (rules.py 443).
-    real = rules_mod.compile_rules(tmp_path)
+    real = compile_rules(tmp_path)
     payload = {**real, "rules": ["bogus-not-a-dict", *real["rules"]]}
-    monkeypatch.setattr(rules_mod, "compile_rules", lambda root: payload)
+    monkeypatch.setattr(check_mod, "compile_rules", lambda root: payload)
 
     report = rules_check_report(tmp_path)
 
@@ -132,7 +133,7 @@ def test_fact_gaps_flags_malformed_and_ownerless_facts() -> None:
         },
     )
 
-    gaps = _fact_gaps(snapshot)
+    gaps = fact_gaps(snapshot)
 
     assert "fact_malformed:weird" in gaps
     assert "fact_owner_missing:noowner" in gaps
@@ -140,13 +141,13 @@ def test_fact_gaps_flags_malformed_and_ownerless_facts() -> None:
 
 def test_scope_matches_path_rejects_non_path_scope() -> None:
     # scope is neither "repository" nor a "path:" prefix -> returns False (rules.py 534).
-    assert _scope_matches_path("branch:feature", "src/a.py") is False
+    assert scope_matches_path("branch:feature", "src/a.py") is False
 
 
 def test_match_waiver_skips_rule_id_mismatch() -> None:
     # The only exception targets a different rule_id, so the loop continues past it
     # and no waiver is returned (rules.py 560).
-    waiver = _match_waiver(
+    waiver = match_waiver(
         rule_id="wanted",
         path="notes/todo.md",
         exceptions=[{"rule_id": "other", "scope": "repository"}],
@@ -304,4 +305,4 @@ def test_policy_exceptions_flag_non_table_exception(tmp_path: Path) -> None:
 
 def test_ttl_days_requires_day_suffix() -> None:
     # A max_ttl value lacking the trailing "d" is not a valid TTL (rules_exceptions.py 232).
-    assert _ttl_days_or_none("10") is None
+    assert ttl_days_or_none("10") is None

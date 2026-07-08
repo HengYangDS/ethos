@@ -9,8 +9,15 @@ from typing import TYPE_CHECKING
 from ethos.repository.policy import coupling as coupling_mod
 from ethos.repository.policy import docstrings as docstrings_mod
 from ethos.repository.policy import gates as gates_mod
-from ethos.repository.policy import rules as rules_mod
 from ethos.repository.policy.gates import Gate
+from ethos.repository.policy.rules.check import rules_layer_report
+from ethos.repository.policy.rules.config import configured_gate_tables
+from ethos.repository.policy.rules.config import configured_rules
+from ethos.repository.policy.rules.evaluation import active_valid_exceptions
+from ethos.repository.policy.rules.evaluation import match_waiver
+from ethos.repository.policy.rules.evaluation import required_gate_details
+from ethos.repository.policy.rules.evaluation import rules_evaluation_report
+from ethos.repository.policy.rules.migration import rules_toml_text
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
@@ -174,7 +181,7 @@ def test_configured_rules_without_globs_or_gates(tmp_path: Path) -> None:
     # required_gates (239 False -> 239->241) omits both keys from the payload.
     _write_rules(tmp_path, '[[rule]]\nid = "x.y"\nowner = "team"\n')
 
-    rules = rules_mod._configured_rules(tmp_path)
+    rules = configured_rules(tmp_path)
 
     assert rules == [{"id": "x.y", "owner": "team", "version": 1, "profile_layers": []}]
 
@@ -182,9 +189,7 @@ def test_configured_rules_without_globs_or_gates(tmp_path: Path) -> None:
 def test_active_valid_exceptions_skips_inactive_item() -> None:
     # A dict exception whose status is not "active" fails the guard at rules.py 547
     # and loops back to 546 (547->546) without being collected.
-    active = rules_mod._active_valid_exceptions(
-        {"required_gaps": [], "exceptions": [{"status": "expired"}]}
-    )
+    active = active_valid_exceptions({"required_gaps": [], "exceptions": [{"status": "expired"}]})
 
     assert active == []
 
@@ -192,7 +197,7 @@ def test_active_valid_exceptions_skips_inactive_item() -> None:
 def test_match_waiver_skips_scope_mismatch() -> None:
     # A matching rule_id whose scope does not match the path fails the check at
     # rules.py 562 and loops back to 558 (562->558) -> no waiver returned.
-    waiver = rules_mod._match_waiver(
+    waiver = match_waiver(
         rule_id="r",
         path="src/a.py",
         exceptions=[{"rule_id": "r", "scope": "path:other"}],
@@ -204,9 +209,7 @@ def test_match_waiver_skips_scope_mismatch() -> None:
 def test_rules_evaluation_prove_skips_gate_requirements(tmp_path: Path) -> None:
     # phase == "prove" makes the guard at rules.py 621 False (621->626), so a matched
     # blocking rule contributes no gate_required gaps.
-    report = rules_mod.rules_evaluation_report(
-        tmp_path, phase="prove", changed_paths=(".ethos/rules.toml",)
-    )
+    report = rules_evaluation_report(tmp_path, phase="prove", changed_paths=(".ethos/rules.toml",))
 
     gaps = [str(gap) for gap in report["required_gaps"]]
     assert not any(gap.startswith("gate_required:") for gap in gaps)
@@ -215,7 +218,7 @@ def test_rules_evaluation_prove_skips_gate_requirements(tmp_path: Path) -> None:
 def test_required_gate_details_skips_idless_detail() -> None:
     # A required_gates_detail entry without an "id" fails the guard at rules.py 758
     # and loops back to 757 (758->757) -> nothing collected.
-    assert rules_mod._required_gate_details([{"required_gates_detail": [{"command": "x"}]}]) == []
+    assert required_gate_details([{"required_gates_detail": [{"command": "x"}]}]) == []
 
 
 def test_rules_layer_report_strict_with_full_subject_depth(tmp_path: Path) -> None:
@@ -241,7 +244,7 @@ def test_rules_layer_report_strict_with_full_subject_depth(tmp_path: Path) -> No
     )
     _write_rules(tmp_path, '[profiles]\nactive = ["strict"]\n\n' + rule_block)
 
-    report = rules_mod.rules_layer_report(tmp_path)
+    report = rules_layer_report(tmp_path)
 
     assert report["strict"] is True
     assert "rules_strict_subject_coverage_missing" not in report["required_gaps"]
@@ -268,7 +271,7 @@ def test_configured_gate_tables_command_blocking_and_empty(tmp_path: Path) -> No
         ),
     )
 
-    gates = rules_mod._configured_gate_tables(tmp_path)
+    gates = configured_gate_tables(tmp_path)
 
     assert gates == {
         "only_blocking": {"blocking": True},
@@ -279,7 +282,7 @@ def test_configured_gate_tables_command_blocking_and_empty(tmp_path: Path) -> No
 def test_rules_toml_text_gate_missing_one_key() -> None:
     # A gate dict with only "command" makes the `if key in gate` at rules.py 925 False
     # for "blocking", looping back to 924 (925->924); the command line is still emitted.
-    text = rules_mod._rules_toml_text([], gates={"g": {"command": "run x"}})
+    text = rules_toml_text([], gates={"g": {"command": "run x"}})
 
     assert "[gates.g]" in text
     assert "command = " in text

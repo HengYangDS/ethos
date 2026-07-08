@@ -12,12 +12,12 @@ from typing import cast
 from ethos.adapters.repo import git as _gitio
 from ethos.adapters.repo.status import workspace_status
 from ethos.domain import plan as _plan
-from ethos.repository.policy.rules import compile_rules
-from ethos.repository.policy.rules import coverage_report
-from ethos.repository.policy.rules import explain_rules_target
-from ethos.repository.policy.rules import policy_exceptions_report
-from ethos.repository.policy.rules import rules_check_report
-from ethos.repository.policy.rules import rules_evaluation_report
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.coverage import coverage_report
+from ethos.repository.policy.rules.evaluation import rules_evaluation_report
+from ethos.repository.policy.rules.exceptions import policy_exceptions_report
+from ethos.repository.policy.rules.explain import explain_rules_target
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit

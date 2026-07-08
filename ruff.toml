@@ -29,7 +29,6 @@ extend = ".config/checks/ruff/ruff.toml"
 "packages/ethos/src/ethos/repository/evidence/core.py" = ["C901", "A002"]
 "packages/ethos/src/ethos/repository/adoption/evolution.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/parity.py" = ["C901"]
-"packages/ethos/src/ethos/repository/policy/rules.py" = ["C901"]
 # The CLI surface layer is the sanctioned place that prints to stdout (emit()); T20
 # (no-print) applies to library/logic code, not the surface.
 "packages/ethos/src/ethos/surface/cli/_base.py" = ["T201"]

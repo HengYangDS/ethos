@@ -560,6 +560,74 @@ evidence = ["unit-test"]
     ]
 
 
+def test_plan_changed_reports_adopter_contract_profile_matches(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    rules = repo / ".ethos" / "rules.toml"
+    rules.write_text(
+        """
+[gates.raw_changed]
+command = "nox -s raw_changed"
+blocking = true
+
+[[contract_profile]]
+id = "dmgr"
+policy = "rules/dmgr/contracts.toml"
+
+[[rule]]
+id = "dmgr-raw-cache"
+risk = "raw-cache-contract"
+paths = ["packages/dmgr-cache/**"]
+requires = ["raw_changed"]
+evidence = ["cache-tree"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    contracts = repo / "rules" / "dmgr" / "contracts.toml"
+    contracts.parent.mkdir(parents=True)
+    contracts.write_text(
+        """
+[[contract]]
+id = "cache-shape-metadata-sidecars-checkpoint"
+surface = "cache"
+paths = ["packages/dmgr-cache/**"]
+protects = ["NIO cache shape"]
+required_evidence = ["cache-tree"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    source = repo / "packages" / "dmgr-cache" / "src" / "dmgr_cache" / "__init__.py"
+    source.parent.mkdir(parents=True)
+    source.write_text('"""Cache package."""\n', encoding="utf-8")
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "--no-gpg-sign",
+        "--no-verify",
+        "-m",
+        "add adopter profile",
+    )
+    source.write_text('"""Cache package."""\nVALUE = 1\n', encoding="utf-8")
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--changed", "--json", cwd=repo)
+
+    assert payload["data"]["matched_rules"][0]["id"] == "dmgr-raw-cache"
+    assert payload["data"]["domain_contracts"] == [
+        {
+            "profile": "dmgr",
+            "contract": "cache-shape-metadata-sidecars-checkpoint",
+            "surface": "cache",
+            "matched_paths": ["packages/dmgr-cache/src/dmgr_cache/__init__.py"],
+            "protects": ["NIO cache shape"],
+            "required_evidence": ["cache-tree"],
+        }
+    ]
+
+
 def test_assistants_doctor_accepts_root_for_shadow_parity(tmp_path: Path) -> None:
     payload = run_ethos("assistants", "doctor", "--root", tmp_path.as_posix(), "--json")
 

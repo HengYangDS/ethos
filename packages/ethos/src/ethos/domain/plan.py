@@ -9,6 +9,7 @@ surface→domain→... layering acyclic.
 from __future__ import annotations
 
 import fnmatch
+import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -83,6 +84,52 @@ def matching_rule_gates(
             }
         )
     return matched_rules, required_gates
+
+
+def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[str, object]]:
+    """Match changed paths against configured adopter/domain contract profiles."""
+    config = rules_config(root)
+    raw_profile_config = config.get("contract_profile")
+    raw_profiles = raw_profile_config if isinstance(raw_profile_config, list) else []
+    matches: list[dict[str, object]] = []
+    for raw_profile in cast("list[object]", raw_profiles):
+        if not isinstance(raw_profile, dict):
+            continue
+        profile_id = str(raw_profile.get("id", ""))
+        policy = raw_profile.get("policy")
+        if not isinstance(policy, str) or not policy:
+            continue
+        policy_path = root / policy
+        if not policy_path.exists():
+            continue
+        policy_data = tomllib.loads(policy_path.read_text(encoding="utf-8"))
+        raw_contracts = (
+            policy_data.get("contract") if isinstance(policy_data.get("contract"), list) else []
+        )
+        for raw_contract in cast("list[object]", raw_contracts):
+            if not isinstance(raw_contract, dict):
+                continue
+            matched_paths = [
+                path
+                for path in paths
+                if any(
+                    path_matches(path, pattern)
+                    for pattern in string_list(raw_contract.get("paths"))
+                )
+            ]
+            if not matched_paths:
+                continue
+            matches.append(
+                {
+                    "profile": profile_id,
+                    "contract": str(raw_contract.get("id", "")),
+                    "surface": str(raw_contract.get("surface", "")),
+                    "matched_paths": matched_paths,
+                    "protects": string_list(raw_contract.get("protects")),
+                    "required_evidence": string_list(raw_contract.get("required_evidence")),
+                }
+            )
+    return matches
 
 
 def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:

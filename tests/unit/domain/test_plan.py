@@ -46,6 +46,74 @@ def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(
     ]
 
 
+def test_contract_profile_matches_filters_invalid_profiles_and_contracts(
+    tmp_path, monkeypatch
+):
+    policy = tmp_path / "rules" / "contracts.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_text(
+        """
+[[contract]]
+id = "unmatched"
+surface = "docs"
+paths = ["docs/**"]
+protects = ["docs"]
+required_evidence = ["markdown"]
+
+[[contract]]
+id = "cache"
+surface = "cache"
+paths = ["packages/cache/**"]
+protects = ["cache shape"]
+required_evidence = ["cache-tree"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        plan,
+        "rules_config",
+        lambda _root: {
+            "contract_profile": [
+                "not-a-profile",
+                {"id": "missing-policy-key"},
+                {"id": "missing-policy-file", "policy": "rules/missing.toml"},
+                {"id": "domain", "policy": "rules/contracts.toml"},
+            ],
+        },
+    )
+
+    matches = plan.contract_profile_matches(
+        tmp_path,
+        ("packages/cache/src/cache/__init__.py",),
+    )
+
+    assert matches == [
+        {
+            "profile": "domain",
+            "contract": "cache",
+            "surface": "cache",
+            "matched_paths": ["packages/cache/src/cache/__init__.py"],
+            "protects": ["cache shape"],
+            "required_evidence": ["cache-tree"],
+        }
+    ]
+
+
+def test_contract_profile_matches_skips_non_table_contract_entries(tmp_path, monkeypatch):
+    policy = tmp_path / "rules" / "contracts.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_text('contract = ["not-a-contract-table"]\n', encoding="utf-8")
+    monkeypatch.setattr(
+        plan,
+        "rules_config",
+        lambda _root: {
+            "contract_profile": [{"id": "domain", "policy": "rules/contracts.toml"}],
+        },
+    )
+
+    assert plan.contract_profile_matches(tmp_path, ("packages/cache/__init__.py",)) == []
+
+
 def test_graph_for_paths_defaults_and_sorts_inputs():
     graph = plan.graph_for_paths(("b.py", "a.py"))
     default_graph = plan.graph_for_paths(())

@@ -238,6 +238,7 @@ def plan(
     paths = tuple(status_payload["changed_paths"]) if changed else ()
     graph = _plan.graph_for_paths(paths)
     matched_rules, required_gates = _plan.matching_rule_gates(repo, paths)
+    domain_contracts = _plan.contract_profile_matches(repo, paths)
     result = EthosResult(
         command="plan",
         ok=True,
@@ -253,6 +254,7 @@ def plan(
             "changed_paths": list(paths),
             "matched_rules": matched_rules,
             "required_gates": required_gates,
+            "domain_contracts": domain_contracts,
             "action_graph": graph.to_dict(),
         },
     )

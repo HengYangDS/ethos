@@ -3,11 +3,11 @@ id = "release-adoption-evidence"
 subject = "ethos:release-adoption-readiness"
 state = "active"
 change_id = "2026-07-08-release-adoption-readiness"
-summary = "ETHOS has rebased local release smoke, external adoption pilot diagnostics, and publication-boundary evidence without claiming hosted CI or registry publication."
+summary = "ETHOS has current release smoke, external adoption pilot diagnostics, local publish-readiness, and local-vs-remote publication-boundary evidence without claiming hosted CI or registry publication."
 
 [evidence]
 dated = "evidence/chronicle/release-adoption-readiness/2026-07-08.md"
-sha256 = "92e742b204e835439a1ae6c921f4958210a9d5dc5f6df6a94ebc81ec47ba9d0e"
+sha256 = "65595b79569d983ec5ce2d13ef7f9574fc95a039138c1af2aa5e8b031b9ba3fd"
 evidence_ids = ["evidence:release-adoption-readiness"]
 binding = "semantic release artifact, adoption pilot, remote-ref, and hosted-CI boundary evidence binding"
 verifier = "semantic"

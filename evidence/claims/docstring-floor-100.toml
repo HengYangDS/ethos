@@ -6,7 +6,7 @@ summary = "ETHOS enforces 100 percent public Python product-surface docstring co
 
 [evidence]
 dated = "evidence/chronicle/docstring-floor-100/2026-07-09.md"
-sha256 = "b6db6f288aa077b1b2a0a1f30c5fbe94138e4c8392c5f5192285511d21c22082"
+sha256 = "1a8de71bbbfe416993aa066c5f474ef9a6c143178c70f2f3cbb801a10c2a9eb1"
 evidence_ids = ["evidence:docstring-floor-100"]
 binding = "docstring policy floor, architecture tests, OpenSpec carrier, and quality gate output"
 verifier = "semantic"
@@ -31,7 +31,7 @@ owner = "ethos-quality"
 scope = "Public Python product-surface docstring coverage floor"
 
 [carriers]
-openspec = "openspec/changes/docstring-floor-100"
+openspec = "openspec/changes/archive/2026-07-08-docstring-floor-100"
 
 fallback = "Keep the prior docstring gate behavior while treating 100 percent as an observed metric rather than an enforced floor."
 kill_signal = "A public ETHOS command, explicit export, or package boundary can regress below 100 percent documented coverage while docstring quality remains clean."
@@ -42,10 +42,10 @@ targets = [
   "tests/architecture/test_docstring_governance.py",
   "tests/architecture/test_release_assets.py",
   "openspec/specs/quality/spec.md",
-  "openspec/changes/docstring-floor-100/proposal.md",
-  "openspec/changes/docstring-floor-100/design.md",
-  "openspec/changes/docstring-floor-100/tasks.md",
-  "openspec/changes/docstring-floor-100/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-08-docstring-floor-100/proposal.md",
+  "openspec/changes/archive/2026-07-08-docstring-floor-100/design.md",
+  "openspec/changes/archive/2026-07-08-docstring-floor-100/tasks.md",
+  "openspec/changes/archive/2026-07-08-docstring-floor-100/specs/quality/spec.md",
   "evidence/chronicle/docstring-floor-100/2026-07-09.md",
   "evidence/claims/docstring-floor-100.toml",
 ]

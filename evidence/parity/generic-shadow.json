@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "050e457962c0089ae1ec03f10d61c71be3395901",
-    "target_head": "050e457962c0089ae1ec03f10d61c71be3395901",
-    "product_semantic_sha256": "0029004a6d2334142f158c29fe2f8a104cb78d1c821497965308c629ef82cd5e",
-    "target_semantic_sha256": "0029004a6d2334142f158c29fe2f8a104cb78d1c821497965308c629ef82cd5e",
+    "product_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
+    "target_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
+    "product_semantic_sha256": "cd78cd6419855a4eaa9bfb53225aca2cb2a14ba5065ed2129bde927ca957c135",
+    "target_semantic_sha256": "cd78cd6419855a4eaa9bfb53225aca2cb2a14ba5065ed2129bde927ca957c135",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-work-docs-role-vocab",
-    "target_head": "050e457962c0089ae1ec03f10d61c71be3395901",
-    "product_head": "050e457962c0089ae1ec03f10d61c71be3395901",
+    "target_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
+    "product_head": "7496b52d56490f53534c09afc2470d35b4c10f44",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4e54e58f4ff621237b7ff429ee661fbee8398d057a7966ea5aaab68e52b0a0cd"
+        "sha256": "4640925b5e2ad9127eae1223d0929c8fdf5d986b9d5738e0e9b76b8c49447565"
       },
       {
         "path": "evidence/claims",

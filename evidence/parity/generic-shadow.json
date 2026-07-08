@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
-    "target_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
-    "product_semantic_sha256": "3ba5c58cc518ab53e3be0127d1811007ce9afdc410a927260d32f65e58432760",
-    "target_semantic_sha256": "3ba5c58cc518ab53e3be0127d1811007ce9afdc410a927260d32f65e58432760",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "eff931bf2d284e7acf8cafdce6b5e026be76df1c",
+    "target_head": "eff931bf2d284e7acf8cafdce6b5e026be76df1c",
+    "product_semantic_sha256": "7393812f918eea9bee3550003c96b965adcc32ff0155be2eae408dcc2782ed53",
+    "target_semantic_sha256": "7393812f918eea9bee3550003c96b965adcc32ff0155be2eae408dcc2782ed53",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,13 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package",
-    "target_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
-    "product_head": "77e401aa5d1db495f2bbeea99dae541153a7baac",
-    "changed_paths": [
-      ".config/checks/module-layout/policy.toml",
-      "tests/architecture/test_release_assets.py"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory",
+    "target_head": "eff931bf2d284e7acf8cafdce6b5e026be76df1c",
+    "product_head": "eff931bf2d284e7acf8cafdce6b5e026be76df1c",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -54,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json",
-      "/Users/yheng/projects/ethos-worktrees/quality-docs-profile-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/quality-docs-profile-package --json"
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/report-coordination-advisory/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/report-coordination-advisory --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -84,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "b3c868e09328541a0055db85108e45f97c82d9b933c15957283541feff700d63"
+        "sha256": "95eda4f3884317e5cb7a68c39433262381af3b68539ab4fc353633072adb80d4"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "de3e6d01aef25f7944e61ff3ec1c8c442d5b5c4cbff29fd70d15508a9f7a928c"
+        "sha256": "0e061b45c6a8d5b530f60278b3a16ba413dd1bcc0341f7c2ca5d12f7f5902662"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "c6380ff81e99c43ee1c7e8a68990b3bf7fc36ae1dba8776d6923838d012660a0"
+        "sha256": "97e1601b828b07772393194d1b59eb3385380b385102344bcf36f2145f9651f1"
       },
       {
         "path": "rules",

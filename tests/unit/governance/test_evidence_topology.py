@@ -149,3 +149,234 @@ retirement_conditions = ["topology is clean"]
     assert payload["data"]["claims"]["ok"] is True
     assert payload["data"]["evolution"]["ok"] is True
     assert payload["data"]["topology"]["ok"] is False
+
+
+def test_quality_evidence_freshness_uses_profile_durable_evidence_root(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """
+[roots]
+claims = "claims"
+durable_evidence = "docs/evidence"
+""".strip(),
+        encoding="utf-8",
+    )
+    docs_evidence = tmp_path / "docs" / "evidence"
+    (docs_evidence / "claims").mkdir(parents=True)
+    chronicle = docs_evidence / "chronicle" / "topic" / "2026-07-08.md"
+    chronicle.parent.mkdir(parents=True)
+    chronicle.write_text("profile evidence root proof", encoding="utf-8")
+    (docs_evidence / "parity").mkdir(parents=True)
+    (docs_evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+
+    claims = tmp_path / "claims"
+    claims.mkdir()
+    digest = hashlib.sha256(chronicle.read_bytes()).hexdigest()
+    claims.joinpath("sample.toml").write_text(
+        f'''
+[claim]
+id = "sample"
+state = "superseded"
+
+[evidence]
+dated = "docs/evidence/chronicle/topic/2026-07-08.md"
+sha256 = "{digest}"
+'''.strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "proof.py").write_text(
+        "def test_ok():\n    assert True\n", encoding="utf-8"
+    )
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir()
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "sample"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Profile evidence roots must be honored."
+challenge = "Adopter docs/evidence roots must not be reported as missing evidence/."
+transition = "profile -> freshness"
+proof_refs = ["ethos quality evidence-freshness --json"]
+review_refs = ["tests/proof.py"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["profile root honored"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "quality",
+        "evidence-freshness",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+        cwd=tmp_path,
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["summary"]["evidence_roots"] == ["docs/evidence"]
+    assert payload["data"]["topology"]["layout"]["root"] == "docs/evidence"
+
+
+def test_evidence_topology_keeps_custom_non_docs_root_in_kernel_mode(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """
+[roots]
+durable_evidence = "records/evidence"
+""".strip(),
+        encoding="utf-8",
+    )
+    evidence = tmp_path / "records" / "evidence"
+    (evidence / "claims").mkdir(parents=True)
+    (evidence / "chronicle" / "topic").mkdir(parents=True)
+    (evidence / "parity").mkdir(parents=True)
+    (evidence / "delivery").mkdir()
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert "evidence_root_dir_not_allowed:delivery" in report["required_gaps"]
+    assert report["layout"] == {
+        "root": "records/evidence",
+        "allowed_root_files": ["README.md"],
+        "allowed_root_dirs": ["claims", "chronicle", "parity"],
+        "claims_root": "records/evidence/claims",
+        "chronicle_root": "records/evidence/chronicle",
+        "parity_root": "records/evidence/parity",
+    }
+
+
+def test_evidence_topology_reports_missing_profile_docs_evidence_root(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """
+[roots]
+durable_evidence = "docs/evidence"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["evidence_root_missing"]
+    assert report["layout"]["mode"] == "curated_profile_evidence"
+    assert report["counts"]["curated_artifacts"] == 0
+
+
+def test_evidence_topology_blocks_profile_docs_evidence_root_file_clutter(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """
+[roots]
+durable_evidence = "docs/evidence"
+""".strip(),
+        encoding="utf-8",
+    )
+    evidence = tmp_path / "docs" / "evidence"
+    evidence.mkdir(parents=True)
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+    (evidence / "loose.json").write_text("{}", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["evidence_root_file_not_allowed:loose.json"]
+    assert report["counts"]["curated_artifacts"] == 1
+
+
+def test_quality_evidence_freshness_accepts_profile_curated_docs_evidence_layout(
+    tmp_path: Path,
+) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        """
+[roots]
+claims = "claims"
+durable_evidence = "docs/evidence"
+""".strip(),
+        encoding="utf-8",
+    )
+    curated = tmp_path / "docs" / "evidence" / "delivery" / "2026-07-08.md"
+    curated.parent.mkdir(parents=True)
+    curated.write_text("curated adopter delivery evidence", encoding="utf-8")
+    (tmp_path / "docs" / "evidence" / "README.md").write_text("# Evidence\n", encoding="utf-8")
+
+    claims = tmp_path / "claims"
+    claims.mkdir()
+    digest = hashlib.sha256(curated.read_bytes()).hexdigest()
+    claims.joinpath("sample.toml").write_text(
+        f'''
+[claim]
+id = "sample"
+state = "superseded"
+
+[evidence]
+dated = "docs/evidence/delivery/2026-07-08.md"
+sha256 = "{digest}"
+'''.strip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "proof.py").write_text(
+        "def test_ok():\n    assert True\n", encoding="utf-8"
+    )
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir()
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "sample"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Profile evidence roots may hold curated adopter delivery evidence."
+challenge = "Adopter docs/evidence delivery trees are curated evidence, not product kernel clutter."
+transition = "profile -> curated evidence"
+proof_refs = ["ethos quality evidence-freshness --json"]
+review_refs = ["tests/proof.py"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["curated docs evidence accepted"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "quality",
+        "evidence-freshness",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+        cwd=tmp_path,
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["topology"]["layout"]["mode"] == "curated_profile_evidence"
+    assert payload["data"]["topology"]["counts"]["curated_artifacts"] == 1

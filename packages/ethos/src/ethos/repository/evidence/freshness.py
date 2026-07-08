@@ -7,6 +7,7 @@ from typing import cast
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.topology import evidence_topology_report
+from ethos.repository.profile import profile_relative_root
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,6 +25,7 @@ def evidence_freshness_report(root: Path) -> dict[str, Any]:
     claim_report = claims_report(root)
     evolution = evolution_report(root)
     topology = evidence_topology_report(root)
+    evidence_root = profile_relative_root(root, "durable_evidence")
     required_gaps = (
         tuple(cast("list[str]", claim_report["required_gaps"]))
         + tuple(cast("list[str]", evolution["required_gaps"]))
@@ -32,7 +34,7 @@ def evidence_freshness_report(root: Path) -> dict[str, Any]:
     return {
         "ok": bool(claim_report["ok"]) and bool(evolution["ok"]) and bool(topology["ok"]),
         "summary": {
-            "evidence_roots": ["evidence"],
+            "evidence_roots": [evidence_root],
             "evolution_active_count": evolution["active_count"],
             "topology_issue_count": len(topology["required_gaps"]),
         },

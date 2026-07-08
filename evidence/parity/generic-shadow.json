@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "3823b369a2f181e43e9d21a0e412961ba6e54af9",
-    "target_head": "3823b369a2f181e43e9d21a0e412961ba6e54af9",
-    "product_semantic_sha256": "264c3a85b7ee44553528207c4bfaa764a050509c5cee5ae73aaa6c41e3806000",
-    "target_semantic_sha256": "264c3a85b7ee44553528207c4bfaa764a050509c5cee5ae73aaa6c41e3806000",
+    "product_head": "7f369e2203e78071e76ccc1f1d18d0b80a3a598e",
+    "target_head": "7f369e2203e78071e76ccc1f1d18d0b80a3a598e",
+    "product_semantic_sha256": "bc6c567269a00cb25f4990f40278aa371de4dcc9a28ea2be20b6cc174badc05c",
+    "target_semantic_sha256": "bc6c567269a00cb25f4990f40278aa371de4dcc9a28ea2be20b6cc174badc05c",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit",
-    "target_head": "3823b369a2f181e43e9d21a0e412961ba6e54af9",
-    "product_head": "3823b369a2f181e43e9d21a0e412961ba6e54af9",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709",
+    "target_head": "7f369e2203e78071e76ccc1f1d18d0b80a3a598e",
+    "product_head": "7f369e2203e78071e76ccc1f1d18d0b80a3a598e",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json",
-      "/Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/mechanism-comparison-audit --json"
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/profile-evidence-freshness-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "d0a85c2ce61c8081ea0749b26b5c8a91680946d9eeb26355b81da33c37ba188a"
+        "sha256": "b24de7119dc67415f7f89cec261e3302636ca425e5f47911eeac46cb98a61766"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1234ee52eea332efcfaf304c9138a8d987d4523d9091360f3525b0fb32725d71"
+        "sha256": "f70eb9505475200c11d5671bcee24137c704568c2611308aab0f4499d497de3e"
       },
       {
         "path": "evidence/claims",

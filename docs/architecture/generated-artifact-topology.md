@@ -34,6 +34,18 @@ file as source, local state, generated output, or curated evidence.
 | `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
 
+Profile-mapped durable evidence roots preserve the same logical evidence
+boundary without forcing every repository to copy the product repository's
+physical `evidence/` kernel layout. When a governed repository declares
+`[roots] durable_evidence = "docs/evidence"`, ETHOS treats that root as a
+curated profile evidence home: reviewed, dated evidence subtrees such as
+`docs/evidence/delivery/` or rollback-window summaries are allowed, while root
+file clutter outside documented entrypoints remains blocked. Product-default
+`evidence/` and other custom durable evidence roots keep the stricter kernel
+layout with `claims/`, `chronicle/`, and `parity/` subroots. This keeps adopter
+compatibility profile-driven instead of hardcoding adopter directories in the
+ETHOS product.
+
 Package metadata and lock files such as `package.json`, `package-lock.json`,
 `pyproject.toml`, and `uv.lock` remain source/package authority. They are not
 classified as generated drift merely because tools can update them.

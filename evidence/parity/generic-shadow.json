@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "8c4891d5030be1d888980a0ada72b2e618ea2722",
-    "target_head": "8c4891d5030be1d888980a0ada72b2e618ea2722",
-    "product_semantic_sha256": "719bb8ef0243af7c7959880a5fa81258e952a3d9d0f54bce2cac6a4d9ea06b9a",
-    "target_semantic_sha256": "719bb8ef0243af7c7959880a5fa81258e952a3d9d0f54bce2cac6a4d9ea06b9a",
+    "product_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
+    "target_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
+    "product_semantic_sha256": "66a04866a43a55d81d3836cc5b183455b09989270743fd3f847787c7b88c9758",
+    "target_semantic_sha256": "66a04866a43a55d81d3836cc5b183455b09989270743fd3f847787c7b88c9758",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,12 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709",
-    "target_head": "8c4891d5030be1d888980a0ada72b2e618ea2722",
-    "product_head": "8c4891d5030be1d888980a0ada72b2e618ea2722",
-    "changed_paths": [
-      "evidence/parity/alphasim-dmgr-shadow.json"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/context-projection-package",
+    "target_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
+    "product_head": "52e13639623c1d7aea9836b390cb9643671dbebf",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -53,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/alphasim-parity-refresh-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json",
+      "/Users/yheng/projects/ethos-worktrees/context-projection-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/context-projection-package --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -83,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a5a88121b39914538aadf94bc1597368730a104cf17db7d2ca7737ecd1061b51"
+        "sha256": "faef95266b969d8851b74f2309e63c09c6b30ec73437a2dfc310b23b345bcede"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "8315464708c9a3d68a9fe7e30d099a90683e577602b9e70e35b3fe024190aeae"
+        "sha256": "1de6211c685e94777f8f03d279ff1ae33ea873314fac0aa22b47efcce8e6f187"
       },
       {
         "path": "openspec",

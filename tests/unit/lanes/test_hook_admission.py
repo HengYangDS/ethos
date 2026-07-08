@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
@@ -139,6 +140,78 @@ def test_pre_tool_hook_admits_owned_work_lane_with_editor_root(tmp_path: Path) -
         "reason": "prewrite_admitted",
     }
     assert report["admission"]["ok"] is True
+
+
+def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    git(worktree, "checkout", "--detach")
+    git_dir = Path(git(worktree, "rev-parse", "--absolute-git-dir"))
+    rebase_dir = git_dir / "rebase-merge"
+    rebase_dir.mkdir()
+    (rebase_dir / "head-name").write_text("refs/heads/work/feature\n", encoding="utf-8")
+
+    report = hook_admission_report(
+        root=worktree,
+        layer="pre-tool",
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is True
+    assert report["role"] == "work_lane"
+    assert report["branch"] == "work/feature"
+    assert report["admission"]["status_role"] == "detached"
+    assert report["admission"]["effective_context"] == {
+        "role": "work_lane",
+        "branch": "work/feature",
+        "source": "git_rebase_head_name",
+        "rebase_head_name": "work/feature",
+    }
+
+
+def test_git_path_falls_back_to_dot_git_when_git_path_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fail_rev_parse(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(["git"], 1, "", "not a git repo")
+
+    monkeypatch.setattr(admission_prewrite.subprocess, "run", fail_rev_parse)
+
+    assert admission_prewrite._git_path(tmp_path) == tmp_path / ".git"
+
+
+def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "checkout", "--detach")
+    git_dir = Path(git(repo, "rev-parse", "--absolute-git-dir"))
+    rebase_dir = git_dir / "rebase-merge"
+    rebase_dir.mkdir()
+    (rebase_dir / "head-name").write_text("refs/heads/dev\n", encoding="utf-8")
+
+    report = hook_admission_report(
+        root=repo,
+        layer="pre-tool",
+        paths=[repo / "README.md"],
+        editor_root=repo,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["role"] == "detached"
+    assert report["admission"]["effective_context"] == {
+        "role": "detached",
+        "branch": "detached",
+        "source": "workspace_status",
+        "rebase_head_name": "dev",
+    }
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "protected_lane_prewrite_blocked",
+    }
 
 
 def test_pre_run_hook_blocks_mutation_risk_without_target_paths(tmp_path: Path) -> None:

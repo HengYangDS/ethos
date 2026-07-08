@@ -64,6 +64,7 @@ def foreign_work_lane(
     lease: dict[str, object],
     root: Path,
     claim_id: str,
+    relation_to_accepted: str = "",
     dirty_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     branch = str(worktree["branch"])
@@ -83,6 +84,13 @@ def foreign_work_lane(
         "lease_state": "leased" if owner else "missing",
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing",
+        "relation_to_accepted": relation_to_accepted,
+        "closeout_disposition": closeout_disposition(
+            lease_state="leased" if owner else "missing",
+            claim_binding="bound" if claim_id else "missing",
+            relation_to_accepted=relation_to_accepted,
+            dirty=bool(dirty_paths),
+        ),
         "dirty": bool(dirty_paths),
         "dirty_paths": list(dirty_paths),
         "path_scope": list(path_scope),
@@ -131,6 +139,8 @@ def coordination_gaps(
         branch = str(lane["branch"])
         if lane["lease_state"] == "missing":
             advisory.append(f"work_lane_missing_lease:{branch}")
+        if _is_closeout_residue(lane) and "work_lane_closeout_residue_present" not in advisory:
+            advisory.append("work_lane_closeout_residue_present")
         if current_role != ROLE_WORK_LANE:
             continue
         state = str(lane.get("coordination_state") or "unknown")
@@ -144,6 +154,35 @@ def coordination_gaps(
             # every concurrent lane that merely shares a directory.
             advisory.append(f"coordination_gap:scope_overlap:{branch}")
     return required, advisory
+
+
+def closeout_disposition(
+    *,
+    lease_state: str,
+    claim_binding: str,
+    relation_to_accepted: str,
+    dirty: bool,
+) -> str:
+    """Classify closeout state without authorizing foreign lane mutation."""
+    if relation_to_accepted == "unknown":
+        return "unknown"
+    if relation_to_accepted == "ancestor_of_accepted" and dirty:
+        return "landed_dirty"
+    if (
+        relation_to_accepted == "ancestor_of_accepted"
+        and lease_state == "leased"
+        and claim_binding == "bound"
+    ):
+        return "retire_ready"
+    if relation_to_accepted == "descendant_of_accepted":
+        return "unlanded"
+    if relation_to_accepted == "diverged_from_accepted":
+        return "diverged"
+    return "none"
+
+
+def _is_closeout_residue(lane: dict[str, object]) -> bool:
+    return str(lane.get("closeout_disposition") or "") not in {"", "none"}
 
 
 def coordination_package(

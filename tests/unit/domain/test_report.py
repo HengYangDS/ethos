@@ -273,3 +273,9 @@ def test_scorecard_next_actions_route_clean_ready_state_to_full_proof() -> None:
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": []},
     ) == ("ethos prove --full",)
+
+
+def test_advisory_next_actions_route_closeout_residue_signal() -> None:
+    actions = report_domain._advisory_next_actions(("work_lane_closeout_residue_present",))
+
+    assert actions == ("ethos orient --json", "ethos lane status --json")

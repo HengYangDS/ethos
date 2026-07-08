@@ -334,10 +334,20 @@ def _advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
     actions: list[str] = []
     for gap in advisory_gaps:
         parts = gap.split(":")
-        if gap in {
-            "foreign_work_lane_present",
-            "unbound_work_lane_ref_present",
-        } or gap.startswith(("work_lane_missing_lease:", "coordination_gap:")):
+        if (
+            gap
+            in {
+                "foreign_work_lane_present",
+                "unbound_work_lane_ref_present",
+            }
+            or gap.startswith(
+                (
+                    "work_lane_missing_lease:",
+                    "coordination_gap:",
+                )
+            )
+            or gap == "work_lane_closeout_residue_present"
+        ):
             actions.extend(["ethos orient --json", "ethos lane status --json"])
         if len(parts) == 4 and parts[0] == "openspec_protected_branch_active_change_unarchived":
             branch = parts[1]

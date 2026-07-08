@@ -143,6 +143,8 @@ def unbound_work_lane_refs(
 
 def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
     """Classify a branch ref relative to the accepted branch."""
+    if not ref_head(root, branch) or not ref_head(root, accepted_branch):
+        return "unknown"
     if is_ancestor(root, branch, accepted_branch):
         return "ancestor_of_accepted"
     if is_ancestor(root, accepted_branch, branch):

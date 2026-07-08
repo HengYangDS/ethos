@@ -18,6 +18,7 @@ from ethos.adapters.repo.status.bindings import is_ancestor
 from ethos.adapters.repo.status.bindings import lease_claim_id
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
+from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
 from ethos.adapters.repo.status.bindings import worktree_binding
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -155,6 +156,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         current_role=role,
         current_path_scope=current_scope,
         current_scope_state=current_scope_state,
+        accepted_branch=policy.accepted_branch,
         candidate_branch=policy.candidate_branch,
         lease_by_branch=lease_by_branch,
         root=repo,
@@ -385,6 +387,7 @@ def _foreign_work_lanes(
     current_role: str,
     current_path_scope: tuple[str, ...],
     current_scope_state: str,
+    accepted_branch: str,
     candidate_branch: str,
     lease_by_branch: dict[str, dict[str, object]],
     root: Path,
@@ -407,6 +410,7 @@ def _foreign_work_lanes(
                 lease=lease,
                 root=root,
                 claim_id=lease_claim_id(lease),
+                relation_to_accepted=ref_relation(root, branch, accepted_branch),
                 dirty_paths=changed_paths(Path(str(worktree["path"]))),
             )
         )

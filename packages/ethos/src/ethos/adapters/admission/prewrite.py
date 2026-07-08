@@ -5,6 +5,9 @@ from pathlib import Path
 
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch_roles import ROLE_DETACHED
+from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 
 def prewrite_guard(
@@ -15,7 +18,10 @@ def prewrite_guard(
     require_editor_root: bool = False,
 ) -> dict[str, object]:
     status = workspace_status(root)
-    role = str(status["role"])
+    status_role = str(status["role"])
+    status_branch = str(status["branch"])
+    effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
+    role = effective["role"]
     runtime_check = _runtime_binding_check(status)
     checked_paths = [_check_path(root=root, path=path, role=role) for path in paths]
     tracked_write_requested = any(path["tracked_candidate"] for path in checked_paths)
@@ -34,13 +40,76 @@ def prewrite_guard(
         "ok": error == "",
         "error": error,
         "role": role,
-        "branch": status["branch"],
+        "branch": effective["branch"],
+        "status_role": status_role,
+        "status_branch": status_branch,
+        "effective_context": effective,
         "runtime_binding": runtime_check,
         "editor_root": editor_check,
         "paths": checked_paths,
         "blocked_paths": blocked_paths,
         "required_gaps": [error] if error else [],
     }
+
+
+def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str, str]:
+    """Return the write-admission context for hook-time Git lifecycle states.
+
+    A sanctioned ``git rebase`` temporarily detaches HEAD while replaying commits from
+    the original branch. The repository's truth is still the same Work Lane when
+    Git's rebase metadata says ``head-name = refs/heads/work/...``. Treat that narrow
+    lifecycle state as the original Work Lane so the pre-commit fallback hook keeps
+    checking paths instead of blocking ETHOS' own ``lane refresh-base`` transition.
+    Other detached states remain protected and fail closed.
+    """
+    if role != ROLE_DETACHED:
+        return {
+            "role": role,
+            "branch": branch,
+            "source": "workspace_status",
+            "rebase_head_name": "",
+        }
+    rebase_branch = _rebase_head_branch(root)
+    policy = load_branch_role_policy(root)
+    rebase_role = policy.role_for_branch(rebase_branch)
+    if rebase_role != ROLE_WORK_LANE:
+        return {
+            "role": role,
+            "branch": branch,
+            "source": "workspace_status",
+            "rebase_head_name": rebase_branch,
+        }
+    return {
+        "role": ROLE_WORK_LANE,
+        "branch": rebase_branch,
+        "source": "git_rebase_head_name",
+        "rebase_head_name": rebase_branch,
+    }
+
+
+def _rebase_head_branch(root: Path) -> str:
+    git_dir = _git_path(root)
+    for state_dir in ("rebase-merge", "rebase-apply"):
+        head_name = git_dir / state_dir / "head-name"
+        if not head_name.exists():
+            continue
+        value = head_name.read_text(encoding="utf-8").strip()
+        return value.removeprefix("refs/heads/")
+    return ""
+
+
+def _git_path(root: Path) -> Path:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--git-path", "."],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        return root / ".git"
+    path = Path(completed.stdout.strip())
+    return path if path.is_absolute() else root / path
 
 
 def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:

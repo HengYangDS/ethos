@@ -415,6 +415,8 @@
         "lease_state",
         "claim_id",
         "claim_binding",
+        "relation_to_accepted",
+        "closeout_disposition",
         "dirty",
         "dirty_paths",
         "path_scope",
@@ -462,6 +464,14 @@
           "enum": [
             "bound",
             "missing"
+          ]
+        },
+        "relation_to_accepted": {
+          "enum": [
+            "ancestor_of_accepted",
+            "descendant_of_accepted",
+            "diverged_from_accepted",
+            "unknown"
           ]
         },
         "dirty": {
@@ -523,6 +533,16 @@
         },
         "handoff_required": {
           "type": "boolean"
+        },
+        "closeout_disposition": {
+          "enum": [
+            "none",
+            "retire_ready",
+            "landed_dirty",
+            "unlanded",
+            "diverged",
+            "unknown"
+          ]
         }
       },
       "additionalProperties": false

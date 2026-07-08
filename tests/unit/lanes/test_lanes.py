@@ -107,6 +107,8 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "lease_state": "missing",
             "claim_id": "",
             "claim_binding": "missing",
+            "relation_to_accepted": "ancestor_of_accepted",
+            "closeout_disposition": "none",
             "dirty": False,
             "dirty_paths": [],
             "path_scope": [],
@@ -164,6 +166,131 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "required_gaps": ["protected_root_mutation"],
     }
     assert_no_ui_projection(status)
+
+
+def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        claim_id="sample-claim",
+        apply=True,
+    )
+
+    status = workspace_status(repo)
+
+    lane = status["foreign_work_lanes"][0]
+    assert lane["relation_to_accepted"] == "ancestor_of_accepted"
+    assert lane["lease_state"] == "leased"
+    assert lane["claim_binding"] == "bound"
+    assert lane["closeout_disposition"] == "retire_ready"
+    assert status["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
+    assert status["coordination"]["advisory_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
+
+
+def test_ref_relation_reports_unknown_when_ref_is_missing(tmp_path: Path) -> None:
+    from ethos.adapters.repo.status.bindings import ref_relation
+
+    repo = init_repo(tmp_path / "repo")
+
+    assert ref_relation(repo, "work/missing", "dev") == "unknown"
+
+
+def test_closeout_disposition_classifier_is_mece() -> None:
+    from ethos.adapters.repo.coordination import closeout_disposition
+
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "retire_ready"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="missing",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "none"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="missing",
+            claim_binding="missing",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "none"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=True,
+        )
+        == "landed_dirty"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="descendant_of_accepted",
+            dirty=False,
+        )
+        == "unlanded"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="diverged_from_accepted",
+            dirty=False,
+        )
+        == "diverged"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="unknown",
+            dirty=False,
+        )
+        == "unknown"
+    )
+
+
+def test_workspace_status_does_not_call_fresh_empty_leased_lane_retire_ready(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+
+    status = workspace_status(repo)
+
+    assert status["foreign_work_lanes"][0]["relation_to_accepted"] == "ancestor_of_accepted"
+    assert status["foreign_work_lanes"][0]["lease_state"] == "leased"
+    assert status["foreign_work_lanes"][0]["closeout_disposition"] == "none"
+    assert status["coordination_gaps"] == ["foreign_work_lane_present"]
+    assert status["coordination"]["advisory_gaps"] == ["foreign_work_lane_present"]
 
 
 def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "7131cc98675db209def15bf7bac46b03763bb14a",
-    "target_head": "7131cc98675db209def15bf7bac46b03763bb14a",
-    "product_semantic_sha256": "c95cb9f4885c012814ea474c78e2d3e873be962a9de0df0777a4771027fe423f",
-    "target_semantic_sha256": "c95cb9f4885c012814ea474c78e2d3e873be962a9de0df0777a4771027fe423f",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
+    "target_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
+    "product_semantic_sha256": "7c7e994418ef1f3b67c7751e4e7b67c61953f03261e79ac1c4b196113a8a1dc7",
+    "target_semantic_sha256": "7c7e994418ef1f3b67c7751e4e7b67c61953f03261e79ac1c4b196113a8a1dc7",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709",
-    "target_head": "7131cc98675db209def15bf7bac46b03763bb14a",
-    "product_head": "7131cc98675db209def15bf7bac46b03763bb14a",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory",
+    "target_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
+    "product_head": "c0bb7f8d5bb24f7efe6171d5aa25143ef7ac0074",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-selected-summary-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json",
+      "/Users/yheng/projects/ethos-worktrees/closeout-residue-advisory/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/closeout-residue-advisory --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "90c3592392277526d4c968d6c690ee385ca0b496a2a8c2153f7608e725c9122f"
+        "sha256": "8ad22e76797c40c8a16e330e529e6e78679cd264324f5059787e3acb567e29b2"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "f34a4923d149067efd8cd8619465c945858e1715aad1880c17ed296cf7110bbd"
+        "sha256": "2769f2929cc2cfd1dfbb7032b8a069f13a8e5c335497728de5f6578646972da2"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "121173c2343761b385bff9fa8828fa666d7c4217b69725928e8232a28677c7d8"
+        "sha256": "9374975ddf8d73cc681f2a36373b02c1511a20ab13093589dcab5f133cf70756"
       },
       {
         "path": "rules",

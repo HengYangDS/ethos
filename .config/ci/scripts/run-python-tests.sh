@@ -9,6 +9,7 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
 coverage_config_dir=".config/checks/coverage"
+coverage_policy_path="${coverage_config_dir}/policy.toml"
 evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
 coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
@@ -33,6 +34,19 @@ rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
 rm -f "${coverage_evidence_dir}/coverage.xml"
 rm -f "${pytest_evidence_dir}/junit.xml"
 
+coverage_hard_floor="$(
+  python3 - "${coverage_policy_path}" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+value = policy.get("current_hard_floor")
+if not isinstance(value, int | float):
+    raise SystemExit("coverage policy current_hard_floor must be numeric")
+print(f"{value:g}")
+PY
+)"
 workers="${ETHOS_TEST_WORKERS:-8}"
 durations="${ETHOS_TEST_DURATIONS:-20}"
 pytest_args=(
@@ -41,7 +55,7 @@ pytest_args=(
   --cov=ethos_core
   --cov-report=term-missing
   --cov-report="xml:${coverage_evidence_dir}/coverage.xml"
-  --cov-fail-under=100
+  "--cov-fail-under=${coverage_hard_floor}"
   --junitxml="${pytest_evidence_dir}/junit.xml"
   --basetemp="${pytest_tmp_dir}"
   --durations="${durations}"

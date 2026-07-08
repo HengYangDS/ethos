@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
-    "target_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
-    "product_semantic_sha256": "03d8ddec701c2c843f5716facccaf7f40c5beb65d6385f63b894696ea08efa4b",
-    "target_semantic_sha256": "03d8ddec701c2c843f5716facccaf7f40c5beb65d6385f63b894696ea08efa4b",
+    "product_head": "768c60770c3775b86368869b56561727753462e1",
+    "target_head": "768c60770c3775b86368869b56561727753462e1",
+    "product_semantic_sha256": "7e8f6f1bda807add82a99e8563e818577214bf392722cd1a4314a9acd3c9fecb",
+    "target_semantic_sha256": "7e8f6f1bda807add82a99e8563e818577214bf392722cd1a4314a9acd3c9fecb",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,12 +35,10 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover",
-    "target_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
-    "product_head": "0d011258f33a598b2dd02f3978522dbdd8c66ab0",
-    "changed_paths": [
-      "evidence/parity/generic-shadow.json"
-    ],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet",
+    "target_head": "768c60770c3775b86368869b56561727753462e1",
+    "product_head": "768c60770c3775b86368869b56561727753462e1",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -53,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-runner-boundary-recover --json"
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json",
+      "/Users/yheng/projects/ethos-worktrees/private-alias-ratchet/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/private-alias-ratchet --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -83,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1e0b1377d6ef0306d0e871f0dbfd1a8e2ace9fdab55ab727749e4631bdde4070"
+        "sha256": "6328bf69e92d1e9921ced083179581ba943eb9784097e9b787e480cabf2fa237"
       },
       {
         "path": "evidence/claims",

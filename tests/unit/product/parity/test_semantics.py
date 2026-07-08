@@ -264,6 +264,38 @@ def test_shadow_semantic_diff_accepts_external_stricter_changed_plan() -> None:
     ]
 
 
+def test_shadow_semantic_diff_accepts_external_stricter_changed_plan_without_rule_details() -> None:
+    external = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "data": {"changed_paths": [".ethos/profile.toml"]},
+    }
+    embedded = {
+        "ok": True,
+        "command": "plan",
+        "state": "planned",
+        "required_gaps": [],
+        "summary": {"changed_path_count": 0},
+    }
+
+    assert shadow_semantics.accepted_semantic_differences(
+        ("plan", "--changed"),
+        external,
+        embedded,
+    ) == [
+        {
+            "kind": "external_stricter_plan_scope",
+            "classification": "accepted",
+            "scope": "external_stricter_plan_scope",
+            "commands": ["ethos plan"],
+            "gaps": ["changed_paths:1"],
+            "reason": "external product plans a stricter changed-scope gate set allowed by shadow parity",
+        }
+    ]
+
+
 def test_shadow_semantic_diff_rejects_external_false_negative() -> None:
     external = {
         "ok": True,

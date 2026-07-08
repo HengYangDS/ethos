@@ -10,4 +10,4 @@
 - [x] Add focused tests preventing pytest cache regression into `.config/`.
 - [x] Run focused tests, lint/format, OpenSpec lifecycle, and generated-artifact
   quality checks.
-- [ ] Run full local CI and HEAD-bound proof before land.
+- [x] Run full local CI and HEAD-bound proof before land.

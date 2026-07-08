@@ -6,7 +6,7 @@ summary = "ETHOS keeps pytest runtime cache under ignored build/runtime while co
 
 [evidence]
 dated = "evidence/chronicle/runtime-cache-boundary/2026-07-09.md"
-sha256 = "5651ef3d995960543485b44c440ebca190c316669d6d217adb3a97e772c26ac0"
+sha256 = "354b10117e38b7ccd474c9141b40d5baa3607d7cc2d4e1ef417439a4c4d50887"
 evidence_ids = ["evidence:runtime-cache-boundary"]
 binding = "configuration/runtime/evidence boundary tests, generated-artifact topology contract, and OpenSpec carrier"
 verifier = "digest_only"

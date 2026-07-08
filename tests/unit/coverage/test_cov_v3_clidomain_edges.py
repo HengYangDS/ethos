@@ -7,7 +7,8 @@ import json
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos import cli
+import ethos.surface.cli.root.inspection as inspection_cli
+import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.core import MutationDecision
 from ethos.domain import land_support
 from ethos.domain import orient
@@ -41,14 +42,14 @@ def _init_git_repo(path: Path) -> Path:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.cli._missing_gate_dependency_next_actions (lines 81, 84, 94)
+# ethos.surface.cli.root.proof.missing_gate_dependency_next_actions (lines 81, 84, 94)
 # --------------------------------------------------------------------------- #
 
 
 def test_missing_gate_dependency_revisits_shared_dependency() -> None:
     # build depends on (unit-architecture, ruff); selecting build+ruff means ruff is
     # already in `seen` when the top loop reaches it, taking the early return at line 81.
-    command = cli._missing_gate_dependency_next_actions(
+    command = proof_cli.missing_gate_dependency_next_actions(
         selected_gate_ids=("build", "ruff"),
         validation_gaps=("missing_dependency:build->unit-architecture",),
         current_head="HEADSHA",
@@ -62,7 +63,7 @@ def test_missing_gate_dependency_revisits_shared_dependency() -> None:
 def test_missing_gate_dependency_unknown_gate_and_absent_dependency() -> None:
     # An unknown gate id -> registry.get returns None -> line 84 return; ordered stays
     # empty so the missing dependency is not in it -> line 93 True -> line 94 return ().
-    command = cli._missing_gate_dependency_next_actions(
+    command = proof_cli.missing_gate_dependency_next_actions(
         selected_gate_ids=("ghost-gate",),
         validation_gaps=("missing_dependency:foo->schemas",),
         current_head="HEADSHA",
@@ -82,7 +83,7 @@ def test_status_human_output_prints_orientation_lines(
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
     repo = _init_git_repo(tmp_path)
 
-    cli.status(root=repo, json_output=False)
+    inspection_cli.status(root=repo, json_output=False)
 
     printed = capsys.readouterr().out
     assert printed.strip()
@@ -96,7 +97,7 @@ def test_orient_human_output_prints_orientation_lines(
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
     repo = _init_git_repo(tmp_path)
 
-    cli.orient(root=repo, json_output=False)
+    inspection_cli.orient(root=repo, json_output=False)
 
     printed = capsys.readouterr().out
     assert printed.strip()
@@ -116,7 +117,7 @@ def test_doctor_skips_state_init_when_flag_false(
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
     repo = _init_git_repo(tmp_path)
 
-    cli.doctor(root=repo, init_state=False, json_output=True)
+    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
 
     printed = capsys.readouterr().out
     assert '"initialized": false' in printed
@@ -127,9 +128,13 @@ def test_doctor_reports_missing_host_wrapper(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo = _init_git_repo(tmp_path / "repo")
-    monkeypatch.setattr(cli.shutil, "which", lambda command: "" if command == "ethos" else command)
+    monkeypatch.setattr(
+        inspection_cli.shutil,
+        "which",
+        lambda command: "" if command == "ethos" else command,
+    )
 
-    cli.doctor(root=repo, init_state=False, json_output=True)
+    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
 
     payload = json.loads(capsys.readouterr().out)
     wrapper = payload["data"]["host_wrapper"]
@@ -154,7 +159,7 @@ def test_doctor_reports_fixed_root_host_wrapper(
     original_path = __import__("os").environ.get("PATH", "")
     monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
 
-    cli.doctor(root=repo, init_state=False, json_output=True)
+    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
 
     payload = json.loads(capsys.readouterr().out)
     wrapper = payload["data"]["host_wrapper"]
@@ -181,7 +186,7 @@ def test_doctor_accepts_explicit_ethos_root_for_host_wrapper(
     monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
     monkeypatch.setenv("ETHOS_ROOT", repo.as_posix())
 
-    cli.doctor(root=repo, init_state=False, json_output=True)
+    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
 
     payload = json.loads(capsys.readouterr().out)
     wrapper = payload["data"]["host_wrapper"]

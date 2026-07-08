@@ -538,7 +538,7 @@ def test_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
             "lifecycle": {"enabled": lifecycle, "changes": []},
         }
 
-    monkeypatch.setattr("ethos.cli.openspec_governance_report", fake_report)
+    monkeypatch.setattr("ethos.surface.cli.root.reference.openspec_governance_report", fake_report)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--lifecycle", "--json")
 

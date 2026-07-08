@@ -347,7 +347,7 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from ethos import cli
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli
 
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
@@ -388,8 +388,8 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
 
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
     monkeypatch.setattr(
-        cli,
-        "openspec_completed_active_changes_report",
+        lifecycle_cli,
+        "completed_active_changes_report",
         fake_openspec_lifecycle,
         raising=False,
     )

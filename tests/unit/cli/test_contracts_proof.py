@@ -388,7 +388,7 @@ def test_prove_execute_can_select_real_gates() -> None:
 
 
 def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypatch) -> None:
-    import ethos.cli as ethos_cli
+    import ethos.surface.cli.root.proof as proof_cli
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos.repository.policy.gates import Gate
     from ethos_core.action_graph import ActionGraph
@@ -400,9 +400,9 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
         evidence_class="diagnostic",
         trust_bearing=False,
     )
-    monkeypatch.setattr(ethos_cli, "gate_registry", lambda: {"diagnostic-only": diagnostic_gate})
+    monkeypatch.setattr(proof_cli, "gate_registry", lambda: {"diagnostic-only": diagnostic_gate})
     monkeypatch.setattr(
-        ethos_cli,
+        proof_cli,
         "gate_graph",
         lambda gate=(), full=False, root=None: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
     )
@@ -421,7 +421,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
                 stderr="",
             )
 
-    monkeypatch.setattr(ethos_cli, "LocalSubprocessRunner", PassingDiagnosticRunner)
+    monkeypatch.setattr(proof_cli, "LocalSubprocessRunner", PassingDiagnosticRunner)
 
     payload = run_ethos(
         "prove",

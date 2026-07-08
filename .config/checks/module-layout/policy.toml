@@ -3,7 +3,7 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 59
+baseline_gap_limit = 51
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/action_graph.py:action_graph",
@@ -43,14 +43,6 @@ allowed_private_aliases = [
   "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_landed_work_lanes->_retire_landed_work_lanes",
   "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/mutation/lanes.py:ethos.adapters.mutation.lanes_retire.retire_unbound_work_lane_ref->_retire_unbound_work_lane_ref",
   "module_layout_private_import_alias:packages/ethos/src/ethos/adapters/repo/status.py:ethos.adapters.repo.coordination.coordination_gaps->_scope_coordination_gaps",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.adapters.repo.git->_gitio",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.land->_land",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.orient->_orient",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.plan->_plan",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.prove->_prove",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.domain.status->_status",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.surface.cli._base.load_command_groups->_load_command_groups",
-  "module_layout_private_import_alias:packages/ethos/src/ethos/cli.py:ethos.surface.cli._gate_runner.run_inprocess_cli_gate->_run_inprocess_cli_gate",
   "module_layout_private_import_alias:packages/ethos/src/ethos/domain/campaign_closeout.py:ethos.adapters.repo.git->_gitio",
   "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land.py:ethos.adapters.repo.git->_gitio",
   "module_layout_private_import_alias:packages/ethos/src/ethos/domain/land_support.py:ethos.adapters.repo.git->_gitio",

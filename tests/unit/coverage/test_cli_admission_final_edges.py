@@ -16,13 +16,16 @@ import ethos.adapters.config as adapters_config
 import ethos.adapters.mutation.core as mutation_core
 import ethos.adapters.store.retrieval.query as retrieval_query
 import ethos.adapters.store.retrieval.sources as retrieval_sources
-import ethos.cli as ethos_cli
+import ethos.cli as cli_entrypoint
 import ethos.repository.audit as repository_audit
 import ethos.repository.evidence.parity as evidence_parity
 import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
 import ethos.repository.registry.docs.commands as docs_commands
+import ethos.surface.cli.root.inspection as inspection_cli
+import ethos.surface.cli.root.lifecycle as lifecycle_cli
+import ethos.surface.cli.root.reference as reference_cli
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -172,12 +175,13 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     emitted: list[EthosResult] = []
+    for module in (inspection_cli, lifecycle_cli, reference_cli):
+        monkeypatch.setattr(
+            module, "emit", lambda result, json_output, enforce=True: emitted.append(result)
+        )
+        monkeypatch.setattr(module, "resolve_root", lambda root: tmp_path)
     monkeypatch.setattr(
-        ethos_cli, "emit", lambda result, json_output, enforce=True: emitted.append(result)
-    )
-    monkeypatch.setattr(ethos_cli, "resolve_root", lambda root: tmp_path)
-    monkeypatch.setattr(
-        ethos_cli,
+        inspection_cli,
         "workspace_status",
         lambda repo: {
             "dirty": False,
@@ -188,14 +192,27 @@ def test_cli_wrappers_emit_expected_results(
         },
     )
     monkeypatch.setattr(
-        ethos_cli._prove,
+        lifecycle_cli,
+        "workspace_status",
+        lambda repo: {
+            "role": "work_lane",
+            "branch": "dev",
+            "dirty": False,
+            "changed_paths": [],
+            "required_gaps": [],
+            "candidate": {},
+            "closeout_support": {"supported": True, "required_gaps": []},
+        },
+    )
+    monkeypatch.setattr(
+        inspection_cli,
         "workspace_status_validation",
         lambda repo, payload: {"ok": False, "required_gaps": ["bad"]},
     )
     monkeypatch.setattr(
-        ethos_cli._prove, "workspace_status_validation_gaps", lambda validation: ("bad",)
+        inspection_cli, "workspace_status_validation_gaps", lambda validation: ("bad",)
     )
-    ethos_cli.status(json_output=True)
+    inspection_cli.status(json_output=True)
     assert emitted[-1].state == "invalid"
     assert emitted[-1].summary["role"] == ""
     assert emitted[-1].summary["foreign_work_lane_count"] == 0
@@ -203,68 +220,68 @@ def test_cli_wrappers_emit_expected_results(
     assert emitted[-1].summary["coordination_blocking"] is False
 
     monkeypatch.setattr(
-        ethos_cli._prove,
+        inspection_cli,
         "workspace_status_validation",
         lambda repo, payload: {"ok": True, "required_gaps": []},
     )
-    monkeypatch.setattr(ethos_cli._prove, "workspace_status_validation_gaps", lambda validation: ())
+    monkeypatch.setattr(inspection_cli, "workspace_status_validation_gaps", lambda validation: ())
     monkeypatch.setattr(
-        ethos_cli,
+        lifecycle_cli,
         "evaluate_mutation",
         lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="land_ready"),
     )
     monkeypatch.setattr(
-        ethos_cli._land,
+        lifecycle_cli.land_domain,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
-        ethos_cli,
-        "openspec_completed_active_changes_report",
+        lifecycle_cli,
+        "completed_active_changes_report",
         lambda repo: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
-        ethos_cli,
+        lifecycle_cli,
         "candidate_base_report",
         lambda root: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
     )
-    monkeypatch.setattr(ethos_cli._gitio, "current_head", lambda repo: "h1")
-    ethos_cli.land(json_output=True)
+    monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda repo: "h1")
+    lifecycle_cli.land(json_output=True)
     assert emitted[-1].state == "blocked"
 
     monkeypatch.setattr(
-        ethos_cli,
+        lifecycle_cli,
         "candidate_base_report",
         lambda root: {"ok": True, "required_gaps": [], "state": "base_current"},
     )
-    ethos_cli.land(json_output=True)
+    lifecycle_cli.land(json_output=True)
     assert emitted[-1].state == "ready_to_land"
 
     monkeypatch.setattr(
-        ethos_cli,
+        lifecycle_cli,
         "apply_land_to_candidate",
         lambda **kwargs: {"ok": True, "required_gaps": [], "state": "candidate_validated"},
     )
-    ethos_cli.land(apply=True, authorize=True, expect_head="h1", json_output=True)
+    lifecycle_cli.land(apply=True, authorize=True, expect_head="h1", json_output=True)
     assert emitted[-1].state == "candidate_validated"
 
     monkeypatch.setattr(
-        ethos_cli._land,
+        lifecycle_cli.land_domain,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": False, "required_gaps": ["audit_gap"]},
     )
     monkeypatch.setattr(
-        ethos_cli,
+        lifecycle_cli,
         "load_branch_role_policy",
         lambda repo: SimpleNamespace(submit_branch_for_source=lambda branch: "submit/dev"),
     )
-    ethos_cli.publish(json_output=True)
+    lifecycle_cli.publish(json_output=True)
     assert emitted[-1].required_gaps == ("audit_gap",)
 
-    ethos_cli.doctor(init_state=True, json_output=True)
+    inspection_cli.doctor(init_state=True, json_output=True)
     assert emitted[-1].summary["state_db_exists"] is True
     monkeypatch.setattr(
-        ethos_cli,
+        reference_cli,
         "openspec_governance_report",
         lambda repo, change=None, lifecycle=False: {
             "ok": False,
@@ -273,20 +290,20 @@ def test_cli_wrappers_emit_expected_results(
             "required_gaps": ["gap"],
         },
     )
-    ethos_cli.openspec(change="c", lifecycle=True, json_output=True)
+    reference_cli.openspec(change="c", lifecycle=True, json_output=True)
     assert emitted[-1].command == "openspec" and emitted[-1].state == "gapped"
     monkeypatch.setattr(
-        ethos_cli,
-        "_load_command_groups",
+        cli_entrypoint,
+        "load_command_groups",
         lambda argv: emitted.append(EthosResult(command="load", ok=True, state=",".join(argv))),
     )
     monkeypatch.setattr(
-        ethos_cli,
+        cli_entrypoint,
         "app",
         lambda: emitted.append(EthosResult(command="app", ok=True, state="called")),
     )
     monkeypatch.setattr("sys.argv", ["ethos", "status"])
-    ethos_cli.main()
+    cli_entrypoint.main()
     assert emitted[-2].command == "load" and emitted[-1].command == "app"
 
 

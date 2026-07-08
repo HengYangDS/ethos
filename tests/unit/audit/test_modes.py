@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import ethos.cli as cli_module
+import ethos.surface.cli.root.reference as reference_cli
 from ethos.repository import audit
 from ethos.repository import audit as repository_audit_module
 from ethos.repository import audit_openspec
@@ -101,7 +101,7 @@ def test_default_prove_uses_shallow_repository_audit(monkeypatch) -> None:
         raise AssertionError("default proof readiness should not run deep OpenSpec validation")
 
     monkeypatch.setattr(
-        cli_module,
+        reference_cli,
         "openspec_governance_report",
         forbidden_openspec,
     )
@@ -117,7 +117,7 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
         raise AssertionError("scorecard report should not run deep OpenSpec validation")
 
     monkeypatch.setattr(
-        cli_module,
+        reference_cli,
         "openspec_governance_report",
         forbidden_openspec,
     )

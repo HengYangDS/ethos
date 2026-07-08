@@ -51,7 +51,7 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from ethos import cli
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli
 
     repo = init_git_repo(tmp_path / "repo")
     git(
@@ -93,8 +93,8 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
 
     monkeypatch.setattr("ethos.domain.status.audit_for_root", fake_audit)
     monkeypatch.setattr(
-        cli,
-        "openspec_completed_active_changes_report",
+        lifecycle_cli,
+        "completed_active_changes_report",
         fake_openspec_lifecycle,
         raising=False,
     )

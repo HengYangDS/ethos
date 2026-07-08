@@ -136,8 +136,8 @@ def docs_topology(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=(
             (
-                "restore docs README/current/reference/evidence/future/history and "
-                "docs/decisions kernel"
+                "restore semantic docs kernel: README, index, start, governance, "
+                "decisions, evidence, plans, history, and reference"
             )
             if report["required_gaps"]
             else (

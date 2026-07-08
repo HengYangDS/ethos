@@ -46,8 +46,8 @@ Adopter-specific configuration belongs in the adopting repository through
 `.config/ethos/` or an equivalent declarative interface.
 
 Development-time generated artifacts also need strong physical organization:
-cache/runtime state, generated proof output, curated evidence, current docs,
-reference docs, and durable rulings have different authority and cleanup rules.
+cache/runtime state, generated proof output, curated evidence, semantic docs
+truth, reference docs, and durable rulings have different authority and cleanup rules.
 Without a topology contract, generated output can become a hidden authority store
 and pollute closeout, proof, and retirement decisions.
 
@@ -64,8 +64,8 @@ Adopt the Generated Artifact Topology Contract:
   or promoted evidence after explicit review or command promotion.
 - `docs/decisions/` owns durable rulings and follows the same high-level
   information architecture used by governed repositories such as alphasim-dmgr.
-- Generated drift in repo root, `.config/`, current docs, reference/governance
-  docs, or source directories is denied.
+- Generated drift in repo root, `.config/`, semantic docs truth roots, or source
+  directories is denied.
 - Product-owned adopter-specific roots are denied.
 - Existing `.config/ci/scripts/` runners are visible review debt and must not be
   treated as the generic `.config/` model for adopters.
@@ -79,7 +79,7 @@ keep adopter-specific state in adopter-owned declarative config, and preserve a
 rollback path.
 
 The docs organization should remain highly isomorphic across governed
-repositories: `docs/decisions/` for durable rulings, governance/current/reference
+repositories: `docs/decisions/` for durable rulings, governance/reference/plans
 pages for promoted contracts, and evidence directories for dated proof. ETHOS may
 adapt lane names to its product docs taxonomy, but not collapse durable rulings
 into general governance prose.

@@ -35,8 +35,7 @@ Executable migration parity is exposed by `ethos parity ledger` and governed by
 the [Capability Parity Ledger](governance/capability-parity-ledger.md).
 
 The documentation system uses Subject, Role, State, and Relation metadata so
-humans and agents can navigate without treating historical material as current
-truth.
+humans and agents can navigate without treating historical or planned material as canonical truth without checking front matter state and evidence.
 
 ## Discovery By Audience
 
@@ -55,15 +54,15 @@ or maintainer break-glass evidence.
 ## Maps
 
 - Root docs: [Documentation Root](README.md)
-- Current docs: [Current Documentation](current/README.md)
 - Start: [Quickstart](start/quickstart.md)
 - Concepts: [Kernel Model](concepts/kernel-model.md)
 - Command plane: [Command Plane](reference/command-plane.md)
 - Glossary: [Glossary](reference/glossary.md)
 - Product design contract: [Product Design Contract](governance/product-design-contract.md)
 - Decision Records: [Decision Records](decisions/README.md)
+- Governance docs: [Governance Documentation](governance/README.md)
 - Evidence docs: [Evidence Documentation](evidence/README.md)
-- Future docs: [Future Documentation](future/README.md)
+- Plans docs: [Plans Documentation](plans/README.md)
 - History docs: [History Documentation](history/README.md)
 - Terminal target design: [Terminal Governance Product Design](architecture/terminal-governance-product-design.md)
 - Rule system: [Rules System](../rules/README.md)

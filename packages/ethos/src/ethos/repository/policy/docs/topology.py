@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ethos_core.contracts.docs.topology import PRODUCT_EXTENSION_ROOTS
 from ethos_core.contracts.docs.topology import docs_topology_contract
+from ethos_core.contracts.docs.topology import forbidden_docs_topology_roots
 from ethos_core.contracts.docs.topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
@@ -16,7 +17,9 @@ def docs_topology_report(root: Path) -> dict[str, object]:
     """Report whether a repository exposes the common governed docs topology."""
     required = _required_path_entries(root)
     missing = [entry["path"] for entry in required if not entry["exists"]]
+    forbidden = _forbidden_roots(root)
     required_gaps = [f"docs_topology_missing:{path}" for path in missing]
+    required_gaps.extend(f"docs_topology_forbidden_time_state_root:{path}" for path in forbidden)
     extension_roots = _extension_roots(root)
     return {
         "ok": not required_gaps,
@@ -25,6 +28,7 @@ def docs_topology_report(root: Path) -> dict[str, object]:
         "summary": {
             "required_path_count": len(required),
             "missing_required_path_count": len(missing),
+            "forbidden_root_count": len(forbidden),
             "decision_record_path_count": sum(
                 1 for entry in required if str(entry["path"]).startswith("docs/decisions/")
             ),
@@ -32,6 +36,7 @@ def docs_topology_report(root: Path) -> dict[str, object]:
         },
         "required_paths": required,
         "missing_paths": missing,
+        "forbidden_roots": forbidden,
         "product_extension_roots": extension_roots,
         "required_gaps": required_gaps,
     }
@@ -56,3 +61,7 @@ def _required_path_entries(root: Path) -> list[dict[str, object]]:
 
 def _extension_roots(root: Path) -> list[str]:
     return sorted(path for path in PRODUCT_EXTENSION_ROOTS if (root / path).exists())
+
+
+def _forbidden_roots(root: Path) -> list[str]:
+    return sorted(path for path in forbidden_docs_topology_roots() if (root / path).exists())

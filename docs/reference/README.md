@@ -17,4 +17,4 @@ See also: [Documentation Root](../README.md), [Command Plane](command-plane.md),
 [Glossary](glossary.md), and [Docs Topology](../architecture/docs-topology.md).
 
 Reference docs explain terms and boundaries. Runtime truth still comes from
-source, tests, current docs, and evidence.
+source, tests, state-marked canonical docs, and evidence.

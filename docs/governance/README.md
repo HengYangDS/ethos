@@ -1,0 +1,23 @@
+---
+subject: docs:governance
+role: index
+state: canonical
+relations:
+  canonical_for: governance documentation
+---
+
+# Governance Documentation
+
+Status: canonical.
+
+Purpose: route ETHOS policies, operating constraints, product governance, and
+repository boundary documents through a semantic docs root.
+
+See also: [Documentation Root](../README.md), [Product Index](../index.md),
+[Product Design Contract](product-design-contract.md), [Docs Registry](docs-registry.md),
+[Reference Docs](../reference/README.md), and [Decision Records](../decisions/README.md).
+
+Governance docs are canonical only when their front matter says so and their
+claims are backed by higher-authority source, tests, schemas, package metadata,
+accepted decisions, OpenSpec records, claims, or evidence. Planned material
+belongs under `docs/plans/` with `state: planned` until promoted.

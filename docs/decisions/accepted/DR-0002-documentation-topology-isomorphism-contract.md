@@ -25,15 +25,15 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | Decision Makers | Repository owner through current chat instruction; implemented by local ETHOS work lane. |
 | Status | accepted |
 | Decision Date | 2026-07-07 |
-| Decision Version | 1 |
-| Decision Change Date | 2026-07-07 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-08 |
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | None |
 | Scope | Documentation information architecture across ETHOS and governed repositories. |
 | Boundary | Owns the common docs kernel and decision-record surface across single repositories, monorepos, and multi-repository governed subjects; does not force identical subject matter, product extension roots, or adopter domain docs. |
 | Context | External ETHOS must replace embedded adopter-local ETHOS without making agents relearn repository governance layout per adopter. |
-| Decision | Require a shared docs kernel with `current`, `decisions`, `evidence`, `future`, `history`, and `reference` lanes plus the complete `docs/decisions/` structure. |
+| Decision | Require a shared semantic docs kernel with `start`, `governance`, `decisions`, `evidence`, `plans`, `history`, and `reference` lanes plus the complete `docs/decisions/` structure; forbid time-state roots such as `docs/current/` and `docs/future/`. |
 | Consequences | `ethos adopt` scaffolds the kernel; `ethos quality docs-topology --json` audits it; `ethos fleet retirement-readiness` blocks embedded-backend retirement on docs-topology gaps; product-specific ETHOS roots remain extensions, not substitutes. |
 | Proof or Evidence | `ethos quality docs-topology --json`, `ethos quality docs-registry --json`, focused docs topology tests, and HEAD-bound proof gate execution. |
 | Revisit Trigger | Reopen only if a governed repository cannot preserve the common kernel without losing domain clarity or if a stronger common kernel is accepted. |
@@ -41,7 +41,7 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 ## Context
 
 The external ETHOS product is adopter-neutral, while governed repositories need
-recognizable authority, decision, evidence, reference, and future/current
+recognizable governance, decision, evidence, reference, plans, and history
 separation. If each repository uses a different documentation topology, agents
 must infer governance from prose and stale local memory. That weakens retirement
 of embedded ETHOS because capability parity would depend on repo-specific habits
@@ -51,9 +51,9 @@ rather than a product contract.
 
 Adopt the Documentation Topology Isomorphism Contract:
 
-- every governed repository should expose `docs/README.md`, `docs/current/`,
-  `docs/decisions/`, `docs/evidence/`, `docs/future/`, `docs/history/`, and
-  `docs/reference/` entrypoints;
+- every governed repository should expose `docs/README.md`, `docs/index.md`,
+  `docs/start/`, `docs/governance/`, `docs/decisions/`, `docs/evidence/`,
+  `docs/plans/`, `docs/history/`, and `docs/reference/` entrypoints;
 - `docs/decisions/` must include `README.md`, `decision-index.md`,
   `decision-dependency-map.md`, `decision-code-links.md`, `accepted/README.md`,
   `superseded/README.md`, `templates/README.md`, and
@@ -61,9 +61,11 @@ Adopt the Documentation Topology Isomorphism Contract:
 - repository form does not change the required kernel: single repositories,
   monorepos, and multi-repository governed subjects expose the same required
   docs paths;
-- ETHOS product extension roots such as `docs/architecture/` and
-  `docs/governance/` may remain, but they do not replace the common kernel;
+- ETHOS product extension roots such as `docs/architecture/`, `docs/concepts/`,
+  and `docs/research/` may remain, but they do not replace the common kernel;
 - adopter repositories may add domain-specific docs while preserving the kernel;
+- `docs/current/` and `docs/future/` are forbidden because they encode lifecycle
+  state in topology instead of front matter, evidence, and promotion status;
 - docs topology is audited by `ethos quality docs-topology --json` and included
   in proof gates;
 - embedded ETHOS retirement readiness must include the same docs-topology audit
@@ -73,12 +75,12 @@ Adopt the Documentation Topology Isomorphism Contract:
 
 `ethos adopt` must create the common docs kernel for new adopters. Existing
 adopters such as alphasim-dmgr can keep richer domain-specific documentation,
-but external ETHOS retirement readiness must prove that the common kernel and
-decision-record surface are present and current. Narrative assertions about docs
+but external ETHOS retirement readiness must prove that the common semantic kernel,
+decision-record surface, and forbidden-root checks are present and clean. Narrative assertions about docs
 organization are not enough.
 
 ## Revisit Trigger
 
 Revisit only if a real governed repository cannot preserve the common kernel
 without losing domain clarity, or if a later ETHOS decision accepts a strictly
-stronger shared docs topology.
+stronger shared semantic docs topology.

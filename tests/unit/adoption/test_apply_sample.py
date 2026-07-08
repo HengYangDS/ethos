@@ -69,7 +69,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "openspec/changes/archive/.gitkeep",
         "docs/README.md",
         "docs/index.md",
-        "docs/current/README.md",
+        "docs/governance/README.md",
         "docs/decisions/README.md",
         "docs/decisions/decision-index.md",
         "docs/decisions/decision-dependency-map.md",
@@ -79,7 +79,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         "docs/decisions/templates/README.md",
         "docs/decisions/templates/decision-record.md",
         "docs/evidence/README.md",
-        "docs/future/README.md",
+        "docs/plans/README.md",
         "docs/history/README.md",
         "docs/reference/README.md",
         "docs/start/quickstart.md",
@@ -129,7 +129,7 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "ethos status" in (tmp_path / "docs/start/quickstart.md").read_text(encoding="utf-8")
     assert "Decision Records" in (tmp_path / "docs/decisions/README.md").read_text(encoding="utf-8")
-    assert "docs/current" in (tmp_path / "docs/README.md").read_text(encoding="utf-8")
+    assert "docs/governance" in (tmp_path / "docs/README.md").read_text(encoding="utf-8")
     assert "primary_invariant" in (
         tmp_path / "openspec/specs/repository-governance/capability.toml"
     ).read_text(encoding="utf-8")

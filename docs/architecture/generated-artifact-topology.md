@@ -30,7 +30,7 @@ file as source, local state, generated output, or curated evidence.
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
 | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
-| `docs/current/` | Implemented current contract. | No | Yes, after review |
+| `docs/architecture/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/history/`, `docs/decisions/` | Semantic docs truth; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
 
 Package metadata and lock files such as `package.json`, `package-lock.json`,
@@ -63,4 +63,4 @@ has already been reviewed and promoted.
 
 ## Documentation Isomorphism
 
-ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel defined in [Documentation Topology](docs-topology.md), so governed repositories preserve high-isomorphism authority, evidence, decision, future, current, reference, and history lanes.
+ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel defined in [Documentation Topology](docs-topology.md), so governed repositories preserve high-isomorphism authority, evidence, decision, plans, governance, reference, and history lanes.

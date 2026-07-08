@@ -6,4 +6,4 @@ owner = "ethos-maintainers"
 required = ["subject", "role", "state", "relations"]
 
 [states]
-allowed = ["canonical", "active", "experimental", "superseded", "archived"]
+allowed = ["canonical", "active", "planned", "experimental", "superseded", "archived"]

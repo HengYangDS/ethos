@@ -22,7 +22,14 @@ REQUIRED_COMMAND_EXAMPLES = (
     "ethos report",
 )
 VISIBLE_SECTION_LABELS = ("Status:", "Purpose:", "See also:")
-DEFAULT_ALLOWED_STATES = {"canonical", "active", "experimental", "superseded", "archived"}
+DEFAULT_ALLOWED_STATES = {
+    "active",
+    "archived",
+    "canonical",
+    "experimental",
+    "planned",
+    "superseded",
+}
 _ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")

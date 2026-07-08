@@ -4,7 +4,7 @@ role: target-design
 state: active
 relations:
   canonical_for: destructive terminal redesign target after user authorization
-  derives_from: product design conversation, ETHOS current docs, dmgr rules, di-effect governance patterns
+  derives_from: product design conversation, ETHOS canonical docs, dmgr rules, di-effect governance patterns
 ---
 
 # Terminal Governance Product Design

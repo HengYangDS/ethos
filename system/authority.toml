@@ -24,8 +24,8 @@ description = "system/ contracts and schemas."
 
 [[order]]
 rank = 4
-source = "current_docs"
-description = "Current docs under docs/."
+source = "canonical_docs"
+description = "State-marked canonical docs under docs/."
 
 [[order]]
 rank = 5

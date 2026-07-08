@@ -203,52 +203,59 @@ relations: canonical_for: documentation navigation
 
 Status: canonical.
 
-Purpose: route current contracts, decisions, evidence, references, future design,
-and history through the common ETHOS-governed documentation topology.
+Purpose: route governance, decisions, evidence, plans, references, and history
+through the common ETHOS-governed semantic documentation topology.
 
-See also: [ETHOS Product Index](index.md), [Current Docs](current/README.md),
-[Decision Records](decisions/README.md), [Evidence Docs](evidence/README.md),
-and [Reference Docs](reference/README.md).
+See also: [ETHOS Product Index](index.md), [Quickstart](start/quickstart.md),
+[Governance Docs](governance/README.md), [Decision Records](decisions/README.md),
+[Evidence Docs](evidence/README.md), and [Reference Docs](reference/README.md).
 
-## Lanes
+## Semantic Lanes
 
 | Lane | Owns |
 | --- | --- |
-| `current/` | Implemented contracts, runbooks, and development rules. |
+| `start/` | First-run workflows and operator entrypoints. |
+| `governance/` | Policies, rules, operating constraints, and ETHOS boundary. |
 | `decisions/` | Durable rulings with explicit scope and revisit triggers. |
 | `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
-| `future/` | Target designs and roadmap material not yet current truth. |
-| `reference/` | Stable vocabulary, boundaries, and governance references. |
+| `plans/` | Planned work and roadmap material with explicit front matter state. |
+| `reference/` | Stable vocabulary, boundaries, and command references. |
 | `history/` | Retired rationale and archival logs. |
 
-Required kernel paths include `docs/current/README.md`,
-`docs/decisions/README.md`, `docs/evidence/README.md`,
-`docs/future/README.md`, `docs/history/README.md`, and
-`docs/reference/README.md`.
+Truth state is declared in document metadata such as `state: canonical`,
+`state: active`, or `state: planned`; it is not encoded as `current/` or
+`future/` path topology.
+
+Required kernel paths include `docs/index.md`, `docs/start/quickstart.md`,
+`docs/governance/README.md`, `docs/decisions/README.md`,
+`docs/evidence/README.md`, `docs/plans/README.md`, `docs/history/README.md`,
+and `docs/reference/README.md`.
 """
 
 
-def docs_current() -> str:
-    """Return the scaffold text for the docs current documentation page."""
+def docs_governance() -> str:
+    """Return the scaffold text for the docs governance documentation page."""
     return """---
-subject: docs:current
+subject: docs:governance
 role: index
 state: canonical
-relations: canonical_for: current documentation
+relations: canonical_for: governance documentation
 ---
 
-# Current Documentation
+# Governance Documentation
 
 Status: canonical.
 
-Purpose: hold implemented behavior, active runbooks, and development governance
-for this adopted repository.
+Purpose: route policies, operating constraints, and ETHOS governance boundary
+material for this adopted repository.
 
-See also: [Documentation Index](../README.md), [Evidence Docs](../evidence/README.md),
-and [Decision Records](../decisions/README.md).
+See also: [Documentation Index](../README.md), [Quickstart](../start/quickstart.md),
+[ETHOS Governance](ethos.md), [Evidence Docs](../evidence/README.md), and
+[Decision Records](../decisions/README.md).
 
-No detailed current docs are scaffolded yet. Promote implemented contracts here
-after they are backed by source, tests, package metadata, or evidence.
+Promoted governance truth must be backed by source, tests, package metadata,
+evidence, or accepted decisions. Planned material belongs under `docs/plans/`
+with explicit front matter state until promoted.
 """
 
 
@@ -267,11 +274,11 @@ Status: canonical.
 
 Purpose: hold stable vocabulary, repository boundaries, and governance references.
 
-See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
 and [ETHOS Governance](../governance/ethos.md).
 
 Reference docs explain terms and boundaries; runtime truth still comes from
-source, tests, current docs, and evidence.
+source, tests, state-marked canonical docs, and evidence.
 """
 
 
@@ -291,33 +298,36 @@ Status: canonical.
 Purpose: hold dated proof, manifests, smoke notes, closeout records, and scope
 limits for this adopted repository.
 
-See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
 and [Decision Records](../decisions/README.md).
 
 Evidence supports claims; it is not the current API or a generated log dump.
 """
 
 
-def docs_future() -> str:
-    """Return the scaffold text for the docs future documentation page."""
+def docs_plans() -> str:
+    """Return the scaffold text for the docs plans documentation page."""
     return """---
-subject: docs:future
+subject: docs:plans
 role: index
-state: canonical
-relations: canonical_for: future documentation
+state: planned
+relations: canonical_for: planned work documentation
 ---
 
-# Future Documentation
+# Plans Documentation
 
-Status: canonical.
+Status: planned.
 
-Purpose: hold target designs and roadmap material that are not yet current truth.
+Purpose: hold target designs, roadmap material, and planned work that are not yet
+promoted repository truth.
 
-See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
-and [Decision Records](../decisions/README.md).
+See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
+[ETHOS Governance](../governance/ethos.md), and
+[Decision Records](../decisions/README.md).
 
-Future docs must be promoted into source, tests, package metadata, current docs,
-or evidence before they can justify runtime claims.
+Plans can guide work, but they must be promoted into source, tests, package
+metadata, accepted decisions, canonical governance/reference docs, or evidence
+before they justify runtime or retirement claims.
 """
 
 
@@ -336,8 +346,9 @@ Status: canonical.
 
 Purpose: hold retired rationale, archival logs, and migration history.
 
-See also: [Documentation Index](../README.md), [Current Docs](../current/README.md),
+See also: [Documentation Index](../README.md), [Governance Docs](../governance/README.md),
 and [Reference Docs](../reference/README.md).
 
-History preserves context; it does not override current contracts or evidence.
+History preserves context; it does not override source, canonical governance/reference docs,
+decisions, or evidence.
 """

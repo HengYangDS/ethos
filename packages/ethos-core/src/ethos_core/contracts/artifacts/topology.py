@@ -65,10 +65,14 @@ _REVIEW_PREFIXES: tuple[tuple[str, str], ...] = (
 )
 _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".config/", "generated_artifact_config_drift"),
-    ("docs/current/", "generated_artifact_current_docs_drift"),
-    ("docs/architecture/", "generated_artifact_current_docs_drift"),
-    ("docs/governance/", "generated_artifact_current_docs_drift"),
-    ("docs/reference/", "generated_artifact_current_docs_drift"),
+    ("docs/architecture/", "generated_artifact_docs_truth_drift"),
+    ("docs/concepts/", "generated_artifact_docs_truth_drift"),
+    ("docs/decisions/", "generated_artifact_docs_truth_drift"),
+    ("docs/governance/", "generated_artifact_docs_truth_drift"),
+    ("docs/history/", "generated_artifact_docs_truth_drift"),
+    ("docs/plans/", "generated_artifact_docs_truth_drift"),
+    ("docs/reference/", "generated_artifact_docs_truth_drift"),
+    ("docs/start/", "generated_artifact_docs_truth_drift"),
     ("packages/", "generated_artifact_source_drift"),
 )
 
@@ -218,7 +222,7 @@ def _generated_denial_policy(rel: str, *, generated: bool) -> dict[str, Any] | N
             return _policy(
                 path=rel,
                 decision="deny",
-                boundary="generated output may not live in config, current docs, or source",
+                boundary="generated output may not live in config, semantic docs truth, or source",
                 generated=generated,
                 required_gap=f"{gap}:{rel}",
             )

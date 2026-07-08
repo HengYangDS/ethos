@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos_core.contracts.docs.topology import docs_topology_contract
+from ethos_core.contracts.docs.topology import forbidden_docs_topology_roots
 from ethos_core.contracts.docs.topology import is_product_docs_extension_root
 from ethos_core.contracts.docs.topology import normalize_docs_path
 from ethos_core.contracts.docs.topology import required_docs_topology_paths
@@ -24,7 +25,9 @@ def test_docs_topology_contract_declares_common_kernel() -> None:
     required = {item["path"] for item in contract["required_paths"]}
     assert {
         "docs/README.md",
-        "docs/current/README.md",
+        "docs/index.md",
+        "docs/start/quickstart.md",
+        "docs/governance/README.md",
         "docs/decisions/README.md",
         "docs/decisions/decision-index.md",
         "docs/decisions/decision-dependency-map.md",
@@ -34,10 +37,22 @@ def test_docs_topology_contract_declares_common_kernel() -> None:
         "docs/decisions/templates/README.md",
         "docs/decisions/templates/decision-record.md",
         "docs/evidence/README.md",
-        "docs/future/README.md",
+        "docs/plans/README.md",
         "docs/history/README.md",
         "docs/reference/README.md",
     } <= required
+    assert contract["time_state_directories_allowed"] is False
+    assert set(contract["forbidden_roots"]) == {"docs/current", "docs/future"}
+    lanes = {entry["lane"] for entry in contract["canonical_lanes"]}
+    assert {
+        "start",
+        "governance",
+        "decisions",
+        "evidence",
+        "plans",
+        "reference",
+        "history",
+    } <= lanes
     assert "docs/architecture" in contract["product_extension_roots"]
 
 
@@ -53,9 +68,9 @@ def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
 def test_docs_topology_path_helpers_normalize_and_classify_extensions() -> None:
     assert normalize_docs_path("./docs/architecture/") == "docs/architecture"
     assert normalize_docs_path("././docs/architecture/") == "docs/architecture"
-    assert normalize_docs_path("docs/current/README.md") == "docs/current/README.md"
+    assert normalize_docs_path("docs/governance/README.md") == "docs/governance/README.md"
     assert is_product_docs_extension_root("./docs/architecture/details.md") is True
-    assert is_product_docs_extension_root("docs/current/README.md") is False
+    assert is_product_docs_extension_root("docs/governance/README.md") is False
 
 
 def test_docs_topology_report_accepts_product_docs_kernel() -> None:
@@ -67,6 +82,10 @@ def test_docs_topology_report_accepts_product_docs_kernel() -> None:
     assert report["required_gaps"] == []
     assert report["summary"]["missing_required_path_count"] == 0
     assert "docs/architecture" in report["product_extension_roots"]
+
+
+def test_docs_topology_forbidden_roots_are_part_of_contract() -> None:
+    assert set(forbidden_docs_topology_roots()) == {"docs/current", "docs/future"}
 
 
 def test_docs_topology_report_blocks_missing_decision_kernel(tmp_path: Path) -> None:
@@ -82,4 +101,22 @@ def test_docs_topology_report_blocks_missing_decision_kernel(tmp_path: Path) -> 
     assert report["missing_paths"] == ["docs/decisions/decision-code-links.md"]
     assert report["required_gaps"] == [
         "docs_topology_missing:docs/decisions/decision-code-links.md"
+    ]
+
+
+def test_docs_topology_report_blocks_time_state_roots(tmp_path: Path) -> None:
+    for relative in required_docs_topology_paths():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# placeholder\n", encoding="utf-8")
+    (tmp_path / "docs/current").mkdir(parents=True)
+    (tmp_path / "docs/future").mkdir(parents=True)
+
+    report = docs_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["forbidden_roots"] == ["docs/current", "docs/future"]
+    assert report["required_gaps"] == [
+        "docs_topology_forbidden_time_state_root:docs/current",
+        "docs_topology_forbidden_time_state_root:docs/future",
     ]

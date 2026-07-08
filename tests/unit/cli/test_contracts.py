@@ -1582,13 +1582,13 @@ def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
     assert payload["data"]["adopter"]["governance"]["skills"] is True
 
 
-def test_fleet_inspect_accepts_current_docs_layout(tmp_path: Path) -> None:
+def test_fleet_inspect_accepts_governed_docs_layout(tmp_path: Path) -> None:
     adoption_plan(tmp_path, profile="generic", apply=True)
     (tmp_path / "docs" / "index.md").unlink()
-    (tmp_path / "docs" / "current").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "docs" / "current" / "README.md").write_text(
-        "---\nsubject: docs:current\nrole: reference\nstate: current\nrelations: test\n---\n"
-        "# Current Docs\n",
+    (tmp_path / "docs" / "governance").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "governance" / "README.md").write_text(
+        "---\nsubject: docs:governance\nrole: reference\nstate: canonical\nrelations: test\n---\n"
+        "# Governance Docs\n",
         encoding="utf-8",
     )
 

@@ -310,7 +310,7 @@ Nine invalid states block.
 
 ## Truth Boundaries
 
-Repository truth includes source code, tests, schemas, current docs, OpenSpec
+Repository truth includes source code, tests, schemas, canonical docs, OpenSpec
 records after promotion, claims, and durable evidence. Repo-authored projections
 such as skills, assistant files, MCP descriptors, ACP descriptors, hosted CI
 templates, and npm launchers are not truth by themselves.

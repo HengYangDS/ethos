@@ -121,9 +121,9 @@ ethos docs
 ethos explain <gap-or-signal>
 ```
 
-`ethos quality docs-topology --json` audits the Documentation Topology Isomorphism Contract. It requires the common docs kernel (`docs/README.md`, `docs/current/`, `docs/decisions/`, `docs/evidence/`, `docs/future/`, `docs/history/`, and `docs/reference/`) while allowing product or adopter extension roots. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
+`ethos quality docs-topology --json` audits the Documentation Topology Isomorphism Contract. It requires the common semantic docs kernel (`docs/README.md`, `docs/index.md`, `docs/start/`, `docs/governance/`, `docs/decisions/`, `docs/evidence/`, `docs/plans/`, `docs/history/`, and `docs/reference/`) while blocking time-state roots such as `docs/current/` and `docs/future/`. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
 
-`ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, current-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
+`ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, semantic-docs truth, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
 
 Agent projections:
 

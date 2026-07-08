@@ -65,6 +65,7 @@ match_prefixes = [
   "commitment_missing",
   "schema_contract_gap",
   "schema_",
+  "state_metadata_required",
   "tooling_contract_gap",
   "ty_policy_missing",
   "gate_required",
@@ -76,6 +77,7 @@ match_prefixes = [
   "command_missing",
   "guard_missing",
   "context_eval_suite_missing",
+  "module_layout_",
 ]
 
 [[category]]

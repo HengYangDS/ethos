@@ -94,7 +94,9 @@ def _terminal_report(adopter: Path, product: Path) -> dict[str, object]:
 def _write_docs_kernel(root: Path) -> None:
     entries = {
         "docs/README.md": "# Docs\n",
-        "docs/current/README.md": "# Current\n",
+        "docs/index.md": "# Docs Index\n",
+        "docs/start/quickstart.md": "# Quickstart\n",
+        "docs/governance/README.md": "# Governance\n",
         "docs/decisions/README.md": "# Decisions\n",
         "docs/decisions/decision-index.md": "# Decision Index\n",
         "docs/decisions/decision-dependency-map.md": "# Decision Dependency Map\n",
@@ -104,7 +106,7 @@ def _write_docs_kernel(root: Path) -> None:
         "docs/decisions/templates/README.md": "# Decision Templates\n",
         "docs/decisions/templates/decision-record.md": "# Decision Record Template\n",
         "docs/evidence/README.md": "# Evidence\n",
-        "docs/future/README.md": "# Future\n",
+        "docs/plans/README.md": "# Plans\n",
         "docs/history/README.md": "# History\n",
         "docs/reference/README.md": "# Reference\n",
     }
@@ -124,12 +126,11 @@ def _write_profile(
     (root / ".ethos").mkdir(parents=True)
     (root / ".config").mkdir()
     _write_docs_kernel(root)
-    (root / "docs/current/development/workflow").mkdir(parents=True, exist_ok=True)
     (root / "claims").mkdir()
     (root / "rules").mkdir()
     (root / "openspec").mkdir()
     (root / ".agents/skills").mkdir(parents=True)
-    (root / "docs/current/development/workflow/external-ethos-adoption.md").write_text(
+    (root / "docs/governance/external-ethos-adoption.md").write_text(
         "# policy\n",
         encoding="utf-8",
     )
@@ -209,7 +210,7 @@ agent_skills = ".agents/skills"
 
 [embedded_backend]
 state = "{embedded_state}"
-retirement_policy = "docs/current/development/workflow/external-ethos-adoption.md"
+retirement_policy = "docs/governance/external-ethos-adoption.md"
 
 [external_backend]
 state = "{external_state}"
@@ -746,7 +747,7 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
         .replace('minimum_version = "external>=embedded"', 'minimum_version = "external<embedded"')
         .replace("shadow_required = true", "shadow_required = false")
         .replace(
-            'retirement_policy = "docs/current/development/workflow/external-ethos-adoption.md"',
+            'retirement_policy = "docs/governance/external-ethos-adoption.md"',
             'retirement_policy = "docs/missing.md"',
         ),
         encoding="utf-8",

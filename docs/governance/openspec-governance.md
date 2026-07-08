@@ -41,7 +41,7 @@ Canonical capability profiles live beside canonical specs as
 `capability-profile.schema.json` and record the family owner, primary invariant,
 routing question, boundary rules, and proof profile. They are routing and
 contract metadata; promoted truth still lives in source, tests, schemas,
-current docs, claims, and dated evidence.
+canonical docs, claims, and dated evidence.
 
 ## Product Protocol
 

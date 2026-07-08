@@ -71,12 +71,16 @@ def test_documentation_topology_docs_bind_common_kernel() -> None:
     ).read_text(encoding="utf-8")
 
     for text in (topology, decision):
-        assert "docs/current" in text
+        assert "docs/start" in text
+        assert "docs/governance" in text
         assert "docs/decisions" in text
         assert "docs/evidence" in text
-        assert "docs/future" in text
+        assert "docs/plans" in text
         assert "docs/history" in text
         assert "docs/reference" in text
+        assert "docs/current" in text
+        assert "docs/future" in text
+        assert "forbid" in text.lower() or "forbidden" in text.lower()
         assert "ethos quality docs-topology --json" in text
 
     assert "DR-0002" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")

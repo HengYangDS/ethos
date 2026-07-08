@@ -13,8 +13,8 @@ Status: canonical.
 Purpose: hold retired rationale, archival logs, and migration history without
 letting older vocabulary override current ETHOS contracts.
 
-See also: [Documentation Root](../README.md), [Current Docs](../current/README.md),
+See also: [Documentation Root](../README.md), [Governance Docs](../governance/README.md),
 [Reference Docs](../reference/README.md), and [Decision Records](../decisions/README.md).
 
-History preserves context. Current source, tests, package metadata, current docs,
-decisions, and evidence remain higher authority.
+History preserves context. Source, tests, package metadata, canonical governance/reference docs, decisions,
+and evidence remain higher authority.

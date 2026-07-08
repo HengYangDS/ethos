@@ -106,20 +106,20 @@ def _all_doc_paths(root: Path) -> tuple[Path, ...]:
 def _policy_doc_paths(root: Path) -> tuple[Path, ...]:
     policy = _command_surface_policy(root)
     paths = list(_all_doc_paths(root))
-    current_docs = _string_list(policy.get("current_docs"))
-    current_globs = _string_list(policy.get("current_doc_globs"))
+    governed_docs = _string_list(policy.get("governed_docs"))
+    governed_globs = _string_list(policy.get("governed_doc_globs"))
     retired_reference_docs = set(_string_list(policy.get("retired_reference_docs")))
     historical_roots = tuple(
         _string_list(policy.get("historical_exempt_roots")) or DEFAULT_HISTORICAL_EXEMPT_ROOTS
     )
-    if current_docs or current_globs:
+    if governed_docs or governed_globs:
         selected: list[Path] = []
         for path in paths:
             relative = path.relative_to(root).as_posix()
             if relative in retired_reference_docs:
                 continue
-            if relative in current_docs or any(
-                fnmatch.fnmatchcase(relative, pattern) for pattern in current_globs
+            if relative in governed_docs or any(
+                fnmatch.fnmatchcase(relative, pattern) for pattern in governed_globs
             ):
                 selected.append(path)
         return tuple(selected)

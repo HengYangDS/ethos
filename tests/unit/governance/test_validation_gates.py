@@ -668,8 +668,8 @@ def test_schema_validation_uses_product_schemas_for_adopter_without_local_schema
     (tmp_path / ".ethos" / "project.toml").write_text("[meta]\nname = 'sample'\n", encoding="utf-8")
     (tmp_path / "docs" / "current").mkdir(parents=True)
     (tmp_path / "docs" / "current" / "README.md").write_text(
-        "---\nsubject: docs:current\nrole: reference\nstate: current\nrelations: test\n---\n"
-        "# Current Docs\n",
+        "---\nsubject: docs:governance\nrole: reference\nstate: canonical\nrelations: test\n---\n"
+        "# Governance Docs\n",
         encoding="utf-8",
     )
 

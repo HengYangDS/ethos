@@ -27,7 +27,7 @@ The adopter owns domain truth:
 
 - domain contracts and compatibility boundaries;
 - repository-native tool configuration;
-- current docs and decisions;
+- canonical docs and decisions;
 - durable evidence;
 - repo-local skills and projections;
 - domain-specific gates and accepted exceptions.

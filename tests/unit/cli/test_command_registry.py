@@ -117,17 +117,17 @@ def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) ->
 
 def test_command_registry_respects_adopter_command_surface_policy(tmp_path: Path) -> None:
     (tmp_path / "rules" / "ethos").mkdir(parents=True)
-    (tmp_path / "docs" / "current").mkdir(parents=True)
+    (tmp_path / "docs" / "governance").mkdir(parents=True)
     (tmp_path / "docs" / "evidence").mkdir(parents=True)
     (tmp_path / "rules" / "ethos" / "command-surface.toml").write_text(
         """
 [policy]
-current_doc_globs = ["docs/current/*.md"]
+governed_doc_globs = ["docs/governance/*.md"]
 historical_exempt_roots = ["evidence"]
 """.lstrip(),
         encoding="utf-8",
     )
-    (tmp_path / "docs" / "current" / "bad.md").write_text(
+    (tmp_path / "docs" / "governance" / "bad.md").write_text(
         "Do not promote `proof` here.\n",
         encoding="utf-8",
     )
@@ -140,7 +140,7 @@ historical_exempt_roots = ["evidence"]
 
     assert report["ok"] is False
     assert report["retired_public_root_mentions"] == [
-        "docs/current/bad.md:1:proof",
+        "docs/governance/bad.md:1:proof",
     ]
 
 

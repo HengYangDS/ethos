@@ -98,18 +98,18 @@ def test_command_surface_policy_returns_empty_on_malformed_toml(tmp_path: Path) 
     # returns {}.
     surface = tmp_path / "rules" / "ethos"
     surface.mkdir(parents=True)
-    (surface / "command-surface.toml").write_text("[policy\ncurrent_docs = [\n", encoding="utf-8")
+    (surface / "command-surface.toml").write_text("[policy\ngoverned_docs = [\n", encoding="utf-8")
 
     assert commands._command_surface_policy(tmp_path) == {}
 
 
 def test_policy_doc_paths_skips_retired_reference_doc(tmp_path: Path) -> None:
-    # With an explicit current-doc glob selector, a doc listed in retired_reference_docs is
+    # With an explicit governed-doc glob selector, a doc listed in retired_reference_docs is
     # skipped by the `continue` at commands.py:120 while a sibling live doc is selected.
     surface = tmp_path / "rules" / "ethos"
     surface.mkdir(parents=True)
     (surface / "command-surface.toml").write_text(
-        '[policy]\ncurrent_doc_globs = ["docs/*.md"]\nretired_reference_docs = ["docs/retired.md"]\n',
+        '[policy]\ngoverned_doc_globs = ["docs/*.md"]\nretired_reference_docs = ["docs/retired.md"]\n',
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()

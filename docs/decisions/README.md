@@ -34,7 +34,7 @@ state, generated reports, or current runtime behavior.
 
 Decision Records are not a separate truth lane. They bind a decision to scope,
 boundary, proof, consequences, and revisit triggers; promoted truth still lands
-in code, tests, package metadata, current docs, reference docs, or dated
+in code, tests, package metadata, canonical docs, reference docs, or dated
 evidence.
 
 See also: [Documentation Index](../index.md), [Product Design Contract](../governance/product-design-contract.md), and [Generated Artifact Topology](../architecture/generated-artifact-topology.md).

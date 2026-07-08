@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ca4a6ba96646a4444e90140c88eb15720170c7f5",
-    "target_head": "ca4a6ba96646a4444e90140c88eb15720170c7f5",
-    "product_semantic_sha256": "10f4ad1ab2cd267b3150a4bf7a52fffb4139a668485f8a58becccf530f214646",
-    "target_semantic_sha256": "10f4ad1ab2cd267b3150a4bf7a52fffb4139a668485f8a58becccf530f214646",
+    "product_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
+    "target_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
+    "product_semantic_sha256": "3942301461aad05c67bf1b660ae7e2d149a9d2e21cff77280ef833e39e51c5a2",
+    "target_semantic_sha256": "3942301461aad05c67bf1b660ae7e2d149a9d2e21cff77280ef833e39e51c5a2",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/private/tmp/ethos-rules-decomp",
-    "target_head": "ca4a6ba96646a4444e90140c88eb15720170c7f5",
-    "product_head": "ca4a6ba96646a4444e90140c88eb15720170c7f5",
+    "target_root": "/private/tmp/ethos-sd-decomp",
+    "target_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
+    "product_head": "34d71d2e82223617a7672f88532cb6ab754c82a7",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-rules-decomp --json",
-      "/private/tmp/ethos-rules-decomp/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-rules-decomp --json"
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli status --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli plan --changed --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli prove --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli report --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli land --root /private/tmp/ethos-sd-decomp --json",
+      "/private/tmp/ethos-sd-decomp/.venv/bin/python -m ethos.cli publish --root /private/tmp/ethos-sd-decomp --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "47ceb1d3702a8616058812adbe39af47670cde40ca03157b2214fe10db51877e"
+        "sha256": "3685429574ea9235baae71ad19df47611e5198609f1db26b030264662139665e"
       },
       {
         "path": "evidence/claims",

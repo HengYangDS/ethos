@@ -13,7 +13,7 @@ import pytest
 
 from ethos.adapters.repo import status
 from ethos.repository import audit_openspec
-from ethos.repository.adoption import scaffold_docs
+from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
 from ethos_core import invalid_states
 from ethos_core.quality import proof_policy
 
@@ -63,7 +63,7 @@ def test_dirty_kind_conflicted_and_deleted() -> None:
 
 
 def test_release_toml_github_profile_appends_host_block() -> None:
-    toml = scaffold_docs._release_toml("github")
+    toml = scaffold_pages.release_toml("github")
     assert "[host_profile]" in toml
     assert 'provider = "github"' in toml
 

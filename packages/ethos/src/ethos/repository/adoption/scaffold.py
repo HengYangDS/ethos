@@ -7,33 +7,33 @@ import json
 import tomllib
 from typing import TYPE_CHECKING
 
-from ethos.repository.adoption.scaffold_docs import _adoption_profile_skill
-from ethos.repository.adoption.scaffold_docs import _adoption_profile_skill_package
-from ethos.repository.adoption.scaffold_docs import _agents_doc
-from ethos.repository.adoption.scaffold_docs import _changelog_doc
-from ethos.repository.adoption.scaffold_docs import _contributing_doc
-from ethos.repository.adoption.scaffold_docs import _decision_code_links
-from ethos.repository.adoption.scaffold_docs import _decision_dependency_map
-from ethos.repository.adoption.scaffold_docs import _decision_index
-from ethos.repository.adoption.scaffold_docs import _decision_record_template
-from ethos.repository.adoption.scaffold_docs import _decision_records
-from ethos.repository.adoption.scaffold_docs import _decisions_accepted
-from ethos.repository.adoption.scaffold_docs import _decisions_superseded
-from ethos.repository.adoption.scaffold_docs import _decisions_templates
-from ethos.repository.adoption.scaffold_docs import _docs_current
-from ethos.repository.adoption.scaffold_docs import _docs_evidence
-from ethos.repository.adoption.scaffold_docs import _docs_future
-from ethos.repository.adoption.scaffold_docs import _docs_history
-from ethos.repository.adoption.scaffold_docs import _docs_index
-from ethos.repository.adoption.scaffold_docs import _docs_readme
-from ethos.repository.adoption.scaffold_docs import _docs_reference
-from ethos.repository.adoption.scaffold_docs import _governance_doc
-from ethos.repository.adoption.scaffold_docs import _governance_skill
-from ethos.repository.adoption.scaffold_docs import _governance_skill_package
-from ethos.repository.adoption.scaffold_docs import _quickstart
-from ethos.repository.adoption.scaffold_docs import _release_toml
-from ethos.repository.adoption.scaffold_docs import _skill_portfolio_skill
-from ethos.repository.adoption.scaffold_docs import _skill_portfolio_skill_package
+from ethos.repository.adoption.scaffold_docs.decisions import decision_code_links
+from ethos.repository.adoption.scaffold_docs.decisions import decision_dependency_map
+from ethos.repository.adoption.scaffold_docs.decisions import decision_index
+from ethos.repository.adoption.scaffold_docs.decisions import decision_record_template
+from ethos.repository.adoption.scaffold_docs.decisions import decision_records
+from ethos.repository.adoption.scaffold_docs.decisions import decisions_accepted
+from ethos.repository.adoption.scaffold_docs.decisions import decisions_superseded
+from ethos.repository.adoption.scaffold_docs.decisions import decisions_templates
+from ethos.repository.adoption.scaffold_docs.pages import agents_doc
+from ethos.repository.adoption.scaffold_docs.pages import changelog_doc
+from ethos.repository.adoption.scaffold_docs.pages import contributing_doc
+from ethos.repository.adoption.scaffold_docs.pages import docs_current
+from ethos.repository.adoption.scaffold_docs.pages import docs_evidence
+from ethos.repository.adoption.scaffold_docs.pages import docs_future
+from ethos.repository.adoption.scaffold_docs.pages import docs_history
+from ethos.repository.adoption.scaffold_docs.pages import docs_index
+from ethos.repository.adoption.scaffold_docs.pages import docs_readme
+from ethos.repository.adoption.scaffold_docs.pages import docs_reference
+from ethos.repository.adoption.scaffold_docs.pages import governance_doc
+from ethos.repository.adoption.scaffold_docs.pages import quickstart
+from ethos.repository.adoption.scaffold_docs.pages import release_toml
+from ethos.repository.adoption.scaffold_docs.skills import adoption_profile_skill
+from ethos.repository.adoption.scaffold_docs.skills import adoption_profile_skill_package
+from ethos.repository.adoption.scaffold_docs.skills import governance_skill
+from ethos.repository.adoption.scaffold_docs.skills import governance_skill_package
+from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill
+from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill_package
 from ethos.repository.adoption.scaffold_openspec import _capability_profile
 from ethos.repository.adoption.scaffold_openspec import _openspec_capability_template
 from ethos.repository.adoption.scaffold_openspec import _openspec_change_template
@@ -291,19 +291,21 @@ def _gitlab_ci() -> str:
 
 def _default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
-    governance_skill = _governance_skill()
-    skill_portfolio_skill = _skill_portfolio_skill()
-    adoption_profile_skill = _adoption_profile_skill()
-    governance_digest = _package_digest_from_content({"SKILL.md": governance_skill})
-    skill_portfolio_digest = _package_digest_from_content({"SKILL.md": skill_portfolio_skill})
-    adoption_profile_digest = _package_digest_from_content({"SKILL.md": adoption_profile_skill})
+    governance_skill_text = governance_skill()
+    skill_portfolio_skill_text = skill_portfolio_skill()
+    adoption_profile_skill_text = adoption_profile_skill()
+    governance_digest = _package_digest_from_content({"SKILL.md": governance_skill_text})
+    skill_portfolio_digest = _package_digest_from_content({"SKILL.md": skill_portfolio_skill_text})
+    adoption_profile_digest = _package_digest_from_content(
+        {"SKILL.md": adoption_profile_skill_text}
+    )
     files = {
-        "AGENTS.md": _agents_doc(),
-        "CONTRIBUTING.md": _contributing_doc(),
-        "CHANGELOG.md": _changelog_doc(),
+        "AGENTS.md": agents_doc(),
+        "CONTRIBUTING.md": contributing_doc(),
+        "CHANGELOG.md": changelog_doc(),
         ".ethos/project.toml": (f'[meta]\nname = {project_name}\nproduct = "ETHOS"\nversion = 1\n'),
         ".ethos/workspace.toml": _workspace_toml(root, profile),
-        ".ethos/release.toml": _release_toml(profile),
+        ".ethos/release.toml": release_toml(profile),
         "openspec/config.yaml": _openspec_config(root),
         "openspec/README.md": _openspec_readme(),
         "openspec/specs/README.md": _openspec_specs_readme(),
@@ -313,35 +315,35 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         "openspec/changes/template.md": _openspec_change_template(),
         ".agents/skills/README.md": _skills_readme(),
         ".agents/skills/activation.toml": _skills_activation_with_digest(),
-        ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill,
+        ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill_text,
         ".agents/skills/ethos-repository-governance/package.toml": (
-            _governance_skill_package(governance_digest)
+            governance_skill_package(governance_digest)
         ),
-        ".agents/skills/ethos-skill-portfolio-governance/SKILL.md": skill_portfolio_skill,
+        ".agents/skills/ethos-skill-portfolio-governance/SKILL.md": skill_portfolio_skill_text,
         ".agents/skills/ethos-skill-portfolio-governance/package.toml": (
-            _skill_portfolio_skill_package(skill_portfolio_digest)
+            skill_portfolio_skill_package(skill_portfolio_digest)
         ),
-        ".agents/skills/ethos-adoption-profile-governance/SKILL.md": adoption_profile_skill,
+        ".agents/skills/ethos-adoption-profile-governance/SKILL.md": adoption_profile_skill_text,
         ".agents/skills/ethos-adoption-profile-governance/package.toml": (
-            _adoption_profile_skill_package(adoption_profile_digest)
+            adoption_profile_skill_package(adoption_profile_digest)
         ),
-        "docs/README.md": _docs_readme(root),
-        "docs/index.md": _docs_index(root),
-        "docs/current/README.md": _docs_current(),
-        "docs/decisions/README.md": _decision_records(),
-        "docs/decisions/decision-index.md": _decision_index(),
-        "docs/decisions/decision-dependency-map.md": _decision_dependency_map(),
-        "docs/decisions/decision-code-links.md": _decision_code_links(),
-        "docs/decisions/accepted/README.md": _decisions_accepted(),
-        "docs/decisions/superseded/README.md": _decisions_superseded(),
-        "docs/decisions/templates/README.md": _decisions_templates(),
-        "docs/decisions/templates/decision-record.md": _decision_record_template(),
-        "docs/evidence/README.md": _docs_evidence(),
-        "docs/future/README.md": _docs_future(),
-        "docs/history/README.md": _docs_history(),
-        "docs/reference/README.md": _docs_reference(),
-        "docs/start/quickstart.md": _quickstart(),
-        "docs/governance/ethos.md": _governance_doc(),
+        "docs/README.md": docs_readme(root),
+        "docs/index.md": docs_index(root),
+        "docs/current/README.md": docs_current(),
+        "docs/decisions/README.md": decision_records(),
+        "docs/decisions/decision-index.md": decision_index(),
+        "docs/decisions/decision-dependency-map.md": decision_dependency_map(),
+        "docs/decisions/decision-code-links.md": decision_code_links(),
+        "docs/decisions/accepted/README.md": decisions_accepted(),
+        "docs/decisions/superseded/README.md": decisions_superseded(),
+        "docs/decisions/templates/README.md": decisions_templates(),
+        "docs/decisions/templates/decision-record.md": decision_record_template(),
+        "docs/evidence/README.md": docs_evidence(),
+        "docs/future/README.md": docs_future(),
+        "docs/history/README.md": docs_history(),
+        "docs/reference/README.md": docs_reference(),
+        "docs/start/quickstart.md": quickstart(),
+        "docs/governance/ethos.md": governance_doc(),
         **STATIC_DEFAULT_FILES,
     }
     for family in OPENSPEC_CAPABILITIES:

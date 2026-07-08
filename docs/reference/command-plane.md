@@ -143,7 +143,6 @@ ethos explain <gap-or-signal>
 
 `ethos quality evidence-freshness --json` is profile-aware. Its summary reports the active profile durable evidence root. The product-default `evidence/` root and non-docs custom evidence roots use the strict kernel layout (`claims/`, `chronicle/`, `parity/`). A profile-declared `docs/evidence` root is audited as curated profile evidence so existing adopter delivery or rollback evidence trees can remain under `docs/evidence/` without becoming generated output or product-owned adopter fixtures.
 
-
 `ethos quality module-layout --json` audits semantic subpackages, suffix-flat
 modules, import-only facades, package-root submodule imports, flat-directory
 growth, and module-layout ratchet baselines. A clean verdict means no new or

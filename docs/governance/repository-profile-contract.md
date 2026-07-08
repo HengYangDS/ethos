@@ -45,7 +45,10 @@ The profile may declare:
   skills;
 - references to tool configuration and boundary configuration;
 - durable, generated, and host-local evidence roots;
-- migration backend selection, when dual backends are still active.
+- migration backend selection, when dual backends are still active;
+- `external_backend.control`, a repository-local declarative backend control
+  manifest such as `.config/interfaces/external-ethos-backend.toml` when an
+  adopter records a reversible external backend switch;
 - adopter retirement boundaries: the generic binding manifest, the execution
   config root, forbidden product-core adopter roots, external backend state,
   embedded fallback state, and the tracked policy/evidence path proving the
@@ -101,6 +104,25 @@ external_interfaces = ".config/interfaces/external.toml"
 worktree_closeout = ".config/worktree/closeout.toml"
 worktree_hydration = ".config/worktree/hydration.toml"
 ```
+
+An adopter in dual-backend migration may declare a backend control manifest:
+
+```toml
+[external_backend]
+state = "adoption_preview"
+minimum_version = "external>=embedded"
+shadow_required = true
+control = ".config/interfaces/external-ethos-backend.toml"
+```
+
+The control manifest is repository-local declarative configuration, not an
+execution wrapper. Its stable shape records `asset_kind =
+"ExternalEthosBackendSwitch"`, `profile_binding = ".ethos/profile.toml"`,
+`current.state`, `current.default_backend`, `current.external_backend`,
+`current.rollback_mode`, allowed transitions, and forbidden shortcuts. The
+truth boundary must remain configuration only: the manifest admits or blocks a
+backend lifecycle claim; it does not execute ETHOS, replace `.config`, or create
+an adopter-local command plane.
 
 An adopter with a pre-existing documentation IA may also declare a docs topology
 policy:
@@ -193,7 +215,8 @@ repositories, data repositories, and infrastructure repositories. It requires:
   repository-native gate configuration;
 - `external_backend.minimum_version = "external>=embedded"`;
 - shadow parity evidence with zero false negatives;
-- a reversible external-default phase;
+- a reversible external-default phase whose profile state matches the
+  profile-declared backend control manifest;
 - embedded backend freeze as fallback/reference;
 - rollback-window evidence before a separate Retirement Decision;
 - a `[rollback_window]` profile table, once the external backend becomes the

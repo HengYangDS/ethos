@@ -361,6 +361,19 @@ def test_glossary_uses_canonical_kernel_terms() -> None:
         assert f"## {retired_term}" not in glossary
 
 
+def test_repository_profile_contract_requires_backend_control_manifest() -> None:
+    text = read("docs/governance/repository-profile-contract.md")
+
+    for phrase in (
+        "external_backend.control",
+        "ExternalEthosBackendSwitch",
+        "default_backend",
+        "rollback_mode",
+        "configuration only",
+    ):
+        assert phrase in text
+
+
 def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -> None:
     text = read("docs/governance/product-boundary-convergence.md")
 
@@ -372,6 +385,7 @@ def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -
         "Retirement Decision",
         "must not be deleted automatically",
         "ethos quality generated-artifacts --root <repo> --json",
+        "profile-declared backend control manifest",
     ):
         assert phrase in text
     assert "ALPHASIMDMGR_ETHOS_BACKEND=external" in text

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -58,6 +59,7 @@ def retirement_readiness_report(
         ),
         "binding": _binding_checks(repo, adoption_boundary),
         "external_backend": _external_backend_checks(external_backend),
+        "backend_control": _backend_control_checks(repo, external_backend),
         "embedded_backend": _embedded_backend_checks(repo, embedded_backend),
         "rollback_window": rollback_window_checks(
             repo,
@@ -160,6 +162,137 @@ def _external_backend_checks(external_backend: dict[str, Any]) -> dict[str, obje
         "shadow_required": shadow_required,
         "required_gaps": gaps,
     }
+
+
+def _backend_control_checks(repo: Path, external_backend: dict[str, Any]) -> dict[str, object]:
+    control = str(external_backend.get("control") or "")
+    expected_external_state = str(external_backend.get("state") or "")
+    if not control:
+        return {"ok": True, "path": "", "required_gaps": []}
+
+    path_gap = _backend_control_path_gap(control)
+    if path_gap:
+        return {"ok": False, "path": control, "required_gaps": [path_gap]}
+
+    path = repo / control
+    if not path.exists():
+        return {
+            "ok": False,
+            "path": path.as_posix(),
+            "required_gaps": [f"retirement_backend_control_missing:{control}"],
+        }
+
+    data, parse_gap = _read_backend_control(path, control)
+    if parse_gap:
+        return {"ok": False, "path": path.as_posix(), "required_gaps": [parse_gap]}
+
+    contract = _table(data, "contract")
+    current = _table(data, "current")
+    forbidden = _table(data, "forbidden")
+    rollback = _table(data, "rollback_window")
+    gaps = _backend_control_contract_gaps(contract)
+    gaps.extend(_backend_control_current_gaps(current, expected_external_state))
+    gaps.extend(_backend_control_forbidden_gaps(forbidden))
+    gaps.extend(_backend_control_rollback_gaps(rollback, expected_external_state))
+
+    return {
+        "ok": not gaps,
+        "path": path.as_posix(),
+        "state": str(current.get("state") or ""),
+        "default_backend": str(current.get("default_backend") or ""),
+        "external_backend": str(current.get("external_backend") or ""),
+        "rollback_mode": str(current.get("rollback_mode") or ""),
+        "required_gaps": gaps,
+    }
+
+
+def _backend_control_path_gap(control: str) -> str:
+    if control.startswith("/") or ".." in control.split("/"):
+        return f"retirement_backend_control_path_outside_repo:{control}"
+    return ""
+
+
+def _read_backend_control(path: Path, control: str) -> tuple[dict[str, object], str]:
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8")), ""
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}, f"retirement_backend_control_invalid:{control}"
+
+
+def _table(data: dict[str, object], key: str) -> dict[str, Any]:
+    table = data.get(key)
+    return table if isinstance(table, dict) else {}
+
+
+def _backend_control_contract_gaps(contract: dict[str, Any]) -> list[str]:
+    gaps: list[str] = []
+    asset_kind = str(contract.get("asset_kind") or "")
+    profile_binding = str(contract.get("profile_binding") or "")
+    if asset_kind != "ExternalEthosBackendSwitch":
+        gaps.append(f"retirement_backend_control_asset_kind_invalid:{asset_kind or 'missing'}")
+    if profile_binding and profile_binding != ".ethos/profile.toml":
+        gaps.append(f"retirement_backend_control_profile_binding_invalid:{profile_binding}")
+    return gaps
+
+
+def _backend_control_current_gaps(
+    current: dict[str, Any], expected_external_state: str
+) -> list[str]:
+    gaps: list[str] = []
+    control_state = str(current.get("state") or "")
+    default_backend = str(current.get("default_backend") or "")
+    external_backend_state = str(current.get("external_backend") or "")
+    rollback_mode = str(current.get("rollback_mode") or "")
+
+    if control_state != expected_external_state:
+        gaps.append(
+            "retirement_backend_control_state_mismatch:"
+            f"{expected_external_state or 'missing'}:{control_state or 'missing'}"
+        )
+
+    expected_default = _expected_default_backend(expected_external_state)
+    if default_backend != expected_default:
+        gaps.append(
+            "retirement_backend_control_default_mismatch:"
+            f"{expected_default}:{default_backend or 'missing'}"
+        )
+
+    expected_external = _expected_control_external_backend(expected_external_state)
+    if external_backend_state != expected_external:
+        gaps.append(
+            "retirement_backend_control_external_backend_mismatch:"
+            f"{expected_external}:{external_backend_state or 'missing'}"
+        )
+
+    if rollback_mode != "embedded_fallback":
+        gaps.append(
+            f"retirement_backend_control_rollback_mode_invalid:{rollback_mode or 'missing'}"
+        )
+    return gaps
+
+
+def _backend_control_forbidden_gaps(forbidden: dict[str, Any]) -> list[str]:
+    gaps: list[str] = []
+    for key in (
+        "repo_local_execution_wrapper",
+        "config_script_home",
+        "adopter_named_external_product_root",
+        "default_flip_without_rollback_window",
+    ):
+        if forbidden.get(key) is not True:
+            gaps.append(f"retirement_backend_control_forbidden_not_true:{key}")
+    return gaps
+
+
+def _backend_control_rollback_gaps(
+    rollback: dict[str, Any], expected_external_state: str
+) -> list[str]:
+    default_or_later = expected_external_state in EXTERNAL_DEFAULT_STATES
+    preview = expected_external_state == "adoption_preview"
+    rollback_state = str(rollback.get("state") or "")
+    if default_or_later and not preview and rollback_state not in {"planned", "active", "complete"}:
+        return ["retirement_backend_control_rollback_window_not_declared"]
+    return []
 
 
 def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> dict[str, object]:
@@ -279,11 +412,27 @@ def _shadow_checks(shadow: dict[str, object] | None) -> dict[str, object]:
     }
 
 
+def _expected_default_backend(external_state: str) -> str:
+    if external_state in EXTERNAL_DEFAULT_STATES:
+        return "external"
+    return "embedded"
+
+
+def _expected_control_external_backend(external_state: str) -> str:
+    if external_state in RETIREMENT_READY_STATES:
+        return "retirement_ready"
+    if external_state in EXTERNAL_DEFAULT_STATES:
+        return "default"
+    return "preview"
+
+
 def _report_state(lifecycle_stage: str, gaps: list[str]) -> str:
     if any(gap.startswith("retirement_docs_topology:") for gap in gaps):
         return "docs_topology_open"
     if any(gap.startswith("retirement_generated_artifacts:") for gap in gaps):
         return "generated_artifacts_open"
+    if any(gap.startswith("retirement_backend_control_") for gap in gaps):
+        return "backend_control_open"
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         return "rollback_window_evidence_open"
     return lifecycle_stage
@@ -333,6 +482,8 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
         actions.append(f"ethos quality docs-topology --root {repo.as_posix()} --json")
     if any(gap.startswith("retirement_generated_artifacts:") for gap in gaps):
         actions.append(f"ethos quality generated-artifacts --root {repo.as_posix()} --json")
+    if any(gap.startswith("retirement_backend_control_") for gap in gaps):
+        actions.append("repair the profile-declared external-ethos-backend control manifest")
     if any(gap.startswith("retirement_rollback_window_") for gap in gaps):
         actions.append(
             "populate [rollback_window] with a manifest and completed proof_report, "

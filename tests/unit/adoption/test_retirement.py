@@ -122,6 +122,7 @@ def _write_profile(
     external_state: str,
     embedded_state: str,
     rollback: dict[str, object] | None = None,
+    control: dict[str, object] | None = None,
 ) -> None:
     (root / ".ethos").mkdir(parents=True)
     (root / ".config").mkdir()
@@ -134,6 +135,40 @@ def _write_profile(
         "# policy\n",
         encoding="utf-8",
     )
+    control_line = ""
+    if control is not None:
+        control_path = str(control.get("path") or ".config/interfaces/external-ethos-backend.toml")
+        control_line = f'control = "{control_path}"\n'
+        if control.get("write", True):
+            control_file = root / control_path
+            control_file.parent.mkdir(parents=True, exist_ok=True)
+            control_file.write_text(
+                "\n".join(
+                    [
+                        "[contract]",
+                        'asset_kind = "ExternalEthosBackendSwitch"',
+                        'truth_boundary = "configuration only"',
+                        'profile_binding = ".ethos/profile.toml"',
+                        "",
+                        "[current]",
+                        f'state = "{control.get("state", external_state)}"',
+                        f'default_backend = "{control.get("default_backend", "embedded")}"',
+                        f'external_backend = "{control.get("external_backend", "preview")}"',
+                        f'rollback_mode = "{control.get("rollback_mode", "embedded_fallback")}"',
+                        "",
+                        "[allowed_transitions]",
+                        'preview_to_reversible_default_requires = ["shadow_parity_clean", "embedded_fallback_available"]',
+                        'reversible_default_to_retirement_ready_requires = ["rollback_window_complete", "embedded_backend_frozen", "retirement_decision_record"]',
+                        "",
+                        "[forbidden]",
+                        "repo_local_execution_wrapper = true",
+                        "config_script_home = true",
+                        "adopter_named_external_product_root = true",
+                        "default_flip_without_rollback_window = true",
+                    ]
+                ),
+                encoding="utf-8",
+            )
     rollback_table = ""
     if rollback is not None:
         evidence_manifest = str(
@@ -216,7 +251,7 @@ retirement_policy = "docs/governance/external-ethos-adoption.md"
 state = "{external_state}"
 minimum_version = "external>=embedded"
 shadow_required = true
-{rollback_table}
+{control_line}{rollback_table}
 [adoption_boundary]
 binding_manifest = ".ethos/profile.toml"
 execution_config_root = ".config"
@@ -327,6 +362,75 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
 
     assert report["ok"] is False
     assert "forbidden_external_product_root_present:adopters/sample" in report["required_gaps"]
+
+
+def test_retirement_readiness_validates_declared_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _write_profile(
+        adopter,
+        external_state="adoption_preview",
+        embedded_state="active_until_external_ge_embedded",
+        control={"default_backend": "external", "external_backend": "default"},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["ok"] is False
+    assert report["checks"]["backend_control"]["ok"] is False
+    assert (
+        report["checks"]["backend_control"]["path"]
+        == (adopter / ".config/interfaces/external-ethos-backend.toml").as_posix()
+    )
+    assert (
+        "retirement_backend_control_default_mismatch:embedded:external" in report["required_gaps"]
+    )
+    assert (
+        "retirement_backend_control_external_backend_mismatch:preview:default"
+        in report["required_gaps"]
+    )
+    assert any("external-ethos-backend" in action for action in report["next_actions"])
+
+
+def test_retirement_readiness_rejects_missing_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    _write_profile(
+        adopter,
+        external_state="adoption_preview",
+        embedded_state="active_until_external_ge_embedded",
+        control={"write": False},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["checks"]["backend_control"]["ok"] is False
+    assert (
+        "retirement_backend_control_missing:.config/interfaces/external-ethos-backend.toml"
+        in report["required_gaps"]
+    )
 
 
 def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_state(

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
-    "target_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
-    "product_semantic_sha256": "a25870d5d8bd6252784e5c29fe17a7502d129aa6f921170c461302d3c594590a",
-    "target_semantic_sha256": "a25870d5d8bd6252784e5c29fe17a7502d129aa6f921170c461302d3c594590a",
+    "product_head": "3827d9b53aec3c9ab5e72f78c2efcbf2cb8c8109",
+    "target_head": "3827d9b53aec3c9ab5e72f78c2efcbf2cb8c8109",
+    "product_semantic_sha256": "7073989c7775e05e6424053d40e1b8dc4aeeff89f06a47e66e9f91bc482567d7",
+    "target_semantic_sha256": "7073989c7775e05e6424053d40e1b8dc4aeeff89f06a47e66e9f91bc482567d7",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/lane-public-primitives-20260709",
-    "target_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
-    "product_head": "70bbe59d12a680c073379aa2aa7bb77c334565fd",
+    "target_head": "3827d9b53aec3c9ab5e72f78c2efcbf2cb8c8109",
+    "product_head": "3827d9b53aec3c9ab5e72f78c2efcbf2cb8c8109",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "dc78cfe5289ae9ec0dc92c16c6f64c01b0a07ee99a13edfd4ccd7e3e178db105"
+        "sha256": "e08eb2b7d7a9b3621b236cec55a3f6ea0726c09247d01c1546b4f73b53cc991c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "1b720a742dcf2f7f4ea385eb681b4127a5ab6a465dfff0d19cbf1f0699025d4c"
+        "sha256": "6a8d6eae246c6468895631f1b9b0b72e03a618ad135effded4c1ea9802d2ba1f"
       },
       {
         "path": "openspec",

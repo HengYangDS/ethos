@@ -21,6 +21,15 @@ and [Docs Registry](../governance/docs-registry.md).
 The public `ethos ...` command vocabulary. Other tools may execute underneath
 ETHOS, but they do not become public workflow roots.
 
+## Isomorphic Governance
+
+The ETHOS governance shape in which the same kernel governs the ETHOS product
+repository and other governed repositories. Different profiles change admission,
+checks, adapters, and proof depth through profiles and adapters; they do not
+create separate ontology roles, command planes, or truth stores. This is not
+product cloning. Each repository keeps its domain shape while ETHOS judges its
+change through the shared evidence-bound transition loop.
+
 ## Authority
 
 The authority used for product decisions: user instruction, repository truth,

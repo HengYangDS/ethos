@@ -134,10 +134,14 @@ repository. Product repositories, adopted repositories, and reference
 repositories differ by profile, capability set, and proof depth; they are not
 separate ontology roles and do not create separate command planes.
 
+### Isomorphic Governance
+
 The ETHOS product repository is governed with the `product` profile. Other
 repositories are governed with their selected adoption or domain profile. The
-profile changes required checks, adapters, and proof depth; it does not change
-the subject kind or the command semantics.
+same kernel governs both cases. The profile changes profile-specific checks,
+adapters, and proof depth; it does not change the subject kind or the command
+semantics. The governing form is profiles and adapters over one kernel; it is
+not product cloning.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,

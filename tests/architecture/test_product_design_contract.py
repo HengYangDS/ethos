@@ -34,6 +34,10 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
+def prose(relative: str) -> str:
+    return " ".join(read(relative).split())
+
+
 def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     text = read("docs/governance/product-design-contract.md")
 
@@ -251,6 +255,22 @@ def test_product_design_contract_defines_governed_repository() -> None:
     assert "read-only scorecard command" in repository_spec
     assert "transition, reader-view, and scorecard command semantics" in contracts_spec
     assert "shared governance context contract" in contracts_spec
+
+
+def test_first_glance_docs_make_isomorphic_governance_discoverable() -> None:
+    readme = prose("README.md")
+    product = prose("docs/governance/product-design-contract.md")
+    glossary = prose("docs/reference/glossary.md")
+
+    for text in (readme, product, glossary):
+        assert "Isomorphic Governance" in text
+        assert "same kernel" in text
+        assert "profiles and adapters" in text
+        assert "not product cloning" in text
+
+    assert "governs the ETHOS product repository and adopted repositories" in readme
+    assert "profile-specific checks, adapters, and proof depth" in product
+    assert "Different profiles change admission, checks, adapters, and proof depth" in glossary
 
 
 def test_canonical_product_docs_are_provider_neutral() -> None:

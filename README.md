@@ -10,6 +10,15 @@ ETHOS does not take over your domain model, CI provider, assistant host, or issu
 tracker. Those systems stay adapters or projections. Repository source, tests,
 schemas, docs, evidence, and promoted decisions remain the truth.
 
+## Isomorphic Governance
+
+ETHOS governs the ETHOS product repository and adopted repositories through the
+same kernel: authority, subject, commitment, change, evidence, claim, and
+chronicle. Product and adopter work differ by profiles and adapters, not by
+separate command planes or private truth stores. This is not product cloning:
+each governed repository keeps its domain model, provider surfaces, and local
+shape while ETHOS applies one evidence-bound transition loop.
+
 ## First Hour
 
 The first hour is deliberately small. Start with a first-glance orientation,

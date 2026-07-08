@@ -16,3 +16,5 @@ npm-debug.log*
 
 .coverage
 coverage.xml
+.coverage.*
+junit.xml

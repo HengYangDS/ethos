@@ -133,6 +133,46 @@ def test_generated_artifact_report_allows_package_metadata(tmp_path: Path) -> No
     assert report["required_gaps"] == []
 
 
+def test_generated_artifact_report_tolerates_ignored_root_test_residue(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / ".gitignore").write_text(
+        ".coverage\n.coverage.*\ncoverage.xml\njunit.xml\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore local test residue")
+    for name in (".coverage", ".coverage.worker", "coverage.xml", "junit.xml"):
+        (repo / name).write_text("local residue\n", encoding="utf-8")
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert set(report["ignored_local_paths"]) == {
+        ".coverage",
+        ".coverage.worker",
+        "coverage.xml",
+        "junit.xml",
+    }
+
+
+def test_generated_artifact_report_blocks_tracked_root_test_residue(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / ".gitignore").write_text(".coverage.*\n", encoding="utf-8")
+    (repo / ".coverage.worker").write_text("tracked residue\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "add", "-f", ".coverage.worker")
+    _git(repo, "commit", "-m", "track root coverage residue")
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["ok"] is False
+    assert ".coverage.worker" not in report["ignored_local_paths"]
+    assert "generated_artifact_repo_root_drift:.coverage.worker" in report["required_gaps"]
+
+
 def test_path_policy_denies_generated_output_under_config() -> None:
     report = path_policy_for(".config/ethos/report.json")
 

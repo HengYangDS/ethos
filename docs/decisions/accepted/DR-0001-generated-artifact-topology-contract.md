@@ -68,6 +68,10 @@ Adopt the Generated Artifact Topology Contract:
   information architecture used by governed repositories.
 - Generated drift in repo root, `.config/`, semantic docs truth roots, or source
   directories is denied.
+- Ignored, untracked root coverage/pytest residue is tolerated only as local
+  cleanup debt so proof verdicts do not depend on whether the test gate has
+  already removed `.coverage*`, `coverage.xml`, or `junit.xml`; tracked copies
+  remain denied root generated drift.
 - Product-owned adopter-specific roots are denied.
 - The retired `.config/ci/scripts/` runners were visible review debt and must not be
   treated as the generic `.config/` model for adopters. Current reusable runners live under `tools/ci/scripts/`.

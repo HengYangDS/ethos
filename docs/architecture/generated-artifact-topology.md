@@ -50,6 +50,12 @@ Package metadata and lock files such as `package.json`, `package-lock.json`,
 `pyproject.toml`, and `uv.lock` remain source/package authority. They are not
 classified as generated drift merely because tools can update them.
 
+Root `.coverage*`, `coverage.xml`, and `junit.xml` are tolerated only when they
+are ignored, untracked local residue from coverage or pytest tooling. Tracked
+instances of those files still fail the topology audit as root generated drift.
+This keeps the gate from depending on test-gate cleanup order without turning
+repo root into an output home.
+
 ## Audit
 
 ```bash

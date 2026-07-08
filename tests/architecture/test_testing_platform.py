@@ -34,6 +34,8 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "cleanup_root_coverage_artifacts" in script
     assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in script
     assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
+    assert ".coverage.*" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "junit.xml" in (ROOT / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:

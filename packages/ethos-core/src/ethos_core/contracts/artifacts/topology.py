@@ -30,6 +30,7 @@ GENERATED_FILENAMES = frozenset(
         "report.json",
     }
 )
+GENERATED_FILENAME_PREFIXES = frozenset({".coverage."})
 SOURCE_METADATA_FILENAMES = frozenset(
     {
         "package-lock.json",
@@ -109,6 +110,7 @@ def generated_artifact_contract() -> dict[str, object]:
         ],
         "generated_suffixes": sorted(GENERATED_SUFFIXES),
         "generated_filenames": sorted(GENERATED_FILENAMES),
+        "generated_filename_prefixes": sorted(GENERATED_FILENAME_PREFIXES),
         "adopter_specific_product_dirs_allowed": False,
         "product_adopter_root_prefixes": sorted(
             prefix.rstrip("/") for prefix in PRODUCT_ADOPTER_ROOT_PREFIXES
@@ -141,7 +143,11 @@ def is_generated_artifact_path(path: Path | str) -> bool:
     if name.endswith(SOURCE_SCHEMA_SUFFIX):
         return False
     suffix = Path(name).suffix
-    return name in GENERATED_FILENAMES or suffix in GENERATED_SUFFIXES
+    return (
+        name in GENERATED_FILENAMES
+        or suffix in GENERATED_SUFFIXES
+        or any(name.startswith(prefix) for prefix in GENERATED_FILENAME_PREFIXES)
+    )
 
 
 def _policy(

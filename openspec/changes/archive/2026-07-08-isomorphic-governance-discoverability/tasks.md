@@ -6,4 +6,4 @@
 - [x] Add chronicle evidence and an active claim binding this carrier.
 - [x] Run OpenSpec lifecycle, claims, docs, tests, and head-bound proof-readiness gates.
 - [x] Archive the OpenSpec carrier and update claim targets to the archived carrier plus promoted live spec.
-- [x] Land through governed Work Lane closeout if the candidate train remains current.
+- [x] Prepare governed Work Lane closeout evidence while leaving actual land to the Work Lane lifecycle.

@@ -6,7 +6,7 @@ summary = "ETHOS makes one-kernel governance of itself and adopted repositories 
 
 [evidence]
 dated = "evidence/chronicle/isomorphic-governance-discoverability/2026-07-09.md"
-sha256 = "da32eae01af0e71e519158d4f67ac3bab6747ca513fdbeebd4ef2c959094598b"
+sha256 = "37ae8c3853e8188f3c8058270aaa7d74b1486f74b687cf8b6958839837c1cee2"
 evidence_ids = ["evidence:isomorphic-governance-discoverability"]
 binding = "first-glance docs, architecture regression test, and OpenSpec carrier binding"
 verifier = "digest_only"
@@ -37,6 +37,7 @@ targets = [
   "docs/governance/product-design-contract.md",
   "docs/reference/glossary.md",
   "tests/architecture/test_product_design_contract.py",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/.openspec.yaml",
   "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/proposal.md",
   "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/design.md",
   "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/tasks.md",

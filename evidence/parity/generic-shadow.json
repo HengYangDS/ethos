@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
-    "target_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
-    "product_semantic_sha256": "b6e49e795006618211ac7d7f2f754585d918049d631158816eefbaf45bb09b3c",
-    "target_semantic_sha256": "b6e49e795006618211ac7d7f2f754585d918049d631158816eefbaf45bb09b3c",
+    "product_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
+    "target_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
+    "product_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
+    "target_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-work-pollution-mechanism-fix",
-    "target_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
-    "product_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/authority-residue-zero",
+    "target_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
+    "product_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
-      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json"
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
+      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "de57c97f046db8f127347b39682337d89df759a406b52a480459d7b7a3ebf030"
+        "sha256": "230a795e16bff6889394a56ef0a49a231ceb36e6d0177b9930f71f36d65096e1"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "9604de9d5f613b1ef794239823ddae5b5d9c7d2db34730bec76956cddb8e15c5"
+        "sha256": "7077cffc662c0e7416a2fd61bed3485a8ccf7e664fce523f54326b2e2df20c74"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "af401e35dcbcf7ca12460942ead62b54bf521379991f13cba4858d139ba70006"
+        "sha256": "81661e4a122a75d56ec14529e642dabd4cc1f46f8b0a82e4e30eb7655e8b1787"
       },
       {
         "path": "rules",

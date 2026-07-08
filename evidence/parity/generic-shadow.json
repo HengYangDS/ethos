@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5afe991224c09bcdd0303945846492fd5ac0486d",
-    "target_head": "5afe991224c09bcdd0303945846492fd5ac0486d",
-    "product_semantic_sha256": "b9abd7454736f85913868063d4b0d8b50236a5417a5e6c85af4bbfe50dddc0a9",
-    "target_semantic_sha256": "b9abd7454736f85913868063d4b0d8b50236a5417a5e6c85af4bbfe50dddc0a9",
+    "product_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
+    "target_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
+    "product_semantic_sha256": "ddc3b531455995b78151b64ad1d641c5042deeb234e4e729422ff5290890eff1",
+    "target_semantic_sha256": "ddc3b531455995b78151b64ad1d641c5042deeb234e4e729422ff5290890eff1",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening",
-    "target_head": "5afe991224c09bcdd0303945846492fd5ac0486d",
-    "product_head": "5afe991224c09bcdd0303945846492fd5ac0486d",
+    "target_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
+    "product_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "bae60aff4265835c1d10d2f3f0bffa203a3a2be53fea712c88689eeabdd215e8"
+        "sha256": "1db0fdf8aa3a4a3cd66ea1634128a53063035895baef9eb0bfa07787cfbb4dc4"
       },
       {
         "path": "evidence/claims",

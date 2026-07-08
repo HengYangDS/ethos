@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
-    "target_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
-    "product_semantic_sha256": "ddc3b531455995b78151b64ad1d641c5042deeb234e4e729422ff5290890eff1",
-    "target_semantic_sha256": "ddc3b531455995b78151b64ad1d641c5042deeb234e4e729422ff5290890eff1",
+    "product_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
+    "target_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
+    "product_semantic_sha256": "ae0da6f430fa93f5e97ca6e3c27fe6ab1d95e7c93fab2ee744e08d16a655b3d2",
+    "target_semantic_sha256": "ae0da6f430fa93f5e97ca6e3c27fe6ab1d95e7c93fab2ee744e08d16a655b3d2",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening",
-    "target_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
-    "product_head": "928f9d704e95dc23ebe243b0a53553e18ce89b6d",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol",
+    "target_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
+    "product_head": "1c73f7191e1fc7f2b33d2743a6dbe2aed9076308",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json"
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-evolution-protocol --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "5e0ae6db492b3de2fa1db3c994375930ea5cee50dab884b46762ee2d7a82ea7e"
+        "sha256": "648bfe2c9958b2be1bd09ec97e53dc19641794497d3099a72900b16bdda98ecb"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1db0fdf8aa3a4a3cd66ea1634128a53063035895baef9eb0bfa07787cfbb4dc4"
+        "sha256": "6ecebb7baccd295a679a240f3bd80c34770934e7a4e229f87a39bc2e7fa2a9d5"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "ea1087dc0131b5c8139acbd3330bc9ce089b21c8483972e0313b374c20e1a761"
+        "sha256": "10ff0efabe86a5ed46e55676be1d1707d945defa70e23327041c238d12261dcb"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "5a268a631cecf0bf18ed23e39abaac1d4fac0aa7ae863c59d3ce8742df6d5b45"
+        "sha256": "f5b0c9b94be5ba9573411f32e1d42b2ba25fcb9289c2372d0cc86c41c3b16d93"
       },
       {
         "path": "rules",

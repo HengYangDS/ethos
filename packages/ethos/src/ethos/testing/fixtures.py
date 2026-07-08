@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import ethos_core.contracts.context_projection as context_projection_contract
+import ethos_core.contracts.context.projection as context_projection_contract
 
 SAMPLE_REPOSITORIES = (
     "sample-basic-git",

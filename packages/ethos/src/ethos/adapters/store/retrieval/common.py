@@ -23,19 +23,23 @@ def default_retrieval_db_path(root: Path) -> Path:
     return root / ".ethos" / "state" / "retrieval.sqlite"
 
 
-def _now() -> str:
+def current_timestamp() -> str:
+    """Return the current UTC timestamp in ISO-8601 form."""
     return datetime.now(UTC).isoformat()
 
 
-def _sha256_bytes(payload: bytes) -> str:
+def sha256_bytes(payload: bytes) -> str:
+    """Return the lowercase SHA-256 hex digest for bytes."""
     return hashlib.sha256(payload).hexdigest()
 
 
-def _sha256_text(payload: str) -> str:
-    return _sha256_bytes(payload.encode("utf-8"))
+def sha256_text(payload: str) -> str:
+    """Return the lowercase SHA-256 hex digest for UTF-8 text."""
+    return sha256_bytes(payload.encode("utf-8"))
 
 
-def _context_index_files(db_path: Path) -> tuple[Path, ...]:
+def context_index_files(db_path: Path) -> tuple[Path, ...]:
+    """Return the SQLite database and sidecar WAL/SHM files."""
     return (
         db_path,
         db_path.with_suffix(".sqlite-wal"),

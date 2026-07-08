@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from ethos.assistants.context.bundle import context_bundle
 from ethos.assistants.context.selection import selection_report
-from ethos_core.contracts.context_projection import default_context_policy
+from ethos_core.contracts.context.projection import default_context_policy
 
 
 def test_default_context_policy_forbids_proof_and_gap_closure() -> None:

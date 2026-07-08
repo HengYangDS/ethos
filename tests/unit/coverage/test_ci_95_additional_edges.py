@@ -432,10 +432,10 @@ def test_retrieval_index_search_verify_and_purge_edges(
     # Patch git_head in both indexing (rebuild) and query (search/verify).
     monkeypatch.setattr(retrieval_indexing, "git_head", lambda root: "h1")
     monkeypatch.setattr(retrieval_query, "git_head", lambda root: "h1")
-    # Patch _tracked_source_paths in query (verify_candidate).
+    # Patch tracked_source_paths in query (verify_candidate).
     monkeypatch.setattr(
         retrieval_query,
-        "_tracked_source_paths",
+        "tracked_source_paths",
         lambda root: {"README.md", "packages/demo/mod.py"},
     )
 
@@ -473,7 +473,7 @@ def test_retrieval_index_search_verify_and_purge_edges(
         == "path_outside_repository"
     )
     missing_candidate = dict(stale_candidate, path="docs/missing.md", head="h1")
-    monkeypatch.setattr(retrieval_query, "_tracked_source_paths", lambda root: {"docs/missing.md"})
+    monkeypatch.setattr(retrieval_query, "tracked_source_paths", lambda root: {"docs/missing.md"})
     monkeypatch.setattr(
         retrieval_query, "allowed_sources", lambda root: [tmp_path / "docs" / "missing.md"]
     )

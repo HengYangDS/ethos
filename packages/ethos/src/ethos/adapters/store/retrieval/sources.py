@@ -11,7 +11,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.store.retrieval.common import _sha256_text
+from ethos.adapters.store.retrieval.common import sha256_text
 
 
 def tracked_files(root: Path) -> list[Path]:
@@ -32,7 +32,8 @@ def tracked_files(root: Path) -> list[Path]:
     return [root / line for line in completed.stdout.splitlines() if line.strip()]
 
 
-def _tracked_source_paths(root: Path) -> set[str]:
+def tracked_source_paths(root: Path) -> set[str]:
+    """Return repository-relative paths for files tracked at HEAD."""
     return {path.relative_to(root).as_posix() for path in tracked_files(root)}
 
 
@@ -101,12 +102,13 @@ def porcelain_paths(pathspec: str) -> tuple[str, ...]:
     return tuple(path.strip().strip('"') for path in paths if path.strip())
 
 
-def _source_manifest_digest(root: Path, sources: list[Path], head: str) -> str:
+def source_manifest_digest(root: Path, sources: list[Path], head: str) -> str:
+    """Return the digest for the indexed source set and HEAD."""
     source_manifest = {
         "head": head,
         "sources": [source.relative_to(root).as_posix() for source in sources],
     }
-    return _sha256_text(json.dumps(source_manifest, sort_keys=True))
+    return sha256_text(json.dumps(source_manifest, sort_keys=True))
 
 
 def unsafe_source_reason(root: Path, source: Path) -> str:

@@ -23,7 +23,7 @@ from ethos.repository.evidence.claims import claims_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleFactSnapshot
 from ethos_core.contracts.rules import stable_digest

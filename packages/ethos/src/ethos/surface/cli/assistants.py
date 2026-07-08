@@ -21,8 +21,8 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import assistants_app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
-from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
 from ethos_core.result import EthosResult
 
 

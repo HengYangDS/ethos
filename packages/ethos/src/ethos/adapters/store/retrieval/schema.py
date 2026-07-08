@@ -10,7 +10,7 @@ import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store.retrieval.common import _now
+from ethos.adapters.store.retrieval.common import current_timestamp
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -174,6 +174,6 @@ def initialize_context_index(db_path: Path) -> None:
             connection.execute(statement)
         connection.execute(
             "insert or ignore into schema_migrations(version, applied_at) values (?, ?)",
-            (RETRIEVAL_SCHEMA_VERSION, _now()),
+            (RETRIEVAL_SCHEMA_VERSION, current_timestamp()),
         )
         connection.commit()

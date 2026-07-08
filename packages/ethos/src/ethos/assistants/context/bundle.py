@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from ethos.assistants.context.selection import selection_report
-from ethos_core.contracts.context_projection import CONTEXT_PROJECTION_AUTHORITY
-from ethos_core.contracts.context_projection import UNTRUSTED_CONTEXT_LABEL
+from ethos_core.contracts.context.projection import CONTEXT_PROJECTION_AUTHORITY
+from ethos_core.contracts.context.projection import UNTRUSTED_CONTEXT_LABEL
 
 
 def context_bundle(

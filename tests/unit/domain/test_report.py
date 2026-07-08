@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from ethos.domain import report as report_domain
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 
 
 def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:

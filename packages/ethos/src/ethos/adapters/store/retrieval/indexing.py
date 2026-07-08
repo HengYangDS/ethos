@@ -15,18 +15,18 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.retrieval.common import _context_index_files
-from ethos.adapters.store.retrieval.common import _now
-from ethos.adapters.store.retrieval.common import _sha256_bytes
-from ethos.adapters.store.retrieval.common import _sha256_text
+from ethos.adapters.store.retrieval.common import context_index_files
+from ethos.adapters.store.retrieval.common import current_timestamp
 from ethos.adapters.store.retrieval.common import default_retrieval_db_path
 from ethos.adapters.store.retrieval.common import git_head
+from ethos.adapters.store.retrieval.common import sha256_bytes
+from ethos.adapters.store.retrieval.common import sha256_text
 from ethos.adapters.store.retrieval.schema import RETRIEVAL_SCHEMA_VERSION
 from ethos.adapters.store.retrieval.schema import initialize_context_index
-from ethos.adapters.store.retrieval.sources import _source_manifest_digest
 from ethos.adapters.store.retrieval.sources import allowed_sources
 from ethos.adapters.store.retrieval.sources import dirty_allowed_sources
-from ethos_core.contracts.context_projection import looks_secret_like
+from ethos.adapters.store.retrieval.sources import source_manifest_digest
+from ethos_core.contracts.context.projection import looks_secret_like
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -77,15 +77,15 @@ def rebuild_context_index(
             "required_gaps": ["context_index_dirty_sources"],
             "data": {"dirty_sources": dirty_sources},
         }
-    for path in _context_index_files(db_path):
+    for path in context_index_files(db_path):
         if path.exists():
             path.unlink()
     initialize_context_index(db_path)
     head = git_head(repo)
     manifest_id = f"manifest:{uuid.uuid4()}"
-    policy_digest = _sha256_text("default-context-policy-v1")
-    source_manifest_digest = _source_manifest_digest(repo, sources, head)
-    now = _now()
+    policy_digest = sha256_text("default-context-policy-v1")
+    source_manifest_sha256 = source_manifest_digest(repo, sources, head)
+    now = current_timestamp()
     counts = {"source_count": 0, "span_count": 0, "chunk_count": 0, "symbol_count": 0}
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
@@ -105,8 +105,8 @@ def rebuild_context_index(
                 now,
                 json.dumps(
                     {
-                        "repo_id": f"repo:{_sha256_text(repo.as_posix())[:16]}",
-                        "source_manifest_digest": source_manifest_digest,
+                        "repo_id": f"repo:{sha256_text(repo.as_posix())[:16]}",
+                        "source_manifest_digest": source_manifest_sha256,
                         "privacy_ceiling": "repo_local",
                         "dirty": False,
                         "extractors": [
@@ -132,13 +132,13 @@ def rebuild_context_index(
             **counts,
             "storage": db_path.as_posix(),
             "manifest_id": manifest_id,
-            "source_manifest_digest": source_manifest_digest,
+            "source_manifest_digest": source_manifest_sha256,
         },
         "required_gaps": [],
         "data": {
             "manifest_id": manifest_id,
             "head": head,
-            "source_manifest_digest": source_manifest_digest,
+            "source_manifest_digest": source_manifest_sha256,
         },
     }
 
@@ -174,7 +174,7 @@ def purge_context_index(
             "data": {},
         }
     removed = []
-    for path in _context_index_files(db_path):
+    for path in context_index_files(db_path):
         if path.exists():
             path.unlink()
             removed.append(path.name)
@@ -209,7 +209,7 @@ def index_source(
             connection,
             manifest_id=manifest_id,
             rel=rel,
-            digest=_sha256_text(f"{rel}:{unsafe_reason}"),
+            digest=sha256_text(f"{rel}:{unsafe_reason}"),
             reason=unsafe_reason,
             head=head,
         )
@@ -217,8 +217,8 @@ def index_source(
     payload = source.read_bytes()
     text = payload.decode("utf-8", errors="replace")
     stat = source.stat()
-    file_id = f"file:{_sha256_text(rel)[:16]}"
-    digest = _sha256_bytes(payload)
+    file_id = f"file:{sha256_text(rel)[:16]}"
+    digest = sha256_bytes(payload)
     language = language_for(source)
     kind = kind_for(rel, source)
     if looks_secret_like(text):
@@ -239,13 +239,23 @@ def index_source(
         )
         values (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (file_id, manifest_id, rel, digest, len(payload), stat.st_mtime_ns, language, kind, _now()),
+        (
+            file_id,
+            manifest_id,
+            rel,
+            digest,
+            len(payload),
+            stat.st_mtime_ns,
+            language,
+            kind,
+            current_timestamp(),
+        ),
     )
     counts = {"source_count": 1, "span_count": 0, "chunk_count": 0, "symbol_count": 0}
     for ordinal, chunk in enumerate(chunks_for(rel, text), start=1):
         span_id = _insert_span(connection, file_id, rel, chunk, {"head": head})
         chunk_key = f"{rel}:{ordinal}:{chunk['start_line']}"
-        chunk_id = f"chunk:{_sha256_text(chunk_key)[:16]}"
+        chunk_id = f"chunk:{sha256_text(chunk_key)[:16]}"
         connection.execute(
             """
             insert into doc_chunks(
@@ -276,7 +286,7 @@ def index_source(
         for symbol in python_symbols(text):
             span_id = _insert_span(connection, file_id, rel, symbol, {"head": head})
             symbol_key = f"{rel}:{symbol['name']}:{symbol['start_line']}"
-            symbol_id = f"symbol:{_sha256_text(symbol_key)[:16]}"
+            symbol_id = f"symbol:{sha256_text(symbol_key)[:16]}"
             connection.execute(
                 """
                 insert into code_symbols(
@@ -319,7 +329,7 @@ def _insert_span(
 ) -> str:
     span_text = item["text"]
     span_key = f"{rel}:{item['start_line']}:{item['end_line']}:{span_text}"
-    span_id = f"span:{_sha256_text(span_key)[:16]}"
+    span_id = f"span:{sha256_text(span_key)[:16]}"
     connection.execute(
         """
         insert or ignore into source_spans(
@@ -336,7 +346,7 @@ def _insert_span(
             int(item["end_line"]),
             0,
             len(span_text.encode("utf-8")),
-            _sha256_text(span_text),
+            sha256_text(span_text),
             json.dumps(payload, sort_keys=True),
         ),
     )
@@ -360,11 +370,11 @@ def _insert_tombstone(
         values (?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            f"tombstone:{_sha256_text(f'{manifest_id}:{rel}:{reason}')[:16]}",
+            f"tombstone:{sha256_text(f'{manifest_id}:{rel}:{reason}')[:16]}",
             manifest_id,
             rel,
             digest,
-            _now(),
+            current_timestamp(),
             reason,
             json.dumps({"head": head}, sort_keys=True),
         ),

@@ -6,7 +6,7 @@ from typing import cast
 
 import ethos.assistants.playbooks as playbooks_module
 from ethos.assistants.playbooks import playbooks_report
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 
 
 def projection_contract() -> dict[str, object]:

@@ -13,7 +13,7 @@ from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import schema as retrieval_schema
 from ethos.adapters.store.retrieval import sources as retrieval_sources
-from ethos_core.contracts.context_projection import redact_secret_like
+from ethos_core.contracts.context.projection import redact_secret_like
 
 if TYPE_CHECKING:
     import pytest

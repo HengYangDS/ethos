@@ -12,7 +12,7 @@ from ethos_core import models
 from ethos_core.contracts import system_contracts
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 from ethos_core.contracts.branch_roles import load_branch_role_policy
-from ethos_core.contracts.context_projection import redact_secret_like
+from ethos_core.contracts.context.projection import redact_secret_like
 from ethos_core.quality.models import QualityFinding
 
 

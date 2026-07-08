@@ -3,9 +3,9 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 15
+baseline_gap_limit = 14
 enforce_baseline_kind_limits = true
-baseline_suffix_module_limit = 14
+baseline_suffix_module_limit = 13
 baseline_suffix_flat_limit = 0
 baseline_flat_directory_limit = 1
 baseline_private_alias_limit = 0
@@ -15,7 +15,6 @@ baseline_module_facade_limit = 0
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/branch_roles.py:branch_roles",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/capability_parity.py:capability_parity",
-  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/context_projection.py:context_projection",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/package_ontology.py:package_ontology",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/skill_activation.py:skill_activation",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/system_contracts.py:system_contracts",

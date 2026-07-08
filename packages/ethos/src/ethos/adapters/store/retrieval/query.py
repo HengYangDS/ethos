@@ -13,15 +13,15 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.retrieval.common import _sha256_bytes
-from ethos.adapters.store.retrieval.common import _sha256_text
 from ethos.adapters.store.retrieval.common import default_retrieval_db_path
 from ethos.adapters.store.retrieval.common import git_head
 from ethos.adapters.store.retrieval.common import latest_manifest_head
 from ethos.adapters.store.retrieval.common import latest_manifest_id
-from ethos.adapters.store.retrieval.sources import _tracked_source_paths
+from ethos.adapters.store.retrieval.common import sha256_bytes
+from ethos.adapters.store.retrieval.common import sha256_text
 from ethos.adapters.store.retrieval.sources import allowed_sources
 from ethos.adapters.store.retrieval.sources import dirty_allowed_sources
+from ethos.adapters.store.retrieval.sources import tracked_source_paths
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -289,14 +289,14 @@ def verify_candidate(repo: Path, candidate: dict[str, Any]) -> dict[str, Any]:
     end_line = int(candidate["end_line"])
     source_title = f"{rel}:{start_line}-{end_line}"
     source_key = f"{rel}:{start_line}:{end_line}:{candidate['digest']}"
-    source_result_id = f"source:{_sha256_text(source_key)[:16]}"
+    source_result_id = f"source:{sha256_text(source_key)[:16]}"
     try:
         path.relative_to(repo)
     except ValueError:
         status = "unverified"
         reason = "path_outside_repository"
     else:
-        tracked_paths = _tracked_source_paths(repo)
+        tracked_paths = tracked_source_paths(repo)
         current_head = git_head(repo)
         allowed_paths = {source.relative_to(repo).as_posix() for source in allowed_sources(repo)}
         if rel.startswith(".ethos/state/") or rel not in tracked_paths or rel not in allowed_paths:
@@ -307,7 +307,7 @@ def verify_candidate(repo: Path, candidate: dict[str, Any]) -> dict[str, Any]:
             reason = "head_mismatch"
         elif path.exists():
             reason = "digest_mismatch"
-            current_file_digest = _sha256_bytes(path.read_bytes())
+            current_file_digest = sha256_bytes(path.read_bytes())
             lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             span = (
                 "\n".join(lines[start_line - 1 : end_line])
@@ -316,7 +316,7 @@ def verify_candidate(repo: Path, candidate: dict[str, Any]) -> dict[str, Any]:
             )
             if (
                 current_file_digest == candidate["file_digest"]
-                and _sha256_text(span) == candidate["digest"]
+                and sha256_text(span) == candidate["digest"]
             ):
                 status = "verified"
                 reason = "verified"
@@ -369,4 +369,4 @@ def _redacted_query() -> str:
 
 
 def _query_digest(query: str) -> str:
-    return f"sha256:{_sha256_text(query)}"
+    return f"sha256:{sha256_text(query)}"

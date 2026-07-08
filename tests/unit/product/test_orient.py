@@ -212,24 +212,20 @@ def test_orient_projects_advisory_signals_from_report_fixture() -> None:
 
 
 def test_orient_human_output_is_concise_and_actionable() -> None:
-    completed = run_ethos_raw("orient")
+    json_payload = run_ethos("orient", "--json")
+    orientation = json_payload["data"]["orientation"]
 
-    assert completed.returncode == 0
-    lines = completed.stdout.splitlines()
+    lines = list(human_orientation_lines(orientation))
     assert 4 <= len(lines) <= 8
     assert lines[0].startswith(("ready:", "dirty:", "gapped:"))
     where_line = next(line for line in lines if line.startswith("where:"))
-    json_payload = run_ethos("orient", "--json")
-    head = json_payload["data"]["orientation"]["where"]["head"]
+    head = orientation["where"]["head"]
     assert f"@ {head[:12]}" in where_line
     assert any(line.startswith("can:") for line in lines)
     coordination_lines = [line for line in lines if line.startswith("coordination:")]
     assert len(coordination_lines) <= 1
     if coordination_lines:
-        assert (
-            json_payload["data"]["orientation"]["coordination"]["next_action"]
-            in (coordination_lines[0])
-        )
+        assert orientation["coordination"]["next_action"] in coordination_lines[0]
     assert any(line.startswith("next:") for line in lines)
 
 

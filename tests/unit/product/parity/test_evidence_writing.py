@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.shadow.core as shadow_core
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES
 from tests.unit.product.parity.snapshots import SHADOW_COMMANDS
 from tests.unit.product.parity.snapshots import git_head
@@ -16,11 +18,68 @@ if TYPE_CHECKING:
     import pytest
 
 
+def _checkout_work_lane(repo: Path) -> None:
+    subprocess.run(
+        ["git", "checkout", "-b", "work/parity-evidence"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_parity_shadow_write_evidence_blocks_protected_root_without_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    target = init_git_repo(tmp_path / "sample-adopter")
+
+    def fake_shadow(
+        *, target: Path, timeout_seconds: int, product_root: Path | None = None
+    ) -> dict[str, object]:
+        _ = (timeout_seconds, product_root)
+        return {
+            "ok": True,
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "required_gaps": [],
+            "comparisons": SHADOW_COMMANDS,
+            "semantic_dimensions": ["blocking_vs_advisory", "external_false_negative"],
+            "false_negative_count": 0,
+            "execution_packages": [],
+        }
+
+    monkeypatch.setattr(shadow_core, "run_shadow_parity", fake_shadow)
+
+    completed = run_ethos_raw(
+        "parity",
+        "shadow",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--execute",
+        "--write-evidence",
+        "--json",
+        cwd=product,
+    )
+    payload = json.loads(completed.stdout)
+
+    assert completed.returncode != 0
+    assert payload["ok"] is False
+    assert "protected_lane_prewrite_blocked" in payload["required_gaps"]
+    assert payload["data"]["write_admission"]["error"] == "protected_lane_prewrite_blocked"
+    assert not (product / "evidence" / "parity" / "sample-adopter-shadow.json").exists()
+
+
 def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
+    _checkout_work_lane(product)
     target = init_git_repo(tmp_path / "sample-adopter")
 
     def fake_shadow(
@@ -122,6 +181,7 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
+    _checkout_work_lane(product)
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None

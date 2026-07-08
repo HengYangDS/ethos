@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.land as land_domain
+from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.repository.evidence.parity import build_tracked_parity_evidence
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
@@ -114,34 +116,51 @@ def parity_shadow(
         )
     required_gaps = list(report["required_gaps"])
     evidence_path = ""
+    write_admission: dict[str, object] = {}
     if write_evidence:
         if not execute:
             required_gaps.append("parity_evidence_write_requires_execute")
         elif report.get("ok") is not True:
             required_gaps.append(f"parity_evidence_write_blocked:{adopter_name}")
         else:
-            evidence = build_tracked_parity_evidence(
-                adopter=adopter_name,
-                target=target,
-                shadow=report,
-                current_product_head=git_adapter.current_tracked_head(repo),
-                current_target_head=git_adapter.current_tracked_head(target),
-                timeout_seconds=timeout_seconds,
+            evidence_target = repo / "evidence" / "parity" / f"{adopter_name}-shadow.json"
+            write_admission = prewrite_guard(
                 root=repo,
+                paths=[evidence_target],
+                editor_root=repo,
+                require_editor_root=True,
             )
-            written = write_tracked_parity_evidence(
-                root=repo,
-                adopter=adopter_name,
-                evidence=evidence,
-            )
-            evidence_path = written.relative_to(repo).as_posix()
-            report = {**report, "evidence_written": evidence_path}
+            if write_admission["ok"] is not True:
+                admission_gaps = cast("list[str]", write_admission["required_gaps"])
+                required_gaps.extend(admission_gaps)
+                report = {**report, "write_admission": write_admission}
+            else:
+                evidence = build_tracked_parity_evidence(
+                    adopter=adopter_name,
+                    target=target,
+                    shadow=report,
+                    current_product_head=git_adapter.current_tracked_head(repo),
+                    current_target_head=git_adapter.current_tracked_head(target),
+                    timeout_seconds=timeout_seconds,
+                    root=repo,
+                )
+                written = write_tracked_parity_evidence(
+                    root=repo,
+                    adopter=adopter_name,
+                    evidence=evidence,
+                )
+                evidence_path = written.relative_to(repo).as_posix()
+                report = {
+                    **report,
+                    "evidence_written": evidence_path,
+                    "write_admission": write_admission,
+                }
     result = EthosResult(
         command="parity shadow",
         ok=bool(report["ok"]) and not required_gaps,
-        state=str(report["state"]),
+        state="blocked" if write_evidence and required_gaps else str(report["state"]),
         required_gaps=tuple(required_gaps),
         next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
         data=report,
     )
-    emit(result, json_output=json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=write_evidence)

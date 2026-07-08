@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
-    "target_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
-    "product_semantic_sha256": "6aa70b48b55750c13a1a52a615f1e5155de12404c33b74479464cbd6f309428a",
-    "target_semantic_sha256": "6aa70b48b55750c13a1a52a615f1e5155de12404c33b74479464cbd6f309428a",
+    "product_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
+    "target_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
+    "product_semantic_sha256": "96a450ec3dd23967ae08750918047259d53d77a7eaf67b5dafab7451d3c28fa2",
+    "target_semantic_sha256": "96a450ec3dd23967ae08750918047259d53d77a7eaf67b5dafab7451d3c28fa2",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel",
-    "target_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
-    "product_head": "aec8bd2233cc1d5c15903d742c7011d45bf63710",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709",
+    "target_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
+    "product_head": "560b8a41f8a4ec1c660b45a3c7610f5845be9578",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json",
-      "/Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/orient-foreign-lane-owner-readmodel --json"
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/parity-write-admission-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "62e5e2f84f65806d6f77d389e3e289a8d76968d122994cec21f1d03d39f402c9"
+        "sha256": "d59fb279e4ec665c33605dfbf1cfce15e423fed3244e6730490be4e45207fc6f"
       },
       {
         "path": "evidence/claims",

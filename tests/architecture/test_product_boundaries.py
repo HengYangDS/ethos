@@ -8,6 +8,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from ethos.repository.policy.boundary.product import contributor_policy_report
+from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
 from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.contracts.package_ontology import package_ontology_report
@@ -140,22 +142,31 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
 
 
 def test_product_surfaces_are_author_and_adopter_neutral() -> None:
-    from ethos.repository.policy.boundary.product import product_boundary_report
-
     report = product_boundary_report(ROOT)
 
     assert report["ok"] is True, report["findings"]
 
 
 def test_workspace_contributor_policy_is_multi_actor() -> None:
-    from ethos.repository.policy.boundary.product import contributor_policy_report
-
     report = contributor_policy_report(ROOT)
 
     assert report["ok"] is True, report["findings"]
     summary = report["summary"]
+    policy = report["policy"]
+    assert summary["identity_mode"] == "external"
     assert summary["identity_count"] >= 2
     assert {"maintainer", "team", "bot"} <= set(summary["roles"])
+    assert policy["identity_model"] == "external_role_policy"
+    assert {
+        "git_author",
+        "git_committer",
+        "work_lane_actor",
+        "reviewer",
+        "maintainer",
+        "bot",
+        "team",
+        "adopter_side_owner",
+    } <= set(policy["distinct_identity_facts"])
 
 
 def test_product_release_metadata_has_no_person_attribution() -> None:
@@ -177,12 +188,35 @@ def test_product_release_metadata_has_no_person_attribution() -> None:
         assert "maintainers" not in project
 
 
-def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
-    from ethos.repository.policy.boundary.product import product_boundary_report
+def test_distribution_package_manifest_is_enterprise_neutral() -> None:
+    report = product_boundary_report(ROOT)
+    npm_manifest = json.loads((ROOT / "distributions/npm/package.json").read_text())
+    root_manifest = json.loads((ROOT / "package.json").read_text())
 
+    assert report["ok"] is True, report["findings"]
+    assert root_manifest["private"] is True
+    assert npm_manifest["files"] == ["bin/ethos.mjs", "README.md"]
+    assert "author" not in npm_manifest
+    assert "authors" not in npm_manifest
+    assert "maintainers" not in npm_manifest
+    assert "contributors" not in npm_manifest
+    assert "distribution_manifest_files" in report["policy"]
+    assert "historical evidence" in report["policy"]["distribution_boundary"]
+
+
+def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
     report = product_boundary_report(ROOT)
 
     assert report["ok"] is True, report["findings"]
+
+
+def test_active_product_surfaces_have_no_named_private_reference_dependency() -> None:
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+    assert report["summary"]["by_kind"].get("private_reference_literal", 0) == 0
+    assert "private_reference_boundary" in report["policy"]
+    assert not (ROOT / ".ethos" / "quality-regime-decision.md").exists()
 
 
 def test_current_product_surfaces_do_not_use_retired_self_terms() -> None:

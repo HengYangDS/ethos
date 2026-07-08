@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "a7d4229a6fd323dc9affa2e5ae1bafc02facb725",
-    "target_head": "a7d4229a6fd323dc9affa2e5ae1bafc02facb725",
-    "product_semantic_sha256": "e5f5fa6fa0dbac0042c01edf7785dc17f4fa111101560cda31d1464a966b9cd2",
-    "target_semantic_sha256": "e5f5fa6fa0dbac0042c01edf7785dc17f4fa111101560cda31d1464a966b9cd2",
+    "product_head": "7e43357979c0c6c696e1fe7ae266982895f45fdb",
+    "target_head": "7e43357979c0c6c696e1fe7ae266982895f45fdb",
+    "product_semantic_sha256": "0995dc0c95636b8b72b00c7bfade62887605c09560a1fb218910d680a0189849",
+    "target_semantic_sha256": "0995dc0c95636b8b72b00c7bfade62887605c09560a1fb218910d680a0189849",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package",
-    "target_head": "a7d4229a6fd323dc9affa2e5ae1bafc02facb725",
-    "product_head": "a7d4229a6fd323dc9affa2e5ae1bafc02facb725",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709",
+    "target_head": "7e43357979c0c6c696e1fe7ae266982895f45fdb",
+    "product_head": "7e43357979c0c6c696e1fe7ae266982895f45fdb",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json",
-      "/Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/domain-campaign-closeout-package --json"
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,27 +76,27 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "b24de7119dc67415f7f89cec261e3302636ca425e5f47911eeac46cb98a61766"
+        "sha256": "8de209adfbaf9b5ea7f7f1f03e251b90bf413c2f6c256c3444aa3a693f37fd4c"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "047abe082b97f133cced2447a039d4c3c92e990ddf2cd7096c911b0646588c97"
+        "sha256": "d376e970996d712681b94bf8c60f772d006e09c86ba3c5412739f1a0109a77ce"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "242c6a5ca78666ad442463bb62450028523935b0dacf1d0adb2dde8a159f36c8"
+        "sha256": "f9bc779684b709aa16bd0c0bd91ecd33addbbd179130e0bf17d60fc4dafdb29b"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "e4d146017950996245ce5a3c2704b646b4aef722db3589cfabd72e395a5b01f7"
+        "sha256": "bf51652486a598fc26e6a65a091e7b735cc8c2be80c91ddcd48be581f44976db"
       },
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "655f7a93e0c1beb8822658b18750463476fb72cca20a509ef39096c0476cf91e"
+        "sha256": "00859f1e314d9579d37644cbd8402ff582204aad97e77df6c4176887b89391b5"
       }
     ]
   },

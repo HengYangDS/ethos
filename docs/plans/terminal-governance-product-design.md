@@ -4,7 +4,7 @@ role: plan
 state: active
 relations:
   canonical_for: destructive terminal redesign target after user authorization
-  derives_from: product design conversation, ETHOS canonical docs, reference-adopter governance patterns, di-effect governance patterns
+  derives_from: product design conversation, ETHOS canonical docs, generic reference-adopter governance patterns, reusable mechanism patterns
 ---
 
 # Terminal Governance Product Design
@@ -234,9 +234,9 @@ path, then run repo-local guards that the official tool does not own:
 1. Live spec edits are scoped to the archived deltas.
 1. Existing scenarios, Markdown links, claim refs, and evidence refs survive.
 
-This absorbs the useful parts of `di-effect`: capability-local profiles,
+This absorbs reusable mechanism patterns: capability-local profiles,
 families, direct routing, reuse stance, dynamic facets, live-spec diff guards,
-and archive normalization. It also absorbs reference-adopter patterns: a single
+and archive normalization. It also keeps generic reference-adopter patterns: a single
 command plane, Work Lane aware lifecycle state,
 claim/proof binding, topic-scoped closeout evidence, and explicit boundaries
 that keep local proof from pretending to be hosted CI or publication.
@@ -244,9 +244,9 @@ that keep local proof from pretending to be hosted CI or publication.
 ## Final Design Productization Addendum
 
 The terminal design absorbs external repository lessons as mechanisms, not as
-foreign domain vocabulary. From `di-effect`, ETHOS keeps capability-local
-profiles, family vocabulary, dynamic routing facets, and direct capability
-routing. From reference-adopter governance, ETHOS keeps explicit agent invocation
+foreign domain vocabulary. ETHOS keeps capability-local profiles, family
+vocabulary, dynamic routing facets, and direct capability routing. Generic
+reference-adopter governance keeps explicit agent invocation
 admission, worktree-first coordination, claim/projection separation, and
 topic-scoped closeout evidence. These mechanisms are subordinate to ETHOS
 repository truth, Work Lane admission, and the public `ethos ...` command plane.
@@ -624,7 +624,7 @@ activate or treat it as closed.
 | `active_step` | The current lane that may mutate and prove. |
 | `next_planned_step` | The next lane that can activate after current closeout. |
 
-This absorbs the useful reference-adopter campaign pattern: long-running work is
+This absorbs the useful generic campaign pattern: long-running work is
 tracked as mission/campaign state with tasks, proof, challenge, and closeout
 projection. ETHOS keeps the durable state in tracked campaign manifests,
 OpenSpec records, claims, and evidence rather than a hidden local mission

@@ -123,7 +123,12 @@ def gate_registry() -> dict[str, Gate]:
             kind="governance",
             command=("tools/ci/scripts/run-product-boundary.sh",),
             asset_classes=("markdown-docs", "config", "tests", "release-artifacts"),
-            dimensions=("product-boundary", "identity", "adopter-neutrality"),
+            dimensions=(
+                "product-boundary",
+                "identity",
+                "adopter-neutrality",
+                "distribution-boundary",
+            ),
             execution_mode="adapter",
             evidence_class="contract",
             trust_bearing=True,

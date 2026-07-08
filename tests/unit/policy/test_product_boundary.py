@@ -81,8 +81,11 @@ def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_pat
         is False
     )
     cache_file = tmp_path / "packages" / "ethos" / "__pycache__" / "module.py"
+    nested_cache_file = tmp_path / "packages" / "ethos" / "src" / "__pycache__" / "skip.py"
     _write(cache_file, "cache\n")
+    _write(nested_cache_file, "private\n")
 
+    assert boundary._is_text_product_file(nested_cache_file, root=tmp_path) is False
     assert boundary._is_text_product_file(tmp_path / "README.bin", root=tmp_path) is False
     assert boundary._is_text_product_file(cache_file, root=tmp_path) is False
     assert (
@@ -116,16 +119,106 @@ def test_product_boundary_reports_package_metadata_person_attribution(tmp_path: 
         tmp_path / "packages" / "ethos" / "pyproject.toml",
         '[project]\nname = "ethos"\nversion = "0"\nauthors = [{name = "One Person"}]\n',
     )
+    _write(
+        tmp_path / "distributions" / "npm" / "package.json",
+        (
+            '{"name":"x","contributors":["One Person"],'
+            '"files":["bin/ethos.mjs","README.md"],'
+            '"bin":{"ethos":"bin/ethos.mjs"}}\n'
+        ),
+    )
 
     report = boundary.product_boundary_report(tmp_path)
 
     gaps = "\n".join(report["required_gaps"])
     assert "single_author_metadata" in gaps
     assert "person_attribution_metadata" in gaps
+    assert any(finding["detail"] == "contributors" for finding in report["findings"])
     assert report["summary"]["by_kind"] == {
         "single_author_metadata": 1,
-        "person_attribution_metadata": 1,
+        "person_attribution_metadata": 2,
     }
+
+
+def test_product_boundary_reports_distribution_manifest_scope_leaks(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "package.json",
+        '{"name":"workspace","workspaces":["distributions/npm"]}\n',
+    )
+    _write(
+        tmp_path / "distributions" / "npm" / "package.json",
+        (
+            '{"name":"@example/ethos",'
+            '"files":["bin/ethos.mjs","README.md","evidence/private.json","tests/",'
+            '"lib/index.js"]}\n'
+        ),
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    gaps = "\n".join(report["required_gaps"])
+    assert "root_workspace_package_publishable" in gaps
+    assert "distribution_file_scope_leak" in gaps
+    assert report["summary"]["by_kind"] == {
+        "root_workspace_package_publishable": 1,
+        "distribution_bin_missing": 1,
+        "distribution_file_scope_leak": 3,
+    }
+
+
+def test_product_boundary_accepts_neutral_distribution_manifest(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "package.json",
+        '{"name":"workspace","private":true,"workspaces":["distributions/npm"]}\n',
+    )
+    _write(
+        tmp_path / "distributions" / "npm" / "package.json",
+        (
+            '{"name":"@example/ethos",'
+            '"files":["bin/ethos.mjs","README.md"],'
+            '"bin":{"ethos":"bin/ethos.mjs"}}\n'
+        ),
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["policy"]["distribution_manifest_files"]
+    assert "distribution packages stay neutral" in report["policy"]["boundary"]
+
+
+def test_distribution_manifest_helpers_ignore_malformed_payloads(tmp_path: Path) -> None:
+    manifest = tmp_path / "distributions" / "npm" / "package.json"
+    _write(manifest, "{")
+
+    assert (
+        boundary._npm_distribution_manifest_findings(manifest, "distributions/npm/package.json")
+        == []
+    )
+
+    _write(manifest, '["not", "object"]')
+    assert (
+        boundary._npm_distribution_manifest_findings(manifest, "distributions/npm/package.json")
+        == []
+    )
+
+
+def test_distribution_manifest_requires_explicit_file_allowlist(tmp_path: Path) -> None:
+    manifest = tmp_path / "distributions" / "npm" / "package.json"
+    _write(manifest, '{"name":"@example/ethos","bin":{"ethos":"bin/ethos.mjs"}}\n')
+
+    findings = boundary._npm_distribution_manifest_findings(
+        manifest, "distributions/npm/package.json"
+    )
+
+    assert [finding.to_dict() for finding in findings] == [
+        {
+            "path": "distributions/npm/package.json",
+            "line": 1,
+            "kind": "distribution_files_allowlist_missing",
+            "detail": "files must be explicit",
+        }
+    ]
 
 
 def test_product_boundary_reports_session_authority_literals(tmp_path: Path) -> None:
@@ -150,6 +243,46 @@ def test_product_boundary_reports_session_authority_literals(tmp_path: Path) -> 
     ]
 
 
+def test_product_boundary_reports_named_external_reference_as_active_leak(
+    tmp_path: Path,
+) -> None:
+    roadmap = (
+        "This compares the acme-lab reference repository with ETHOS.\n"
+        "Compared with `acme-lab`, ETHOS keeps only generic mechanisms.\n"
+        "This rule was adopted from acme-lab module-layout study.\n"
+        "The acme-lab mechanism comparison snapshot should not be active truth.\n"
+        "The matrix says acme-lab has broad helper commands.\n"
+        "The beta-suite reference checkout is a mechanism source.\n"
+        "The current alpha / beta-suite / ETHOS mechanism comparison is active.\n"
+        "Future changes can see which alpha and beta-suite mechanisms were absorbed.\n"
+        "| alpha | `alpha reference checkout` | mechanism source |\n"
+        "| Mechanism family | alpha has | ETHOS has now |\n"
+    )
+    _write(tmp_path / "docs" / "plans" / "roadmap.md", roadmap)
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["summary"]["by_kind"] == {"private_reference_literal": 11}
+    assert {finding["kind"] for finding in report["findings"]} == {"private_reference_literal"}
+    assert {finding["line"] for finding in report["findings"]} >= {1, 2, 3, 4, 6, 7, 8, 9, 10}
+
+
+def test_product_boundary_allows_generic_reference_adopter_language(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path / "docs" / "plans" / "roadmap.md",
+        "Generic reference-adopter governance patterns may remain profile fixtures.\n",
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["findings"] == []
+    assert "private_reference_boundary" in report["policy"]
+
+
 def test_contributor_policy_reports_clean_multi_actor_policy(tmp_path: Path) -> None:
     _workspace(
         tmp_path,
@@ -170,6 +303,9 @@ def test_contributor_policy_reports_clean_multi_actor_policy(tmp_path: Path) -> 
     assert report["ok"] is True
     assert report["state"] == "clean"
     assert report["summary"]["roles"] == ["service", "team"]
+    assert report["policy"]["identity_model"] == "external_role_policy"
+    assert "git_author" in report["policy"]["distinct_identity_facts"]
+    assert "adopter_side_owner" in report["policy"]["distinct_identity_facts"]
     assert report["policy"]["allowed_roles"] == sorted(boundary.ALLOWED_IDENTITY_ROLES)
 
 
@@ -210,6 +346,7 @@ def test_contributor_policy_reports_role_and_identity_gaps(tmp_path: Path) -> No
     report = boundary.contributor_policy_report(tmp_path)
 
     gaps = "\n".join(report["required_gaps"])
+    assert "identity_mode_not_external" in gaps
     assert "maintainer_or_team_missing" in gaps
     assert "automation_identity_missing" in gaps
     assert "identity_role_unknown" in gaps

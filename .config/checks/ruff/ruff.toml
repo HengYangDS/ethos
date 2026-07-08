@@ -16,7 +16,7 @@ skip-magic-trailing-comma = false
 docstring-code-format = true
 
 [lint]
-# Maximalist rule set toward di-effect's 57-family posture: raise the quality
+# Broad rule set: raise the quality
 # floor and make low-quality code unrepresentable. Correctness + determinism + elegance +
 # security + exception hygiene + boolean-trap + private-access + logging.
 select = [
@@ -90,7 +90,7 @@ ignore = [
 
 [lint.mccabe]
 # Cyclomatic complexity cap — no function may branch beyond this (borrowed from
-# di-effect's max-complexity=10). Forces decomposition of tangled logic.
+# the configured product complexity ceiling). Forces decomposition of tangled logic.
 max-complexity = 10
 
 [lint.isort]

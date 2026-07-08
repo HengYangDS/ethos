@@ -7,7 +7,7 @@ must be able to tell, from name and place alone, what a symbol is for and whethe
 it may be depended upon.
 
 Derived from the parsimony axiom in `system/axioms.md` and the
-di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
+general module-layout boundary study and `system/axioms.md`.
 
 ---
 
@@ -19,7 +19,7 @@ di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
   group them into sub-packages by MEANING, not by a shared name suffix.
 - **Flat-directory limit**: no more than **8** governed `*.py` modules at one
   directory level (excluding `__init__.py`). Beyond that, introduce semantic
-  sub-packages. (Borrowed from di-effect's flat_directories trigger.)
+  sub-packages. (A generic flat-directory trigger: a wide directory is usually hiding a missing sub-package.)
 - **Flat-growth limit**: an already-populated directory is not a dumping ground.
   Adding a governed module to a directory that already has **5** direct modules
   is blocked; adding more than **2** direct modules to the same existing

@@ -1,0 +1,78 @@
+[claim]
+id = "enterprise-product-boundary-20260709"
+subject = "ethos:enterprise-product-boundary"
+state = "active"
+summary = "ETHOS product-boundary governance covers enterprise-neutral distribution scope, active planning surfaces, and external role-based contributor identity."
+
+[evidence]
+dated = "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md"
+sha256 = "3ac57408941f7d32b6ee7604a90d0686abbf454e5dd9763d23fff1f9c61b8151"
+evidence_ids = ["evidence:enterprise-product-boundary-20260709"]
+binding = "enterprise product boundary, active private-reference boundary, distribution manifest scope, and contributor identity policy"
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py tests/unit/cli/test_quality_boundary.py tests/unit/governance/validation/test_gates.py tests/architecture/test_product_boundaries.py tests/unit/kernel/test_skill_activation.py -q",
+  "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py --cov-config=.config/checks/coverage/coverage.ini --cov=ethos.repository.policy.boundary.product --cov-report=term-missing --cov-fail-under=100 -q",
+  "tools/ci/scripts/run-product-boundary.sh",
+  "uv run --package ethos ethos openspec --lifecycle --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+  "uv run --package ethos ethos plan --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+  "uv run --package ethos ethos quality product-boundary --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+  "uv run --package ethos ethos quality contributor-policy --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/policy/test_product_boundary.py",
+  "tests/unit/cli/test_quality_boundary.py",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/unit/kernel/test_skill_activation.py",
+]
+docs = [
+  "docs/governance/product-design-contract.md",
+  "docs/architecture/distribution.md",
+  "docs/plans/tooling-adoption-roadmap.md",
+  "docs/reference/mechanism-comparison-audit.md",
+  "docs/reference/README.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "rules/module_layout.md",
+  ".ethos/rules.toml",
+  ".config/checks/ruff/ruff.toml",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/distribution/spec.md",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Enterprise-neutral active product surfaces, planning surfaces, contributor policy, release metadata, and distribution manifests"
+
+[carriers]
+openspec = "openspec/specs/quality/spec.md"
+
+fallback = "Block product-boundary closeout when active product, planning, rule, configuration, or distribution surfaces require a personal author, workstation path, named private reference repository, personal work history, or adopter-private default."
+kill_signal = "A published package or active product surface ships person attribution, private paths, named private reference repositories, personal work history, adopter-private records, tests, historical evidence, or local state as product defaults."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/policy/boundary/product.py",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "tests/unit/policy/test_product_boundary.py",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/unit/kernel/test_skill_activation.py",
+  "docs/governance/product-design-contract.md",
+  "docs/architecture/distribution.md",
+  "docs/plans/tooling-adoption-roadmap.md",
+  "docs/plans/terminal-governance-product-design.md",
+  "rules/module_layout.md",
+  ".ethos/rules.toml",
+  ".config/checks/ruff/ruff.toml",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/distribution/spec.md",
+  "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md",
+  "evidence/claims/enterprise-product-boundary-20260709.toml",
+  "evidence/parity/generic-shadow.json",
+  "docs/reference/README.md",
+  "docs/reference/mechanism-comparison-audit.md",
+]

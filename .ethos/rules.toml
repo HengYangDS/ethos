@@ -32,8 +32,7 @@ generated_outputs_tracked_truth = false
 
 [quality.code_size]
 # Role-based effective-LOC limits (AST-computed, excluding blanks/comments/
-# docstrings). Adopted from the di-effect module_layout study (see
-# .ethos/quality-regime-decision.md §3.1): a flat "every file <=400" rule is crude
+# docstrings). Adopted from ETHOS module-layout policy and system axioms: a flat "every file <=400" rule is crude
 # — it forces a command aggregator and a logic module to the same bar. Instead,
 # one limit per role, calibrated to the repo's actual effective-LOC distribution
 # (each limit sits near the role's p90–p95 so the genuine tail must split while

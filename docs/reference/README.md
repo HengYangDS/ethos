@@ -21,4 +21,6 @@ source, tests, state-marked canonical docs, and evidence.
 
 ## Mechanism References
 
-- [Mechanism Comparison Audit](mechanism-comparison-audit.md) records the current dmgr / di-effect / ETHOS mechanism comparison behind the tooling adoption roadmap.
+- [Mechanism Comparison Audit](mechanism-comparison-audit.md) records the
+  reusable mechanism-family assessment behind the tooling adoption roadmap
+  without making any named external repository product authority.

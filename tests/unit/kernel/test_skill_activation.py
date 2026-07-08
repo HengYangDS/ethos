@@ -48,14 +48,14 @@ def test_normalizes_activation_contract_without_compatibility_surface() -> None:
     assert "legacy" not in record
 
 
-def test_normalizes_di_effect_v2_style_activation_contract() -> None:
+def test_normalizes_external_v2_style_activation_contract() -> None:
     payload = {
         "meta": {"version": 2, "owner": "architecture-committee"},
         "coverage": {"required_roots": ["docs", "packages"]},
         "retired": {"skill_names": ["old-skill"]},
         "skill": [
             {
-                "id": "di-effect-openspec-governance",
+                "id": "external-openspec-governance",
                 "priority": 30,
                 "subject": "openspec-governance",
                 "operation": "govern",
@@ -81,7 +81,7 @@ def test_normalizes_di_effect_v2_style_activation_contract() -> None:
     record = registry["records"][0]
     assert registry["coverage"]["required_roots"] == ["docs", "packages"]
     assert registry["retired"]["skill_names"] == ["old-skill"]
-    assert record["id"] == "di-effect-openspec-governance"
+    assert record["id"] == "external-openspec-governance"
     assert record["primary_subject"] == "openspec-governance"
     assert record["operation"] == "govern"
     assert record["authority"] == "primary"

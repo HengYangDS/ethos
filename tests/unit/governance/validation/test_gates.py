@@ -193,6 +193,7 @@ def test_gate_registry_includes_product_boundary_gate() -> None:
     assert gate.trust_bearing is True
     assert "product-boundary" in gate.dimensions
     assert "identity" in gate.dimensions
+    assert "distribution-boundary" in gate.dimensions
     assert "product-boundary" in [node.id for node in gate_graph().nodes]
 
 

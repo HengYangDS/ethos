@@ -27,6 +27,18 @@ unless they are Python packages themselves.
 - **THEN** uv workspace members list the Python packages explicitly
 - **AND** package-manager metadata does not break Python builds
 
+### Requirement: Published Distribution Boundary
+Distribution manifests SHALL publish only neutral launcher assets and SHALL NOT
+ship historical evidence, host-local state, tests, adopter-private records, or
+person attribution metadata as product defaults.
+
+#### Scenario: npm package scope is allowlisted
+- **WHEN** `ethos quality product-boundary --json` audits distribution manifests
+- **THEN** the root workspace package is non-publishable
+- **AND** the npm distribution manifest declares an explicit `files` allowlist
+- **AND** that allowlist is limited to launcher assets and neutral package docs
+- **AND** author, authors, maintainers, and contributors metadata are absent
+
 ### Requirement: Distribution Adapter Outside Python Packages
 ETHOS SHALL keep npm launcher metadata under `distributions/npm` and outside
 the Python package workspace.

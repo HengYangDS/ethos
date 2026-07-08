@@ -30,6 +30,17 @@ The distribution boundary is:
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one
 ETHOS command plane.
 
+Published package scope is intentionally narrower than repository history.
+Distribution manifests must use explicit allowlists for neutral launcher assets
+and package documentation. They must not publish historical evidence, archived
+change records, ignored local state, tests, adopter-private records, workstation
+paths, or person attribution metadata as product defaults. Contributor identity
+for enterprises is declared through repository role policy and review evidence,
+not through a single built-in package author.
+The same active-surface boundary applies to product plans and rule comments:
+they may cite generic reference-adopter fixtures and mechanism classes, but not
+named private repositories or personal work history as product authority.
+
 Status: see front matter.
 
 Purpose: explain the repository truth represented by this ETHOS document.

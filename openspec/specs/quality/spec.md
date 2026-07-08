@@ -223,6 +223,12 @@ policy organization-native rather than person-native or adopter-private.
   local workstation paths, private infrastructure URLs, adopter-specific
   literals, generic lifecycle bucket phrases, session-authority phrases, and
   person attribution fields in release/package metadata
+- **AND** active product plans, rules, and configuration comments reject named
+  private repository references as product authority while allowing generic
+  reference-adopter and mechanism-class language
+- **AND** distribution manifests explicitly allowlist neutral launcher assets
+  and reject historical evidence, local state, tests, adopter-private records,
+  private paths, and person attribution metadata from published package scope
 - **AND** ignored host-local state under `.ethos/state/**` is not scanned as an
   active product surface
 - **AND** historical evidence and archived change records may retain factual
@@ -235,6 +241,8 @@ policy organization-native rather than person-native or adopter-private.
   and contributor-policy findings
 - **AND** single built-in author policy is rejected for active product
   governance
+- **AND** product repositories use external role policy rather than a built-in
+  author, personal allowlist, or local workstation identity
 - **AND** the configured policy includes at least one maintainer or team role
   and at least one bot or service role
 - **AND** Git author, Git committer, Work Lane actor, reviewer, maintainer,
@@ -276,4 +284,3 @@ policy, and archive validation before the tool is installed.
 - **AND** the installer downloads through the shared CI artifact helper
 - **AND** the artifact is cached under `build/cache/ci-tools/`
 - **AND** the installer validates the cached archive before reuse
-

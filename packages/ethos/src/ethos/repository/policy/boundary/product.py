@@ -106,6 +106,47 @@ ADOPTER_LITERAL_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+_EXTERNAL_REFERENCE_SLUG = (
+    r"(?!ETHOS\b|OpenSpec\b|GitHub\b|GitLab\b|Superpowers\b|Backlog\b|"
+    r"reference-adopter\b|sample-adopter\b)"
+    r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+"
+)
+_EXTERNAL_REFERENCE_NAME = (
+    r"(?!ETHOS\b|OpenSpec\b|GitHub\b|GitLab\b|Superpowers\b|Backlog\b|MCP\b|"
+    r"reference-adopter\b|sample-adopter\b|generic\b|reusable\b|external\b|"
+    r"private\b|named\b|product\b|repository\b|reference\b|mechanism\b|"
+    r"mechanisms\b|tooling\b|provider\b|providers\b|environment\b|task\b|"
+    r"release\b|architecture\b|security\b|quality\b|format\b|docs\b|domain\b|"
+    r"local\b|hosted\b|agent\b|adopter\b|adopters\b)"
+    r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*"
+)
+_PRIVATE_REFERENCE_PATTERN_TEXTS = (
+    # Active product surfaces may discuss generic reference adopters, profiles,
+    # providers, and mechanism classes. They must not turn a named private
+    # repository or personal work history into product roadmap, policy, or
+    # authority. These patterns intentionally describe the *shape* of the leak
+    # instead of hardcoding any private adopter name into the product.
+    rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+reference repository\b",
+    rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+"
+    rf"(?:quality|module-layout|governance|repository|mechanism|policy)\s+"
+    rf"(?:study|corpus|patterns?|comparison|matrix)\b",
+    rf"\b(?:compared with|comparison with|borrowed from|adopted from|relative to)"
+    rf"\s+`?{_EXTERNAL_REFERENCE_SLUG}`?(?:'s)?\b",
+    rf"\b(?:from|toward)\s+`{_EXTERNAL_REFERENCE_SLUG}`(?:'s)?\b",
+    rf"\bcurrent\s+{_EXTERNAL_REFERENCE_NAME}\s*(?:[,/]\s*"
+    rf"{_EXTERNAL_REFERENCE_NAME}\s*)*(?:,?\s*and\s+ETHOS|\s*/\s*ETHOS)"
+    rf"\s+mechanism comparison\b",
+    rf"\bwhich\s+{_EXTERNAL_REFERENCE_NAME}(?:\s+and\s+"
+    rf"{_EXTERNAL_REFERENCE_NAME})?\s+mechanisms?\s+were\b",
+    rf"\|\s*`?{_EXTERNAL_REFERENCE_NAME}`?\s*\|\s*`?"
+    rf"{_EXTERNAL_REFERENCE_NAME}\s+reference checkout`?\s*\|",
+    rf"\b{_EXTERNAL_REFERENCE_NAME}\s+reference checkout\b.{{0,80}}"
+    rf"\b(?:mechanism source|tooling source|reference adopter|reference product)\b",
+    rf"\|\s*Mechanism family\s*\|\s*{_EXTERNAL_REFERENCE_NAME}\s+has\s*\|",
+)
+PRIVATE_REFERENCE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE) for pattern in _PRIVATE_REFERENCE_PATTERN_TEXTS
+)
 _CURRENT_TOKEN = "cur" + "rent"
 _DEFERRED_TOKEN = "fu" + "ture"
 _CHAT_TOKEN = "cha" + "t"
@@ -131,8 +172,39 @@ PACKAGE_METADATA_FILES = (
     "packages/ethos/pyproject.toml",
     "packages/ethos-core/pyproject.toml",
 )
+DISTRIBUTION_MANIFEST_FILES = (
+    "package.json",
+    "distributions/npm/package.json",
+    "packages/ethos/pyproject.toml",
+    "packages/ethos-core/pyproject.toml",
+)
+DISTRIBUTION_ALLOWED_FILE_ENTRIES = {
+    "README.md",
+    "LICENSE",
+    "package.json",
+}
+DISTRIBUTION_ALLOWED_FILE_PREFIXES = ("bin/",)
+DISTRIBUTION_FORBIDDEN_FILE_PREFIXES = (
+    ".ethos/",
+    ".git",
+    "build/",
+    "docs/history/",
+    "evidence/",
+    "openspec/changes/archive/",
+    "tests/",
+)
 GENERIC_PLACEHOLDERS = {"", "<your-name-or-team>", "<your-approved-email>"}
 ALLOWED_IDENTITY_ROLES = {"maintainer", "reviewer", "contributor", "team", "bot", "service"}
+DISTINCT_IDENTITY_FACTS = (
+    "git_author",
+    "git_committer",
+    "work_lane_actor",
+    "reviewer",
+    "maintainer",
+    "bot",
+    "team",
+    "adopter_side_owner",
+)
 
 
 @dataclass(frozen=True)
@@ -213,7 +285,7 @@ def _json_package_metadata_findings(path: Path, rel: str) -> list[Finding]:
     )
     findings.extend(
         Finding(rel, 1, "person_attribution_metadata", key)
-        for key in ("authors", "maintainers")
+        for key in ("authors", "maintainers", "contributors")
         if payload.get(key)
     )
     return findings
@@ -235,6 +307,59 @@ def _toml_package_metadata_findings(path: Path, rel: str) -> list[Finding]:
     return findings
 
 
+def _normalized_distribution_file_entries(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [str(entry).removeprefix("./") for entry in raw if isinstance(entry, str)]
+
+
+def _npm_distribution_manifest_findings(path: Path, rel: str) -> list[Finding]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, dict):
+        return []
+
+    findings: list[Finding] = []
+    if rel == "package.json" and payload.get("workspaces") and payload.get("private") is not True:
+        findings.append(
+            Finding(rel, 1, "root_workspace_package_publishable", "private must be true")
+        )
+
+    if rel != "distributions/npm/package.json":
+        return findings
+
+    files = _normalized_distribution_file_entries(payload.get("files"))
+    if not files:
+        findings.append(
+            Finding(rel, 1, "distribution_files_allowlist_missing", "files must be explicit")
+        )
+        return findings
+
+    bin_payload = payload.get("bin")
+    if not isinstance(bin_payload, dict) or not bin_payload.get("ethos"):
+        findings.append(Finding(rel, 1, "distribution_bin_missing", "bin.ethos"))
+
+    for entry in files:
+        allowed = entry in DISTRIBUTION_ALLOWED_FILE_ENTRIES or entry.startswith(
+            DISTRIBUTION_ALLOWED_FILE_PREFIXES
+        )
+        forbidden = entry.startswith(DISTRIBUTION_FORBIDDEN_FILE_PREFIXES)
+        if forbidden or not allowed:
+            findings.append(Finding(rel, 1, "distribution_file_scope_leak", entry))
+    return findings
+
+
+def _distribution_manifest_findings(root: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    for rel in DISTRIBUTION_MANIFEST_FILES:
+        path = root / rel
+        if path.exists() and path.suffix == ".json":
+            findings.extend(_npm_distribution_manifest_findings(path, rel))
+    return findings
+
+
 def product_boundary_report(root: Path) -> dict[str, object]:
     """Report product-surface leaks of personal, local, adopter, or phase terms."""
     patterns: list[tuple[str, re.Pattern[str]]] = []
@@ -244,6 +369,9 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         ("private_infrastructure_literal", pattern) for pattern in PRIVATE_INFRA_PATTERNS
     )
     patterns.extend(("adopter_specific_literal", pattern) for pattern in ADOPTER_LITERAL_PATTERNS)
+    patterns.extend(
+        ("private_reference_literal", pattern) for pattern in PRIVATE_REFERENCE_PATTERNS
+    )
     patterns.extend(("generic_current_future_phase", pattern) for pattern in PHASE_PATTERNS)
     patterns.extend(("session_authority_literal", pattern) for pattern in SESSION_SURFACE_PATTERNS)
 
@@ -253,6 +381,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         rel = path.relative_to(root).as_posix()
         findings.extend(_line_findings(path, rel, patterns))
     findings.extend(_metadata_findings(root))
+    findings.extend(_distribution_manifest_findings(root))
 
     by_kind: dict[str, int] = {}
     for finding in findings:
@@ -272,9 +401,20 @@ def product_boundary_report(root: Path) -> dict[str, object]:
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
             "local_state_surface_prefixes": [".ethos/state/"],
             "package_metadata_files": list(PACKAGE_METADATA_FILES),
+            "distribution_manifest_files": list(DISTRIBUTION_MANIFEST_FILES),
+            "distribution_boundary": (
+                "published package manifests must allowlist only neutral launcher "
+                "assets and must not ship historical evidence, adopter-private "
+                "records, local state, tests, or person attribution metadata"
+            ),
+            "private_reference_boundary": (
+                "active product surfaces may describe generic reference adopters "
+                "and mechanism classes, but must not depend on named private "
+                "repositories or personal work history"
+            ),
             "boundary": (
-                "historical evidence may name facts; active product surfaces "
-                "and release metadata stay neutral"
+                "historical evidence may name facts; active product surfaces, "
+                "release metadata, and distribution packages stay neutral"
             ),
         },
     }
@@ -326,8 +466,10 @@ def _policy_shape_findings(
     ]
 
     identity_mode = str(raw.get("identity_mode", ""))
-    if identity_mode not in {"allowlist", "presence", "external"}:
+    if not identity_mode:
         findings.append(Finding(policy_path, 1, "identity_mode_missing", identity_mode))
+    elif identity_mode != "external":
+        findings.append(Finding(policy_path, 1, "identity_mode_not_external", identity_mode))
     if not entries:
         findings.append(
             Finding(policy_path, 1, "allowed_identities_missing", "no identities declared")
@@ -393,6 +535,8 @@ def contributor_policy_report(root: Path) -> dict[str, object]:
         "findings": [finding.to_dict() for finding in findings],
         "policy": {
             "principle": "Git author / committer != Work Lane actor != governance authority",
+            "identity_model": "external_role_policy",
+            "distinct_identity_facts": list(DISTINCT_IDENTITY_FACTS),
             "allowed_roles": sorted(ALLOWED_IDENTITY_ROLES),
         },
     }

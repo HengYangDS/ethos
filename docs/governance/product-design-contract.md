@@ -149,6 +149,20 @@ distinct identity facts. Authority comes from configured roles, lane ownership,
 claims, evidence, handoff, and break-glass policy; it must not depend on a
 single built-in personal name, email address, workstation path, or domain
 repository.
+The product default is therefore an external role policy: enterprises declare
+the maintainer, team, reviewer, bot, service, and adopter-side owner identities
+they trust. Package metadata, active docs, tests, command defaults, and release
+assets must not present any individual contributor as product authority.
+Active product plans, rules, and configuration comments may describe generic
+reference adopters and reusable mechanism classes, but they must not depend on
+named private repositories, personal work history, or private domain products
+as product authority.
+
+Published distribution packages are part of the same boundary. They may ship
+neutral launcher assets and package documentation, but they must not package
+historical evidence, archived change records, host-local state, tests,
+adopter-private records, local paths, or person attribution metadata as product
+defaults.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,

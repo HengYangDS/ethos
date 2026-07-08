@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
-    "target_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
+    "product_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
+    "target_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
     "product_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
     "target_semantic_sha256": "88266f46582956a53a952d703bf9c3917ba55834042e357075427ba67d172212",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/authority-residue-zero",
-    "target_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
-    "product_head": "32a4e520df3a7dda715c8a8e27bfdeddfe4d02bf",
+    "target_root": "/Users/yheng/projects/ethos-work-testfile-decomp",
+    "target_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
+    "product_head": "d52002af1ef58bdf2d727c92da509240b1d7e1e7",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json",
-      "/Users/yheng/projects/ethos-worktrees/authority-residue-zero/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/authority-residue-zero --json"
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-testfile-decomp --json",
+      "/Users/yheng/projects/ethos-work-testfile-decomp/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-testfile-decomp --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "230a795e16bff6889394a56ef0a49a231ceb36e6d0177b9930f71f36d65096e1"
+        "sha256": "5ab8f1279c045a46d9d83dd7615a64e26770726fda71b6c9e21dfa5206fabe2c"
       },
       {
         "path": "evidence/claims",

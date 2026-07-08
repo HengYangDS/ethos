@@ -36,7 +36,7 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | Boundary | Owns the common docs kernel and decision-record surface; does not make lifecycle state a physical documentation root. |
 | Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, weaker than ETHOS' authority, evidence, decision, reference, and history boundaries. |
 | Decision | Remove `current` and `future` from the required physical docs kernel and reject them as documentation `state` values. Prove present repository truth through HEAD-bound proof and preserve unlanded intent in OpenSpec changes, plans, research, or decision revisit triggers. |
-| Consequences | `ethos adopt` scaffolds the minimal semantic kernel; `ethos quality docs-topology --json` audits it; product or adopter docs may add domain roots without turning state labels into truth lanes. |
+| Consequences | `ethos adopt` scaffolds the minimal semantic kernel; `ethos quality docs-topology --json` audits it; product or adopter docs may add domain roots without turning state labels into truth lanes or making product extension roots mandatory for adopters. |
 | Proof or Evidence | `ethos quality docs-topology --json`, focused docs topology tests, scaffold tests, and HEAD-bound proof gate execution. |
 | Revisit Trigger | Reopen only if a governed repository needs a new minimal semantic root to preserve clarity without turning lifecycle state into a directory. |
 
@@ -54,6 +54,11 @@ ETHOS product extension roots include `docs/architecture/`, `docs/concepts/`,
 `docs/governance/`, `docs/plans/`, `docs/research/`, and `docs/start/`.
 Adopter repositories may add their own domain roots without weakening the
 common kernel.
+
+This is a semantic-isomorphism decision, not a physical clone rule. Every
+governed repository must preserve the recovery lanes for decisions, evidence,
+reference vocabulary, and history; it need not reproduce ETHOS product
+extension roots unless its own taxonomy declares equivalent domain needs.
 
 `current` and `future` are forbidden as documentation `state` values and
 forbidden as physical docs roots. They may appear only as ordinary prose when

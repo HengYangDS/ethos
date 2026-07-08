@@ -30,7 +30,7 @@ file as source, local state, generated output, or curated evidence.
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
 | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
-| `docs/architecture/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/history/`, `docs/decisions/` | Semantic docs truth; state is front matter, not generated output. | No | Yes, after review |
+| `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
 
 Package metadata and lock files such as `package.json`, `package-lock.json`,
@@ -66,4 +66,8 @@ has already been reviewed and promoted.
 ETHOS uses `docs/decisions/` for durable rulings and the shared docs kernel
 defined in [Documentation Topology](docs-topology.md), so governed repositories
 preserve decisions, evidence, reference vocabulary, and history without turning
-product extension roots into mandatory truth lanes.
+product extension roots into mandatory truth lanes. ETHOS product extension
+roots such as `docs/architecture/`, `docs/concepts/`, `docs/governance/`,
+`docs/plans/`, `docs/research/`, and `docs/start/` remain semantic docs truth
+homes; they are not generated-output homes and they are not required physical
+lanes for every adopter.

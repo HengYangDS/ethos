@@ -49,9 +49,15 @@ def test_docs_topology_contract_declares_common_kernel() -> None:
     assert set(contract["forbidden_roots"]) == {"docs/current", "docs/future"}
     lanes = {entry["lane"] for entry in contract["canonical_lanes"]}
     assert {"decisions", "evidence", "reference", "history"} == lanes
-    assert {"docs/architecture", "docs/governance", "docs/plans", "docs/start"} <= set(
-        contract["product_extension_roots"]
-    )
+    assert {
+        "docs/_meta",
+        "docs/architecture",
+        "docs/concepts",
+        "docs/governance",
+        "docs/plans",
+        "docs/research",
+        "docs/start",
+    } <= set(contract["product_extension_roots"])
 
 
 def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
@@ -66,6 +72,22 @@ def test_docs_topology_required_paths_are_repository_form_invariant() -> None:
     assert {"single-repository", "monorepo", "multi-repository"} <= set(
         contract["supported_repository_forms"]
     )
+
+
+def test_docs_topology_product_extension_roots_are_not_required_kernel() -> None:
+    contract = docs_topology_contract()
+    required = {item["path"] for item in contract["required_paths"]}
+    extensions = set(contract["product_extension_roots"])
+
+    assert {
+        "docs/architecture",
+        "docs/concepts",
+        "docs/governance",
+        "docs/plans",
+        "docs/research",
+        "docs/start",
+    } <= extensions
+    assert not any(path.startswith(tuple(f"{root}/" for root in extensions)) for path in required)
 
 
 def test_docs_topology_path_helpers_normalize_and_classify_extensions() -> None:

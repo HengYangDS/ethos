@@ -83,10 +83,24 @@ def test_documentation_topology_docs_bind_common_kernel() -> None:
         assert "forbid" in text.lower() or "forbidden" in text.lower()
         assert "ethos quality docs-topology --json" in text
 
-    for optional_root in ("docs/start", "docs/governance", "docs/plans"):
+    for optional_root in (
+        "docs/architecture",
+        "docs/concepts",
+        "docs/governance",
+        "docs/plans",
+        "docs/research",
+        "docs/start",
+    ):
         assert optional_root in decision
         required_section = topology.split("Required paths:", 1)[1].split("Forbidden roots:", 1)[0]
         assert optional_root not in required_section
+
+    generated_topology = (ROOT / "docs/architecture/generated-artifact-topology.md").read_text(
+        encoding="utf-8"
+    )
+    for semantic_root in ("docs/concepts/", "docs/research/"):
+        assert semantic_root in generated_topology
+    assert "not generated-output homes" in generated_topology
 
     assert "Status: superseded" in superseded
     assert "DR-0004" in (ROOT / "docs/decisions/decision-index.md").read_text(encoding="utf-8")

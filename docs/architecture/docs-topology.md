@@ -31,6 +31,11 @@ state is declared with the explicit state vocabulary and backed by HEAD-bound
 evidence. `current` and `future` are not valid documentation state values and
 must not be encoded as docs roots.
 
+The contract is about semantic isomorphism, not physical uniformity. Governed
+repositories share the same decision/evidence/reference/history recovery
+kernel, while product or domain roots remain extensions owned by the repository
+that declares them.
+
 Required paths:
 
 | Path | Boundary |
@@ -62,6 +67,8 @@ product extension roots. ETHOS product roots such as `docs/architecture/`,
 `docs/concepts/`, `docs/governance/`, `docs/plans/`, `docs/research/`, and
 `docs/start/` may exist as product extensions; adopter repositories may add
 domain-specific subtrees. The common minimal semantic kernel remains stable.
+Extension roots do not become mandatory adoption requirements merely because
+the ETHOS product repository uses them.
 
 ## Audit
 

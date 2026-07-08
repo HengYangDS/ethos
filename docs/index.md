@@ -73,7 +73,7 @@ or maintainer break-glass evidence.
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
-- Current package migration state: [Product Ontology](architecture/product-ontology.md)
+- Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)

@@ -21,7 +21,7 @@ vendor-specific assistant root canonical.
 - Repo-local skills: [Skills](.agents/skills/README.md)
 - Skill activation policy: [Skill Activation](.agents/skills/activation.toml)
 - OpenSpec workspace: [OpenSpec](openspec/)
-- Current docs index: [Documentation Index](docs/index.md)
+- Documentation index: [Documentation Index](docs/index.md)
 
 ## Authority Order
 

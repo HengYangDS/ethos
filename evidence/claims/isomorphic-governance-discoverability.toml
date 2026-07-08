@@ -6,7 +6,7 @@ summary = "ETHOS makes one-kernel governance of itself and adopted repositories 
 
 [evidence]
 dated = "evidence/chronicle/isomorphic-governance-discoverability/2026-07-09.md"
-sha256 = "2ac04c53371d79bb18c7b2b310d17bddd7c7904cf030a6abca482b75bd2f515d"
+sha256 = "da32eae01af0e71e519158d4f67ac3bab6747ca513fdbeebd4ef2c959094598b"
 evidence_ids = ["evidence:isomorphic-governance-discoverability"]
 binding = "first-glance docs, architecture regression test, and OpenSpec carrier binding"
 verifier = "digest_only"
@@ -26,7 +26,7 @@ owner = "repository-governance"
 scope = "First-glance discoverability for the existing governed repository model"
 
 [carriers]
-openspec = "openspec/changes/isomorphic-governance-discoverability"
+openspec = "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability"
 
 fallback = "Use governance_context in ethos report/status payloads and repository-governance specs as the source when first-glance docs drift."
 kill_signal = "The docs imply a separate command plane, a new ontology role, or product cloning of adopted repositories."
@@ -37,10 +37,11 @@ targets = [
   "docs/governance/product-design-contract.md",
   "docs/reference/glossary.md",
   "tests/architecture/test_product_design_contract.py",
-  "openspec/changes/isomorphic-governance-discoverability/proposal.md",
-  "openspec/changes/isomorphic-governance-discoverability/design.md",
-  "openspec/changes/isomorphic-governance-discoverability/tasks.md",
-  "openspec/changes/isomorphic-governance-discoverability/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/proposal.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/design.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/tasks.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/specs/repository-governance/spec.md",
+  "openspec/specs/repository-governance/spec.md",
   "evidence/chronicle/isomorphic-governance-discoverability/2026-07-09.md",
   "evidence/claims/isomorphic-governance-discoverability.toml",
 ]

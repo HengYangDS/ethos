@@ -175,6 +175,7 @@ deep OpenSpec validation.
 ETHOS SHALL govern repositories through one governed repository semantic model.
 
 #### Scenario: Governance context is shared
+
 - **WHEN** ETHOS emits audit, proof, or report payloads for any governed repository
 - **THEN** the payload includes `governance_context`
 - **AND** the context identifies the subject as a repository
@@ -185,6 +186,8 @@ ETHOS SHALL govern repositories through one governed repository semantic model.
 - **AND** every profile classifies report as a separate read-only scorecard command
 - **AND** profile or adapter differences do not create a second product command
   plane
+- **AND** first-glance product docs name this as Isomorphic Governance without
+  turning governed repositories into product clones.
 
 ### Requirement: Native Documentation Topology
 
@@ -815,3 +818,4 @@ reader views without treating them as transition-blocking required gaps.
 - **THEN** orientation readiness includes advisory signal count and items
 - **AND** orientation readiness includes advisory next actions derived from report
 - **AND** the human orientation output can mention advisory signals without granting mutation authority
+

@@ -2,7 +2,7 @@
 
 ### Requirement: Kernel Chain
 ETHOS SHALL model repository operation through the kernel chain
-Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
+JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 The chain SHALL preserve the root text as a judgment constraint without turning
 that text into a subsystem, feature map, or low-level implementation label.
 

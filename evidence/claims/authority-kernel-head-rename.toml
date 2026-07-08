@@ -6,7 +6,7 @@ summary = "ETHOS current kernel truth names the authority head Authority, preser
 
 [evidence]
 dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
-sha256 = "6216049595efb6f6c23e0b2c3dba8143db26862a93603409ce41cd915e5095d2"
+sha256 = "9f88a50cb29dae908ecefe1eaf591920ae70f48dd2a6c0312bd2947319fcfa8e"
 evidence_ids = ["evidence:authority-kernel-head-rename"]
 binding = "semantic authority-kernel-head recovery evidence binding"
 verifier = "semantic"
@@ -22,8 +22,8 @@ scope = "Authority kernel head rename, protected-root projection pollution guard
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-08-authority-kernel-head-rename"
-fallback = "Keep current truth on Authority and normalize tracked repository vocabulary around that name."
-kill_signal = "Tracked repository text reintroduces the superseded authority predecessor vocabulary as a supported truth surface, or protected-root scratch projection paths are allowed as product truth."
+fallback = "Keep current truth on Authority while allowing historical records to preserve prior vocabulary."
+kill_signal = "Current code, schema, docs, live OpenSpec specs, or README reintroduce JudgmentSource as a supported truth surface, or protected-root scratch projection paths are allowed as product truth."
 
 [promotion]
 targets = [

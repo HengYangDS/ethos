@@ -2,7 +2,7 @@
 
 ## Why
 
-`Authority` was a correct early boundary marker, but it became a long and
+`JudgmentSource` was a correct early boundary marker, but it became a long and
 opaque name for the head of the kernel chain. The current truth needs the plainer
 and more general term `Authority`: the ordered source of decision legitimacy,
 truth boundary, and policy reference. The old term may remain in historical
@@ -16,10 +16,10 @@ instead of making coordination invisible.
 
 ## What Changes
 
-- Rename the current kernel head to `Authority` across
+- Rename the current kernel head from `JudgmentSource` to `Authority` across
   active code, schemas, product docs, authority graph, and current kernel spec.
-- Normalize archived OpenSpec and historical evidence vocabulary when needed so
-  tracked repository scans have a single authority name.
+- Keep archived OpenSpec and historical evidence text as historical record rather
+  than rewriting what prior changes said at the time.
 - Classify `.claude`, `CLAUDE.md`, `.gitnexus`, `.ethos/decomp-recipes`, and
   `docs/superpowers` as forbidden protected-root projection/scratch paths.
 - Add a read-only SQLite fallback for active lease reads when the default local
@@ -32,6 +32,6 @@ instead of making coordination invisible.
 
 ## Out Of Scope
 
-- No compatibility surface for predecessor vocabulary in historical or current tracked text.
-- No compatibility alias for the superseded predecessor name in current code.
+- No rewrite of historical chronicle text or archived OpenSpec history.
+- No compatibility alias named `JudgmentSource` in current code.
 - No change to transition command semantics.

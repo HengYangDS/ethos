@@ -1,0 +1,37 @@
+[claim]
+id = "history-truth-boundary"
+subject = "ethos:history-truth-boundary"
+state = "active"
+summary = "ETHOS current truth keeps Authority while historical evidence and archived OpenSpec records may preserve predecessor vocabulary as history."
+
+[evidence]
+dated = "evidence/chronicle/history-truth-boundary/2026-07-08.md"
+sha256 = "b37814a676e65c7dcee3760cb728aeacbcc1b129c2b1c75009fb84fa39d4d065"
+evidence_ids = ["evidence:history-truth-boundary"]
+binding = "Current-truth guard is scoped away from Chronicle and archived OpenSpec history."
+verifier = "semantic"
+tests = [
+  "uv run --all-packages pytest tests/architecture/test_authority_residue_zero.py -q",
+  "uv run --all-packages ethos quality claims --json",
+  "uv run --all-packages ethos openspec --lifecycle --json",
+]
+
+[boundary]
+owner = "repository-governance"
+scope = "current truth versus historical record boundary for authority predecessor vocabulary"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-history-truth-boundary"
+fallback = "If a cleanup scan finds the predecessor term, classify whether the file is current truth or historical record before editing."
+kill_signal = "Current code, schemas, docs, rules, hooks, config, README, or live OpenSpec specs expose the authority predecessor term as current truth, or historical records are rewritten only to satisfy a whole-repository vocabulary scan."
+
+[promotion]
+targets = [
+  "tests/architecture/test_authority_residue_zero.py",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/proposal.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/design.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/tasks.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/specs/repository-governance/spec.md",
+  "evidence/chronicle/history-truth-boundary/2026-07-08.md",
+  "evidence/claims/history-truth-boundary.toml",
+]

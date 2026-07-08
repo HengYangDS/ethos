@@ -1,0 +1,4 @@
+- [x] Restore historical evidence and archived OpenSpec predecessor vocabulary.
+- [x] Scope authority predecessor residue guard to current truth surfaces.
+- [x] Add regression that historical records preserve predecessor vocabulary.
+- [x] Keep active current truth on `Authority` only.

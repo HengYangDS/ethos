@@ -1,9 +1,9 @@
-## 1. Kernel And Authority
+## 1. Kernel And Judgment Source
 
-- [x] 1.1 Add `Authority` and evidence-bound `EvidenceClaim` kernel models.
+- [x] 1.1 Add `JudgmentSource` and evidence-bound `EvidenceClaim` kernel models.
 - [x] 1.2 Change the canonical kernel chain to the seven-term product chain.
 - [x] 1.3 Reject semantic overclaim when the verifier is only digest-bound.
-- [x] 1.4 Add Authority documentation and schemas.
+- [x] 1.4 Add Judgment Source documentation and schemas.
 
 ## 2. Product Reader Surface
 

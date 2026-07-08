@@ -2,7 +2,7 @@
 
 ### Requirement: Kernel Chain
 ETHOS SHALL model repository operation through the kernel chain
-Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
+JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation

@@ -1,6 +1,6 @@
 # Coverage policy truth boundary.
 # The hard gate must reflect executed repository evidence, not aspiration.
-current_hard_floor = 66
+current_hard_floor = 100
 aspirational_floor = 100
 branch_coverage_required = true
 owner = "product-toolchain"

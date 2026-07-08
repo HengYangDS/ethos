@@ -1234,6 +1234,24 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
     ]
 
 
+def test_start_work_lane_defaults_path_to_sibling_candidate_home(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    expected = repo.with_name(f"{repo.name}-work-feature")
+
+    report = start_work_lane(
+        root=repo,
+        name="feature",
+        owner="agent:test",
+        apply=True,
+    )
+
+    assert report["ok"] is True
+    assert report["path"] == expected.resolve().as_posix()
+    assert expected.exists()
+    assert git(expected, "branch", "--show-current") == "work/feature"
+
+
 def test_start_work_lane_apply_requires_candidate_branch(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-feature"

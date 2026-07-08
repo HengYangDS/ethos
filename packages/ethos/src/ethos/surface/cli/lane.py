@@ -131,7 +131,7 @@ def prewrite(
 def start(
     name: str,
     *,
-    path: Annotated[Path, Parameter(name="--path")],
+    path: Annotated[Path | None, Parameter(name="--path")] = None,
     owner: str,
     claim_id: Annotated[str | None, Parameter(name="--claim-id")] = None,
     apply: bool = False,

@@ -43,7 +43,7 @@ def start_work_lane(
     *,
     root: Path,
     name: str,
-    path: Path,
+    path: Path | None = None,
     owner: str,
     claim_id: str | None = None,
     apply: bool = False,
@@ -52,7 +52,10 @@ def start_work_lane(
     policy = load_branch_role_policy(repo)
     slug = _slug(name)
     branch = policy.work_branch(slug)
-    target = path.resolve()
+    # Default the lane home to the canonical sibling of the accepted root
+    # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
+    # still pin an explicit path.
+    target = (path or _default_candidate_path(repo, branch)).resolve()
     if not owner.strip():
         return {
             "ok": False,

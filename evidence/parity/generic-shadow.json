@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "4d7ff7ec778c3f3430d89f820b8fa1c2714b0404",
-    "target_head": "4d7ff7ec778c3f3430d89f820b8fa1c2714b0404",
+    "product_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
+    "target_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
     "product_semantic_sha256": "af646f98046c98787a3b96a183213261a5afc7ba6300d62ddd169b57273415dc",
     "target_semantic_sha256": "af646f98046c98787a3b96a183213261a5afc7ba6300d62ddd169b57273415dc",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/external-plan-contract-profiles",
-    "target_head": "4d7ff7ec778c3f3430d89f820b8fa1c2714b0404",
-    "product_head": "4d7ff7ec778c3f3430d89f820b8fa1c2714b0404",
+    "target_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
+    "product_head": "4cc8ef73ce8e6cfa07e4d05f9afc777c58229b95",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "deb18de881a5fd0be021f2e521ff704a9f52df6e15dacab71cc178e7169c7b2c"
+        "sha256": "e3a52f545df5248ef1e802601d29a96d8e694f1105a4412bfcc5602c8dab124b"
       },
       {
         "path": "evidence/claims",

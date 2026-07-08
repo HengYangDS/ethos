@@ -5,8 +5,8 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "bdcf840bab470f49a08f60edcbfefc5632486e48",
-    "target_head": "bdcf840bab470f49a08f60edcbfefc5632486e48",
+    "product_head": "efecc383287b3aec9409df269170d07042dfed19",
+    "target_head": "efecc383287b3aec9409df269170d07042dfed19",
     "product_semantic_sha256": "d76346cf1b33e80e50922186ee066dab843bffd40438cf992827a74fe88d23b5",
     "target_semantic_sha256": "d76346cf1b33e80e50922186ee066dab843bffd40438cf992827a74fe88d23b5",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy",
-    "target_head": "bdcf840bab470f49a08f60edcbfefc5632486e48",
-    "product_head": "bdcf840bab470f49a08f60edcbfefc5632486e48",
+    "target_head": "efecc383287b3aec9409df269170d07042dfed19",
+    "product_head": "efecc383287b3aec9409df269170d07042dfed19",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json"
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json",
+      "/Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-command-scope-taxonomy --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6779ce97150911ab2c1b33a3720cf93db53b4ac3843bb3ec1974dbc5fe539ff3"
+        "sha256": "f8d280cf61eb8eb9b1ffaa349ed397855476fcbf1fad4d8d0d43f2a2b7185cd3"
       },
       {
         "path": "evidence/claims",

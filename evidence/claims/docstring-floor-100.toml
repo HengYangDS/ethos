@@ -6,7 +6,7 @@ summary = "ETHOS enforces 100 percent public Python product-surface docstring co
 
 [evidence]
 dated = "evidence/chronicle/docstring-floor-100/2026-07-09.md"
-sha256 = "1a8de71bbbfe416993aa066c5f474ef9a6c143178c70f2f3cbb801a10c2a9eb1"
+sha256 = "37ac637ade7f7c4147f0c2e6031f4db5df23c184d8e277058dc9b91cfac93065"
 evidence_ids = ["evidence:docstring-floor-100"]
 binding = "docstring policy floor, architecture tests, OpenSpec carrier, and quality gate output"
 verifier = "semantic"
@@ -42,6 +42,7 @@ targets = [
   "tests/architecture/test_docstring_governance.py",
   "tests/architecture/test_release_assets.py",
   "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-08-docstring-floor-100/.openspec.yaml",
   "openspec/changes/archive/2026-07-08-docstring-floor-100/proposal.md",
   "openspec/changes/archive/2026-07-08-docstring-floor-100/design.md",
   "openspec/changes/archive/2026-07-08-docstring-floor-100/tasks.md",

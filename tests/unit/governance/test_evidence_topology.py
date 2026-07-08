@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+import hashlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from ethos.repository.evidence.topology import evidence_topology_report
+from tests.support.ethos_cli_runner import run_ethos
+
+
+def test_evidence_topology_accepts_kernel_layout(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    (evidence / "claims").mkdir(parents=True)
+    (evidence / "chronicle" / "topic").mkdir(parents=True)
+    (evidence / "parity").mkdir(parents=True)
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+    (evidence / "claims" / "sample.toml").write_text("", encoding="utf-8")
+    (evidence / "chronicle" / "topic" / "2026-07-08.md").write_text("proof", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert report["layout"] == {
+        "root": "evidence",
+        "allowed_root_files": ["README.md"],
+        "allowed_root_dirs": ["claims", "chronicle", "parity"],
+        "claims_root": "evidence/claims",
+        "chronicle_root": "evidence/chronicle",
+        "parity_root": "evidence/parity",
+    }
+    assert report["counts"]["claim_files"] == 1
+    assert report["counts"]["chronicle_records"] == 1
+
+
+def test_evidence_topology_reports_missing_root(tmp_path: Path) -> None:
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["evidence_root_missing"]
+    assert report["counts"] == {
+        "claim_files": 0,
+        "chronicle_records": 0,
+        "parity_artifacts": 0,
+    }
+
+
+def test_evidence_topology_blocks_unknown_root_directory(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    (evidence / "claims").mkdir(parents=True)
+    (evidence / "chronicle" / "topic").mkdir(parents=True)
+    (evidence / "parity").mkdir(parents=True)
+    (evidence / "tmp").mkdir()
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert "evidence_root_dir_not_allowed:tmp" in report["required_gaps"]
+
+
+def test_evidence_topology_blocks_root_clutter_flat_chronicle_and_nested_claims(
+    tmp_path: Path,
+) -> None:
+    evidence = tmp_path / "evidence"
+    (evidence / "claims" / "nested").mkdir(parents=True)
+    (evidence / "chronicle").mkdir(parents=True)
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+    (evidence / "proof.md").write_text("root clutter", encoding="utf-8")
+    (evidence / "claims" / "nested" / "sample.toml").write_text("", encoding="utf-8")
+    (evidence / "chronicle" / "2026-07-08.md").write_text("flat", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        "evidence_root_file_not_allowed:proof.md",
+        "evidence_claim_nested_file:nested/sample.toml",
+        "evidence_chronicle_flat_markdown:2026-07-08.md",
+        "evidence_parity_root_missing",
+    ]
+
+
+def test_quality_evidence_freshness_blocks_evidence_topology_gaps(
+    tmp_path: Path,
+) -> None:
+    evidence = tmp_path / "evidence"
+    chronicle = evidence / "chronicle" / "topic" / "2026-07-08.md"
+    chronicle.parent.mkdir(parents=True)
+    chronicle.write_text("proof", encoding="utf-8")
+    (evidence / "claims").mkdir()
+    (evidence / "parity").mkdir()
+    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
+    (evidence / "root-proof.md").write_text("root clutter", encoding="utf-8")
+    digest = hashlib.sha256(chronicle.read_bytes()).hexdigest()
+    claim_text = f'''
+[claim]
+id = "sample"
+state = "superseded"
+
+[evidence]
+dated = "evidence/chronicle/topic/2026-07-08.md"
+sha256 = "{digest}"
+'''.strip()
+    (evidence / "claims" / "sample.toml").write_text(claim_text, encoding="utf-8")
+
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "proof.py").write_text(
+        "def test_ok():\n    assert True\n", encoding="utf-8"
+    )
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir()
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "sample"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Evidence topology gaps must block freshness."
+challenge = "Root clutter makes evidence ambiguous."
+transition = "shape -> canonize"
+proof_refs = ["ethos status --json"]
+review_refs = ["tests/proof.py"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["topology is clean"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "quality",
+        "evidence-freshness",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+        cwd=tmp_path,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["summary"]["topology_issue_count"] == 1
+    assert payload["required_gaps"] == ["evidence_root_file_not_allowed:root-proof.md"]
+    assert payload["data"]["claims"]["ok"] is True
+    assert payload["data"]["evolution"]["ok"] is True
+    assert payload["data"]["topology"]["ok"] is False

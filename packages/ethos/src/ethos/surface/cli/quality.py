@@ -18,11 +18,11 @@ from ethos.adapters.gates.ty import ty_gate_report
 from ethos.adapters.repo import git as _gitio
 from ethos.assistants.projections import projection_drift_report
 from ethos.domain import prove as _prove
-from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
+from ethos.repository.evidence.freshness import evidence_freshness_report
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.coverage import coverage_quality_report
@@ -795,23 +795,15 @@ def evidence_freshness(
 ) -> None:
     """Check declared evidence roots and claim digests."""
     repo = resolve_root(root)
-    claim_report = claims_report(repo)
-    evolution = evolution_report(repo)
-    required_gaps = tuple(cast("list[str]", claim_report["required_gaps"])) + tuple(
-        cast("list[str]", evolution["required_gaps"])
-    )
-    ok = bool(claim_report["ok"]) and bool(evolution["ok"])
+    report = evidence_freshness_report(repo)
     result = EthosResult(
         command="quality evidence-freshness",
-        ok=ok,
-        state="clean" if ok else "blocked",
-        summary={
-            "evidence_roots": ["evidence"],
-            "evolution_active_count": evolution["active_count"],
-        },
-        required_gaps=required_gaps,
+        ok=bool(report["ok"]),
+        state="clean" if report["ok"] else "blocked",
+        summary=cast("dict[str, object]", report["summary"]),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos prove --json",),
-        data={"stale": [], "claims": claim_report, "evolution": evolution},
+        data=cast("dict[str, object]", report["data"]),
     )
     emit(result, json_output=json_output, enforce=False)
 

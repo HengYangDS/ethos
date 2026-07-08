@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
-    "target_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
-    "product_semantic_sha256": "84b6eecb6f3fff52b409230c314d0cd48c1736a480deecfa0867aea425313f95",
-    "target_semantic_sha256": "84b6eecb6f3fff52b409230c314d0cd48c1736a480deecfa0867aea425313f95",
+    "product_head": "d5a048975e891bb83c7c59933404e79cd09bbb2a",
+    "target_head": "d5a048975e891bb83c7c59933404e79cd09bbb2a",
+    "product_semantic_sha256": "9c9bc92ec51ac07266b566302d58faaadb9b4c4b015d3ea72bbf74a455154d45",
+    "target_semantic_sha256": "9c9bc92ec51ac07266b566302d58faaadb9b4c4b015d3ea72bbf74a455154d45",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-work-module-layout-semantic-guard",
-    "target_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
-    "product_head": "8ba6f02147f4748f1049aeea8ad2c30d54a5e146",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract",
+    "target_head": "d5a048975e891bb83c7c59933404e79cd09bbb2a",
+    "product_head": "d5a048975e891bb83c7c59933404e79cd09bbb2a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json",
-      "/Users/yheng/projects/ethos/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-work-module-layout-semantic-guard --json"
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json",
+      "/Users/yheng/projects/ethos-worktrees/evidence-topology-contract/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/evidence-topology-contract --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c004781b9496c14136b162cfac1cae14697b91021f6ebbea8da940892ebf3742"
+        "sha256": "7ad83e47ea5f48eeac87cfbb50b454ccfadf4554f12d2a6ac54e7952475f3e10"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "6f1a13419dfe775cc6f8284b2b8bf7cc62dea2d7eee462b3c39f3ac341692e98"
+        "sha256": "b51047d619f3d166b770cbcfb42952fdaee2ddaae2c06fb89f7a6b2d86955c75"
       },
       {
         "path": "rules",

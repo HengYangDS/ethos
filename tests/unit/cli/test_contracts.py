@@ -636,6 +636,10 @@ def test_quality_evidence_freshness_reports_evolution_protocol() -> None:
     assert payload["required_gaps"] == []
     assert payload["data"]["evolution"]["ok"] is True
     assert payload["data"]["evolution"]["required_gaps"] == []
+    assert payload["data"]["topology"]["ok"] is True
+    assert payload["data"]["topology"]["layout"]["claims_root"] == "evidence/claims"
+    assert payload["data"]["topology"]["layout"]["chronicle_root"] == ("evidence/chronicle")
+    assert payload["summary"]["topology_issue_count"] == 0
 
 
 def test_quality_coupling_audit_reports_git_native_boundary() -> None:

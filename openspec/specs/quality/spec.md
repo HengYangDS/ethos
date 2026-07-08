@@ -215,7 +215,9 @@ creating another truth store.
 - **WHEN** `ethos quality evidence-freshness --json` runs
 - **THEN** the result includes claim digest/head checks from `evidence/claims`
 - **AND** the result includes evolution protocol checks from `evolution/ledger.toml`
-- **AND** required gaps from either surface block the command
+- **AND** the result includes evidence topology checks for the durable evidence
+  root, flat claim records, topic-scoped chronicle records, and parity artifacts
+- **AND** required gaps from claims, evolution, or evidence topology block the command
 - **AND** the command does not execute proof refs or claim hosted CI success
 
 #### Scenario: default proof includes evidence freshness

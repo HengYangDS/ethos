@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "fb9976243d73e9b04f52299f856daa40c5a79437",
-    "target_head": "fb9976243d73e9b04f52299f856daa40c5a79437",
-    "product_semantic_sha256": "dbf7305ac602f9f7c1bd0195f8d6970479eb1a2bec04d5959255ca7056611fc9",
-    "target_semantic_sha256": "dbf7305ac602f9f7c1bd0195f8d6970479eb1a2bec04d5959255ca7056611fc9",
+    "product_head": "edfd49143cfdffb5da705ad0a80f8d648062a9ae",
+    "target_head": "edfd49143cfdffb5da705ad0a80f8d648062a9ae",
+    "product_semantic_sha256": "6edc9b7eb1def3af90755f1779e19826237aa9aa8bf02086af882a59e79b543c",
+    "target_semantic_sha256": "6edc9b7eb1def3af90755f1779e19826237aa9aa8bf02086af882a59e79b543c",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/runner-root-doctor",
-    "target_head": "fb9976243d73e9b04f52299f856daa40c5a79437",
-    "product_head": "fb9976243d73e9b04f52299f856daa40c5a79437",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening",
+    "target_head": "edfd49143cfdffb5da705ad0a80f8d648062a9ae",
+    "product_head": "edfd49143cfdffb5da705ad0a80f8d648062a9ae",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/runner-root-doctor/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/runner-root-doctor --json"
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/gate-consistency-layout-hardening --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "0b424719847123e3ee2420a3044841333661319889fdebdb51b29eb9cd395339"
+        "sha256": "5e0ae6db492b3de2fa1db3c994375930ea5cee50dab884b46762ee2d7a82ea7e"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "de1a2ec1206953acce7b14156a507655cfd4d5508f054ece4fde9964e5d6efad"
+        "sha256": "71084e1c8fa47466f1574e53f0fc0361046f905e1d3c7a86f3428527b7afa3fe"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "91da6ab09e64ba2e53d6268d755f0586e4a4450f13594c1977fc90c88c9b4606"
+        "sha256": "5a268a631cecf0bf18ed23e39abaac1d4fac0aa7ae863c59d3ce8742df6d5b45"
       },
       {
         "path": "rules",

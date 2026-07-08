@@ -5,10 +5,10 @@
   "generated_on": "2026-07-08",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
-    "target_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
-    "product_semantic_sha256": "739d925468d9d9c237d1ec37c24459b7f503c6c0b5ccea711cee8eea402709e6",
-    "target_semantic_sha256": "739d925468d9d9c237d1ec37c24459b7f503c6c0b5ccea711cee8eea402709e6",
+    "product_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
+    "target_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
+    "product_semantic_sha256": "b6e49e795006618211ac7d7f2f754585d918049d631158816eefbaf45bb09b3c",
+    "target_semantic_sha256": "b6e49e795006618211ac7d7f2f754585d918049d631158816eefbaf45bb09b3c",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/docs-topology-native",
-    "target_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
-    "product_head": "d2a3c0c1ec7a3fc614372a069a8a6a97b1454896",
+    "target_root": "/Users/yheng/projects/ethos-work-pollution-mechanism-fix",
+    "target_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
+    "product_head": "be136fae94bec743977573a16ee52c0d9e6a6647",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json",
-      "/Users/yheng/projects/ethos-worktrees/docs-topology-native/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/docs-topology-native --json"
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli status --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli prove --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli report --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli land --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json",
+      "/Users/yheng/projects/ethos-work-pollution-mechanism-fix/.venv/bin/python3 -m ethos.cli publish --root /Users/yheng/projects/ethos-work-pollution-mechanism-fix --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "12db9000346d0da2d8232677289a6587e373003445e416d0f2a6ff30e774fbf0"
+        "sha256": "de57c97f046db8f127347b39682337d89df759a406b52a480459d7b7a3ebf030"
       },
       {
         "path": "evidence/claims",

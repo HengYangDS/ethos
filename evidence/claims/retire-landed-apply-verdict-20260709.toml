@@ -1,11 +1,4 @@
-[claim  "tools/ci/scripts/run-python-lint.sh",
-  "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py tests/unit/cli/test_contracts_lane.py tests/unit/cli/test_contracts_land.py tests/unit/lanes/test_lanes_retire.py",
-  "uv run --package ethos ethos quality code-size --json",
-  "uv run --package ethos ethos quality types --json",
-  "uv run --package ethos ethos quality claims --json",
-  "uv run --package ethos ethos quality evidence-freshness --json",
-  "uv run --package ethos ethos parity gaps --adopter generic --target . --json",
-]
+[claim]
 id = "retire-landed-apply-verdict-20260709"
 subject = "ethos:retire-landed-apply-verdict"
 state = "active"
@@ -21,6 +14,13 @@ verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply",
   "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_removes_selected_branch tests/unit/cli/test_contracts_land.py::test_configured_branch_roles_drive_local_lifecycle_commands",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py tests/unit/cli/test_contracts_lane.py tests/unit/cli/test_contracts_land.py tests/unit/lanes/test_lanes_retire.py",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --target . --json",
 ]
 
 [scope]

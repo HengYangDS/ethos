@@ -366,14 +366,18 @@ def test_canonical_docs_do_not_promote_retired_public_roots() -> None:
 
 
 def test_product_behavior_does_not_live_in_tools_directory() -> None:
-    assert not (ROOT / "tools").exists()
+    tools_root = ROOT / "tools"
+    assert tools_root.exists()
+    allowed = {tools_root / "ci", tools_root / "ci" / "scripts"}
+    assert {path for path in tools_root.rglob("*") if path.is_dir()} <= allowed
+    assert all(path.suffix == ".sh" for path in (tools_root / "ci" / "scripts").iterdir())
 
 
 def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
     config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
     assert "repo: local" in config
-    assert ".config/ci/scripts/run-python-lint.sh" in config
+    assert "tools/ci/scripts/run-python-lint.sh" in config
     assert "uv run --group dev ruff check" not in config
     assert "github.com" not in config
 

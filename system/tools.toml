@@ -17,7 +17,7 @@ concern = "python_format_lint"
 tool = "ruff"
 config = "ruff.toml + .config/checks/ruff/"
 profile = "minimal"
-gate = ".config/ci/scripts/run-python-lint.sh"
+gate = "tools/ci/scripts/run-python-lint.sh"
 
 [[tool]]
 concern = "tests"
@@ -25,7 +25,7 @@ tool = "pytest + pytest-xdist + pytest-timeout"
 config = "pytest.ini + .config/checks/pytest/policy.toml"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
-gate = ".config/ci/scripts/run-python-tests.sh"
+gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "test_performance"
@@ -53,14 +53,14 @@ concern = "import_boundaries"
 tool = "import-linter"
 config = ".config/checks/import-linter/"
 profile = "product"
-gate = ".config/ci/scripts/run-import-linter.sh"
+gate = "tools/ci/scripts/run-import-linter.sh"
 
 [[tool]]
 concern = "python_sast"
 tool = "bandit"
 config = ".config/checks/bandit/"
 profile = "product"
-gate = ".config/ci/scripts/run-bandit.sh"
+gate = "tools/ci/scripts/run-bandit.sh"
 
 [[tool]]
 concern = "links"
@@ -75,21 +75,21 @@ tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
 artifacts = "build/evidence/quality/tests/coverage/"
 profile = "product"
-gate = ".config/ci/scripts/run-python-tests.sh"
+gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "python_docstrings"
 tool = "ethos-docstrings-google"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
-gate = ".config/ci/scripts/run-docstring-coverage.sh"
+gate = "tools/ci/scripts/run-docstring-coverage.sh"
 
 [[tool]]
 concern = "python_module_layout"
 tool = "ethos-module-layout"
 config = ".config/checks/module-layout/policy.toml"
 profile = "product"
-gate = ".config/ci/scripts/run-module-layout.sh"
+gate = "tools/ci/scripts/run-module-layout.sh"
 
 [[tool]]
 concern = "dependency_hygiene"
@@ -101,23 +101,23 @@ planned = true
 [[tool]]
 concern = "repository_hygiene"
 tool = "python stdlib + git ls-files"
-config = ".config/ci/scripts/run-repository-hygiene.sh"
+config = "tools/ci/scripts/run-repository-hygiene.sh"
 profile = "minimal"
-gate = ".config/ci/scripts/run-repository-hygiene.sh"
+gate = "tools/ci/scripts/run-repository-hygiene.sh"
 
 [[tool]]
 concern = "toml"
 tool = "taplo"
 config = ".config/checks/taplo/taplo.toml"
 profile = "minimal"
-gate = ".config/ci/scripts/run-config-lint.sh"
+gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "markdown_style"
 tool = "markdownlint-cli2"
 config = ".config/checks/markdown/.markdownlint-cli2.yaml"
 profile = "product"
-gate = ".config/ci/scripts/run-markdown-lint.sh"
+gate = "tools/ci/scripts/run-markdown-lint.sh"
 
 [[tool]]
 concern = "prose"
@@ -131,14 +131,14 @@ concern = "yaml"
 tool = "yamllint"
 config = ".config/checks/yaml/yamllint.yaml"
 profile = "minimal"
-gate = ".config/ci/scripts/run-config-lint.sh"
+gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "json_syntax"
 tool = "python json"
-config = ".config/ci/scripts/run-config-lint.sh"
+config = "tools/ci/scripts/run-config-lint.sh"
 profile = "minimal"
-gate = ".config/ci/scripts/run-config-lint.sh"
+gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "json_schema"
@@ -150,25 +150,25 @@ planned = true
 [[tool]]
 concern = "ci_tool_supply"
 tool = "curl + cached CI artifact installers"
-config = ".config/ci/scripts/download-file.sh"
+config = "tools/ci/scripts/download-file.sh"
 artifacts = "build/cache/ci-tools/"
 profile = "product"
-gate = ".config/ci/scripts/install-gitleaks.sh and .config/ci/scripts/install-node.sh"
+gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.sh"
 
 [[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
-config = ".config/ci/scripts/run-local-ci.sh"
+config = "tools/ci/scripts/run-local-ci.sh"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
-gate = ".config/ci/scripts/run-local-ci.sh"
+gate = "tools/ci/scripts/run-local-ci.sh"
 
 [[tool]]
 concern = "shell"
 tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"
 profile = "product"
-gate = ".config/ci/scripts/run-shell-lint.sh"
+gate = "tools/ci/scripts/run-shell-lint.sh"
 
 [[tool]]
 concern = "docker"
@@ -190,7 +190,7 @@ tool = "gitleaks"
 optional = "trufflehog"
 config = ".gitleaks.toml"
 profile = "product"
-gate = ".config/ci/scripts/run-secrets-scan.sh"
+gate = "tools/ci/scripts/run-secrets-scan.sh"
 
 [[tool]]
 concern = "python_vuln"

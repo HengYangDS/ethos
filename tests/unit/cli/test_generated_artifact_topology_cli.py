@@ -14,5 +14,9 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
     allowed = {item["prefix"] for item in payload["data"]["contract"]["allowed_prefixes"]}
     assert {"build/ethos", "build/evidence", ".cache/local-state"} <= allowed
     denied = {item["prefix"] for item in payload["data"]["contract"]["denied_generated_prefixes"]}
+    denied_static = {item["prefix"] for item in payload["data"]["contract"]["denied_prefixes"]}
+    review = {item["prefix"] for item in payload["data"]["contract"]["review_prefixes"]}
     assert ".config" in denied
     assert "docs" in denied
+    assert ".config/ci/scripts" in denied_static
+    assert "tools/ci/scripts" in review

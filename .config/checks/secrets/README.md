@@ -8,5 +8,5 @@ concern directory. This folder records the ownership boundary so the concern is
 discoverable alongside the other `.config/checks/<concern>/` gates.
 
 - Policy: `/.gitleaks.toml` (`[extend] useDefault = true` + allowlist)
-- Installer: `.config/ci/scripts/install-gitleaks.sh` (pinned prebuilt binary)
-- Runner: `.config/ci/scripts/run-secrets-scan.sh`
+- Installer: `tools/ci/scripts/install-gitleaks.sh` (pinned prebuilt binary)
+- Runner: `tools/ci/scripts/run-secrets-scan.sh`

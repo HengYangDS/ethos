@@ -15,7 +15,7 @@ QUALITY_GATES = (
             "format",
             "--check",
             "+",
-            ".config/ci/scripts/run-ruff-ratchet.sh",
+            "tools/ci/scripts/run-ruff-ratchet.sh",
         ),
         asset_classes=("python-code",),
         dimensions=("lint", "format", "ratchet"),
@@ -30,7 +30,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="python-docstrings",
         kind="docs",
-        command=(".config/ci/scripts/run-docstring-coverage.sh",),
+        command=("tools/ci/scripts/run-docstring-coverage.sh",),
         asset_classes=("python-code",),
         dimensions=("documentation", "intent"),
         execution_mode="inprocess",
@@ -45,7 +45,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="module-layout",
         kind="architecture",
-        command=(".config/ci/scripts/run-module-layout.sh",),
+        command=("tools/ci/scripts/run-module-layout.sh",),
         asset_classes=("python-code",),
         dimensions=("module-layout", "semantic-subpackages", "import-discipline"),
         execution_mode="adapter",
@@ -60,7 +60,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="python-tests",
         kind="test",
-        command=(".config/ci/scripts/run-python-tests.sh",),
+        command=("tools/ci/scripts/run-python-tests.sh",),
         asset_classes=("python-code",),
         dimensions=("test", "coverage"),
         execution_mode="adapter",
@@ -103,7 +103,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="shell-lint",
         kind="lint",
-        command=(".config/ci/scripts/run-shell-lint.sh",),
+        command=("tools/ci/scripts/run-shell-lint.sh",),
         asset_classes=("shell-scripts",),
         dimensions=("lint",),
         execution_mode="inprocess",
@@ -117,7 +117,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="toml-config",
         kind="config",
-        command=(".config/ci/scripts/run-config-lint.sh",),
+        command=("tools/ci/scripts/run-config-lint.sh",),
         asset_classes=("toml-config",),
         dimensions=("format", "lint", "syntax"),
         execution_mode="inprocess",
@@ -145,7 +145,7 @@ QUALITY_GATES = (
     QualityGateDescriptor(
         id="yaml-config",
         kind="config",
-        command=(".config/ci/scripts/run-config-lint.sh",),
+        command=("tools/ci/scripts/run-config-lint.sh",),
         asset_classes=("yaml-config",),
         dimensions=("format", "lint", "projection-boundary"),
         execution_mode="inprocess",

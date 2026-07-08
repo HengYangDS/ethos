@@ -334,13 +334,11 @@ def test_remote_availability_and_local_ci_fallback_edges(monkeypatch, tmp_path: 
     )
     assert package["remote_state"] == "deferred"
     assert package["fallback_evidence"]["evidence_class"] == "local_fallback"
-    assert package["fallback_evidence"]["command"] == ".config/ci/scripts/run-local-ci.sh"
-    assert (
-        ".config/ci/scripts/run-module-layout.sh" in package["fallback_evidence"]["owner_scripts"]
-    )
+    assert package["fallback_evidence"]["command"] == "tools/ci/scripts/run-local-ci.sh"
+    assert "tools/ci/scripts/run-module-layout.sh" in package["fallback_evidence"]["owner_scripts"]
     assert package["required_gaps"] == []
     assert package["next_actions"] == [
-        "run .config/ci/scripts/run-local-ci.sh as local fallback evidence"
+        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
     ]
 
 

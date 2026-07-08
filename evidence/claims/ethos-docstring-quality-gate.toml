@@ -11,7 +11,7 @@ evidence_ids = ["evidence:ethos-docstring-quality-gate"]
 binding = "semantic docstring quality gate evidence binding"
 verifier = "semantic"
 tests = [
-  ".config/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
   "uv run --group dev pytest tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/validation tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries -q",
   "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/docstrings/core.py packages/ethos/src/ethos/surface/cli/quality.py packages/ethos/src/ethos/repository/policy/gates.py packages/ethos-core/src/ethos_core/quality/gates.py packages/ethos-core/src/ethos_core/quality/profiles.py tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/validation tests/unit/cli/test_contracts.py",
   "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/docstrings/core.py packages/ethos/src/ethos/surface/cli/quality.py packages/ethos/src/ethos/repository/policy/gates.py packages/ethos-core/src/ethos_core/quality/gates.py packages/ethos-core/src/ethos_core/quality/profiles.py tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/validation tests/unit/cli/test_contracts.py",
@@ -45,7 +45,7 @@ kill_signal = "A public ETHOS command, explicit export, or package boundary can 
 targets = [
   "evidence/chronicle/docstring-quality-gate/2026-07-05.md",
   ".config/checks/docstrings/policy.toml",
-  ".config/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
   "packages/ethos/src/ethos/repository/policy/docstrings/core.py",
   "packages/ethos/src/ethos/surface/cli/quality.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",

@@ -16,7 +16,7 @@ def write_coverage_policy(root: Path, *, fail_under: int = 95, branch: bool = Tr
 aspirational_floor = 95
 branch_coverage_required = true
 owner = "product-toolchain"
-source = ".config/checks/coverage/coverage.ini and .config/ci/scripts/run-python-tests.sh"
+source = ".config/checks/coverage/coverage.ini and tools/ci/scripts/run-python-tests.sh"
 """,
         encoding="utf-8",
     )
@@ -68,7 +68,7 @@ def test_coverage_quality_report_reads_policy_config_and_latest_artifact(tmp_pat
     ]
     assert report["latest_artifact"]["line_percent"] == 96.0
     assert report["latest_artifact"]["branch_percent"] == 95.0
-    assert report["owner_script"] == ".config/ci/scripts/run-python-tests.sh"
+    assert report["owner_script"] == "tools/ci/scripts/run-python-tests.sh"
 
 
 def test_coverage_quality_report_blocks_stale_or_mismatched_floor(tmp_path: Path) -> None:

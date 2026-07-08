@@ -10,4 +10,4 @@ cd "${repo_root}"
 
 uv run --group dev ruff check .
 uv run --group dev ruff format --check .
-.config/ci/scripts/run-ruff-ratchet.sh
+tools/ci/scripts/run-ruff-ratchet.sh

@@ -11,7 +11,7 @@ def test_docstring_policy_admits_google_style_with_signature_checks() -> None:
         (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
     )
     ruff = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
-    runner = (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
 
     assert policy["style"] == "google"
     assert policy["allow_short_docstrings"] is True

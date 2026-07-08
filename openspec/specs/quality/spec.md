@@ -24,7 +24,7 @@ frozen ignored-rule debt visible and non-increasing.
 #### Scenario: Ruff gate blocks current hard rules and ignored-rule growth
 
 - **WHEN** hosted CI or `ethos prove --execute --json` runs the Python lint gate
-- **THEN** ETHOS invokes `.config/ci/scripts/run-python-lint.sh`
+- **THEN** ETHOS invokes `tools/ci/scripts/run-python-lint.sh`
 - **AND** that owner script runs `ruff check .`, `ruff format --check .`, and the
   Ruff ignored-rule ratchet script
 - **AND** each baseline in `.config/checks/ruff/ratchet.toml` is treated as a
@@ -76,7 +76,7 @@ JUnit output, branch coverage, and an explicit 95 percent hard coverage floor.
 #### Scenario: default Python test gate is bounded and parallel-capable
 
 - **WHEN** hosted CI or `ethos prove --execute --json` runs the Python test gate
-- **THEN** ETHOS invokes `.config/ci/scripts/run-python-tests.sh`
+- **THEN** ETHOS invokes `tools/ci/scripts/run-python-tests.sh`
 - **AND** pytest policy requires `pytest-timeout` and strict config/marker handling
 - **AND** the owner script honors `ETHOS_TEST_WORKERS`, defaulting to parallel workers
 - **AND** the owner script reports slow test durations and writes JUnit output under `.config/checks/pytest`
@@ -179,7 +179,7 @@ import-alias compatibility residue cannot grow through normal write paths.
 - **AND** ordinary modules cannot act as module-level `__getattr__` dynamic
   compatibility export facades
 - **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
-  `.config/ci/scripts/run-module-layout.sh` owner script instead of duplicating
+  `tools/ci/scripts/run-module-layout.sh` owner script instead of duplicating
   the policy inline.
 
 ### Requirement: Python Public-Surface Docstring Gate

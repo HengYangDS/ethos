@@ -7,7 +7,7 @@
 # Go build in CI.
 #
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic
-# (mirrors .config/ci/scripts/install-taplo.sh).
+# (mirrors tools/ci/scripts/install-taplo.sh).
 set -euo pipefail
 
 version="${GITLEAKS_VERSION:-8.30.1}"

@@ -66,7 +66,7 @@ def test_local_runner_reports_missing_command_as_structured_failure(tmp_path: Pa
     node = ActionNode(
         id="missing-script",
         kind="quality",
-        command=(".config/ci/scripts/missing.sh",),
+        command=("tools/ci/scripts/missing.sh",),
     )
 
     result = LocalSubprocessRunner().run(node, root=tmp_path)
@@ -78,9 +78,9 @@ def test_local_runner_reports_missing_command_as_structured_failure(tmp_path: Pa
     assert result.diagnostics == (
         {
             "kind": "command_not_found",
-            "missing": ".config/ci/scripts/missing.sh",
+            "missing": "tools/ci/scripts/missing.sh",
             "cwd": str(tmp_path),
-            "required_gaps": ["missing_command:.config/ci/scripts/missing.sh"],
+            "required_gaps": ["missing_command:tools/ci/scripts/missing.sh"],
         },
     )
 

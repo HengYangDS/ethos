@@ -11,14 +11,14 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-.config/ci/scripts/run-python-lint.sh
-.config/ci/scripts/run-config-lint.sh
-.config/ci/scripts/run-shell-lint.sh
-.config/ci/scripts/run-markdown-lint.sh
-.config/ci/scripts/run-import-linter.sh
-.config/ci/scripts/run-docstring-coverage.sh
-.config/ci/scripts/run-module-layout.sh
-.config/ci/scripts/run-bandit.sh
-.config/ci/scripts/run-repository-hygiene.sh
-.config/ci/scripts/run-secrets-scan.sh
-.config/ci/scripts/run-python-tests.sh
+tools/ci/scripts/run-python-lint.sh
+tools/ci/scripts/run-config-lint.sh
+tools/ci/scripts/run-shell-lint.sh
+tools/ci/scripts/run-markdown-lint.sh
+tools/ci/scripts/run-import-linter.sh
+tools/ci/scripts/run-docstring-coverage.sh
+tools/ci/scripts/run-module-layout.sh
+tools/ci/scripts/run-bandit.sh
+tools/ci/scripts/run-repository-hygiene.sh
+tools/ci/scripts/run-secrets-scan.sh
+tools/ci/scripts/run-python-tests.sh

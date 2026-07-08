@@ -38,13 +38,13 @@ default:
 .python_setup: &python_setup
   image: python:3.12
   before_script:
-    - .config/ci/scripts/bootstrap-python.sh
+    - tools/ci/scripts/bootstrap-python.sh
 
 ethos:lint:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-python-lint.sh
+    - tools/ci/scripts/run-python-lint.sh
 
 ethos:types:
   <<: *python_setup
@@ -60,44 +60,44 @@ ethos:architecture:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-import-linter.sh
+    - tools/ci/scripts/run-import-linter.sh
 
 ethos:config:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-config-lint.sh
+    - tools/ci/scripts/run-config-lint.sh
 
 ethos:hygiene:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-repository-hygiene.sh
+    - tools/ci/scripts/run-repository-hygiene.sh
 
 ethos:shell:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-shell-lint.sh
+    - tools/ci/scripts/run-shell-lint.sh
 
 ethos:docstrings:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-docstring-coverage.sh
+    - tools/ci/scripts/run-docstring-coverage.sh
 
 
 ethos:module-layout:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-module-layout.sh
+    - tools/ci/scripts/run-module-layout.sh
 
 ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-bandit.sh
+    - tools/ci/scripts/run-bandit.sh
 
 ethos:secrets:
   <<: *python_setup
@@ -105,7 +105,7 @@ ethos:secrets:
   script:
     # Secret scanning via gitleaks (prebuilt binary installed by the runner).
     # Policy: root .gitleaks.toml. A tracked secret fails the pipeline.
-    - .config/ci/scripts/run-secrets-scan.sh
+    - tools/ci/scripts/run-secrets-scan.sh
   artifacts:
     when: always
     paths:
@@ -115,7 +115,7 @@ ethos:docs-links:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/install-lychee.sh
+    - tools/ci/scripts/install-lychee.sh
     - uv run --package ethos ethos quality markdown-links --json
 
 ethos:markdown:
@@ -124,7 +124,7 @@ ethos:markdown:
   script:
     # Markdown lint via markdownlint-cli2 (Node CLI installed by the runner on
     # the layer-cached python:3.12 image). Policy: .config/checks/markdown/.
-    - .config/ci/scripts/run-markdown-lint.sh
+    - tools/ci/scripts/run-markdown-lint.sh
 
 ethos:verify:
   <<: *python_setup
@@ -134,10 +134,10 @@ ethos:verify:
     # identity and signing from .ethos/workspace.toml [commit_policy] and arm
     # write-admission, so the dogfood signature/audit/prove gates and tests see the
     # same setup a developer's checkout has.
-    - .config/ci/scripts/configure-git-checkout.sh
+    - tools/ci/scripts/configure-git-checkout.sh
     - uv run --package ethos ethos hook install --json
     - openspec --version
-    - .config/ci/scripts/run-python-tests.sh
+    - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
     - uv run --package ethos ethos audit --json
     - uv run --package ethos ethos report --json
@@ -147,10 +147,10 @@ ethos:npm:
   stage: verify
   # Runs on python:3.12 (kept layer-cached on the runner) with Node installed
   # from nodejs.org, because the node:24 Docker image is unreachable through this
-  # runner's registry egress — see .config/ci/scripts/install-node.sh.
+  # runner's registry egress — see tools/ci/scripts/install-node.sh.
   image: python:3.12
   script:
-    - .config/ci/scripts/install-node.sh
+    - tools/ci/scripts/install-node.sh
     - node --version
     - npm --version
     - npm config set engine-strict true
@@ -174,7 +174,7 @@ ethos:npm-package:
   # node:24 image.
   image: python:3.12
   script:
-    - .config/ci/scripts/install-node.sh
+    - tools/ci/scripts/install-node.sh
     - npm config set engine-strict true
     - npm ci --ignore-scripts
     - npm run test:npm

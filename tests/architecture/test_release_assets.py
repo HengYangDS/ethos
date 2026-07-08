@@ -37,21 +37,21 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     # from nodejs.org (install-node.sh), because the node:24 Docker image is
     # unreachable through the runner's registry egress. See install-node.sh.
     assert "image: node:24" not in text
-    assert ".config/ci/scripts/install-node.sh" in text
+    assert "tools/ci/scripts/install-node.sh" in text
     assert "npm config set engine-strict true" in text
     assert "npm ci --ignore-scripts" in text
     assert "npm run ethos -- --version" in text
     assert "npm run test:npm" in text
-    assert ".config/ci/scripts/run-python-tests.sh" in text
+    assert "tools/ci/scripts/run-python-tests.sh" in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
-    assert ".config/ci/scripts/bootstrap-python.sh" in text
-    assert ".config/ci/scripts/install-lychee.sh" in text
+    assert "tools/ci/scripts/bootstrap-python.sh" in text
+    assert "tools/ci/scripts/install-lychee.sh" in text
     assert "LYCHEE_CACHE_DIR: build/cache/lychee" in text
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/cache/ci-tools" in text
     assert "build/cache/lychee/" in text
     assert "build/cache/ci-tools/" in text
-    assert ".config/ci/scripts/run-import-linter.sh" in text
-    assert ".config/ci/scripts/run-docstring-coverage.sh" in text
+    assert "tools/ci/scripts/run-import-linter.sh" in text
+    assert "tools/ci/scripts/run-docstring-coverage.sh" in text
     assert (
         "uv run --group dev lint-imports --config .config/checks/import-linter/contracts.ini"
         not in text
@@ -90,24 +90,24 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert "planned = true" not in tools.split('concern = "coverage"', 1)[1].split("[[tool]]", 1)[0]
     assert 'config = ".config/boundaries/"' not in tools
     assert 'config = ".config/docs/lychee.toml"' not in tools
-    assert (ROOT / ".config/ci/scripts/bootstrap-python.sh").exists()
-    assert (ROOT / ".config/ci/scripts/install-lychee.sh").exists()
-    assert (ROOT / ".config/ci/scripts/run-import-linter.sh").exists()
-    assert (ROOT / ".config/ci/scripts/run-python-tests.sh").exists()
+    assert (ROOT / "tools/ci/scripts/bootstrap-python.sh").exists()
+    assert (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-import-linter.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-python-tests.sh").exists()
     assert (ROOT / ".config/checks/coverage/coverage.ini").exists()
     assert (ROOT / ".config/checks/coverage/.gitignore").exists()
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
-    assert (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").exists()
-    assert (ROOT / ".config/ci/scripts/run-local-ci.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
     assert 'concern = "local_ci_fallback"' in tools
-    assert 'gate = ".config/ci/scripts/run-local-ci.sh"' in tools
+    assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
     assert 'tool = "ethos-docstrings-google"' in tools
     assert 'concern = "python_docstrings"' in tools
 
 
 def test_ci_lychee_installer_is_architecture_aware() -> None:
-    installer = (ROOT / ".config/ci/scripts/install-lychee.sh").read_text(encoding="utf-8")
+    installer = (ROOT / "tools/ci/scripts/install-lychee.sh").read_text(encoding="utf-8")
 
     assert "uname -m" in installer
     assert "aarch64-unknown-linux-gnu" in installer
@@ -126,8 +126,8 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
 
 
 def test_ci_node_installer_is_architecture_aware() -> None:
-    installer = (ROOT / ".config/ci/scripts/install-node.sh").read_text(encoding="utf-8")
-    downloader = (ROOT / ".config/ci/scripts/download-file.sh").read_text(encoding="utf-8")
+    installer = (ROOT / "tools/ci/scripts/install-node.sh").read_text(encoding="utf-8")
+    downloader = (ROOT / "tools/ci/scripts/download-file.sh").read_text(encoding="utf-8")
 
     assert "uname -m" in installer
     assert "arm64" in installer
@@ -146,7 +146,7 @@ def test_ci_node_installer_is_architecture_aware() -> None:
 
 
 def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
-    installer = (ROOT / ".config/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
+    installer = (ROOT / "tools/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
     assert "download-file.sh" in installer
@@ -155,12 +155,12 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
     assert "tar tzf" in installer
     assert "gitleaks_${version}_linux_${arch}.tar.gz" in installer
     assert 'concern = "ci_tool_supply"' in tools
-    assert 'config = ".config/ci/scripts/download-file.sh"' in tools
+    assert 'config = "tools/ci/scripts/download-file.sh"' in tools
     assert 'artifacts = "build/cache/ci-tools/"' in tools
 
 
 def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
-    runner = (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
@@ -176,8 +176,8 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
 
 
 def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
-    runner = (ROOT / ".config/ci/scripts/run-module-layout.sh").read_text(encoding="utf-8")
-    local_ci = (ROOT / ".config/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-module-layout.sh").read_text(encoding="utf-8")
+    local_ci = (ROOT / "tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/module-layout/policy.toml").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
@@ -192,14 +192,14 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
-    assert 'gate = ".config/ci/scripts/run-module-layout.sh"' in tools
-    assert ".config/ci/scripts/run-module-layout.sh" in local_ci
-    assert ".config/ci/scripts/run-module-layout.sh" in gitlab
-    assert ".config/ci/scripts/run-module-layout.sh" in precommit
+    assert 'gate = "tools/ci/scripts/run-module-layout.sh"' in tools
+    assert "tools/ci/scripts/run-module-layout.sh" in local_ci
+    assert "tools/ci/scripts/run-module-layout.sh" in gitlab
+    assert "tools/ci/scripts/run-module-layout.sh" in precommit
 
 
 def test_python_test_gate_enforces_coverage_floor() -> None:
-    runner = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     coverage = (ROOT / ".config/checks/coverage/coverage.ini").read_text(encoding="utf-8")
     policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 

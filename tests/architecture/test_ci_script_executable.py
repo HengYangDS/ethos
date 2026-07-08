@@ -5,7 +5,7 @@ import stat
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CI_DIRECT_SCRIPT_RE = re.compile(r"^\s*-\s+(\.config/ci/scripts/[^\s]+\.sh)\s*$")
+CI_DIRECT_SCRIPT_RE = re.compile(r"^\s*-\s+(tools/ci/scripts/[^\s]+\.sh)\s*$")
 
 
 def _direct_ci_scripts() -> set[Path]:

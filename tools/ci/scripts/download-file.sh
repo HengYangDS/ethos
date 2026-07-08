@@ -6,7 +6,7 @@
 set -euo pipefail
 
 if [ "$#" -ne 2 ]; then
-  echo "usage: .config/ci/scripts/download-file.sh <url> <destination>" >&2
+  echo "usage: tools/ci/scripts/download-file.sh <url> <destination>" >&2
   exit 2
 fi
 

@@ -19,8 +19,8 @@ def test_ci_quality_stage_invokes_config_and_shell_owner_scripts() -> None:
 
     assert "ethos:config:" in ci
     assert "ethos:shell:" in ci
-    assert "- .config/ci/scripts/run-config-lint.sh" in ci
-    assert "- .config/ci/scripts/run-shell-lint.sh" in ci
+    assert "- tools/ci/scripts/run-config-lint.sh" in ci
+    assert "- tools/ci/scripts/run-shell-lint.sh" in ci
     assert "taplo" not in ci
     assert "yamllint" not in ci
     assert "shellcheck" not in ci
@@ -60,14 +60,14 @@ def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
     tools = (ROOT / "system" / "tools.toml").read_text(encoding="utf-8")
 
     assert re.search(
-        r'concern = "toml"[\s\S]*?config = "\.config/checks/taplo/taplo\.toml"[\s\S]*?gate = "\.config/ci/scripts/run-config-lint\.sh"',
+        r'concern = "toml"[\s\S]*?config = "\.config/checks/taplo/taplo\.toml"[\s\S]*?gate = "tools/ci/scripts/run-config-lint\.sh"',
         tools,
     )
     assert re.search(
-        r'concern = "yaml"[\s\S]*?config = "\.config/checks/yaml/yamllint\.yaml"[\s\S]*?gate = "\.config/ci/scripts/run-config-lint\.sh"',
+        r'concern = "yaml"[\s\S]*?config = "\.config/checks/yaml/yamllint\.yaml"[\s\S]*?gate = "tools/ci/scripts/run-config-lint\.sh"',
         tools,
     )
     assert re.search(
-        r'concern = "shell"[\s\S]*?config = "\.config/checks/shell/\.shellcheckrc"[\s\S]*?gate = "\.config/ci/scripts/run-shell-lint\.sh"',
+        r'concern = "shell"[\s\S]*?config = "\.config/checks/shell/\.shellcheckrc"[\s\S]*?gate = "tools/ci/scripts/run-shell-lint\.sh"',
         tools,
     )

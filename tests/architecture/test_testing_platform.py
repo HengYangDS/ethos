@@ -10,7 +10,7 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dev_deps = "\n".join(pyproject["dependency-groups"]["dev"])
     pytest_ini = (ROOT / "pytest.ini").read_text(encoding="utf-8")
-    script = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     policy = tomllib.loads((ROOT / ".config/checks/pytest/policy.toml").read_text(encoding="utf-8"))
 
     assert "pytest-xdist" in dev_deps
@@ -38,7 +38,7 @@ def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}
 
-    assert by_concern["tests"]["gate"] == ".config/ci/scripts/run-python-tests.sh"
+    assert by_concern["tests"]["gate"] == "tools/ci/scripts/run-python-tests.sh"
     assert by_concern["tests"]["config"] == "pytest.ini + .config/checks/pytest/policy.toml"
     assert by_concern["tests"]["artifacts"] == "build/evidence/quality/tests/"
     assert by_concern["test_performance"]["planned"] is True
@@ -46,7 +46,7 @@ def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None
 
 
 def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:
-    script = (ROOT / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     assert ".config/checks/pytest/junit.xml" not in script
     assert ".config/checks/coverage/coverage.xml" not in script
     assert "build/evidence/quality/tests" in script
@@ -63,7 +63,7 @@ def test_python_test_gate_isolates_worker_local_proof_state() -> None:
 
 
 def test_repository_hygiene_gate_is_owner_scripted_and_projected() -> None:
-    script = (ROOT / ".config/ci/scripts/run-repository-hygiene.sh").read_text(encoding="utf-8")
+    script = (ROOT / "tools/ci/scripts/run-repository-hygiene.sh").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
@@ -71,8 +71,6 @@ def test_repository_hygiene_gate_is_owner_scripted_and_projected() -> None:
 
     assert '"git", "ls-files"' in script
     assert "possible merge conflict marker" in script
-    assert ".config/ci/scripts/run-repository-hygiene.sh" in gitlab
-    assert ".config/ci/scripts/run-repository-hygiene.sh" in precommit
-    assert (
-        by_concern["repository_hygiene"]["gate"] == ".config/ci/scripts/run-repository-hygiene.sh"
-    )
+    assert "tools/ci/scripts/run-repository-hygiene.sh" in gitlab
+    assert "tools/ci/scripts/run-repository-hygiene.sh" in precommit
+    assert by_concern["repository_hygiene"]["gate"] == "tools/ci/scripts/run-repository-hygiene.sh"

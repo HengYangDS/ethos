@@ -756,7 +756,7 @@ a local-ci fallback evidence path when the configured Git remote is unavailable.
 #### Scenario: local-ci fallback uses owner gates
 
 - **WHEN** remote publication is unavailable or deferred
-- **THEN** ETHOS recommends `.config/ci/scripts/run-local-ci.sh` as local
+- **THEN** ETHOS recommends `tools/ci/scripts/run-local-ci.sh` as local
   fallback evidence
 - **AND** that script invokes reusable owner gate scripts rather than restating
   hosted CI policy inline

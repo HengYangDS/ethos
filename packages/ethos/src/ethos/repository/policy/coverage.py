@@ -15,7 +15,7 @@ COVERAGE_EVIDENCE_DIR = Path("build/evidence/quality/tests/coverage")
 POLICY_PATH = COVERAGE_CONFIG_DIR / "policy.toml"
 CONFIG_PATH = COVERAGE_CONFIG_DIR / "coverage.ini"
 ARTIFACT_PATH = COVERAGE_EVIDENCE_DIR / "coverage.xml"
-OWNER_SCRIPT = ".config/ci/scripts/run-python-tests.sh"
+OWNER_SCRIPT = "tools/ci/scripts/run-python-tests.sh"
 
 
 def coverage_quality_report(root: Path) -> dict[str, object]:

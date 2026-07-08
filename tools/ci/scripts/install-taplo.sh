@@ -8,7 +8,7 @@
 # runner architecture avoids the Rust build entirely.
 #
 # Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic
-# (mirrors .config/ci/scripts/install-lychee.sh).
+# (mirrors tools/ci/scripts/install-lychee.sh).
 set -euo pipefail
 
 if command -v taplo >/dev/null 2>&1; then

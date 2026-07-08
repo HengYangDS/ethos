@@ -170,7 +170,7 @@ def test_gate_registry_does_not_overwrite_existing_id(
 
     registry = gates_mod.gate_registry()
 
-    assert registry["ruff"].command == (".config/ci/scripts/run-python-lint.sh",)
+    assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
 
 
 # ---------------------------------------------------------------------------

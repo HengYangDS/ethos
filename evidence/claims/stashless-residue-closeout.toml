@@ -12,8 +12,8 @@ binding = "Pre-run admission and repository hygiene bind dirty-work closeout to 
 verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/coverage/test_cli_admission_final_edges.py -q",
-  ".config/ci/scripts/run-repository-hygiene.sh",
-  ".config/ci/scripts/run-shell-lint.sh .config/ci/scripts/install-lychee.sh .config/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/install-lychee.sh tools/ci/scripts/run-repository-hygiene.sh",
   "uv run --group dev pytest tests/architecture/test_release_assets.py -q",
   "openspec validate --all --strict",
 ]
@@ -32,7 +32,7 @@ kill_signal = "A tracked rule, skill, or workflow tells agents to use git stash 
 targets = [
   "packages/ethos/src/ethos/adapters/admission/core.py",
   "tests/unit/coverage/test_cli_admission_final_edges.py",
-  ".config/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
   "rules/mutation.md",
   "rules/hooks.md",
   "system/invalid_states.toml",

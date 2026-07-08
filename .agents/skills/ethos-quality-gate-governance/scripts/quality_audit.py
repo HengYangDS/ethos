@@ -9,13 +9,13 @@ from pathlib import Path
 from typing import Any
 
 REQUIRED_FILES = (
-    ".config/ci/scripts/run-python-lint.sh",
-    ".config/ci/scripts/run-python-tests.sh",
-    ".config/ci/scripts/run-config-lint.sh",
-    ".config/ci/scripts/run-shell-lint.sh",
-    ".config/ci/scripts/run-docstring-coverage.sh",
-    ".config/ci/scripts/run-module-layout.sh",
-    ".config/ci/scripts/run-repository-hygiene.sh",
+    "tools/ci/scripts/run-python-lint.sh",
+    "tools/ci/scripts/run-python-tests.sh",
+    "tools/ci/scripts/run-config-lint.sh",
+    "tools/ci/scripts/run-shell-lint.sh",
+    "tools/ci/scripts/run-docstring-coverage.sh",
+    "tools/ci/scripts/run-module-layout.sh",
+    "tools/ci/scripts/run-repository-hygiene.sh",
     ".config/checks/coverage/coverage.ini",
     ".config/checks/coverage/policy.toml",
     ".config/checks/docstrings/policy.toml",
@@ -30,17 +30,17 @@ REQUIRED_FILES = (
 )
 
 ACTIVE_CONCERNS = {
-    "python_format_lint": ".config/ci/scripts/run-python-lint.sh",
-    "tests": ".config/ci/scripts/run-python-tests.sh",
+    "python_format_lint": "tools/ci/scripts/run-python-lint.sh",
+    "tests": "tools/ci/scripts/run-python-tests.sh",
     "python_typing": "ethos quality types --json",
-    "coverage": ".config/ci/scripts/run-python-tests.sh",
-    "python_docstrings": ".config/ci/scripts/run-docstring-coverage.sh",
-    "python_module_layout": ".config/ci/scripts/run-module-layout.sh",
-    "toml": ".config/ci/scripts/run-config-lint.sh",
-    "yaml": ".config/ci/scripts/run-config-lint.sh",
-    "shell": ".config/ci/scripts/run-shell-lint.sh",
-    "repository_hygiene": ".config/ci/scripts/run-repository-hygiene.sh",
-    "json_syntax": ".config/ci/scripts/run-config-lint.sh",
+    "coverage": "tools/ci/scripts/run-python-tests.sh",
+    "python_docstrings": "tools/ci/scripts/run-docstring-coverage.sh",
+    "python_module_layout": "tools/ci/scripts/run-module-layout.sh",
+    "toml": "tools/ci/scripts/run-config-lint.sh",
+    "yaml": "tools/ci/scripts/run-config-lint.sh",
+    "shell": "tools/ci/scripts/run-shell-lint.sh",
+    "repository_hygiene": "tools/ci/scripts/run-repository-hygiene.sh",
+    "json_syntax": "tools/ci/scripts/run-config-lint.sh",
 }
 
 
@@ -154,7 +154,7 @@ def _coverage_policy_gaps(root: Path) -> list[str]:
 
 
 def _python_test_runner_gaps(root: Path) -> list[str]:
-    python_tests = (root / ".config/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+    python_tests = (root / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     _coverage_policy, coverage_policy_gaps = load_toml(root / ".config/checks/coverage/policy.toml")
     required_needles = (
         "coverage_hard_floor=",

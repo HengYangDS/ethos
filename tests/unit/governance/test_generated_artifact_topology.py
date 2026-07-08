@@ -35,6 +35,10 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
         "docs/evidence",
         "evidence/chronicle",
         "evidence/parity",
+        "tools/ci/scripts",
+    }
+    assert {item["prefix"] for item in contract["denied_prefixes"]} >= {
+        ".config/ci/scripts",
     }
     assert contract["adopter_specific_product_dirs_allowed"] is False
     assert "adopters" in contract["product_adopter_root_prefixes"]
@@ -135,4 +139,17 @@ def test_path_policy_denies_generated_output_under_governed_docs() -> None:
     assert report["decision"] == "deny"
     assert report["required_gap"] == (
         "generated_artifact_governed_docs_drift:docs/reference/report.json"
+    )
+
+
+def test_path_policy_reviews_runner_scripts_and_denies_retired_config_scripts() -> None:
+    runner = path_policy_for("tools/ci/scripts/run-python-lint.sh")
+    retired = path_policy_for(".config/ci/scripts/run-python-lint.sh")
+
+    assert runner["decision"] == "review"
+    assert runner["required_gap"] == ""
+    assert "runner" in runner["boundary"]
+    assert retired["decision"] == "deny"
+    assert retired["required_gap"] == (
+        "retired_config_script_home:.config/ci/scripts/run-python-lint.sh"
     )

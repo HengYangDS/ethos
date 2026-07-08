@@ -165,7 +165,7 @@ def gate_registry() -> dict[str, Gate]:
             kind="test",
             profile="product-toolchain",
             toolchain="uv-python",
-            command=(".config/ci/scripts/run-python-tests.sh",),
+            command=("tools/ci/scripts/run-python-tests.sh",),
             asset_classes=("python-code",),
             dimensions=("test", "coverage"),
             execution_mode="adapter",
@@ -179,7 +179,7 @@ def gate_registry() -> dict[str, Gate]:
             kind="lint",
             profile="product-toolchain",
             toolchain="uv-python",
-            command=(".config/ci/scripts/run-python-lint.sh",),
+            command=("tools/ci/scripts/run-python-lint.sh",),
             asset_classes=("python-code",),
             dimensions=("lint", "format", "ratchet"),
             execution_mode="adapter",
@@ -193,7 +193,7 @@ def gate_registry() -> dict[str, Gate]:
             kind="docs",
             profile="product-toolchain",
             toolchain="uv-python",
-            command=(".config/ci/scripts/run-docstring-coverage.sh",),
+            command=("tools/ci/scripts/run-docstring-coverage.sh",),
             asset_classes=("python-code",),
             dimensions=("documentation", "intent"),
             execution_mode="inprocess",
@@ -207,7 +207,7 @@ def gate_registry() -> dict[str, Gate]:
             kind="architecture",
             profile="product-toolchain",
             toolchain="uv-python",
-            command=(".config/ci/scripts/run-module-layout.sh",),
+            command=("tools/ci/scripts/run-module-layout.sh",),
             asset_classes=("python-code",),
             dimensions=("module-layout", "semantic-subpackages", "import-discipline"),
             execution_mode="adapter",
@@ -334,7 +334,7 @@ def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[s
     if _has_repository_profile(root):
         # Adopted repositories expose their proof depth through `.ethos/profile.toml`
         # and repository-native gates. The product code-correctness floor must not
-        # assume product-owned `.config/ci/scripts/*` exist in every adopter.
+        # assume product-owned `tools/ci/scripts/*` exist in every adopter.
         return ADOPTER_DEFAULT_GATE_IDS
     if full:
         return PRODUCT_FULL_GATE_IDS

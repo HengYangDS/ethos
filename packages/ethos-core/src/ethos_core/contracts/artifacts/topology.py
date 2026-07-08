@@ -58,10 +58,10 @@ _REVIEW_PREFIXES: tuple[tuple[str, str], ...] = (
     ("docs/evidence/", "curated dated reviewable evidence"),
     ("evidence/chronicle/", "curated judged history evidence"),
     ("evidence/parity/", "tracked parity evidence promoted by explicit command"),
-    (
-        ".config/ci/scripts/",
-        "legacy executable runner home; visible debt, not a generic config pattern",
-    ),
+    ("tools/ci/scripts/", "repository-owned reusable runner scripts"),
+)
+_DENIED_PREFIXES: tuple[tuple[str, str], ...] = (
+    (".config/ci/scripts/", "runner scripts belong under tools/ci/scripts"),
 )
 _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".config/", "generated_artifact_config_drift"),
@@ -99,6 +99,9 @@ def generated_artifact_contract() -> dict[str, object]:
             {"prefix": prefix.rstrip("/"), "boundary": boundary}
             for prefix, boundary in _REVIEW_PREFIXES
         ],
+        "denied_prefixes": [
+            {"prefix": prefix.rstrip("/"), "required_gap": gap} for prefix, gap in _DENIED_PREFIXES
+        ],
         "denied_generated_prefixes": [
             {"prefix": prefix.rstrip("/"), "required_gap": gap}
             for prefix, gap in _DENIED_GENERATED_PREFIXES
@@ -118,8 +121,13 @@ def is_product_adopter_path(path: Path | str) -> bool:
     return any(_matches_prefix(rel, prefix) for prefix in PRODUCT_ADOPTER_ROOT_PREFIXES)
 
 
-def is_config_script_path(path: Path | str) -> bool:
-    """Return whether a path lives under the legacy executable config script home."""
+def is_runner_script_path(path: Path | str) -> bool:
+    """Return whether a path lives under the repository-owned runner script home."""
+    return _matches_prefix(normalize_artifact_path(path), "tools/ci/scripts/")
+
+
+def is_retired_config_script_path(path: Path | str) -> bool:
+    """Return whether a path revives the retired executable config script home."""
     return _matches_prefix(normalize_artifact_path(path), ".config/ci/scripts/")
 
 
@@ -189,20 +197,27 @@ def _allowed_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     return None
 
 
+def _retired_path_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
+    for prefix, boundary in _DENIED_PREFIXES:
+        if _matches_prefix(rel, prefix):
+            return _policy(
+                path=rel,
+                decision="deny",
+                boundary=boundary,
+                generated=generated,
+                required_gap=f"retired_config_script_home:{rel}",
+            )
+    return None
+
+
 def _review_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _REVIEW_PREFIXES:
         if _matches_prefix(rel, prefix):
-            review_gap = (
-                f"generated_artifact_config_script_home_legacy:{rel}"
-                if is_config_script_path(rel)
-                else ""
-            )
             return _policy(
                 path=rel,
                 decision="review",
                 boundary=boundary,
                 generated=generated,
-                required_gap=review_gap,
             )
     return None
 
@@ -236,6 +251,7 @@ def path_policy_for(path: Path | str) -> dict[str, Any]:
     generated = is_generated_artifact_path(rel)
     for candidate in (
         _product_adopter_policy(rel, generated=generated),
+        _retired_path_policy(rel, generated=generated),
         _declarative_policy(rel, generated=generated),
         _allowed_policy(rel, generated=generated),
         _review_policy(rel, generated=generated),

@@ -16,10 +16,10 @@ tests = [
   "ethos quality schemas --json",
   "openspec validate evolution-ledger-ssot-20260707 --strict --json",
   "openspec validate --all --strict --json",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-docstring-coverage.sh",
-  ".config/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-python-tests.sh",
   "ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json",
 ]
 
@@ -52,7 +52,7 @@ targets = [
   "packages/ethos/src/ethos/repository/audit.py",
   "packages/ethos/src/ethos/assistants/context.py",
   "system/schemas/kernel/evolution-ledger.schema.json",
-  ".config/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
   "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",
   "evidence/claims/evolution-ledger-ssot.toml",
   "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md",

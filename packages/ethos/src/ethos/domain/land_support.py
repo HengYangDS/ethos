@@ -71,15 +71,15 @@ def local_ci_fallback_package(
         "boundary": "local-ci evidence; hosted CI status unclaimed",
         "hosted_ci_status_claimed": False,
         "remote_availability_state": str(availability.get("state") or "not_probed"),
-        "command": ".config/ci/scripts/run-local-ci.sh",
+        "command": "tools/ci/scripts/run-local-ci.sh",
         "owner_scripts": [
-            ".config/ci/scripts/run-python-lint.sh",
-            ".config/ci/scripts/run-config-lint.sh",
-            ".config/ci/scripts/run-shell-lint.sh",
-            ".config/ci/scripts/run-docstring-coverage.sh",
-            ".config/ci/scripts/run-module-layout.sh",
-            ".config/ci/scripts/run-repository-hygiene.sh",
-            ".config/ci/scripts/run-python-tests.sh",
+            "tools/ci/scripts/run-python-lint.sh",
+            "tools/ci/scripts/run-config-lint.sh",
+            "tools/ci/scripts/run-shell-lint.sh",
+            "tools/ci/scripts/run-docstring-coverage.sh",
+            "tools/ci/scripts/run-module-layout.sh",
+            "tools/ci/scripts/run-repository-hygiene.sh",
+            "tools/ci/scripts/run-python-tests.sh",
         ],
     }
 
@@ -228,7 +228,7 @@ def publication_readiness(
     if local_ok and remote_available:
         next_actions = ["create configured submit branch when remote publication is available"]
     elif local_ok:
-        next_actions = ["run .config/ci/scripts/run-local-ci.sh as local fallback evidence"]
+        next_actions = ["run tools/ci/scripts/run-local-ci.sh as local fallback evidence"]
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",

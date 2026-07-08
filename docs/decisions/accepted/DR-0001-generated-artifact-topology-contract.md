@@ -31,7 +31,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Boundary | Owns generic path policy, path router behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
 | Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
 | Decision | Promote the Generated Artifact Topology Contract and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
-| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` remains visible review debt rather than the generic model. |
+| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
 | Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
 
@@ -67,8 +67,8 @@ Adopt the Generated Artifact Topology Contract:
 - Generated drift in repo root, `.config/`, semantic docs truth roots, or source
   directories is denied.
 - Product-owned adopter-specific roots are denied.
-- Existing `.config/ci/scripts/` runners are visible review debt and must not be
-  treated as the generic `.config/` model for adopters.
+- The retired `.config/ci/scripts/` runners were visible review debt and must not be
+  treated as the generic `.config/` model for adopters. Current reusable runners live under `tools/ci/scripts/`.
 
 ## Consequences
 

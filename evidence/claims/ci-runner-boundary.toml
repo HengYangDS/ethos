@@ -1,0 +1,64 @@
+[claim]
+id = "ci-runner-boundary"
+subject = "ethos:ci-runner-boundary"
+state = "active"
+change_id = "ci-runner-boundary-20260708"
+summary = "ETHOS keeps reusable CI and quality runners under tools/ci/scripts while .config stays configuration-only."
+
+[evidence]
+dated = "evidence/chronicle/ci-runner-boundary/2026-07-08.md"
+sha256 = ""
+evidence_ids = ["evidence:ci-runner-boundary"]
+binding = "CI runner boundary migration and active OpenSpec carrier binding."
+verifier = "semantic"
+tests = [
+  "uv run pytest tests/architecture/test_ci_script_executable.py tests/architecture/test_docstring_governance.py tests/architecture/test_product_boundaries.py tests/architecture/test_release_assets.py tests/architecture/test_testing_platform.py tests/unit/cli/test_contracts_land.py tests/unit/cli/test_quality_surface_more.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_policy_edges.py tests/unit/governance/test_quality_regime.py tests/unit/governance/validation/test_gates.py tests/unit/kernel/test_quality.py tests/unit/lanes/test_runner_evidence.py tests/unit/policy/test_coverage.py tests/unit/cli/test_generated_artifact_topology_cli.py tests/unit/governance/test_generated_artifact_topology.py -q",
+  "uv run ruff check changed-python-files",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh tools/ci/scripts/*.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+]
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = [
+  "tests/architecture/test_ci_script_executable.py",
+  "tests/architecture/test_release_assets.py",
+  "tests/architecture/test_product_boundaries.py",
+  "tests/unit/governance/validation/test_gates.py",
+]
+docs = [
+  ".config/README.md",
+  "docs/decisions/accepted/DR-0001-generated-artifact-topology-contract.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+]
+
+[boundary]
+owner = "quality"
+scope = "Reusable CI and quality runner execution boundary"
+
+[carriers]
+openspec = "openspec/changes/ci-runner-boundary-20260708"
+
+fallback = "Keep runner scripts under .config/ci/scripts if tools/ci/scripts cannot be made deterministic."
+kill_signal = ".config/ci contains executable runner scripts or active gate/projection paths point at .config/ci/scripts."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-module-layout.sh",
+  ".config/README.md",
+  ".gitlab-ci.yml",
+  ".pre-commit-config.yaml",
+  "system/tools.toml",
+  "openspec/changes/ci-runner-boundary-20260708",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "evidence/claims/ci-runner-boundary.toml",
+]

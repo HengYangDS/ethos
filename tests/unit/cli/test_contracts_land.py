@@ -546,7 +546,7 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
     assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
     assert (
-        ".config/ci/scripts/run-module-layout.sh"
+        "tools/ci/scripts/run-module-layout.sh"
         in payload["data"]["local_ci_fallback"]["owner_scripts"]
     )
 

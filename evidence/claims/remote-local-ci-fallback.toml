@@ -12,7 +12,7 @@ evidence_ids = ["evidence:remote-local-ci-fallback"]
 binding = "Remote availability probe and local-ci fallback binding"
 verifier = "semantic"
 tests = [
-  ".config/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-ci.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos publish --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality schemas --json",
   "uv run --group dev pytest tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/cli/test_contracts_closeout.py::test_configured_branch_roles_drive_local_lifecycle_commands -q",
@@ -41,7 +41,7 @@ kill_signal = "Local fallback evidence is presented as hosted CI success or remo
 
 [promotion]
 targets = [
-  ".config/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-ci.sh",
   "packages/ethos/src/ethos/adapters/repo/git.py",
   "packages/ethos/src/ethos/domain/land_support.py",
   "packages/ethos/src/ethos/domain/land.py",

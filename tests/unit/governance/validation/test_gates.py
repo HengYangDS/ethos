@@ -34,11 +34,11 @@ def test_gate_registry_has_real_default_gates() -> None:
         "docstrings",
         "module-layout",
     } <= set(registry)
-    assert registry["ruff"].command == (".config/ci/scripts/run-python-lint.sh",)
+    assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
     assert registry["ruff"].dimensions == ("lint", "format", "ratchet")
     assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
-    assert registry["docstrings"].command == (".config/ci/scripts/run-docstring-coverage.sh",)
-    assert registry["module-layout"].command == (".config/ci/scripts/run-module-layout.sh",)
+    assert registry["docstrings"].command == ("tools/ci/scripts/run-docstring-coverage.sh",)
+    assert registry["module-layout"].command == ("tools/ci/scripts/run-module-layout.sh",)
     assert registry["module-layout"].execution_mode == "adapter"
     assert registry["python-types"].execution_mode == "inprocess"
 
@@ -107,18 +107,16 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "evidence-freshness",
         "--json",
     ]
-    assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
-    assert nodes["module-layout"].to_dict()["command"] == [
-        ".config/ci/scripts/run-module-layout.sh"
-    ]
+    assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
+    assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
     assert nodes["python-size"].to_dict()["command"] == [
         "ethos",
         "quality",
         "code-size",
         "--json",
     ]
-    assert nodes["toml-config"].to_dict()["command"] == [".config/ci/scripts/run-config-lint.sh"]
-    assert nodes["shell-lint"].to_dict()["command"] == [".config/ci/scripts/run-shell-lint.sh"]
+    assert nodes["toml-config"].to_dict()["command"] == ["tools/ci/scripts/run-config-lint.sh"]
+    assert nodes["shell-lint"].to_dict()["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
 
 
 def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(tmp_path: Path) -> None:
@@ -154,10 +152,10 @@ root_subject = \"sample\"
         "proof-policy",
     ]
     commands = [node.to_dict()["command"] for node in graph.nodes]
-    assert [".config/ci/scripts/run-python-lint.sh"] not in commands
-    assert [".config/ci/scripts/run-python-tests.sh"] not in commands
-    assert [".config/ci/scripts/run-docstring-coverage.sh"] not in commands
-    assert [".config/ci/scripts/run-module-layout.sh"] not in commands
+    assert ["tools/ci/scripts/run-python-lint.sh"] not in commands
+    assert ["tools/ci/scripts/run-python-tests.sh"] not in commands
+    assert ["tools/ci/scripts/run-docstring-coverage.sh"] not in commands
+    assert ["tools/ci/scripts/run-module-layout.sh"] not in commands
 
 
 def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
@@ -167,14 +165,12 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert "build" in nodes
     assert "docstrings" in nodes
     assert nodes["build"].depends_on == ("unit-architecture", "ruff")
-    assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
+    assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
     assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
-    assert nodes["module-layout"].to_dict()["command"] == [
-        ".config/ci/scripts/run-module-layout.sh"
-    ]
+    assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
 
 
 def test_gate_registry_includes_generated_artifacts_gate() -> None:

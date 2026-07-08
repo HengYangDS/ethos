@@ -116,9 +116,21 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 
 - **WHEN** `ethos prove --json` builds its default action graph
 - **THEN** the graph includes TOML, YAML, shell, Python lint, Python type,
-  docstring, unit/coverage, and format-policy gates
+  docstring, module-layout, Python size, unit/coverage, and format-policy gates
 - **AND** CI, pre-commit, and proof invoke reusable owner scripts instead of
   copying tool command policy into provider projections
+
+#### Scenario: Report exposes hard quality-floor gaps
+
+- **WHEN** a product hard quality gate such as Python size or module layout
+  reports required gaps
+- **THEN** `ethos report --json` includes those gaps in its blocking
+  `required_gaps`
+- **AND** the report state is not ready
+- **AND** the report payload includes a `hard_quality_floor` read model with the
+  contributing gate verdicts
+- **AND** next actions point to the concrete standalone quality command instead
+  of implying full proof can close the gap
 
 #### Scenario: Coverage quality read model reports the active floor
 

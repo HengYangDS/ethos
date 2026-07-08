@@ -40,7 +40,10 @@ else is present, what remains gapped, and what should run next. It is not a
 transition verb and does not mint repository truth.
 
 `ethos report` is a read-only scorecard. It is a payoff view over readiness,
-proof, parity, and release policy; it is not a sixth transition verb.
+hard quality-floor verdicts, proof, parity, and release policy; it is not a
+sixth transition verb. A hard quality gap that would block proof or local
+publication must appear as a blocking report gap rather than being hidden
+behind a green scorecard.
 
 Setup and onboarding commands are outside the transition loop:
 

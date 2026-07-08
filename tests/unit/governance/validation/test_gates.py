@@ -93,6 +93,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "python-size",
         "toml-config",
         "yaml-config",
         "shell-lint",
@@ -102,6 +103,12 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     assert nodes["ruff"].to_dict()["command"] == [".config/ci/scripts/run-python-lint.sh"]
     assert nodes["module-layout"].to_dict()["command"] == [
         ".config/ci/scripts/run-module-layout.sh"
+    ]
+    assert nodes["python-size"].to_dict()["command"] == [
+        "ethos",
+        "quality",
+        "code-size",
+        "--json",
     ]
     assert nodes["toml-config"].to_dict()["command"] == [".config/ci/scripts/run-config-lint.sh"]
     assert nodes["shell-lint"].to_dict()["command"] == [".config/ci/scripts/run-shell-lint.sh"]

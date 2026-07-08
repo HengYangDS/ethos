@@ -11,12 +11,14 @@ from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.domain import land as _land
 from ethos.domain import status as _status
+from ethos.domain.prove import code_size_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.planner import adoption_scaffold_report
 from ethos.repository.adoption.planner import available_profiles
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs.health import docs_health_report
@@ -44,6 +46,9 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     playbooks = playbooks_report(repo, mode="v2-strict")
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
+    hard_quality_floor = (
+        _hard_quality_floor_report(repo) if product_profile else _adopter_quality_floor_report()
+    )
     current_head = _gitio.current_tracked_head(repo)
     parity_gaps = parity_gaps_report(
         root=repo,
@@ -79,17 +84,28 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     )
     result_required_gaps = tuple(cast("list[str]", audit["required_gaps"]))
     if product_profile:
-        result_required_gaps = result_required_gaps + tuple(
-            cast("list[str]", claim_report["required_gaps"])
+        result_required_gaps = (
+            result_required_gaps
+            + tuple(cast("list[str]", claim_report["required_gaps"]))
+            + tuple(cast("list[str]", hard_quality_floor["required_gaps"]))
         )
     parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
     advisory_gaps = _advisory_gaps(audit, claim_report, playbooks)
     advisory_next_actions = _advisory_next_actions(advisory_gaps)
     gap_layers = _gap_layers(
-        result_required_gaps, parity_gaps, playbooks, advisory_gaps, advisory_next_actions
+        result_required_gaps,
+        parity_gaps,
+        playbooks,
+        advisory_gaps,
+        advisory_next_actions,
+        hard_quality_floor,
+    )
+    next_actions = _scorecard_next_actions(
+        parity_pending_count=parity_pending_count,
+        hard_quality_floor=hard_quality_floor,
     )
     return {
-        "ok": all(value == 1 for value in scores.values()),
+        "ok": all(value == 1 for value in scores.values()) and not result_required_gaps,
         "summary": {
             "score": sum(scores.values()),
             "max_score": len(scores),
@@ -98,11 +114,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             "advisory_gap_count": len(advisory_gaps),
         },
         "required_gaps": result_required_gaps,
-        "next_actions": (
-            ("ethos parity gaps --adopter <adopter>",)
-            if parity_pending_count
-            else ("ethos prove --full",)
-        ),
+        "next_actions": next_actions,
         "data": {
             "governance_context": audit["governance_context"],
             "scores": scores,
@@ -120,6 +132,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             "signature_policy": signature,
             "playbooks": playbooks,
             "adoption_scaffold": adoption_scaffold,
+            "hard_quality_floor": hard_quality_floor,
             "gap_layers": gap_layers,
             "invalid_states": _all_invalid_states(result_required_gaps, parity_gaps, playbooks),
             "advisory_signals": {
@@ -209,6 +222,57 @@ def _product_scores(
     }
 
 
+def _hard_quality_floor_report(repo: Path) -> dict[str, object]:
+    """Return product hard quality gates that the scorecard must not hide."""
+    code_size = code_size_report(repo)
+    module_layout = module_layout_report(repo)
+    gate_reports = {
+        "python-size": code_size,
+        "module-layout": module_layout,
+    }
+    required_gaps: list[str] = []
+    for report in gate_reports.values():
+        required_gaps.extend(cast("list[str]", report["required_gaps"]))
+    return {
+        "ok": not required_gaps,
+        "state": "clean" if not required_gaps else "blocked",
+        "gate_ids": list(gate_reports),
+        "required_gaps": required_gaps,
+        "gates": gate_reports,
+    }
+
+
+def _adopter_quality_floor_report() -> dict[str, object]:
+    """Return the adopter report boundary; adopter gates remain profile-owned."""
+    return {
+        "ok": True,
+        "state": "profile_deferred",
+        "gate_ids": [],
+        "required_gaps": [],
+        "gates": {},
+        "boundary": "adopter_profile_quality_floor",
+    }
+
+
+def _scorecard_next_actions(
+    *,
+    parity_pending_count: int,
+    hard_quality_floor: dict[str, object],
+) -> tuple[str, ...]:
+    """Return bounded next actions for report without hiding hard quality gaps."""
+    quality_gaps = cast("list[str]", hard_quality_floor["required_gaps"])
+    if quality_gaps:
+        commands: list[str] = []
+        if any(gap.startswith("code_size_") for gap in quality_gaps):
+            commands.append("ethos quality code-size --json")
+        if any(gap.startswith("module_layout_") for gap in quality_gaps):
+            commands.append("ethos quality module-layout --json")
+        return tuple(commands or ["ethos quality --json"])
+    if parity_pending_count:
+        return ("ethos parity gaps --adopter <adopter>",)
+    return ("ethos prove --full",)
+
+
 def _first_hour(*, product_profile: bool, required_gaps: tuple[str, ...]) -> dict[str, object]:
     if product_profile:
         return {}
@@ -283,7 +347,9 @@ def _gap_layers(
     playbooks: dict[str, object],
     advisory_gaps: tuple[str, ...],
     advisory_next_actions: tuple[str, ...],
+    hard_quality_floor: dict[str, object] | None = None,
 ) -> dict[str, dict[str, object]]:
+    hard_quality_floor = hard_quality_floor or _adopter_quality_floor_report()
     return {
         "governance_audit": _gap_layer(
             scope="governance_audit",
@@ -306,6 +372,12 @@ def _gap_layers(
             ),
             "advisory_gaps": list(cast("list[object]", playbooks["advisory_gaps"])),
         },
+        "hard_quality_floor": _gap_layer(
+            scope="hard_quality_floor",
+            blocking=True,
+            ok=bool(hard_quality_floor["ok"]),
+            gaps=list(cast("list[str]", hard_quality_floor["required_gaps"])),
+        ),
         "advisory_signals": {
             "scope": "advisory_signals",
             "blocking": False,

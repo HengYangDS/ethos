@@ -258,6 +258,7 @@ PRODUCT_DEFAULT_GATE_IDS = (
     "python-types",
     "docstrings",
     "module-layout",
+    "python-size",
     "toml-config",
     "yaml-config",
     "shell-lint",

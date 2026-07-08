@@ -15,8 +15,11 @@ import pytest
 
 from ethos.adapters import shadow
 from ethos.adapters.mutation import lanes
-from ethos.adapters.store import retrieval
 from ethos.adapters.store import state
+from ethos.adapters.store.retrieval import common as retrieval_common
+from ethos.adapters.store.retrieval import indexing as retrieval_indexing
+from ethos.adapters.store.retrieval import query as retrieval_query
+from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos.repository.evidence import parity
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -415,63 +418,74 @@ def test_retrieval_index_search_verify_and_purge_edges(
     py = tmp_path / "packages" / "demo" / "mod.py"
     py.parent.mkdir(parents=True)
     py.write_text("def alpha():\n    return 'retrieval'\n", encoding="utf-8")
-    monkeypatch.setattr(retrieval, "_tracked_files", lambda root: [readme, py])
-    monkeypatch.setattr(retrieval, "_dirty_allowed_sources", lambda root: [])
-    monkeypatch.setattr(retrieval, "_git_head", lambda root: "h1")
+    # Patch tracked_files in sources so allowed_sources sees the stub files.
+    monkeypatch.setattr(retrieval_sources, "tracked_files", lambda root: [readme, py])
+    # Patch dirty_allowed_sources in both indexing (rebuild) and query (search/verify).
+    monkeypatch.setattr(retrieval_indexing, "dirty_allowed_sources", lambda root: [])
+    monkeypatch.setattr(retrieval_query, "dirty_allowed_sources", lambda root: [])
+    # Patch git_head in both indexing (rebuild) and query (search/verify).
+    monkeypatch.setattr(retrieval_indexing, "git_head", lambda root: "h1")
+    monkeypatch.setattr(retrieval_query, "git_head", lambda root: "h1")
+    # Patch _tracked_source_paths in query (verify_candidate).
     monkeypatch.setattr(
-        retrieval, "_tracked_source_paths", lambda root: {"README.md", "packages/demo/mod.py"}
+        retrieval_query,
+        "_tracked_source_paths",
+        lambda root: {"README.md", "packages/demo/mod.py"},
     )
 
-    dry = retrieval.rebuild_context_index(tmp_path, apply=False, authorized=False)
+    dry = retrieval_indexing.rebuild_context_index(tmp_path, apply=False, authorized=False)
     assert dry["state"] == "dry_run"
-    assert retrieval.rebuild_context_index(tmp_path, apply=True, authorized=False)[
+    assert retrieval_indexing.rebuild_context_index(tmp_path, apply=True, authorized=False)[
         "required_gaps"
     ] == ["context_index_requires_authorization"]
-    indexed = retrieval.rebuild_context_index(tmp_path, apply=True, authorized=True)
+    indexed = retrieval_indexing.rebuild_context_index(tmp_path, apply=True, authorized=True)
     assert indexed["state"] == "indexed"
 
-    found = retrieval.search_context_index(tmp_path, "retrieval", limit=5)
+    found = retrieval_query.search_context_index(tmp_path, "retrieval", limit=5)
     assert found["ok"] is True
     assert found["summary"]["verified_count"] >= 1
     assert (
-        retrieval._query_candidates(retrieval.default_retrieval_db_path(tmp_path), "!!!", limit=3)
+        retrieval_query.query_candidates(
+            retrieval_common.default_retrieval_db_path(tmp_path), "!!!", limit=3
+        )
         == []
     )
 
     stale_candidate = dict(
-        retrieval._query_candidates(
-            retrieval.default_retrieval_db_path(tmp_path), "ETHOS", limit=1
+        retrieval_query.query_candidates(
+            retrieval_common.default_retrieval_db_path(tmp_path), "ETHOS", limit=1
         )[0]
     )
     stale_candidate["head"] = "old"
     assert (
-        retrieval._verify_candidate(tmp_path, stale_candidate)["verification"]["reason"]
+        retrieval_query.verify_candidate(tmp_path, stale_candidate)["verification"]["reason"]
         == "head_mismatch"
     )
     outside_candidate = dict(stale_candidate, path="../outside.md", head="h1")
     assert (
-        retrieval._verify_candidate(tmp_path, outside_candidate)["verification"]["reason"]
+        retrieval_query.verify_candidate(tmp_path, outside_candidate)["verification"]["reason"]
         == "path_outside_repository"
     )
     missing_candidate = dict(stale_candidate, path="docs/missing.md", head="h1")
-    monkeypatch.setattr(retrieval, "_tracked_source_paths", lambda root: {"docs/missing.md"})
+    monkeypatch.setattr(retrieval_query, "_tracked_source_paths", lambda root: {"docs/missing.md"})
     monkeypatch.setattr(
-        retrieval, "_allowed_sources", lambda root: [tmp_path / "docs" / "missing.md"]
+        retrieval_query, "allowed_sources", lambda root: [tmp_path / "docs" / "missing.md"]
     )
     assert (
-        retrieval._verify_candidate(tmp_path, missing_candidate)["verification"]["reason"]
+        retrieval_query.verify_candidate(tmp_path, missing_candidate)["verification"]["reason"]
         == "missing_path"
     )
 
-    db_path = retrieval.default_retrieval_db_path(tmp_path)
+    db_path = retrieval_common.default_retrieval_db_path(tmp_path)
     (db_path.with_suffix(".sqlite-wal")).write_text("wal", encoding="utf-8")
     assert (
-        retrieval.purge_context_index(tmp_path, apply=False, authorized=False)["state"] == "dry_run"
+        retrieval_indexing.purge_context_index(tmp_path, apply=False, authorized=False)["state"]
+        == "dry_run"
     )
-    assert retrieval.purge_context_index(tmp_path, apply=True, authorized=False)[
+    assert retrieval_indexing.purge_context_index(tmp_path, apply=True, authorized=False)[
         "required_gaps"
     ] == ["context_purge_requires_authorization"]
-    purged = retrieval.purge_context_index(tmp_path, apply=True, authorized=True)
+    purged = retrieval_indexing.purge_context_index(tmp_path, apply=True, authorized=True)
     assert "retrieval.sqlite" in purged["summary"]["removed"]
 
 
@@ -481,18 +495,20 @@ def test_retrieval_secret_tombstone_and_dirty_search(
     secret = tmp_path / "README.md"
     secret.write_text("OPENAI_API_KEY=sk-" + "x" * 40, encoding="utf-8")
     db = tmp_path / ".ethos" / "state" / "retrieval.sqlite"
-    retrieval.initialize_context_index(db)
+    from ethos.adapters.store.retrieval.schema import initialize_context_index
+
+    initialize_context_index(db)
     with closing(sqlite3.connect(db)) as connection:
         connection.execute(
             "insert into index_manifests(id, root, head, schema_version, policy_digest, created_at, payload_json) values (?, ?, ?, ?, ?, ?, ?)",
             ("m1", tmp_path.as_posix(), "h1", 1, "p", "now", "{}"),
         )
-        counts = retrieval._index_source(connection, tmp_path, "m1", secret, "h1")
+        counts = retrieval_indexing.index_source(connection, tmp_path, "m1", secret, "h1")
         tombstone_count = connection.execute("select count(*) from tombstones").fetchone()[0]
     assert counts["chunk_count"] == 0
     assert tombstone_count == 1
 
-    monkeypatch.setattr(retrieval, "_dirty_allowed_sources", lambda root: ["README.md"])
-    assert retrieval.search_context_index(tmp_path, "x")["required_gaps"] == [
+    monkeypatch.setattr(retrieval_query, "dirty_allowed_sources", lambda root: ["README.md"])
+    assert retrieval_query.search_context_index(tmp_path, "x")["required_gaps"] == [
         "context_index_dirty_sources"
     ]

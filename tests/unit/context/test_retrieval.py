@@ -7,10 +7,10 @@ import subprocess
 from contextlib import closing
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store.retrieval import context_eval_report
-from ethos.adapters.store.retrieval import default_retrieval_db_path
-from ethos.adapters.store.retrieval import rebuild_context_index
-from ethos.adapters.store.retrieval import search_context_index
+from ethos.adapters.store.retrieval.common import default_retrieval_db_path
+from ethos.adapters.store.retrieval.indexing import rebuild_context_index
+from ethos.adapters.store.retrieval.query import context_eval_report
+from ethos.adapters.store.retrieval.query import search_context_index
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.testing.fixtures import context_retrieval_smoke_queries
 

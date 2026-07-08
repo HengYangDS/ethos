@@ -15,7 +15,8 @@ from ethos.adapters import config
 from ethos.adapters.admission import core as admission
 from ethos.adapters.admission import prewrite
 from ethos.adapters.mutation import core as mutation_core
-from ethos.adapters.store import retrieval
+from ethos.adapters.store.retrieval import query as retrieval_query
+from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos.repository import audit
 from ethos.repository.evidence import parity
 from ethos.repository.policy import coupling
@@ -407,8 +408,10 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert "parity_evidence_invalid:a:comparison_count" in gaps
 
     assert (
-        retrieval._empty_selection("q", query_digest="d", diagnostics=[])["untrusted_context_label"]
+        retrieval_query.empty_selection("q", query_digest="d", diagnostics=[])[
+            "untrusted_context_label"
+        ]
         == "UNTRUSTED CONTEXT"
     )
-    monkeypatch.setattr(retrieval, "_tracked_files", lambda root: [])
-    assert retrieval._allowed_sources(tmp_path) == []
+    monkeypatch.setattr(retrieval_sources, "tracked_files", lambda root: [])
+    assert retrieval_sources.allowed_sources(tmp_path) == []

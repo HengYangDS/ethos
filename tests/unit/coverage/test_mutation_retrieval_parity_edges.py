@@ -11,7 +11,11 @@ from types import SimpleNamespace
 
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
-from ethos.adapters.store import retrieval
+from ethos.adapters.store.retrieval import common as retrieval_common
+from ethos.adapters.store.retrieval import indexing as retrieval_indexing
+from ethos.adapters.store.retrieval import query as retrieval_query
+from ethos.adapters.store.retrieval import schema as retrieval_schema
+from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos.repository.evidence import parity
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -219,39 +223,41 @@ def test_shadow_parity_report_and_invalid_evidence(tmp_path: Path) -> None:
 
 
 def test_retrieval_helpers_context_eval_and_index_source(monkeypatch, tmp_path: Path) -> None:
-    assert retrieval._porcelain_paths('old -> "new path"') == ("old", "new path")
-    assert retrieval._is_allowed_source_rel("README.md") is True
-    assert retrieval._is_allowed_source_rel(".ethos/state/x") is False
-    assert retrieval._language_for(Path("x.yaml")) == "yaml"
-    assert retrieval._kind_for("openspec/specs/x.md", Path("x.md")) == "openspec"
-    assert retrieval._fts_query("hello, world!") == "hello OR world"
-    assert retrieval._signature_for(ast.parse("class C: pass").body[0]) == "class C"
+    assert retrieval_sources.porcelain_paths('old -> "new path"') == ("old", "new path")
+    assert retrieval_sources.is_allowed_source_rel("README.md") is True
+    assert retrieval_sources.is_allowed_source_rel(".ethos/state/x") is False
+    assert retrieval_indexing.language_for(Path("x.yaml")) == "yaml"
+    assert retrieval_indexing.kind_for("openspec/specs/x.md", Path("x.md")) == "openspec"
+    assert retrieval_query.fts_query_str("hello, world!") == "hello OR world"
+    assert retrieval_indexing.signature_for(ast.parse("class C: pass").body[0]) == "class C"
     assert (
-        retrieval._signature_for(ast.parse("async def f(a, b): pass").body[0])
+        retrieval_indexing.signature_for(ast.parse("async def f(a, b): pass").body[0])
         == "async def f(a, b)"
     )
-    assert retrieval._python_symbols("def f(a):\n    return a\nclass C:\n    pass\n")
-    assert retrieval._python_symbols("def broken(:\n") == []
-    assert retrieval._chunks_for("README.md", "") == [
+    assert retrieval_indexing.python_symbols("def f(a):\n    return a\nclass C:\n    pass\n")
+    assert retrieval_indexing.python_symbols("def broken(:\n") == []
+    assert retrieval_indexing.chunks_for("README.md", "") == [
         {"title": "README.md", "text": "", "start_line": 1, "end_line": 1}
     ]
-    assert retrieval._unsafe_source_reason(tmp_path, tmp_path / "missing.md") == "missing_path"
+    assert (
+        retrieval_sources.unsafe_source_reason(tmp_path, tmp_path / "missing.md") == "missing_path"
+    )
     outside = tmp_path.parent / "outside.md"
     outside.write_text("x", encoding="utf-8")
-    assert retrieval._unsafe_source_reason(tmp_path, outside) == "path_outside_repository"
+    assert retrieval_sources.unsafe_source_reason(tmp_path, outside) == "path_outside_repository"
 
-    assert retrieval.context_eval_report(tmp_path, suite="smoke")["required_gaps"] == [
+    assert retrieval_query.context_eval_report(tmp_path, suite="smoke")["required_gaps"] == [
         "context_index_missing"
     ]
-    db = retrieval.default_retrieval_db_path(tmp_path)
-    retrieval.initialize_context_index(db)
-    assert retrieval._latest_manifest_id(db) == "manifest:none"
-    assert retrieval._latest_manifest_head(db) == "untracked"
-    assert retrieval.context_eval_report(tmp_path, suite="deep")["required_gaps"] == [
+    db = retrieval_common.default_retrieval_db_path(tmp_path)
+    retrieval_schema.initialize_context_index(db)
+    assert retrieval_common.latest_manifest_id(db) == "manifest:none"
+    assert retrieval_common.latest_manifest_head(db) == "untracked"
+    assert retrieval_query.context_eval_report(tmp_path, suite="deep")["required_gaps"] == [
         "context_eval_suite_missing"
     ]
     monkeypatch.setattr(
-        retrieval,
+        retrieval_query,
         "search_context_index",
         lambda root, query, limit=10: {
             "ok": True,
@@ -259,7 +265,7 @@ def test_retrieval_helpers_context_eval_and_index_source(monkeypatch, tmp_path: 
             "summary": {"verified_count": 0},
         },
     )
-    failed = retrieval.context_eval_report(
+    failed = retrieval_query.context_eval_report(
         tmp_path,
         suite="smoke",
         fixtures=({"id": "f1", "query": "q", "expected_paths": ("README.md",)},),
@@ -267,20 +273,20 @@ def test_retrieval_helpers_context_eval_and_index_source(monkeypatch, tmp_path: 
     assert failed["required_gaps"] == ["context_eval_smoke_failed"]
 
     db2 = tmp_path / "retrieval.sqlite"
-    retrieval.initialize_context_index(db2)
+    retrieval_schema.initialize_context_index(db2)
     with closing(sqlite3.connect(db2)) as connection:
         connection.execute(
             "insert into index_manifests(id, root, head, schema_version, policy_digest, created_at, payload_json) values (?, ?, ?, ?, ?, ?, ?)",
             ("m1", tmp_path.as_posix(), "h1", 1, "p", "now", "{}"),
         )
         assert (
-            retrieval._index_source(connection, tmp_path, "m1", tmp_path / "missing.py", "h1")[
-                "chunk_count"
-            ]
+            retrieval_indexing.index_source(
+                connection, tmp_path, "m1", tmp_path / "missing.py", "h1"
+            )["chunk_count"]
             == 0
         )
         py = tmp_path / "module.py"
         py.write_text("# Title\n\ndef f(a):\n    return a\n", encoding="utf-8")
-        counts = retrieval._index_source(connection, tmp_path, "m1", py, "h1")
+        counts = retrieval_indexing.index_source(connection, tmp_path, "m1", py, "h1")
     assert counts["chunk_count"] >= 1
     assert counts["symbol_count"] == 1

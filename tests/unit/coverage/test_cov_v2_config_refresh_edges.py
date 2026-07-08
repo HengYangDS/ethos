@@ -106,4 +106,4 @@ def test_candidate_report_includes_stderr_when_present() -> None:
 def test_has_changed_paths_true_outside_repo(tmp_path: Path) -> None:
     # `git status` fails outside a repo, so the helper conservatively returns True
     # (lines 278-279).
-    assert lanes_retire._has_changed_paths(tmp_path) is True
+    assert lanes_retire.has_changed_paths(tmp_path) is True

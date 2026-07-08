@@ -12,7 +12,7 @@ from typing import cast
 
 import ethos
 import ethos.adapters.repo.git as git_adapter
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.domain.campaign_closeout import campaign_closeout_report
 from ethos.domain.land_support import acceptable_parity_product_heads
 from ethos.domain.land_support import acceptable_parity_target_heads

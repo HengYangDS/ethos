@@ -9,7 +9,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git

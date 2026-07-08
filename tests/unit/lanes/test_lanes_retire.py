@@ -3,15 +3,15 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.status.core as repo_status
 from ethos.adapters.mutation import lanes_retire
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
-from ethos.adapters.repo import status as repo_status
 from ethos.adapters.repo.dirty.core import committed_change_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store import state
 
 if TYPE_CHECKING:

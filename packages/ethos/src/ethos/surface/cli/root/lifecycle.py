@@ -15,7 +15,7 @@ from ethos.adapters.mutation.core import candidate_base_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption

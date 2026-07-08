@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -312,7 +312,7 @@ def _branch_exists(root: Path, branch: str) -> bool:
     return completed.returncode == 0
 
 
-def _has_changed_paths(root: Path) -> bool:
+def has_changed_paths(root: Path) -> bool:
     completed = _git(root, "status", "--porcelain", "--untracked-files=all", check=False)
     if completed.returncode != 0:
         return True
@@ -363,7 +363,7 @@ def _retirement_lane(
     lease_owner = str(lease.get("owner") or "")
     if not _is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_not_merged")
-    if _has_changed_paths(path):
+    if has_changed_paths(path):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,

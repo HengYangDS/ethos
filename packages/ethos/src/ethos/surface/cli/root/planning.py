@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.dirty.core import change_scope_paths
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.domain.plan import contract_profile_matches
 from ethos.domain.plan import graph_for_paths
 from ethos.domain.plan import matching_rule_gates

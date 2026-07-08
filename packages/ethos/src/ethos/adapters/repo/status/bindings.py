@@ -24,14 +24,15 @@ def _run_git(root: Path, *args: str) -> str:
     return completed.stdout.rstrip("\n")
 
 
-def _has_changed_paths(root: Path) -> bool:
+def has_changed_paths(root: Path) -> bool:
+    """Return whether the target worktree has tracked or untracked changes."""
     try:
         return bool(_run_git(root, "status", "--porcelain", "--untracked-files=all"))
     except subprocess.CalledProcessError:
         return True
 
 
-def _branch_bindings(
+def branch_bindings(
     root: Path,
     worktrees: list[dict[str, str]],
     candidate: dict[str, object],
@@ -39,6 +40,7 @@ def _branch_bindings(
     policy: BranchRolePolicy,
     lease_by_branch: dict[str, dict[str, object]],
 ) -> list[dict[str, str]]:
+    """Return protected, candidate, linked, and unbound branch bindings."""
     bindings: list[dict[str, str]] = []
     seen: set[str] = set()
 
@@ -114,12 +116,13 @@ def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, 
     return refs
 
 
-def _unbound_work_lane_refs(
+def unbound_work_lane_refs(
     root: Path,
     branch_bindings: list[dict[str, str]],
     *,
     policy: BranchRolePolicy,
 ) -> list[dict[str, object]]:
+    """Return unbound Work Lane refs derived from branch bindings."""
     refs: list[dict[str, object]] = []
     for binding in branch_bindings:
         if binding["role"] != ROLE_WORK_LANE or binding["worktree_binding"] != "unbound":
@@ -131,23 +134,25 @@ def _unbound_work_lane_refs(
                 "head": str(binding["head"]),
                 "claim_id": str(binding["claim_id"]),
                 "claim_binding": str(binding["claim_binding"]),
-                "relation_to_accepted": _ref_relation(root, branch, policy.accepted_branch),
-                "next_action": _unbound_ref_next_action(root, branch, policy.accepted_branch),
+                "relation_to_accepted": ref_relation(root, branch, policy.accepted_branch),
+                "next_action": unbound_ref_next_action(root, branch, policy.accepted_branch),
             }
         )
     return refs
 
 
-def _ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
-    if _is_ancestor(root, branch, accepted_branch):
+def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
+    """Classify a branch ref relative to the accepted branch."""
+    if is_ancestor(root, branch, accepted_branch):
         return "ancestor_of_accepted"
-    if _is_ancestor(root, accepted_branch, branch):
+    if is_ancestor(root, accepted_branch, branch):
         return "descendant_of_accepted"
     return "diverged_from_accepted"
 
 
-def _unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
-    relation = _ref_relation(root, branch, accepted_branch)
+def unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
+    """Return the safe next action for an unbound Work Lane ref."""
+    relation = ref_relation(root, branch, accepted_branch)
     if relation == "ancestor_of_accepted":
         return "retire unbound Work Lane ref after confirming no external owner depends on it"
     if relation == "descendant_of_accepted":
@@ -155,7 +160,8 @@ def _unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> s
     return "inspect diverged unbound Work Lane ref before merge, supersede, or deletion"
 
 
-def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    """Return whether one ref is an ancestor of another ref."""
     completed = subprocess.run(
         ["git", "merge-base", "--is-ancestor", ancestor, descendant],
         cwd=root,
@@ -173,11 +179,11 @@ def _unbound_work_lane_binding(
     head: str,
     lease: dict[str, object],
 ) -> dict[str, str]:
-    claim_id = _lease_claim_id(lease)
+    claim_id = lease_claim_id(lease)
     return {
         "branch": branch,
         "role": ROLE_WORK_LANE,
-        "head": head or _ref_head(root, branch),
+        "head": head or ref_head(root, branch),
         "worktree_path": "",
         "worktree_binding": "unbound",
         "claim_id": claim_id,
@@ -206,7 +212,7 @@ def _configured_branch_binding(
             "claim_id": "",
             "claim_binding": "unbound",
         }
-    head = _ref_head(root, branch)
+    head = ref_head(root, branch)
     return {
         "branch": branch,
         "role": role,
@@ -223,7 +229,7 @@ def _worktree_branch_binding(
     *,
     lease: dict[str, object],
 ) -> dict[str, str]:
-    claim_id = _lease_claim_id(lease)
+    claim_id = lease_claim_id(lease)
     return {
         "branch": str(worktree["branch"]),
         "role": str(worktree["role"]),
@@ -235,17 +241,19 @@ def _worktree_branch_binding(
     }
 
 
-def _worktree_binding(path: str, *, current_path: Path) -> str:
+def worktree_binding(path: str, *, current_path: Path) -> str:
+    """Classify a worktree path as current or linked."""
     if path and Path(path).resolve() == current_path:
         return "current"
     return "linked"
 
 
-def _leases_by_branch(
+def leases_by_branch(
     worktrees: list[dict[str, str]],
     *,
     current_path: Path,
 ) -> dict[str, dict[str, object]]:
+    """Load active leases keyed by branch, preferring the accepted-root control store."""
     control_root = current_path
     for worktree in worktrees:
         if worktree["role"] == ROLE_ACCEPTED_ROOT and worktree["path"]:
@@ -314,14 +322,15 @@ def _lease_expires_after(value: str, *, now: datetime) -> bool:
     return expires_at > now
 
 
-def _lease_claim_id(lease: dict[str, object]) -> str:
+def lease_claim_id(lease: dict[str, object]) -> str:
+    """Extract a claim id from a Work Lane lease payload."""
     payload = lease.get("payload") if isinstance(lease, dict) else {}
     if not isinstance(payload, dict):
         return ""
     return str(payload.get("claim_id") or "")
 
 
-def _closeout_support(
+def closeout_support(
     *,
     branch: str,
     role: str,
@@ -330,6 +339,7 @@ def _closeout_support(
     lease_by_branch: dict[str, dict[str, object]],
     coordination_required_gaps: list[str],
 ) -> dict[str, object]:
+    """Return closeout support and required gaps for a branch role."""
     gaps: list[str] = []
     if role != ROLE_WORK_LANE:
         gaps.append("protected_root_mutation")
@@ -343,14 +353,14 @@ def _closeout_support(
         gaps.append("candidate_worktree_missing")
     else:
         candidate_path = Path(str(candidate["worktree_path"]))
-        if _has_changed_paths(candidate_path):
+        if has_changed_paths(candidate_path):
             gaps.append("candidate_worktree_dirty")
     if role == ROLE_WORK_LANE:
         gaps.extend(coordination_required_gaps)
 
     is_work_lane = role == ROLE_WORK_LANE
     lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
-    claim_id = _lease_claim_id(lease)
+    claim_id = lease_claim_id(lease)
     return {
         "supported": not gaps,
         "branch": branch if is_work_lane else "",
@@ -364,7 +374,8 @@ def _closeout_support(
     }
 
 
-def _ref_head(root: Path, ref: str) -> str:
+def ref_head(root: Path, ref: str) -> str:
+    """Resolve a ref to its head, or return an empty string when absent."""
     completed = subprocess.run(
         ["git", "rev-parse", "--verify", ref],
         cwd=root,

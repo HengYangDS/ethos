@@ -11,7 +11,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.plan as plan_domain
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.coverage import coverage_report

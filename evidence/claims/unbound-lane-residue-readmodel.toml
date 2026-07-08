@@ -12,7 +12,7 @@ binding = "semantic Work Lane residue read-model evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/governance/validation/test_schemas.py::test_workspace_status_payload_validates_worktree_bindings tests/unit/governance/validation/test_schemas.py::test_schema_validation_report_covers_all_ethos_schemas tests/unit/coverage/test_core_state_claims_edges.py::test_git_and_coordination_edges -q",
-  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status.py packages/ethos/src/ethos/adapters/repo/coordination.py system/schemas/kernel/workspace-status.schema.json tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/validation tests/unit/coverage/test_core_state_claims_edges.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status/core.py packages/ethos/src/ethos/adapters/repo/status/bindings.py packages/ethos/src/ethos/adapters/repo/coordination.py system/schemas/kernel/workspace-status.schema.json tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/validation tests/unit/coverage/test_core_state_claims_edges.py",
   "ETHOS_ROOT=/private/tmp/ethos-unbound-lane-residue-readmodel uv run --group dev ethos status --json",
   "ETHOS_ROOT=/private/tmp/ethos-unbound-lane-residue-readmodel uv run --group dev ethos quality schemas --json",
 ]
@@ -45,7 +45,8 @@ targets = [
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/design.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/tasks.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-residue-readmodel/specs/ethos-repository/spec.md",
-  "packages/ethos/src/ethos/adapters/repo/status.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "system/schemas/kernel/workspace-status.schema.json",
   "tests/unit/lanes/test_lanes.py",

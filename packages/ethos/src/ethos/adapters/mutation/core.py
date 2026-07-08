@@ -9,7 +9,7 @@ from typing import cast
 import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.audit_openspec import _active_change_names
 from ethos.repository.audit_openspec import _active_change_violations_for_role
 from ethos.repository.audit_openspec import _completed_unarchived_changes

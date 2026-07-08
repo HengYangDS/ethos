@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.config import rules_config
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps

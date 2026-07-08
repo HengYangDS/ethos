@@ -11,7 +11,7 @@ from typing import Any
 from typing import cast
 
 import ethos.domain.orient as orient_domain
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import initialize_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps

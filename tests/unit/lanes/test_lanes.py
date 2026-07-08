@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import assert_no_ui_projection
@@ -211,7 +211,7 @@ def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(
     assert_no_ui_projection(status)
 
 
-def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
+def test_workspace_status_reports_branchworktree_bindings_without_ui_actions(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -311,7 +311,7 @@ def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> 
     assert workspace_status(repo)["role"] == "release_root"
 
 
-def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: Path) -> None:
+def test_workspace_status_reports_current_work_lanecloseout_support(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"

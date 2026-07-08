@@ -355,7 +355,7 @@ def test_waived_proof_run_schema_requires_governance_reference() -> None:
     assert validation["ok"] is False
 
 
-def test_workspace_status_payload_validates_worktree_bindings() -> None:
+def test_workspace_status_payload_validatesworktree_bindings() -> None:
     payload = {
         "root": "/repo",
         "branch": "dev",

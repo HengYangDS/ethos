@@ -13,7 +13,7 @@ import pytest
 
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.repo.runtime.core as repo_runtime
-from ethos.adapters.repo import status
+import ethos.adapters.repo.status.core as status
 from ethos.repository import audit_openspec
 from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
 from ethos_core import invalid_states

@@ -13,7 +13,7 @@ verifier = "semantic"
 tests = [
   "openspec status --change expose-unbound-work-lane-refs --json",
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/lanes/test_lanes.py::test_workspace_status_reports_branch_worktree_bindings_without_ui_actions tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/governance/validation/test_schemas.py::test_workspace_status_payload_validates_worktree_bindings -q",
-  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status.py packages/ethos/src/ethos/adapters/repo/coordination.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/validation",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status/core.py packages/ethos/src/ethos/adapters/repo/status/bindings.py packages/ethos/src/ethos/adapters/repo/coordination.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/validation",
 ]
 
 [scope]
@@ -44,7 +44,8 @@ targets = [
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/tasks.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/specs/ethos-repository/spec.md",
   "openspec/changes/archive/2026-07-05-expose-unbound-work-lane-refs/.openspec.yaml",
-  "packages/ethos/src/ethos/adapters/repo/status.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "system/schemas/kernel/workspace-status.schema.json",
   "packages/ethos/src/ethos/repository/policy/schema.py",

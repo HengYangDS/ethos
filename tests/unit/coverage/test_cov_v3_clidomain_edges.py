@@ -270,7 +270,7 @@ def test_adoption_mutation_gaps_flags_head_mismatch() -> None:
     assert gaps == ("expected_head_mismatch",)
 
 
-def test_status_worktree_gaps_merges_closeout_support_gaps() -> None:
+def test_status_worktree_gaps_mergescloseout_support_gaps() -> None:
     # closeout_support is a dict, so line 131 extends the gap list with its required_gaps.
     gaps = status.status_worktree_gaps(
         {"required_gaps": ["g1"], "closeout_support": {"required_gaps": ["c1"]}}

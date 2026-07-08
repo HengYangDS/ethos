@@ -52,7 +52,7 @@ def test_current_head_falls_back_to_matching_branch_binding_when_top_level_head_
     assert _current_head(status_payload, branch="work/demo") == "deadbeefcafe12"
 
 
-def test_next_actions_work_lane_without_closeout_support_binds_claim() -> None:
+def test_next_actions_work_lane_withoutcloseout_support_binds_claim() -> None:
     # Clean work_lane, no gaps, closeout NOT supported: the closeout-supported elif
     # (line 333) is skipped and the bare work_lane branch (line 339-340) fires.
     actions = _next_actions(

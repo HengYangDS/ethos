@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.gates import signature
-from ethos.adapters.repo import status_bindings
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 
@@ -171,7 +171,7 @@ def test_signature_policy_clean_when_signing_not_required(
 def test_has_changed_paths_returns_true_when_git_status_fails(tmp_path: Path) -> None:
     # tmp_path is not a git repo, so `git status` exits non-zero and _run_git
     # (check=True) raises CalledProcessError -> the except returns True (lines 27-28).
-    assert status_bindings._has_changed_paths(tmp_path) is True
+    assert status_bindings.has_changed_paths(tmp_path) is True
 
 
 def test_branch_bindings_skips_duplicate_protected_branch(tmp_path: Path) -> None:
@@ -184,7 +184,7 @@ def test_branch_bindings_skips_duplicate_protected_branch(tmp_path: Path) -> Non
         "worktree_path": "",
         "worktree_binding": "absent",
     }
-    bindings = status_bindings._branch_bindings(
+    bindings = status_bindings.branch_bindings(
         tmp_path, [], candidate, policy=policy, lease_by_branch={}
     )
     branches = [b["branch"] for b in bindings]
@@ -210,7 +210,7 @@ def test_branch_bindings_dedups_duplicate_worktree_branch(tmp_path: Path) -> Non
         "path": str(tmp_path / "wt"),
         "worktree_binding": "linked",
     }
-    bindings = status_bindings._branch_bindings(
+    bindings = status_bindings.branch_bindings(
         tmp_path,
         [dict(worktree), dict(worktree)],
         candidate,
@@ -245,11 +245,11 @@ def test_ref_relation_descendant_of_accepted(tmp_path: Path) -> None:
     run("commit", "-m", "c2")
     run("checkout", "dev")
 
-    assert status_bindings._ref_relation(repo, "work/ahead", "dev") == "descendant_of_accepted"
+    assert status_bindings.ref_relation(repo, "work/ahead", "dev") == "descendant_of_accepted"
 
 
 def test_ref_relation_diverged_from_accepted(tmp_path: Path) -> None:
-    # work/div and dev each hold a commit the other lacks: neither _is_ancestor call
+    # work/div and dev each hold a commit the other lacks: neither is_ancestor call
     # (lines 139, 141) is True, so the function falls through to line 143.
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -276,7 +276,7 @@ def test_ref_relation_diverged_from_accepted(tmp_path: Path) -> None:
     run("add", ".")
     run("commit", "-m", "c4")
 
-    assert status_bindings._ref_relation(repo, "work/div", "dev") == "diverged_from_accepted"
+    assert status_bindings.ref_relation(repo, "work/div", "dev") == "diverged_from_accepted"
 
 
 def test_unbound_ref_next_action_descendant_of_accepted(tmp_path: Path) -> None:
@@ -304,7 +304,7 @@ def test_unbound_ref_next_action_descendant_of_accepted(tmp_path: Path) -> None:
     run("checkout", "dev")
 
     assert (
-        status_bindings._unbound_ref_next_action(repo, "work/ahead", "dev")
+        status_bindings.unbound_ref_next_action(repo, "work/ahead", "dev")
         == "bind a lease or land the unbound Work Lane ref before cleanup"
     )
 
@@ -338,6 +338,6 @@ def test_unbound_ref_next_action_diverged_from_accepted(tmp_path: Path) -> None:
     run("commit", "-m", "c4")
 
     assert (
-        status_bindings._unbound_ref_next_action(repo, "work/div", "dev")
+        status_bindings.unbound_ref_next_action(repo, "work/div", "dev")
         == "inspect diverged unbound Work Lane ref before merge, supersede, or deletion"
     )

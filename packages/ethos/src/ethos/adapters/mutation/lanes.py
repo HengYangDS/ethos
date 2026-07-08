@@ -10,7 +10,7 @@ from ethos.adapters.mutation.lanes_retire import _is_ancestor
 from ethos.adapters.mutation.lanes_retire import _repo_root
 from ethos.adapters.mutation.lanes_retire import _slug
 from ethos.adapters.repo.dirty.core import changed_paths
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import acquire_lease
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease

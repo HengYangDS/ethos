@@ -5,10 +5,10 @@ from __future__ import annotations
 import types
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.status.core as status
 import ethos.adapters.shadow.identity as shadow_identity
 import ethos.adapters.shadow.semantics as shadow_semantics
 from ethos.adapters.repo import coordination
-from ethos.adapters.repo import status
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def test_path_overlaps_empty_component_returns_false() -> None:
     assert coordination.path_overlaps("/", "a/b") is False
 
 
-# --- adapters/repo/status.py ------------------------------------------------
+# --- adapters/repo/status/core.py -------------------------------------------
 
 
 def test_worktrees_skips_blank_lines_with_empty_current(

@@ -134,7 +134,7 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
     assert payload["data"]["orientation"]["agent_hints"]["foreign_lanes_observe_only"] is True
 
 
-def test_orient_makes_unbound_work_lane_refs_discoverable_without_authority(
+def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")

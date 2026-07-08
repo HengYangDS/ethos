@@ -12,14 +12,14 @@ from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.runtime.core import runtime_binding
-from ethos.adapters.repo.status_bindings import _branch_bindings
-from ethos.adapters.repo.status_bindings import _closeout_support
-from ethos.adapters.repo.status_bindings import _is_ancestor
-from ethos.adapters.repo.status_bindings import _lease_claim_id
-from ethos.adapters.repo.status_bindings import _leases_by_branch
-from ethos.adapters.repo.status_bindings import _ref_head
-from ethos.adapters.repo.status_bindings import _unbound_work_lane_refs
-from ethos.adapters.repo.status_bindings import _worktree_binding
+from ethos.adapters.repo.status.bindings import branch_bindings
+from ethos.adapters.repo.status.bindings import closeout_support
+from ethos.adapters.repo.status.bindings import is_ancestor
+from ethos.adapters.repo.status.bindings import lease_claim_id
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.bindings import ref_head
+from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
+from ethos.adapters.repo.status.bindings import worktree_binding
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import BranchRolePolicy
 from ethos_core.contracts.branch_roles import load_branch_role_policy
@@ -78,7 +78,7 @@ def landing_readiness(
             "required_gaps": ["candidate_worktree_missing"],
             "next_action": "create or repair the configured candidate worktree",
         }
-    if current_head and candidate_head and not _is_ancestor(root, candidate_head, current_head):
+    if current_head and candidate_head and not is_ancestor(root, candidate_head, current_head):
         return {
             "kind": "landing_readiness",
             "state": "candidate_base_stale",
@@ -138,8 +138,8 @@ def workspace_status(root: Path) -> dict[str, object]:
     role = policy.role_for_branch(branch)
     worktrees = _worktrees(root, current_path=current_path, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
-    lease_by_branch = _leases_by_branch(worktrees, current_path=current_path)
-    branch_bindings = _branch_bindings(
+    lease_by_branch = leases_by_branch(worktrees, current_path=current_path)
+    bindings = branch_bindings(
         repo,
         worktrees,
         candidate,
@@ -162,17 +162,17 @@ def workspace_status(root: Path) -> dict[str, object]:
     coordination_required_gaps, coordination_advisory_gaps = coordination_gaps(
         foreign, current_role=role, current_scope_state=current_scope_state
     )
-    unbound_work_lane_refs = _unbound_work_lane_refs(repo, branch_bindings, policy=policy)
-    if unbound_work_lane_refs:
+    unbound_refs = unbound_work_lane_refs(repo, bindings, policy=policy)
+    if unbound_refs:
         coordination_advisory_gaps.append("unbound_work_lane_ref_present")
     coordination_gap_list = coordination_required_gaps + coordination_advisory_gaps
     coordination = coordination_package(
         foreign,
         required_gaps=coordination_required_gaps,
         advisory_gaps=coordination_advisory_gaps,
-        unbound_work_lane_refs=unbound_work_lane_refs,
+        unbound_work_lane_refs=unbound_refs,
     )
-    closeout_support = _closeout_support(
+    support = closeout_support(
         branch=branch,
         role=role,
         dirty=bool(paths),
@@ -180,13 +180,13 @@ def workspace_status(root: Path) -> dict[str, object]:
         lease_by_branch=lease_by_branch,
         coordination_required_gaps=coordination_required_gaps,
     )
-    closeout_gaps = cast("list[str]", closeout_support["required_gaps"])
+    closeout_gaps = cast("list[str]", support["required_gaps"])
     required_gaps = workspace_required_gaps(closeout_gaps, candidate=candidate)
     landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
     stage_gates = _stage_gates(
         branch=branch,
         role=role,
-        closeout_support=closeout_support,
+        closeout_support=support,
         landing_readiness=landing,
     )
     return {
@@ -202,11 +202,11 @@ def workspace_status(root: Path) -> dict[str, object]:
         "landing_readiness": landing,
         "candidate": candidate,
         "worktrees": worktrees,
-        "branch_bindings": branch_bindings,
+        "branch_bindings": bindings,
         "foreign_work_lanes": foreign,
         "coordination_gaps": coordination_gap_list,
         "coordination": coordination,
-        "closeout_support": closeout_support,
+        "closeout_support": support,
         "stage_gates": stage_gates,
         "required_gaps": required_gaps,
     }
@@ -301,7 +301,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
         },
         "candidate": candidate,
         "worktrees": [],
-        "branch_bindings": _branch_bindings(
+        "branch_bindings": branch_bindings(
             root,
             [],
             candidate,
@@ -374,7 +374,7 @@ def _normalize_worktree(
         "head": entry.get("HEAD", ""),
         "branch": branch or "detached",
         "role": policy.role_for_branch(branch),
-        "worktree_binding": _worktree_binding(path, current_path=current_path),
+        "worktree_binding": worktree_binding(path, current_path=current_path),
     }
 
 
@@ -406,7 +406,7 @@ def _foreign_work_lanes(
                 candidate_branch=candidate_branch,
                 lease=lease,
                 root=root,
-                claim_id=_lease_claim_id(lease),
+                claim_id=lease_claim_id(lease),
                 dirty_paths=changed_paths(Path(str(worktree["path"]))),
             )
         )
@@ -419,7 +419,7 @@ def _candidate_status(
     *,
     policy: BranchRolePolicy,
 ) -> dict[str, object]:
-    head = _ref_head(root, policy.candidate_branch)
+    head = ref_head(root, policy.candidate_branch)
     worktree_path = ""
     worktree_binding = "absent"
     for worktree in worktrees:

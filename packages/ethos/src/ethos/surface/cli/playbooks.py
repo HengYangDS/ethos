@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.playbooks import route_playbook
 from ethos.surface.cli._base import JsonFlag

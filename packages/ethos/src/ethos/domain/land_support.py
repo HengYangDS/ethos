@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
 
 if TYPE_CHECKING:

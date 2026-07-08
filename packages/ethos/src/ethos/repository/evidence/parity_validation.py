@@ -33,7 +33,7 @@ SHADOW_PARITY_COMMANDS: tuple[str, ...] = tuple(
 )
 
 
-def _string_list(value: object) -> list[str]:
+def string_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
@@ -50,10 +50,10 @@ def semantic_tree_digest(root: Path, *, head: str, relevant_paths: tuple[str, ..
     )
     if completed.returncode != 0:
         return ""
-    return _sha256_text(completed.stdout)
+    return sha256_text(completed.stdout)
 
 
-def _tracked_evidence_provenance(
+def tracked_evidence_provenance(
     evidence: dict[str, object],
     *,
     required_gaps: list[str],
@@ -128,7 +128,7 @@ def _tracked_evidence_provenance(
     }
 
 
-def _parity_evidence(
+def parity_evidence(
     root: Path,
     adopter: str | None,
     *,
@@ -158,7 +158,7 @@ def _parity_evidence(
             "required_gaps": ["parity_evidence_not_object"],
             "verified_capabilities": [],
         }
-    required_gaps = _validate_parity_evidence(
+    required_gaps = validate_parity_evidence(
         payload,
         adopter,
         target=target,
@@ -174,7 +174,7 @@ def _parity_evidence(
     return {
         **evidence_with_path,
         "required_gaps": required_gaps,
-        "provenance": _tracked_evidence_provenance(
+        "provenance": tracked_evidence_provenance(
             evidence_with_path,
             required_gaps=required_gaps,
             current_target_head=current_target_head,
@@ -188,7 +188,7 @@ def _parity_evidence(
     }
 
 
-def _validate_parity_evidence(
+def validate_parity_evidence(
     payload: dict[str, object],
     adopter: str,
     *,
@@ -213,7 +213,7 @@ def _validate_parity_evidence(
     command = payload.get("command")
     if not isinstance(command, str) or not command:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command")
-    elif not _command_matches_identity(command, adopter=adopter, target=payload.get("target")):
+    elif not command_matches_identity(command, adopter=adopter, target=payload.get("target")):
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command_identity")
     _validate_freshness(
         {
@@ -314,7 +314,7 @@ def _valid_capability_basis(basis: object) -> bool:
     )
 
 
-def _command_matches_identity(command: str, *, adopter: str, target: object) -> bool:
+def command_matches_identity(command: str, *, adopter: str, target: object) -> bool:
     if "ethos parity shadow" not in command:
         return False
     if f"--adopter {adopter}" not in command:
@@ -348,7 +348,7 @@ def _validate_freshness(context: dict[str, object]) -> None:
     for field in ("product_head", "target_head", "command_sha256"):
         if not isinstance(freshness.get(field), str) or not freshness.get(field):
             required_gaps.append(f"parity_evidence_invalid:{adopter}:{field}")
-    expected_digest = _sha256_text(command)
+    expected_digest = sha256_text(command)
     if command and freshness.get("command_sha256") != expected_digest:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:command_sha256")
     product_head = str(freshness.get("product_head") or "")
@@ -389,7 +389,7 @@ def _validate_freshness(context: dict[str, object]) -> None:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:target_head")
 
 
-def _sha256_text(value: str) -> str:
+def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
@@ -401,7 +401,7 @@ def _migratable_capabilities() -> set[str]:
     }
 
 
-def _migratable_capability_list() -> list[str]:
+def migratable_capability_list() -> list[str]:
     return [
         str(record["capability"])
         for record in capability_parity_records()

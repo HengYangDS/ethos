@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from ethos.repository.adoption import scaffold
-from ethos.repository.evidence.parity_validation import _command_matches_identity
 from ethos.repository.evidence.parity_validation import _validate_freshness
 from ethos.repository.evidence.parity_validation import _validate_verified_capabilities
+from ethos.repository.evidence.parity_validation import command_matches_identity
 from ethos.repository.evidence.parity_validation import semantic_tree_digest
 from ethos.repository.openspec.metadata import read_openspec_metadata
 from ethos.repository.policy import schema as policy_schema
@@ -63,7 +63,7 @@ def test_command_identity_rejects_command_without_target_flag_when_target_unspec
     # target is None -> the `isinstance(target, str) and target` branch is skipped, so the
     # `elif "--target " not in command` guard (328) fires and returns False (329).
     assert (
-        _command_matches_identity(
+        command_matches_identity(
             "ethos parity shadow --adopter generic --execute --json",
             adopter="generic",
             target=None,

@@ -1,8 +1,9 @@
 """Lane command group — Work Lane lifecycle: status, start, candidate, land,
-refresh-base, bind-claim, retire-landed, retire-unbound."""
+refresh-base, bind-claim, retire-landed, retire-superseded, retire-unbound."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
 from typing import cast
@@ -11,11 +12,13 @@ from cyclopts import Parameter
 
 import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import bootstrap_candidate
 from ethos.adapters.mutation.lanes import refresh_candidate_from_accepted
 from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lanes import retire_superseded_work_lane
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status.core import workspace_status
@@ -25,6 +28,21 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
+
+
+@dataclass(frozen=True)
+class _RetireSupersededOptions:
+    """CLI options for `ethos lane retire-superseded`."""
+
+    branch: Annotated[str, Parameter(name="--branch")]
+    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    absorbed_by: Annotated[str, Parameter(name="--absorbed-by")] = ""
+    reason: Annotated[str, Parameter(name="--reason")] = ""
+    authorize: bool = False
+    apply: bool = False
+
+
+_DEFAULT_RETIRE_SUPERSEDED_OPTIONS = _RetireSupersededOptions(branch="")
 
 
 @lane_app.command(name="status")
@@ -280,6 +298,46 @@ def lane_retire_unbound(
         data=report,
     )
     emit(result, json_output=json_output, enforce=apply)
+
+
+@lane_app.command(name="retire-superseded")
+def lane_retire_superseded(
+    options: Annotated[
+        _RetireSupersededOptions,
+        Parameter(name="*"),
+    ] = _DEFAULT_RETIRE_SUPERSEDED_OPTIONS,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Retire a clean linked Work Lane already absorbed by accepted truth."""
+    repo = resolve_root(root)
+    report = retire_superseded_work_lane(
+        root=repo,
+        request=SupersededLaneRetirementRequest(
+            branch=options.branch,
+            expect_head=options.expect_head,
+            absorbed_by=options.absorbed_by,
+            reason=options.reason,
+            apply=options.apply,
+            authorized=options.authorize,
+        ),
+    )
+    result = EthosResult(
+        command="lane retire-superseded",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "head": report["head"],
+            "absorbed_by": report["absorbed_by"],
+            "retire_ready": report["retire_ready"],
+        },
+        required_gaps=tuple(report["required_gaps"]),
+        next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=options.apply)
 
 
 @lane_app.command(name="retire-landed")

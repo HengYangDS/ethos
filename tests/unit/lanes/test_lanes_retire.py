@@ -282,6 +282,87 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert git(repo, "branch", "--list", "work/landed") == ""
 
 
+def test_remove_linked_lane_restores_ref_when_worktree_remove_fails(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    lane = {
+        "branch": "work/stuck",
+        "path": (tmp_path / "repo-work-stuck").as_posix(),
+    }
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run_git(
+        _repo: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        calls.append(args)
+        if args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        if args[:3] == ("worktree", "remove", "--force"):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
+        if args[:2] == ("update-ref", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(lanes_retire, "run_git", fake_run_git)
+
+    report = lanes_retire.remove_linked_lane(repo, lane, expect_head="a" * 40)
+
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["worktree_remove_failed"],
+        "stderr": "locked",
+        "rollback_stderr": "",
+    }
+    assert calls == [
+        ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40),
+        ("worktree", "remove", "--force", lane["path"]),
+        ("update-ref", "refs/heads/work/stuck", "a" * 40, "0" * 40),
+    ]
+
+
+def test_remove_linked_lane_reports_restore_failure_when_partial_cleanup_persists(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    lane = {
+        "branch": "work/stuck",
+        "path": (tmp_path / "repo-work-stuck").as_posix(),
+    }
+
+    def fake_run_git(
+        _repo: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        if args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        if args[:3] == ("worktree", "remove", "--force"):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
+        if args[:2] == ("update-ref", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="restore failed")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(lanes_retire, "run_git", fake_run_git)
+
+    report = lanes_retire.remove_linked_lane(repo, lane, expect_head="a" * 40)
+
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["worktree_remove_failed", "branch_restore_failed"],
+        "stderr": "locked",
+        "rollback_stderr": "restore failed",
+    }
+
+
 def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> None:
     """Candidate-train integrity: status surfaces how far candidate/dev is behind the
     accepted root (dev), so promotions that bypassed the lane->candidate->accepted

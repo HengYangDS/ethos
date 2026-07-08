@@ -100,6 +100,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane bind-claim",
     "ethos lane hydrate",
     "ethos lane retire-landed",
+    "ethos lane retire-superseded",
     "ethos lane retire-unbound",
     "ethos parity",
     "ethos parity ledger",

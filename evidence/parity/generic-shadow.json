@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-08",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "30c7cd21a09fb4ae4b394b0c1bd088a6c619157c",
-    "target_head": "30c7cd21a09fb4ae4b394b0c1bd088a6c619157c",
-    "product_semantic_sha256": "fcabfd5916b2b7cb27c3afac1f5b9ff5904549ceb04b0e840a34f452264b836a",
-    "target_semantic_sha256": "fcabfd5916b2b7cb27c3afac1f5b9ff5904549ceb04b0e840a34f452264b836a",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "f1ee9f3260e352ac44068ab979aa0e9cec0b02e2",
+    "target_head": "f1ee9f3260e352ac44068ab979aa0e9cec0b02e2",
+    "product_semantic_sha256": "9b12f329103c05adfbeea1327f3a924dd1c921a399f7c4fd900790ae78fbb907",
+    "target_semantic_sha256": "9b12f329103c05adfbeea1327f3a924dd1c921a399f7c4fd900790ae78fbb907",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709",
-    "target_head": "30c7cd21a09fb4ae4b394b0c1bd088a6c619157c",
-    "product_head": "30c7cd21a09fb4ae4b394b0c1bd088a6c619157c",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709",
+    "target_head": "f1ee9f3260e352ac44068ab979aa0e9cec0b02e2",
+    "product_head": "f1ee9f3260e352ac44068ab979aa0e9cec0b02e2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/proof-generated-artifacts-cleanup-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-superseded-linked-lane-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "05ef2a3d45e3d086a81257b1be7ff8d539ece0654c188df40fc9ba4ea3cabdb1"
+        "sha256": "7d62aa2bffe07ebd8071d4494d479804c086e9084bdfa03d051e5a4c5047bcab"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "901037d10545c17b3e0c0720147ac2e2dd1052be8f1c2ef26b108b2e0f184035"
+        "sha256": "9d6e609b8b9bfc31f74436202377fb2adb5725b65a15085403e6cb3d7a5bebab"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "7b281d92377146776981c5c21e3d6243a3433a0db2c6280d82c943511f9c78d5"
+        "sha256": "34bacc3ad3bcac511e63c28c45646372dd67e8de54756cf690112b208ff4e8ef"
       },
       {
         "path": "rules",

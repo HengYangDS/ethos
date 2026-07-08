@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
 import ethos.adapters.mutation.lanes_refresh as lanes_refresh
 import ethos.adapters.mutation.lanes_retire as lanes_retire
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
@@ -19,6 +21,9 @@ from ethos.adapters.store.state import update_lease_payload
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+if TYPE_CHECKING:
+    from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 
 
 def start_work_lane(
@@ -367,6 +372,37 @@ def retire_landed_work_lanes(
         lanes_retire.delete_lease = previous["delete_lease"]
         lanes_retire.__dict__["is_ancestor"] = previous["is_ancestor"]
         lanes_retire.__dict__["run_git"] = previous["run_git"]
+
+
+def retire_superseded_work_lane(
+    *,
+    root: Path,
+    request: SupersededLaneRetirementRequest,
+) -> dict[str, object]:
+    """Retire a superseded linked lane while preserving patchable adapters."""
+    previous = {
+        "repo_root": lane_retirement_core.__dict__["repo_root"],
+        "workspace_status": lane_retirement_core.workspace_status,
+        "active_leases": lane_retirement_core.active_leases,
+        "delete_lease": lane_retirement_core.delete_lease,
+        "is_ancestor": lane_retirement_core.__dict__["is_ancestor"],
+        "run_git": lane_retirement_core.__dict__["run_git"],
+    }
+    try:
+        lane_retirement_core.__dict__["repo_root"] = repo_root
+        lane_retirement_core.workspace_status = workspace_status
+        lane_retirement_core.active_leases = active_leases
+        lane_retirement_core.delete_lease = delete_lease
+        lane_retirement_core.__dict__["is_ancestor"] = is_ancestor
+        lane_retirement_core.__dict__["run_git"] = run_git
+        return lane_retirement_core.retire_superseded_work_lane(root=root, request=request)
+    finally:
+        lane_retirement_core.__dict__["repo_root"] = previous["repo_root"]
+        lane_retirement_core.workspace_status = previous["workspace_status"]
+        lane_retirement_core.active_leases = previous["active_leases"]
+        lane_retirement_core.delete_lease = previous["delete_lease"]
+        lane_retirement_core.__dict__["is_ancestor"] = previous["is_ancestor"]
+        lane_retirement_core.__dict__["run_git"] = previous["run_git"]
 
 
 def retire_unbound_work_lane_ref(

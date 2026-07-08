@@ -9,20 +9,13 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.evidence.parity_validation import SHADOW_PARITY_COMMANDS
-from ethos.repository.evidence.parity_validation import _command_matches_identity
-from ethos.repository.evidence.parity_validation import _migratable_capability_list
-from ethos.repository.evidence.parity_validation import _parity_evidence
-from ethos.repository.evidence.parity_validation import _sha256_text
-from ethos.repository.evidence.parity_validation import _string_list
-from ethos.repository.evidence.parity_validation import _tracked_evidence_provenance
-from ethos.repository.evidence.parity_validation import _validate_parity_evidence
+from ethos.repository.evidence.parity_validation import migratable_capability_list
+from ethos.repository.evidence.parity_validation import parity_evidence
 from ethos.repository.evidence.parity_validation import semantic_tree_digest
+from ethos.repository.evidence.parity_validation import sha256_text
+from ethos.repository.evidence.parity_validation import string_list
+from ethos.repository.evidence.parity_validation import tracked_evidence_provenance
 from ethos_core.contracts.capability_parity import capability_parity_records
-
-__all__ = (
-    "_command_matches_identity",
-    "_validate_parity_evidence",
-)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -72,7 +65,7 @@ def parity_gaps_report(
     records = capability_parity_records()
     adopter_name = adopter or "generic"
     evidence_root = root or Path.cwd()
-    evidence = _parity_evidence(
+    evidence = parity_evidence(
         evidence_root,
         adopter_name,
         target=target,
@@ -167,7 +160,7 @@ def build_tracked_parity_evidence(
                 head=current_target_head,
                 relevant_paths=PARITY_RELEVANT_PATHS,
             ),
-            "command_sha256": _sha256_text(command),
+            "command_sha256": sha256_text(command),
         },
         "shadow": {
             "ok": bool(shadow.get("ok")),
@@ -180,7 +173,7 @@ def build_tracked_parity_evidence(
             "accepted_summary": accepted_summary
             if isinstance(accepted_summary, dict)
             else {"total_count": 0, "kind_counts": {}, "command_count": 0},
-            "false_negative_count": int(shadow.get("false_negative_count") or 0),
+            "false_negative_count": _int_value(shadow.get("false_negative_count")),
         },
         "identity": _shadow_identity(
             shadow=shadow,
@@ -188,14 +181,22 @@ def build_tracked_parity_evidence(
             current_target_head=current_target_head,
             current_product_head=current_product_head,
         ),
-        "verified_capabilities": _migratable_capability_list(),
-        "semantic_dimensions": _string_list(shadow.get("semantic_dimensions"))
+        "verified_capabilities": migratable_capability_list(),
+        "semantic_dimensions": string_list(shadow.get("semantic_dimensions"))
         or list(SHADOW_PARITY_DIMENSIONS),
         "capability_basis": {
             capability: [f"{capability} shadow parity matched"]
-            for capability in _migratable_capability_list()
+            for capability in migratable_capability_list()
         },
     }
+
+
+def _int_value(value: object) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdecimal():
+        return int(value)
+    return 0
 
 
 def _shadow_identity(
@@ -211,10 +212,10 @@ def _shadow_identity(
             "target_root": str(value.get("target_root") or target.resolve().as_posix()),
             "target_head": str(value.get("target_head") or current_target_head),
             "product_head": str(value.get("product_head") or current_product_head),
-            "changed_paths": _string_list(value.get("changed_paths")),
-            "commands": _string_list(value.get("commands")) or list(SHADOW_PARITY_COMMANDS),
-            "external_commands": _string_list(value.get("external_commands")),
-            "embedded_commands": _string_list(value.get("embedded_commands")),
+            "changed_paths": string_list(value.get("changed_paths")),
+            "commands": string_list(value.get("commands")) or list(SHADOW_PARITY_COMMANDS),
+            "external_commands": string_list(value.get("external_commands")),
+            "embedded_commands": string_list(value.get("embedded_commands")),
             "evidence_inputs": _identity_evidence_inputs(value.get("evidence_inputs")),
         }
     return {
@@ -396,7 +397,7 @@ def shadow_parity_report(
     target = target.resolve()
     if adopter:
         target_identity = _target_identity(root=root or Path.cwd(), adopter=adopter, target=target)
-        evidence = _parity_evidence(
+        evidence = parity_evidence(
             root or Path.cwd(),
             adopter,
             target=target,
@@ -412,7 +413,7 @@ def shadow_parity_report(
                 evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
             shadow_value = evidence.get("shadow")
             shadow = shadow_value if isinstance(shadow_value, dict) else {}
-            provenance = _tracked_evidence_provenance(
+            provenance = tracked_evidence_provenance(
                 evidence,
                 required_gaps=evidence_gaps,
                 current_target_head=current_target_head,
@@ -424,8 +425,8 @@ def shadow_parity_report(
                 },
             )
             if not evidence_gaps and shadow.get("ok") is True:
-                commands = _string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)
-                dimensions = _string_list(evidence.get("semantic_dimensions")) or list(
+                commands = string_list(shadow.get("commands")) or list(SHADOW_PARITY_COMMANDS)
+                dimensions = string_list(evidence.get("semantic_dimensions")) or list(
                     SHADOW_PARITY_DIMENSIONS
                 )
                 package = {

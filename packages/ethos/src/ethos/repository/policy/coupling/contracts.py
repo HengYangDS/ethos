@@ -67,6 +67,7 @@ BINDING_CONTRACTS: dict[str, dict[str, object]] = {
             "ethos land",
             "ethos land --closeout",
             "ethos lane retire-landed",
+            "ethos lane retire-superseded",
             "ethos lane retire-unbound",
         ],
         "forbidden_workflow_state": ["raw_git_worktree_add"],

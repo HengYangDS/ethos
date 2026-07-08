@@ -182,6 +182,7 @@ ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
+ethos lane retire-superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
 ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
 ```
 
@@ -271,6 +272,16 @@ actor binding does not match the lease owner, the JSON payload reports
 `foreign_work_lane_retire_authority_required`, `actor_source = "ETHOS_ACTOR"`,
 whether an actor is bound, the required lease owner, and a bounded next action to
 bind the actor or obtain handoff.
+`ethos lane retire-superseded` is the owner-bound cleanup path for clean
+linked Work Lanes whose semantic truth has already been absorbed into the current
+accepted root but whose stale branch content must not be landed. It is dry-run by
+default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
+to the current accepted head, and a non-empty `--reason`, then deletes
+`refs/heads/<branch>` with a head-bound ref transaction and removes the previously
+verified-clean linked worktree. If the worktree removal fails after ref deletion,
+ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
+not replace `ethos land` or `retire-landed`; it closes a distinct superseded
+linked-lane residue state.
 `ethos lane retire-unbound` is the maintainer cleanup path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
 It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
@@ -281,7 +292,8 @@ The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
 through `ethos lane refresh-base`, land only through `ethos land`, retire
-landed lanes through `ethos lane retire-landed`, and retire unbound residue refs
+landed lanes through `ethos lane retire-landed`, retire absorbed linked-lane
+residue through `ethos lane retire-superseded`, and retire unbound residue refs
 through `ethos lane retire-unbound`. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim

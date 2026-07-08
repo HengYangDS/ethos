@@ -15,7 +15,7 @@ import hashlib
 from typing import TYPE_CHECKING
 
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.parity_validation import _command_matches_identity
+from ethos.repository.evidence.parity_validation import command_matches_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -174,7 +174,7 @@ def test_normal_claim_dated_file_without_sha256_is_gap(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.repository.evidence.parity_validation :: _command_matches_identity
+# ethos.repository.evidence.parity_validation :: command_matches_identity
 # --------------------------------------------------------------------------- #
 
 
@@ -183,4 +183,4 @@ def test_command_identity_none_target_reaches_flag_check() -> None:
     # so the elif is False and control falls through to the --execute/--json check.
     command = "ethos parity shadow --adopter demo --target . --execute --json"
 
-    assert _command_matches_identity(command, adopter="demo", target=None) is True
+    assert command_matches_identity(command, adopter="demo", target=None) is True

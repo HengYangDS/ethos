@@ -145,14 +145,14 @@ def retire_landed_work_lanes(
             "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": _landed_retire_mutation(
+            "mutation": retire_mutation_binding(
                 branch=branch,
                 expect_head=expect_head,
                 actor=_current_actor(),
                 required_actor=_selected_lease_owner(selected),
             ),
             "required_gaps": sorted(set(gaps)),
-            **_landed_retire_guidance(gaps),
+            **retire_authority_guidance(gaps),
         }
     if not apply:
         return {
@@ -160,7 +160,7 @@ def retire_landed_work_lanes(
             "state": "planned",
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": _landed_retire_mutation(
+            "mutation": retire_mutation_binding(
                 branch=branch,
                 expect_head=expect_head,
                 actor=_current_actor(),
@@ -169,44 +169,18 @@ def retire_landed_work_lanes(
             "required_gaps": [],
         }
     lane = selected[0]
-    remove = run_git(repo, "worktree", "remove", str(lane["path"]), check=False)
-    if remove.returncode != 0:
+    removed = remove_linked_lane(repo, lane, expect_head=expect_head)
+    if removed:
         return {
-            "ok": False,
-            "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": _landed_retire_mutation(
+            "mutation": retire_mutation_binding(
                 branch=branch,
                 expect_head=expect_head,
                 actor=_current_actor(),
                 required_actor=_selected_lease_owner(selected),
             ),
-            "required_gaps": ["worktree_remove_failed"],
-            "stderr": remove.stderr.strip(),
-        }
-    delete = run_git(
-        repo,
-        "update-ref",
-        "-d",
-        f"refs/heads/{lane['branch']}",
-        str(expect_head),
-        check=False,
-    )
-    if delete.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch or "",
-            "lanes": lanes,
-            "mutation": _landed_retire_mutation(
-                branch=branch,
-                expect_head=expect_head,
-                actor=_current_actor(),
-                required_actor=_selected_lease_owner(selected),
-            ),
-            "required_gaps": ["branch_delete_failed"],
-            "stderr": delete.stderr.strip(),
+            **removed,
         }
     # Release the lane's lease so it cannot outlive the lane — a recreated
     # same-named branch must re-acquire, not inherit a stale lease.
@@ -217,13 +191,59 @@ def retire_landed_work_lanes(
         "branch": branch or "",
         "retired": lane,
         "lanes": lanes,
-        "mutation": _landed_retire_mutation(
+        "mutation": retire_mutation_binding(
             branch=branch,
             expect_head=expect_head,
             actor=_current_actor(),
             required_actor=_selected_lease_owner(selected),
         ),
         "required_gaps": [],
+    }
+
+
+def remove_linked_lane(
+    repo: Path,
+    lane: dict[str, object],
+    *,
+    expect_head: str | None,
+) -> dict[str, object]:
+    """Delete a lane ref head-bound, then remove its previously clean worktree."""
+    ref = f"refs/heads/{lane['branch']}"
+    delete = run_git(
+        repo,
+        "update-ref",
+        "-d",
+        ref,
+        str(expect_head),
+        check=False,
+    )
+    if delete.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["branch_delete_failed"],
+            "stderr": delete.stderr.strip(),
+        }
+    remove = run_git(repo, "worktree", "remove", "--force", str(lane["path"]), check=False)
+    if remove.returncode == 0:
+        return {}
+    restore = run_git(
+        repo,
+        "update-ref",
+        ref,
+        str(expect_head),
+        "0" * 40,
+        check=False,
+    )
+    gaps = ["worktree_remove_failed"]
+    if restore.returncode != 0:
+        gaps.append("branch_restore_failed")
+    return {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": gaps,
+        "stderr": remove.stderr.strip(),
+        "rollback_stderr": restore.stderr.strip(),
     }
 
 
@@ -243,7 +263,8 @@ def _selected_lease_owner(selected: list[dict[str, object]]) -> str:
     return str(selected[0].get("lease_owner") or "")
 
 
-def _landed_retire_guidance(gaps: list[str]) -> dict[str, str]:
+def retire_authority_guidance(gaps: list[str]) -> dict[str, str]:
+    """Return next-action guidance for owner-bound Work Lane retirement gaps."""
     if "foreign_work_lane_retire_authority_required" not in gaps:
         return {}
     return {"next_action": "set ETHOS_ACTOR to the lane lease owner or obtain handoff"}
@@ -265,13 +286,14 @@ def _landed_expect_head_gaps(
     return []
 
 
-def _landed_retire_mutation(
+def retire_mutation_binding(
     *,
     branch: str | None,
     expect_head: str | None,
     actor: str = "",
     required_actor: str = "",
 ) -> dict[str, str]:
+    """Build the common mutation binding envelope for lane retirement commands."""
     actor = actor.strip()
     mutation = {
         "actor": actor,

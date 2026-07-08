@@ -20,6 +20,7 @@ import ethos.adapters.store.retrieval.sources as retrieval_sources
 import ethos.cli as cli_entrypoint
 import ethos.repository.audit as repository_audit
 import ethos.repository.evidence.parity as evidence_parity
+import ethos.repository.evidence.parity_validation as parity_validation
 import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
@@ -442,13 +443,13 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert docs_commands.bash_logical_commands(unfinished) == [(2, "ethos prove --json")]
 
     assert (
-        evidence_parity._command_matches_identity(
+        parity_validation.command_matches_identity(
             "ethos parity shadow --adopter a --target /t --execute --json", adopter="a", target="/t"
         )
         is True
     )
     assert (
-        evidence_parity._command_matches_identity(
+        parity_validation.command_matches_identity(
             "ethos parity shadow --adopter b --target /t --execute --json", adopter="a", target="/t"
         )
         is False
@@ -462,7 +463,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         timeout_seconds=1,
     )
     payload["shadow"]["comparison_count"] = 0
-    gaps = evidence_parity._validate_parity_evidence(payload, "a", target=tmp_path)
+    gaps = parity_validation.validate_parity_evidence(payload, "a", target=tmp_path)
     assert "parity_evidence_invalid:a:comparison_count" in gaps
 
     assert (

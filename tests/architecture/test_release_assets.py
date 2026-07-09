@@ -254,9 +254,13 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "baseline_gap_limit" not in runner
     assert 'concern = "python_module_layout"' in tools
     assert 'tool = "ethos-module-layout"' in tools
+    assert 'concern = "compatibility_residue"' in tools
+    assert 'tool = "ethos-no-compat"' in tools
+    assert 'gate = "tools/ci/scripts/run-no-compat.sh"' in tools
     assert 'config = ".config/checks/module-layout/policy.toml"' in tools
     assert 'gate = "tools/ci/scripts/run-module-layout.sh"' in tools
     assert "tools/ci/scripts/run-module-layout.sh" in local_ci
+    assert "tools/ci/scripts/run-no-compat.sh" in local_ci
     assert "tools/ci/scripts/run-module-layout.sh" in gitlab
     assert "tools/ci/scripts/run-module-layout.sh" in precommit
     assert "tools/ci/scripts/run-product-boundary.sh" in local_ci

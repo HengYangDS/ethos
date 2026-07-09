@@ -29,6 +29,7 @@ tools/ci/scripts/run-import-linter.sh
 tools/ci/scripts/run-dependency-hygiene.sh
 tools/ci/scripts/run-docstring-coverage.sh
 tools/ci/scripts/run-module-layout.sh
+tools/ci/scripts/run-no-compat.sh
 tools/ci/scripts/run-product-boundary.sh
 tools/ci/scripts/run-governance-kernel.sh
 tools/ci/scripts/run-bandit.sh

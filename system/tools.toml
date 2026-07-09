@@ -92,6 +92,13 @@ profile = "product"
 gate = "tools/ci/scripts/run-module-layout.sh"
 
 [[tool]]
+concern = "compatibility_residue"
+tool = "ethos-no-compat"
+config = "packages/ethos/src/ethos/repository/policy/no_compat/core.py"
+profile = "product"
+gate = "tools/ci/scripts/run-no-compat.sh"
+
+[[tool]]
 concern = "dependency_hygiene"
 tool = "deptry"
 config = ".config/checks/deptry/policy.toml"

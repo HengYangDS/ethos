@@ -323,10 +323,12 @@ def test_orient_human_output_names_foreign_lane_detail_counts() -> None:
                 "unbound_work_lane_count": 0,
                 "missing_lease_count": 1,
                 "dirty_foreign_work_lane_count": 1,
+                "closeout_residue_count": 1,
                 "overlap_count": 0,
                 "advisory_gaps": [
                     "foreign_work_lane_present",
                     "work_lane_missing_lease:work/example",
+                    "work_lane_closeout_residue_present",
                 ],
                 "required_gaps": [],
                 "next_action": "bind or inspect Work Lane leases before candidate integration",
@@ -353,11 +355,15 @@ def test_orient_human_output_names_foreign_lane_detail_counts() -> None:
         },
     )
 
-    assert "2 foreign lane(s) visible (1 missing lease, 1 dirty)" in packet["human_summary"]
+    assert (
+        "2 foreign lane(s) visible (1 missing lease, 1 dirty, 1 closeout residue)"
+        in packet["human_summary"]
+    )
     assert any(
         line
         == (
-            "coordination: 2 foreign lane(s) (1 missing lease, 1 dirty); "
+            "coordination: 2 foreign lane(s) "
+            "(1 missing lease, 1 dirty, 1 closeout residue); "
             "bind or inspect Work Lane leases before candidate integration"
         )
         for line in human_orientation_lines(packet)

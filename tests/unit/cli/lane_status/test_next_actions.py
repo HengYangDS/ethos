@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.store import state
 from ethos.surface.cli.lane import _lane_status_next_actions
+from ethos.surface.cli.lane import _lane_status_summary
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -136,8 +137,6 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
         },
     }
 
-    from ethos.surface.cli.lane import _lane_status_summary
-
     assert _lane_status_summary(payload) == {
         "branch": "dev",
         "role": "accepted_root",
@@ -185,8 +184,6 @@ def test_lane_status_cli_summary_exposes_coordination_reader_signals(
 
 
 def test_lane_status_summary_normalizes_string_counts() -> None:
-    from ethos.surface.cli.lane import _lane_status_summary
-
     payload = {
         "role": "accepted_root",
         "branch": "dev",
@@ -209,8 +206,6 @@ def test_lane_status_summary_normalizes_string_counts() -> None:
 
 
 def test_lane_status_summary_defaults_non_numeric_counts() -> None:
-    from ethos.surface.cli.lane import _lane_status_summary
-
     payload = {
         "role": "accepted_root",
         "branch": "dev",

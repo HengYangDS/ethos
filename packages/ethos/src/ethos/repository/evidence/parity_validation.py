@@ -34,6 +34,7 @@ SHADOW_PARITY_COMMANDS: tuple[str, ...] = tuple(
 
 
 def string_list(value: object) -> list[str]:
+    """Return a string-normalized list when the payload field is list-shaped."""
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
@@ -61,6 +62,7 @@ def tracked_evidence_provenance(
     current_product_head: str = "",
     semantic_context: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    """Describe how tracked parity evidence binds to current heads and digests."""
     freshness_value = evidence.get("freshness")
     freshness = freshness_value if isinstance(freshness_value, dict) else {}
     product_head = str(freshness.get("product_head") or "")
@@ -139,6 +141,7 @@ def parity_evidence(
     acceptable_target_heads: Iterable[str] = (),
     relevant_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
+    """Load and validate tracked shadow-parity evidence for one adopter."""
     if not adopter:
         return {}
     path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
@@ -201,6 +204,7 @@ def validate_parity_evidence(
     target_root: Path | None = None,
     relevant_paths: tuple[str, ...] = (),
 ) -> list[str]:
+    """Return required gaps for malformed, stale, or overclaiming parity evidence."""
     required_gaps: list[str] = []
     if payload.get("schema_version") != 1:
         required_gaps.append(f"parity_evidence_invalid:{adopter}:schema_version")
@@ -315,6 +319,7 @@ def _valid_capability_basis(basis: object) -> bool:
 
 
 def command_matches_identity(command: str, *, adopter: str, target: object) -> bool:
+    """Check whether a recorded shadow command names the adopter and target."""
     if "ethos parity shadow" not in command:
         return False
     if f"--adopter {adopter}" not in command:
@@ -390,6 +395,7 @@ def _validate_freshness(context: dict[str, object]) -> None:
 
 
 def sha256_text(value: str) -> str:
+    """Return the SHA-256 hex digest for a UTF-8 text value."""
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
@@ -402,6 +408,7 @@ def _migratable_capabilities() -> set[str]:
 
 
 def migratable_capability_list() -> list[str]:
+    """List parity capabilities that product governance must verify or split."""
     return [
         str(record["capability"])
         for record in capability_parity_records()

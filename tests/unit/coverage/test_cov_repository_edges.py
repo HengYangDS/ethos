@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 
 from ethos.repository.adoption import scaffold
-from ethos.repository.evidence.parity_validation import _validate_freshness
-from ethos.repository.evidence.parity_validation import _validate_verified_capabilities
 from ethos.repository.evidence.parity_validation import command_matches_identity
 from ethos.repository.evidence.parity_validation import semantic_tree_digest
+from ethos.repository.evidence.parity_validation import validate_parity_evidence
 from ethos.repository.openspec.metadata import read_openspec_metadata
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import table_version
+from tests.unit.product.parity.snapshots import complete_parity_evidence
 
 
 def test_read_openspec_metadata_skips_blank_and_comment_lines(tmp_path: Path) -> None:
@@ -47,16 +47,14 @@ def test_semantic_tree_digest_returns_empty_for_blank_head(tmp_path: Path) -> No
 
 
 def test_validate_verified_capabilities_rejects_non_list_and_returns_early() -> None:
-    required_gaps: list[str] = []
-    # None is not a list -> append the :verified_capabilities gap (295) and return early (296),
-    # so the later unknown_capability / capability_basis checks are never reached.
-    _validate_verified_capabilities(
-        None,
-        capability_basis={},
-        adopter="generic",
-        required_gaps=required_gaps,
-    )
-    assert required_gaps == ["parity_evidence_invalid:generic:verified_capabilities"]
+    payload = complete_parity_evidence("generic")
+    payload["verified_capabilities"] = None
+
+    gaps = validate_parity_evidence(payload, "generic")
+
+    assert "parity_evidence_invalid:generic:verified_capabilities" in gaps
+    assert "parity_evidence_invalid:generic:unknown_capability" not in gaps
+    assert "parity_evidence_invalid:generic:capability_basis" not in gaps
 
 
 def test_command_identity_rejects_command_without_target_flag_when_target_unspecified() -> None:
@@ -73,23 +71,14 @@ def test_command_identity_rejects_command_without_target_flag_when_target_unspec
 
 
 def test_validate_freshness_flags_missing_required_field() -> None:
-    required_gaps: list[str] = []
-    context: dict[str, object] = {
-        # product_head omitted -> freshness.get("product_head") is None -> gap appended at line 350.
-        "freshness": {"target_head": "t", "command_sha256": "c"},
-        "adopter": "generic",
-        "command": "",
-        "current_target_head": "",
-        "current_product_head": "",
-        "acceptable_product_heads": (),
-        "acceptable_target_heads": (),
-        "product_root": None,
-        "target_root": None,
-        "relevant_paths": (),
-        "required_gaps": required_gaps,
-    }
-    _validate_freshness(context)
-    assert required_gaps == ["parity_evidence_invalid:generic:product_head"]
+    payload = complete_parity_evidence("generic")
+    freshness = payload["freshness"]
+    assert isinstance(freshness, dict)
+    del freshness["product_head"]
+
+    gaps = validate_parity_evidence(payload, "generic")
+
+    assert "parity_evidence_invalid:generic:product_head" in gaps
 
 
 def test_load_repository_profile_reads_previous_projection_mapping(tmp_path: Path) -> None:

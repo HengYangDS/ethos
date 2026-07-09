@@ -86,6 +86,28 @@ is `build/runtime/tool-cache/import-linter/`. Likewise, `build/cache/` is not
 accepted as a generic dumping ground because it does not say whether the bytes
 are cache, provider work, evidence, or package output.
 
+## Promotion path
+
+Machine evidence does not become repository truth by living under
+`build/evidence/` or `build/ethos/`. Those homes are ignored, generated, and
+HEAD-bound. A reviewer or explicit ETHOS command must summarize the bounded
+claim, bind the command, scope, verifier, digest, and HEAD, and then promote the
+reviewed record into `docs/evidence/`, `evidence/chronicle/`, or
+`evidence/parity/`.
+
+The path is therefore:
+
+```text
+runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
+  -> reviewed summary with command, scope, verifier, digest, HEAD
+  -> curated tracked evidence under docs/evidence/, evidence/chronicle/, or evidence/parity/
+```
+
+Runtime caches under `.cache/local-state/`, `.ethos/state/`,
+`build/runtime/tool-cache/`, or `build/runtime/work/` are outside this path and
+must never be promoted. Local artifacts under `build/artifacts/` are rebuilt
+from source/package metadata rather than promoted as truth.
+
 ## Audit
 
 ```bash
@@ -128,12 +150,13 @@ may delete denied residue, but they do not authorize new producers.
 
 Adopters do not need product-owned `adopters/<name>`, `profiles/<name>`, or
 fixture directories to use this contract. Adoption-side policy should be
-declared in the adopter repository, for example under `.config/ethos/`, and raw
-machine output should move to ignored runtime/build homes such as
-`build/runtime/tool-cache/`, `build/runtime/work/`, or `build/evidence/`. Rollback is likewise
-adopter-owned: remove or relax the adopter declaration, move raw generated
-outputs back to an ignored local/build home, and keep only curated evidence that
-has already been reviewed and promoted.
+declared in the adopter repository, for example under
+`.config/ethos/generated-artifacts.toml`, and raw machine output should move to
+ignored runtime/build homes such as `build/runtime/tool-cache/`,
+`build/runtime/work/`, or `build/evidence/`. Rollback is likewise adopter-owned:
+remove or relax the adopter declaration, move raw generated outputs back to an
+ignored local/build home, and keep only curated evidence that has already been
+reviewed and promoted.
 
 `ethos fleet retirement-readiness --target <repo> --root <product> --json`
 consumes this same audit before it can approve an embedded-backend retirement. A

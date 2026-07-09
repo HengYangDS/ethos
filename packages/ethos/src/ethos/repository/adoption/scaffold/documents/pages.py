@@ -310,6 +310,10 @@ limits for this adopted repository.
 See also: [Documentation Index](../README.md) and [Decision Records](../decisions/README.md).
 
 Evidence supports claims; it is not the current API or a generated log dump.
+Machine output belongs under ignored homes such as `build/evidence/` or
+`build/ethos/` until a reviewer or explicit command promotes a bounded summary
+into this curated evidence lane. Runtime caches under `build/runtime/`,
+`.cache/local-state/`, or `.ethos/state/` are never promoted.
 """
 
 

@@ -60,6 +60,16 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _missing_gitignore_lines(existing: str, desired: str) -> tuple[str, ...]:
+    existing_lines = set(existing.splitlines())
+    return tuple(line for line in desired.splitlines() if line not in existing_lines)
+
+
+def _append_gitignore_lines(existing: str, missing_lines: tuple[str, ...]) -> str:
+    separator = "" if existing.endswith("\n") else "\n"
+    return f"{existing}{separator}\n" + "\n".join(missing_lines) + "\n"
+
+
 def _observed_files(root: Path, profile: str) -> dict[str, bool]:
     return {relative: (root / relative).exists() for relative in PROFILE_READ_FILES[profile]}
 
@@ -90,6 +100,9 @@ def _write_plan(root: Path, files: dict[str, str]) -> list[dict[str, object]]:
                 action = "keep_existing"
             elif existing == "":
                 action = "write_empty"
+            elif relative == ".gitignore":
+                missing_lines = _missing_gitignore_lines(existing, content)
+                action = "keep_existing" if not missing_lines else "merge_gitignore"
             else:
                 action = "skip_existing_nonempty"
                 conflict = True
@@ -138,7 +151,14 @@ def adoption_plan(
                 continue
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            if item["action"] == "merge_gitignore":
+                existing = target.read_text(encoding="utf-8")
+                missing_lines = _missing_gitignore_lines(existing, content)
+                target.write_text(
+                    _append_gitignore_lines(existing, missing_lines), encoding="utf-8"
+                )
+            else:
+                target.write_text(content, encoding="utf-8")
     if conflict_gaps:
         next_action = "resolve adoption conflicts before apply"
     elif not profile_ok:

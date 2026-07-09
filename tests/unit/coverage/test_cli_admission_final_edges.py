@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import runpy
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -458,6 +459,7 @@ def test_cli_wrappers_emit_expected_results(
         "app",
         lambda: emitted.append(EthosResult(command="runpy-app", ok=True, state="called")),
     )
+    monkeypatch.delitem(sys.modules, "ethos.cli", raising=False)
     runpy.run_module("ethos.cli", run_name="__main__")
     assert emitted[-2].command == "runpy-load" and emitted[-1].command == "runpy-app"
 

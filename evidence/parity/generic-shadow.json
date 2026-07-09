@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
-    "target_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
-    "product_semantic_sha256": "5db48414517caa188c9a299707a965239dc4d4acb613f6874007ecb4b95fc16c",
-    "target_semantic_sha256": "5db48414517caa188c9a299707a965239dc4d4acb613f6874007ecb4b95fc16c",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
+    "target_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
+    "product_semantic_sha256": "05f7739ccf60b1b130bd220b8a64e2d27e20f8157b4427138892fc2ee661f75b",
+    "target_semantic_sha256": "05f7739ccf60b1b130bd220b8a64e2d27e20f8157b4427138892fc2ee661f75b",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709",
-    "target_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
-    "product_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709",
+    "target_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
+    "product_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "010f8d4771416ab5f606ddf68fd7f32394f78a8d53f9e6c53d9f5fdb8f3614da"
+        "sha256": "460664282e012482b38a98ebc236c2f108ff90a19a1542b8a45c1a203110de1c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "cb1ec876570f47991d2c5aece1b206a4114613dc548fcd549675456a7655e210"
+        "sha256": "aac9fe40c2a1e8f5ac2ec7df056701430344995161bcfb340e60539cc28f6158"
       },
       {
         "path": "openspec",

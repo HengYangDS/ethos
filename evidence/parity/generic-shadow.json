@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "4096f3f59e819a1ef144607af759b970658bf646",
-    "target_head": "4096f3f59e819a1ef144607af759b970658bf646",
-    "product_semantic_sha256": "4ab29e6a004928d0bb3a1152acfa9786472ff498a58fccbf98091b89592f5be5",
-    "target_semantic_sha256": "4ab29e6a004928d0bb3a1152acfa9786472ff498a58fccbf98091b89592f5be5",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
+    "target_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
+    "product_semantic_sha256": "a935b1707950597982bb640c034ee375625e6cefa1ce8a44f9f1e09bb82e66fe",
+    "target_semantic_sha256": "a935b1707950597982bb640c034ee375625e6cefa1ce8a44f9f1e09bb82e66fe",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709",
-    "target_head": "4096f3f59e819a1ef144607af759b970658bf646",
-    "product_head": "4096f3f59e819a1ef144607af759b970658bf646",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709",
+    "target_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
+    "product_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f0e47a4e07881fa797930dc4c42e8e5e4886086f722f41ae44d8d1c4198d2803"
+        "sha256": "c6d045846e7f044039496ee34b646972f734ea9378c1eeec2477b8fb0418110a"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "4cc23edb23a24b958b3b7f7fc0f6faf4359d4b073b8b17fc4dd5c84df55f517c"
+        "sha256": "cc61e635d00f65accf128a4cee623bd1ec769acb03ac9337bf10c445dc1ed9d7"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "41550a1805a43c3ebab0c3ff33b4b4df40a543f69eadf71d5ac87f442271b291"
+        "sha256": "83e5f70c904511fe484f5606da9a945c6ad152258c4169951904e601489c19bb"
       },
       {
         "path": "rules",

@@ -629,6 +629,12 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert Path.cwd() == Path("/")
     monkeypatch.chdir(tmp_path)
 
+    def always_unavailable_chdir(candidate: Path) -> None:
+        raise OSError(candidate)
+
+    monkeypatch.setattr(_gate_runner.os, "chdir", always_unavailable_chdir)
+    _gate_runner._restore_cwd(missing_previous, missing_root)
+
     monkeypatch.setattr(docs_commands, "known_commands", lambda: {"ethos custom"})
     assert docs_commands.known_ethos_command("ethos custom") is True
     assert docs_commands.command_root("env") == ""

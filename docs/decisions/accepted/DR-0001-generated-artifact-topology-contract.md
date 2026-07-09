@@ -27,10 +27,10 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Record Review Date | 2026-10-07 |
 | Supersedes | None |
 | Superseded By | None |
-| Scope | Generated artifact topology, adopter-neutral product roots, evidence promotion, proof/report placement, and adoption rollback readiness. |
-| Boundary | Owns generic path policy, path router behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
+| Scope | Generated artifact topology, producer-entrypoint routing, lifecycle classes, adopter-neutral product roots, evidence promotion, proof/report placement, and adoption rollback readiness. |
+| Boundary | Owns generic path policy, path router behavior, entrypoint audit behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
 | Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
-| Decision | Promote the Generated Artifact Topology Contract and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
+| Decision | Promote the Generated Artifact Topology Contract, producer-entrypoint routing audit, lifecycle classes, and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
 | Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/tool-cache/<tool>/`, provider scratch state lives under `build/runtime/work/<provider>/`, local package artifacts live under `build/artifacts/<kind>/`; adopter-specific product roots are rejected; retired `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
 | Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
@@ -57,7 +57,7 @@ and pollute closeout, proof, and retirement decisions.
 Adopt the Generated Artifact Topology Contract:
 
 - `.config/ethos/` is declarative config, policy, and adopter interface only.
-- `.cache/local-state/` owns host-local runtime coordination state.
+- `.cache/local-state/` and `.ethos/state/` own host-local runtime coordination state.
 - `build/runtime/tool-cache/` owns ignored tool runtime caches keyed by tool name.
 - `build/runtime/work/` owns provider emulator and scratch working state.
 - `build/artifacts/` owns ignored local build and package artifacts.
@@ -66,6 +66,15 @@ Adopt the Generated Artifact Topology Contract:
 - `build/evidence/` owns machine generated quality/proof evidence artifacts.
 - `docs/evidence/`, `evidence/chronicle/`, and `evidence/parity/` own curated
   or promoted evidence after explicit review or command promotion.
+- Runtime cache, machine evidence, local artifacts, and curated evidence are
+  distinct lifecycle classes: runtime cache is disposable and never promoted;
+  machine evidence is generated and HEAD-bound before review; local artifacts are
+  rebuildable and ignored; curated evidence is tracked and retired or superseded
+  by review, not deleted as cache.
+- Active producer entrypoints must route generated state before writing it:
+  pytest, Ruff, import-linter, package builds, and local provider emulators must
+  point to the semantic homes in this contract. Cleanup commands may remove
+  residue, but they do not authorize producers that recreate root or flat homes.
 - `docs/decisions/` owns durable rulings and follows the same high-level
   information architecture used by governed repositories.
 - Generated drift in repo root, `.config/`, semantic docs truth roots, or source
@@ -100,7 +109,7 @@ general governance prose or become mandatory truth lanes.
 
 - [Generated Artifact Topology](../../architecture/generated-artifact-topology.md)
 - [Decision Index](../decision-index.md)
-- `ethos quality generated-artifacts --json`
+- `ethos quality generated-artifacts --json` (path topology plus producer-entrypoint routing)
 - `uv run --group dev pytest tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py tests/architecture/test_generated_artifact_topology_docs.py -q`
 - `ethos prove --execute --expect-head <head> --json`
 

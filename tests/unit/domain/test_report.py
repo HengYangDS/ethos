@@ -49,7 +49,7 @@ def test_scorecard_next_actions_route_coverage_types_and_docstring_gaps() -> Non
         hard_quality_floor={
             "required_gaps": [
                 "coverage_latest_below_floor:94.00<95.00",
-                "ty_ratchet_exceeded:packages/ethos:66>65",
+                "ty_ratchet_exceeded:packages/ethos:64>63",
                 "docstring_coverage_below_minimum:94.00<95.00",
             ],
         },

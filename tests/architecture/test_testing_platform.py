@@ -15,10 +15,8 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
 
     assert "pytest-xdist" in dev_deps
     assert "pytest-timeout" in dev_deps
-    assert pyproject["tool"]["pytest"]["ini_options"] == {
-        "cache_dir": "build/runtime/tool-cache/pytest"
-    }
-    assert pyproject["tool"]["ruff"] == {"cache-dir": "build/runtime/tool-cache/ruff"}
+    assert "tool" not in pyproject or "pytest" not in pyproject["tool"]
+    assert "tool" not in pyproject or "ruff" not in pyproject["tool"]
     assert "--strict-config" in pytest_ini
     assert "--strict-markers" in pytest_ini
     assert "required_plugins" in pytest_ini

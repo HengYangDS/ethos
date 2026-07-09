@@ -52,6 +52,7 @@ PRODUCT_ADOPTER_ROOT_PREFIXES = frozenset(
 
 _ALLOWED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".cache/local-state/", "host-local runtime state, leases, locks, executions, sessions"),
+    (".ethos/state/", "native ETHOS local runtime state, leases, locks, executions, sessions"),
     ("build/runtime/tool-cache/", "ignored tool runtime caches keyed by tool name"),
     ("build/runtime/work/", "ignored provider emulator and scratch working state"),
     ("build/ethos/", "machine generated ETHOS proof, logs, reports, artifacts, projections"),
@@ -96,6 +97,41 @@ _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
     ("docs/", "generated_artifact_governed_docs_drift"),
     ("packages/", "generated_artifact_source_drift"),
 )
+_LIFECYCLE_CLASSES: tuple[dict[str, Any], ...] = (
+    {
+        "id": "runtime_cache",
+        "homes": (
+            ".cache/local-state",
+            ".ethos/state",
+            "build/runtime/tool-cache",
+            "build/runtime/work",
+        ),
+        "tracked": False,
+        "promotion_allowed": False,
+        "cleanup": "disposable host-local state; delete or recreate from source commands",
+    },
+    {
+        "id": "machine_evidence",
+        "homes": ("build/evidence", "build/ethos"),
+        "tracked": False,
+        "promotion_allowed": True,
+        "cleanup": "regenerate from a HEAD-bound command; promote only by review or command",
+    },
+    {
+        "id": "local_artifact",
+        "homes": ("build/artifacts",),
+        "tracked": False,
+        "promotion_allowed": False,
+        "cleanup": "rebuild from package metadata or release commands",
+    },
+    {
+        "id": "curated_evidence",
+        "homes": ("docs/evidence", "evidence/chronicle", "evidence/parity"),
+        "tracked": True,
+        "promotion_allowed": False,
+        "cleanup": "retire or supersede by tracked review, not by cache cleanup",
+    },
+)
 
 
 def normalize_artifact_path(path: Path | str) -> str:
@@ -110,7 +146,7 @@ def _matches_prefix(rel: str, prefix: str) -> bool:
     return rel == clean or rel.startswith(f"{clean}/")
 
 
-def generated_artifact_contract() -> dict[str, object]:
+def generated_artifact_contract() -> dict[str, Any]:
     """Return the stable generated artifact topology contract."""
     declarative_boundary = "declarative config, policy, and adopter interface only"
     return {
@@ -145,6 +181,9 @@ def generated_artifact_contract() -> dict[str, object]:
         "generated_suffixes": sorted(GENERATED_SUFFIXES),
         "generated_filenames": sorted(GENERATED_FILENAMES),
         "generated_filename_prefixes": sorted(GENERATED_FILENAME_PREFIXES),
+        "lifecycle_classes": [
+            {**item, "homes": list(item["homes"])} for item in _LIFECYCLE_CLASSES
+        ],
         "adopter_specific_product_dirs_allowed": False,
         "product_adopter_root_prefixes": sorted(
             prefix.rstrip("/") for prefix in PRODUCT_ADOPTER_ROOT_PREFIXES

@@ -212,8 +212,27 @@ and curated evidence remain distinct authority surfaces.
 - **AND** retired flat generated homes such as `build/cache/` and
   `build/runtime/gitlab-ci-local/` fail
 - **AND** allowed generated homes are semantic: `.cache/local-state/`,
-  `build/runtime/tool-cache/<tool>/`, `build/runtime/work/<provider>/`,
-  `build/evidence/`, `build/ethos/`, and `build/artifacts/<kind>/`.
+  `.ethos/state/`, `build/runtime/tool-cache/<tool>/`,
+  `build/runtime/work/<provider>/`, `build/evidence/`, `build/ethos/`, and
+  `build/artifacts/<kind>/`
+- **AND** the command reports lifecycle classes for `runtime_cache`,
+  `machine_evidence`, `local_artifact`, and `curated_evidence`.
+
+#### Scenario: Generated artifact producer entrypoints are audited
+
+- **WHEN** `ethos quality generated-artifacts --json` runs
+- **THEN** the command reports an `entrypoint_audit` over active CI projections,
+  reusable owner scripts, package entrypoints, and tool configuration
+- **AND** pytest entrypoints must use `.config/checks/pytest/pytest.ini`, route
+  pytest cache to `build/runtime/tool-cache/pytest`, and write coverage/JUnit
+  machine evidence under `build/evidence/quality/tests/`
+- **AND** Ruff and import-linter entrypoints must route runtime cache under
+  `build/runtime/tool-cache/ruff` and `build/runtime/tool-cache/import-linter`
+- **AND** package build entrypoints must write to `build/artifacts/<kind>`
+- **AND** `gitlab-ci-local` entrypoints must route provider state to
+  `build/runtime/work/gitlab-ci-local`
+- **AND** cleanup commands may remove denied residue but do not make a producer
+  that recreates denied homes compliant.
 
 ### Requirement: Python Module Layout Gate
 

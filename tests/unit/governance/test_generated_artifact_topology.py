@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
 from ethos_core.contracts.artifacts.topology import is_denied_root_cache_path
@@ -31,6 +32,7 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     assert {item["prefix"] for item in contract["declarative_prefixes"]} == {".config/ethos"}
     assert {item["prefix"] for item in contract["allowed_prefixes"]} >= {
         ".cache/local-state",
+        ".ethos/state",
         "build/runtime/tool-cache",
         "build/runtime/work",
         "build/ethos",
@@ -61,6 +63,17 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
         "build/runtime/gitlab-ci-local",
         "dist",
     }
+    lifecycle = {item["id"]: item for item in contract["lifecycle_classes"]}
+    assert set(lifecycle) == {
+        "runtime_cache",
+        "machine_evidence",
+        "local_artifact",
+        "curated_evidence",
+    }
+    assert ".ethos/state" in lifecycle["runtime_cache"]["homes"]
+    assert lifecycle["runtime_cache"]["tracked"] is False
+    assert lifecycle["machine_evidence"]["promotion_allowed"] is True
+    assert lifecycle["curated_evidence"]["tracked"] is True
     assert contract["adopter_specific_product_dirs_allowed"] is False
     assert "adopters" in contract["product_adopter_root_prefixes"]
 
@@ -68,6 +81,7 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
 def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     config = path_policy_for(".config/ethos/policy.toml")
     build = path_policy_for("build/ethos/proof/report.json")
+    local_state = path_policy_for(".ethos/state/worktree/leases.json")
     runtime = path_policy_for("build/runtime/tool-cache/pytest/cache.json")
     work = path_policy_for("build/runtime/work/gitlab-ci-local/state.json")
     artifact = path_policy_for("build/artifacts/python/ethos-0.1.0.whl")
@@ -78,6 +92,8 @@ def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     assert "declarative" in config["boundary"]
     assert build["decision"] == "allow"
     assert build["generated"] is True
+    assert local_state["decision"] == "allow"
+    assert local_state["generated"] is True
     assert runtime["decision"] == "allow"
     assert runtime["generated"] is True
     assert "tool runtime caches" in runtime["boundary"]
@@ -237,6 +253,17 @@ def test_generated_artifact_report_blocks_tracked_root_test_residue(tmp_path: Pa
     assert "generated_artifact_repo_root_drift:.coverage.worker" in report["required_gaps"]
 
 
+def test_entrypoint_audit_ignores_directories_matching_entrypoint_globs(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "tools" / "ci" / "scripts" / "directory-entry").mkdir(parents=True)
+
+    audit = generated_artifact_entrypoint_audit(repo)
+
+    assert audit["ok"] is True
+    assert audit["checked_files"] == []
+    assert audit["required_gaps"] == []
+
+
 def test_path_policy_denies_generated_output_under_config() -> None:
     report = path_policy_for(".config/ethos/report.json")
 
@@ -275,3 +302,95 @@ def test_path_policy_reviews_runner_scripts_and_denies_retired_config_scripts() 
     assert retired["required_gap"] == (
         "retired_config_script_home:.config/ci/scripts/run-python-lint.sh"
     )
+
+
+def test_generated_artifact_entrypoint_audit_blocks_unrouted_tool_producers(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = repo / "tools" / "ci" / "scripts" / "run-python-lint.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        "#!/usr/bin/env bash\nruff check .\nlint-imports --config .config/checks/import-linter/contracts.ini\n",
+        encoding="utf-8",
+    )
+    pytest_ini = repo / ".config" / "checks" / "pytest" / "pytest.ini"
+    pytest_ini.parent.mkdir(parents=True)
+    pytest_ini.write_text("[pytest]\ncache_dir = .pytest_cache\n", encoding="utf-8")
+    (repo / "package.json").write_text("{}\n", encoding="utf-8")
+    provider = repo / "tools" / "ci" / "scripts" / "run-gitlab-local-emulator.sh"
+    provider.write_text("#!/usr/bin/env bash\ngitlab-ci-local --list\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "add unrouted entrypoints")
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["ok"] is False
+    assert (
+        "generated_artifact_entrypoint_ruff_cache_unrouted:tools/ci/scripts/run-python-lint.sh"
+        in report["required_gaps"]
+    )
+    assert (
+        "generated_artifact_entrypoint_import_linter_cache_unrouted:"
+        "tools/ci/scripts/run-python-lint.sh"
+    ) in report["required_gaps"]
+    assert (
+        "generated_artifact_entrypoint_pytest_cache_unrouted:.config/checks/pytest/pytest.ini"
+    ) in report["required_gaps"]
+
+
+def test_generated_artifact_entrypoint_audit_accepts_semantic_routes(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = repo / "tools" / "ci" / "scripts" / "run-python-lint.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        """#!/usr/bin/env bash
+ruff_cache_dir=build/runtime/tool-cache/ruff
+ruff check --cache-dir "${ruff_cache_dir}" --config .config/checks/ruff/ruff.toml .
+IMPORT_LINTER_CACHE_DIR=build/runtime/tool-cache/import-linter
+lint-imports --cache-dir "${IMPORT_LINTER_CACHE_DIR}" --config .config/checks/import-linter/contracts.ini
+uv build --all-packages --out-dir build/artifacts/python --clear
+gitlab-ci-local --state-dir build/runtime/work/gitlab-ci-local --list
+""",
+        encoding="utf-8",
+    )
+    pytest_ini = repo / ".config" / "checks" / "pytest" / "pytest.ini"
+    pytest_ini.parent.mkdir(parents=True)
+    pytest_ini.write_text(
+        "[pytest]\ncache_dir = build/runtime/tool-cache/pytest\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "add semantic entrypoint routes")
+
+    audit = generated_artifact_entrypoint_audit(repo)
+
+    assert audit["ok"] is True
+    assert audit["required_gaps"] == []
+
+
+def test_generated_artifact_entrypoint_audit_ignores_cleanup_and_url_literals(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = repo / "tools" / "ci" / "scripts" / "cleanup.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        """#!/usr/bin/env bash
+rm -rf .pytest_cache .ruff_cache
+url="https://nodejs.org/dist/v1/node.tar.xz"
+""",
+        encoding="utf-8",
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "add cleanup and url")
+
+    audit = generated_artifact_entrypoint_audit(repo)
+
+    assert audit["ok"] is True
+    assert audit["required_gaps"] == []

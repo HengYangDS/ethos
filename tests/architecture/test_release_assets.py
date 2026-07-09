@@ -128,13 +128,13 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert 'concern = "python_docstrings"' in tools
 
 
-def test_pyproject_only_routes_direct_tool_caches() -> None:
+def test_pyproject_does_not_carry_quality_tool_policy() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert "[tool.pytest.ini_options]" in pyproject
-    assert 'cache_dir = "build/runtime/tool-cache/pytest"' in pyproject
-    assert "[tool.ruff]" in pyproject
-    assert 'cache-dir = "build/runtime/tool-cache/ruff"' in pyproject
+    assert "[tool.pytest" not in pyproject
+    assert "[tool.ruff" not in pyproject
+    assert "[tool.coverage" not in pyproject
+    assert "[tool.ty" not in pyproject
     assert "select =" not in pyproject
     assert "strict-config" not in pyproject
 

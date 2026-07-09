@@ -7,7 +7,7 @@
 #     - packages/ethos-core
 #
 #   RATCHET (frozen baseline; may only shrink):
-#     - packages/ethos (65 baseline)
+#     - packages/ethos (63 baseline)
 #
 # The gate (ethos quality types) runs `ty check` per package and compares against
 # these baselines: zero-tolerance packages fail on ANY diagnostic; ratchet packages
@@ -19,4 +19,4 @@ packages = [
 ]
 
 [ratchet]
-"packages/ethos" = 65
+"packages/ethos" = 63

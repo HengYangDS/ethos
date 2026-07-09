@@ -31,6 +31,7 @@ file as source, local state, generated output, or curated evidence.
 | `build/runtime/work/` | Provider emulator state and scratch working state. | Yes | No |
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
+| `build/artifacts/` | Local package and build artifacts, grouped by artifact kind. | Yes | No |
 | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
 | `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
@@ -66,19 +67,62 @@ or `build/artifacts/<kind>/`. Retired flat homes such as `build/cache/` and
 `build/runtime/tool-cache/<tool>/` and `build/runtime/work/gitlab-ci-local/`
 instead.
 
+## Lifecycle classes
+
+The topology is a lifecycle model, not a prettier flat cache directory. Every
+generated home answers four questions: can it be tracked, can it be promoted,
+how is it regenerated, and how is it cleaned up?
+
+| Lifecycle | Homes | Truth boundary | Cleanup / promotion rule |
+| --- | --- | --- | --- |
+| Runtime cache | `.cache/local-state/`, `.ethos/state/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
+| Machine evidence | `build/evidence/`, `build/ethos/` | Generated, HEAD-bound command output before review. | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
+| Local artifact | `build/artifacts/` | Rebuildable package/build output. | Never treat as repository truth. Rebuild from package metadata or release commands. |
+| Curated evidence | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Reviewed, dated, tracked repository evidence. | Retire or supersede through tracked change; do not clean as cache. |
+
+This is the reason `.import_linter_cache/` in repo root is wrong even when it is
+ignored: it has a tool owner but no semantic lifecycle home. The right location
+is `build/runtime/tool-cache/import-linter/`. Likewise, `build/cache/` is not
+accepted as a generic dumping ground because it does not say whether the bytes
+are cache, provider work, evidence, or package output.
+
 ## Audit
 
 ```bash
 ethos quality generated-artifacts --json
 ```
 
-The audit reports the path router contract, blocked generated drift, tracked
-files in generated-output homes, and review-required paths. It is also a proof
-gate:
+The audit reports the path router contract, lifecycle classes, entrypoint
+routing, blocked generated drift, tracked files in generated-output homes, and
+review-required paths. It is also a proof gate:
 
 ```bash
 ethos prove --execute --gate generated-artifacts --expect-head <git-head> --json
 ```
+
+## Entrypoint routing
+
+The audit also checks the active producer entrypoints, not only files that
+happen to exist after a run. Provider CI projections, reusable owner scripts,
+package entrypoints, and tool configuration must route generated state before
+the command writes it:
+
+- `tools/ci/scripts/run-python-tests.sh` must call pytest with the explicit
+  `.config/checks/pytest/pytest.ini` owner, route pytest cache to
+  `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
+  `build/evidence/quality/tests/`, and use an explicit scratch temp directory.
+- Ruff entrypoints must set `--cache-dir` or `RUFF_CACHE_DIR` to
+  `build/runtime/tool-cache/ruff`.
+- import-linter entrypoints must set `--cache-dir` or `IMPORT_LINTER_CACHE_DIR`
+  to `build/runtime/tool-cache/import-linter`.
+- Python package builds must use `uv build --out-dir build/artifacts/python` or
+  an equivalent `build/artifacts/<kind>` route.
+- `gitlab-ci-local` must use `--state-dir build/runtime/work/gitlab-ci-local`.
+
+These checks prevent a cleanup-only failure mode: a gate should not merely
+remove root residue after the fact; it should make the entrypoint incapable of
+producing root or flat generated state during normal execution. Cleanup commands
+may delete denied residue, but they do not authorize new producers.
 
 ## Adoption rollback
 

@@ -315,6 +315,14 @@ profile = "product"
 planned = true
 
 [[tool]]
+concern = "generated_artifact_topology"
+tool = "ethos-generated-artifacts"
+config = "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py + docs/architecture/generated-artifact-topology.md"
+artifacts = "build/evidence/generated-artifacts/"
+gate = "ethos quality generated-artifacts --json"
+profile = "product"
+
+[[tool]]
 concern = "local_state_audit"
 tool = "ethos-local-state-audit"
 config = ".config/checks/local-state/audit.toml"

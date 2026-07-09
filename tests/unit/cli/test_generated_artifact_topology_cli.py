@@ -15,6 +15,7 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
     assert {
         "build/runtime/tool-cache",
         "build/runtime/work",
+        ".ethos/state",
         "build/ethos",
         "build/evidence",
         "build/artifacts",
@@ -29,6 +30,7 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
         item["prefix"] for item in payload["data"]["contract"]["denied_legacy_generated_prefixes"]
     }
     review = {item["prefix"] for item in payload["data"]["contract"]["review_prefixes"]}
+    lifecycle = {item["id"] for item in payload["data"]["contract"]["lifecycle_classes"]}
     assert ".config" in denied
     assert "docs" in denied
     assert ".config/ci/scripts" in denied_static
@@ -36,3 +38,6 @@ def test_quality_generated_artifacts_command_reports_contract() -> None:
     assert "build/cache" in denied_legacy
     assert "dist" in denied_legacy
     assert "tools/ci/scripts" in review
+    assert lifecycle == {"runtime_cache", "machine_evidence", "local_artifact", "curated_evidence"}
+    assert payload["summary"]["entrypoint_checked_file_count"] > 0
+    assert payload["data"]["entrypoint_audit"]["ok"] is True

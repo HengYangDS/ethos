@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
-    "target_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
-    "product_semantic_sha256": "76dc55cd4ad10f33fb978d5b1f5fb3f8f28ea233435a150c819340499883064a",
-    "target_semantic_sha256": "76dc55cd4ad10f33fb978d5b1f5fb3f8f28ea233435a150c819340499883064a",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
+    "target_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
+    "product_semantic_sha256": "32c54e817da56fe6b7b0d8d896fbb7218d105af0e0d8331ad6d5ccb9c966ed22",
+    "target_semantic_sha256": "32c54e817da56fe6b7b0d8d896fbb7218d105af0e0d8331ad6d5ccb9c966ed22",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709",
-    "target_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
-    "product_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709",
+    "target_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
+    "product_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "74743cb023a14e495aca599f925c50d42fba8b58e7d842a1d1068e68f6d4d0ff"
+        "sha256": "9a06849612bee199bac837727f3cb4b1e3853f4561686909915456117abc8398"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e746d6cbd8ebd83f7bff6464108d74cd206366fb464582807537563479fb2ffe"
+        "sha256": "bc1eeb68ff2d646b57c3bfda32d3e94d20fd8a067c48e42732b6836aa7ccaf9a"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "46308ad0154540f780c1636b1ee028c73a027a0ae155e264d85e1c1dcc92309b"
+        "sha256": "593c4a3dbb0e289a4039631eb98391ba490edb5dfc411849162b8a36cc86d982"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "a7fa31fb6669dae4bd11c0948d2dcf2c3cbec24529aa3035f985db26ab795ba7"
+        "sha256": "eff522806e978311a762da8481a588d0249884843cbdcf07ac559bf6292c3a69"
       },
       {
         "path": "rules",

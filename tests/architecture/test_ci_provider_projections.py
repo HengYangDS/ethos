@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import stat
@@ -31,6 +32,16 @@ def _tool_block(concern: str) -> str:
     next_block = after.find("[[tool]]")
     body = marker + (after if next_block == -1 else after[:next_block])
     return before[block_start:] + body
+
+
+def _load_ci_templates_module():
+    module_path = ROOT / "tools/ci/ci_templates.py"
+    spec = importlib.util.spec_from_file_location("ethos_test_ci_templates", module_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_hosted_provider_templates_are_projection_sources() -> None:
@@ -134,6 +145,56 @@ def test_ci_template_check_reports_projection_drift_as_json() -> None:
     assert payload["ok"] is True
     assert {item["provider"] for item in payload["projections"]} == {"github", "gitlab"}
     assert all(item["projection_matches_template"] for item in payload["projections"])
+
+
+def test_local_emulator_doctor_degrades_when_optional_tool_is_missing(monkeypatch) -> None:
+    ci_templates = _load_ci_templates_module()
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _: None)
+
+    assert (
+        ci_templates.emulator_evidence(
+            "gitlab",
+            mode="doctor",
+            dry_run=False,
+            allow_untracked=False,
+            output=None,
+        )
+        == 0
+    )
+    payload = json.loads((ROOT / "build/evidence/local-ci/gitlab/doctor.json").read_text())
+
+    assert payload["ok"] is True
+    assert payload["tool_available"] is False
+    assert payload["returncode"] == 127
+    assert payload["stderr"] == "tool not found"
+    assert payload["hosted_gitlab_status_claimed"] is False
+
+
+def test_local_emulator_run_requires_optional_tool_when_materializing(
+    monkeypatch, tmp_path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _: None)
+
+    output = tmp_path / "gitlab-run.json"
+    assert (
+        ci_templates.emulator_evidence(
+            "gitlab",
+            mode="run",
+            dry_run=False,
+            allow_untracked=True,
+            output=output,
+        )
+        == 127
+    )
+    payload = json.loads(output.read_text())
+
+    assert payload["ok"] is False
+    assert payload["tool_available"] is False
+    assert payload["returncode"] == 127
+    assert payload["stderr"] == "tool not found"
+    assert payload["materialization"]["mode_allows_untracked"] is False
+    assert payload["materialization"]["untracked_allowed"] is True
 
 
 def test_local_emulator_wrappers_do_not_require_optional_flag_environment() -> None:

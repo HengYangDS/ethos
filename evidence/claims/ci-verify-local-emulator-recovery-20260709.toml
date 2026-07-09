@@ -1,0 +1,43 @@
+[claim]
+id = "ci-verify-local-emulator-recovery-20260709"
+subject = "ethos:ci-verify-local-emulator"
+change_id = "ci-verify-local-emulator-recovery-20260709"
+state = "active"
+summary = "Local provider emulator observation modes degrade missing optional tools into bounded local evidence while materializing run modes stay fail-closed."
+
+[evidence]
+dated = "evidence/chronicle/ci-verify-local-emulator-recovery-20260709/2026-07-09.md"
+sha256 = "ec557253eea051cb1cd8f0c1a0d4ad654afe15bb223d5e61ce40132cc29b753e"
+evidence_ids = ["evidence:ci-verify-local-emulator-recovery-20260709"]
+binding = "CI verify local emulator optional-tool boundary evidence binding"
+verifier = "semantic"
+tests = [
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --all-packages --group dev pytest tests/architecture/test_ci_provider_projections.py::test_local_emulator_doctor_degrades_when_optional_tool_is_missing tests/architecture/test_ci_provider_projections.py::test_local_emulator_run_requires_optional_tool_when_materializing tests/architecture/test_ci_provider_projections.py::test_local_emulator_wrappers_do_not_require_optional_flag_environment -q",
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head <lane-head> --json",
+]
+
+[boundary]
+owner = "product-toolchain"
+scope = "Local provider emulator observation and materialization tool availability semantics."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery-20260709"
+fallback = "Set ETHOS_LOCAL_EMULATOR_DRY_RUN=1 for optional local emulator observation until the provider tool is installed."
+kill_signal = "Hosted CI verify fails because an optional local emulator adapter binary is absent, or materializing emulator runs succeed without the required provider tool."
+
+[promotion]
+targets = [
+  "tools/ci/ci_templates.py",
+  "tests/architecture/test_ci_provider_projections.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery-20260709",
+  "docs/governance/forge-provider-contract.md",
+  "evidence/chronicle/ci-verify-local-emulator-recovery-20260709/2026-07-09.md",
+  "evidence/claims/ci-verify-local-emulator-recovery-20260709.toml",
+]

@@ -164,13 +164,23 @@ def _write_evidence(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _run_command(command: list[str], *, dry_run: bool) -> dict[str, Any]:
+def _run_command(
+    command: list[str],
+    *,
+    dry_run: bool,
+    tool_required: bool = True,
+) -> dict[str, Any]:
     if dry_run:
         return {"returncode": None, "ok": True, "stdout": "", "stderr": ""}
     if not command:
         return {"returncode": None, "ok": True, "stdout": "", "stderr": ""}
     if shutil.which(command[0]) is None:
-        return {"returncode": 127, "ok": False, "stdout": "", "stderr": "tool not found"}
+        return {
+            "returncode": 127,
+            "ok": not tool_required,
+            "stdout": "",
+            "stderr": "tool not found",
+        }
     result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
     return {
         "returncode": result.returncode,
@@ -207,7 +217,15 @@ def _file_facts(paths: dict[str, str]) -> dict[str, dict[str, Any]]:
 
 
 def _mode_allows_untracked(mode: str, *, dry_run: bool) -> bool:
+    return _mode_is_observation(mode, dry_run=dry_run)
+
+
+def _mode_is_observation(mode: str, *, dry_run: bool) -> bool:
     return dry_run or mode in {"doctor", "list", "dry-run"}
+
+
+def _emulator_tool_required(mode: str, *, dry_run: bool) -> bool:
+    return not _mode_is_observation(mode, dry_run=dry_run)
 
 
 def _materialization_issue(mode: str, *, dry_run: bool, allow_untracked: bool) -> str:
@@ -273,7 +291,11 @@ def emulator_evidence(
     run = (
         {"returncode": 1, "ok": False, "stdout": "", "stderr": issue}
         if issue
-        else _run_command(command, dry_run=dry_run)
+        else _run_command(
+            command,
+            dry_run=dry_run,
+            tool_required=_emulator_tool_required(mode, dry_run=dry_run),
+        )
     )
     finished_at = datetime.now(UTC)
     git_end = _git_summary()

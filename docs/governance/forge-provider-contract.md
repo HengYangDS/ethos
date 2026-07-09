@@ -86,7 +86,10 @@ Provider evidence MUST declare one of these classes:
 Local emulator evidence MUST include provider, template path, projected file,
 job or workflow scope, command, start/end Git head, dirty state, return code,
 and explicit booleans such as `hosted_github_status_claimed=false` or
-`hosted_gitlab_status_claimed=false`.
+`hosted_gitlab_status_claimed=false`. Observation modes such as `doctor`,
+`list`, and `dry-run` may report a missing optional emulator binary as bounded
+local evidence with `tool_available=false`; materializing run modes remain
+fail-closed when the required emulator binary is unavailable.
 
 ## Activation Profiles
 

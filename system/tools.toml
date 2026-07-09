@@ -94,9 +94,10 @@ gate = "tools/ci/scripts/run-module-layout.sh"
 [[tool]]
 concern = "dependency_hygiene"
 tool = "deptry"
-config = ".config/checks/deptry/"
+config = ".config/checks/deptry/policy.toml"
+artifacts = "build/evidence/quality/dependency/"
 profile = "product"
-planned = true
+gate = "tools/ci/scripts/run-dependency-hygiene.sh"
 
 [[tool]]
 concern = "product_boundary"
@@ -128,10 +129,10 @@ gate = "tools/ci/scripts/run-markdown-lint.sh"
 
 [[tool]]
 concern = "prose"
-tool = "vale,codespell"
-config = ".config/checks/prose/"
+tool = "codespell"
+config = ".config/checks/prose/codespell.toml"
 profile = "product"
-planned = true
+gate = "tools/ci/scripts/run-prose-check.sh"
 
 [[tool]]
 concern = "yaml"
@@ -149,10 +150,10 @@ gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "json_schema"
-tool = "check-jsonschema,jq"
-config = "system/schemas/"
+tool = "check-jsonschema"
+config = ".config/checks/schema/jsonschema.toml + system/schemas/"
 profile = "minimal"
-planned = true
+gate = "tools/ci/scripts/run-json-schema-check.sh"
 
 [[tool]]
 concern = "ci_tool_supply"
@@ -202,14 +203,14 @@ gate = "tools/ci/scripts/run-secrets-scan.sh"
 [[tool]]
 concern = "python_vuln"
 tool = "pip-audit"
-config = ".config/checks/security/"
+config = ".config/checks/security/audit.toml"
 profile = "security"
 planned = true
 
 [[tool]]
 concern = "osv_vuln"
 tool = "osv-scanner"
-config = ".config/checks/security/"
+config = ".config/checks/security/audit.toml"
 profile = "security"
 planned = true
 
@@ -373,3 +374,11 @@ config = "host-installed official plugin or equivalent method pack"
 profile = "agent-projection"
 planned = true
 adapter_only = true
+
+[[tool]]
+concern = "hosted_provider_observation"
+tool = "gh,glab"
+config = ".config/checks/ci/hosted-observation.toml"
+artifacts = "build/evidence/hosted-ci/"
+gate = "tools/ci/scripts/run-hosted-provider-observation.sh"
+profile = "provider"

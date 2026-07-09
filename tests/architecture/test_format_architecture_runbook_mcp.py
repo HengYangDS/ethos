@@ -80,6 +80,10 @@ def test_runbook_registry_drift_check_covers_new_runbooks() -> None:
         "RUN-FORMAT-SELECTION",
         "RUN-ARCHITECTURE-PROJECTION",
         "RUN-MCP-SMOKE",
+        "RUN-DEPENDENCY-HYGIENE",
+        "RUN-JSON-SCHEMA",
+        "RUN-PROSE-CHECK",
+        "RUN-HOSTED-PROVIDER-OBSERVATION",
     ]:
         assert runbook in text
 
@@ -123,7 +127,6 @@ def test_active_p1_p2_tools_have_owner_surfaces() -> None:
 
 def test_optional_adapters_and_supply_chain_remain_planned() -> None:
     for concern in [
-        "dependency_hygiene",
         "python_vuln",
         "osv_vuln",
         "signing",

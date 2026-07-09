@@ -65,11 +65,18 @@ ethos:architecture:
   script:
     - tools/ci/scripts/run-import-linter.sh
 
+ethos:dependency-hygiene:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-dependency-hygiene.sh
+
 ethos:config:
   <<: *python_setup
   stage: quality
   script:
     - tools/ci/scripts/run-config-lint.sh
+    - tools/ci/scripts/run-json-schema-check.sh
 
 ethos:hygiene:
   <<: *python_setup
@@ -136,6 +143,12 @@ ethos:markdown:
     # the layer-cached python:3.12 image). Policy: .config/checks/markdown/.
     - tools/ci/scripts/run-markdown-lint.sh
 
+ethos:prose:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-prose-check.sh
+
 ethos:ci-projections:
   <<: *python_setup
   stage: quality
@@ -189,6 +202,12 @@ ethos:release-supply-chain:
   stage: quality
   script:
     - tools/ci/scripts/run-release-supply-chain.sh
+
+ethos:hosted-provider-observation:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-hosted-provider-observation.sh
 
 ethos:verify:
   <<: *python_setup

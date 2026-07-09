@@ -13,9 +13,12 @@ cd "${repo_root}"
 
 tools/ci/scripts/run-python-lint.sh
 tools/ci/scripts/run-config-lint.sh
+tools/ci/scripts/run-json-schema-check.sh
 tools/ci/scripts/run-shell-lint.sh
 tools/ci/scripts/run-markdown-lint.sh
+tools/ci/scripts/run-prose-check.sh
 tools/ci/scripts/run-import-linter.sh
+tools/ci/scripts/run-dependency-hygiene.sh
 tools/ci/scripts/run-docstring-coverage.sh
 tools/ci/scripts/run-module-layout.sh
 tools/ci/scripts/run-product-boundary.sh
@@ -30,4 +33,5 @@ tools/ci/scripts/run-mcp-smoke.sh
 tools/ci/scripts/run-closeout-evidence-manifest.sh
 tools/ci/scripts/run-local-state-audit.sh
 tools/ci/scripts/run-release-supply-chain.sh
+tools/ci/scripts/run-hosted-provider-observation.sh
 tools/ci/scripts/run-python-tests.sh

@@ -37,8 +37,12 @@ jobs:
         run: uv run --all-packages --group dev ethos quality types --json
       - name: Import boundaries
         run: tools/ci/scripts/run-import-linter.sh
+      - name: Dependency hygiene
+        run: tools/ci/scripts/run-dependency-hygiene.sh
       - name: Config lint
         run: tools/ci/scripts/run-config-lint.sh
+      - name: JSON schema hygiene
+        run: tools/ci/scripts/run-json-schema-check.sh
       - name: Repository hygiene
         run: tools/ci/scripts/run-repository-hygiene.sh
       - name: Product boundary
@@ -55,6 +59,8 @@ jobs:
         run: tools/ci/scripts/run-secrets-scan.sh
       - name: Markdown lint
         run: tools/ci/scripts/run-markdown-lint.sh
+      - name: Prose spelling
+        run: tools/ci/scripts/run-prose-check.sh
       - name: CI projection drift
         run: tools/ci/scripts/run-ci-template-check.sh
       - name: GitHub workflow syntax
@@ -73,6 +79,8 @@ jobs:
         run: tools/ci/scripts/run-local-state-audit.sh
       - name: Release supply-chain envelope
         run: tools/ci/scripts/run-release-supply-chain.sh
+      - name: Hosted provider observation envelope
+        run: tools/ci/scripts/run-hosted-provider-observation.sh
 
   verify:
     name: repository proof

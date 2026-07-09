@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
-    "target_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
-    "product_semantic_sha256": "31211a5b7469d8f0d7b08758097be9e0b0c18dd2e330b7dc9edc58e0f069f9e0",
-    "target_semantic_sha256": "31211a5b7469d8f0d7b08758097be9e0b0c18dd2e330b7dc9edc58e0f069f9e0",
+    "product_head": "ca9f5834516b38c7d65e9ef5c447e3a369fc33f2",
+    "target_head": "ca9f5834516b38c7d65e9ef5c447e3a369fc33f2",
+    "product_semantic_sha256": "784aa1810ac1210ec32b658a397f675689e5135bf262d884c5df559bcdd8b35d",
+    "target_semantic_sha256": "784aa1810ac1210ec32b658a397f675689e5135bf262d884c5df559bcdd8b35d",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709",
-    "target_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
-    "product_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709",
+    "target_head": "ca9f5834516b38c7d65e9ef5c447e3a369fc33f2",
+    "product_head": "ca9f5834516b38c7d65e9ef5c447e3a369fc33f2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/tooling-plan-execution-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "1f6d20f514484c5afcad369068130d371e1a0980886bf25994b8c82ea083b6db"
+        "sha256": "c87f5cdba71f1377a03d9cc52e9502621fc95fc7f69c0784f22596a821d04085"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6b7c3efab888f97583a6d1cb21ffab25cf60b3f6e516911821d07d9afe2be8f6"
+        "sha256": "8e8cb9ce613449681596edeaffe819478e4f0bc007992d643244380dd4a6e9e5"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "36b06921ff703b71ba4853e42e46dd505e43c4b12dae24ba4d7d67192b4f16ea"
+        "sha256": "0ba46a7b6984b32805f9f82e9dbc7f75b97c0d73fbc2a59a1ca46d67e7ba359d"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "615fcab5eeeb65343b8ed0c5db4e08edb1b5ea4d31a808f27ea4136eb690796c"
+        "sha256": "c864a47794a8eb0289ba8f048c84ba6889490fb93e1f2684e562eeae3f78b2f5"
       },
       {
         "path": "rules",

@@ -80,6 +80,7 @@ Provider evidence MUST declare one of these classes:
 | `local_gitlab_emulator` | GitLab CI projection was emulated locally through an ETHOS wrapper. | GitLab hosted status passed. |
 | `hosted_github_observation` | GitHub provider reported a concrete workflow/check/artifact fact. | GitLab status or repository proof. |
 | `hosted_gitlab_observation` | GitLab provider reported a concrete pipeline/job/artifact fact. | GitHub status or repository proof. |
+| `hosted_provider_observation` | A provider-neutral envelope captured GitHub/GitLab observation state or tool-discovery state. | Repository proof, hosted success, or remote publication. |
 | `remote_publication` | A remote ref or release artifact was observed after publication. | Local proof sufficiency. |
 
 Local emulator evidence MUST include provider, template path, projected file,

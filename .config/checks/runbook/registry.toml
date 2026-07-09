@@ -56,3 +56,27 @@ id = "RUN-RELEASE-SUPPLY-CHAIN"
 command = "tools/ci/scripts/run-release-supply-chain.sh"
 category = "release-supply-chain"
 evidence = "build/evidence/release/supply-chain.json"
+
+[[entry]]
+id = "RUN-DEPENDENCY-HYGIENE"
+command = "tools/ci/scripts/run-dependency-hygiene.sh"
+category = "dependency-hygiene"
+evidence = "build/evidence/quality/dependency/summary.json"
+
+[[entry]]
+id = "RUN-JSON-SCHEMA"
+command = "tools/ci/scripts/run-json-schema-check.sh"
+category = "schema-hygiene"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-PROSE-CHECK"
+command = "tools/ci/scripts/run-prose-check.sh"
+category = "prose"
+evidence = "exit code + codespell count"
+
+[[entry]]
+id = "RUN-HOSTED-PROVIDER-OBSERVATION"
+command = "tools/ci/scripts/run-hosted-provider-observation.sh"
+category = "hosted-provider-observation"
+evidence = "build/evidence/hosted-ci/observation.json"

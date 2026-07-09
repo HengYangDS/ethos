@@ -3,15 +3,20 @@ id = "tooling-adoption-roadmap"
 subject = "ethos:tooling-adoption-roadmap"
 state = "active"
 change_id = "tooling-adoption-roadmap"
-summary = "ETHOS records a provider-neutral tooling adoption roadmap and evidence-backed dmgr/di-effect mechanism comparison without promoting adopter tools into product ontology."
+summary = "ETHOS records a provider-neutral tooling adoption roadmap and has activated the first locally executable owner gates without promoting adopter tools into product ontology."
 
 [evidence]
 dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
-sha256 = "aa2603099f8c8221c878966c3915a9537dc724eea82de78faa4c84c957987571"
+sha256 = "60f6fb9102f524f76ce0545ab404ef0c089886e28f1e71513df5afca025789b6"
 evidence_ids = ["evidence:tooling-adoption-roadmap"]
 binding = "Roadmap, mechanism comparison audit, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
 verifier = "semantic"
 tests = [
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-prose-check.sh",
+  "tools/ci/scripts/run-hosted-provider-observation.sh",
+  "uv run --package ethos pytest tests/architecture/test_dependency_prose_schema_gates.py tests/architecture/test_hosted_provider_observation.py tests/architecture/test_ci_provider_projections.py tests/architecture/test_format_architecture_runbook_mcp.py tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries -q",
   "uv run --package ethos ethos openspec --lifecycle --json",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-markdown-lint.sh",
@@ -21,11 +26,12 @@ tests = [
 
 [boundary]
 external_signing_image_scan_vuln_adapters = "deferred_follow_up_work_lanes"
+local_dependency_prose_schema_observation_gates = "active_owner_surfaces"
 owner = "ethos-governance"
 scope = "Planning, comparison, and selected gate surfaces for GitHub/GitLab provider parity, local CI emulators, quality and architecture tooling, OpenSpec schema customization, Superpowers boundary, optional tool adapters, and remaining external security/release adapters"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap"
+openspec = "openspec/changes/archive/2026-07-09-tooling-plan-execution"
 fallback = "Keep current GitLab CI and local owner gate bundle while implementing provider parity in follow-up Work Lanes."
 kill_signal = "A planned adapter is reported as an active ETHOS gate, or GitHub/GitLab/Superpowers/Nox/Pixi/Pants/Backlog becomes product ontology instead of a bounded adapter."
 
@@ -49,4 +55,22 @@ targets = [
   ".config/release/supply-chain.toml",
   "evidence/claims/tooling-adoption-roadmap.toml",
   "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/proposal.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/design.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/tasks.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/proof-hosts/spec.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/adapters/spec.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/proof-hosts/spec.md",
+  "openspec/specs/adapters/spec.md",
+  ".config/checks/deptry/policy.toml",
+  ".config/checks/prose/codespell.toml",
+  ".config/checks/schema/jsonschema.toml",
+  ".config/checks/security/audit.toml",
+  ".config/checks/ci/hosted-observation.toml",
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-prose-check.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]

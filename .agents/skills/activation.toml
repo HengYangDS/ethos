@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:6f8eb836f8ca4e4fd55b4bd1a98a5daa03b351235aff70c08d072313f521b79e"
+expected_registry_digest = "sha256:2bb25019aadb7d9ae35fa917927a6bb704322b25e1a6b752d9543358bd4c4cfb"
 expected_generator_digest = "sha256:be0c3b214501f0e8078e86be4538725dd722aa58a21f10e0804bb62d9efa4c4a"
 
 [coverage]
@@ -184,13 +184,16 @@ subjects = [
 ]
 path_globs = [
   ".config/**",
+  ".github/workflows/**",
   ".gitlab-ci.yml",
   ".pre-commit-config.yaml",
   "pyproject.toml",
+  "uv.lock",
   "pytest.ini",
   "ruff.toml",
   "system/tools.toml",
   "system/quality-*.toml",
+  "tools/ci/**",
   "packages/ethos/src/ethos/repository/policy/gates.py",
   "tests/unit/governance/**",
   "tests/architecture/**",

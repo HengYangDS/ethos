@@ -59,7 +59,9 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "tools/ci/scripts/run-config-lint.sh",
         "tools/ci/scripts/run-shell-lint.sh",
         "tools/ci/scripts/run-markdown-lint.sh",
+        "tools/ci/scripts/run-prose-check.sh",
         "tools/ci/scripts/run-import-linter.sh",
+        "tools/ci/scripts/run-dependency-hygiene.sh",
         "tools/ci/scripts/run-docstring-coverage.sh",
         "tools/ci/scripts/run-module-layout.sh",
         "tools/ci/scripts/run-bandit.sh",
@@ -68,6 +70,8 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "tools/ci/scripts/run-secrets-scan.sh",
         "tools/ci/scripts/run-python-tests.sh",
         "tools/ci/scripts/run-ci-template-check.sh",
+        "tools/ci/scripts/run-json-schema-check.sh",
+        "tools/ci/scripts/run-hosted-provider-observation.sh",
     }
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
@@ -152,6 +156,7 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
         "github_local_emulator": "tools/ci/scripts/run-github-local-emulator.sh",
         "gitlab_local_emulator": "tools/ci/scripts/run-gitlab-local-emulator.sh",
+        "hosted_provider_observation": "tools/ci/scripts/run-hosted-provider-observation.sh",
     }
     for concern, gate in active.items():
         block = _tool_block(concern)

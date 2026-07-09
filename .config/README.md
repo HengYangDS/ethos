@@ -18,6 +18,10 @@ configuration plane, not a truth center.
 - `.config/checks/yaml/yamllint.yaml` owns YAML linting; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
+- `.config/checks/prose/codespell.toml` owns report-first prose spelling policy; `tools/ci/scripts/run-prose-check.sh` runs `codespell` without rewriting files and excludes archives, generated projections, evidence, and lockfiles.
+- `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
+- `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `tools/ci/scripts/run-json-schema-check.sh` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
+- `.config/checks/security/audit.toml` records the planned `pip-audit` / OSV activation boundary. The current wrapper emits a non-trust-bearing boundary record until a supported resolved dependency input exists.
 - The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `tools/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
 - `tools/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
 - `.config/ci/templates/hosted/` owns provider CI template sources.
@@ -28,6 +32,7 @@ configuration plane, not a truth center.
   claim hosted GitHub or GitLab status.
 - `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
   `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate.
+- `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns report-first carrier and
   file-format boundary checks; `tools/ci/scripts/run-format-selection.sh` is the
   reusable runner.

@@ -148,9 +148,11 @@ quality authority.
 
 Deliverables:
 
-1. Activate dependency hygiene after config owner, script owner, CI projection,
-   and proof coverage exist.
-1. Activate vulnerability scanners under a security profile.
+1. Keep dependency hygiene active through `deptry` package-local owner gates.
+1. Keep prose spelling active through `codespell` report-first checks.
+1. Keep JSON Schema metaschema hygiene active through `check-jsonschema`.
+1. Activate vulnerability scanners under a security profile only after a supported
+   resolved dependency input and pinned scanner supply exist.
 1. Keep report-first file-format audits for Python, Markdown, TOML, YAML, JSON,
    shell, and ecosystem-native formats.
 1. Add a source-owned architecture model and generated diagram projection only

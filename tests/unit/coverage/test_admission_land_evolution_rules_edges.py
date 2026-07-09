@@ -10,6 +10,7 @@ import ethos.domain.land.publication as land_publication
 import ethos.domain.land.trust.core as land_trust
 from ethos.adapters.admission import core as admission
 from ethos.adapters.repo import git as gitio
+from ethos.domain.land.intake.core import intake_mine_report
 from ethos.domain.land.intake.core import intake_projection_report
 from ethos.repository.adoption import evolution
 from ethos.repository.policy.rules.check import rules_check_report
@@ -41,7 +42,11 @@ def status(
             "worktree_path": "/tmp/candidate",
             "head": "c1",
         },
-        "closeout_support": {"supported": True, "claim_binding": "missing", "claim_id": ""},
+        "closeout_support": {
+            "supported": True,
+            "claim_binding": "missing",
+            "claim_id": "",
+        },
     }
 
 
@@ -96,7 +101,8 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
         "ethos_core.contracts.branch.roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr(
-        "ethos.adapters.mutation.core.proof_gaps", lambda root, head: ["proof_not_proven"]
+        "ethos.adapters.mutation.core.proof_gaps",
+        lambda root, head: ["proof_not_proven"],
     )
     blocked = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"
@@ -222,6 +228,109 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         claims={"ok": True, "claims": {"c": {"trust_envelope": envelope}}},
     )
     assert ready["blocking"] is False
+
+
+def test_intake_mine_report_keeps_signals_as_non_authoritative_candidates(
+    tmp_path: Path,
+) -> None:
+    claim_dir = tmp_path / "evidence" / "claims"
+    claim_dir.mkdir(parents=True)
+    (claim_dir / "alpha.toml").write_text(
+        'id = "alpha"\n[evidence]\nhead = "1111111111111111111111111111111111111111"\n',
+        encoding="utf-8",
+    )
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "mined"
+    assert report["repository_truth"] is False
+    assert report["writes"] == []
+    assert report["summary"] == {
+        "signal_count": 1,
+        "candidate_count": 1,
+        "auto_raise_allowed": False,
+        "auto_dispatch_allowed": False,
+    }
+    candidate = report["issue_candidates"][0]
+    assert candidate["invalid_state"] == "evidence.head_stale"
+    assert candidate["auto_raise_allowed"] is False
+    assert candidate["auto_dispatch_allowed"] is False
+
+
+def test_intake_mine_report_ignores_invalid_unbound_and_current_claims(
+    tmp_path: Path, monkeypatch
+) -> None:
+    claims = tmp_path / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "bad.toml").write_text("bad = [\n", encoding="utf-8")
+    (claims / "missing-evidence.toml").write_text('id = "missing-evidence"\n', encoding="utf-8")
+    (claims / "blank-head.toml").write_text(
+        'id = "blank-head"\n[evidence]\nhead = ""\n', encoding="utf-8"
+    )
+    (claims / "current-head.toml").write_text(
+        'id = "current-head"\n[evidence]\nhead = "abc123"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "ethos.domain.land.intake.core._git_head",
+        lambda _repo: "abc123",
+    )
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "clean"
+    assert report["intake_envelopes"] == []
+    assert report["issue_candidates"] == []
+
+
+def test_intake_mine_report_uses_current_git_head_and_handles_nonzero_git(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True)
+    (repo / "README.md").write_text("repo\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    claims = repo / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "current.toml").write_text(
+        f'id = "current"\n[evidence]\nhead = "{head}"\n', encoding="utf-8"
+    )
+
+    assert intake_mine_report(repo)["state"] == "clean"
+
+    class Completed:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: Completed())
+
+    assert intake_mine_report(repo)["state"] == "mined"
+
+
+def test_intake_mine_report_tolerates_git_head_lookup_failures(tmp_path: Path, monkeypatch) -> None:
+    claims = tmp_path / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "fallback.toml").write_text(
+        'id = "fallback"\n[evidence]\nhead = "abc123"\n', encoding="utf-8"
+    )
+
+    def raise_os_error(*_args, **_kwargs):
+        raise OSError("git unavailable")
+
+    monkeypatch.setattr("subprocess.run", raise_os_error)
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "mined"
+    assert report["issue_candidates"][0]["candidate_id"] == "claim-fallback-head-fallback"
 
 
 def test_land_publication_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:

@@ -42,6 +42,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos campaign closeout",
     "ethos intake",
     "ethos intake status",
+    "ethos intake mine",
     "ethos audit",
     "ethos openspec",
     "ethos quality",

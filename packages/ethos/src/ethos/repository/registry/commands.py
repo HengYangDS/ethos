@@ -26,6 +26,8 @@ MAINTAINER_REFERENCE_COMMANDS = (
     "ethos openspec",
     "ethos campaign",
     "ethos intake",
+    "ethos intake status",
+    "ethos intake mine",
     "ethos quality",
     "ethos assistants",
     "ethos playbooks",

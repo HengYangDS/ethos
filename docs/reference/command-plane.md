@@ -127,6 +127,7 @@ ethos prove --scope proof-kernel --host --probe
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
+ethos intake mine
 ethos hook admit pre-tool <paths> --editor-root <worktree-path> --require-editor-root
 ethos hook admit pre-run --command <shell-command>
 ethos hook admit post-write <paths> --editor-root <worktree-path>
@@ -406,7 +407,11 @@ publish readiness under `data.packages`. The `trust_closeout` package composes
 claim envelopes, promotion readiness, executed proof evidence, and Work Lane
 claim binding. The `intake_projection` package records provider state as
 projection evidence with `repository_truth=false`; it does not promote intake
-state into repository truth.
+provider state into repository truth. `ethos intake mine --json` is a
+read-only repository read model: it projects signals into intake envelopes
+and issue candidates with `auto_raise_allowed=false` and
+`auto_dispatch_allowed=false`, so signal discovery cannot authorize issue
+creation, Work Lane mutation, or agent dispatch by itself.
 `ethos campaign status --json` reports campaigns as strict serial sequences of
 OpenSpec-backed Work Lanes. Each `data.campaigns[].steps[]` item carries
 `ordinal`, `depends_on`, `openspec_change`, `work_lane`, `claim_id`, and

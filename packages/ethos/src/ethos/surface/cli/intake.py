@@ -7,6 +7,7 @@ decorator runs. Imports only what this group needs.
 
 from __future__ import annotations
 
+from ethos.domain.land.intake.core import intake_mine_report
 from ethos.domain.land.intake.core import intake_projection_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -49,5 +50,33 @@ def intake_status(
             else ("ethos plan --changed",)
         ),
         data=data,
+    )
+    emit(result, json_output=json_output, enforce=False)
+
+
+@intake_app.command(name="mine")
+def intake_mine(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Mine repository signals into governed issue candidates without mutation."""
+    repo = resolve_root(root)
+    report = intake_mine_report(repo)
+    summary = report["summary"]
+    result = EthosResult(
+        command="intake mine",
+        ok=True,
+        state=str(report["state"]),
+        summary=summary if isinstance(summary, dict) else {},
+        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        next_actions=("ethos intake status --json",),
+        data={
+            "truth_boundary": report["truth_boundary"],
+            "repository_truth": report["repository_truth"],
+            "writes": report["writes"],
+            "intake_envelopes": report["intake_envelopes"],
+            "issue_candidates": report["issue_candidates"],
+        },
     )
     emit(result, json_output=json_output, enforce=False)

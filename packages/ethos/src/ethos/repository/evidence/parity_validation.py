@@ -6,6 +6,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos_core.contracts.capability.parity import capability_parity_records
 
 if TYPE_CHECKING:
@@ -140,11 +141,12 @@ def parity_evidence(
     acceptable_product_heads: Iterable[str] = (),
     acceptable_target_heads: Iterable[str] = (),
     relevant_paths: tuple[str, ...] = (),
+    product_root: Path | None = None,
 ) -> dict[str, object]:
     """Load and validate tracked shadow-parity evidence for one adopter."""
     if not adopter:
         return {}
-    path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path = parity_evidence_path(root=root, adopter=adopter)
     if not path.exists():
         return {}
     try:
@@ -169,7 +171,7 @@ def parity_evidence(
         current_product_head=current_product_head,
         acceptable_product_heads=acceptable_product_heads,
         acceptable_target_heads=acceptable_target_heads,
-        product_root=root,
+        product_root=product_root or root,
         target_root=target,
         relevant_paths=relevant_paths,
     )
@@ -183,7 +185,7 @@ def parity_evidence(
             current_target_head=current_target_head,
             current_product_head=current_product_head,
             semantic_context={
-                "product_root": root,
+                "product_root": product_root or root,
                 "target_root": target,
                 "relevant_paths": relevant_paths,
             },

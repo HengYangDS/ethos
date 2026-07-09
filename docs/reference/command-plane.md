@@ -375,9 +375,14 @@ Parity refresh is likewise command-bound. When tracked shadow evidence is
 missing, stale, or target-mismatched, `ethos parity gaps --json` and
 `ethos parity shadow --json` expose a `parity_evidence_refresh` package with the
 adopter id, product root, explicit target when supplied, blocking gaps, and the
-exact `ethos parity shadow --adopter <adopter-id> --target <repo> --execute
---write-evidence --json` command. If no target is supplied, ETHOS does not reuse
-a target path from stale evidence as the next action.
+exact refresh command. For a distinct adopter Git repository that command includes
+`--root <product-root>` and `--target <adopter-repo>`: product identity remains
+rooted in ETHOS while the tracked `<durable-evidence-root>/parity/<adopter-id>-shadow.json`
+file is read and written under the adopter repository. The durable evidence root
+is resolved from the owning repository profile, so an adopter may use
+`docs/evidence/parity/` while generic/self parity continues to use the product
+profile's durable evidence root. If no target is supplied, ETHOS does not reuse a
+target path from stale evidence as the next action.
 
 ETHOS primary command payloads use a governed repository contract. Every
 primary command result (`status`, `plan`, `prove`, `land`, `publish`, `orient`,

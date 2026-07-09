@@ -7,8 +7,11 @@ import shutil
 import sys
 from contextlib import suppress
 from pathlib import Path
+from typing import Annotated
 from typing import Any
 from typing import cast
+
+from cyclopts import Parameter
 
 import ethos.domain.orient as orient_domain
 from ethos.adapters.repo.status.core import workspace_status
@@ -173,10 +176,14 @@ def orient(
 def report(
     *,
     root: RootOption | None = None,
+    product_root: Annotated[Path | None, Parameter(name="--product-root")] = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Emit a concise scorecard."""
-    payload = scorecard_report(resolve_root(root))
+    payload = scorecard_report(
+        resolve_root(root),
+        product_root=resolve_root(product_root) if product_root is not None else None,
+    )
     result = EthosResult(
         command="report",
         ok=bool(payload["ok"]),

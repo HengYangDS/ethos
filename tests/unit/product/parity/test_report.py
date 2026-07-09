@@ -177,7 +177,7 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
     evidence = complete_parity_evidence("sample-adopter")
     retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["target_head"] = "stale-target-head"
-    evidence_dir = tmp_path / "evidence" / "parity"
+    evidence_dir = target / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     (evidence_dir / "sample-adopter-shadow.json").write_text(
         json.dumps(evidence),
@@ -212,6 +212,7 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
         ],
         "command": (
             "ethos parity shadow --adopter sample-adopter "
+            f"--root {tmp_path.resolve().as_posix()} "
             f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
         ),
         "next_action": "refresh tracked shadow parity evidence",

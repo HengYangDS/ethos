@@ -1,43 +1,29 @@
 from __future__ import annotations
 
 import json
-import subprocess
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.evidence.parity_validation import SHADOW_PARITY_COMMANDS
-from ethos.repository.evidence.parity_validation import migratable_capability_list
 from ethos.repository.evidence.parity_validation import parity_evidence
-from ethos.repository.evidence.parity_validation import semantic_tree_digest
-from ethos.repository.evidence.parity_validation import sha256_text
 from ethos.repository.evidence.parity_validation import string_list
 from ethos.repository.evidence.parity_validation import tracked_evidence_provenance
+from ethos.repository.evidence.shadow.payload import PARITY_RELEVANT_PATHS
+from ethos.repository.evidence.shadow.payload import SHADOW_PARITY_DIMENSIONS
+from ethos.repository.evidence.shadow.payload import build_tracked_parity_evidence
+from ethos.repository.evidence.shadow.routing import REPOSITORY_TARGET
+from ethos.repository.evidence.shadow.routing import parity_evidence_path
+from ethos.repository.evidence.shadow.routing import parity_evidence_repository_root
+from ethos.repository.evidence.shadow.routing import requires_product_root_argument
+from ethos.repository.evidence.shadow.routing import target_command_argument
+from ethos.repository.evidence.shadow.routing import target_identity
 from ethos_core.contracts.capability.parity import capability_parity_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-REPOSITORY_TARGET = "<repo>"
-
-# The tree whose change can actually move a shadow-compared command output
-# (status / plan --changed / prove / report / quality command-surface / assistants
-# doctor / playbooks route / land / publish). Parity freshness is keyed on THIS
-# semantic tree, not on a proxy touch of the evidence file.
-PARITY_RELEVANT_PATHS: tuple[str, ...] = (
-    "packages",
-    "system",
-    ".ethos",
-    ".agents/skills",
-    "openspec",
-    "evidence/claims",
-    "rules",
-    "pyproject.toml",
-    "uv.lock",
-    "docs/governance",
-)
+__all__ = ["build_tracked_parity_evidence"]
 
 
 def parity_ledger_report() -> dict[str, object]:
@@ -64,7 +50,8 @@ def parity_gaps_report(
 ) -> dict[str, object]:
     records = capability_parity_records()
     adopter_name = adopter or "generic"
-    evidence_root = root or Path.cwd()
+    product_root = root or Path.cwd()
+    evidence_root = parity_evidence_repository_root(root=product_root, target=target)
     evidence = parity_evidence(
         evidence_root,
         adopter_name,
@@ -74,6 +61,7 @@ def parity_gaps_report(
         acceptable_product_heads=acceptable_product_heads,
         acceptable_target_heads=acceptable_target_heads,
         relevant_paths=PARITY_RELEVANT_PATHS,
+        product_root=product_root,
     )
     evidence_valid = not evidence.get("required_gaps")
     evidence_gaps = [
@@ -82,7 +70,7 @@ def parity_gaps_report(
     if not evidence:
         evidence = {
             "refresh_package": parity_evidence_refresh_package(
-                root=evidence_root,
+                root=product_root,
                 adopter=adopter_name,
                 target=target,
                 required_gaps=[f"parity_evidence_missing:{adopter_name}"],
@@ -92,7 +80,7 @@ def parity_gaps_report(
         evidence = {
             **evidence,
             "refresh_package": parity_evidence_refresh_package(
-                root=evidence_root,
+                root=product_root,
                 adopter=adopter_name,
                 target=target,
                 required_gaps=evidence_gaps,
@@ -122,136 +110,13 @@ def parity_gaps_report(
     }
 
 
-def build_tracked_parity_evidence(
-    *,
-    adopter: str,
-    target: Path,
-    shadow: dict[str, object],
-    current_product_head: str,
-    current_target_head: str,
-    timeout_seconds: int,
-    root: Path | None = None,
-) -> dict[str, object]:
-    target = target.resolve()
-    target_identity = _target_identity(root=root, adopter=adopter, target=target)
-    accepted_summary = shadow.get("accepted_summary")
-    shadow_required_gaps = shadow.get("required_gaps")
-    command = _shadow_evidence_command(
-        adopter=adopter,
-        target=_target_command_argument(target_identity),
-        timeout_seconds=timeout_seconds,
-    )
-    return {
-        "schema_version": 1,
-        "adopter": adopter,
-        "target": target_identity,
-        "generated_on": datetime.now(tz=UTC).date().isoformat(),
-        "command": command,
-        "freshness": {
-            "product_head": current_product_head,
-            "target_head": current_target_head,
-            "product_semantic_sha256": semantic_tree_digest(
-                root or target,
-                head=current_product_head,
-                relevant_paths=PARITY_RELEVANT_PATHS,
-            ),
-            "target_semantic_sha256": semantic_tree_digest(
-                target,
-                head=current_target_head,
-                relevant_paths=PARITY_RELEVANT_PATHS,
-            ),
-            "command_sha256": sha256_text(command),
-        },
-        "shadow": {
-            "ok": bool(shadow.get("ok")),
-            "state": str(shadow.get("state") or "matched"),
-            "required_gaps": list(shadow_required_gaps)
-            if isinstance(shadow_required_gaps, list)
-            else [],
-            "comparison_count": len(SHADOW_PARITY_COMMANDS),
-            "commands": list(SHADOW_PARITY_COMMANDS),
-            "accepted_summary": accepted_summary
-            if isinstance(accepted_summary, dict)
-            else {"total_count": 0, "kind_counts": {}, "command_count": 0},
-            "false_negative_count": _int_value(shadow.get("false_negative_count")),
-        },
-        "identity": _shadow_identity(
-            shadow=shadow,
-            target=target,
-            current_target_head=current_target_head,
-            current_product_head=current_product_head,
-        ),
-        "verified_capabilities": migratable_capability_list(),
-        "semantic_dimensions": string_list(shadow.get("semantic_dimensions"))
-        or list(SHADOW_PARITY_DIMENSIONS),
-        "capability_basis": {
-            capability: [f"{capability} shadow parity matched"]
-            for capability in migratable_capability_list()
-        },
-    }
-
-
-def _int_value(value: object) -> int:
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str) and value.isdecimal():
-        return int(value)
-    return 0
-
-
-def _shadow_identity(
-    *,
-    shadow: dict[str, object],
-    target: Path,
-    current_target_head: str,
-    current_product_head: str,
-) -> dict[str, object]:
-    value = shadow.get("identity")
-    if isinstance(value, dict):
-        return {
-            "target_root": str(value.get("target_root") or target.resolve().as_posix()),
-            "target_head": str(value.get("target_head") or current_target_head),
-            "product_head": str(value.get("product_head") or current_product_head),
-            "changed_paths": string_list(value.get("changed_paths")),
-            "commands": string_list(value.get("commands")) or list(SHADOW_PARITY_COMMANDS),
-            "external_commands": string_list(value.get("external_commands")),
-            "embedded_commands": string_list(value.get("embedded_commands")),
-            "evidence_inputs": _identity_evidence_inputs(value.get("evidence_inputs")),
-        }
-    return {
-        "target_root": target.resolve().as_posix(),
-        "target_head": current_target_head,
-        "product_head": current_product_head,
-        "changed_paths": [],
-        "commands": list(SHADOW_PARITY_COMMANDS),
-        "external_commands": [],
-        "embedded_commands": [],
-        "evidence_inputs": [],
-    }
-
-
-def _identity_evidence_inputs(value: object) -> list[dict[str, str]]:
-    if not isinstance(value, list):
-        return []
-    result: list[dict[str, str]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            continue
-        path = str(item.get("path") or "")
-        kind = str(item.get("kind") or "")
-        sha256 = str(item.get("sha256") or "")
-        if path and kind and sha256:
-            result.append({"path": path, "kind": kind, "sha256": sha256})
-    return result
-
-
 def write_tracked_parity_evidence(
     *,
     root: Path,
     adopter: str,
     evidence: dict[str, object],
 ) -> Path:
-    path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path = parity_evidence_path(root=root, adopter=adopter)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(evidence, indent=2, sort_keys=False) + "\n",
@@ -267,71 +132,53 @@ def parity_evidence_refresh_package(
     target: Path | None,
     required_gaps: Iterable[str] = (),
 ) -> dict[str, object]:
-    target_identity = (
-        _target_identity(root=root, adopter=adopter, target=target.resolve())
+    target_name = (
+        target_identity(root=root, adopter=adopter, target=target.resolve())
         if target is not None
         else REPOSITORY_TARGET
     )
-    target_arg = _target_command_argument(target_identity)
+    target_arg = target_command_argument(target_name)
+    include_product_root = requires_product_root_argument(root=root, target=target)
     return {
         "kind": "parity_evidence_refresh",
         "adopter": adopter,
         "root": root.resolve().as_posix(),
-        "target": target_identity,
+        "target": target_name,
         "blocking": True,
         "required_gaps": [str(gap) for gap in required_gaps],
-        "command": _shadow_refresh_command(adopter=adopter, target=target_arg),
+        "command": _shadow_refresh_command(
+            adopter=adopter,
+            root=root,
+            target=target_arg,
+            include_product_root=include_product_root,
+        ),
         "next_action": "refresh tracked shadow parity evidence",
     }
 
 
-def _shadow_refresh_command(*, adopter: str, target: str) -> str:
+def _shadow_refresh_command(
+    *, adopter: str, root: Path, target: str, include_product_root: bool
+) -> str:
+    root_arg = f" --root {root.resolve().as_posix()}" if include_product_root else ""
     return (
-        f"ethos parity shadow --adopter {adopter} --target {target} "
+        f"ethos parity shadow --adopter {adopter}{root_arg} --target {target} "
         "--execute --write-evidence --json"
     )
 
 
-def _shadow_evidence_command(*, adopter: str, target: str, timeout_seconds: int) -> str:
+def _shadow_evidence_command(
+    *,
+    adopter: str,
+    target: str,
+    timeout_seconds: int,
+    root: Path | None,
+    include_product_root: bool,
+) -> str:
+    root_arg = f" --root {root.resolve().as_posix()}" if root and include_product_root else ""
     return (
-        f"uv run --package ethos ethos parity shadow --adopter {adopter} "
+        f"uv run --package ethos ethos parity shadow --adopter {adopter}{root_arg} "
         f"--target {target} --execute --timeout-seconds {timeout_seconds} --json"
     )
-
-
-def _same_git_repository(left: Path, right: Path) -> bool:
-    """True when both paths resolve to the same underlying git repository.
-
-    Inlined here (repository layer runs git via subprocess directly, per the sibling
-    parity_validation module) rather than importing the adapters git helper, which the
-    surface>domain>adapters>repository layering forbids.
-    """
-
-    def _common_dir(path: Path) -> str:
-        completed = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=path,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            return ""
-        return str((path / completed.stdout.strip()).resolve())
-
-    left_common = _common_dir(left)
-    right_common = _common_dir(right)
-    return bool(left_common and right_common and left_common == right_common)
-
-
-def _target_identity(*, root: Path | None, adopter: str, target: Path) -> str:
-    if adopter == "generic" and root is not None and _same_git_repository(root, target):
-        return REPOSITORY_TARGET
-    return target.resolve().as_posix()
-
-
-def _target_command_argument(target_identity: str) -> str:
-    return "." if target_identity == REPOSITORY_TARGET else target_identity
 
 
 def _pending_package(record: dict[str, object]) -> dict[str, object]:
@@ -369,21 +216,6 @@ def _shadow_pending_package(adopter: str) -> dict[str, object]:
     }
 
 
-SHADOW_PARITY_DIMENSIONS = [
-    "branch_role",
-    "mutation_allowed",
-    "changed_path_classification",
-    "required_gates",
-    "required_gaps",
-    "assistant_boundary",
-    "evidence_freshness",
-    "land_readiness",
-    "publish_readiness",
-    "blocking_vs_advisory",
-    "external_false_negative",
-]
-
-
 def shadow_parity_report(
     *,
     target: Path,
@@ -396,9 +228,11 @@ def shadow_parity_report(
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
-        target_identity = _target_identity(root=root or Path.cwd(), adopter=adopter, target=target)
+        target_name = target_identity(root=root or Path.cwd(), adopter=adopter, target=target)
+        product_root = root or Path.cwd()
+        evidence_root = parity_evidence_repository_root(root=product_root, target=target)
         evidence = parity_evidence(
-            root or Path.cwd(),
+            evidence_root,
             adopter,
             target=target,
             current_target_head=current_target_head,
@@ -406,10 +240,11 @@ def shadow_parity_report(
             acceptable_product_heads=acceptable_product_heads,
             acceptable_target_heads=acceptable_target_heads,
             relevant_paths=PARITY_RELEVANT_PATHS,
+            product_root=product_root,
         )
         if evidence:
             evidence_gaps = list(cast("Iterable[str]", evidence.get("required_gaps", [])))
-            if evidence.get("target") != target_identity:
+            if evidence.get("target") != target_name:
                 evidence_gaps.append(f"shadow_parity_evidence_target_mismatch:{adopter}")
             shadow_value = evidence.get("shadow")
             shadow = shadow_value if isinstance(shadow_value, dict) else {}
@@ -419,7 +254,7 @@ def shadow_parity_report(
                 current_target_head=current_target_head,
                 current_product_head=current_product_head,
                 semantic_context={
-                    "product_root": root or Path.cwd(),
+                    "product_root": product_root,
                     "target_root": target,
                     "relevant_paths": PARITY_RELEVANT_PATHS,
                 },
@@ -457,7 +292,7 @@ def shadow_parity_report(
                 }
             gap = f"shadow_parity_evidence_invalid:{adopter}"
             refresh_package = parity_evidence_refresh_package(
-                root=root or Path.cwd(),
+                root=product_root,
                 adopter=adopter,
                 target=target,
                 required_gaps=evidence_gaps,

@@ -18,6 +18,28 @@ if TYPE_CHECKING:
     import pytest
 
 
+def _set_durable_evidence_root(repo: Path, value: str) -> None:
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "configure evidence root",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 def _checkout_work_lane(repo: Path) -> None:
     subprocess.run(
         ["git", "checkout", "-b", "work/parity-evidence"],
@@ -81,6 +103,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
     target = init_git_repo(tmp_path / "sample-adopter")
+    _checkout_work_lane(target)
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None
@@ -128,16 +151,19 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
         cwd=product,
     )
 
-    evidence_path = product / "evidence" / "parity" / "sample-adopter-shadow.json"
+    product_evidence_path = product / "evidence" / "parity" / "sample-adopter-shadow.json"
+    evidence_path = target / "evidence" / "parity" / "sample-adopter-shadow.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     expected_command = (
         "uv run --package ethos ethos parity shadow --adopter sample-adopter "
-        f"--target {target.resolve().as_posix()} --execute --timeout-seconds 60 --json"
+        f"--root {product.resolve().as_posix()} --target {target.resolve().as_posix()} "
+        "--execute --timeout-seconds 60 --json"
     )
 
     assert payload["ok"] is True
     assert payload["state"] == "matched"
-    assert payload["data"]["evidence_written"] == evidence_path.relative_to(product).as_posix()
+    assert payload["data"]["evidence_written"] == evidence_path.relative_to(target).as_posix()
+    assert not product_evidence_path.exists()
     assert evidence["adopter"] == "sample-adopter"
     assert evidence["target"] == target.resolve().as_posix()
     assert evidence["command"] == expected_command
@@ -174,6 +200,121 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     }
     assert evidence["verified_capabilities"] == MIGRATED_CAPABILITIES
     assert set(evidence["capability_basis"]) == set(MIGRATED_CAPABILITIES)
+
+
+def test_parity_shadow_write_evidence_for_external_adopter_writes_target_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    _checkout_work_lane(product)
+    target = init_git_repo(tmp_path / "sample-adopter")
+    _checkout_work_lane(target)
+
+    def fake_shadow(
+        *, target: Path, timeout_seconds: int, product_root: Path | None = None
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "required_gaps": [],
+            "comparisons": SHADOW_COMMANDS,
+            "semantic_dimensions": ["blocking_vs_advisory", "external_false_negative"],
+            "false_negative_count": 0,
+            "execution_packages": [],
+            "identity": {
+                "target_root": target.resolve().as_posix(),
+                "target_head": git_head(target),
+                "product_head": git_head(product),
+                "changed_paths": [],
+                "commands": SHADOW_COMMANDS,
+                "external_commands": [],
+                "embedded_commands": [],
+                "evidence_inputs": [],
+            },
+        }
+
+    monkeypatch.setattr(shadow_core, "run_shadow_parity", fake_shadow)
+
+    payload = run_ethos(
+        "parity",
+        "shadow",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--execute",
+        "--timeout-seconds",
+        "60",
+        "--write-evidence",
+        "--json",
+        cwd=product,
+    )
+
+    product_evidence = product / "evidence" / "parity" / "sample-adopter-shadow.json"
+    target_evidence = target / "evidence" / "parity" / "sample-adopter-shadow.json"
+    evidence = json.loads(target_evidence.read_text(encoding="utf-8"))
+
+    assert payload["ok"] is True
+    assert payload["data"]["evidence_written"] == target_evidence.relative_to(target).as_posix()
+    assert not product_evidence.exists()
+    assert evidence["freshness"]["product_head"] == git_head(product)
+    assert evidence["freshness"]["target_head"] == git_head(target)
+    assert evidence["identity"]["product_head"] == git_head(product)
+    assert evidence["identity"]["target_head"] == git_head(target)
+
+
+def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    _checkout_work_lane(product)
+    target = init_git_repo(tmp_path / "sample-adopter")
+    _set_durable_evidence_root(target, "docs/evidence")
+    _checkout_work_lane(target)
+
+    def fake_shadow(
+        *, target: Path, timeout_seconds: int, product_root: Path | None = None
+    ) -> dict[str, object]:
+        return {
+            "ok": True,
+            "state": "matched",
+            "target": target.resolve().as_posix(),
+            "required_gaps": [],
+            "comparisons": SHADOW_COMMANDS,
+            "semantic_dimensions": ["blocking_vs_advisory", "external_false_negative"],
+            "false_negative_count": 0,
+            "execution_packages": [],
+        }
+
+    monkeypatch.setattr(shadow_core, "run_shadow_parity", fake_shadow)
+
+    payload = run_ethos(
+        "parity",
+        "shadow",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--execute",
+        "--write-evidence",
+        "--json",
+        cwd=product,
+    )
+
+    profile_evidence = target / "docs" / "evidence" / "parity" / "sample-adopter-shadow.json"
+    legacy_evidence = target / "evidence" / "parity" / "sample-adopter-shadow.json"
+
+    assert payload["ok"] is True
+    assert payload["data"]["evidence_written"] == profile_evidence.relative_to(target).as_posix()
+    assert profile_evidence.exists()
+    assert not legacy_evidence.exists()
 
 
 def test_parity_shadow_write_evidence_defaults_to_generic_adopter(

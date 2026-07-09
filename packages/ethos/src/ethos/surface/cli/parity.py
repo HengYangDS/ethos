@@ -13,6 +13,8 @@ from ethos.repository.evidence.parity import parity_gaps_report
 from ethos.repository.evidence.parity import parity_ledger_report
 from ethos.repository.evidence.parity import shadow_parity_report
 from ethos.repository.evidence.parity import write_tracked_parity_evidence
+from ethos.repository.evidence.shadow.routing import parity_evidence_path
+from ethos.repository.evidence.shadow.routing import parity_evidence_repository_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -129,11 +131,12 @@ def parity_shadow(
         elif report.get("ok") is not True:
             required_gaps.append(f"parity_evidence_write_blocked:{adopter_name}")
         else:
-            evidence_target = repo / "evidence" / "parity" / f"{adopter_name}-shadow.json"
+            evidence_root = parity_evidence_repository_root(root=repo, target=target)
+            evidence_target = parity_evidence_path(root=evidence_root, adopter=adopter_name)
             write_admission = prewrite_guard(
-                root=repo,
+                root=evidence_root,
                 paths=[evidence_target],
-                editor_root=repo,
+                editor_root=evidence_root,
                 require_editor_root=True,
             )
             if write_admission["ok"] is not True:
@@ -151,11 +154,11 @@ def parity_shadow(
                     root=repo,
                 )
                 written = write_tracked_parity_evidence(
-                    root=repo,
+                    root=evidence_root,
                     adopter=adopter_name,
                     evidence=evidence,
                 )
-                evidence_path = written.relative_to(repo).as_posix()
+                evidence_path = written.relative_to(evidence_root).as_posix()
                 report = {
                     **report,
                     "evidence_written": evidence_path,

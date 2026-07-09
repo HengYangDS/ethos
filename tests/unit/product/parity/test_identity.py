@@ -123,7 +123,7 @@ def test_shadow_identity_embedded_labels_fallback_to_backend_probe(
     ) == ["backend status"]
 
 
-def test_shadow_identity_evidence_inputs_ignore_special_paths(tmp_path: Path) -> None:
+def test_shadowidentity_evidence_inputs_ignore_special_paths(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     missing = shadow_identity.evidence_input(repo, "missing")

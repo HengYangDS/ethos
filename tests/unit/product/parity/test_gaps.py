@@ -5,7 +5,10 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.domain.land import acceptable_parity_product_heads
+from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
+from ethos.repository.evidence.parity import _shadow_evidence_command
 from ethos.repository.evidence.parity import parity_gaps_report
+from ethos.repository.evidence.parity_validation import semantic_tree_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.product.parity.snapshots import complete_parity_evidence
 from tests.unit.product.parity.snapshots import git_head
@@ -15,6 +18,78 @@ from tests.unit.product.parity.snapshots import sha256_text
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _set_durable_evidence_root(repo: Path, value: str) -> None:
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "configure evidence root",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_shadow_evidence_command_includes_product_root_only_for_external_target(
+    tmp_path: Path,
+) -> None:
+    product = tmp_path / "product"
+    product.mkdir()
+
+    assert _shadow_evidence_command(
+        adopter="sample-adopter",
+        root=product,
+        target="/tmp/adopter",
+        timeout_seconds=17,
+        include_product_root=True,
+    ) == (
+        "uv run --package ethos ethos parity shadow --adopter sample-adopter "
+        f"--root {product.resolve().as_posix()} "
+        "--target /tmp/adopter --execute --timeout-seconds 17 --json"
+    )
+    assert _shadow_evidence_command(
+        adopter="generic",
+        root=None,
+        target=".",
+        timeout_seconds=5,
+        include_product_root=True,
+    ) == (
+        "uv run --package ethos ethos parity shadow --adopter generic "
+        "--target . --execute --timeout-seconds 5 --json"
+    )
+
+
+def test_parity_gaps_uses_product_evidence_root_for_missing_target(
+    tmp_path: Path,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    missing_target = tmp_path / "missing-adopter"
+
+    payload = parity_gaps_report(
+        adopter="sample-adopter",
+        root=product,
+        target=missing_target,
+    )
+
+    refresh = payload["evidence"]["refresh_package"]
+    assert refresh["root"] == product.resolve().as_posix()
+    assert refresh["target"] == missing_target.resolve().as_posix()
+    assert refresh["command"] == (
+        "ethos parity shadow --adopter sample-adopter "
+        f"--target {missing_target.resolve().as_posix()} --execute --write-evidence --json"
+    )
 
 
 def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path) -> None:
@@ -39,7 +114,7 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     target = init_git_repo(tmp_path / "sample-adopter")
-    evidence_dir = product / "evidence" / "parity"
+    evidence_dir = target / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     stale = complete_parity_evidence("sample-adopter")
     retarget_parity_evidence(stale, adopter="sample-adopter", target=target)
@@ -67,6 +142,7 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
     assert payload["next_actions"] == [
         (
             "ethos parity shadow --adopter sample-adopter "
+            f"--root {product.resolve().as_posix()} "
             f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
         )
     ]
@@ -83,10 +159,90 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
         ],
         "command": (
             "ethos parity shadow --adopter sample-adopter "
+            f"--root {product.resolve().as_posix()} "
             f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
         ),
         "next_action": "refresh tracked shadow parity evidence",
     }
+
+
+def test_parity_gaps_ignores_product_root_adopter_evidence_for_distinct_target(
+    tmp_path: Path,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    target = init_git_repo(tmp_path / "sample-adopter")
+    evidence_dir = product / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    evidence = complete_parity_evidence("sample-adopter")
+    retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
+    evidence["freshness"]["product_head"] = git_head(product)
+    evidence["freshness"]["target_head"] = git_head(target)
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--json",
+        cwd=product,
+    )
+
+    assert payload["ok"] is False
+    assert (
+        "parity_evidence_missing:sample-adopter"
+        in (payload["data"]["evidence"]["refresh_package"]["required_gaps"])
+    )
+    assert payload["data"]["evidence"]["refresh_package"]["root"] == product.resolve().as_posix()
+    assert payload["data"]["evidence"]["refresh_package"]["target"] == target.resolve().as_posix()
+
+
+def test_parity_gaps_reads_adopter_profile_durable_evidence_root(
+    tmp_path: Path,
+) -> None:
+    product = init_git_repo(tmp_path / "product")
+    target = init_git_repo(tmp_path / "sample-adopter")
+    _set_durable_evidence_root(target, "docs/evidence")
+    evidence_dir = target / "docs" / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    evidence = complete_parity_evidence("sample-adopter")
+    retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
+    evidence["freshness"]["product_head"] = git_head(product)
+    evidence["freshness"]["target_head"] = git_head(target)
+    evidence["freshness"]["product_semantic_sha256"] = semantic_tree_digest(
+        product, head=git_head(product), relevant_paths=PARITY_RELEVANT_PATHS
+    )
+    evidence["freshness"]["target_semantic_sha256"] = semantic_tree_digest(
+        target, head=git_head(target), relevant_paths=PARITY_RELEVANT_PATHS
+    )
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        product.as_posix(),
+        "--target",
+        target.as_posix(),
+        "--json",
+        cwd=product,
+    )
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["evidence"]["path"] == "docs/evidence/parity/sample-adopter-shadow.json"
 
 
 def test_parity_gaps_reports_generic_tracked_evidence_state() -> None:
@@ -469,9 +625,6 @@ def test_parity_evidence_semantic_digest_allows_self_evidence_commit(
     freshness["product_head"] = semantic_head
     freshness["target_head"] = semantic_head
     freshness["command_sha256"] = sha256_text(command)
-    from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
-    from ethos.repository.evidence.parity_validation import semantic_tree_digest
-
     digest = semantic_tree_digest(product, head=semantic_head, relevant_paths=PARITY_RELEVANT_PATHS)
     freshness["product_semantic_sha256"] = digest
     freshness["target_semantic_sha256"] = digest

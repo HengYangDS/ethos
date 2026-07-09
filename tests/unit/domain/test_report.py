@@ -23,6 +23,46 @@ def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -
     ) == ("ethos quality --json",)
 
 
+def test_adopter_product_root_resolves_runtime_and_profile_fallback(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = tmp_path / "adopter"
+    product = tmp_path / "product"
+    configured_product = tmp_path / "configured-product"
+    repo.mkdir()
+    product.mkdir()
+    configured_product.mkdir()
+
+    runtime_payload = {"runtime_binding": {"runner_source_root": product.as_posix()}}
+    assert report_domain.adopter_product_root(repo, runtime_payload, None) == product.resolve()
+
+    same_repo_payload = {"runtime_binding": {"runner_source_root": repo.as_posix()}}
+    empty_runtime_payload = {"runtime_binding": {"runner_source_root": ""}}
+
+    class Profile:
+        def __init__(self) -> None:
+            self.tables = {"external_backend": {"product_root": "../configured-product"}}
+
+    monkeypatch.setattr(report_domain, "load_repository_profile", lambda _repo: Profile())
+
+    assert (
+        report_domain.adopter_product_root(repo, same_repo_payload, None)
+        == configured_product.resolve()
+    )
+    assert (
+        report_domain.adopter_product_root(repo, empty_runtime_payload, None)
+        == configured_product.resolve()
+    )
+    assert report_domain.adopter_product_root(repo, {}, product) == product.resolve()
+
+
+def test_scorecard_next_actions_route_parity_gaps() -> None:
+    assert report_domain._scorecard_next_actions(
+        parity_pending_count=1,
+        hard_quality_floor={"required_gaps": []},
+    ) == ("ethos parity gaps --adopter <adopter>",)
+
+
 def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     """Report must not claim ready when standalone hard quality gates are blocked."""
 
@@ -279,3 +319,243 @@ def test_advisory_next_actions_route_closeout_residue_signal() -> None:
     actions = report_domain._advisory_next_actions(("work_lane_closeout_residue_present",))
 
     assert actions == ("ethos orient --json", "ethos lane status --json")
+
+
+def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_action(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Adopter report should not route to generic parity when profile shadow is clean."""
+
+    monkeypatch.setattr(report_domain, "workspace_status", lambda _repo: {"coordination": {}})
+    monkeypatch.setattr(
+        report_domain.status_domain,
+        "audit_for_root",
+        lambda _repo, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {"profile": "gitlab"},
+            "adopter": {
+                "adopter": {
+                    "governance": {
+                        "claims": True,
+                        "evidence": True,
+                        "docs": True,
+                    }
+                }
+            },
+            "schemas": {"ok": True},
+            "openspec": {"ok": True, "advisory_gaps": []},
+        },
+    )
+    monkeypatch.setattr(report_domain, "docs_health_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "claims_report",
+        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+    )
+    monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "projection_contract",
+        lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY},
+    )
+    monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "playbooks_report",
+        lambda _repo, mode="v2-strict": {
+            "ok": False,
+            "mode": mode,
+            "required_gaps": ["playbooks_v2_missing_skill_ids"],
+            "advisory_gaps": [],
+            "v2_compliance": {"score": 0, "max_score": 1},
+        },
+    )
+    monkeypatch.setattr(report_domain, "adoption_scaffold_report", lambda: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "parity_ledger_report",
+        lambda: {"ok": True, "summary": {"unclassified_count": 0}},
+    )
+    monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", lambda _repo: "head")
+
+    def fake_parity_gaps_report(**kwargs):
+        if kwargs.get("adopter") == "alphasim-dmgr":
+            return {
+                "ok": True,
+                "adopter": "alphasim-dmgr",
+                "required_gaps": [],
+                "pending_packages": [],
+                "evidence": {"path": "docs/evidence/parity/alphasim-dmgr-shadow.json"},
+            }
+        return {
+            "ok": False,
+            "adopter": "generic",
+            "required_gaps": ["parity_pending:work-lane-lifecycle"],
+            "pending_packages": [{"gap": "parity_pending:work-lane-lifecycle"}],
+            "evidence": {},
+        }
+
+    monkeypatch.setattr(report_domain, "parity_gaps_report", fake_parity_gaps_report)
+    monkeypatch.setattr(
+        report_domain,
+        "context_projection_contract",
+        lambda: {
+            "authority": "projection",
+            "can_close_required_gaps": False,
+            "can_satisfy_proof": False,
+        },
+    )
+    monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
+    monkeypatch.setattr(
+        report_domain,
+        "profile_identity",
+        lambda _repo: "alphasim-dmgr",
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "standard_adapter_registry",
+        lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
+    )
+
+    payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
+
+    assert payload["summary"]["parity_pending_count"] == 0
+    assert payload["next_actions"] == ("ethos playbooks check --mode v2-strict --json",)
+    assert payload["data"]["parity"]["scope"] == {
+        "generic_gap_count": 1,
+        "adopter": "alphasim-dmgr",
+        "adopter_gap_count": 0,
+        "domain_profile_parity_closed": True,
+        "note": (
+            "Adopter shadow parity is profile-specific evidence. Generic command parity "
+            "remains a product migration signal and does not block adopter report routing."
+        ),
+    }
+    assert payload["data"]["parity"]["adopter_gaps"]["evidence"]["path"] == (
+        "docs/evidence/parity/alphasim-dmgr-shadow.json"
+    )
+
+
+def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Adopter report should validate shadow evidence against the external product root."""
+
+    product_root = tmp_path / "product"
+    adopter_root = tmp_path / "adopter"
+    product_root.mkdir()
+    adopter_root.mkdir()
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(report_domain, "workspace_status", lambda _repo: {"coordination": {}})
+    monkeypatch.setattr(
+        report_domain.status_domain,
+        "audit_for_root",
+        lambda _repo, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {"profile": "gitlab"},
+            "adopter": {
+                "adopter": {
+                    "governance": {
+                        "claims": True,
+                        "evidence": True,
+                        "docs": True,
+                    }
+                }
+            },
+            "schemas": {"ok": True},
+            "openspec": {"ok": True, "advisory_gaps": []},
+        },
+    )
+    monkeypatch.setattr(report_domain, "docs_health_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "claims_report",
+        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+    )
+    monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "projection_contract",
+        lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY},
+    )
+    monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "playbooks_report",
+        lambda _repo, mode="v2-strict": {
+            "ok": True,
+            "mode": mode,
+            "required_gaps": [],
+            "advisory_gaps": [],
+            "v2_compliance": {"score": 1, "max_score": 1},
+        },
+    )
+    monkeypatch.setattr(report_domain, "adoption_scaffold_report", lambda: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "parity_ledger_report",
+        lambda: {"ok": True, "summary": {"unclassified_count": 0}},
+    )
+    monkeypatch.setattr(
+        report_domain.git_adapter,
+        "current_tracked_head",
+        lambda repo: "product-head" if repo == product_root else "adopter-head",
+    )
+
+    def fake_parity_gaps_report(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("adopter") == "alphasim-dmgr":
+            return {
+                "ok": bool(kwargs["root"] == product_root),
+                "adopter": "alphasim-dmgr",
+                "required_gaps": []
+                if kwargs["root"] == product_root
+                else ["parity_evidence_invalid:alphasim-dmgr:product_head"],
+                "pending_packages": [],
+                "evidence": {"path": "docs/evidence/parity/alphasim-dmgr-shadow.json"},
+            }
+        return {
+            "ok": False,
+            "adopter": "generic",
+            "required_gaps": ["parity_pending:work-lane-lifecycle"],
+            "pending_packages": [{"gap": "parity_pending:work-lane-lifecycle"}],
+            "evidence": {},
+        }
+
+    monkeypatch.setattr(report_domain, "parity_gaps_report", fake_parity_gaps_report)
+    monkeypatch.setattr(
+        report_domain,
+        "context_projection_contract",
+        lambda: {
+            "authority": "projection",
+            "can_close_required_gaps": False,
+            "can_satisfy_proof": False,
+        },
+    )
+    monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
+    monkeypatch.setattr(report_domain, "profile_identity", lambda _repo: "alphasim-dmgr")
+    monkeypatch.setattr(
+        report_domain,
+        "standard_adapter_registry",
+        lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
+    )
+
+    payload: dict[str, Any] = report_domain.scorecard_report(
+        adopter_root,
+        product_root=product_root,
+    )
+
+    adopter_call = next(call for call in calls if call.get("adopter") == "alphasim-dmgr")
+    assert adopter_call["root"] == product_root
+    assert adopter_call["target"] == adopter_root
+    assert adopter_call["current_product_head"] == "product-head"
+    assert adopter_call["current_target_head"] == "adopter-head"
+    assert payload["summary"]["parity_pending_count"] == 0
+    assert payload["data"]["parity"]["scope"]["domain_profile_parity_closed"] is True

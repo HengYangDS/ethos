@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
@@ -23,6 +23,7 @@ from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.standards import standard_adapter_registry
@@ -30,11 +31,8 @@ from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context.projection import context_projection_contract
 from ethos_core.invalid_states import invalid_state_projection
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
-
-def scorecard_report(repo: Path) -> dict[str, object]:
+def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[str, object]:
     """Build the read-only report payload without emitting CLI output."""
     status_payload = workspace_status(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
@@ -54,6 +52,13 @@ def scorecard_report(repo: Path) -> dict[str, object]:
         _hard_quality_floor_report(repo) if product_profile else _adopter_quality_floor_report()
     )
     current_head = git_adapter.current_tracked_head(repo)
+    adopter_id = profile_identity(repo) if not product_profile else ""
+    parity_root = (
+        repo if product_profile else adopter_product_root(repo, status_payload, product_root)
+    )
+    current_product_head = (
+        current_head if product_profile else git_adapter.current_tracked_head(parity_root)
+    )
     parity_gaps = parity_gaps_report(
         root=repo,
         target=repo,
@@ -61,6 +66,23 @@ def scorecard_report(repo: Path) -> dict[str, object]:
         current_target_head=current_head,
         acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, None),
         acceptable_target_heads=land_domain.acceptable_parity_target_heads(repo, repo, None),
+    )
+    adopter_parity_gaps = (
+        parity_gaps_report(
+            adopter=adopter_id,
+            root=parity_root,
+            target=repo,
+            current_product_head=current_product_head,
+            current_target_head=current_head,
+            acceptable_product_heads=land_domain.acceptable_parity_product_heads(
+                parity_root, adopter_id
+            ),
+            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+                parity_root, repo, adopter_id
+            ),
+        )
+        if adopter_id
+        else {}
     )
     context_projection = context_projection_contract()
     context_projection_score = int(
@@ -93,7 +115,13 @@ def scorecard_report(repo: Path) -> dict[str, object]:
             + tuple(cast("list[str]", claim_report["required_gaps"]))
             + tuple(cast("list[str]", hard_quality_floor["required_gaps"]))
         )
-    parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
+    generic_parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
+    adopter_parity_pending_count = len(
+        cast("list[str]", adopter_parity_gaps.get("required_gaps", []))
+    )
+    parity_pending_count = (
+        generic_parity_pending_count if product_profile else adopter_parity_pending_count
+    )
     advisory_gaps = _advisory_gaps(audit, claim_report, playbooks, status_payload)
     advisory_next_actions = _advisory_next_actions(advisory_gaps)
     gap_layers = _gap_layers(
@@ -106,6 +134,7 @@ def scorecard_report(repo: Path) -> dict[str, object]:
     next_actions = _scorecard_next_actions(
         parity_pending_count=parity_pending_count,
         hard_quality_floor=hard_quality_floor,
+        playbooks=playbooks,
     )
     return {
         "ok": all(value == 1 for value in scores.values()) and not result_required_gaps,
@@ -145,19 +174,73 @@ def scorecard_report(repo: Path) -> dict[str, object]:
                 "next_actions": list(advisory_next_actions),
             },
             "parity": {
-                "scope": {
-                    "generic_gap_count": parity_pending_count,
-                    "domain_profile_parity_closed": False,
-                    "note": (
-                        "Generic command parity does not claim domain profile parity "
-                        "or adopter-specific retirement readiness."
-                    ),
-                },
+                "scope": _parity_scope(
+                    product_profile=product_profile,
+                    adopter=adopter_id,
+                    generic_gap_count=generic_parity_pending_count,
+                    adopter_gap_count=adopter_parity_pending_count,
+                ),
                 "ledger": parity_ledger,
                 "gaps": parity_gaps,
+                "adopter_gaps": adopter_parity_gaps,
             },
             "profiles": list(available_profiles()),
         },
+    }
+
+
+def profile_identity(repo: Path) -> str:
+    """Return the repository profile id used for adopter-specific parity, if any."""
+    profile = load_repository_profile(repo)
+    return profile.identity.get("profile_id", "")
+
+
+def adopter_product_root(
+    repo: Path, status_payload: dict[str, object], explicit_product_root: Path | None
+) -> Path:
+    """Resolve the external product root used for adopter shadow parity."""
+    if explicit_product_root is not None:
+        return explicit_product_root.resolve()
+    runtime = status_payload.get("runtime_binding")
+    if isinstance(runtime, dict):
+        runner_source_root = str(runtime.get("runner_source_root") or "")
+        if runner_source_root:
+            runner_root = Path(runner_source_root).resolve()
+            if runner_root != repo.resolve():
+                return runner_root
+    profile = load_repository_profile(repo)
+    external_backend = profile.tables.get("external_backend", {})
+    configured = external_backend.get("product_root")
+    if isinstance(configured, str) and configured:
+        return (repo / configured).resolve()
+    return repo.resolve()
+
+
+def _parity_scope(
+    *,
+    product_profile: bool,
+    adopter: str,
+    generic_gap_count: int,
+    adopter_gap_count: int,
+) -> dict[str, object]:
+    if product_profile or not adopter:
+        return {
+            "generic_gap_count": generic_gap_count,
+            "domain_profile_parity_closed": False,
+            "note": (
+                "Generic command parity does not claim domain profile parity "
+                "or adopter-specific retirement readiness."
+            ),
+        }
+    return {
+        "generic_gap_count": generic_gap_count,
+        "adopter": adopter,
+        "adopter_gap_count": adopter_gap_count,
+        "domain_profile_parity_closed": adopter_gap_count == 0,
+        "note": (
+            "Adopter shadow parity is profile-specific evidence. Generic command parity "
+            "remains a product migration signal and does not block adopter report routing."
+        ),
     }
 
 
@@ -265,6 +348,7 @@ def _scorecard_next_actions(
     *,
     parity_pending_count: int,
     hard_quality_floor: dict[str, object],
+    playbooks: dict[str, object] | None = None,
 ) -> tuple[str, ...]:
     """Return bounded next actions for report without hiding hard quality gaps."""
     quality_gaps = cast("list[str]", hard_quality_floor["required_gaps"])
@@ -281,6 +365,8 @@ def _scorecard_next_actions(
         return tuple(commands or ["ethos quality --json"])
     if parity_pending_count:
         return ("ethos parity gaps --adopter <adopter>",)
+    if playbooks and playbooks.get("ok") is not True:
+        return ("ethos playbooks check --mode v2-strict --json",)
     return ("ethos prove --full",)
 
 

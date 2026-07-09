@@ -27,10 +27,14 @@ Each row must include source location, target home, migration disposition,
 required tests, parity criterion, and rollback impact.
 
 `ethos parity gaps` is evidence-driven. A migration or split row remains a
-required gap until tracked parity evidence under `evidence/parity/` names
-that capability in `verified_capabilities` and the adopter shadow report has
-`shadow.ok=true` with no required gaps. Changing the ledger disposition alone
-does not close a parity gap.
+required gap until tracked parity evidence names that capability in
+`verified_capabilities` and the adopter shadow report has `shadow.ok=true` with
+no required gaps. Product self-parity reads the product profile's durable evidence root
+(default `evidence/parity/`). A distinct adopter Git repository owns its own
+tracked shadow evidence under that adopter profile's durable evidence root
+(for example `docs/evidence/parity/` when `[roots].durable_evidence` is
+`docs/evidence`) so product core does not accumulate adopter-specific shadow
+files. Changing the ledger disposition alone does not close a parity gap.
 
 `ethos parity gaps --json` projects unresolved rows into
 `data.pending_packages`. Each package keeps the stable gap code and carries the
@@ -43,13 +47,15 @@ Reference-adopter parity evidence uses repository-local identifiers and
 paths supplied by the adopter profile:
 
 ```bash
-ethos parity gaps --adopter <adopter-id> --json
-ethos parity shadow --adopter <adopter-id> --target <repo> --execute --timeout-seconds 30 --json
-ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --timeout-seconds 30 --json
+ethos parity gaps --adopter <adopter-id> --root <product-root> --target <adopter-repo> --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --timeout-seconds 30 --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --write-evidence --timeout-seconds 30 --json
 ```
 
-The tracked evidence file is `evidence/parity/<adopter-id>-shadow.json` unless
-the adopter profile declares a different evidence target.
+The tracked evidence file is `<durable-evidence-root>/parity/<adopter-id>-shadow.json`.
+For distinct adopter Git roots, `<durable-evidence-root>` is resolved from the
+adopter profile. For generic/self parity or non-Git fixtures, it is resolved from
+the product profile.
 
 Reference adopters are evidence and profile fixtures, not product ontology.
 Adopter-private terms may appear in parity evidence, profile fixtures, and this
@@ -125,7 +131,9 @@ must not miss an embedded blocking gap or move it into advisory-only state.
 If any of the identity fields are missing, stale, target-mismatched, or produced
 by an old command shape, ETHOS reports a blocking `parity_evidence_refresh`
 package. The package names the adopter, product root, explicit target when
-supplied, required gaps, and the exact refresh command:
+supplied, required gaps, and the exact refresh command. Cross-repository refresh
+commands include `--root <product-root>` so product identity and adopter evidence
+storage do not collapse into a self-comparison:
 
 When the commit that last changed a tracked evidence file is the current product
 or same-repository target commit, the commit parent is also an acceptable
@@ -134,7 +142,7 @@ stale adopter targets: cross-repository adopters still require exact target HEAD
 matching.
 
 ```bash
-ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --write-evidence --json
 ```
 
 When no target is supplied, ETHOS leaves the target as `<repo>` rather than

@@ -18,6 +18,7 @@ import ethos.adapters.shadow.core as shadow_core
 from ethos.assistants import playbooks
 from ethos.assistants.skills import portfolio
 from ethos.repository.evidence import parity
+from ethos.repository.evidence.shadow.payload import identity_evidence_inputs
 from ethos.surface.cli import assistants as assistants_cli
 from ethos.surface.cli import parity as parity_cli
 
@@ -66,10 +67,10 @@ def test_shadow_identity_takes_dict_branch(tmp_path: Path) -> None:
 
 def test_identity_evidence_inputs_filters_and_handles_non_list() -> None:
     # Non-list -> line 234 `return []`.
-    assert parity._identity_evidence_inputs(None) == []
+    assert identity_evidence_inputs(None) == []
     # List path -> 235-244: a non-dict item is skipped (238 continue), a complete
     # dict is kept (243), and a dict missing a field fails the guard (242 False).
-    filtered = parity._identity_evidence_inputs(
+    filtered = identity_evidence_inputs(
         [
             "skip-non-dict",
             {"path": "p", "kind": "k", "sha256": "s"},

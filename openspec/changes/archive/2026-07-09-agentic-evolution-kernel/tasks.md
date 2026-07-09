@@ -13,6 +13,5 @@
 - [x] Decide follow-up implementation Work Lane for proposed read-only intake
   mining: next lane should implement read-only intake mining before any issue
   projection, dispatch assignment, or backend execution.
-- [ ] Close out this design carrier through the ETHOS land / archive lifecycle
-  after maintainer review; this active OpenSpec change must not masquerade as a
-  completed archived change while it remains in the Work Lane.
+- [x] Close out this design carrier through the ETHOS archive lifecycle; the
+  OpenSpec carrier is archived under `openspec/changes/archive/2026-07-09-agentic-evolution-kernel`.

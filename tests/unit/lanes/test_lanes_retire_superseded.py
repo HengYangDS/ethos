@@ -1,18 +1,35 @@
 from __future__ import annotations
 
+import os
 import subprocess
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
+from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime
 from ethos.adapters.store import state
 from tests.unit.lanes.test_lanes_retire import add_candidate_worktree
 from tests.unit.lanes.test_lanes_retire import git
 from tests.unit.lanes.test_lanes_retire import init_repo
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
+
+
+@contextmanager
+def _actor_env(actor: str) -> Iterator[None]:
+    previous = os.environ.get("ETHOS_ACTOR")
+    os.environ["ETHOS_ACTOR"] = actor
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("ETHOS_ACTOR", None)
+        else:
+            os.environ["ETHOS_ACTOR"] = previous
 
 
 def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -> None:
@@ -55,7 +72,6 @@ def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -
 
 
 def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -72,7 +88,10 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
             return subprocess.CompletedProcess(args, 128, stdout="", stderr="missing")
         return lane_lifecycle_core.run_git(root, *args, check=check)
 
-    monkeypatch.setattr(lane_retirement_core, "run_git", fail_accepted_head)
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        run_git=fail_accepted_head,
+        shared=RetirementRuntime(run_git=fail_accepted_head),
+    )
 
     report = lane_retirement_core.retire_superseded_work_lane(
         root=repo,
@@ -82,6 +101,7 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
             absorbed_by="",
             reason="not linked",
         ),
+        runtime=runtime,
     )
 
     assert report["accepted_head"] == ""
@@ -94,7 +114,6 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
 
 
 def test_retire_superseded_work_lane_reports_apply_remove_failure(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -121,29 +140,33 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
         owner="agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
-    monkeypatch.setattr(
-        lane_retirement_core,
-        "remove_linked_lane",
-        lambda _repo, _lane, **_kwargs: {
-            "ok": False,
-            "state": "blocked",
-            "required_gaps": ["worktree_remove_failed"],
-            "stderr": "locked",
-        },
+    def fail_worktree_remove(
+        root: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        if args[:3] == ("worktree", "remove", "--force"):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
+        return lane_lifecycle_core.run_git(root, *args, check=check)
+
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        shared=RetirementRuntime(run_git=fail_worktree_remove),
     )
 
-    report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/superseded",
-            expect_head=head,
-            absorbed_by=accepted,
-            reason="accepted root already carries the semantic fix",
-            apply=True,
-            authorized=True,
-        ),
-    )
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="accepted root already carries the semantic fix",
+                apply=True,
+                authorized=True,
+            ),
+            runtime=runtime,
+        )
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
@@ -152,7 +175,6 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
 
 
 def test_retire_superseded_private_helpers_cover_unavailable_status(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -167,15 +189,17 @@ def test_retire_superseded_private_helpers_cover_unavailable_status(
         assert check is False
         return subprocess.CompletedProcess(args, 128, stdout="", stderr="fatal")
 
-    monkeypatch.setattr(lane_retirement_core, "run_git", fail_status)
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        run_git=fail_status,
+        shared=RetirementRuntime(run_git=fail_status),
+    )
 
-    assert lane_retirement_core._branch_exists(repo, "work/x") is False
-    assert lane_retirement_core._branch_head(repo, "work/x") == ""
-    assert lane_retirement_core._has_changed_paths(repo) is True
+    assert lane_retirement_core._branch_exists(repo, "work/x", runtime=runtime) is False
+    assert lane_retirement_core._branch_head(repo, "work/x", runtime=runtime) == ""
+    assert lane_retirement_core._has_changed_paths(repo, runtime=runtime) is True
 
 
 def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -202,17 +226,16 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
         owner="agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
-
-    report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/superseded",
-            expect_head=head,
-            absorbed_by=accepted,
-            reason="obsolete lane truth was reimplemented in accepted root",
-        ),
-    )
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="obsolete lane truth was reimplemented in accepted root",
+            ),
+        )
 
     assert report["ok"] is True
     assert report["state"] == "ready_to_retire_superseded"
@@ -225,7 +248,6 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
 
 
 def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -248,19 +270,19 @@ def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
     accepted = git(repo, "rev-parse", "dev")
     db = repo / ".ethos" / "state" / "state.sqlite"
     state.acquire_lease(db, subject="work/superseded", owner="agent-a", ttl_seconds=3600)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
 
-    report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/superseded",
-            expect_head=head,
-            absorbed_by=accepted,
-            reason="accepted root already carries the semantic fix",
-            apply=True,
-            authorized=True,
-        ),
-    )
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="accepted root already carries the semantic fix",
+                apply=True,
+                authorized=True,
+            ),
+        )
 
     assert report["ok"] is True
     assert report["state"] == "retired_superseded"
@@ -271,7 +293,6 @@ def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
 
 
 def test_retire_superseded_work_lane_fails_closed_for_dirty_or_merged_lanes(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -287,30 +308,30 @@ def test_retire_superseded_work_lane_fails_closed_for_dirty_or_merged_lanes(
     db = repo / ".ethos" / "state" / "state.sqlite"
     state.acquire_lease(db, subject="work/dirty", owner="agent-a", ttl_seconds=3600)
     state.acquire_lease(db, subject="work/merged", owner="agent-a", ttl_seconds=3600)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
 
-    dirty_report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/dirty",
-            expect_head=dirty_head,
-            absorbed_by=accepted,
-            reason="dirty lane must not be silently removed",
-            apply=True,
-            authorized=True,
-        ),
-    )
-    merged_report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/merged",
-            expect_head=merged_head,
-            absorbed_by=accepted,
-            reason="merged lane must use the landed path",
-            apply=True,
-            authorized=True,
-        ),
-    )
+    with _actor_env("agent-a"):
+        dirty_report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/dirty",
+                expect_head=dirty_head,
+                absorbed_by=accepted,
+                reason="dirty lane must not be silently removed",
+                apply=True,
+                authorized=True,
+            ),
+        )
+        merged_report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/merged",
+                expect_head=merged_head,
+                absorbed_by=accepted,
+                reason="merged lane must use the landed path",
+                apply=True,
+                authorized=True,
+            ),
+        )
 
     assert dirty_report["ok"] is False
     assert "work_lane_dirty" in dirty_report["required_gaps"]
@@ -321,7 +342,6 @@ def test_retire_superseded_work_lane_fails_closed_for_dirty_or_merged_lanes(
 
 
 def test_retire_superseded_work_lane_requires_owner_head_reason_absorption_and_authorization(
-    monkeypatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -346,16 +366,15 @@ def test_retire_superseded_work_lane_requires_owner_head_reason_absorption_and_a
         owner="agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-b")
-
-    report = lane_retirement_core.retire_superseded_work_lane(
-        root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch="work/superseded",
-            absorbed_by="old-head",
-            apply=True,
-        ),
-    )
+    with _actor_env("agent-b"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                absorbed_by="old-head",
+                apply=True,
+            ),
+        )
 
     assert report["ok"] is False
     assert report["required_gaps"] == [

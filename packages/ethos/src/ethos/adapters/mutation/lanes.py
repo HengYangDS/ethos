@@ -257,34 +257,22 @@ def refresh_work_lane_base(
 
 
 def _call_refresh(name: str, **kwargs: object) -> dict[str, object]:
-    previous = _refresh_previous(lanes_refresh)
-    try:
-        _patch_refresh_adapters(lanes_refresh)
-        return cast("dict[str, object]", getattr(lanes_refresh, name)(**kwargs))
-    finally:
-        _restore_refresh_adapters(lanes_refresh, previous)
+    return cast(
+        "dict[str, object]",
+        getattr(lanes_refresh, name)(**kwargs, runtime=_lane_refresh_runtime()),
+    )
 
 
-def _refresh_previous(refresh: object) -> dict[str, object]:
-    namespace = cast("dict[str, object]", refresh.__dict__)
-    return {
-        key: namespace[key]
-        for key in ("workspace_status", "changed_paths", "is_ancestor", "run_git")
-    }
-
-
-def _patch_refresh_adapters(refresh: object) -> None:
-    namespace = cast("dict[str, object]", refresh.__dict__)
-    namespace.update(
+def _lane_refresh_runtime() -> lanes_refresh.LaneRefreshRuntime:
+    return lanes_refresh.LaneRefreshRuntime(
+        repo_root=repo_root,
+        default_candidate_path=default_candidate_path,
+        load_branch_role_policy=load_branch_role_policy,
         workspace_status=workspace_status,
         changed_paths=changed_paths,
         is_ancestor=is_ancestor,
         run_git=run_git,
     )
-
-
-def _restore_refresh_adapters(refresh: object, previous: dict[str, object]) -> None:
-    cast("dict[str, object]", refresh.__dict__).update(previous)
 
 
 def _status_work_lane(
@@ -302,7 +290,7 @@ def _status_work_lane(
     return None
 
 
-def _state_root(status: dict[str, object], fallback: Path) -> Path:
+def _state_root(status: dict[str, object], default_root: Path) -> Path:
     worktrees = status.get("worktrees")
     if isinstance(worktrees, list):
         for worktree in worktrees:
@@ -310,7 +298,7 @@ def _state_root(status: dict[str, object], fallback: Path) -> Path:
                 continue
             if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
                 return Path(str(cast("dict[str, object]", worktree)["path"]))
-    return fallback
+    return default_root
 
 
 def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:

@@ -1,0 +1,89 @@
+[claim]
+id = "adopt-ethos-native-workflow-runtime-20260709"
+subject = "ethos:workflow-runtime-practice-evolution"
+state = "active"
+summary = "ETHOS introduces a native workflow runtime read model under a governed commitment model where practice claims are evolution carriers and external frameworks remain bounded carriers, adapters, or method packs."
+
+[evidence]
+dated = "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07-09.md"
+sha256 = "82f6d5a9bad67f52ebf4bcaa6a2d01cef288c038edea224a1125bb7af5982e4a"
+evidence_ids = ["evidence:adopt-ethos-native-workflow-runtime-20260709"]
+binding = "digest-bound workflow runtime and practice-evolution adoption evidence"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py",
+  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py tests/unit/domain/test_plan.py tests/unit/domain/test_report.py",
+  "uv run --package ethos ethos quality schemas --root . --json",
+  "uv run --package ethos ethos quality module-layout --root . --json",
+  "uv run --package ethos ethos report --root . --json",
+  "uv run --group dev pytest -q tests/unit/kernel/test_invalid_states.py tests/unit/product/parity/test_gaps.py",
+]
+
+[scope]
+docs = [
+  "docs/architecture/workflow-runtime.md",
+  "docs/governance/evolution-campaign.md",
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+]
+schemas = [
+  "system/schemas/contracts/workflows.schema.json",
+  "system/schemas/kernel/evolution-ledger.schema.json",
+  "system/schemas/kernel/workflow-run.schema.json",
+  "system/schemas/kernel/handoff-package.schema.json",
+  "system/schemas/kernel/skill-package-manifest.schema.json",
+]
+source = [
+  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
+  "packages/ethos/src/ethos/repository/workflow/runtime.py",
+  "packages/ethos/src/ethos/repository/adoption/evolution.py",
+  "packages/ethos/src/ethos/repository/adoption/practice/selection.py",
+  "packages/ethos/src/ethos/domain/plan.py",
+  "packages/ethos/src/ethos/domain/report.py",
+]
+tests = [
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/kernel/test_workflow_contract.py",
+  "tests/unit/domain/test_plan.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/assistants/test_skill_packages.py",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Workflow runtime read model and governed commitment-effect evolution; practice claims carry evaluated practice changes while external frameworks remain bounded carriers, adapters, projections, or method packs."
+
+[carriers]
+openspec = "openspec/changes/adopt-ethos-native-workflow-runtime-20260709"
+fallback = "Disable runtime projection and continue with status-plan-prove-land-publish, OpenSpec carriers, claims, evidence, and Chronicle."
+kill_signal = "Any external framework, runtime state, task store, skill pack, or projection marks lifecycle truth without ETHOS claim/evidence/chronicle binding."
+
+[promotion]
+targets = [
+  "evidence/claims/adopt-ethos-native-workflow-runtime-20260709.toml",
+  "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07-09.md",
+  "docs/architecture/workflow-runtime.md",
+  "docs/governance/evolution-campaign.md",
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+  "evolution/ledger.toml",
+  "system/workflows.toml",
+  "system/schemas/contracts/workflows.schema.json",
+  "system/schemas/kernel/evolution-ledger.schema.json",
+  "system/schemas/kernel/workflow-run.schema.json",
+  "system/schemas/kernel/handoff-package.schema.json",
+  "system/schemas/kernel/skill-package-manifest.schema.json",
+  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/proposal.md",
+  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/design.md",
+  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/tasks.md",
+  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/specs/repository-governance/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
+  "packages/ethos/src/ethos/repository/workflow/runtime.py",
+  "packages/ethos/src/ethos/repository/adoption/evolution.py",
+  "packages/ethos/src/ethos/repository/adoption/practice/selection.py",
+  "packages/ethos/src/ethos/domain/plan.py",
+  "packages/ethos/src/ethos/domain/report.py",
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/kernel/test_workflow_contract.py",
+  "tests/unit/domain/test_plan.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/assistants/test_skill_packages.py",
+]

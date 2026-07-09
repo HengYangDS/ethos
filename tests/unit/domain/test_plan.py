@@ -255,3 +255,50 @@ def test_rule_attestation_for_evaluation_binds_digest_and_io():
     assert attestation["evaluation_digest"] == "eval"
     assert attestation["runner_identity"] == "ethos-cli"
     assert attestation["output"]["required_gates"] == [{"id": "tests"}]
+
+
+def test_plan_includes_workflow_runtime_projection(tmp_path, monkeypatch):
+    monkeypatch.setattr(plan, "workspace_status", lambda _repo: {"changed_paths": ["docs/a.md"]})
+    monkeypatch.setattr(plan, "matching_rule_gates", lambda _repo, _paths: ([], []))
+    monkeypatch.setattr(plan, "contract_profile_matches", lambda _repo, _paths: [])
+    monkeypatch.setattr(
+        plan,
+        "workflow_runtime_report",
+        lambda _repo, changed_paths=(): {
+            "ok": True,
+            "kind": "workflow_runtime_read_model",
+            "truth_boundary": "derived_repository_projection",
+            "plan": {"changed_paths": list(changed_paths)},
+            "evolution_bridge": {
+                "runtime_owns_evolution": False,
+                "selection_policy": "evidence_weighted_candidate_comparison",
+                "commitment_effect_policy": "practice_claim_declares_create_compose_refine_replace_remove_or_reject_commitment_effect",
+            },
+            "required_gaps": [],
+        },
+    )
+
+    paths = ("docs/a.md",)
+    graph = plan.graph_for_paths(paths)
+    runtime = plan.workflow_runtime_report(tmp_path, changed_paths=paths)
+
+    assert graph.nodes[0].id == "status"
+    assert runtime["plan"]["changed_paths"] == ["docs/a.md"]
+    assert runtime["evolution_bridge"]["runtime_owns_evolution"] is False
+    assert runtime["evolution_bridge"]["commitment_effect_policy"].startswith("practice_claim")
+
+
+def test_workflow_runtime_report_delegates_to_repository_runtime(tmp_path, monkeypatch):
+    paths = ("system/workflows.toml",)
+    monkeypatch.setattr(
+        plan.workflow_runtime,
+        "workflow_runtime_report",
+        lambda root, *, changed_paths=(): {
+            "root": root,
+            "changed_paths": changed_paths,
+        },
+    )
+
+    runtime = plan.workflow_runtime_report(tmp_path, changed_paths=paths)
+
+    assert runtime == {"root": tmp_path, "changed_paths": paths}

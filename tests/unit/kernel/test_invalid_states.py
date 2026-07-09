@@ -52,6 +52,8 @@ _NON_GAP_TOKENS = {
     "not_required",  # prewrite diagnostic reason, not an emitted gap
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap
+    "campaign_required_gaps",  # workflow runtime field carrying campaign gaps
+    "instability_gap",  # eval metric name, not an emitted gap
     "missing_required_path_count",  # docs-topology report field, not an emitted gap
     "missing_required_state_count",  # docs-topology report field, not an emitted gap
     "missing_required_state_paths",  # docs-topology report field, not an emitted gap

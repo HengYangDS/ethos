@@ -4,6 +4,8 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.adoption.practice.selection import selection_ref_gaps
+from ethos.repository.adoption.practice.selection import selection_summary
 from ethos.repository.registry.docs.commands import KNOWN_ETHOS_COMMANDS
 from ethos.repository.registry.docs.commands import best_ethos_command_key
 
@@ -30,6 +32,11 @@ def evolution_ledger(root: Path) -> dict[str, Any]:
     return {
         "hypotheses": payload.get("hypothesis", []),
         "entries": payload.get("entry", []),
+        "practice_claims": payload.get("practice_claim", []),
+        "candidate_sets": payload.get("candidate_set", []),
+        "experiment_protocols": payload.get("experiment_protocol", []),
+        "evaluation_records": payload.get("evaluation_record", []),
+        "practice_changes": payload.get("practice_change", []),
         "types": payload.get("types", {}),
         "path": path.as_posix(),
     }
@@ -57,14 +64,17 @@ def evolution_report(root: Path) -> dict[str, object]:
         gaps.append("evolution_hypotheses_missing")
     gaps.extend(_hypothesis_ref_gaps(root, hypotheses))
     gaps.extend(_entry_ref_gaps(root, ledger["entries"]))
+    gaps.extend(selection_ref_gaps(root, ledger))
     if ledger.get("parse_error"):
         gaps.append("evolution_ledger_invalid_toml")
     active = [item for item in hypotheses if item.get("state") in {"active", "experimenting"}]
+    selection_data = selection_summary(ledger)
     return {
         "ok": not gaps,
         "active_count": len(active),
         "required_gaps": gaps,
         "ledger": ledger,
+        "selection": selection_data,
     }
 
 
@@ -295,9 +305,11 @@ def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
 
 def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
     gaps: list[str] = []
-    for field in ("id", "state", "owner", "objective", "claim_id"):
-        if not campaign[field]:
-            gaps.append(f"campaign_{field}_missing:{campaign['id']}")
+    gaps.extend(
+        f"campaign_{field}_missing:{campaign['id']}"
+        for field in ("id", "state", "owner", "objective", "claim_id")
+        if not campaign[field]
+    )
     steps = campaign["steps"]
     step_by_id = {step["id"]: step for step in steps if step["id"]}
     if len(step_by_id) != len([step for step in steps if step["id"]]):
@@ -351,7 +363,39 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
 
 
 def evolution_candidates(root: Path) -> dict[str, object]:
-    candidates = [
+    """Return candidate mechanisms from the evolution ledger plus audit-signal fallbacks."""
+    ledger = evolution_ledger(root)
+    ledger_candidates: list[dict[str, Any]] = []
+    for candidate_set in _list_items(ledger.get("candidate_sets")):
+        for candidate in _list_items(candidate_set.get("candidates")):
+            ledger_candidates.append(
+                {
+                    "id": str(candidate.get("id") or ""),
+                    "candidate_set": str(candidate_set.get("id") or ""),
+                    "campaign": str(candidate_set.get("question") or ""),
+                    "state": str(candidate_set.get("state") or ""),
+                    "owner": str(candidate_set.get("owner") or ""),
+                    "claim": str(candidate.get("summary") or ""),
+                    "challenge": str(candidate.get("risk") or ""),
+                    "transition": str(candidate.get("authority_fit") or ""),
+                    "proof_refs": [str(value) for value in candidate.get("evidence_refs", [])],
+                    "review_refs": [],
+                    "decision_refs": [
+                        str(value) for value in candidate_set.get("decision_refs", [])
+                    ],
+                    "retirement_conditions": [str(candidate_set.get("retirement_policy") or "")],
+                }
+            )
+    candidates = ledger_candidates + _audit_signal_candidates()
+    return {
+        "ok": True,
+        "candidate_set_count": len(_list_items(ledger.get("candidate_sets"))),
+        "candidates": candidates,
+    }
+
+
+def _audit_signal_candidates() -> list[dict[str, Any]]:
+    return [
         {
             "id": "release-readiness-ratchet",
             "campaign": "ethos-release-hardening",
@@ -381,4 +425,9 @@ def evolution_candidates(root: Path) -> dict[str, object]:
             ],
         },
     ]
-    return {"ok": True, "candidates": candidates}
+
+
+def _list_items(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]

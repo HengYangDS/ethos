@@ -24,6 +24,7 @@ from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.workflow.runtime import workflow_runtime_report
 from ethos_core.contracts.context.projection import context_projection_contract
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
+    workflow_runtime = workflow_runtime_report(repo)
     audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
     product_profile = audit_profile == "product"
     playbooks = playbooks_report(repo, mode="v2-strict")
@@ -93,7 +95,9 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         and not context_projection["can_satisfy_proof"]
     )
     scores = (
-        reporting_scoring.adopter_scores(audit, projection, context_projection_score, playbooks)
+        reporting_scoring.adopter_scores(
+            audit, projection, context_projection_score, playbooks, workflow_runtime
+        )
         if not product_profile
         else reporting_scoring.product_scores(
             audit,
@@ -108,6 +112,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             adoption_scaffold,
             parity_ledger,
             context_projection_score,
+            workflow_runtime,
         )
     )
     nominal_score = sum(scores.values())
@@ -118,6 +123,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             result_required_gaps
             + tuple(cast("list[str]", claim_report["required_gaps"]))
             + tuple(cast("list[str]", hard_quality_floor["required_gaps"]))
+            + tuple(cast("list[str]", workflow_runtime["required_gaps"]))
         )
     generic_parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
     adopter_parity_pending_count = len(
@@ -207,6 +213,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "evolution": evolution,
             "signature_policy": signature,
             "playbooks": playbooks,
+            "workflow_runtime": workflow_runtime,
             "adoption_scaffold": adoption_scaffold,
             "hard_quality_floor": hard_quality_floor,
             "gap_layers": report_gap_layers,

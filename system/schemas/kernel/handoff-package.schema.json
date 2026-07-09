@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/handoff-package.schema.json",
+  "title": "ETHOS Handoff Package",
+  "type": "object",
+  "required": [
+    "id",
+    "target_actor",
+    "intended_use",
+    "source_refs",
+    "source_digests",
+    "freshness",
+    "truth_boundary"
+  ],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "target_actor": {"type": "string", "minLength": 1},
+    "intended_use": {"type": "string", "minLength": 1},
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "source_digests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+          },
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "proof_refs": {"type": "array", "items": {"type": "string"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "freshness": {"enum": ["fresh", "stale", "unverified"]},
+    "truth_boundary": {"const": "context_until_promoted"}
+  },
+  "additionalProperties": false
+}

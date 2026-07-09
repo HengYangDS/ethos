@@ -23,6 +23,7 @@ def adopter_scores(
     projection: dict[str, object],
     context_projection_score: int,
     playbooks: dict[str, object],
+    workflow_runtime: dict[str, object] | None = None,
 ) -> dict[str, int]:
     audit_adopter = cast("dict[str, object]", audit["adopter"])
     adopter = cast(
@@ -38,8 +39,18 @@ def adopter_scores(
         "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
         "context_projection": context_projection_score,
         "playbooks": int(bool(playbooks["ok"])),
+        "workflow_runtime": int(_workflow_runtime_score(workflow_runtime)),
         "parity_ledger": int(bool(parity_ledger_report()["ok"])),
     }
+
+
+def _workflow_runtime_score(workflow_runtime: dict[str, object] | None) -> bool:
+    if workflow_runtime is None:
+        return True
+    gaps = cast("list[object]", workflow_runtime.get("required_gaps", []))
+    return bool(workflow_runtime.get("ok")) or gaps == [
+        "workflow_contract_unavailable:FileNotFoundError"
+    ]
 
 
 def product_scores(
@@ -55,6 +66,7 @@ def product_scores(
     adoption_scaffold: dict[str, object],
     parity_ledger: dict[str, object],
     context_projection_score: int,
+    workflow_runtime: dict[str, object] | None = None,
 ) -> dict[str, int]:
     package_ontology = cast("dict[str, object]", audit["package_ontology"])
     return {
@@ -77,6 +89,7 @@ def product_scores(
         "signature_policy": int(bool(signature["ok"])),
         "openspec": int(bool(cast("dict[str, object]", audit["openspec"])["ok"])),
         "playbooks": int(bool(playbooks["ok"])),
+        "workflow_runtime": int(bool((workflow_runtime or {"ok": True})["ok"])),
         "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
         "parity_ledger": int(bool(parity_ledger["ok"])),
     }

@@ -30,6 +30,7 @@ Start with [Start](start/quickstart.md), then read
 [Config Boundary Model](governance/config-boundary-model.md),
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
+[Workflow Runtime](architecture/workflow-runtime.md),
 [Action Graph](architecture/action-graph.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
@@ -82,6 +83,7 @@ or maintainer break-glass evidence.
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
 - Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
+- Workflow runtime: [Workflow Runtime](architecture/workflow-runtime.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)

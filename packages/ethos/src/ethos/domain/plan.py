@@ -11,8 +11,10 @@ from __future__ import annotations
 import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
+import ethos.repository.workflow.runtime as workflow_runtime
 from ethos.adapters.config import rules_config
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
@@ -130,6 +132,11 @@ def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[st
                 }
             )
     return matches
+
+
+def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
+    """Return workflow runtime projection for plan-stage callers."""
+    return workflow_runtime.workflow_runtime_report(root, changed_paths=changed_paths)
 
 
 def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:

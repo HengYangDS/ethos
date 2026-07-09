@@ -6,6 +6,7 @@ from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_candidates
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.repository.adoption.evolution import evolution_report
+from ethos.repository.adoption.practice.selection import selection_ref_gaps
 
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:
@@ -309,3 +310,442 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert first_step["closeout"]["state"] in {"planned", "landed", "closed", "retired"}
     active_step = next(item for item in campaign["steps"] if item["state"] == "active")
     assert active_step["depends_on"] == ["openspec-archive-closeout"]
+
+
+def test_evolution_report_exposes_practice_selection_and_fate() -> None:
+    report = evolution_report(Path.cwd())
+
+    assert report["ok"] is True
+    selection = report["selection"]
+    assert selection["practice_claim_count"] >= 1
+    assert {item["id"] for item in selection["practice_claims"]} >= {
+        "workflow-runtime-trustworthy-practice-claim"
+    }
+    assert selection["candidate_set_count"] >= 1
+    assert selection["experiment_protocol_count"] >= 1
+    assert selection["evaluation_record_count"] >= 1
+    assert selection["supports_multi_candidate_selection"] is True
+    assert selection["supports_practice_lifecycle"] is True
+    assert "introduce" in selection["practice_change_kinds"]
+    ledger = report["ledger"]
+    assert {item["subject"] for item in ledger["practice_claims"]} >= {
+        "ethos:workflow-runtime-practice-evolution"
+    }
+    assert {item["commitment_effect"] for item in selection["practice_claims"]} >= {
+        "create_commitment"
+    }
+    selected = {
+        item["selected_candidate"]
+        for item in ledger["evaluation_records"]
+        if item.get("state") == "selected"
+    }
+    assert "ethos-native-runtime" in selected
+    candidate_ids = {
+        candidate["id"]
+        for candidate_set in ledger["candidate_sets"]
+        for candidate in candidate_set["candidates"]
+    }
+    assert {
+        "openspec-alone",
+        "comet-direct",
+        "spec-kit-grammar",
+        "task-master-graph",
+        "fspec-scenario-coverage",
+        "method-pack-composition",
+        "ethos-native-runtime",
+    } <= candidate_ids
+
+
+def test_evolution_report_distinguishes_introduction_from_supersession(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "intro-hypothesis"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "A new practice may be introduced without an incumbent."
+challenge = "Calling every introduction supersession hides the boundary model."
+transition = "shape -> canonize"
+proof_refs = ["ethos status --json"]
+review_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["practice fate is explicit"]
+
+[[practice_change]]
+id = "new-practice"
+state = "active"
+change_kind = "introduce"
+commitment_effect = "create_commitment"
+practice = "new bounded practice"
+carrier_kind = "workflow"
+summary = "Introduces a new practice without replacing an incumbent."
+boundary = "No prior practice owns this boundary."
+evidence_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    report = evolution_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["selection"]["practice_change_kinds"] == ["introduce"]
+
+
+def test_evolution_report_requires_practice_claim_links(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "claim-hypothesis"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "A practice claim must bind its proof path."
+challenge = "Unlinked mechanism records are not repository truth."
+transition = "shape -> canonize"
+proof_refs = ["ethos status --json"]
+review_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["practice claim links resolve"]
+
+[[practice_claim]]
+id = "root-practice"
+state = "evaluated"
+owner = "ethos-maintainers"
+subject = "ethos:sample-practice"
+question = "Which practice deserves trust?"
+claim = "A practice is trustworthy only through bounded evidence."
+boundary = "The commitment is the root object; mechanism records are subordinate."
+incumbent_relation = "No incumbent exists for this sample boundary."
+falsifiers = ["the selected candidate cannot bind evidence"]
+candidate_set = "missing-candidate-set"
+experiment_protocol = "missing-experiment"
+evaluation_record = "missing-evaluation"
+commitment_effect = "invalid_effect"
+practice_changes = ["missing-practice-change"]
+commitment_targets = ["docs/missing-contract.md"]
+evidence_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    report = evolution_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        "practice_claim_commitment_effect_invalid:root-practice:invalid_effect",
+        "practice_claim_candidate_set_missing:root-practice:missing-candidate-set",
+        "practice_claim_experiment_protocol_missing:root-practice:missing-experiment",
+        "practice_claim_evaluation_record_missing:root-practice:missing-evaluation",
+        "practice_claim_practice_change_missing:root-practice:missing-practice-change",
+        "practice_claim_commitment_ref_missing:root-practice:docs/missing-contract.md",
+    ]
+
+
+def test_evolution_report_rejects_introduction_with_incumbents(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "bad-intro-hypothesis"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Introductions must not pretend to replace incumbents."
+challenge = "Incumbents imply refine, supersede, or retire analysis."
+transition = "shape -> canonize"
+proof_refs = ["ethos status --json"]
+review_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["practice fate is explicit"]
+
+[[practice_change]]
+id = "bad-introduction"
+state = "active"
+change_kind = "introduce"
+commitment_effect = "create_commitment"
+practice = "new bounded practice"
+carrier_kind = "workflow"
+summary = "Claims introduction while naming an incumbent."
+boundary = "Prior practice exists."
+incumbents = ["old-practice"]
+evidence_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    report = evolution_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["practice_change_introduce_has_incumbents:bad-introduction"]
+
+
+def test_evolution_report_rejects_practice_change_commitment_effect_mismatch(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
+    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
+    ledger = tmp_path / "evolution" / "ledger.toml"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "effect-hypothesis"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "Practice fate must match commitment effect."
+challenge = "Supersession that creates instead of replaces hides commitment semantics."
+transition = "shape -> canonize"
+proof_refs = ["ethos status --json"]
+review_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["practice fate is explicit"]
+
+[[practice_change]]
+id = "bad-effect"
+state = "active"
+change_kind = "supersede"
+commitment_effect = "create_commitment"
+practice = "new bounded practice"
+carrier_kind = "workflow"
+summary = "Claims supersession while creating instead of replacing."
+boundary = "Prior practice exists."
+incumbents = ["old-practice"]
+retirement_conditions = ["old practice is migrated"]
+evidence_refs = ["docs/research.md"]
+decision_refs = ["docs/decision.md"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    report = evolution_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        "practice_change_commitment_effect_mismatch:bad-effect:supersede:"
+        "create_commitment:replace_commitment"
+    ]
+
+
+def test_selection_ref_gaps_cover_missing_practice_claim_and_candidate_set_fields(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
+    gaps = selection_ref_gaps(
+        tmp_path,
+        {
+            "practice_claims": [
+                {
+                    "id": "fieldless-claim",
+                    "commitment_targets": [],
+                    "evidence_refs": "docs/research.md",
+                    "decision_refs": ["docs/missing-decision.md"],
+                }
+            ],
+            "candidate_sets": [
+                {
+                    "id": "thin-candidates",
+                    "selection_policy": "manual",
+                    "decision_refs": "docs/research.md",
+                    "candidates": [
+                        {
+                            "id": "candidate-a",
+                            "hypothesis_ref": "missing-hypothesis",
+                            "evidence_refs": ["docs/missing-evidence.md"],
+                        }
+                    ],
+                }
+            ],
+            "hypotheses": [],
+            "experiment_protocols": [],
+            "evaluation_records": [],
+            "practice_changes": [],
+        },
+    )
+
+    assert {
+        "practice_claim_owner_missing:fieldless-claim",
+        "practice_claim_commitment_effect_missing:fieldless-claim",
+        "practice_claim_practice_changes_missing:fieldless-claim",
+        "practice_claim_commitment_refs_missing:fieldless-claim",
+        "practice_claim_evidence_refs_invalid:fieldless-claim",
+        "practice_claim_decision_ref_missing:fieldless-claim:docs/missing-decision.md",
+        "candidate_set_too_small:thin-candidates",
+        "candidate_set_selection_policy_invalid:thin-candidates",
+        "candidate_set_decision_refs_invalid:thin-candidates",
+        "candidate_hypothesis_ref_missing:thin-candidates:candidate-a:missing-hypothesis",
+        "candidate_evidence_ref_missing:thin-candidates:candidate-a:docs/missing-evidence.md",
+    } <= set(gaps)
+
+
+def test_selection_ref_gaps_cover_experiment_evaluation_and_practice_change_edges(
+    tmp_path: Path,
+) -> None:
+    gaps = selection_ref_gaps(
+        tmp_path,
+        {
+            "hypotheses": [{"id": "known-hypothesis"}],
+            "candidate_sets": [{"id": "known-candidates", "candidates": [{}, {}]}],
+            "experiment_protocols": [
+                {
+                    "id": "bad-experiment",
+                    "candidate_set": "missing-candidates",
+                    "hypothesis_refs": ["missing-hypothesis"],
+                    "evidence_refs": [],
+                }
+            ],
+            "evaluation_records": [
+                {
+                    "id": "bad-evaluation",
+                    "candidate_set": "missing-candidates",
+                    "experiment_protocol": "missing-experiment",
+                    "selected_candidate": "same",
+                    "rejected_candidates": ["same"],
+                    "evidence_refs": [],
+                    "decision_refs": [],
+                }
+                ,
+                {
+                    "id": "unselected-evaluation",
+                    "candidate_set": "known-candidates",
+                    "experiment_protocol": "bad-experiment",
+                    "metric_results": [],
+                    "evidence_refs": [],
+                    "decision_refs": [],
+                },
+            ],
+            "practice_changes": [
+                {
+                    "id": "bad-retirement",
+                    "change_kind": "retire",
+                    "commitment_effect": "unknown_effect",
+                    "evidence_refs": [],
+                    "decision_refs": [],
+                },
+                {
+                    "id": "missing-effect",
+                    "change_kind": "refine",
+                    "practice": "practice",
+                    "carrier_kind": "workflow",
+                    "summary": "summary",
+                    "boundary": "boundary",
+                    "evidence_refs": [],
+                    "decision_refs": [],
+                },
+                {
+                    "id": "unknown-effect",
+                    "change_kind": "unknown",
+                    "commitment_effect": "unknown_effect",
+                    "practice": "practice",
+                    "carrier_kind": "workflow",
+                    "summary": "summary",
+                    "boundary": "boundary",
+                    "evidence_refs": [],
+                    "decision_refs": [],
+                },
+            ],
+            "practice_claims": [],
+        },
+    )
+
+    assert {
+        "experiment_candidate_set_missing:bad-experiment:missing-candidates",
+        "experiment_hypothesis_ref_missing:bad-experiment:missing-hypothesis",
+        "experiment_variables_missing:bad-experiment",
+        "experiment_evidence_refs_missing:bad-experiment",
+        "evaluation_candidate_set_missing:bad-evaluation:missing-candidates",
+        "evaluation_experiment_protocol_missing:bad-evaluation:missing-experiment",
+        "evaluation_selected_candidate_missing:unselected-evaluation",
+        "evaluation_rejected_candidates_missing:unselected-evaluation",
+        "evaluation_selected_candidate_also_rejected:bad-evaluation:same",
+        "evaluation_metric_results_missing:bad-evaluation",
+        "evaluation_evidence_refs_missing:bad-evaluation",
+        "practice_change_practice_missing:bad-retirement",
+        "practice_change_commitment_effect_mismatch:bad-retirement:retire:unknown_effect:"
+        "remove_commitment",
+        "practice_change_incumbents_missing:bad-retirement",
+        "practice_change_retirement_conditions_missing:bad-retirement",
+        "practice_change_evidence_refs_missing:bad-retirement",
+        "practice_change_commitment_effect_missing:missing-effect",
+        "practice_change_commitment_effect_invalid:unknown-effect:unknown_effect",
+    } <= set(gaps)
+
+
+def test_selection_ref_gaps_reject_absolute_and_url_path_refs(tmp_path: Path) -> None:
+    gaps = selection_ref_gaps(
+        tmp_path,
+        {
+            "hypotheses": [],
+            "practice_claims": [
+                {
+                    "id": "external-refs",
+                    "owner": "owner",
+                    "subject": "subject",
+                    "question": "question",
+                    "claim": "claim",
+                    "boundary": "boundary",
+                    "incumbent_relation": "none",
+                    "falsifiers": ["falsifier"],
+                    "commitment_effect": "create_commitment",
+                    "practice_changes": ["known-change"],
+                    "commitment_targets": ["/tmp/contract.md"],
+                    "evidence_refs": ["https://example.test/evidence.md"],
+                    "decision_refs": [""],
+                }
+            ],
+            "practice_changes": [{"id": "known-change"}],
+            "candidate_sets": [],
+            "experiment_protocols": [],
+            "evaluation_records": [],
+        },
+    )
+
+    assert {
+        "practice_claim_commitment_ref_missing:external-refs:/tmp/contract.md",
+        "practice_claim_evidence_ref_missing:external-refs:https://example.test/evidence.md",
+        "practice_claim_decision_ref_missing:external-refs:",
+    } <= set(gaps)
+
+
+def test_evolution_candidates_ignore_non_list_candidate_sets(tmp_path: Path) -> None:
+    (tmp_path / "evolution").mkdir()
+    (tmp_path / "evolution" / "ledger.toml").write_text(
+        """
+schema = "system/schemas/kernel/evolution-ledger.schema.json"
+candidate_set = "not-a-list"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    candidates = evolution_candidates(tmp_path)
+
+    assert candidates["ok"] is True
+    assert candidates["candidate_set_count"] == 0

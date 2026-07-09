@@ -481,3 +481,122 @@ command = ["scripts/audit.py", "--apply"]
         "skill_package_capability_readonly_mutating:sample-skill:sample.mutating"
         in result["required_gaps"]
     )
+
+
+def test_skill_package_manifest_accepts_eval_metadata(tmp_path: Path) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    (package_dir / "package.toml").write_text(
+        f"""
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[eval]
+treatment_id = "runtime-v1"
+metrics = ["pass_at_k", "instability_gap"]
+pass_at_k = 0.8
+instability_gap = 0.1
+evidence_refs = ["evidence/chronicle/sample/2026-07-09.md"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = validate_skill_package_manifest(tmp_path, ".agents/skills/sample-skill/package.toml")
+
+    assert result["ok"] is True
+    assert result["eval"]["truth_boundary"] == "skill_metadata_only"
+    assert result["eval"]["metrics"] == ["pass_at_k", "instability_gap"]
+
+
+def test_skill_package_manifest_rejects_invalid_eval_metadata(tmp_path: Path) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    (package_dir / "package.toml").write_text(
+        f"""
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[eval]
+metrics = ["bad_metric"]
+pass_at_k = 1.5
+evidence_refs = []
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = validate_skill_package_manifest(tmp_path, ".agents/skills/sample-skill/package.toml")
+
+    assert result["ok"] is False
+    assert "skill_package_eval_treatment_missing:sample-skill" in result["required_gaps"]
+    assert "skill_package_eval_metric_unknown:sample-skill:bad_metric" in result["required_gaps"]
+    assert (
+        "skill_package_eval_metric_out_of_bounds:sample-skill:pass_at_k" in result["required_gaps"]
+    )
+    assert "skill_package_eval_evidence_refs_missing:sample-skill" in result["required_gaps"]
+
+
+def test_skill_package_manifest_rejects_non_table_and_empty_eval_metadata(
+    tmp_path: Path,
+) -> None:
+    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
+    (package_dir / "package.toml").write_text(
+        f"""
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+eval = "not-a-table"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    non_table = validate_skill_package_manifest(
+        tmp_path, ".agents/skills/sample-skill/package.toml"
+    )
+
+    assert non_table["ok"] is False
+    assert "skill_package_eval_invalid:sample-skill" in non_table["required_gaps"]
+
+    (package_dir / "package.toml").write_text(
+        f"""
+schema_version = 2
+id = "sample-skill"
+entrypoint = "SKILL.md"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+expected_digest = "{digest}"
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[eval]
+treatment_id = "runtime-v1"
+evidence_refs = ["evidence/chronicle/sample/2026-07-09.md"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    missing_metrics = validate_skill_package_manifest(
+        tmp_path, ".agents/skills/sample-skill/package.toml"
+    )
+
+    assert missing_metrics["ok"] is False
+    assert "skill_package_eval_metrics_missing:sample-skill" in missing_metrics["required_gaps"]

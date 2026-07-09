@@ -8,6 +8,7 @@ from ethos.domain.plan import contract_profile_matches
 from ethos.domain.plan import graph_for_paths
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.context import context_for_root
+from ethos.repository.workflow.runtime import workflow_runtime_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
@@ -31,6 +32,7 @@ def plan(
     graph = graph_for_paths(paths)
     matched_rules, required_gates = matching_rule_gates(repo, paths)
     domain_contracts = contract_profile_matches(repo, paths)
+    workflow_runtime = workflow_runtime_report(repo, changed_paths=paths)
     result = EthosResult(
         command="plan",
         ok=True,
@@ -49,6 +51,7 @@ def plan(
             "required_gates": required_gates,
             "domain_contracts": domain_contracts,
             "action_graph": graph.to_dict(),
+            "workflow_runtime": workflow_runtime,
         },
     )
     emit(result, json_output=json_output, enforce=False)

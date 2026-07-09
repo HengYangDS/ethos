@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import TypedDict
 from typing import cast
 
@@ -14,9 +17,53 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 PARITY_EVIDENCE_ROOT = Path("evidence/parity")
 PARITY_SHADOW_SUFFIX = "-shadow.json"
 MAX_PROJECTION_REBASE_STEPS = 64
+
+
+def _repo_root_adapter(root: Path) -> Path:
+    return repo_root(root)
+
+
+def _candidate_path_adapter(repo: Path, branch: str) -> Path:
+    return default_candidate_path(repo, branch)
+
+
+def _branch_role_policy_adapter(root: Path) -> Any:
+    return load_branch_role_policy(root)
+
+
+def _workspace_status_adapter(root: Path) -> dict[str, object]:
+    return workspace_status(root)
+
+
+def _changed_paths_adapter(root: Path) -> list[str]:
+    return changed_paths(root)
+
+
+def _is_ancestor_adapter(root: Path, ancestor: str, descendant: str) -> bool:
+    return is_ancestor(root, ancestor, descendant)
+
+
+def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
+    return run_git(root, *args, check=check)
+
+
+@dataclass(frozen=True)
+class LaneRefreshRuntime:
+    """Explicit dependencies used for candidate and Work Lane base refresh."""
+
+    repo_root: Callable[[Path], Path] = _repo_root_adapter
+    default_candidate_path: Callable[[Path, str], Path] = _candidate_path_adapter
+    load_branch_role_policy: Callable[[Path], Any] = _branch_role_policy_adapter
+    workspace_status: Callable[[Path], dict[str, object]] = _workspace_status_adapter
+    changed_paths: Callable[[Path], list[str]] = _changed_paths_adapter
+    is_ancestor: Callable[[Path, str, str], bool] = _is_ancestor_adapter
+    run_git: Callable[..., Any] = _run_git_adapter
 
 
 class _ProjectionResolution(TypedDict):
@@ -78,12 +125,16 @@ def bootstrap_candidate(
     path: Path | None = None,
     expect_head: str | None = None,
     apply: bool = False,
+    runtime: LaneRefreshRuntime | None = None,
 ) -> dict[str, object]:
-    repo = repo_root(root)
-    policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
-    current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (path or default_candidate_path(repo, policy.candidate_branch)).resolve()
+    active_runtime = runtime or LaneRefreshRuntime()
+    repo = active_runtime.repo_root(root)
+    policy = active_runtime.load_branch_role_policy(repo)
+    status = active_runtime.workspace_status(repo)
+    current_head = active_runtime.run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    target = (
+        path or active_runtime.default_candidate_path(repo, policy.candidate_branch)
+    ).resolve()
     gaps: list[str] = []
     if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
         gaps.append("candidate_bootstrap_requires_clean_accepted_root")
@@ -127,7 +178,9 @@ def bootstrap_candidate(
             "required_gaps": ["candidate_worktree_path_exists"],
         }
     if not candidate["exists"]:
-        completed = run_git(repo, "branch", policy.candidate_branch, current_head, check=False)
+        completed = active_runtime.run_git(
+            repo, "branch", policy.candidate_branch, current_head, check=False
+        )
         if completed.returncode != 0:
             return {
                 "ok": False,
@@ -138,7 +191,7 @@ def bootstrap_candidate(
                 "required_gaps": ["candidate_bootstrap_failed"],
                 "stderr": completed.stderr.strip(),
             }
-    completed = run_git(
+    completed = active_runtime.run_git(
         repo,
         "worktree",
         "add",
@@ -179,12 +232,18 @@ def _apply_gaps(
     return gaps
 
 
-def _candidate_worktree_gaps(candidate: dict[str, object], candidate_path: str) -> list[str]:
+def _candidate_worktree_gaps(
+    candidate: dict[str, object],
+    candidate_path: str,
+    *,
+    runtime: LaneRefreshRuntime | None = None,
+) -> list[str]:
+    active_runtime = runtime or LaneRefreshRuntime()
     if not candidate["exists"]:
         return ["candidate_branch_missing"]
     if not candidate["worktree_exists"]:
         return ["candidate_worktree_missing"]
-    if changed_paths(Path(candidate_path)):
+    if active_runtime.changed_paths(Path(candidate_path)):
         return ["candidate_worktree_dirty"]
     return []
 
@@ -237,11 +296,13 @@ def refresh_candidate_from_accepted(
     apply: bool = False,
     authorized: bool = False,
     expect_head: str | None = None,
+    runtime: LaneRefreshRuntime | None = None,
 ) -> dict[str, object]:
-    repo = repo_root(root)
-    policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
-    current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    active_runtime = runtime or LaneRefreshRuntime()
+    repo = active_runtime.repo_root(root)
+    policy = active_runtime.load_branch_role_policy(repo)
+    status = active_runtime.workspace_status(repo)
+    current_head = active_runtime.run_git(repo, "rev-parse", "HEAD").stdout.strip()
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
     candidate_path = str(candidate.get("worktree_path") or "")
@@ -250,7 +311,7 @@ def refresh_candidate_from_accepted(
         gaps.append("accepted_root_required")
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
-    gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
+    gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
     gaps.extend(
         _apply_gaps(
             apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
@@ -292,7 +353,9 @@ def refresh_candidate_from_accepted(
                 "required_gaps": [],
             }
         )
-    completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
+    completed = active_runtime.run_git(
+        Path(candidate_path), "reset", "--hard", current_head, check=False
+    )
     if completed.returncode != 0:
         return _candidate_report(
             {
@@ -319,16 +382,21 @@ def refresh_candidate_from_accepted(
     )
 
 
-def _resolve_projection_only_rebase_conflict(root: Path) -> _ProjectionResolution:
-    paths = _unmerged_paths(root)
+def _resolve_projection_only_rebase_conflict(
+    root: Path,
+    *,
+    runtime: LaneRefreshRuntime | None = None,
+) -> _ProjectionResolution:
+    active_runtime = runtime or LaneRefreshRuntime()
+    paths = _unmerged_paths(root, runtime=active_runtime)
     adopters = [_parity_adopter(path) for path in paths]
     result = _projection_resolution(ok=False)
     if paths and all(adopters):
-        checkout = run_git(root, "checkout", "--ours", "--", *paths, check=False)
+        checkout = active_runtime.run_git(root, "checkout", "--ours", "--", *paths, check=False)
         if checkout.returncode != 0:
             result = _projection_resolution(ok=False, paths=paths)
         else:
-            added = run_git(root, "add", *paths, check=False)
+            added = active_runtime.run_git(root, "add", *paths, check=False)
             if added.returncode != 0:
                 result = _projection_resolution(ok=False, paths=paths)
             else:
@@ -349,8 +417,15 @@ def _resolve_projection_only_rebase_conflict(root: Path) -> _ProjectionResolutio
     return result
 
 
-def _unmerged_paths(root: Path) -> list[str]:
-    completed = run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
+def _unmerged_paths(
+    root: Path,
+    *,
+    runtime: LaneRefreshRuntime | None = None,
+) -> list[str]:
+    active_runtime = runtime or LaneRefreshRuntime()
+    completed = active_runtime.run_git(
+        root, "diff", "--name-only", "--diff-filter=U", check=False
+    )
     if completed.returncode != 0:
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
@@ -376,7 +451,13 @@ def _empty_projection_patch(stderr: str) -> bool:
     )
 
 
-def _resolve_projection_rebase(root: Path, initial: object) -> _ProjectionRebaseResolution:
+def _resolve_projection_rebase(
+    root: Path,
+    initial: object,
+    *,
+    runtime: LaneRefreshRuntime | None = None,
+) -> _ProjectionRebaseResolution:
+    active_runtime = runtime or LaneRefreshRuntime()
     paths: list[str] = []
     gaps: list[str] = []
     next_actions: list[str] = []
@@ -390,15 +471,19 @@ def _resolve_projection_rebase(root: Path, initial: object) -> _ProjectionRebase
                 next_actions=next_actions,
                 stderr="",
             )
-        projection_resolution = _resolve_projection_only_rebase_conflict(root)
+        projection_resolution = _resolve_projection_only_rebase_conflict(
+            root, runtime=active_runtime
+        )
         if projection_resolution["ok"]:
             _append_unique(paths, projection_resolution["paths"])
             _append_unique(gaps, projection_resolution["gaps"])
             _append_unique(next_actions, projection_resolution["next_actions"])
-            completed = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
+            completed = active_runtime.run_git(
+                root, "-c", "core.editor=true", "rebase", "--continue", check=False
+            )
             continue
         if paths and _empty_projection_patch(str(getattr(completed, "stderr", ""))):
-            completed = run_git(root, "rebase", "--skip", check=False)
+            completed = active_runtime.run_git(root, "rebase", "--skip", check=False)
             continue
         return _projection_rebase_resolution(
             ok=False,
@@ -422,10 +507,12 @@ def refresh_work_lane_base(
     apply: bool = False,
     authorized: bool = False,
     expect_head: str | None = None,
+    runtime: LaneRefreshRuntime | None = None,
 ) -> dict[str, object]:
-    policy = load_branch_role_policy(root)
-    status = workspace_status(root)
-    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    active_runtime = runtime or LaneRefreshRuntime()
+    policy = active_runtime.load_branch_role_policy(root)
+    status = active_runtime.workspace_status(root)
+    current_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
     branch = str(status.get("branch") or "")
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
@@ -435,7 +522,7 @@ def refresh_work_lane_base(
         gaps.append("protected_root_mutation")
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
-    gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
+    gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
     gaps.extend(
         _apply_gaps(
             apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
@@ -454,7 +541,7 @@ def refresh_work_lane_base(
                 "required_gaps": gaps,
             }
         )
-    if is_ancestor(root, candidate_head, current_head):
+    if active_runtime.is_ancestor(root, candidate_head, current_head):
         return _work_base_report(
             {
                 "ok": True,
@@ -480,10 +567,12 @@ def refresh_work_lane_base(
                 "required_gaps": [],
             }
         )
-    completed = run_git(root, "rebase", policy.candidate_branch, check=False)
-    projection_resolution = _resolve_projection_rebase(root, completed)
+    completed = active_runtime.run_git(root, "rebase", policy.candidate_branch, check=False)
+    projection_resolution = _resolve_projection_rebase(
+        root, completed, runtime=active_runtime
+    )
     if completed.returncode != 0 and projection_resolution["ok"]:
-        refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+        refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
         return _work_base_report(
             {
                 "ok": True,
@@ -503,7 +592,7 @@ def refresh_work_lane_base(
             }
         )
     if completed.returncode != 0:
-        run_git(root, "rebase", "--abort", check=False)
+        active_runtime.run_git(root, "rebase", "--abort", check=False)
         return _work_base_report(
             {
                 "ok": False,
@@ -517,7 +606,7 @@ def refresh_work_lane_base(
             },
             stderr=completed.stderr.strip(),
         )
-    refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
     return _work_base_report(
         {
             "ok": True,

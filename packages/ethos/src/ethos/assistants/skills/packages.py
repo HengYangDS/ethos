@@ -29,6 +29,7 @@ class SkillPackageResult:
     expected_digest: str = ""
     required_gaps: tuple[str, ...] = ()
     capabilities: tuple[dict[str, Any], ...] = ()
+    eval_metadata: dict[str, Any] | None = None
     files: tuple[str, ...] = ()
     entrypoint: str = ""
     required_sections: tuple[str, ...] = ()
@@ -107,6 +108,8 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         included_files=frozenset(safe_include),
     )
     gaps.extend(capability_gaps)
+    eval_gaps, eval_metadata = _eval_metadata(skill_id, manifest.get("eval"))
+    gaps.extend(eval_gaps)
     return _manifest_result(
         SkillPackageResult(
             skill_id=skill_id,
@@ -115,6 +118,7 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
             expected_digest=str(manifest.get("expected_digest") or ""),
             required_gaps=tuple(gaps),
             capabilities=tuple(capabilities),
+            eval_metadata=eval_metadata,
             files=tuple(safe_include),
             entrypoint=entrypoint,
             required_sections=tuple(required_sections),
@@ -199,6 +203,7 @@ def _manifest_result(result: SkillPackageResult) -> dict[str, Any]:
         "files": list(result.files),
         "required_sections": list(result.required_sections),
         "capabilities": list(result.capabilities),
+        "eval": result.eval_metadata or {},
         "required_gaps": gaps,
     }
 
@@ -309,3 +314,43 @@ def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if str(item)]
+
+
+_ALLOWED_EVAL_METRICS = {"pass_at_k", "pass_power_k", "weighted_score", "instability_gap"}
+
+
+def _eval_metadata(skill_id: str, value: Any) -> tuple[list[str], dict[str, Any]]:
+    if value is None:
+        return [], {}
+    if not isinstance(value, dict):
+        return [f"skill_package_eval_invalid:{skill_id}"], {}
+    gaps: list[str] = []
+    treatment_id = str(value.get("treatment_id") or "")
+    if not treatment_id:
+        gaps.append(f"skill_package_eval_treatment_missing:{skill_id}")
+    metrics = _string_list(value.get("metrics"))
+    if not metrics:
+        gaps.append(f"skill_package_eval_metrics_missing:{skill_id}")
+    for metric in metrics:
+        if metric not in _ALLOWED_EVAL_METRICS:
+            gaps.append(f"skill_package_eval_metric_unknown:{skill_id}:{metric}")
+    for key in _ALLOWED_EVAL_METRICS:
+        if key in value and not _unit_interval(value.get(key)):
+            gaps.append(f"skill_package_eval_metric_out_of_bounds:{skill_id}:{key}")
+    evidence_refs = _string_list(value.get("evidence_refs"))
+    if not evidence_refs:
+        gaps.append(f"skill_package_eval_evidence_refs_missing:{skill_id}")
+    return gaps, {
+        "treatment_id": treatment_id,
+        "metrics": metrics,
+        "pass_at_k": value.get("pass_at_k"),
+        "pass_power_k": value.get("pass_power_k"),
+        "weighted_score": value.get("weighted_score"),
+        "instability_gap": value.get("instability_gap"),
+        "evidence_refs": evidence_refs,
+        "truth_boundary": "skill_metadata_only",
+    }
+
+
+def _unit_interval(value: Any) -> bool:
+    return isinstance(value, int | float) and 0 <= float(value) <= 1

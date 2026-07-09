@@ -136,6 +136,20 @@ def test_bootstrap_candidate_skips_branch_create_when_branch_exists(tmp_path: Pa
     assert result["state"] == "bootstrapped"
 
 
+def test_lane_refresh_runtime_default_adapters_cover_candidate_path_and_ancestor(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path / "acc")
+    _run_git(repo, "branch", "candidate/dev")
+
+    runtime = lanes_refresh.LaneRefreshRuntime()
+
+    assert runtime.default_candidate_path(repo, "candidate/dev") == repo.with_name(
+        "acc-candidate-dev"
+    )
+    assert runtime.is_ancestor(repo, _head(repo), _head(repo)) is True
+
+
 def test_refresh_candidate_from_accepted_reset_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

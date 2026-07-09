@@ -113,6 +113,13 @@ match_prefixes = [
   "guard_missing",
   "context_eval_suite_missing",
   "module_layout_",
+  "workflow_transition_",
+  "workflow_node_",
+  "workflow_guardrail_",
+  "workflow_runtime_",
+  "workflow_event_",
+  "workflow_eval_",
+  "workflow_evolution_",
 ]
 
 [[category]]
@@ -152,6 +159,7 @@ match_prefixes = [
   "external_not_default",
   "embedded_not_frozen",
   "shadow_required",
+  "campaign_",
 ]
 
 [[category]]

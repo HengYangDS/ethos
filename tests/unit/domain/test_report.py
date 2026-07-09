@@ -24,6 +24,10 @@ def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
     )
 
 
+def test_absent_workflow_runtime_is_profile_deferred_for_adopter_score() -> None:
+    assert reporting_scoring._workflow_runtime_score(None) is True
+
+
 def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:
     """Hard quality gaps should route to the narrowest available owner command."""
 
@@ -135,6 +139,9 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain, "workflow_runtime_report", lambda _repo: {"ok": True, "required_gaps": []}
+    )
     monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
         report_domain,
@@ -266,6 +273,9 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
     )
     monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain, "workflow_runtime_report", lambda _repo: {"ok": True, "required_gaps": []}
+    )
     monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
         report_domain,
@@ -681,3 +691,109 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
     assert adopter_call["current_target_head"] == "adopter-head"
     assert payload["summary"]["parity_pending_count"] == 0
     assert payload["data"]["parity"]["scope"]["domain_profile_parity_closed"] is True
+
+
+def test_product_scores_include_workflow_runtime() -> None:
+    scores = reporting_scoring.product_scores(
+        {
+            "package_ontology": {"ok": True, "adapter_missing": []},
+            "schemas": {"ok": True},
+            "openspec": {"ok": True},
+        },
+        {"ok": True},
+        {"ok": True},
+        {"ok": True},
+        {"truth": ASSISTANT_TRUTH_BOUNDARY},
+        {"ok": True},
+        {"ok": True},
+        {"ok": True},
+        {"ok": True},
+        {"ok": True},
+        {"ok": True},
+        1,
+        {"ok": True},
+    )
+
+    assert scores["workflow_runtime"] == 1
+
+
+def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(report_domain, "workspace_status", lambda _repo: {})
+    monkeypatch.setattr(
+        report_domain.status_domain,
+        "audit_for_root",
+        lambda _repo, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {"profile": "product"},
+            "package_ontology": {"ok": True, "adapter_missing": []},
+            "schemas": {"ok": True},
+            "openspec": {"ok": True, "advisory_gaps": []},
+        },
+    )
+    monkeypatch.setattr(report_domain, "docs_health_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "claims_report",
+        lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+    )
+    monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain, "projection_contract", lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY}
+    )
+    monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "playbooks_report",
+        lambda _repo, mode="v2-strict": {
+            "ok": True,
+            "mode": mode,
+            "required_gaps": [],
+            "advisory_gaps": [],
+            "v2_compliance": {"score": 1, "max_score": 1},
+        },
+    )
+    monkeypatch.setattr(report_domain, "adoption_scaffold_report", lambda: {"ok": True})
+    monkeypatch.setattr(
+        report_domain,
+        "parity_ledger_report",
+        lambda: {"ok": True, "summary": {"unclassified_count": 0}},
+    )
+    monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", lambda _repo: "head")
+    monkeypatch.setattr(
+        report_domain,
+        "parity_gaps_report",
+        lambda **_kwargs: {"ok": True, "required_gaps": [], "pending_packages": []},
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "context_projection_contract",
+        lambda: {
+            "authority": "projection",
+            "can_close_required_gaps": False,
+            "can_satisfy_proof": False,
+        },
+    )
+    monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
+    monkeypatch.setattr(
+        reporting_scoring,
+        "hard_quality_floor_report",
+        lambda _repo: {"ok": True, "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "standard_adapter_registry",
+        lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "workflow_runtime_report",
+        lambda _repo: {"ok": False, "required_gaps": ["workflow_runtime_public_commands_invalid"]},
+    )
+
+    payload = report_domain.scorecard_report(tmp_path)
+
+    assert payload["ok"] is False
+    assert "workflow_runtime_public_commands_invalid" in payload["required_gaps"]

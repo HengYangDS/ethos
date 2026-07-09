@@ -108,12 +108,20 @@ ETHOS is kernel-first. The product model is:
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
+The center is **governed commitment**: a bounded repository promise about a
+subject under an authority. ETHOS does not govern mechanisms for their own
+sake. It governs how a commitment is proposed, tested, admitted, changed,
+superseded, retired, or rejected. A workflow, framework, skill pack, task graph,
+scenario system, spec format, or method is only a vessel when it helps a
+commitment become clearer, better evidenced, safer to change, or ready to
+leave.
+
 - Authority: authority order, truth boundaries, product principles, and
   decision policy. North Star is a derived reader view, not the authority.
 - Subject: the governed object, such as a path, package, domain, surface,
   evidence set, or release target.
 - Commitment: the Subject's contracts, policies, specs, rules, promises, and
-  durable decisions.
+  durable decisions. A commitment is the thing that can become repository law.
 - Change: the lifecycle owner for planned, active, landed, superseded, or
   retired repository truth. Contract, IR, Transition, and Inscription are fields
   or phases inside Commitment and Change, not competing top-level owners.
@@ -126,6 +134,13 @@ Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 - Chronicle: judged execution and history index: what happened, which evidence
   was used, which decision was made, what was superseded, and how current truth
   changed.
+
+Practice claims belong under this chain. They are evolution carriers that ask
+whether a reusable way of working should create, compose with, refine,
+supersede, retire, or be rejected from the repository's commitments. The root
+question is therefore not "which mechanism should ETHOS add?" but "which
+commitment should survive evidence, and what should happen to the practices and
+carriers around it?"
 
 ## Governed Repository
 

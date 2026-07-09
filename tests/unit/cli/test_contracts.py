@@ -256,6 +256,8 @@ def test_plan_changed_returns_action_graph() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "plan"
     assert "action_graph" in payload["data"]
+    assert payload["data"]["workflow_runtime"]["kind"] == "workflow_runtime_read_model"
+    assert payload["data"]["workflow_runtime"]["truth_boundary"] == "derived_repository_projection"
 
 
 def test_plan_changed_maps_repository_rules_to_required_gates(tmp_path: Path) -> None:

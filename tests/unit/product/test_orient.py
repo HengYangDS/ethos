@@ -214,6 +214,16 @@ def test_orient_projects_foreign_lane_residue_next_action() -> None:
                 "unbound_work_lane_count": 0,
                 "missing_lease_count": 0,
                 "dirty_foreign_work_lane_count": 1,
+                "closeout_residue_count": 1,
+                "dirty_closeout_residue_count": 1,
+                "closeout_residue_lanes": [
+                    {
+                        "branch": "work/dirty",
+                        "closeout_disposition": "landed_dirty",
+                        "residue_state": "unpreserved_worktree_delta",
+                        "dirty": True,
+                    }
+                ],
                 "next_action": "review advisory Work Lane coordination signals before candidate integration",
             },
             "runtime_binding": {"state": "bound", "next_action": "ok", "advisory_gaps": []},
@@ -232,6 +242,9 @@ def test_orient_projects_foreign_lane_residue_next_action() -> None:
     assert lane["next_action"] == (
         "owner must preserve or intentionally discard dirty worktree delta before retirement"
     )
+    assert orientation["coordination"]["closeout_residue_count"] == 1
+    assert orientation["coordination"]["dirty_closeout_residue_count"] == 1
+    assert orientation["coordination"]["closeout_residue_lanes"][0]["branch"] == "work/dirty"
 
 
 def test_orient_projects_advisory_signals_from_report_fixture() -> None:

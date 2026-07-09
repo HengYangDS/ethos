@@ -128,6 +128,8 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
             "foreign_work_lane_count": 1,
             "unbound_work_lane_count": 2,
             "missing_lease_count": 1,
+            "closeout_residue_count": 3,
+            "dirty_closeout_residue_count": 2,
             "advisory_gaps": [
                 "missing_work_lane_lease",
                 "unbound_work_lane_ref",
@@ -143,6 +145,8 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
         "foreign_work_lane_count": 1,
         "unbound_work_lane_count": 2,
         "missing_lease_count": 1,
+        "closeout_residue_count": 3,
+        "dirty_closeout_residue_count": 2,
         "dirty_foreign_work_lane_count": 0,
         "coordination_advisory_count": 2,
         "coordination_blocking": False,
@@ -177,6 +181,8 @@ def test_lane_status_cli_summary_exposes_coordination_reader_signals(
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"] == 1
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"] == 0
     assert summary["missing_lease_count"] == coordination["missing_lease_count"] == 1
+    assert summary["closeout_residue_count"] == coordination["closeout_residue_count"]
+    assert summary["dirty_closeout_residue_count"] == coordination["dirty_closeout_residue_count"]
     assert summary["dirty_foreign_work_lane_count"] == 1
     assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] is coordination["blocking"] is False

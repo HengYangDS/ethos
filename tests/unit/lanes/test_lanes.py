@@ -181,6 +181,9 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "missing_lease_count": 1,
         "overlap_count": 0,
         "unknown_scope_count": 0,
+        "closeout_residue_count": 0,
+        "dirty_closeout_residue_count": 0,
+        "closeout_residue_lanes": [],
         "next_action": "bind or inspect Work Lane leases before candidate integration",
         "migration_recommendations": [],
     }

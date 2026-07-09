@@ -217,10 +217,12 @@ def coordination_package(
     overlap_lanes = [
         lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
     ]
+    closeout_residue_lanes = [lane for lane in foreign_work_lanes if _is_closeout_residue(lane)]
     unknown_scope_count = sum(
         1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
     )
     missing_lease_count = sum(1 for lane in foreign_work_lanes if lane["lease_state"] == "missing")
+    dirty_closeout_residue_count = sum(1 for lane in closeout_residue_lanes if lane.get("dirty"))
     unbound_refs = list(unbound_work_lane_refs or ())
     if not unbound_refs and unbound_work_lane_count:
         unbound_refs = [_unknown_unbound_ref() for _ in range(unbound_work_lane_count)]
@@ -236,6 +238,11 @@ def coordination_package(
         "missing_lease_count": missing_lease_count,
         "overlap_count": len(overlap_lanes),
         "unknown_scope_count": unknown_scope_count,
+        "closeout_residue_count": len(closeout_residue_lanes),
+        "dirty_closeout_residue_count": dirty_closeout_residue_count,
+        "closeout_residue_lanes": [
+            _closeout_residue_summary(lane) for lane in closeout_residue_lanes
+        ],
         "next_action": coordination_next_action(
             required_gaps=required_gaps,
             overlap_count=len(overlap_lanes),
@@ -245,6 +252,15 @@ def coordination_package(
             unbound_work_lane_count=len(unbound_refs),
         ),
         "migration_recommendations": [_migration_recommendation(lane) for lane in overlap_lanes],
+    }
+
+
+def _closeout_residue_summary(lane: dict[str, object]) -> dict[str, object]:
+    return {
+        "branch": str(lane.get("branch") or ""),
+        "closeout_disposition": str(lane.get("closeout_disposition") or ""),
+        "residue_state": str(lane.get("residue_state") or ""),
+        "dirty": bool(lane.get("dirty")),
     }
 
 

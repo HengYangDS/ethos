@@ -482,6 +482,52 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         package["next_action"]
         == "resolve required Work Lane coordination gaps before candidate integration"
     )
+    residue_package = coordination.coordination_package(
+        [
+            {
+                "branch": "work/landed-dirty",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "landed_dirty",
+                "residue_state": "unpreserved_worktree_delta",
+                "dirty": True,
+            },
+            {
+                "branch": "work/retire-ready",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "retire_ready",
+                "residue_state": "clean_or_none",
+                "dirty": False,
+            },
+            {
+                "branch": "work/none",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "none",
+                "residue_state": "clean_or_none",
+                "dirty": False,
+            },
+        ],
+        required_gaps=[],
+        advisory_gaps=["work_lane_closeout_residue_present"],
+    )
+    assert residue_package["closeout_residue_count"] == 2
+    assert residue_package["dirty_closeout_residue_count"] == 1
+    assert residue_package["closeout_residue_lanes"] == [
+        {
+            "branch": "work/landed-dirty",
+            "closeout_disposition": "landed_dirty",
+            "residue_state": "unpreserved_worktree_delta",
+            "dirty": True,
+        },
+        {
+            "branch": "work/retire-ready",
+            "closeout_disposition": "retire_ready",
+            "residue_state": "clean_or_none",
+            "dirty": False,
+        },
+    ]
     unbound_package = coordination.coordination_package(
         [],
         required_gaps=[],

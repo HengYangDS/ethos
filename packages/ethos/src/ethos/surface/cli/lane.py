@@ -84,6 +84,10 @@ def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]
         ),
         "unbound_work_lane_count": _int_value(coordination.get("unbound_work_lane_count")),
         "missing_lease_count": _int_value(coordination.get("missing_lease_count")),
+        "closeout_residue_count": _int_value(coordination.get("closeout_residue_count")),
+        "dirty_closeout_residue_count": _int_value(
+            coordination.get("dirty_closeout_residue_count")
+        ),
         "dirty_foreign_work_lane_count": sum(1 for lane in foreign_lanes if lane.get("dirty")),
         "coordination_advisory_count": len(advisory_items),
         "coordination_blocking": bool(coordination.get("blocking")),

@@ -631,6 +631,9 @@
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
+        "closeout_residue_count",
+        "dirty_closeout_residue_count",
+        "closeout_residue_lanes",
         "next_action",
         "migration_recommendations"
       ],
@@ -690,6 +693,20 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/migrationRecommendation"
+          }
+        },
+        "closeout_residue_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dirty_closeout_residue_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "closeout_residue_lanes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/closeoutResidueLane"
           }
         }
       },
@@ -875,6 +892,30 @@
           "items": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "closeoutResidueLane": {
+      "type": "object",
+      "required": [
+        "branch",
+        "closeout_disposition",
+        "residue_state",
+        "dirty"
+      ],
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "closeout_disposition": {
+          "type": "string"
+        },
+        "residue_state": {
+          "type": "string"
+        },
+        "dirty": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

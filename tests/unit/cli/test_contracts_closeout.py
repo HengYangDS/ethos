@@ -213,6 +213,58 @@ def test_land_closeout_dry_run_reports_accepted_root_required(
     assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["accepted_root_required"]
 
 
+def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    accepted_head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos("land", "--closeout", "--json", cwd=repo)
+
+    assert payload["ok"] is True
+    assert payload["state"] == "accepted_current"
+    assert payload["required_gaps"] == []
+    assert payload["next_actions"] == ["ethos publish"]
+    assert payload["data"]["mutation"]["decision"] == "current"
+    assert payload["data"]["mutation"]["current_head"] == accepted_head
+    assert payload["data"]["closeout_bootstrap"]["state"] == "current"
+    assert payload["data"]["closeout_bootstrap"]["next_action"] == "ethos publish"
+
+
+def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_proof(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    accepted_head = git(repo, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "accepted_current"
+    assert payload["required_gaps"] == []
+    assert payload["next_actions"] == ["ethos publish"]
+    accepted_update = payload["data"]["accepted_update"]
+    assert accepted_update["state"] == "accepted_current"
+    assert accepted_update["head"] == accepted_head
+    assert accepted_update["previous_head"] == accepted_head
+    assert git(repo, "rev-parse", "HEAD") == accepted_head
+
+
 def test_land_closeout_exposes_bootstrap_package_for_current_runner(
     tmp_path: Path,
 ) -> None:

@@ -116,6 +116,14 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
+If the accepted root and candidate branch already resolve to the same HEAD,
+closeout is current rather than ready-to-mutate. `ethos land --closeout --json`
+reports `state = "accepted_current"`, `closeout_bootstrap.state = "current"`,
+and `ethos publish` as the next action. Apply mode is a no-op in that state: it
+still requires `--authorize` and `--expect-head` as mutation-safety intent, but
+it does not require a new candidate proof because no new candidate head is being
+promoted.
+
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"`,
 `summary.remote_publication_state = "deferred"`, and a

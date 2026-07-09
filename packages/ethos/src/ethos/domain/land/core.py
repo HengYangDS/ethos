@@ -83,6 +83,7 @@ def closeout_bootstrap_package(
     candidate_data = cast("dict[str, object]", candidate)
     candidate_head = str(candidate_data.get("head") or "")
     candidate_path = str(candidate_data.get("worktree_path") or "")
+    already_current = bool(accepted_head and candidate_head == accepted_head)
     proof_target_root = Path(candidate_path).resolve() if candidate_path else audit_root.resolve()
     proof_target = {
         "kind": "closeout_proof_target",
@@ -105,7 +106,7 @@ def closeout_bootstrap_package(
         "runner_matches_accepted_root": runner_binding["runner_matches_accepted_root"],
         "runner_matches_audit_root": runner_binding["runner_matches_audit_root"],
         "runner_advisories": runner_binding["advisory_gaps"],
-        "state": "blocked" if required_gaps else "ready",
+        "state": "blocked" if required_gaps else "current" if already_current else "ready",
         "accepted_root": repo.resolve().as_posix(),
         "audit_root": audit_root.resolve().as_posix(),
         "accepted_branch": policy.accepted_branch,
@@ -124,7 +125,9 @@ def closeout_bootstrap_package(
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],
-        "next_action": "run closeout with a current ETHOS runner against accepted_root",
+        "next_action": "ethos publish"
+        if already_current and not required_gaps
+        else "run closeout with a current ETHOS runner against accepted_root",
     }
 
 
@@ -151,8 +154,11 @@ def closeout_next_actions(
     ok: bool,
     gaps: tuple[str, ...],
     current_head: str,
+    state: str = "",
 ) -> tuple[str, ...]:
     """Derive recommended next commands after accepted-root closeout."""
+    if ok and state == "current":
+        return ("ethos publish",)
     if ok:
         return ("ethos lane retire-landed --branch <work-branch> --expect-head <work-lane-head>",)
     if "candidate_diverged_from_accepted" in gaps:

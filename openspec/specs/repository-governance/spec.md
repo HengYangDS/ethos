@@ -439,6 +439,31 @@ valid executed proof evidence.
 - **THEN** ETHOS reports `ready_to_land`
 - **AND** `proof_readiness.state` is `proven`
 
+### Requirement: Accepted-root closeout distinguishes current from promotable
+
+ETHOS SHALL NOT describe an already-synchronized accepted root and candidate
+branch as ready for another closeout mutation.
+
+#### Scenario: Accepted-root closeout is already current
+
+- **GIVEN** the accepted root and configured candidate branch resolve to the same
+  HEAD
+- **WHEN** `ethos land --closeout --json` evaluates accepted-root closeout
+- **THEN** ETHOS reports `state=accepted_current`
+- **AND** `closeout_bootstrap.state` is `current`
+- **AND** the next action is `ethos publish`
+- **AND** ETHOS does not report `ready_to_closeout`
+
+#### Scenario: Accepted-root closeout apply is a no-op when already current
+
+- **GIVEN** the accepted root and configured candidate branch resolve to the same
+  HEAD
+- **WHEN** `ethos land --closeout --apply --authorize --expect-head <HEAD>
+  --json` runs
+- **THEN** ETHOS reports `state=accepted_current`
+- **AND** no new proof is required for a candidate head that is already accepted
+- **AND** the accepted root remains at the same HEAD
+
 ### Requirement: OpenSpec Lifecycle Trust Review
 ETHOS SHALL review OpenSpec lifecycle readiness in addition to official
 OpenSpec CLI validation.

@@ -384,6 +384,11 @@ execute the closeout command above against the clean accepted-root checkout, aud
 the configured candidate worktree before mutation, and then fast-forwards the
 accepted branch from the candidate branch. Raw Git merge commands are repository
 operations, not the ETHOS product mechanism.
+When the accepted root already matches the configured candidate head, closeout
+reports `state = "accepted_current"` and `closeout_bootstrap.state = "current"`;
+the next action is `ethos publish`, not another closeout command. Authorized
+apply mode is a no-op in that state and does not require proof for a head that is
+already accepted.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
 does not mutate Git and does not push. The output aggregates workspace

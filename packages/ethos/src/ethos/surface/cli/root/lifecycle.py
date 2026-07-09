@@ -92,7 +92,9 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         command="land",
         ok=payload.ok,
         state=(
-            "ready_to_closeout"
+            "accepted_current"
+            if payload.ok and payload.decision.state == "current"
+            else "ready_to_closeout"
             if payload.ok and not payload.mutation.apply
             else "blocked"
             if payload.gaps
@@ -100,7 +102,10 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         ),
         required_gaps=payload.gaps,
         next_actions=land_core.closeout_next_actions(
-            ok=payload.ok, gaps=payload.gaps, current_head=git.current_head(payload.repo)
+            ok=payload.ok,
+            gaps=payload.gaps,
+            current_head=git.current_head(payload.repo),
+            state=payload.decision.state,
         ),
         governance_context=context_for_root(payload.audit_root),
         data={

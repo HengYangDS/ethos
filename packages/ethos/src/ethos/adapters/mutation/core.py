@@ -4,6 +4,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
@@ -23,6 +24,9 @@ from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def proof_gaps(root: Path, current_head: str) -> list[str]:
@@ -182,11 +186,19 @@ def evaluate_closeout_mutation(
     else:
         gaps.extend(_openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT))
     candidate = cast("dict[str, object]", status["candidate"])
+    candidate_head = str(candidate.get("head") or "")
     gaps.extend(
-        _closeout_candidate_gaps(root, candidate, current_head, require_proof=request.apply)
+        _closeout_candidate_gaps(
+            root,
+            candidate,
+            current_head,
+            require_proof=request.apply and candidate_head != current_head,
+        )
     )
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
+    if candidate_head == current_head:
+        return MutationDecision(ok=True, state="current")
     if not request.apply:
         return MutationDecision(ok=True, state="dry_run")
     return MutationDecision(ok=True, state=f"{request.command}_ready")
@@ -289,7 +301,50 @@ def apply_candidate_to_accepted(
     status = workspace_status(root)
     candidate_info = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate_info["head"])
+    if decision.state == "current":
+        return _accepted_current_payload(
+            policy=policy,
+            current_head=current_head,
+            candidate_head=candidate_head,
+        )
     candidate_path = Path(str(candidate_info["worktree_path"]))
+    return _promote_candidate_to_accepted(
+        root=root,
+        policy=policy,
+        current_head=current_head,
+        candidate_head=candidate_head,
+        candidate_path=candidate_path,
+    )
+
+
+def _accepted_current_payload(
+    *,
+    policy: BranchRolePolicy,
+    current_head: str,
+    candidate_head: str,
+) -> dict[str, object]:
+    """Return the no-op accepted-root closeout payload for synchronized heads."""
+    return {
+        "ok": True,
+        "state": "accepted_current",
+        "branch": policy.accepted_branch,
+        "source_branch": policy.candidate_branch,
+        "head": current_head,
+        "candidate_head": candidate_head,
+        "previous_head": current_head,
+        "required_gaps": [],
+    }
+
+
+def _promote_candidate_to_accepted(
+    *,
+    root: Path,
+    policy: BranchRolePolicy,
+    current_head: str,
+    candidate_head: str,
+    candidate_path: Path,
+) -> dict[str, object]:
+    """Fast-forward accepted root to a newer proven candidate head."""
     if not _is_ancestor(root, current_head, candidate_head):
         return {
             "ok": False,

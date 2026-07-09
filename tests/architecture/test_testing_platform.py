@@ -32,6 +32,9 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--dist=loadscope" in script
     assert "--junitxml" in script
     assert "--durations" in script
+    assert 'ethos_python="${repo_root}/.venv/bin/python"' in script
+    assert "GIT_CONFIG_GLOBAL" in script
+    assert "GIT_CONFIG_NOSYSTEM" in script
     assert "COVERAGE_FILE" in script
     assert "cleanup_root_coverage_artifacts" in script
     assert "cleanup_denied_runtime_residue" in script

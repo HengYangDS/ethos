@@ -27,6 +27,7 @@ claims, or evidence.
 
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
+- [Complete Implementation Roadmap](complete-implementation-roadmap.md)
 
 ## Archived Plans
 

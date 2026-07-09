@@ -44,6 +44,22 @@ def init_git_repo(path: Path) -> Path:
     return path
 
 
+def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
+    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(repo, "add", "obsolete.txt")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "absorb obsolete lane delta",
+    )
+    return git(repo, "rev-parse", "dev")
+
+
 def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
     monkeypatch,
     tmp_path: Path,
@@ -73,7 +89,7 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
         "obsolete lane delta",
     )
     worktree_head = git(worktree, "rev-parse", "HEAD")
-    accepted_head = git(repo, "rev-parse", "dev")
+    accepted_head = absorb_obsolete_delta_in_accepted(repo)
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
@@ -112,6 +128,70 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
     }
     assert payload["data"]["mutation"]["expect_head"] == worktree_head
     assert not worktree.exists()
+
+
+def test_lane_retire_superseded_blocks_unabsorbed_linked_lane(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "repo-candidate-dev").as_posix(),
+        "dev",
+    )
+    worktree = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", "work/superseded", worktree.as_posix(), "dev")
+    (worktree / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(worktree, "add", "obsolete.txt")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "obsolete lane delta",
+    )
+    worktree_head = git(worktree, "rev-parse", "HEAD")
+    accepted_head = git(repo, "rev-parse", "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/superseded",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+
+    payload = run_ethos_blocked(
+        "lane",
+        "retire-superseded",
+        "--branch",
+        "work/superseded",
+        "--expect-head",
+        worktree_head,
+        "--absorbed-by",
+        accepted_head,
+        "--reason",
+        "accepted root already carries the semantic fix",
+        "--authorize",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire-superseded"
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert worktree.exists()
+    assert git(repo, "rev-parse", "--verify", "work/superseded") == worktree_head
 
 
 def test_lane_retire_superseded_blocks_without_current_absorption_head(

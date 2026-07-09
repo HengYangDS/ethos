@@ -963,8 +963,8 @@ content to be landed.
   --absorbed-by <accepted-head> --reason <why> --authorize --apply --json` runs
 - **THEN** ETHOS removes the linked worktree and deletes `refs/heads/<branch>`
   only if `<head>` still matches the branch, `<accepted-head>` equals the current
-  accepted root, the lane lease owner matches `ETHOS_ACTOR`, and a reason is
-  supplied
+  accepted root, accepted-root tree content matches the lane's changed paths,
+  the lane lease owner matches `ETHOS_ACTOR`, and a reason is supplied
 - **AND** the command emits the retired lane, reason, absorption head, mutation
   binding, and required gaps
 

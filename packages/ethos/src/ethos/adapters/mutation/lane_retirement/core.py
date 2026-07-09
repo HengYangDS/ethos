@@ -154,12 +154,13 @@ def _superseded_retire_gaps(context: dict[str, object]) -> list[str]:
         gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
         gaps.extend(_landed_actor_gaps([lane]))
     gaps.extend(
-        _superseded_absorption_gaps(
+        _superseded_absorption_head_gaps(
             reason=str(context["reason"]),
             absorbed_by=str(context["absorbed_by"]),
             accepted_head=str(context["accepted_head"]),
         )
     )
+    gaps.extend(_superseded_structural_absorption_gaps(context))
     gaps.extend(
         _superseded_expected_head_gaps(
             head=str(context["head"]),
@@ -191,7 +192,7 @@ def _superseded_branch_gaps(
     return []
 
 
-def _superseded_absorption_gaps(
+def _superseded_absorption_head_gaps(
     *,
     reason: str,
     absorbed_by: str,
@@ -207,6 +208,97 @@ def _superseded_absorption_gaps(
     elif accepted_head and absorbed_by != accepted_head:
         gaps.append("absorbed_by_not_current_accepted_head")
     return gaps
+
+
+def _superseded_structural_absorption_gaps(context: dict[str, object]) -> list[str]:
+    """Require accepted truth to carry the lane's changed-path tree content."""
+    repo = cast("Path", context["repo"])
+    branch = str(context["branch"])
+    head = str(context["head"])
+    accepted_head = str(context["accepted_head"])
+    absorbed_by = str(context["absorbed_by"])
+    selected = cast("dict[str, object] | None", context["selected"])
+    runtime = cast("SupersededRetirementRuntime", context["runtime"])
+    if (
+        selected is None
+        or not branch
+        or not head
+        or not accepted_head
+        or absorbed_by != accepted_head
+    ):
+        return []
+    if not _lane_delta_absorbed_by_accepted(
+        repo,
+        branch=branch,
+        head=head,
+        accepted_head=accepted_head,
+        runtime=runtime,
+    ):
+        return ["superseded_lane_not_absorbed_by_accepted"]
+    return []
+
+
+def _lane_delta_absorbed_by_accepted(
+    repo: Path,
+    *,
+    branch: str,
+    head: str,
+    accepted_head: str,
+    runtime: SupersededRetirementRuntime,
+) -> bool:
+    base = _merge_base(repo, accepted_head, branch, runtime=runtime)
+    if not base:
+        return False
+    for path in _changed_paths_between(repo, base, head, runtime=runtime):
+        if _tree_object(repo, head, path, runtime=runtime) != _tree_object(
+            repo, accepted_head, path, runtime=runtime
+        ):
+            return False
+    return True
+
+
+def _merge_base(
+    root: Path,
+    left: str,
+    right: str,
+    *,
+    runtime: SupersededRetirementRuntime | None = None,
+) -> str:
+    active_runtime = runtime or SupersededRetirementRuntime()
+    completed = active_runtime.run_git(root, "merge-base", left, right, check=False)
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _changed_paths_between(
+    root: Path,
+    base: str,
+    head: str,
+    *,
+    runtime: SupersededRetirementRuntime | None = None,
+) -> tuple[str, ...]:
+    active_runtime = runtime or SupersededRetirementRuntime()
+    completed = active_runtime.run_git(
+        root, "diff", "--name-only", "--no-renames", "-z", base, head, check=False
+    )
+    if completed.returncode != 0:
+        return ("__ethos_diff_unavailable__",)
+    return tuple(path for path in completed.stdout.split("\0") if path)
+
+
+def _tree_object(
+    root: Path,
+    revision: str,
+    path: str,
+    *,
+    runtime: SupersededRetirementRuntime | None = None,
+) -> str:
+    active_runtime = runtime or SupersededRetirementRuntime()
+    completed = active_runtime.run_git(root, "rev-parse", f"{revision}:{path}", check=False)
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
 
 
 def _superseded_expected_head_gaps(

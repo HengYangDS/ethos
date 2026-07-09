@@ -24,11 +24,11 @@ pytest_evidence_dir="${evidence_root}/pytest"
 coverage_lock_dir="${coverage_evidence_dir}/.write.lock"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-}}"
-if [[ -z "${ethos_python}" && -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
-  ethos_python="${VIRTUAL_ENV}/bin/python"
-fi
 if [[ -z "${ethos_python}" && -x "${repo_root}/.venv/bin/python" ]]; then
   ethos_python="${repo_root}/.venv/bin/python"
+fi
+if [[ -z "${ethos_python}" && -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+  ethos_python="${VIRTUAL_ENV}/bin/python"
 fi
 if [[ -z "${ethos_python}" ]]; then
   ethos_python="python3"

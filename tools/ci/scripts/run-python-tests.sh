@@ -121,6 +121,13 @@ if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then
   pytest_args=( -n "${workers}" "${pytest_args[@]}" )
 fi
 
+# Test fixtures create throwaway Git repositories. They must not inherit a
+# developer workstation's global Git template or hook configuration because
+# host-local hooks are not repository truth and can make the trust-bearing test
+# gate non-hermetic.
+export GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-/dev/null}"
+export GIT_CONFIG_NOSYSTEM="${GIT_CONFIG_NOSYSTEM:-1}"
+
 # In a prepared product toolchain (for example an outer `uv run --package ethos`
 # proof), reuse the active interpreter instead of recursively invoking `uv run`;
 # nested environment sync is host-sensitive and can terminate the proof runner

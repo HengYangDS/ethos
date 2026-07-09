@@ -65,6 +65,8 @@ def test_python_test_gate_can_shard_without_lowering_coverage_floor() -> None:
     assert "reusing completed pytest shard" in script
     assert "ethos_python_test_head" in script
     assert "shard_plan_key" in script
+    assert 'printf \'%s\\n\' "${shard_plan_key}" > "${shard_head_path}"' in script
+    assert 'printf \'%s\\n\' "${shard_plan_key}" > "${shard_passed_marker}"' in script
     assert '--fail-under="${coverage_hard_floor}"' in script
     assert "--cov-fail-under=0" in script
     assert "--cov-fail-under=${coverage_hard_floor}" in script

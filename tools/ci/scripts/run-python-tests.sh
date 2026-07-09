@@ -91,7 +91,7 @@ coverage_lock_acquired="true"
 # generated-artifact topology before tests reach the real product assertions.
 # These files are ignored local evidence, not repository truth. Sharded mode is
 # resumable for one immutable HEAD: completed shard coverage is preserved only
-# when the stored head marker matches the captured stable head.
+# when the stored shard-plan marker matches the captured stable head and shard count.
 cleanup_denied_runtime_residue
 cleanup_root_coverage_artifacts
 trap cleanup_and_release EXIT
@@ -106,7 +106,7 @@ if [[ "${sharded_mode}" == "true" ]]; then
     rm -f "${pytest_evidence_dir}"/junit*.xml
     rm -rf "${shard_state_dir}"
     mkdir -p "${shard_state_dir}"
-    printf '%s\n' "${ethos_python_test_head}" > "${shard_head_path}"
+    printf '%s\n' "${shard_plan_key}" > "${shard_head_path}"
   fi
 else
   rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
@@ -235,7 +235,7 @@ PY
       --junitxml="${shard_junit}" \
       "${shard_nodeids[@]}" \
       -q
-    printf '%s\n' "${ethos_python_test_head}" > "${shard_passed_marker}"
+    printf '%s\n' "${shard_plan_key}" > "${shard_passed_marker}"
   done
   for shard_index in $(seq 1 "${shards}"); do
     shard_file="${pytest_evidence_dir}/shards/shard-${shard_index}.txt"

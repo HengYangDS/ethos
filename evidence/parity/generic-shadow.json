@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
-    "target_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
-    "product_semantic_sha256": "5a9dbee0e522d6db0519f8a9103e33bbbd65d40622073cddacc4c43f8151bb38",
-    "target_semantic_sha256": "5a9dbee0e522d6db0519f8a9103e33bbbd65d40622073cddacc4c43f8151bb38",
+    "product_head": "927399b5537837e30c158c0d4adfc931c7e3ebc2",
+    "target_head": "927399b5537837e30c158c0d4adfc931c7e3ebc2",
+    "product_semantic_sha256": "00ab6320fd6b0acdac535e5c2c86fe9ecff380d225a616236fcb0d292807fb5a",
+    "target_semantic_sha256": "00ab6320fd6b0acdac535e5c2c86fe9ecff380d225a616236fcb0d292807fb5a",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709",
-    "target_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
-    "product_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
+    "target_head": "927399b5537837e30c158c0d4adfc931c7e3ebc2",
+    "product_head": "927399b5537837e30c158c0d4adfc931c7e3ebc2",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "cf174a8e7940a9aee2c2bea0115e8c052555d338d19ca74884612bef29c6a997"
+        "sha256": "eae9ee1e40c7f660c6fa6a392024f0682ba5a65a993aabaa67835343871b3c86"
       },
       {
         "path": "evidence/claims",

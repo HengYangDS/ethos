@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from ethos.repository.adoption import scaffold
+from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
+from ethos.repository.adoption.scaffold.core import default_files
 from ethos.repository.evidence.parity_validation import command_matches_identity
 from ethos.repository.evidence.parity_validation import semantic_tree_digest
 from ethos.repository.evidence.parity_validation import validate_parity_evidence
@@ -32,13 +33,13 @@ def test_read_openspec_metadata_skips_blank_and_comment_lines(tmp_path: Path) ->
 
 def test_default_files_github_profile_emits_workflow(tmp_path: Path) -> None:
     # profile == "github" takes the branch that writes the GitHub Actions workflow.
-    files = scaffold._default_files(tmp_path, "github")
+    files = default_files(tmp_path, "github")
     assert ".github/workflows/ethos.yml" in files
     workflow = files[".github/workflows/ethos.yml"]
     assert workflow.startswith("name: ethos")
     assert "runs-on: ubuntu-latest" in workflow
     # Other profiles do not take the branch, so the workflow file is absent.
-    assert ".github/workflows/ethos.yml" not in scaffold._default_files(tmp_path, "generic")
+    assert ".github/workflows/ethos.yml" not in default_files(tmp_path, "generic")
 
 
 def test_semantic_tree_digest_returns_empty_for_blank_head(tmp_path: Path) -> None:
@@ -163,5 +164,5 @@ def test_live_skill_package_manifest_malformed_toml(tmp_path: Path) -> None:
 def test_openspec_capabilities_has_no_duplicates() -> None:
     # Invariant formerly guarded by an import-time check: the capability list is a
     # set of distinct families. A duplicate would double-scaffold a spec directory.
-    caps = scaffold.OPENSPEC_CAPABILITIES
+    caps = OPENSPEC_CAPABILITIES
     assert len(caps) == len(set(caps))

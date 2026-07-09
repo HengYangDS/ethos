@@ -1,0 +1,62 @@
+[claim]
+id = "adoption-scaffold-semantic-20260709"
+subject = "ethos:adoption-scaffold-semantic-20260709"
+state = "active"
+summary = "ETHOS retired adoption scaffold suffix-flat residue into semantic subpackages without compatibility facades."
+
+[evidence]
+dated = "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md"
+sha256 = "cf18db23d120d1fc1bf2116156439253482e9fe6aa96b08dc7c243f884a1fc7b"
+evidence_ids = ["evidence:adoption-scaffold-semantic-20260709"]
+binding = "Semantic scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation."
+verifier = "semantic"
+tests = [
+  "uv run --package ethos ethos quality module-layout --json",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/adoption tests/unit/coverage/test_cov_repository_edges.py tests/unit/coverage/test_cov_v3_registrymisc_edges.py tests/unit/coverage/test_free_surface_quality_edges.py",
+  "uv run --all-packages --group dev pytest tests/unit/coverage/test_cov_repository_edges.py tests/unit/coverage/test_cov_v3_registrymisc_edges.py tests/unit/coverage/test_free_surface_quality_edges.py tests/unit/adoption tests/unit/product/parity/test_gaps.py -q",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/coverage/test_cov_repository_edges.py",
+  "tests/unit/coverage/test_cov_v3_registrymisc_edges.py",
+  "tests/unit/coverage/test_free_surface_quality_edges.py",
+  "tests/unit/adoption",
+]
+
+[boundary]
+owner = "quality"
+scope = "Adoption scaffold module-layout debt reduction by semantic subpackage migration."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard"
+fallback = "Revert the semantic package migration and ratchet shrink if scaffold import behavior or adoption planning regresses; do not restore deleted paths as compatibility facades."
+kill_signal = "module-layout reports baseline growth, new-directory flat bucket debt, compatibility facades, package-root submodule imports, or callers require old scaffold suffix-flat import paths."
+
+[promotion]
+targets = [
+  ".config/checks/module-layout/policy.toml",
+  "docs/decisions/decision-code-links.md",
+  "packages/ethos/src/ethos/repository/adoption/planner.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/__init__.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/core.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/openspec.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/decisions/__init__.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/decisions/core.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/documents/__init__.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/documents/pages.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/skills/__init__.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/skills/core.py",
+  "tests/unit/coverage/test_cov_repository_edges.py",
+  "tests/unit/coverage/test_cov_v3_registrymisc_edges.py",
+  "tests/unit/coverage/test_free_surface_quality_edges.py",
+  "evidence/claims/native-docs-topology.toml",
+  "evidence/claims/openspec-semantic-capability-layout.toml",
+  "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md",
+  "evidence/claims/adoption-scaffold-semantic-20260709.toml",
+]

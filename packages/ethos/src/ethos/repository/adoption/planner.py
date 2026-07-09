@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from ethos.repository.adoption.scaffold import BASE_ADOPTION_FILES
-from ethos.repository.adoption.scaffold import OPENSPEC_CAPABILITIES
-from ethos.repository.adoption.scaffold import _default_files
+from ethos.repository.adoption.scaffold.core import BASE_ADOPTION_FILES
+from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
+from ethos.repository.adoption.scaffold.core import default_files
 
 PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
 PROFILE_READ_FILES = {
@@ -114,7 +114,7 @@ def adoption_plan(
     detected_profile = detect_repo_profile(root)
     observed = _observed_files(root, selected_profile)
     profile_match = _profile_match(root, selected_profile, detected_profile)
-    files = _default_files(root, selected_profile)
+    files = default_files(root, selected_profile)
     planned = sorted(files)
     existing = sorted(relative for relative in files if (root / relative).exists())
     write_plan = _write_plan(root, files)
@@ -170,7 +170,7 @@ def adoption_scaffold_report() -> dict[str, object]:
     required = set(BASE_ADOPTION_FILES)
     required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_CAPABILITIES)
     required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_CAPABILITIES)
-    planned = set(_default_files(Path("sample"), "gitlab"))
+    planned = set(default_files(Path("sample"), "gitlab"))
     missing = sorted(required - planned)
     return {
         "ok": not missing,

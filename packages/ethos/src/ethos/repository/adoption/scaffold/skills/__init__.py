@@ -1,0 +1,1 @@
+"""Adoption skill scaffold generators."""

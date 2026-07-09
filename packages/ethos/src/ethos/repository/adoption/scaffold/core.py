@@ -7,41 +7,41 @@ import json
 import tomllib
 from typing import TYPE_CHECKING
 
-from ethos.repository.adoption.scaffold_docs.decisions import decision_code_links
-from ethos.repository.adoption.scaffold_docs.decisions import decision_dependency_map
-from ethos.repository.adoption.scaffold_docs.decisions import decision_index
-from ethos.repository.adoption.scaffold_docs.decisions import decision_record_template
-from ethos.repository.adoption.scaffold_docs.decisions import decision_records
-from ethos.repository.adoption.scaffold_docs.decisions import decisions_accepted
-from ethos.repository.adoption.scaffold_docs.decisions import decisions_superseded
-from ethos.repository.adoption.scaffold_docs.decisions import decisions_templates
-from ethos.repository.adoption.scaffold_docs.pages import agents_doc
-from ethos.repository.adoption.scaffold_docs.pages import changelog_doc
-from ethos.repository.adoption.scaffold_docs.pages import contributing_doc
-from ethos.repository.adoption.scaffold_docs.pages import docs_evidence
-from ethos.repository.adoption.scaffold_docs.pages import docs_history
-from ethos.repository.adoption.scaffold_docs.pages import docs_index
-from ethos.repository.adoption.scaffold_docs.pages import docs_readme
-from ethos.repository.adoption.scaffold_docs.pages import docs_reference
-from ethos.repository.adoption.scaffold_docs.pages import docs_taxonomy
-from ethos.repository.adoption.scaffold_docs.pages import governance_doc
-from ethos.repository.adoption.scaffold_docs.pages import quickstart
-from ethos.repository.adoption.scaffold_docs.pages import release_toml
-from ethos.repository.adoption.scaffold_docs.skills import adoption_profile_skill
-from ethos.repository.adoption.scaffold_docs.skills import adoption_profile_skill_package
-from ethos.repository.adoption.scaffold_docs.skills import governance_skill
-from ethos.repository.adoption.scaffold_docs.skills import governance_skill_package
-from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill
-from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill_package
-from ethos.repository.adoption.scaffold_openspec import capability_profile
-from ethos.repository.adoption.scaffold_openspec import openspec_capability_template
-from ethos.repository.adoption.scaffold_openspec import openspec_change_template
-from ethos.repository.adoption.scaffold_openspec import openspec_changes_readme
-from ethos.repository.adoption.scaffold_openspec import openspec_config
-from ethos.repository.adoption.scaffold_openspec import openspec_families
-from ethos.repository.adoption.scaffold_openspec import openspec_readme
-from ethos.repository.adoption.scaffold_openspec import openspec_spec
-from ethos.repository.adoption.scaffold_openspec import openspec_specs_readme
+from ethos.repository.adoption.scaffold.decisions.core import decision_code_links
+from ethos.repository.adoption.scaffold.decisions.core import decision_dependency_map
+from ethos.repository.adoption.scaffold.decisions.core import decision_index
+from ethos.repository.adoption.scaffold.decisions.core import decision_record_template
+from ethos.repository.adoption.scaffold.decisions.core import decision_records
+from ethos.repository.adoption.scaffold.decisions.core import decisions_accepted
+from ethos.repository.adoption.scaffold.decisions.core import decisions_superseded
+from ethos.repository.adoption.scaffold.decisions.core import decisions_templates
+from ethos.repository.adoption.scaffold.documents.pages import agents_doc
+from ethos.repository.adoption.scaffold.documents.pages import changelog_doc
+from ethos.repository.adoption.scaffold.documents.pages import contributing_doc
+from ethos.repository.adoption.scaffold.documents.pages import docs_evidence
+from ethos.repository.adoption.scaffold.documents.pages import docs_history
+from ethos.repository.adoption.scaffold.documents.pages import docs_index
+from ethos.repository.adoption.scaffold.documents.pages import docs_readme
+from ethos.repository.adoption.scaffold.documents.pages import docs_reference
+from ethos.repository.adoption.scaffold.documents.pages import docs_taxonomy
+from ethos.repository.adoption.scaffold.documents.pages import governance_doc
+from ethos.repository.adoption.scaffold.documents.pages import quickstart
+from ethos.repository.adoption.scaffold.documents.pages import release_toml
+from ethos.repository.adoption.scaffold.openspec import capability_profile
+from ethos.repository.adoption.scaffold.openspec import openspec_capability_template
+from ethos.repository.adoption.scaffold.openspec import openspec_change_template
+from ethos.repository.adoption.scaffold.openspec import openspec_changes_readme
+from ethos.repository.adoption.scaffold.openspec import openspec_config
+from ethos.repository.adoption.scaffold.openspec import openspec_families
+from ethos.repository.adoption.scaffold.openspec import openspec_readme
+from ethos.repository.adoption.scaffold.openspec import openspec_spec
+from ethos.repository.adoption.scaffold.openspec import openspec_specs_readme
+from ethos.repository.adoption.scaffold.skills.core import adoption_profile_skill
+from ethos.repository.adoption.scaffold.skills.core import adoption_profile_skill_package
+from ethos.repository.adoption.scaffold.skills.core import governance_skill
+from ethos.repository.adoption.scaffold.skills.core import governance_skill_package
+from ethos.repository.adoption.scaffold.skills.core import skill_portfolio_skill
+from ethos.repository.adoption.scaffold.skills.core import skill_portfolio_skill_package
 from ethos_core.contracts.skill.activation import normalize_skill_activation
 from ethos_core.contracts.skill.activation import skill_registry_digest
 
@@ -286,7 +286,7 @@ def _gitlab_ci() -> str:
     )
 
 
-def _default_files(root: Path, profile: str) -> dict[str, str]:
+def default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
     governance_skill_text = governance_skill()
     skill_portfolio_skill_text = skill_portfolio_skill()

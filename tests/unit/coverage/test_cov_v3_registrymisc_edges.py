@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos.repository.adoption.planner as planner
 import ethos_core.contracts.system.contracts as system_contracts
 from ethos.assistants import playbooks
 from ethos.repository import context
-from ethos.repository.adoption import planner
-from ethos.repository.adoption import scaffold
+from ethos.repository.adoption.scaffold.core import default_files
 from ethos.repository.registry import authority
 from ethos.repository.registry import commands
 from ethos.repository.registry.docs.links import stable_paths_report
@@ -107,14 +107,14 @@ def test_write_plan_write_empty_action(tmp_path: Path) -> None:
 
 def test_workspace_toml_monorepo_empty_packages_falls_back(tmp_path: Path) -> None:
     # monorepo profile with a packages/ dir holding no subdirectories -> blocks empty ->
-    # scaffold.py 133 `if blocks` False -> 133->135 (root default block).
+    # default_files() exercises the monorepo workspace fallback when packages/ has no directories.
     packages = tmp_path / "packages"
     packages.mkdir()
     (packages / "notadir.txt").write_text("x", encoding="utf-8")
 
-    result = scaffold._workspace_toml(tmp_path, "monorepo")
+    files = default_files(tmp_path, "monorepo")
 
-    assert 'name = "root"' in result
+    assert 'name = "root"' in files[".ethos/workspace.toml"]
 
 
 def test_authority_order_returns_empty_when_order_not_list(tmp_path: Path) -> None:

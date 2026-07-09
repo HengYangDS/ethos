@@ -14,9 +14,9 @@ import pytest
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.repo.runtime.core as repo_runtime
 import ethos.adapters.repo.status.core as status
+import ethos.repository.adoption.scaffold.documents.pages as scaffold_pages
 import ethos.repository.openspec.audit as openspec_audit
 import ethos_core.state.invalid as invalid_states
-from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
 from ethos_core.quality.proof import policy as proof_policy
 
 

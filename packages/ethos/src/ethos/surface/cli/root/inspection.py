@@ -16,6 +16,7 @@ from ethos.adapters.store.state import initialize_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.domain.report import scorecard_report
+from ethos.repository.context import context_for_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
@@ -77,6 +78,7 @@ def status(
     """Inspect repository state."""
     repo = resolve_root(root)
     status_payload = workspace_status(repo)
+    governance = context_for_root(repo)
     orientation = orient_domain.orientation_packet(status_payload=status_payload)
     orientation_actions = cast("list[str]", orientation["next_actions"])
     coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
@@ -109,6 +111,7 @@ def status(
         diagnostics=(validation,),
         required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
         next_actions=tuple(orientation_actions),
+        governance_context=governance,
         data=status_payload,
     )
     if json_output:
@@ -127,6 +130,7 @@ def orient(
     """Orient a human or agent without minting repository truth."""
     repo = resolve_root(root)
     status_payload = workspace_status(repo)
+    governance = context_for_root(repo)
     report_payload = scorecard_report(repo)
     packet = orient_domain.orientation_packet(
         status_payload=status_payload,
@@ -155,6 +159,7 @@ def orient(
             "advisory_gap_count": readiness["advisory_gap_count"],
         },
         next_actions=tuple(packet_actions),
+        governance_context=governance,
         data={"orientation": packet},
     )
     if json_output:
@@ -179,6 +184,7 @@ def report(
         summary=payload["summary"],
         required_gaps=tuple(payload["required_gaps"]),
         next_actions=tuple(payload["next_actions"]),
+        governance_context=cast("dict[str, Any]", payload["data"])["governance_context"],
         data=payload["data"],
     )
     emit(result, json_output=json_output, enforce=False)

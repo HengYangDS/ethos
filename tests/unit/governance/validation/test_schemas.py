@@ -152,6 +152,59 @@ def test_result_payload_validates_against_schema() -> None:
     json.dumps(validation)
 
 
+def test_result_payload_accepts_governed_repository_context() -> None:
+    result = EthosResult(
+        command="status",
+        ok=True,
+        state="ready",
+        governance_context={
+            "contract": "governed_repository",
+            "profile": "generic",
+            "authority": {"id": "repository-authority"},
+            "subject": {
+                "id": "/tmp/repo",
+                "kind": "repository",
+                "name": "repo",
+                "owner": "ethos",
+                "metadata": {},
+            },
+            "single_kernel": True,
+            "kernel_chain": [
+                "Authority",
+                "Subject",
+                "Commitment",
+                "Change",
+                "Evidence",
+                "Claim",
+                "Chronicle",
+            ],
+            "shared_commands": [
+                "ethos status",
+                "ethos plan",
+                "ethos prove",
+                "ethos land",
+                "ethos publish",
+            ],
+            "transition_commands": [
+                "ethos status",
+                "ethos plan",
+                "ethos prove",
+                "ethos land",
+                "ethos publish",
+            ],
+            "reader_view_commands": ["ethos orient"],
+            "scorecard_commands": ["ethos report"],
+            "truth_boundary": "repository",
+            "profile_boundary": "profile_or_adapter",
+        },
+    ).to_dict()
+
+    validation = validate_ethos_result(result)
+
+    assert validation["ok"] is True
+    json.dumps(validation)
+
+
 def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     payload = {
         "id": "markdown-links",

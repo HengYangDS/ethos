@@ -1,0 +1,54 @@
+[claim]
+id = "isomorphic-governance-context-envelope"
+subject = "ethos:isomorphic-governance-context-envelope"
+state = "active"
+summary = "Primary ETHOS command results expose the shared governed-repository context envelope while preserving native command data contracts."
+
+[evidence]
+dated = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md"
+sha256 = "6d3279578b5ffa90baaaa6cb349cd2938a3a2a30478035af2a35dbd3540b1f43"
+evidence_ids = ["evidence:isomorphic-governance-context-envelope"]
+binding = "Primary command envelope governance_context for product and adopted repositories; status.data remains workspace-status schema data."
+verifier = "semantic"
+tests = [
+  "uv run pytest tests/unit/cli/test_contracts.py::test_primary_commands_expose_top_level_governance_context tests/unit/cli/test_contracts.py::test_primary_commands_use_same_context_for_adopted_repository tests/unit/governance/validation/test_schemas.py::test_result_payload_accepts_governed_repository_context -q",
+  "uv run pytest tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py tests/architecture/test_product_design_contract.py -q",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+  "tools/ci/scripts/run-python-tests.sh",
+]
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = ["tests/unit/cli/test_contracts.py", "tests/unit/governance/validation/test_schemas.py"]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Primary command result envelope for governed-repository context visibility"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-isomorphic-governance-context-20260709"
+fallback = "Consumers may read nested audit governance_context where present until the top-level envelope is available."
+kill_signal = "Any primary command result omits top-level governance_context or status.data carries envelope metadata."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/result.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/repository/context.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/inspection.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/planning.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/proof.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/lifecycle.py" },
+  { kind = "schema", path = "system/schemas/kernel/result.schema.json" },
+  { kind = "tests", path = "tests/unit/cli/test_contracts.py" },
+  { kind = "tests", path = "tests/unit/governance/validation/test_schemas.py" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "evidence", path = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-09-isomorphic-governance-context-20260709" },
+]

@@ -18,6 +18,7 @@ from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
+from ethos.repository.context import context_for_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
@@ -58,6 +59,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
         next_actions=land_domain.closeout_next_actions(
             ok=payload.ok, gaps=payload.gaps, current_head=git.current_head(payload.repo)
         ),
+        governance_context=context_for_root(payload.audit_root),
         data={
             "repository_audit": payload.audit,
             "openspec_lifecycle": payload.lifecycle,
@@ -144,6 +146,7 @@ def land(
         emit(result, json_output=json_output, enforce=apply)
         return
 
+    governance = context_for_root(repo)
     status_payload = workspace_status(repo)
     closeout_support = dict(status_payload.get("closeout_support", {}))
     closeout_gaps: tuple[str, ...] = ()
@@ -197,6 +200,7 @@ def land(
             gaps=gaps,
             current_head=git.current_head(repo),
         ),
+        governance_context=governance,
         data={
             "repository_audit": audit,
             "openspec_lifecycle": lifecycle,
@@ -225,6 +229,7 @@ def publish(
 ) -> None:
     """Report publish readiness without pushing."""
     repo = resolve_root(root)
+    governance = context_for_root(repo)
     decision = evaluate_mutation(
         MutationRequest(
             command="publish",
@@ -276,6 +281,7 @@ def publish(
         summary=publish_summary,
         required_gaps=gaps,
         next_actions=_publish_next_actions(ok=ok, publication=publication),
+        governance_context=governance,
         data={
             "repository_audit": audit,
             "release_root_open_spec": {

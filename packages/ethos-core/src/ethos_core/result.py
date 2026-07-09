@@ -17,10 +17,11 @@ class EthosResult:
     diagnostics: tuple[dict[str, Any], ...] = ()
     required_gaps: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
+    governance_context: dict[str, Any] | None = None
     data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "schema_version": SCHEMA_VERSION,
             "command": self.command,
             "ok": self.ok,
@@ -31,6 +32,9 @@ class EthosResult:
             "next_actions": list(self.next_actions),
             "data": dict(self.data),
         }
+        if self.governance_context is not None:
+            payload["governance_context"] = dict(self.governance_context)
+        return payload
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2, sort_keys=False)

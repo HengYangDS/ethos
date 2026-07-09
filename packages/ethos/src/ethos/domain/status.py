@@ -14,8 +14,8 @@ from typing import cast
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.repository.adoption.fleet import inspect_adopter
-from ethos.repository.adoption.planner import detect_repo_profile
-from ethos.repository.context import governance_context
+from ethos.repository.context import context_for_root
+from ethos.repository.context import is_product_root
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.docs.health import docs_health_report
@@ -51,13 +51,6 @@ def adoption_mutation_gaps(
     elif expect_head != current_head:
         gaps.append("expected_head_mismatch")
     return tuple(gaps)
-
-
-def is_product_root(root: Path) -> bool:
-    """True when root is the ETHOS product repository (has packages/ethos + kernel schemas)."""
-    return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "system" / "schemas" / "kernel"
-    ).exists()
 
 
 def audit_for_root(
@@ -98,10 +91,7 @@ def adopter_audit(root: Path) -> dict[str, object]:
     return {
         "ok": not gaps,
         "mode": "repository",
-        "governance_context": governance_context(
-            root,
-            profile=detect_repo_profile(root),
-        ),
+        "governance_context": context_for_root(root),
         "required_gaps": gaps,
         "adopter": adopter,
         "schemas": {

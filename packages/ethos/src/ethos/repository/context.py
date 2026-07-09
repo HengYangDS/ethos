@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.repository.adoption.planner import detect_repo_profile
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.registry.commands import READER_VIEW_COMMANDS
 from ethos.repository.registry.commands import SCORECARD_COMMANDS
@@ -28,6 +29,28 @@ def _authority_order(root: Path) -> tuple[str, ...]:
         key=lambda item: int(item["rank"]),
     )
     return tuple(str(item.get("source", "")) for item in ranked if item.get("source"))
+
+
+def is_product_root(root: Path) -> bool:
+    """Return True when ``root`` is the ETHOS product repository.
+
+    The governed subject is still a repository in both cases. This predicate only
+    selects the profile used by the shared governance context; it does not create a
+    second subject kind or command plane.
+    """
+    return (root / "packages" / "ethos" / "README.md").exists() and (
+        root / "system" / "schemas" / "kernel"
+    ).exists()
+
+
+def governance_profile(root: Path) -> str:
+    """Return the profile for a governed repository without changing command semantics."""
+    return "product" if is_product_root(root) else detect_repo_profile(root)
+
+
+def context_for_root(root: Path) -> dict[str, object]:
+    """Project the governed-repository context for a product or adopted repository."""
+    return governance_context(root, profile=governance_profile(root))
 
 
 def governance_context(root: Path, *, profile: str) -> dict[str, object]:

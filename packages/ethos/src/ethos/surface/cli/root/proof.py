@@ -232,6 +232,7 @@ def prove(
             + scope_gaps
         ),
         next_actions=next_actions,
+        governance_context=cast("dict[str, object]", audit["governance_context"]),
         data={
             "governance_context": audit["governance_context"],
             "repository_audit": audit,

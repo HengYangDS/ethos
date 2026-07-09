@@ -374,12 +374,16 @@ exact `ethos parity shadow --adopter <adopter-id> --target <repo> --execute
 --write-evidence --json` command. If no target is supplied, ETHOS does not reuse
 a target path from stale evidence as the next action.
 
-ETHOS report and audit payloads use a governed repository contract. Every
-governed repository exposes `governance_context` so consumers can read the same
-command semantics without inferring product truth from a special branch or
-private command plane. The context records the profile, repository subject,
-kernel chain, shared transition commands, reader-view commands, scorecard
-commands, repository truth boundary, and profile or adapter boundary.
+ETHOS primary command payloads use a governed repository contract. Every
+primary command result (`status`, `plan`, `prove`, `land`, `publish`, `orient`,
+and `report`) exposes a top-level `governance_context` so consumers can read the
+same command semantics without inferring product truth from a special branch,
+private command plane, or command-specific payload shape. Domain payloads may
+repeat the same context when their nested report already owns it, but pure data
+contracts such as `status.data` remain schema-valid source payloads rather than
+being polluted by envelope metadata. The context records the profile, repository
+subject, kernel chain, shared transition commands, reader-view commands,
+scorecard commands, repository truth boundary, and profile or adapter boundary.
 `shared_commands` and `transition_commands` list the five-command transition
 loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`. `reader_view_commands` lists the read-only first-glance view:

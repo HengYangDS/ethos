@@ -23,6 +23,72 @@ def test_status_json_contract() -> None:
     assert payload["next_actions"]
 
 
+PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT = (
+    ("status", "--json"),
+    ("plan", "--changed", "--json"),
+    ("prove", "--json"),
+    ("land", "--json"),
+    ("publish", "--json"),
+    ("orient", "--json"),
+    ("report", "--json"),
+)
+
+
+def _assert_governed_repository_context(context: dict[str, object], *, profile: str) -> None:
+    assert context["contract"] == "governed_repository"
+    assert context["profile"] == profile
+    assert context["single_kernel"] is True
+    assert context["kernel_chain"] == [
+        "Authority",
+        "Subject",
+        "Commitment",
+        "Change",
+        "Evidence",
+        "Claim",
+        "Chronicle",
+    ]
+    assert context["shared_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert context["transition_commands"] == context["shared_commands"]
+    assert context["reader_view_commands"] == ["ethos orient"]
+    assert context["scorecard_commands"] == ["ethos report"]
+    assert context["truth_boundary"] == "repository"
+    assert context["profile_boundary"] == "profile_or_adapter"
+    assert context["subject"]["kind"] == "repository"
+    assert "posture" not in context
+
+
+def test_primary_commands_expose_top_level_governance_context() -> None:
+    for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
+        payload = run_ethos(*command)
+
+        assert "governance_context" in payload, command
+        _assert_governed_repository_context(payload["governance_context"], profile="product")
+
+    status_payload = run_ethos("status", "--json")
+    assert "governance_context" not in status_payload["data"]
+
+
+def test_primary_commands_use_same_context_for_adopted_repository(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adoption_plan(repo, profile="generic", apply=True)
+
+    for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
+        payload = run_ethos(*command[:-1], "--root", repo.as_posix(), command[-1])
+
+        context = payload["governance_context"]
+        _assert_governed_repository_context(context, profile="generic")
+        assert context["subject"]["id"] == str(repo.resolve())
+
+    status_payload = run_ethos("status", "--root", repo.as_posix(), "--json")
+    assert "governance_context" not in status_payload["data"]
+
+
 def test_quality_package_ontology_reports_migration_state() -> None:
     payload = run_ethos("quality", "package-ontology", "--json")
 

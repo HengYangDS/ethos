@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "04982ce2799515a359bad6a99b211f183670ac07",
-    "target_head": "04982ce2799515a359bad6a99b211f183670ac07",
-    "product_semantic_sha256": "e6fda88b97296cacd3109707b47341296bc41e6a0ba8e0b44f655d3bad575ca7",
-    "target_semantic_sha256": "e6fda88b97296cacd3109707b47341296bc41e6a0ba8e0b44f655d3bad575ca7",
+    "product_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
+    "target_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
+    "product_semantic_sha256": "b7a89440f35b9034a9ed615723dbe8e927b5989a6f41e915120bf057098da24c",
+    "target_semantic_sha256": "b7a89440f35b9034a9ed615723dbe8e927b5989a6f41e915120bf057098da24c",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "04982ce2799515a359bad6a99b211f183670ac07",
-    "product_head": "04982ce2799515a359bad6a99b211f183670ac07",
+    "target_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
+    "product_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "750f82e3b541ef884f9d81ace1f1866b83e3d85b89d9084c3e78ab209e9b0c57"
+        "sha256": "95885708a0b60fb70c52b091f26b0df2c536e84a8de1d4f8c91cfb7bf8fbebb7"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0ccb386dc03049161d3241527ddb08ef15235bc93d9dc166d0a558994280d71d"
+        "sha256": "0b51336cae537263b705e2bbe05d37b2889775e7aa293907efafb03b64f0f6f8"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "57c03093c52b4f68601b6db2a758cc8622ad9934700c18572b8c81400c223c95"
+        "sha256": "1e2b0d08e870397da6ef44699e2ec9ed1363132f17b335b2d5a7b7de0ecd79a9"
       },
       {
         "path": "openspec",

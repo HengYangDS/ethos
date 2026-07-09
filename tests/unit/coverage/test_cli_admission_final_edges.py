@@ -276,7 +276,17 @@ def test_admission_prewrite_and_hook_success_edges(
         "ethos_core.contracts.branch.roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr("ethos.adapters.mutation.core.proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: cp(returncode=0))
+
+    def admitted_git(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        # A sanctioned accepted-ref advance: new_value IS the live candidate head and
+        # the move fast-forwards, so `rev-parse candidate/dev` resolves to it and both
+        # is-ancestor checks (containment, fast-forward) succeed.
+        argv = args[0] if args else []
+        if isinstance(argv, list) and argv[:2] == ["git", "rev-parse"]:
+            return cp(stdout="new\n")
+        return cp(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", admitted_git)
     assert (
         admission.push_admission_report(
             root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"

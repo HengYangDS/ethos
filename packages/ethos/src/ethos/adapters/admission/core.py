@@ -343,14 +343,45 @@ def ref_move_admission_report(
     gaps: list[str] = []
     reason = ""
     if branch == policy.accepted_branch:
+        # The accepted branch may only ever advance to the LIVE candidate head, by a
+        # fast-forward, carrying a complete executed proof. Three escapes exist even when
+        # a commit is candidate-related AND proven, so each is checked distinctly:
+        #   * not candidate-validated: new_value is not contained in the candidate branch
+        #     at all — work that never went through the train (existing invariant).
+        #   * not candidate-head: new_value IS candidate-contained but is an intermediate
+        #     commit, not the live candidate head. Only the head the train validated may
+        #     be promoted; an ancestor of it was never a tip a closeout would accept.
+        #   * not fast-forward: old_value is not an ancestor of new_value — a rollback to
+        #     an older (still candidate-contained, still proven) commit rewinds accepted
+        #     history out of band. `git merge --ff-only` gives the sanctioned closeout
+        #     this for free.
+        #   * proof gaps: new_value lacks a complete executed proof (see proof_gaps).
         contained = subprocess.run(
             ["git", "merge-base", "--is-ancestor", new_value, policy.candidate_branch],
             cwd=repo,
             capture_output=True,
             check=False,
         )
+        candidate_head = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", policy.candidate_branch],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+            text=True,
+        ).stdout.strip()
         if contained.returncode != 0:
             gaps.append("accepted_advance_not_candidate_validated")
+        elif new_value != candidate_head:
+            gaps.append("accepted_ref_move_not_candidate_head")
+        if old_value not in (zero, ""):
+            fast_forward = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", old_value, new_value],
+                cwd=repo,
+                capture_output=True,
+                check=False,
+            )
+            if fast_forward.returncode != 0:
+                gaps.append("accepted_ref_move_not_fast_forward")
         gaps.extend(proof_gaps(repo, new_value))
         reason = "accepted_ref_move_bypasses_candidate_train"
     elif branch == policy.candidate_branch:

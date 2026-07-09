@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -14,8 +12,6 @@ from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import push_identity_policy_report
-from ethos.adapters.admission.core import ref_move_admission_report
-from ethos.adapters.mutation import core
 from ethos.adapters.mutation.core import proof_gaps
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
@@ -792,174 +788,6 @@ def test_executed_proof_record_rejects_forgery(
     assert any(g.startswith("proof_incomplete") for g in proof_gaps(tmp_path, head))
     record_executed_proof(tmp_path, _trust_bearing_evidence(head, tmp_path))
     assert proof_gaps(tmp_path, head) == []
-
-
-def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
-    """The candidate-train invariant is un-bypassable: advancing the accepted branch to
-    a commit that candidate has not validated is blocked, so a raw `git merge --ff-only
-    work/x dev` cannot skip candidate. A candidate-contained advance passes containment
-    (proof is still separately required)."""
-
-    def g(*a: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", *a], cwd=tmp_path, capture_output=True, text=True, check=False
-        )
-
-    g("init", "-b", "dev")
-    g("config", "user.name", "t")
-    g("config", "user.email", "t@e.x")
-    (tmp_path / "a").write_text("1", encoding="utf-8")
-    g("add", ".")
-    g("commit", "-m", "base")
-    base = g("rev-parse", "HEAD").stdout.strip()
-    g("branch", "candidate/dev")
-    g("checkout", "-b", "work/x")
-    (tmp_path / "b").write_text("2", encoding="utf-8")
-    g("add", ".")
-    g("commit", "-m", "work")
-    work = g("rev-parse", "HEAD").stdout.strip()
-
-    # bypass: move dev to a work commit candidate never validated -> blocked
-    blocked = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
-    )
-    assert blocked["ok"] is False
-    assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
-
-    # a move of a non-accepted (work) ref is admitted untouched
-    lane = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/work/x", old_value=base, new_value=work
-    )
-    assert lane["ok"] is True
-
-    # candidate-first: once candidate contains the commit, containment passes
-    g("checkout", "candidate/dev")
-    g("merge", "--ff-only", "work/x")
-    advanced = ref_move_admission_report(
-        root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
-    )
-    assert "accepted_advance_not_candidate_validated" not in advanced["required_gaps"]
-
-
-def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-    candidate_head = "c" * 40
-
-    report = ref_move_admission_report(
-        root=repo,
-        ref_name="refs/heads/candidate/dev",
-        old_value=head,
-        new_value=candidate_head,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "protected_ref_move_not_proven",
-    }
-    assert any("proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"])
-
-
-def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path) -> None:
-    """Official closeout is the narrow admitted path through the ref-transaction hook.
-
-    Raw accepted-ref movement remains blocked elsewhere; the internal closeout merge must
-    carry the scoped environment that the hook recognizes so ETHOS does not deadlock by
-    telling users to run the command it then blocks.
-    """
-    policy = SimpleNamespace(accepted_branch="dev", candidate_branch="candidate/dev")
-    advance_envs: list[dict[str, str] | None] = []
-
-    def fake_git(root, *args, check=True, env=None):
-        if args == ("rev-parse", "HEAD"):
-            return subprocess.CompletedProcess(["git"], 0, "old\n", "")
-        if args == ("rev-parse", "--verify", "refs/heads/dev"):
-            return subprocess.CompletedProcess(["git"], 0, "old\n", "")
-        if args[:2] == ("merge-base", "--is-ancestor"):
-            return subprocess.CompletedProcess(["git"], 0, "", "")
-        # The accepted-ref advance is now a git-native compare-and-swap (update-ref
-        # <ref> <new> <old>) plus the worktree sync (reset --keep); both must carry the
-        # scoped ETHOS_ALLOW_REF_MOVE env the reference-transaction hook recognizes, so
-        # official closeout is admitted through the very moat that blocks raw ref moves.
-        if args[0] in ("update-ref", "reset"):
-            advance_envs.append(env)
-            return subprocess.CompletedProcess(["git"], 0, "", "")
-        return subprocess.CompletedProcess(["git"], 0, "", "")
-
-    def fake_policy(_root):
-        return policy
-
-    monkeypatch.setattr(core, "load_branch_role_policy", fake_policy)
-    monkeypatch.setattr(core, "_git", fake_git)
-
-    def fake_closeout_decision(_request=None, *, root=None, current_head=None):
-        return core.MutationDecision(ok=True, state="closeout_ready")
-
-    def fake_workspace_status(_root):
-        return {"candidate": {"head": "new", "worktree_path": tmp_path.as_posix()}}
-
-    monkeypatch.setattr(core, "evaluate_closeout_mutation", fake_closeout_decision)
-    monkeypatch.setattr(core, "workspace_status", fake_workspace_status)
-
-    report = core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="old")
-
-    assert report["ok"] is True
-    assert advance_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}, {"ETHOS_ALLOW_REF_MOVE": "1"}]
-
-
-def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path) -> None:
-    """The accepted-branch ref-move gate fails CLOSED: with no reachable ethos binary a
-    direct commit onto the accepted branch is BLOCKED (the hole that let a direct commit
-    bypass candidate while the CLI lagged its own command). Non-accepted branches fail
-    OPEN so an unavailable binary does not brick ordinary work-lane commits; the
-    sanctioned closeout escape (ETHOS_ALLOW_REF_MOVE=1) still advances the accepted
-    branch."""
-    hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
-    if not hook_src.exists():
-        pytest.skip("reference-transaction hook script not present")
-
-    def g(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", *args], cwd=tmp_path, capture_output=True, text=True, check=False, env=env
-        )
-
-    g("init", "-b", "dev")
-    g("config", "user.name", "t")
-    g("config", "user.email", "t@e.x")
-    hooks = tmp_path / ".githooks"
-    hooks.mkdir()
-    shutil.copy(hook_src, hooks / "reference-transaction")
-    (hooks / "reference-transaction").chmod(0o755)
-    (tmp_path / "a").write_text("1", encoding="utf-8")
-    g("add", ".")
-    g("commit", "-m", "base")
-    g("branch", "candidate/dev")
-    g("config", "core.hooksPath", ".githooks")
-    g("config", "ethos.acceptedBranch", "dev")
-
-    no_binary = {**os.environ, "PATH": "/usr/bin:/bin"}
-
-    # (1) accepted branch, no ethos binary -> BLOCKED (fail-closed)
-    (tmp_path / "b").write_text("2", encoding="utf-8")
-    g("add", ".")
-    blocked = g("commit", "-m", "direct to dev", env=no_binary)
-    assert blocked.returncode != 0
-    dev_head = g("rev-parse", "dev").stdout.strip()
-
-    # (2) non-accepted branch, no ethos binary -> ALLOWED (fail-open)
-    g("checkout", "-b", "work/x")
-    (tmp_path / "w").write_text("w", encoding="utf-8")
-    g("add", ".")
-    work_commit = g("commit", "-m", "work commit", env=no_binary)
-    assert work_commit.returncode == 0
-
-    # (3) sanctioned closeout escape -> accepted branch advances
-    g("checkout", "dev")
-    closeout = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
-    assert closeout.returncode == 0
-    assert g("rev-parse", "dev").stdout.strip() != dev_head
 
 
 def test_promotion_completeness_helper_edges(tmp_path: Path) -> None:

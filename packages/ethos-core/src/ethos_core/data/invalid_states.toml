@@ -141,6 +141,8 @@ match_prefixes = [
   "adoption_scaffold_missing",
   "adopter_missing",
   "accepted_advance_not_candidate_validated",
+  "accepted_ref_move_not_candidate_head",
+  "accepted_ref_move_not_fast_forward",
   "accepted_ref_move_bypasses_candidate_train",
   "git_stash_forbidden",
   "handoff_required",

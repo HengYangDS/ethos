@@ -187,6 +187,8 @@ def test_secrets_gate_scans_current_tree_and_git_history() -> None:
     assert "gitleaks detect" in runner
     assert "--no-git" in runner
     assert "gitleaks git" in runner
+    assert '--source "${repo_root}"' not in runner
+    assert '"${repo_root}"' in runner
     assert "history-report.json" in runner
     assert "history = true" in tools.split('concern = "secrets"', 1)[1].split("[[tool]]", 1)[0]
 

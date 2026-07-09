@@ -429,4 +429,5 @@ truth.
   `uv.lock`, and SBOM digest
 - **AND** the gitleaks installer validates cached archives with pinned SHA-256
 - **AND** the secrets gate scans both current tree and Git history
-
+- **AND** the Git history scan invokes `gitleaks git` with the repository path as
+  the command argument rather than the removed `--source` flag

@@ -1,0 +1,41 @@
+[claim]
+id = "gitleaks-cli-compat"
+subject = "ethos:gitleaks-cli-compat"
+state = "active"
+summary = "The secrets gate follows gitleaks 8.30.1 history-scan CLI without weakening current-tree or history scanning."
+
+[evidence]
+dated = "evidence/chronicle/gitleaks-cli-compat/2026-07-09.md"
+sha256 = "31da265006c99a6b97bb4e5ce6d14da3ae49d865277d923cae6abc05718a4a48"
+evidence_ids = ["evidence:gitleaks-cli-compat"]
+binding = "Digest-bound evidence for gitleaks history-scan CLI compatibility."
+verifier = "semantic"
+tests = [
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "uv run --group dev pytest -q tests/architecture/test_release_assets.py::test_secrets_scan_is_bounded_to_git_tracked_source tests/architecture/test_release_assets.py::test_secrets_gate_scans_current_tree_and_git_history",
+  "uv run --group dev ruff check tests/architecture/test_release_assets.py",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "uv run --group dev ruff format --check tests/architecture/test_release_assets.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "Local CI secrets gate owner script compatibility with gitleaks 8.30.1"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-gitleaks-cli-compat"
+fallback = "Use the previous script only with a gitleaks version whose git subcommand still accepts --source; otherwise this gate fails closed."
+kill_signal = "tools/ci/scripts/run-secrets-scan.sh fails with gitleaks git unknown flag --source or skips either current tracked tree or Git history scanning."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "tests/architecture/test_release_assets.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-gitleaks-cli-compat/proposal.md",
+  "openspec/changes/archive/2026-07-09-gitleaks-cli-compat/design.md",
+  "openspec/changes/archive/2026-07-09-gitleaks-cli-compat/tasks.md",
+  "openspec/changes/archive/2026-07-09-gitleaks-cli-compat/specs/quality/spec.md",
+  "evidence/chronicle/gitleaks-cli-compat/2026-07-09.md",
+  "evidence/claims/gitleaks-cli-compat.toml",
+]

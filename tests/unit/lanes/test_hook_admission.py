@@ -623,6 +623,8 @@ def test_push_identity_helpers_tolerate_git_failures(
             return subprocess.CompletedProcess(args, 1, "", "fatal")
         raise AssertionError(args)
 
+    assert admission_core._pushed_commit_range(tmp_path, pushed_head="", remote_head="") == []
+
     monkeypatch.setattr(admission_core.subprocess, "run", fake_range_run)
     assert admission_core._pushed_commit_range(tmp_path, pushed_head="h1", remote_head="") == []
 

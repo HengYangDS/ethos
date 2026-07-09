@@ -257,6 +257,18 @@ def test_cli_wrappers_emit_expected_results(
         lambda root: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
     )
     monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda repo: "h1")
+    monkeypatch.setattr(
+        lifecycle_cli,
+        "proof_readiness_report",
+        lambda repo, current_head: {
+            "kind": "executed_proof_readiness",
+            "head": current_head,
+            "state": "proven",
+            "blocking": False,
+            "required_gaps": [],
+            "next_action": "",
+        },
+    )
     lifecycle_cli.land(json_output=True)
     assert emitted[-1].state == "blocked"
 

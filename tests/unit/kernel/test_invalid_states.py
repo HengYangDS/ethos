@@ -11,13 +11,13 @@ from pathlib import Path
 
 import jsonschema
 
-from ethos_core import invalid_states as invalid_states_module
-from ethos_core.invalid_states import NODE_ORDER
-from ethos_core.invalid_states import UNCLASSIFIED
-from ethos_core.invalid_states import classify
-from ethos_core.invalid_states import classify_all
-from ethos_core.invalid_states import invalid_state_categories
-from ethos_core.invalid_states import invalid_state_projection
+import ethos_core.state.invalid as invalid_states_module
+from ethos_core.state.invalid import NODE_ORDER
+from ethos_core.state.invalid import UNCLASSIFIED
+from ethos_core.state.invalid import classify
+from ethos_core.state.invalid import classify_all
+from ethos_core.state.invalid import invalid_state_categories
+from ethos_core.state.invalid import invalid_state_projection
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -120,7 +120,7 @@ def test_taxonomy_loads_from_packaged_resource_outside_checkout(
     monkeypatch.setattr(
         invalid_states_module,
         "__file__",
-        str(tmp_path / "site-packages" / "ethos_core" / "invalid_states.py"),
+        str(tmp_path / "site-packages" / "ethos_core" / "state" / "invalid.py"),
     )
     invalid_states_module.invalid_state_categories.cache_clear()
 

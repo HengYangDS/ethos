@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from ethos.domain.land_support import local_ci_owner_scripts
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo

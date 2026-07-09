@@ -37,6 +37,6 @@ targets = [
   "openspec/changes/archive/2026-07-08-invalid-state-release-resource/tasks.md",
   "openspec/changes/archive/2026-07-08-invalid-state-release-resource/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/data/invalid_states.toml",
-  "packages/ethos-core/src/ethos_core/invalid_states.py",
+  "packages/ethos-core/src/ethos_core/state/invalid.py",
   "tests/unit/kernel/test_invalid_states.py",
 ]

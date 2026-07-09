@@ -10,9 +10,9 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 PARITY_EVIDENCE_ROOT = Path("evidence/parity")
 PARITY_SHADOW_SUFFIX = "-shadow.json"

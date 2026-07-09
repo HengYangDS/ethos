@@ -14,9 +14,9 @@ import pytest
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.repo.runtime.core as repo_runtime
 import ethos.adapters.repo.status.core as status
+import ethos_core.state.invalid as invalid_states
 from ethos.repository import audit_openspec
 from ethos.repository.adoption.scaffold_docs import pages as scaffold_pages
-from ethos_core import invalid_states
 from ethos_core.quality.proof import policy as proof_policy
 
 
@@ -26,7 +26,7 @@ def test_taxonomy_path_falls_back_when_no_toml_in_parents(
 ) -> None:
     # Resolve the module from a temp location with no system/invalid_states.toml in
     # any parent, so the search loop exhausts and returns the relative fallback.
-    fake_module = tmp_path / "a" / "b" / "invalid_states.py"
+    fake_module = tmp_path / "a" / "b" / "state" / "invalid.py"
     fake_module.parent.mkdir(parents=True)
     fake_module.write_text("", encoding="utf-8")
     monkeypatch.setattr(invalid_states, "__file__", str(fake_module))

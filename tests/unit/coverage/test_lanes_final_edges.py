@@ -10,8 +10,8 @@ from types import SimpleNamespace
 
 import ethos.adapters.mutation.lanes_refresh as lanes_refresh
 from ethos.adapters.mutation import lanes
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:

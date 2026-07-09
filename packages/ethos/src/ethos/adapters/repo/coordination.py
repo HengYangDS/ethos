@@ -3,8 +3,8 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.invalid_states import invalid_state_projection
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.state.invalid import invalid_state_projection
 
 if TYPE_CHECKING:
     from pathlib import Path

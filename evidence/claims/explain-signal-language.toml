@@ -16,4 +16,4 @@ kind = "test"
 ref = "tests/unit/cli/test_invalid_state_projection.py::test_explain_projects_advisory_signal_without_required_gap_overclaim"
 
 [[promotion_targets]]
-path = "packages/ethos-core/src/ethos_core/invalid_states.py"
+path = "packages/ethos-core/src/ethos_core/state/invalid.py"

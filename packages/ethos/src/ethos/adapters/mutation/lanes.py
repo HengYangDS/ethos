@@ -20,9 +20,9 @@ from ethos.adapters.store.state import acquire_lease
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
 from ethos.adapters.store.state import update_lease_payload
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest

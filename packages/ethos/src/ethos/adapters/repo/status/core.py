@@ -21,9 +21,9 @@ from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
 from ethos.adapters.repo.status.bindings import worktree_binding
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import BranchRolePolicy
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
 def landing_readiness(

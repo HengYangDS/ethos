@@ -7,10 +7,10 @@ from datetime import datetime
 from pathlib import Path
 
 from ethos.adapters.store.state import active_leases
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import BranchRolePolicy
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def _run_git(root: Path, *args: str) -> str:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shlex
 
-from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
 _MUTATION_PATTERNS = (
     " write_text(",

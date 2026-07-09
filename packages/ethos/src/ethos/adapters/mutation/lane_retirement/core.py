@@ -15,8 +15,8 @@ from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import delete_lease
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
 @dataclass(frozen=True)

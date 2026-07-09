@@ -26,7 +26,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:

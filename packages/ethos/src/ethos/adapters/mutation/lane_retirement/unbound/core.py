@@ -11,8 +11,8 @@ import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_sh
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import delete_lease
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
 def retire_unbound_work_lane_ref(

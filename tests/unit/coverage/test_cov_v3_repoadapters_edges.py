@@ -9,7 +9,7 @@ import ethos.adapters.repo.status.core as status
 import ethos.adapters.shadow.identity as shadow_identity
 import ethos.adapters.shadow.semantics as shadow_semantics
 from ethos.adapters.repo import coordination
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

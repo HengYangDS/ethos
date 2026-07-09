@@ -12,9 +12,9 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos_core.invalid_states import UNCLASSIFIED
-from ethos_core.invalid_states import explain_gap
 from ethos_core.result import EthosResult
+from ethos_core.state.invalid import UNCLASSIFIED
+from ethos_core.state.invalid import explain_gap
 
 
 @app.command(show=False)

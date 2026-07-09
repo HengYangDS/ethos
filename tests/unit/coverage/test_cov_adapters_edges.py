@@ -10,8 +10,8 @@ import pytest
 
 import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.gates import signature
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import BranchRolePolicy
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def _patch_signature(

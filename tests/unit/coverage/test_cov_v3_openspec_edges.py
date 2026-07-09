@@ -16,8 +16,8 @@ import ethos.adapters.openspec.workspace.core as openspec_workspace
 import ethos.repository.openspec.metadata as openspec_metadata
 from ethos.repository import audit_openspec
 from ethos.repository import audit_openspec as audit_openspec_core
-from ethos_core.contracts.branch_roles import ROLE_RELEASE_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_RELEASE_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 if TYPE_CHECKING:
     import pytest

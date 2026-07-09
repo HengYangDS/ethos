@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
-    "target_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
-    "product_semantic_sha256": "899379fe0737240105b66514f33572271c684e0c222582952996246990a596ed",
-    "target_semantic_sha256": "899379fe0737240105b66514f33572271c684e0c222582952996246990a596ed",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "1f7c5ec68a6bb4cd7eb9723851bacb8f0a8ac96a",
+    "target_head": "1f7c5ec68a6bb4cd7eb9723851bacb8f0a8ac96a",
+    "product_semantic_sha256": "dd0fb3d7deecee80a0a49398d640a5e951b3ca0e4445b6892529d34a33266bcc",
+    "target_semantic_sha256": "dd0fb3d7deecee80a0a49398d640a5e951b3ca0e4445b6892529d34a33266bcc",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709",
-    "target_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
-    "product_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709",
+    "target_head": "1f7c5ec68a6bb4cd7eb9723851bacb8f0a8ac96a",
+    "product_head": "1f7c5ec68a6bb4cd7eb9723851bacb8f0a8ac96a",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "5cbe834db4f7ad6baba47498f9c74f80475529c49dfe8eddb4b270ae10ef5357"
+        "sha256": "173e64d6efb3188b713d94523aa92ebf5426f61d92f2d39d73462a79def1a8a6"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "72ef69c684eef150ae6b338ba7b8fb2f2f0d7c1556b5d13612bebffa4f0a539b"
+        "sha256": "abb90b581defba8f095f9d8d034bd195494c703cb651df4248f4550898fcb5a7"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "a5685df4ba3ccf4ffaa36691f85f2bbeeac8043231c46fde33175eb702262ff9"
+        "sha256": "1580375297a57eb80133797140559b085e940f1d6a06e8d996e9872be855ee3c"
       },
       {
         "path": "rules",

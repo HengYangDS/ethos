@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos.adapters.mutation import lanes
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
 def test_status_work_lane_none_when_worktrees_not_list() -> None:

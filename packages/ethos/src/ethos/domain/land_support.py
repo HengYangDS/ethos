@@ -19,7 +19,7 @@ from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.core import MutationDecision
-    from ethos_core.contracts.branch_roles import BranchRolePolicy
+    from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def command_is_executed_proof(command: object) -> bool:

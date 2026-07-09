@@ -13,10 +13,10 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.audit_openspec import active_change_names
 from ethos.repository.audit_openspec import active_change_violations_for_role
 from ethos.repository.audit_openspec import completed_unarchived_changes
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_CANDIDATE
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
 def proof_gaps(root: Path, current_head: str) -> list[str]:

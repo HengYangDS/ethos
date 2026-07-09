@@ -6,10 +6,10 @@ from pathlib import Path
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
-from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
-from ethos_core.contracts.branch_roles import ROLE_DETACHED
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import ROLE_DETACHED
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
 def prewrite_guard(

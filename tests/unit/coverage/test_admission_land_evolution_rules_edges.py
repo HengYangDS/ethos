@@ -17,8 +17,8 @@ from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import ttl_days_or_none
 from ethos.repository.policy.rules.migration import toml_table_key
 from ethos.repository.policy.rules.migration import toml_value
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
@@ -91,7 +91,7 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
         candidate_branch="candidate/dev",
     )
     monkeypatch.setattr(
-        "ethos_core.contracts.branch_roles.load_branch_role_policy", lambda root: policy
+        "ethos_core.contracts.branch.roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr(
         "ethos.adapters.mutation.core.proof_gaps", lambda root, head: ["proof_not_proven"]

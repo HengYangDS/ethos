@@ -37,8 +37,8 @@ from ethos.repository.audit_openspec import completed_unarchived_changes
 from ethos.repository.audit_openspec import openspec_provider_missing_report
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.result import EthosResult
 
 
@@ -243,7 +243,7 @@ def test_admission_prewrite_and_hook_success_edges(
         role_for_branch=lambda branch: ROLE_ACCEPTED_ROOT if branch == "dev" else "work_lane",
     )
     monkeypatch.setattr(
-        "ethos_core.contracts.branch_roles.load_branch_role_policy", lambda root: policy
+        "ethos_core.contracts.branch.roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr("ethos.adapters.mutation.core.proof_gaps", lambda root, head: [])
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: cp(returncode=0))

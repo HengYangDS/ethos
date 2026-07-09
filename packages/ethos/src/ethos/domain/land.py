@@ -25,7 +25,7 @@ from ethos.domain.land_support import publication_readiness
 from ethos.domain.land_support import remote_publication_deferred
 from ethos.domain.land_support import repository_audit_after_admission
 from ethos.domain.land_support import trust_closeout_package
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 __all__ = (
     "acceptable_parity_product_heads",

@@ -6,7 +6,7 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.repo.status.core import workspace_status
-from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -114,7 +114,7 @@ def push_admission_report(
     lanes, feature branches) are admitted untouched.
     """
     from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch_roles import load_branch_role_policy
+    from ethos_core.contracts.branch.roles import load_branch_role_policy
 
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
@@ -173,7 +173,7 @@ def ref_move_admission_report(
     import subprocess
 
     from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch_roles import load_branch_role_policy
+    from ethos_core.contracts.branch.roles import load_branch_role_policy
 
     repo = root.resolve()
     policy = load_branch_role_policy(repo)

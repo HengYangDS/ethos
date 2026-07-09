@@ -14,7 +14,7 @@ from ethos.repository.policy.coupling.contracts import BRANCH_ROLE_CONFIG_SOURCE
 from ethos.repository.policy.coupling.contracts import COUPLING_LAYERS
 from ethos.repository.policy.coupling.release import release_host_profile
 from ethos.repository.policy.coupling.toolchain import product_toolchain
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

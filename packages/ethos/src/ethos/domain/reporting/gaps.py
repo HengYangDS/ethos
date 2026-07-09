@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import cast
 
 from ethos.domain.reporting.scoring import adopter_quality_floor_report
-from ethos_core.invalid_states import invalid_state_projection
+from ethos_core.state.invalid import invalid_state_projection
 
 
 def advisory_gaps(

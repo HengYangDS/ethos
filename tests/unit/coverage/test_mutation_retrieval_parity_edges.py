@@ -19,8 +19,8 @@ from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import schema as retrieval_schema
 from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos.repository.evidence import parity
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:

@@ -15,7 +15,7 @@ schema = "system/schemas/contracts/invalid_states.schema.json"
 # one vocabulary instead of ad-hoc strings.
 #
 # Rule: every gap string ETHOS emits MUST classify into exactly one category here
-# (enforced by ethos_core.invalid_states.classify + a coverage test). A gap that
+# (enforced by ethos_core.state.invalid.classify + a coverage test). A gap that
 # matches no category is itself an invalid state — an ungoverned failure mode.
 
 [[category]]

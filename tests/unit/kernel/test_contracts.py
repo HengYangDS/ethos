@@ -337,7 +337,7 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
 
 
 def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
-    from ethos_core.invalid_states import NODE_ORDER
+    from ethos_core.state.invalid import NODE_ORDER
 
     contract = load_system_contract(Path(), "workflows")
     states = set(contract["lifecycle"]["states"])

@@ -10,7 +10,7 @@ available.
 #### Scenario: Source checkout keeps the SSOT
 
 - **GIVEN** `system/invalid_states.toml` exists in the repository checkout
-- **WHEN** `ethos_core.invalid_states.invalid_state_categories()` loads the taxonomy
+- **WHEN** `ethos_core.state.invalid.invalid_state_categories()` loads the taxonomy
 - **THEN** it reads the source contract
 - **AND** the packaged mirror does not become an independent authority
 

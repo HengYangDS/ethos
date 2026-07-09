@@ -32,6 +32,7 @@ def _init_repo(repo: Path) -> None:
     _git(repo, "init")
     _git(repo, "config", "user.email", "ethos@example.invalid")
     _git(repo, "config", "user.name", "ETHOS Test")
+    _git(repo, "config", "commit.gpgsign", "false")
     (repo / ".gitignore").write_text(
         "build/\n.cache/\n__pycache__/\n*.pyc\n",
         encoding="utf-8",

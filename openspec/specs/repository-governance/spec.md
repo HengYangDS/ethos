@@ -769,6 +769,9 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** closeout residue appears as a coarse advisory coordination signal
   rather than one branch-level gap per disposition
 - **AND** missing leases remain distinct from retire-ready closeout disposition
+- **AND** a clean claim-bound lane absorbed by accepted truth reports a
+  head-bound `next_action` for `ethos lane retire-landed --branch <branch>
+  --expect-head <head> --apply --json`
 - **AND** `ethos report --json` routes that advisory signal to read-only
   inspection commands
 - **AND** the disposition does not grant write, land, retire, or cleanup

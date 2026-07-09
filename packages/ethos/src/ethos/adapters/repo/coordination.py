@@ -99,7 +99,11 @@ def foreign_work_lane(
         "relation_to_accepted": relation_to_accepted,
         "closeout_disposition": disposition,
         "residue_state": residue_state(disposition),
-        "next_action": lane_next_action(disposition),
+        "next_action": lane_next_action(
+            disposition,
+            branch=branch,
+            head=str(worktree["head"]),
+        ),
         "dirty": bool(dirty_paths),
         "dirty_paths": list(dirty_paths),
         "path_scope": list(path_scope),
@@ -121,9 +125,15 @@ def residue_state(disposition: str) -> str:
     return CLEAN_RESIDUE_STATE
 
 
-def lane_next_action(disposition: str) -> str:
+def lane_next_action(disposition: str, *, branch: str = "", head: str = "") -> str:
     if disposition == "landed_dirty":
         return LANDED_DIRTY_NEXT_ACTION
+    if disposition == "retire_ready" and branch and head:
+        return (
+            "retire clean absorbed Work Lane with "
+            f"ethos lane retire-landed --branch {branch} "
+            f"--expect-head {head} --apply --json"
+        )
     return CLEAN_RESIDUE_NEXT_ACTION
 
 

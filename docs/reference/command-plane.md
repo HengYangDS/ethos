@@ -252,9 +252,9 @@ coordination state and unbound Work Lane refs with their relation to accepted
 truth. Plain presence remains advisory through `advisory_gaps` such as
 `foreign_work_lane_present`, `unbound_work_lane_ref_present`, or
 `work_lane_missing_lease:<branch>`. Candidate integration from a Work Lane is
-blocked only when a required coordination gap is present, such as unknown current
-or foreign scope. Same-file or ancestor-scope overlap is surfaced as advisory
-contention through `coordination_gap:scope_overlap:<branch>` so Git's
+blocked only when a required coordination gap is present, such as unknown
+current scope. Unknown foreign scope and same-file or ancestor-scope overlap are
+surfaced as advisory contention through `coordination_gap:*` entries, so Git's
 fast-forward land remains the mutation arbiter without serializing unrelated
 agents that share a directory. Across product and adopter profiles,
 `ethos report --json` mirrors status-required coordination gaps into report
@@ -268,9 +268,13 @@ break-glass. A landed dirty lane is not retire-ready residue: it reports
 `closeout_disposition=landed_dirty`,
 `residue_state=unpreserved_worktree_delta`, and a `next_action` requiring the
 owner to preserve or intentionally discard the dirty worktree delta before
-retirement. This is a product read model, not a host message bus: assistant
-hosts, MCP, editor hosts, and CI adapters all see the same repository fact and
-must route mutation through their own owned lane.
+retirement. A clean claim-bound lane already absorbed by accepted truth reports
+`closeout_disposition=retire_ready` and a head-bound `next_action` shaped as
+`ethos lane retire-landed --branch <branch> --expect-head <head> --apply --json`;
+the command is still authority-gated by the lane owner or break-glass policy.
+This is a product read model, not a host message bus: assistant hosts, MCP,
+editor hosts, and CI adapters all see the same repository fact and must route
+mutation through their own owned lane.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.

@@ -56,10 +56,12 @@ semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
 Foreign Work Lanes appear in `foreign_work_lanes` and in the `coordination`
 package. Presence is advisory when scopes are disjoint or the current checkout
-is observe-only. Candidate integration from a Work Lane is blocking when the
-current lane and a foreign lane have overlapping or unknown path scope; the
-status payload reports `coordination_gap:*` in `required_gaps` before a later
-merge can accidentally let one agent overwrite another agent's obligation.
+is observe-only. Candidate integration from a Work Lane is blocked by required
+coordination gaps for the current lane, such as unknown current scope. Foreign
+unknown scope and same-file/ancestor-scope overlap are surfaced as advisory
+`coordination_gap:*` contention, leaving Git's fast-forward land as the final
+mutation arbiter without serializing unrelated agents that merely share a
+directory.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane

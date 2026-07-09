@@ -254,6 +254,11 @@ def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(
     assert lane["lease_state"] == "leased"
     assert lane["claim_binding"] == "bound"
     assert lane["closeout_disposition"] == "retire_ready"
+    assert lane["next_action"] == (
+        "retire clean absorbed Work Lane with "
+        "ethos lane retire-landed --branch work/feature "
+        f"--expect-head {lane['head']} --apply --json"
+    )
     assert status["coordination_gaps"] == [
         "foreign_work_lane_present",
         "work_lane_closeout_residue_present",

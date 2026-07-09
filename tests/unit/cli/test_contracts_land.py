@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.domain.land_support import local_ci_owner_scripts
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
@@ -647,13 +648,9 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     )
     assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
     assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
-    local_ci_script = Path("tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
-    expected_owner_scripts = [
-        line.strip()
-        for line in local_ci_script.splitlines()
-        if line.strip().startswith("tools/ci/scripts/") and line.strip().endswith(".sh")
-    ]
-    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == expected_owner_scripts
+    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == local_ci_owner_scripts(
+        root=Path.cwd()
+    )
 
     publication = payload["data"]["publication"]
     assert publication["mode"] == "local_readiness"

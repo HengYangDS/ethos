@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b8055df2381497d97d839aebb59b2efeeeca8ff8",
-    "target_head": "b8055df2381497d97d839aebb59b2efeeeca8ff8",
-    "product_semantic_sha256": "3fab9317ba57c5c608a0a4d0e1f4ab9e59d9a00ea54182feca8174172e0b3ca5",
-    "target_semantic_sha256": "3fab9317ba57c5c608a0a4d0e1f4ab9e59d9a00ea54182feca8174172e0b3ca5",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "e1d5245666f56c9892e6f474f6626d30518a0e1d",
+    "target_head": "e1d5245666f56c9892e6f474f6626d30518a0e1d",
+    "product_semantic_sha256": "f868bf22aa795c3692033b8f03fc37c4626a7abce06a527f062ea5da5bedb5d5",
+    "target_semantic_sha256": "f868bf22aa795c3692033b8f03fc37c4626a7abce06a527f062ea5da5bedb5d5",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "b8055df2381497d97d839aebb59b2efeeeca8ff8",
-    "product_head": "b8055df2381497d97d839aebb59b2efeeeca8ff8",
+    "target_head": "e1d5245666f56c9892e6f474f6626d30518a0e1d",
+    "product_head": "e1d5245666f56c9892e6f474f6626d30518a0e1d",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "<repo>/.venv/bin/python -m ethos.cli status --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli prove --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli report --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "<repo>/.venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli land --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli publish --root <repo> --json"
+      "<repo>/.venv/bin/python3 -m ethos.cli status --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli prove --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli report --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli land --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli publish --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +76,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "152f12153e0fd52cba8ea40fff38e29af0afd73554f6e5568edaf10fc8e39d88"
+        "sha256": "750f82e3b541ef884f9d81ace1f1866b83e3d85b89d9084c3e78ab209e9b0c57"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4f9854220bba53283180186bf1778c4f24b8931a6e0d926b46214acf4fc41f6f"
+        "sha256": "570332a6db19fd5652d3c2a10209de9aff142b4ed161985b92a1fc8723cf1f08"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "fd705ce8ff87b3c0a61b5a9a5d3d2fb2492e7868fdb4caf87e1e51424d617a99"
+        "sha256": "31dd8dcf03314db6f8a73d38c77647224d78e1df74cecab3ae5aa6c10d63da39"
       },
       {
         "path": "rules",

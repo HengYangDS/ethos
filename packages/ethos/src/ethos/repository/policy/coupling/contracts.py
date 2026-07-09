@@ -223,7 +223,7 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "required_for": ["Python package build"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "gapped:build_backend_unavailable",
-        "proof_gate": "uv build --all-packages",
+        "proof_gate": "uv build --all-packages --out-dir build/artifacts/python --clear",
     },
     "pytest_test_runner": {
         "required_for": ["unit and architecture proof"],
@@ -263,7 +263,7 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "required_for": ["npm launcher distribution"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "deferred:npm_distribution_unavailable",
-        "proof_gate": "uv build --all-packages",
+        "proof_gate": "uv build --all-packages --out-dir build/artifacts/python --clear",
         "admission": {
             "authority_ref": "docs/governance/product-design-contract.md#binding-taxonomy",
             "truth_boundary": "profile_or_adapter",

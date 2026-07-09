@@ -27,6 +27,7 @@ frozen ignored-rule debt visible and non-increasing.
 - **THEN** ETHOS invokes `tools/ci/scripts/run-python-lint.sh`
 - **AND** that owner script runs Ruff check and Ruff format with explicit `.config/checks/ruff/ruff.toml`, plus the
   Ruff ignored-rule ratchet script
+- **AND** Ruff runtime cache lives under ignored `build/runtime/tool-cache/ruff`, not root `.ruff_cache/`
 - **AND** each baseline in `.config/checks/ruff/ratchet.toml` is treated as a
   maximum, not a target
 - **AND** a rule baseline may be lowered when findings are removed, but may not
@@ -202,6 +203,18 @@ and curated evidence remain distinct authority surfaces.
 - **AND** the command remains read-only and does not clean files as part of the
   verdict
 
+#### Scenario: Semantic generated homes are enforced
+
+- **WHEN** `ethos quality generated-artifacts --json` scans ignored local state
+- **THEN** root tool cache homes such as `.import_linter_cache/`,
+  `.import-linter-cache/`, `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`,
+  `.tox/`, `.nox/`, `.uv-cache/`, and root `dist/` fail even when ignored
+- **AND** retired flat generated homes such as `build/cache/` and
+  `build/runtime/gitlab-ci-local/` fail
+- **AND** allowed generated homes are semantic: `.cache/local-state/`,
+  `build/runtime/tool-cache/<tool>/`, `build/runtime/work/<provider>/`,
+  `build/evidence/`, `build/ethos/`, and `build/artifacts/<kind>/`.
+
 ### Requirement: Python Module Layout Gate
 
 ETHOS SHALL gate Python module layout as a quality property so semantic
@@ -260,7 +273,7 @@ store.
   threshold
 - **AND** existing structured docstrings must use Google-style sections and their
   `Args` section must match the Python signature
-- **AND** legacy reStructuredText or NumPy-style sections are rejected
+- **AND** retired reStructuredText or NumPy-style sections are rejected
 - **AND** the gate scope is limited to product-visible Python surfaces such as
   CLI command functions, explicit exports, and package boundary docstrings
 - **AND** hosted CI invokes the reusable docstring coverage script instead of
@@ -380,7 +393,7 @@ policy, and archive validation before the tool is installed.
 - **WHEN** a hosted CI job needs gitleaks or Node
 - **THEN** the job invokes a repository-owned installer script
 - **AND** the installer downloads through the shared CI artifact helper
-- **AND** the artifact is cached under `build/cache/ci-tools/`
+- **AND** the artifact is cached under `build/runtime/tool-cache/ci-tools/`
 - **AND** the installer validates the cached archive before reuse
 
 ### Requirement: Executable tooling adoption gates

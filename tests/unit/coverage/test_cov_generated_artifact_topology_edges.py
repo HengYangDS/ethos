@@ -80,3 +80,18 @@ def test_report_collects_review_and_deny_gaps_across_iterations(
     assert report["review_gaps"] == ["review_gap_here"]
     assert report["required_gaps"] == ["deny_gap_here"]
     assert "allow.txt" in report["allowed_paths"]
+
+
+def test_explicit_denied_roots_ignores_empty_contract_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        artifacts_mod,
+        "generated_artifact_contract",
+        lambda: {
+            "denied_root_cache_prefixes": [{"prefix": ""}],
+            "denied_legacy_generated_prefixes": [{"prefix": "dist"}],
+        },
+    )
+
+    assert artifacts_mod._explicit_denied_roots() == ["dist"]

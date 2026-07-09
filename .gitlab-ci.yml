@@ -5,16 +5,16 @@ stages:
 
 variables:
   UV_LINK_MODE: copy
-  UV_CACHE_DIR: .uv-cache
-  LYCHEE_CACHE_DIR: build/cache/lychee
-  ETHOS_CI_TOOL_CACHE_DIR: build/cache/ci-tools
+  UV_CACHE_DIR: build/runtime/tool-cache/uv
+  LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
+  ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools
 
 cache:
   key: ${CI_PROJECT_PATH_SLUG}
   paths:
-    - .uv-cache/
-    - build/cache/lychee/
-    - build/cache/ci-tools/
+    - build/runtime/tool-cache/uv/
+    - build/runtime/tool-cache/lychee/
+    - build/runtime/tool-cache/ci-tools/
 
 # Auto-retry every job on infrastructure failures only (image-pull timeouts to
 # Docker Hub, runner crashes, API hiccups) — the runner's egress to external
@@ -250,11 +250,11 @@ ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - uv build --all-packages
+    - uv build --all-packages --out-dir build/artifacts/python --clear
   artifacts:
     when: always
     paths:
-      - dist/
+      - build/artifacts/python/
 
 ethos:npm-package:
   stage: package

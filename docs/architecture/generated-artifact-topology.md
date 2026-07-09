@@ -27,7 +27,8 @@ file as source, local state, generated output, or curated evidence.
 | --- | --- | --- | --- |
 | `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
 | `.cache/local-state/` and `.ethos/state/` | Host-local runtime state, leases, locks, executions, sessions. | Yes | No |
-| `build/runtime/` | Tool runtime caches and working state. | Yes | No |
+| `build/runtime/tool-cache/` | Tool runtime caches keyed by tool name. | Yes | No |
+| `build/runtime/work/` | Provider emulator state and scratch working state. | Yes | No |
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
 | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Curated, dated, reviewable evidence summaries. | No raw output | Yes, after review |
@@ -56,6 +57,15 @@ instances of those files still fail the topology audit as root generated drift.
 This keeps the gate from depending on test-gate cleanup order without turning
 repo root into an output home.
 
+Root cache homes such as `.import_linter_cache/`, `.import-linter-cache/`,
+`.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.tox/`, `.nox/`,
+`.uv-cache/`, and root `dist/` are denied even when ignored. They are local
+residue, not semantic topology. Route them to `build/runtime/tool-cache/<tool>/`
+or `build/artifacts/<kind>/`. Retired flat homes such as `build/cache/` and
+`build/runtime/gitlab-ci-local/` are also denied; use
+`build/runtime/tool-cache/<tool>/` and `build/runtime/work/gitlab-ci-local/`
+instead.
+
 ## Audit
 
 ```bash
@@ -76,7 +86,7 @@ Adopters do not need product-owned `adopters/<name>`, `profiles/<name>`, or
 fixture directories to use this contract. Adoption-side policy should be
 declared in the adopter repository, for example under `.config/ethos/`, and raw
 machine output should move to ignored runtime/build homes such as
-`build/runtime/` or `build/evidence/`. Rollback is likewise
+`build/runtime/tool-cache/`, `build/runtime/work/`, or `build/evidence/`. Rollback is likewise
 adopter-owned: remove or relax the adopter declaration, move raw generated
 outputs back to an ignored local/build home, and keep only curated evidence that
 has already been reviewed and promoted.

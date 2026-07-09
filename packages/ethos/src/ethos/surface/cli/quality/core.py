@@ -698,7 +698,7 @@ def release(
         ok=bool(release_files["ok"]),
         state="ready" if release_files["ok"] else "blocked",
         required_gaps=tuple(cast("list[str]", release_files["missing"])),
-        next_actions=("uv build --all-packages",),
+        next_actions=("uv build --all-packages --out-dir build/artifacts/python --clear",),
         data={
             "release_files": release_files,
             "host_profile": policy["host_profile"],

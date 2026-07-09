@@ -25,5 +25,10 @@ def test_pre_commit_blocks_staged_python_format_drift() -> None:
 
     assert "git diff --cached --name-only --diff-filter=ACMR -- '*.py'" in script
     assert 'ruff_config_path=".config/checks/ruff/ruff.toml"' in script
-    assert 'ruff format --config "${ruff_config_path}" --check' in script
+    assert "build/runtime/tool-cache/ruff" in script
+    assert "--cache-dir" in script
+    assert (
+        'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check'
+        in script
+    )
     assert "pre_commit_python_format_failed" in script

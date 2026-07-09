@@ -271,7 +271,7 @@ def emulator_evidence(
             "--file",
             paths["config"],
             "--state-dir",
-            "build/runtime/gitlab-ci-local",
+            "build/runtime/work/gitlab-ci-local",
             "--list",
         ]
         output_dir = ROOT / "build/evidence/local-ci/gitlab"

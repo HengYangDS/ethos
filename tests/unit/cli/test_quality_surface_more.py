@@ -122,7 +122,9 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
         "head_signature_not_good",
     ]
     assert emitted[1]["command"] == "quality release"
-    assert emitted[1]["next_actions"] == ["uv build --all-packages"]
+    assert emitted[1]["next_actions"] == [
+        "uv build --all-packages --out-dir build/artifacts/python --clear"
+    ]
     assert emitted[2]["command"] == "quality release-policy"
     assert emitted[2]["next_actions"] == ["ethos quality release-attestation"]
     assert emitted[3]["summary"] == {"package_count": 1}
@@ -310,3 +312,24 @@ def test_quality_provenance_emits_planned_evidence_envelope(monkeypatch, tmp_pat
     }
     assert payload["summary"] == {"evidence_digest": evidence["digest"]}
     assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == evidence["digest"]
+
+
+def test_quality_commits_enforce_head_adds_signature_and_subject_gaps(monkeypatch) -> None:
+    emitted = _capture(monkeypatch)
+    monkeypatch.setattr(
+        q,
+        "signature_policy_report",
+        lambda _repo: {
+            "required_gaps": [],
+            "head_subject_ok": False,
+            "head_signature_ok": False,
+        },
+    )
+
+    q.commits(enforce_head=True, json_output=True)
+
+    assert emitted[0]["ok"] is False
+    assert emitted[0]["required_gaps"] == [
+        "head_subject_not_conventional",
+        "head_signature_not_good",
+    ]

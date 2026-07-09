@@ -59,10 +59,10 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert "tools/ci/scripts/bootstrap-python.sh" in text
     assert "tools/ci/scripts/install-lychee.sh" in text
-    assert "LYCHEE_CACHE_DIR: build/cache/lychee" in text
-    assert "ETHOS_CI_TOOL_CACHE_DIR: build/cache/ci-tools" in text
-    assert "build/cache/lychee/" in text
-    assert "build/cache/ci-tools/" in text
+    assert "LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee" in text
+    assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
+    assert "build/runtime/tool-cache/lychee/" in text
+    assert "build/runtime/tool-cache/ci-tools/" in text
     assert "tools/ci/scripts/run-import-linter.sh" in text
     assert "tools/ci/scripts/run-docstring-coverage.sh" in text
     assert (
@@ -143,7 +143,7 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "--max-time" in installer
     assert "--continue-at -" in installer
     assert "LYCHEE_CACHE_DIR" in installer
-    assert "build/cache/lychee" in installer
+    assert "build/runtime/tool-cache/lychee" in installer
     assert "tar tzf" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
@@ -160,7 +160,7 @@ def test_ci_node_installer_is_architecture_aware() -> None:
     assert "NODE_VERSION" in installer
     assert "download-file.sh" in installer
     assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
-    assert "build/cache/ci-tools" in installer
+    assert "build/runtime/tool-cache/ci-tools" in installer
     assert "tar tJf" in installer
     assert "command -v node" in installer
     assert "tar xJf" in installer
@@ -185,7 +185,7 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
 
     assert "download-file.sh" in installer
     assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
-    assert "build/cache/ci-tools" in installer
+    assert "build/runtime/tool-cache/ci-tools" in installer
     assert "tar tzf" in installer
     assert "gitleaks_${version}_linux_${arch}.tar.gz" in installer
     assert "sha256sum -c" in installer
@@ -193,7 +193,7 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     assert "GITLEAKS_LINUX_ARM64_SHA256" in installer
     assert 'concern = "ci_tool_supply"' in tools
     assert 'config = "tools/ci/scripts/download-file.sh"' in tools
-    assert 'artifacts = "build/cache/ci-tools/"' in tools
+    assert 'artifacts = "build/runtime/tool-cache/ci-tools/"' in tools
     assert 'checksums = "pinned installer SHA-256 values"' in tools
 
 

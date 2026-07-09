@@ -8,8 +8,10 @@ globs:
 ignores:
   - ".venv/**"
   - ".cache/**"
+  - "build/runtime/tool-cache/uv/**"
   - ".uv-cache/**"
   - "build/**"
+  - "build/artifacts/**"
   - "dist/**"
   - "node_modules/**"
   # Governance artifacts under version/digest control — not prose to lint.

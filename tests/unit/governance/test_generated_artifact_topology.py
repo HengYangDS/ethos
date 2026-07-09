@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
+from ethos_core.contracts.artifacts.topology import is_denied_root_cache_path
 from ethos_core.contracts.artifacts.topology import is_retired_config_script_path
 from ethos_core.contracts.artifacts.topology import is_runner_script_path
 from ethos_core.contracts.artifacts.topology import path_policy_for
@@ -30,9 +31,11 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     assert {item["prefix"] for item in contract["declarative_prefixes"]} == {".config/ethos"}
     assert {item["prefix"] for item in contract["allowed_prefixes"]} >= {
         ".cache/local-state",
-        "build/runtime",
+        "build/runtime/tool-cache",
+        "build/runtime/work",
         "build/ethos",
         "build/evidence",
+        "build/artifacts",
     }
     assert {item["prefix"] for item in contract["review_prefixes"]} >= {
         "docs/evidence",
@@ -43,6 +46,21 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     assert {item["prefix"] for item in contract["denied_prefixes"]} >= {
         ".config/ci/scripts",
     }
+    assert {item["prefix"] for item in contract["denied_root_cache_prefixes"]} >= {
+        ".import_linter_cache",
+        ".import-linter-cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".mypy_cache",
+        ".tox",
+        ".nox",
+        ".uv-cache",
+    }
+    assert {item["prefix"] for item in contract["denied_legacy_generated_prefixes"]} >= {
+        "build/cache",
+        "build/runtime/gitlab-ci-local",
+        "dist",
+    }
     assert contract["adopter_specific_product_dirs_allowed"] is False
     assert "adopters" in contract["product_adopter_root_prefixes"]
 
@@ -51,6 +69,8 @@ def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     config = path_policy_for(".config/ethos/policy.toml")
     build = path_policy_for("build/ethos/proof/report.json")
     runtime = path_policy_for("build/runtime/tool-cache/pytest/cache.json")
+    work = path_policy_for("build/runtime/work/gitlab-ci-local/state.json")
+    artifact = path_policy_for("build/artifacts/python/ethos-0.1.0.whl")
     curated = path_policy_for("docs/evidence/2026-07-07-generated-artifacts.md")
 
     assert config["decision"] == "review"
@@ -60,7 +80,11 @@ def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     assert build["generated"] is True
     assert runtime["decision"] == "allow"
     assert runtime["generated"] is True
-    assert "runtime" in runtime["boundary"]
+    assert "tool runtime caches" in runtime["boundary"]
+    assert work["decision"] == "allow"
+    assert "working state" in work["boundary"]
+    assert artifact["decision"] == "allow"
+    assert "build" in artifact["boundary"]
     assert curated["decision"] == "review"
 
 
@@ -118,6 +142,46 @@ def test_generated_artifact_report_blocks_tracked_generated_home(tmp_path: Path)
 
     assert report["ok"] is False
     assert "generated_artifact_source_drift:packages/sample/report.json" in report["required_gaps"]
+
+
+def test_generated_artifact_report_blocks_ignored_root_cache_with_internal_gitignore(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / ".gitignore").write_text(".import_linter_cache/\n", encoding="utf-8")
+    root_cache = repo / ".import_linter_cache"
+    root_cache.mkdir()
+    (root_cache / ".gitignore").write_text("*\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-m", "ignore root tool cache")
+
+    report = generated_artifact_topology_report(repo)
+
+    assert report["ok"] is False
+    assert ".import_linter_cache" in report["denied_paths"]
+    assert "generated_artifact_root_cache_drift:.import_linter_cache" in report["required_gaps"]
+
+
+def test_path_policy_denies_legacy_and_flat_generated_homes() -> None:
+    assert path_policy_for(".import_linter_cache/cache.sqlite")["required_gap"] == (
+        "generated_artifact_root_cache_drift:.import_linter_cache/cache.sqlite"
+    )
+    assert path_policy_for("build/cache/lychee/archive.tar.gz")["required_gap"] == (
+        "generated_artifact_legacy_generated_home:build/cache/lychee/archive.tar.gz"
+    )
+    assert path_policy_for("build/runtime/gitlab-ci-local/state.json")["required_gap"] == (
+        "generated_artifact_legacy_generated_home:build/runtime/gitlab-ci-local/state.json"
+    )
+    assert path_policy_for("build/runtime/random-cache/state.json")["required_gap"] == (
+        "generated_artifact_runtime_flat_drift:build/runtime/random-cache/state.json"
+    )
+    assert path_policy_for("dist/ethos.whl")["required_gap"] == (
+        "generated_artifact_legacy_generated_home:dist/ethos.whl"
+    )
+    assert path_policy_for(".cache/tool/state.json")["required_gap"] == (
+        "generated_artifact_cache_flat_drift:.cache/tool/state.json"
+    )
 
 
 def test_generated_artifact_report_allows_package_metadata(tmp_path: Path) -> None:
@@ -195,6 +259,9 @@ def test_runner_script_helpers_match_only_active_and_retired_script_homes() -> N
 
     assert is_retired_config_script_path(".config/ci/scripts/run-python-tests.sh") is True
     assert is_retired_config_script_path(".config/ci") is False
+
+    assert is_denied_root_cache_path(".import_linter_cache/cache.sqlite") is True
+    assert is_denied_root_cache_path(".cache/local-state/worktree/leases.json") is False
 
 
 def test_path_policy_reviews_runner_scripts_and_denies_retired_config_scripts() -> None:

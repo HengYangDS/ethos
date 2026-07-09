@@ -31,7 +31,7 @@ contract, not housekeeping, before adopter repositories retire embedded ETHOS.
 | Boundary | Owns generic path policy, path router behavior, audit output, proof-gate integration, and forbidden product-owned adopter roots; does not own adopter-specific directories, profiles, fixtures, or domain semantics. |
 | Context | External ETHOS must become stronger than embedded adopter-local ETHOS before retirement, while keeping a small shared docs kernel across governed repositories. |
 | Decision | Promote the Generated Artifact Topology Contract and the `docs/decisions/` Decision Record surface as ETHOS product governance. |
-| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/`; adopter-specific product roots are rejected; legacy `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
+| Consequences | Generated proof/log/report/artifact/projection paths become auditable; `.config/` remains declarative interface; ignored tool runtime caches live under `build/runtime/tool-cache/<tool>/`, provider scratch state lives under `build/runtime/work/<provider>/`, local package artifacts live under `build/artifacts/<kind>/`; adopter-specific product roots are rejected; retired `.config/ci/scripts/` was retired as visible review debt; reusable runners now live under `tools/ci/scripts/`. |
 | Proof or Evidence | `ethos quality generated-artifacts --json`, focused unit tests, architecture docs tests, docs registry checks, and HEAD-bound `ethos prove --execute --expect-head <head> --json`. |
 | Revisit Trigger | Reopen only if a governed adopter cannot express its path policy through `.config/ethos/` or equivalent declarative config without product-owned adopter-specific roots. |
 
@@ -58,7 +58,9 @@ Adopt the Generated Artifact Topology Contract:
 
 - `.config/ethos/` is declarative config, policy, and adopter interface only.
 - `.cache/local-state/` owns host-local runtime coordination state.
-- `build/runtime/` owns ignored tool runtime caches and working state.
+- `build/runtime/tool-cache/` owns ignored tool runtime caches keyed by tool name.
+- `build/runtime/work/` owns provider emulator and scratch working state.
+- `build/artifacts/` owns ignored local build and package artifacts.
 - `build/ethos/` owns machine generated ETHOS proof, logs, reports, artifacts,
   and projections.
 - `build/evidence/` owns machine generated quality/proof evidence artifacts.
@@ -68,6 +70,11 @@ Adopt the Generated Artifact Topology Contract:
   information architecture used by governed repositories.
 - Generated drift in repo root, `.config/`, semantic docs truth roots, or source
   directories is denied.
+- Root tool cache homes (`.import_linter_cache/`, `.import-linter-cache/`,
+  `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.tox/`, `.nox/`,
+  `.uv-cache/`) and root `dist/` are denied even when ignored.
+- Retired flat generated homes (`build/cache/`, `build/runtime/gitlab-ci-local/`)
+  are denied; route them through semantic subroots.
 - Ignored, untracked root coverage/pytest residue is tolerated only as local
   cleanup debt so proof verdicts do not depend on whether the test gate has
   already removed `.coverage*`, `coverage.xml`, or `junit.xml`; tracked copies

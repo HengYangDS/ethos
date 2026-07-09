@@ -6,7 +6,7 @@ on:
 
 env:
   UV_LINK_MODE: copy
-  UV_CACHE_DIR: .uv-cache
+  UV_CACHE_DIR: build/runtime/tool-cache/uv
   ETHOS_LOCAL_PROVIDER_EMULATOR: github-act
 
 jobs:

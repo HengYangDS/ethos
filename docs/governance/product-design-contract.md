@@ -311,8 +311,7 @@ Configuration follows separation of concerns, MECE, SSOT, and DRY. Package and
 workspace metadata stay in `pyproject.toml`; tool-native config belongs to the
 smallest stable concern owner under `.config/checks/<concern>/` unless the tool or
 repository substrate has no explicit-config mode;
-ignored tool runtime caches belong under `build/runtime/tool-cache/`; generated
-proof evidence belongs under `build/evidence/`; reusable runner scripts live
+ignored tool runtime caches belong under `build/runtime/tool-cache/<tool>/`; provider emulator and scratch work belongs under `build/runtime/work/<provider>/`; local build artifacts belong under `build/artifacts/<kind>/`; generated proof evidence belongs under `build/evidence/`; reusable runner scripts live
 under `tools/ci/scripts/`; hosted CI remains
 a provider projection over those runner scripts; `local-ci` is the repository-local
 fallback evidence path for the same owner gates when hosted remotes are unavailable

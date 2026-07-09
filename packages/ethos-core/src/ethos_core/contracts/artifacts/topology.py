@@ -52,9 +52,11 @@ PRODUCT_ADOPTER_ROOT_PREFIXES = frozenset(
 
 _ALLOWED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".cache/local-state/", "host-local runtime state, leases, locks, executions, sessions"),
-    ("build/runtime/", "ignored runtime caches and tool working state"),
+    ("build/runtime/tool-cache/", "ignored tool runtime caches keyed by tool name"),
+    ("build/runtime/work/", "ignored provider emulator and scratch working state"),
     ("build/ethos/", "machine generated ETHOS proof, logs, reports, artifacts, projections"),
     ("build/evidence/", "machine generated quality and proof evidence artifacts"),
+    ("build/artifacts/", "ignored local build and package artifacts"),
 )
 _REVIEW_PREFIXES: tuple[tuple[str, str], ...] = (
     ("docs/evidence/", "curated dated reviewable evidence"),
@@ -64,6 +66,30 @@ _REVIEW_PREFIXES: tuple[tuple[str, str], ...] = (
 )
 _DENIED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".config/ci/scripts/", "runner scripts belong under tools/ci/scripts"),
+)
+_DENIED_ROOT_CACHE_PREFIXES: tuple[tuple[str, str], ...] = (
+    (
+        ".import_linter_cache/",
+        "import-linter cache belongs under build/runtime/tool-cache/import-linter",
+    ),
+    (
+        ".import-linter-cache/",
+        "import-linter cache belongs under build/runtime/tool-cache/import-linter",
+    ),
+    (".pytest_cache/", "pytest cache belongs under build/runtime/tool-cache/pytest"),
+    (".ruff_cache/", "Ruff cache belongs under build/runtime/tool-cache/ruff"),
+    (".mypy_cache/", "mypy cache belongs under build/runtime/tool-cache/mypy"),
+    (".tox/", "tox runtime state belongs under build/runtime/tool-cache/tox"),
+    (".nox/", "nox runtime state belongs under build/runtime/tool-cache/nox"),
+    (".uv-cache/", "uv cache belongs under build/runtime/tool-cache/uv"),
+)
+_DENIED_LEGACY_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
+    ("build/cache/", "legacy cache bucket is not semantic; use build/runtime/tool-cache/<tool>"),
+    (
+        "build/runtime/gitlab-ci-local/",
+        "provider work state belongs under build/runtime/work/gitlab-ci-local",
+    ),
+    ("dist/", "package artifacts belong under build/artifacts/python"),
 )
 _DENIED_GENERATED_PREFIXES: tuple[tuple[str, str], ...] = (
     (".config/", "generated_artifact_config_drift"),
@@ -104,6 +130,14 @@ def generated_artifact_contract() -> dict[str, object]:
         "denied_prefixes": [
             {"prefix": prefix.rstrip("/"), "required_gap": gap} for prefix, gap in _DENIED_PREFIXES
         ],
+        "denied_root_cache_prefixes": [
+            {"prefix": prefix.rstrip("/"), "required_gap": gap}
+            for prefix, gap in _DENIED_ROOT_CACHE_PREFIXES
+        ],
+        "denied_legacy_generated_prefixes": [
+            {"prefix": prefix.rstrip("/"), "required_gap": gap}
+            for prefix, gap in _DENIED_LEGACY_GENERATED_PREFIXES
+        ],
         "denied_generated_prefixes": [
             {"prefix": prefix.rstrip("/"), "required_gap": gap}
             for prefix, gap in _DENIED_GENERATED_PREFIXES
@@ -132,6 +166,12 @@ def is_runner_script_path(path: Path | str) -> bool:
 def is_retired_config_script_path(path: Path | str) -> bool:
     """Return whether a path revives the retired executable config script home."""
     return _matches_prefix(normalize_artifact_path(path), ".config/ci/scripts/")
+
+
+def is_denied_root_cache_path(path: Path | str) -> bool:
+    """Return whether a path revives a root-level tool cache home."""
+    rel = normalize_artifact_path(path)
+    return any(_matches_prefix(rel, prefix) for prefix, _boundary in _DENIED_ROOT_CACHE_PREFIXES)
 
 
 def is_generated_artifact_path(path: Path | str) -> bool:
@@ -217,6 +257,57 @@ def _retired_path_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     return None
 
 
+def _denied_root_cache_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
+    for prefix, boundary in _DENIED_ROOT_CACHE_PREFIXES:
+        if _matches_prefix(rel, prefix):
+            return _policy(
+                path=rel,
+                decision="deny",
+                boundary=boundary,
+                generated=generated,
+                required_gap=f"generated_artifact_root_cache_drift:{rel}",
+            )
+    return None
+
+
+def _legacy_generated_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
+    if _matches_prefix(rel, ".cache/") and not _matches_prefix(rel, ".cache/local-state/"):
+        return _policy(
+            path=rel,
+            decision="deny",
+            boundary=".cache is reserved for semantic local-state, not flat cache buckets",
+            generated=generated,
+            required_gap=f"generated_artifact_cache_flat_drift:{rel}",
+        )
+    for prefix, boundary in _DENIED_LEGACY_GENERATED_PREFIXES:
+        if _matches_prefix(rel, prefix):
+            return _policy(
+                path=rel,
+                decision="deny",
+                boundary=boundary,
+                generated=generated,
+                required_gap=f"generated_artifact_legacy_generated_home:{rel}",
+            )
+    if (
+        rel != "build/runtime"
+        and _matches_prefix(rel, "build/runtime/")
+        and not (
+            _matches_prefix(rel, "build/runtime/tool-cache/")
+            or _matches_prefix(rel, "build/runtime/work/")
+        )
+    ):
+        return _policy(
+            path=rel,
+            decision="deny",
+            boundary=(
+                "build/runtime must be organized by semantic runtime subroot: tool-cache or work"
+            ),
+            generated=generated,
+            required_gap=f"generated_artifact_runtime_flat_drift:{rel}",
+        )
+    return None
+
+
 def _review_policy(rel: str, *, generated: bool) -> dict[str, Any] | None:
     for prefix, boundary in _REVIEW_PREFIXES:
         if _matches_prefix(rel, prefix):
@@ -259,6 +350,8 @@ def path_policy_for(path: Path | str) -> dict[str, Any]:
     for candidate in (
         _product_adopter_policy(rel, generated=generated),
         _retired_path_policy(rel, generated=generated),
+        _denied_root_cache_policy(rel, generated=generated),
+        _legacy_generated_policy(rel, generated=generated),
         _declarative_policy(rel, generated=generated),
         _allowed_policy(rel, generated=generated),
         _review_policy(rel, generated=generated),

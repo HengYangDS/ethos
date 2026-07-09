@@ -23,7 +23,7 @@ Release readiness is proven with:
 ```bash
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
-uv build --all-packages
+uv build --all-packages --out-dir build/artifacts/python --clear
 npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm

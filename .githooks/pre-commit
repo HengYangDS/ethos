@@ -14,6 +14,8 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 ruff_config_path=".config/checks/ruff/ruff.toml"
+ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
+mkdir -p "${ruff_cache_dir}"
 
 # Staged files added/copied/modified/renamed AND deleted — deleting a tracked
 # protected-root file is a mutation the gate must see (ACMRD, not ACMR).
@@ -30,7 +32,7 @@ while IFS= read -r path; do
   staged_python+=("$path")
 done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
 if [ "${#staged_python[@]}" -gt 0 ]; then
-  if ! uv run --group dev ruff format --config "${ruff_config_path}" --check "${staged_python[@]}"; then
+  if ! uv run --group dev ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${staged_python[@]}"; then
     echo "pre_commit_python_format_failed" >&2
     exit 1
   fi

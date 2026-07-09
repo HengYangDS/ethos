@@ -81,3 +81,19 @@ def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
         r'concern = "shell"[\s\S]*?config = "\.config/checks/shell/\.shellcheckrc"[\s\S]*?gate = "tools/ci/scripts/run-shell-lint\.sh"',
         tools,
     )
+
+
+def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
+
+    assert "build/runtime/tool-cache/ruff" in runner
+    assert "--cache-dir" in runner
+    assert ".ruff_cache" not in runner
+
+
+def test_ruff_ratchet_uses_semantic_cache_home() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").read_text(encoding="utf-8")
+
+    assert "build/runtime/tool-cache/ruff" in runner
+    assert "RUFF_CACHE_DIR" in runner
+    assert ".ruff_cache" not in runner

@@ -16,9 +16,11 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
 
     for text in (architecture, decision):
         assert ".config/ethos/" in text
-        assert "build/runtime/" in text
+        assert "build/runtime/tool-cache/" in text
+        assert "build/runtime/work/" in text
         assert "build/ethos/" in text
         assert "build/evidence/" in text
+        assert "build/artifacts/" in text
         assert "docs/evidence/" in text
         assert "adopter" in text.lower()
         assert "rollback" in text.lower()
@@ -29,6 +31,7 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
     assert "fleet retirement-readiness" in architecture
     assert "ethos quality generated-artifacts --root <repo> --json" in architecture
     assert "ethos quality generated-artifacts" in command_plane
+    assert "build/runtime/tool-cache/" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
     assert "ethos quality docs-topology --json" in docs_topology
     assert "Minimal Semantic Documentation Topology Contract" in command_plane

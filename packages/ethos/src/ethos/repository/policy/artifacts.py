@@ -19,9 +19,6 @@ _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
 _PRUNE_DIRS = frozenset(
     {
         ".git",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
         ".venv",
         "__pycache__",
         "node_modules",
@@ -86,8 +83,16 @@ def generated_artifact_topology_report(root: Path) -> dict[str, object]:
 
 
 def _candidate_paths(root: Path) -> list[Path]:
-    candidates: list[Path] = []
+    candidates: dict[str, Path] = {}
+    for rel in _explicit_denied_roots():
+        path = root / rel
+        if path.exists():
+            candidates[rel] = path
+
     for path in root.rglob("*"):
+        rel = path.relative_to(root).as_posix()
+        if rel in candidates:
+            continue
         if any(part in _PRUNE_DIRS for part in path.relative_to(root).parts):
             continue
         policy = path_policy_for(path.relative_to(root))
@@ -96,8 +101,19 @@ def _candidate_paths(root: Path) -> list[Path]:
             and policy["decision"] == "deny"
             and not any(child.is_file() for child in path.rglob("*"))
         ):
-            candidates.append(path)
-    return candidates
+            candidates[rel] = path
+    return [candidates[key] for key in sorted(candidates)]
+
+
+def _explicit_denied_roots() -> list[str]:
+    contract = generated_artifact_contract()
+    roots: list[str] = []
+    for group in ("denied_root_cache_prefixes", "denied_legacy_generated_prefixes"):
+        for item in contract[group]:
+            prefix = str(item["prefix"]).rstrip("/")
+            if prefix:
+                roots.append(prefix)
+    return roots
 
 
 def _is_ignored_local_test_residue(root: Path, rel: str) -> bool:

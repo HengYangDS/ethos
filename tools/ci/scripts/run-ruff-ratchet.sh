@@ -7,6 +7,9 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
+ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
+mkdir -p "${ruff_cache_dir}"
+export RUFF_CACHE_DIR="${ruff_cache_dir}"
 
 uv run --group dev python - <<'PY'
 from __future__ import annotations

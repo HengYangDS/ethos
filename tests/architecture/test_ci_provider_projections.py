@@ -109,8 +109,8 @@ def test_markdown_lint_excludes_uv_cache_projection() -> None:
     config = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 
-    assert '  - ".uv-cache/**"' in config
-    assert ".uv-cache/" in gitignore
+    assert '  - "build/runtime/tool-cache/uv/**"' in config
+    assert "build/runtime/tool-cache/uv/" in gitignore
 
 
 def test_actionlint_runner_uses_official_release_fallback_not_npm_package() -> None:
@@ -306,7 +306,7 @@ def test_gitlab_emulator_runtime_state_stays_under_build_runtime() -> None:
 
     assert payload["provider"] == "gitlab"
     assert "--state-dir" in payload["command"]
-    assert "build/runtime/gitlab-ci-local" in payload["command"]
+    assert "build/runtime/work/gitlab-ci-local" in payload["command"]
     assert not root_state.exists()
 
 

@@ -41,7 +41,7 @@ esac
 
 archive="actionlint_${version}_${os}_${arch}.tar.gz"
 url="https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
-cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/ci-tools}"
+cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}"
 cache_dir="${cache_root}/actionlint/${version}/${os}-${arch}"
 archive_path="${cache_dir}/${archive}"
 bin_path="${cache_dir}/actionlint"

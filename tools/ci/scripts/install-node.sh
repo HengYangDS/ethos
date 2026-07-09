@@ -37,7 +37,7 @@ esac
 archive="node-v${version}-linux-${arch}.tar.xz"
 url="https://nodejs.org/dist/v${version}/${archive}"
 
-cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/ci-tools}"
+cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}"
 cache_dir="${cache_root}/node/${version}"
 archive_path="${cache_dir}/${archive}"
 tmpdir="$(mktemp -d)"

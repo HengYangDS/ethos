@@ -9,7 +9,7 @@ configuration plane, not a truth center.
 - `.config/checks/pytest/pytest.ini` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.` so pytest still evaluates the repository subject.
 - `.config/checks/ruff/ruff.toml` is the Ruff config owner. Owner scripts call Ruff with explicit `--config` from the repository root, so path globs are repository-relative without keeping a root config file.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
-- `tools/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet, all bound to `.config/checks/ruff/ruff.toml`.
+- `tools/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet, all bound to `.config/checks/ruff/ruff.toml`; Ruff runtime cache is forced to `build/runtime/tool-cache/ruff/`, never root `.ruff_cache/`.
 - `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
@@ -72,3 +72,14 @@ reusable gate policy back into the root.
 Do not duplicate the same policy in multiple files. If a provider surface needs a
 policy, make it invoke the owning config or script instead of re-stating the
 policy inline.
+
+## Generated/local state topology
+
+Configuration under `.config/checks/` owns policy only. Runtime caches and
+local generated outputs must use semantic ignored homes: `.cache/local-state/`
+for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
+`build/runtime/work/<provider>/` for provider emulator work state,
+`build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine
+projections, and `build/artifacts/<kind>/` for local package/build outputs.
+Root cache directories such as `.import_linter_cache/`, `.pytest_cache/`,
+`.ruff_cache/`, `.uv-cache/`, and root `dist/` are denied residue, not owners.

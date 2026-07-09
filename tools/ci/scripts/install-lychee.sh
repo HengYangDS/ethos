@@ -30,7 +30,7 @@ else
   url="https://github.com/lycheeverse/lychee/releases/download/${version}/${archive}"
 fi
 
-cache_dir="${LYCHEE_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/cache/lychee}"
+cache_dir="${LYCHEE_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/lychee}"
 mkdir -p "${cache_dir}"
 archive_path="${cache_dir}/${version}-${archive}"
 partial_path="${archive_path}.part"

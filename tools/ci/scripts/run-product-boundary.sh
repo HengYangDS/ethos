@@ -7,6 +7,21 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-uv run --all-packages --group dev python -m ethos.cli quality product-boundary --json
-uv run --all-packages --group dev python -m ethos.cli quality contributor-policy --json
-uv run --all-packages --group dev python -m ethos.cli quality governance-kernel --json
+export PYTHONPATH="${repo_root}/packages/ethos/src:${repo_root}/packages/ethos-core/src${PYTHONPATH:+:${PYTHONPATH}}"
+
+run_ethos_quality() {
+  local check="$1"
+  if [[ -n "${ETHOS_PYTHON:-}" ]]; then
+    "${ETHOS_PYTHON}" -m ethos.cli quality "${check}" --json
+  elif [[ -n "${PYTHON:-}" ]]; then
+    "${PYTHON}" -m ethos.cli quality "${check}" --json
+  elif [[ -x "${repo_root}/.venv/bin/python" ]]; then
+    "${repo_root}/.venv/bin/python" -m ethos.cli quality "${check}" --json
+  else
+    uv run --package ethos python -m ethos.cli quality "${check}" --json
+  fi
+}
+
+run_ethos_quality product-boundary
+run_ethos_quality contributor-policy
+run_ethos_quality governance-kernel

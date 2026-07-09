@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, TC003, C901
+# ruff: noqa: ARG005, TC003
 # Monkeypatch-heavy coverage edge tests intentionally preserve callable signatures
 # matching patched runtime functions; unused parameters document those contracts.
 
@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import ethos.adapters.mutation.lanes_refresh as lanes_refresh
 from ethos.adapters.mutation import lanes
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
@@ -15,6 +16,24 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
+
+
+def fake_git(
+    responses: dict[tuple[str, ...], subprocess.CompletedProcess[str]],
+    *,
+    calls: list[tuple[str, ...]] | None = None,
+    default: subprocess.CompletedProcess[str] | None = None,
+):
+    def run(*_run_args: object, **_run_kwargs: object) -> subprocess.CompletedProcess[str]:
+        args = tuple(str(arg) for arg in _run_args[1:])
+        if calls is not None:
+            calls.append(args)
+        for prefix, response in responses.items():
+            if args[: len(prefix)] == prefix:
+                return response
+        return default or cp(returncode=0)
+
+    return run
 
 
 POLICY = SimpleNamespace(candidate_branch="candidate/dev")
@@ -76,14 +95,16 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         ),
     )
 
-    def branch_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
-        if args == ("rev-parse", "HEAD"):
-            return cp(stdout="h1\n")
-        if args[:1] == ("branch",):
-            return cp(returncode=1, stderr="branch fail")
-        return cp(returncode=0)
-
-    monkeypatch.setattr(lanes, "run_git", branch_fails)
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git(
+            {
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("branch",): cp(returncode=1, stderr="branch fail"),
+            }
+        ),
+    )
     assert lanes.bootstrap_candidate(root=tmp_path, path=tmp_path / "candidate", apply=True)[
         "required_gaps"
     ] == ["candidate_bootstrap_failed"]
@@ -134,27 +155,28 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
     calls = []
 
-    def rebase_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
-        calls.append(args)
-        if args == ("rev-parse", "HEAD"):
-            return cp(stdout="h1\n")
-        if args[:1] == ("rebase",) and args != ("rebase", "--abort"):
-            return cp(returncode=1, stderr="rebase fail")
-        return cp(returncode=0)
-
-    monkeypatch.setattr(lanes, "run_git", rebase_fails)
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git(
+            {
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("rebase", "candidate/dev"): cp(returncode=1, stderr="rebase fail"),
+            },
+            calls=calls,
+        ),
+    )
     failed = lanes.refresh_work_lane_base(
         root=tmp_path, apply=True, authorized=True, expect_head="h1"
     )
     assert failed["required_gaps"] == ["refresh_base_failed"]
     assert ("rebase", "--abort") in calls
 
-    def rebase_ok(root: Path, *args: str, check: bool = True, **kwargs: object):
-        if args == ("rev-parse", "HEAD"):
-            return cp(stdout="h2\n")
-        return cp(returncode=0)
-
-    monkeypatch.setattr(lanes, "run_git", rebase_ok)
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git({("rev-parse", "HEAD"): cp(stdout="h2\n")}),
+    )
     assert (
         lanes.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="h2")[
             "state"
@@ -172,12 +194,11 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
 
-    def remove_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
-        if args[:2] == ("worktree", "remove"):
-            return cp(returncode=1, stderr="remove fail")
-        return cp(returncode=0)
-
-    monkeypatch.setattr(lanes, "run_git", remove_fails)
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git({("worktree", "remove"): cp(returncode=1, stderr="remove fail")}),
+    )
     monkeypatch.setenv("ETHOS_ACTOR", "me")
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
@@ -186,15 +207,117 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         apply=True,
     )["required_gaps"] == ["worktree_remove_failed"]
 
-    def delete_fails(root: Path, *args: str, check: bool = True, **kwargs: object):
-        if args[:2] == ("update-ref", "-d"):
-            return cp(returncode=1, stderr="delete fail")
-        return cp(returncode=0)
-
-    monkeypatch.setattr(lanes, "run_git", delete_fails)
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git({("update-ref", "-d"): cp(returncode=1, stderr="delete fail")}),
+    )
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
         branch="work/x",
         expect_head="h1",
         apply=True,
     )["required_gaps"] == ["branch_delete_failed"]
+
+
+def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        fake_git({("diff",): cp(returncode=1)}, calls=calls),
+    )
+    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
+
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        fake_git(
+            {
+                ("diff",): cp(stdout="evidence/parity/generic-shadow.json\n"),
+                ("checkout",): cp(returncode=1),
+            }
+        ),
+    )
+    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path) == {
+        "ok": False,
+        "paths": ["evidence/parity/generic-shadow.json"],
+        "gaps": [],
+        "next_actions": [],
+    }
+
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        fake_git(
+            {
+                ("diff",): cp(stdout="evidence/parity/generic-shadow.json\n"),
+                ("add",): cp(returncode=1),
+            }
+        ),
+    )
+    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path) == {
+        "ok": False,
+        "paths": ["evidence/parity/generic-shadow.json"],
+        "gaps": [],
+        "next_actions": [],
+    }
+
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        fake_git({("diff",): cp(stdout="evidence/parity/generic-shadow.json\nREADME.md\n")}),
+    )
+    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
+
+
+def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(
+        lanes,
+        "workspace_status",
+        lambda root: status(
+            role=ROLE_WORK_LANE,
+            candidate={
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "/tmp/candidate",
+                "head": "c1",
+            },
+        ),
+    )
+    monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
+    calls: list[tuple[str, ...]] = []
+
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git(
+            {
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("rebase", "candidate/dev"): cp(returncode=1, stderr="projection conflict"),
+                ("diff",): cp(stdout="evidence/parity/generic-shadow.json\n"),
+                ("checkout",): cp(returncode=0),
+                ("add",): cp(returncode=0),
+                ("-c", "core.editor=true", "rebase", "--continue"): cp(
+                    returncode=1, stderr="continue fail"
+                ),
+                ("rebase", "--abort"): cp(returncode=0),
+            },
+            calls=calls,
+        ),
+    )
+    failed = lanes.refresh_work_lane_base(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="h1",
+    )
+
+    assert failed["required_gaps"] == ["refresh_base_failed"]
+    assert ("rebase", "--abort") in calls

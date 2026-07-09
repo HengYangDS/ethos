@@ -260,7 +260,13 @@ dry-run output reports `state = "ready_to_refresh_base"` and apply mode requires
 `--authorize` plus `--expect-head` before replaying the current lane onto the
 candidate branch. `ethos land --json` uses the same check before apply: a stale
 lane returns `candidate_base_stale` and the exact `ethos lane refresh-base`
-command instead of waiting for `land --apply` to fail.
+command instead of waiting for `land --apply` to fail. If replay conflicts only
+on tracked parity shadow evidence (`evidence/parity/*-shadow.json`), refresh-base
+keeps the candidate projection, completes the replay, and returns
+`base_refreshed_projection_stale` with `projection_refresh_required`,
+`projection_refresh_gaps`, `stale_projection_paths`, and next actions to
+regenerate parity evidence before head-bound proof. Any non-projection conflict
+still aborts as `refresh_base_failed`.
 `ethos lane candidate --refresh-from-accepted --json` checks whether a clean
 candidate train can be reset to the accepted root. Apply mode requires
 `--authorize` plus `--expect-head`; it is the recovery path when accepted-root

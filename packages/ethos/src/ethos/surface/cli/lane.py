@@ -225,10 +225,17 @@ def lane_refresh_base(
             "candidate_head": report["candidate_head"],
         },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos land --json",) if report["ok"] else ("ethos status --json",),
+        next_actions=_refresh_base_next_actions(report),
         data=report,
     )
     emit(result, json_output=json_output)
+
+
+def _refresh_base_next_actions(report: dict[str, object]) -> tuple[str, ...]:
+    actions = report.get("next_actions")
+    if isinstance(actions, list | tuple):
+        return tuple(str(action) for action in actions)
+    return ("ethos land --json",) if report["ok"] else ("ethos status --json",)
 
 
 @lane_app.command(name="bind-claim")

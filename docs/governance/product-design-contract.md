@@ -238,7 +238,10 @@ boundaries.
 When multiple agents change the repository concurrently, integration is judged
 by repository truth, authority order, lifecycle legality, and bound evidence.
 Candidate integration fuses or rejects conflicts by those measures; it is never
-last-writer-wins and never a host-side overwrite race.
+last-writer-wins and never a host-side overwrite race. If base refresh conflicts
+only on head-bound generated projection evidence, ETHOS may replay repository
+truth and mark the projection stale, but it must require evidence regeneration
+and head-bound proof before landing.
 Foreign Work Lanes are product-observable and observe-only by default. Status
 payloads may reveal their branch, head, lease owner, claim binding, dirty state,
 path scope, coordination state, and current actor capability, but another agent

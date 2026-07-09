@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
@@ -12,6 +13,31 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
+
+PARITY_EVIDENCE_ROOT = Path("evidence/parity")
+PARITY_SHADOW_SUFFIX = "-shadow.json"
+
+
+class _ProjectionResolution(TypedDict):
+    ok: bool
+    paths: list[str]
+    gaps: list[str]
+    next_actions: list[str]
+
+
+def _projection_resolution(
+    *,
+    ok: bool,
+    paths: list[str] | None = None,
+    gaps: list[str] | None = None,
+    next_actions: list[str] | None = None,
+) -> _ProjectionResolution:
+    return {
+        "ok": ok,
+        "paths": paths or [],
+        "gaps": gaps or [],
+        "next_actions": next_actions or [],
+    }
 
 
 def bootstrap_candidate(
@@ -160,6 +186,14 @@ def _work_base_report(context: dict[str, object], *, stderr: str = "") -> dict[s
     previous_head = str(context.get("previous_head") or "")
     if previous_head:
         report["previous_head"] = previous_head
+    for key in (
+        "projection_refresh_required",
+        "projection_refresh_gaps",
+        "stale_projection_paths",
+        "next_actions",
+    ):
+        if key in context:
+            report[key] = context[key]
     if stderr:
         report["stderr"] = stderr
     return report
@@ -253,6 +287,53 @@ def refresh_candidate_from_accepted(
     )
 
 
+def _resolve_projection_only_rebase_conflict(root: Path) -> _ProjectionResolution:
+    paths = _unmerged_paths(root)
+    adopters = [_parity_adopter(path) for path in paths]
+    result = _projection_resolution(ok=False)
+    if paths and all(adopters):
+        checkout = run_git(root, "checkout", "--ours", "--", *paths, check=False)
+        if checkout.returncode != 0:
+            result = _projection_resolution(ok=False, paths=paths)
+        else:
+            added = run_git(root, "add", *paths, check=False)
+            if added.returncode != 0:
+                result = _projection_resolution(ok=False, paths=paths)
+            else:
+                result = _projection_resolution(
+                    ok=True,
+                    paths=paths,
+                    gaps=[
+                        f"projection_regeneration_required:parity:{adopter}" for adopter in adopters
+                    ],
+                    next_actions=[
+                        (
+                            "ethos parity shadow --adopter "
+                            f"{adopter} --target . --execute --write-evidence --json"
+                        )
+                        for adopter in adopters
+                    ],
+                )
+    return result
+
+
+def _unmerged_paths(root: Path) -> list[str]:
+    completed = run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
+    if completed.returncode != 0:
+        return []
+    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _parity_adopter(path: str) -> str:
+    candidate = Path(path)
+    if candidate.parent != PARITY_EVIDENCE_ROOT or not candidate.name.endswith(
+        PARITY_SHADOW_SUFFIX
+    ):
+        return ""
+    adopter = candidate.name[: -len(PARITY_SHADOW_SUFFIX)]
+    return adopter or ""
+
+
 def refresh_work_lane_base(
     *,
     root: Path,
@@ -318,6 +399,29 @@ def refresh_work_lane_base(
             }
         )
     completed = run_git(root, "rebase", policy.candidate_branch, check=False)
+    projection_resolution = _resolve_projection_only_rebase_conflict(root)
+    if completed.returncode != 0 and projection_resolution["ok"]:
+        continued = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
+        if continued.returncode == 0:
+            refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+            return _work_base_report(
+                {
+                    "ok": True,
+                    "state": "base_refreshed_projection_stale",
+                    "branch": branch,
+                    "previous_head": current_head,
+                    "head": refreshed_head,
+                    "candidate_branch": policy.candidate_branch,
+                    "candidate_head": candidate_head,
+                    "candidate_path": candidate_path,
+                    "required_gaps": [],
+                    "projection_refresh_required": True,
+                    "projection_refresh_gaps": projection_resolution["gaps"],
+                    "stale_projection_paths": projection_resolution["paths"],
+                    "next_actions": projection_resolution["next_actions"]
+                    + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
+                }
+            )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
         return _work_base_report(

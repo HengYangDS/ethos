@@ -97,9 +97,10 @@ cleanup_root_coverage_artifacts
 trap cleanup_and_release EXIT
 shard_state_dir="${pytest_evidence_dir}/shards"
 shard_head_path="${shard_state_dir}/head.txt"
+shard_plan_key="${ethos_python_test_head}:shards=${shards}"
 if [[ "${sharded_mode}" == "true" ]]; then
   mkdir -p "${shard_state_dir}"
-  if [[ ! -f "${shard_head_path}" ]] || [[ "$(cat "${shard_head_path}")" != "${ethos_python_test_head}" ]]; then
+  if [[ ! -f "${shard_head_path}" ]] || [[ "$(cat "${shard_head_path}")" != "${shard_plan_key}" ]]; then
     rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
     rm -f "${coverage_evidence_dir}/coverage.xml"
     rm -f "${pytest_evidence_dir}"/junit*.xml
@@ -222,7 +223,7 @@ PY
     shard_coverage_file="${coverage_evidence_dir}/.coverage.shard-${shard_index}"
     shard_junit="${pytest_evidence_dir}/junit-shard-${shard_index}.xml"
     shard_passed_marker="${pytest_evidence_dir}/shards/shard-${shard_index}.passed"
-    if [[ -s "${shard_coverage_file}" && -f "${shard_passed_marker}" ]]; then
+    if [[ -s "${shard_coverage_file}" && -f "${shard_passed_marker}" && "$(cat "${shard_passed_marker}")" == "${shard_plan_key}" ]]; then
       echo "reusing completed pytest shard ${shard_index}/${shards}" >&2
       continue
     fi
@@ -240,7 +241,7 @@ PY
     shard_file="${pytest_evidence_dir}/shards/shard-${shard_index}.txt"
     shard_coverage_file="${coverage_evidence_dir}/.coverage.shard-${shard_index}"
     shard_passed_marker="${pytest_evidence_dir}/shards/shard-${shard_index}.passed"
-    if [[ -s "${shard_file}" && ! ( -s "${shard_coverage_file}" && -f "${shard_passed_marker}" ) ]]; then
+    if [[ -s "${shard_file}" && ! ( -s "${shard_coverage_file}" && -f "${shard_passed_marker}" && "$(cat "${shard_passed_marker}")" == "${shard_plan_key}" ) ]]; then
       echo "pytest shard ${shard_index}/${shards} has no completed coverage evidence" >&2
       exit 1
     fi

@@ -349,7 +349,6 @@ def retire_landed_work_lanes(
     previous = {
         "repo_root": landed_retirement.__dict__["repo_root"],
         "workspace_status": landed_retirement.workspace_status,
-        "active_leases": landed_retirement.active_leases,
         "delete_lease": landed_retirement.delete_lease,
         "leases_by_branch": landed_retirement.leases_by_branch,
         "is_ancestor": landed_retirement.__dict__["is_ancestor"],
@@ -358,7 +357,6 @@ def retire_landed_work_lanes(
     try:
         landed_retirement.__dict__["repo_root"] = repo_root
         landed_retirement.workspace_status = workspace_status
-        landed_retirement.active_leases = active_leases
         landed_retirement.delete_lease = delete_lease
         landed_retirement.leases_by_branch = _retire_landed_leases_by_branch
         landed_retirement.__dict__["is_ancestor"] = is_ancestor
@@ -372,7 +370,6 @@ def retire_landed_work_lanes(
     finally:
         landed_retirement.__dict__["repo_root"] = previous["repo_root"]
         landed_retirement.workspace_status = previous["workspace_status"]
-        landed_retirement.active_leases = previous["active_leases"]
         landed_retirement.delete_lease = previous["delete_lease"]
         landed_retirement.leases_by_branch = previous["leases_by_branch"]
         landed_retirement.__dict__["is_ancestor"] = previous["is_ancestor"]
@@ -407,7 +404,6 @@ def retire_superseded_work_lane(
     previous = {
         "repo_root": lane_retirement_core.__dict__["repo_root"],
         "workspace_status": lane_retirement_core.workspace_status,
-        "active_leases": lane_retirement_core.active_leases,
         "delete_lease": lane_retirement_core.delete_lease,
         "is_ancestor": lane_retirement_core.__dict__["is_ancestor"],
         "run_git": lane_retirement_core.__dict__["run_git"],
@@ -415,7 +411,6 @@ def retire_superseded_work_lane(
     try:
         lane_retirement_core.__dict__["repo_root"] = repo_root
         lane_retirement_core.workspace_status = workspace_status
-        lane_retirement_core.active_leases = active_leases
         lane_retirement_core.delete_lease = delete_lease
         lane_retirement_core.__dict__["is_ancestor"] = is_ancestor
         lane_retirement_core.__dict__["run_git"] = run_git
@@ -423,7 +418,6 @@ def retire_superseded_work_lane(
     finally:
         lane_retirement_core.__dict__["repo_root"] = previous["repo_root"]
         lane_retirement_core.workspace_status = previous["workspace_status"]
-        lane_retirement_core.active_leases = previous["active_leases"]
         lane_retirement_core.delete_lease = previous["delete_lease"]
         lane_retirement_core.__dict__["is_ancestor"] = previous["is_ancestor"]
         lane_retirement_core.__dict__["run_git"] = previous["run_git"]

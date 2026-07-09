@@ -17,6 +17,7 @@ vendor-specific assistant root canonical.
 - Hook and guard rules: [Hook Rules](rules/hooks.md)
 - Evidence rules: [Evidence Rules](rules/evidence.md)
 - Release rules: [Release Rules](rules/release.md)
+- Declarative runtime rules: [Declarative Runtime Rules](rules/declarative_runtime.md)
 - Skill rules: [Skill Rules](rules/skills.md)
 - Repo-local skills: [Skills](.agents/skills/README.md)
 - Skill activation policy: [Skill Activation](.agents/skills/activation.toml)

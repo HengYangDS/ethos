@@ -23,6 +23,16 @@ coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
 coverage_lock_dir="${coverage_evidence_dir}/.write.lock"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
+ethos_python="${ETHOS_PYTHON:-${PYTHON:-}}"
+if [[ -z "${ethos_python}" && -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+  ethos_python="${VIRTUAL_ENV}/bin/python"
+fi
+if [[ -z "${ethos_python}" && -x "${repo_root}/.venv/bin/python" ]]; then
+  ethos_python="${repo_root}/.venv/bin/python"
+fi
+if [[ -z "${ethos_python}" ]]; then
+  ethos_python="python3"
+fi
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 coverage_lock_acquired="false"
@@ -75,7 +85,7 @@ rm -f "${coverage_evidence_dir}/coverage.xml"
 rm -f "${pytest_evidence_dir}/junit.xml"
 
 coverage_hard_floor="$(
-  python3 - "${coverage_policy_path}" <<'PY'
+  "${ethos_python}" - "${coverage_policy_path}" <<'PY'
 import sys
 import tomllib
 from pathlib import Path
@@ -111,7 +121,14 @@ if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then
   pytest_args=( -n "${workers}" "${pytest_args[@]}" )
 fi
 
-# --all-packages installs every workspace member's runtime deps (not just the root
-# project + dev group), so tests that import a package dependency (e.g. defusedxml
-# via ethos) resolve in CI's clean environment. Mirrors the ethos:types invocation.
-uv run --all-packages --group dev pytest "${pytest_args[@]}"
+# In a prepared product toolchain (for example an outer `uv run --package ethos`
+# proof), reuse the active interpreter instead of recursively invoking `uv run`;
+# nested environment sync is host-sensitive and can terminate the proof runner
+# before pytest emits machine evidence. Clean CI environments still fall back to
+# `uv run --all-packages --group dev` so workspace runtime dependencies are
+# installed before the test gate.
+if "${ethos_python}" -m pytest --version >/dev/null 2>&1; then
+  "${ethos_python}" -m pytest "${pytest_args[@]}"
+else
+  uv run --all-packages --group dev pytest "${pytest_args[@]}"
+fi

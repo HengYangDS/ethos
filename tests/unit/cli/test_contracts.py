@@ -526,6 +526,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "format-policy",
         "generated-artifacts",
         "gates",
+        "governance-kernel",
         "markdown-links",
         "module-layout",
         "npm",

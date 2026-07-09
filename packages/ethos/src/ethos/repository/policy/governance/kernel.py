@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.context import context_for_root
@@ -353,7 +354,7 @@ def _generic_adoption_scaffold_check(plan: Mapping[str, object]) -> dict[str, ob
 
 def _mapping(value: object) -> dict[str, object]:
     if isinstance(value, dict):
-        return dict(value)
+        return cast("dict[str, object]", value)
     return {}
 
 

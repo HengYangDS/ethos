@@ -177,7 +177,7 @@ def _mapping(value: object) -> dict[str, object]:
 
 def _object_list(value: object) -> list[object]:
     if isinstance(value, list):
-        return value
+        return cast("list[object]", value)
     if isinstance(value, tuple):
         return list(value)
     return []

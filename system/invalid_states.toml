@@ -104,6 +104,7 @@ match_prefixes = [
   "enterprise_readiness_transition_commands_mismatch",
   "enterprise_readiness_orient_reader_view_missing",
   "enterprise_readiness_report_scorecard_missing",
+  "governance_kernel_",
   "guard_missing",
   "context_eval_suite_missing",
   "module_layout_",

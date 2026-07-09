@@ -323,7 +323,7 @@ def test_intake_mine_report_tolerates_git_head_lookup_failures(tmp_path: Path, m
     )
 
     def raise_os_error(*_args, **_kwargs):
-        raise OSError("git unavailable")
+        raise OSError
 
     monkeypatch.setattr("subprocess.run", raise_os_error)
 

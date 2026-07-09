@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
-    "target_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
-    "product_semantic_sha256": "0ac19b4c778ae2f060dea4efc276ad82eddde98a80e6f3aec99276e4e36ee40f",
-    "target_semantic_sha256": "0ac19b4c778ae2f060dea4efc276ad82eddde98a80e6f3aec99276e4e36ee40f",
+    "product_head": "1183af78b272b00621725d1e2ac7e190982d7352",
+    "target_head": "1183af78b272b00621725d1e2ac7e190982d7352",
+    "product_semantic_sha256": "b0ea9e8aedfc2a72a9cc30b2e0efbe0882ecaabac1931558db435b2fdcde5d3e",
+    "target_semantic_sha256": "b0ea9e8aedfc2a72a9cc30b2e0efbe0882ecaabac1931558db435b2fdcde5d3e",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/review-hardening",
-    "target_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
-    "product_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709",
+    "target_head": "1183af78b272b00621725d1e2ac7e190982d7352",
+    "product_head": "1183af78b272b00621725d1e2ac7e190982d7352",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
-      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/review-hardening --json"
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-module-layout-readiness-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "948d8d68075b4cd9fbc2e9a9b1c3d2947ca8772924a160414ff3cf8ee829a3a8"
+        "sha256": "88a4d6b4526d9dd0da8a6bb66a0c230957c7da00ab797c9873b49855d04b4031"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "0d61eea5b8a7ba9d99357396c79921434ab77bd004904ea96693cc42e485b0d7"
+        "sha256": "67da8edb3ddc2550ccf1fd78dfec0458cbdc3e6d188e0aec40568d36df19fb9a"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "69250e07162c38f95926bee2009394f63c26a44ca1ae4caf4fad0dcce9463d35"
+        "sha256": "4435303068c7892f5ea0d8c00c98721b156ef2d7e6dbff103891a3fb545cbadd"
       },
       {
         "path": "rules",

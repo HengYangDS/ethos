@@ -14,7 +14,7 @@ baseline_module_facade_limit = 0
 
 allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/branch_roles.py:branch_roles",
-    "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/package_ontology.py:package_ontology",
+  "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/package_ontology.py:package_ontology",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/skill_activation.py:skill_activation",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/system_contracts.py:system_contracts",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/invalid_states.py:invalid_states",

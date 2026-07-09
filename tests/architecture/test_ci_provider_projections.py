@@ -94,6 +94,27 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_markdown_lint_excludes_uv_cache_projection() -> None:
+    config = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert '  - ".uv-cache/**"' in config
+    assert ".uv-cache/" in gitignore
+
+
+def test_actionlint_runner_uses_official_release_fallback_not_npm_package() -> None:
+    script = (ROOT / "tools/ci/scripts/run-actionlint.sh").read_text(encoding="utf-8")
+    policy = tomllib.loads(
+        (ROOT / ".config/checks/github/actionlint.toml").read_text(encoding="utf-8")
+    )
+
+    assert policy["tool"]["source"] == "github-release"
+    assert policy["tool"]["release_owner"] == "rhysd/actionlint"
+    assert "github.com/rhysd/actionlint/releases/download" in script
+    assert "npx --yes" not in script
+    assert "actionlint@" not in script
+
+
 def test_ci_template_check_reports_projection_drift_as_json() -> None:
     result = subprocess.run(
         [

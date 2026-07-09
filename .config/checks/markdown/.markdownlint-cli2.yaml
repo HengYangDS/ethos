@@ -8,6 +8,7 @@ globs:
 ignores:
   - ".venv/**"
   - ".cache/**"
+  - ".uv-cache/**"
   - "build/**"
   - "dist/**"
   - "node_modules/**"

@@ -31,7 +31,9 @@ configuration plane, not a truth center.
   `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
   claim hosted GitHub or GitLab status.
 - `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
-  `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate.
+  `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
+  falls back to the pinned upstream GitHub release binary when no local
+  `actionlint` is installed.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format/selection.toml` owns report-first carrier and
   file-format boundary checks; `tools/ci/scripts/run-format-selection.sh` is the

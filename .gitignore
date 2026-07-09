@@ -9,6 +9,7 @@ __pycache__/
 dist/
 build/
 .cache/
+.uv-cache/
 *.egg-info/
 node_modules/
 npm-debug.log*

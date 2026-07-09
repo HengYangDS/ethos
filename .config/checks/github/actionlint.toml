@@ -15,3 +15,5 @@ not_claimed = [
 name = "actionlint"
 version_env = "ACTIONLINT_VERSION"
 default_version = "1.7.7"
+source = "github-release"
+release_owner = "rhysd/actionlint"

@@ -411,10 +411,16 @@ def _foreign_work_lanes(
                 root=root,
                 claim_id=lease_claim_id(lease),
                 relation_to_accepted=ref_relation(root, branch, accepted_branch),
-                dirty_paths=changed_paths(Path(str(worktree["path"]))),
+                dirty_paths=_worktree_dirty_paths(worktree),
             )
         )
     return foreign
+
+
+def _worktree_dirty_paths(worktree: dict[str, str]) -> tuple[str, ...]:
+    if str(worktree.get("worktree_binding") or "") == "missing":
+        return ()
+    return changed_paths(Path(str(worktree["path"])))
 
 
 def _candidate_status(
@@ -447,7 +453,7 @@ def _candidate_status(
         "branch": policy.candidate_branch,
         "exists": bool(head),
         "head": head,
-        "worktree_exists": bool(worktree_path),
+        "worktree_exists": worktree_binding in {"current", "linked"},
         "worktree_path": worktree_path,
         "worktree_binding": worktree_binding,
         "behind_accepted": behind_accepted,

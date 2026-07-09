@@ -25,10 +25,10 @@ def _run_git(root: Path, *args: str) -> str:
 
 
 def has_changed_paths(root: Path) -> bool:
-    """Return whether the target worktree has tracked or untracked changes."""
+    """Return whether the target worktree has tracked, untracked, or unreadable state."""
     try:
         return bool(_run_git(root, "status", "--porcelain", "--untracked-files=all"))
-    except subprocess.CalledProcessError:
+    except (OSError, subprocess.CalledProcessError):
         return True
 
 
@@ -244,9 +244,14 @@ def _worktree_branch_binding(
 
 
 def worktree_binding(path: str, *, current_path: Path) -> str:
-    """Classify a worktree path as current or linked."""
-    if path and Path(path).resolve() == current_path:
+    """Classify a worktree path from Git's registry against filesystem reality."""
+    if not path:
+        return "absent"
+    resolved = Path(path).resolve()
+    if resolved == current_path:
         return "current"
+    if not resolved.exists():
+        return "missing"
     return "linked"
 
 

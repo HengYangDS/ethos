@@ -13,6 +13,7 @@ from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
+from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store import state
 
@@ -489,6 +490,30 @@ def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: 
         "unavailable": 1,
     }
     assert "fatal: not a git repo" in str(report["error"])
+
+
+def test_dirty_provenance_reports_missing_cwd_as_unavailable(tmp_path: Path) -> None:
+    missing = tmp_path / "missing-worktree"
+
+    report = dirty_provenance(missing)
+
+    assert report["dirty"] is True
+    assert report["state"] == "unavailable"
+    assert report["entries"] == []
+    assert report["summary"] == {
+        "tracked": 0,
+        "untracked": 0,
+        "deleted": 0,
+        "conflicted": 0,
+        "unavailable": 1,
+    }
+    assert "missing-worktree" in str(report["error"])
+
+
+def test_has_changed_paths_fails_closed_when_worktree_path_disappears(tmp_path: Path) -> None:
+    missing = tmp_path / "missing-candidate"
+
+    assert has_changed_paths(missing) is True
 
 
 def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:

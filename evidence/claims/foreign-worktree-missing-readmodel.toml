@@ -1,0 +1,44 @@
+[claim]
+id = "foreign-worktree-missing-readmodel"
+subject = "ethos:foreign-worktree-missing-readmodel"
+state = "active"
+summary = "ETHOS status reports missing foreign Work Lane physical paths as observe-only reader state instead of crashing."
+
+[evidence]
+dated = "evidence/chronicle/foreign-worktree-missing-readmodel/2026-07-09.md"
+sha256 = "6df8d915be83801d3931d60e95ab24d55d01172869d203f93ff4c555ab45d2db"
+evidence_ids = ["evidence:foreign-worktree-missing-readmodel"]
+binding = "Digest-bound evidence for fail-soft missing foreign Work Lane reader semantics."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_missing_foreign_worktree_without_crashing -q",
+  "uv run --group dev pytest tests/unit/lanes/test_lanes_retire.py::test_dirty_provenance_reports_unavailable_git_status tests/unit/lanes/test_lanes_retire.py::test_dirty_provenance_reports_missing_cwd_as_unavailable tests/unit/governance/validation/test_schemas.py -q",
+  "git diff --check",
+]
+
+[boundary]
+owner = "repository-governance"
+scope = "Workspace status and accepted-root closeout reader behavior for missing foreign Work Lane physical paths"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-foreign-worktree-missing-readmodel-v2-20260709"
+fallback = "Treat the lane as observe-only coordination state and inspect Git worktree metadata before any owner-bound cleanup path."
+kill_signal = "ethos status or accepted-root closeout crashes when a foreign Work Lane registry path is missing."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/adapters/repo/dirty/core.py",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/lanes/test_lanes_retire.py",
+  "tests/unit/lanes/test_lanes_retire.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-foreign-worktree-missing-readmodel-v2-20260709/proposal.md",
+  "openspec/changes/archive/2026-07-09-foreign-worktree-missing-readmodel-v2-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-foreign-worktree-missing-readmodel-v2-20260709/tasks.md",
+  "openspec/changes/archive/2026-07-09-foreign-worktree-missing-readmodel-v2-20260709/specs/repository-governance/spec.md",
+  "evidence/chronicle/foreign-worktree-missing-readmodel/2026-07-09.md",
+  "evidence/claims/foreign-worktree-missing-readmodel.toml",
+]

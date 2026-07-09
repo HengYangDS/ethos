@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -85,6 +86,33 @@ def test_workspace_status_stage_gates_keep_authoring_open_with_foreign_lane(
     assert status["stage_gates"]["authoring_allowed"] is True
     assert status["stage_gates"]["integration_allowed"] is True
     assert status["stage_gates"]["recommended_next_command"] == "ethos land --json"
+
+
+def test_workspace_status_reports_missing_foreign_worktree_without_crashing(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    foreign = tmp_path / "repo-work-foreign"
+    git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
+    git(repo, "worktree", "lock", foreign.as_posix(), "--reason", "simulate stale registry")
+    # Simulate a concurrent host or agent removing the physical worktree while
+    # Git's registry still advertises it. ETHOS must surface the lane as
+    # unobservable, not crash closeout/status readers.
+    shutil.rmtree(foreign)
+
+    status = workspace_status(repo)
+    lane = status["foreign_work_lanes"][0]
+
+    assert lane["branch"] == "work/foreign"
+    assert lane["worktree_binding"] == "missing"
+    assert lane["dirty"] is False
+    assert lane["dirty_paths"] == []
+    assert lane["scope_state"] == "empty"
+    assert lane["coordination_state"] == "advisory"
+    assert status["coordination"]["blocking"] is False
+    assert status["required_gaps"] == []
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_path: Path) -> None:
@@ -690,6 +718,25 @@ def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Pa
     assert status["candidate"]["worktree_exists"] is False
     assert status["candidate"]["worktree_path"] == ""
     assert "candidate_worktree_missing" in status["required_gaps"]
+
+
+def test_workspace_status_reports_missing_candidate_registry_worktree_without_crashing(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    git(repo, "worktree", "lock", candidate.as_posix(), "--reason", "simulate stale registry")
+
+    shutil.rmtree(candidate)
+
+    status = workspace_status(repo)
+
+    assert status["candidate"]["exists"] is True
+    assert status["candidate"]["worktree_exists"] is False
+    assert status["candidate"]["worktree_path"] == candidate.as_posix()
+    assert status["candidate"]["worktree_binding"] == "missing"
+    assert "candidate_worktree_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_path: Path) -> None:

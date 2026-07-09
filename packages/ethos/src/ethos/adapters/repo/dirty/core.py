@@ -70,20 +70,8 @@ def dirty_provenance(root: Path) -> dict[str, object]:
     """
     try:
         output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
-    except subprocess.CalledProcessError as exc:
-        return {
-            "dirty": True,
-            "state": "unavailable",
-            "entries": [],
-            "summary": {
-                "tracked": 0,
-                "untracked": 0,
-                "deleted": 0,
-                "conflicted": 0,
-                "unavailable": 1,
-            },
-            "error": (exc.stderr or str(exc)).strip(),
-        }
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return _unavailable_dirty_provenance(exc)
     entries = [_dirty_entry(line) for line in output.splitlines() if line]
     summary = {
         "tracked": sum(1 for entry in entries if entry["kind"] == "tracked"),
@@ -97,6 +85,24 @@ def dirty_provenance(root: Path) -> dict[str, object]:
         "state": "dirty" if entries else "clean",
         "entries": entries,
         "summary": summary,
+    }
+
+
+def _unavailable_dirty_provenance(exc: BaseException) -> dict[str, object]:
+    """Build a fail-soft dirty-state payload for an unreadable Git worktree."""
+    stderr = getattr(exc, "stderr", "")
+    return {
+        "dirty": True,
+        "state": "unavailable",
+        "entries": [],
+        "summary": {
+            "tracked": 0,
+            "untracked": 0,
+            "deleted": 0,
+            "conflicted": 0,
+            "unavailable": 1,
+        },
+        "error": (stderr or str(exc)).strip(),
     }
 
 

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "260dae47b97a0020a15445e296a7a4df23d872aa",
-    "target_head": "260dae47b97a0020a15445e296a7a4df23d872aa",
-    "product_semantic_sha256": "66c571f0870650e1022c069f92082e0342ae896bd021825ddf863f63515f5992",
-    "target_semantic_sha256": "66c571f0870650e1022c069f92082e0342ae896bd021825ddf863f63515f5992",
+    "product_head": "e5c5df637ab5e247540df3901557d686aaa8823c",
+    "target_head": "e5c5df637ab5e247540df3901557d686aaa8823c",
+    "product_semantic_sha256": "5177b1af98307244cd9fe2ef7f9d4245c668c65406a3df33d6d9df2ec2a4e970",
+    "target_semantic_sha256": "5177b1af98307244cd9fe2ef7f9d4245c668c65406a3df33d6d9df2ec2a4e970",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,10 +35,12 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709",
-    "target_head": "260dae47b97a0020a15445e296a7a4df23d872aa",
-    "product_head": "260dae47b97a0020a15445e296a7a4df23d872aa",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709",
+    "target_head": "e5c5df637ab5e247540df3901557d686aaa8823c",
+    "product_head": "e5c5df637ab5e247540df3901557d686aaa8823c",
+    "changed_paths": [
+      "evidence/claims/ethos-asset-quality-kernel.toml"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +53,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/context-projection-semantic-package-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/capability-parity-semantic-package-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +83,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "9fa42a2d25c336c9799611cfde09834de01e49be8d6a9f49bf2560cddfa411ac"
+        "sha256": "5299b8cc7bde5d9af254261533094be2f5efe0c73304ace25b035aaf9e528a44"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "0d980d951300f971bf70e60164bba9108c1bc6cfbcd84de46997c6ae6ab3c991"
+        "sha256": "4c830e300306d9f47c866bde74fdd7372d1dcbf13d4c448ae3dbf6cb0fc209c2"
       },
       {
         "path": "openspec",

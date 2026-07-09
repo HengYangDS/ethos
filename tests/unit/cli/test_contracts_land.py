@@ -647,28 +647,13 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     )
     assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
     assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
-    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == [
-        "tools/ci/scripts/run-python-lint.sh",
-        "tools/ci/scripts/run-config-lint.sh",
-        "tools/ci/scripts/run-shell-lint.sh",
-        "tools/ci/scripts/run-markdown-lint.sh",
-        "tools/ci/scripts/run-import-linter.sh",
-        "tools/ci/scripts/run-docstring-coverage.sh",
-        "tools/ci/scripts/run-module-layout.sh",
-        "tools/ci/scripts/run-product-boundary.sh",
-        "tools/ci/scripts/run-bandit.sh",
-        "tools/ci/scripts/run-repository-hygiene.sh",
-        "tools/ci/scripts/run-secrets-scan.sh",
-        "tools/ci/scripts/run-ci-template-check.sh",
-        "tools/ci/scripts/run-format-selection.sh",
-        "tools/ci/scripts/run-architecture-projection-drift.sh",
-        "tools/ci/scripts/run-runbook-registry-check.sh",
-        "tools/ci/scripts/run-mcp-smoke.sh",
-        "tools/ci/scripts/run-closeout-evidence-manifest.sh",
-        "tools/ci/scripts/run-local-state-audit.sh",
-        "tools/ci/scripts/run-release-supply-chain.sh",
-        "tools/ci/scripts/run-python-tests.sh",
+    local_ci_script = Path("tools/ci/scripts/run-local-ci.sh").read_text(encoding="utf-8")
+    expected_owner_scripts = [
+        line.strip()
+        for line in local_ci_script.splitlines()
+        if line.strip().startswith("tools/ci/scripts/") and line.strip().endswith(".sh")
     ]
+    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == expected_owner_scripts
 
     publication = payload["data"]["publication"]
     assert publication["mode"] == "local_readiness"

@@ -8,6 +8,7 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.domain.land_support import acceptable_parity_product_heads
 from ethos.domain.land_support import acceptable_parity_target_heads
 from ethos.domain.land_support import intake_projection_report
+from ethos.domain.land_support import local_ci_fallback_package
 from ethos.domain.land_support import publication_readiness
 from ethos.domain.land_support import remote_publication_deferred
 from ethos.domain.land_support import trust_closeout_package
@@ -60,11 +61,15 @@ def campaign_closeout_report(
         acceptable_target_heads=acceptable_target_heads,
     )
     local_ready = bool(evolution["ok"]) and bool(release["ok"])
+    local_ci_fallback = local_ci_fallback_package(
+        root=repo,
+        current_head=current_product_head,
+    )
     publication = publication_readiness(
         branch=branch,
         local_ok=local_ready,
         policy=load_branch_role_policy(repo),
-        root=repo,
+        local_ci_fallback=local_ci_fallback,
     )
     remote_publication = remote_publication_deferred(root=repo)
     trust_closeout = trust_closeout_package(

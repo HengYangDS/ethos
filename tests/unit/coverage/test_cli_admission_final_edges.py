@@ -261,6 +261,11 @@ def test_admission_prewrite_and_hook_success_edges(
     )
 
 
+def test_lifecycle_json_helpers_tolerate_malformed_payloads() -> None:
+    assert lifecycle_cli._gap_tuple({"required_gaps": "not-a-list"}) == ()
+    assert lifecycle_cli._first_string(()) == ""
+
+
 def test_cli_wrappers_emit_expected_results(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from ethos.domain.land_support import local_ci_owner_scripts
@@ -630,6 +631,110 @@ def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert "protected_root_mutation" in payload["required_gaps"]
+
+
+def test_publish_reports_current_local_ci_fallback_evidence_when_manifest_matches_head(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "ethos_local_ci_fallback_evidence",
+                "ok": True,
+                "head": head,
+                "command": "tools/ci/scripts/run-local-ci.sh",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    fallback = payload["data"]["local_ci_fallback"]
+    evidence_status = fallback["evidence_status"]
+    assert evidence_status["state"] == "current"
+    assert evidence_status["current_head"] == head
+    assert evidence_status["evidence_head"] == head
+    assert evidence_status["path"] == "build/evidence/local-ci/fallback.json"
+    assert payload["summary"]["next_publication_action"] == (
+        "remote unavailable; local-ci fallback evidence is current at HEAD"
+    )
+    assert payload["next_actions"] == [
+        "remote unavailable; local-ci fallback evidence is current at HEAD",
+        "ethos report",
+    ]
+
+
+def test_publish_reports_stale_local_ci_fallback_evidence_when_manifest_head_differs(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "kind": "ethos_local_ci_fallback_evidence",
+                "ok": True,
+                "head": "stale-head",
+                "command": "tools/ci/scripts/run-local-ci.sh",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    evidence_status = payload["data"]["local_ci_fallback"]["evidence_status"]
+    assert evidence_status["state"] == "stale"
+    assert evidence_status["current_head"] == head
+    assert evidence_status["evidence_head"] == "stale-head"
+    assert payload["summary"]["next_publication_action"] == (
+        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    )
+
+
+def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("{not-json", encoding="utf-8")
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    evidence_status = payload["data"]["local_ci_fallback"]["evidence_status"]
+    assert evidence_status == {
+        "state": "invalid",
+        "path": "build/evidence/local-ci/fallback.json",
+        "current_head": head,
+        "evidence_head": "",
+        "ok": False,
+        "next_action": (
+            "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence"
+        ),
+    }
 
 
 def test_publish_reports_local_readiness_without_remote_push() -> None:

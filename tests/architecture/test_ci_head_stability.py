@@ -68,3 +68,12 @@ def test_local_ci_fails_closed_when_head_changes_during_run() -> None:
     assert "tools/ci/scripts/require-stable-head.sh capture" in script
     assert "tools/ci/scripts/require-stable-head.sh verify" in script
     assert "trap _ethos_verify_local_ci_head_stability EXIT" in script
+
+
+def test_local_ci_writes_head_bound_fallback_manifest() -> None:
+    script = LOCAL_CI.read_text(encoding="utf-8")
+
+    assert "build/evidence/local-ci/fallback.json" in script
+    assert "ethos_local_ci_fallback_evidence" in script
+    assert "ethos_local_ci_head" in script
+    assert "head_stability" in script

@@ -364,6 +364,12 @@ publication remains an adapter responsibility. `publish --json` reports
 `data.publication.remote_state = "deferred"` while still exposing the configured
 submit branch plan. Remote reachability is separate and appears under
 `data.remote_availability.state` and `data.publication.remote_availability.state`.
+The local fallback package also reports
+`data.local_ci_fallback.evidence_status` and
+`data.publication.fallback_evidence.evidence_status`, binding fallback evidence to
+the current HEAD when `build/evidence/local-ci/fallback.json` exists. Missing,
+stale, or invalid fallback evidence remains a local-evidence action; it never
+claims hosted CI success or remote publication.
 `land --apply` from an admitted Work Lane advances the configured candidate
 branch; it does not advance the accepted root.
 Accepted-root closeout is also an ETHOS mutation. The current ETHOS runner may

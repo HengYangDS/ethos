@@ -639,7 +639,8 @@
         "hosted_ci_status_claimed",
         "remote_availability_state",
         "command",
-        "owner_scripts"
+        "owner_scripts",
+        "evidence_status"
       ],
       "properties": {
         "kind": {
@@ -665,6 +666,50 @@
           "items": {
             "type": "string"
           }
+        },
+        "evidence_status": {
+          "$ref": "#/$defs/localCiFallbackEvidenceStatus"
+        }
+      },
+      "additionalProperties": false
+    },
+    "localCiFallbackEvidenceStatus": {
+      "type": "object",
+      "required": [
+        "state",
+        "path",
+        "current_head",
+        "evidence_head",
+        "ok",
+        "next_action"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_checked",
+            "missing",
+            "invalid",
+            "stale",
+            "current"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "current_head": {
+          "type": "string"
+        },
+        "evidence_head": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string"
+        },
+        "next_action": {
+          "type": "string"
         }
       },
       "additionalProperties": false

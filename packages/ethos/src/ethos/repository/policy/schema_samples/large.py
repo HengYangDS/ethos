@@ -49,6 +49,15 @@ def campaign_closeout_contract_sample() -> dict[str, Any]:
             "tools/ci/scripts/run-release-supply-chain.sh",
             "tools/ci/scripts/run-python-tests.sh",
         ],
+        "evidence_status": {
+            "state": "not_checked",
+            "path": "build/evidence/local-ci/fallback.json",
+            "current_head": "",
+            "evidence_head": "",
+            "ok": False,
+            "command": "tools/ci/scripts/run-local-ci.sh",
+            "next_action": "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
+        },
     }
     publication = {
         "mode": "local_readiness",

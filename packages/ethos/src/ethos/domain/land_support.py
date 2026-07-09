@@ -6,6 +6,7 @@ surface can stay out of the land module and the domain package remains acyclic.
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -57,10 +58,64 @@ def remote_publication_deferred(
     }
 
 
+LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
+
+
+def local_ci_fallback_evidence_status(
+    repo: Path,
+    *,
+    current_head: str,
+) -> dict[str, object]:
+    """Project whether local-ci fallback evidence is bound to the current HEAD."""
+    relative_path = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
+    path = repo / LOCAL_CI_FALLBACK_EVIDENCE_PATH
+    if not path.exists():
+        return {
+            "state": "missing",
+            "path": relative_path,
+            "current_head": current_head,
+            "evidence_head": "",
+            "ok": False,
+            "next_action": "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "state": "invalid",
+            "path": relative_path,
+            "current_head": current_head,
+            "evidence_head": "",
+            "ok": False,
+            "next_action": (
+                "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence"
+            ),
+        }
+    evidence_head = str(payload.get("head") or "")
+    evidence_ok = payload.get("ok") is True
+    current = bool(current_head) and evidence_head == current_head and evidence_ok
+    state = "current" if current else "stale"
+    next_action = (
+        "remote unavailable; local-ci fallback evidence is current at HEAD"
+        if current
+        else "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    )
+    return {
+        "state": state,
+        "path": relative_path,
+        "current_head": current_head,
+        "evidence_head": evidence_head,
+        "ok": current,
+        "command": str(payload.get("command") or ""),
+        "next_action": next_action,
+    }
+
+
 def local_ci_fallback_package(
     remote_availability: dict[str, object] | None = None,
     *,
     root: Path | None = None,
+    current_head: str = "",
 ) -> dict[str, object]:
     """Describe local CI fallback evidence without claiming hosted CI success."""
     availability = remote_availability or {
@@ -70,6 +125,18 @@ def local_ci_fallback_package(
         "available": False,
         "blocking": False,
     }
+    evidence_status = (
+        local_ci_fallback_evidence_status(root, current_head=current_head)
+        if root is not None
+        else {
+            "state": "not_checked",
+            "path": LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix(),
+            "current_head": current_head,
+            "evidence_head": "",
+            "ok": False,
+            "next_action": "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
+        }
+    )
     return {
         "kind": "local_ci_fallback",
         "evidence_class": "local_fallback",
@@ -78,6 +145,7 @@ def local_ci_fallback_package(
         "remote_availability_state": str(availability.get("state") or "not_probed"),
         "command": "tools/ci/scripts/run-local-ci.sh",
         "owner_scripts": local_ci_owner_scripts(root=root),
+        "evidence_status": evidence_status,
     }
 
 
@@ -182,7 +250,7 @@ def local_submit_package(
     branch: str,
     submit_branch: str,
     remote_availability: dict[str, object] | None = None,
-    root: Path | None = None,
+    local_ci_fallback: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Plan the local submit-branch package (remote push deferred)."""
     return {
@@ -193,10 +261,8 @@ def local_submit_package(
         "remote_state": "deferred",
         "blocking": False,
         "remote_availability": remote_availability or {"state": "not_probed", "available": False},
-        "local_ci_fallback": local_ci_fallback_package(
-            remote_availability=remote_availability,
-            root=root,
-        ),
+        "local_ci_fallback": local_ci_fallback
+        or local_ci_fallback_package(remote_availability=remote_availability),
         "required_steps": [
             "land work lane to candidate role",
             "fast-forward accepted root from candidate role",
@@ -247,7 +313,7 @@ def publication_readiness(
     local_ok: bool,
     policy: BranchRolePolicy,
     remote_availability: dict[str, object] | None = None,
-    root: Path | None = None,
+    local_ci_fallback: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Assemble publication readiness with remote probe and local-ci fallback."""
     submit_branch = policy.submit_branch_for_source(branch)
@@ -261,11 +327,18 @@ def publication_readiness(
         "advisory_gaps": [],
     }
     remote_available = availability.get("available") is True
+    fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
+    evidence_status = fallback.get("evidence_status")
+    evidence_next_action = (
+        str(cast("dict[str, object]", evidence_status).get("next_action") or "")
+        if isinstance(evidence_status, dict)
+        else "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    )
     next_actions = ["resolve local publish readiness gaps"]
     if local_ok and remote_available:
         next_actions = ["create configured submit branch when remote publication is available"]
     elif local_ok:
-        next_actions = ["run tools/ci/scripts/run-local-ci.sh as local fallback evidence"]
+        next_actions = [evidence_next_action]
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
@@ -273,13 +346,13 @@ def publication_readiness(
         # Reachability remains visible under remote_availability.state.
         "remote_state": "deferred",
         "remote_availability": availability,
-        "fallback_evidence": local_ci_fallback_package(remote_availability=availability, root=root),
+        "fallback_evidence": fallback,
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(
             branch=branch,
             submit_branch=submit_branch,
             remote_availability=availability,
-            root=root,
+            local_ci_fallback=fallback,
         ),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": next_actions,

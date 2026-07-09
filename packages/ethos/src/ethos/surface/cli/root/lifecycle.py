@@ -9,6 +9,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git
 import ethos.domain.land as land_domain
+from ethos.adapters.mutation.core import MutationDecision
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
@@ -29,6 +30,7 @@ from ethos_core.contracts.branch_roles import load_branch_role_policy
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 
@@ -36,13 +38,33 @@ if TYPE_CHECKING:
 class _CloseoutPayload:
     repo: Path
     mutation: MutationRequest
-    decision: object
+    decision: MutationDecision
     audit_root: Path
     audit: dict[str, Any]
     lifecycle: dict[str, Any]
     update: dict[str, object]
     gaps: tuple[str, ...]
     ok: bool
+
+
+def _mapping_payload(value: object) -> dict[str, object]:
+    """Return a JSON mapping payload, or an empty mapping for malformed data."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
+
+def _gap_tuple(payload: Mapping[str, object]) -> tuple[str, ...]:
+    """Read required gaps from a JSON payload as strings."""
+    raw_gaps = payload.get("required_gaps", ())
+    if isinstance(raw_gaps, list | tuple):
+        return tuple(str(gap) for gap in raw_gaps)
+    return ()
+
+
+def _first_string(value: object) -> str:
+    """Return the first string-like item from a JSON list payload."""
+    if isinstance(value, list) and value:
+        return str(value[0])
+    return ""
 
 
 def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
@@ -105,6 +127,7 @@ def land(
 ) -> None:
     """Report land readiness."""
     repo = resolve_root(root)
+    current_head = git.current_head(repo)
     if closeout:
         request = MutationRequest(
             command="closeout",
@@ -115,12 +138,12 @@ def land(
         decision = evaluate_closeout_mutation(
             request,
             root=repo,
-            current_head=git.current_head(repo),
+            current_head=current_head,
         )
         audit_root = land_domain.closeout_audit_root(repo, decision)
         audit = land_domain.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
-        gaps = tuple(audit["required_gaps"]) + decision.gaps + tuple(lifecycle["required_gaps"])
+        gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle)
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"])
         update: dict[str, object] = {}
         if ok and apply:
@@ -129,7 +152,7 @@ def land(
                 authorized=authorize,
                 expect_head=expect_head,
             )
-            gaps = gaps + tuple(update["required_gaps"])
+            gaps = gaps + _gap_tuple(update)
             ok = bool(update["ok"])
         result = _closeout_result(
             _CloseoutPayload(
@@ -149,25 +172,20 @@ def land(
 
     governance = context_for_root(repo)
     status_payload = workspace_status(repo)
-    closeout_support = dict(status_payload.get("closeout_support", {}))
+    closeout_support = _mapping_payload(status_payload.get("closeout_support", {}))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
-        closeout_gaps = tuple(str(gap) for gap in closeout_support.get("required_gaps", ()))
+        closeout_gaps = _gap_tuple(closeout_support)
     request = MutationRequest(
         command="land",
         apply=apply,
         authorized=authorize,
         expect_head=expect_head,
     )
-    decision = evaluate_mutation(request, root=repo, current_head=git.current_head(repo))
+    decision = evaluate_mutation(request, root=repo, current_head=current_head)
     audit = land_domain.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
-    gaps = (
-        tuple(audit["required_gaps"])
-        + decision.gaps
-        + closeout_gaps
-        + tuple(lifecycle["required_gaps"])
-    )
+    gaps = _gap_tuple(audit) + decision.gaps + closeout_gaps + _gap_tuple(lifecycle)
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
     if ok and apply:
@@ -177,18 +195,18 @@ def land(
             expect_head=expect_head,
             admitted_decision=decision,
         )
-        gaps = gaps + tuple(update["required_gaps"])
+        gaps = gaps + _gap_tuple(update)
         ok = bool(update["ok"])
     elif ok:
         update = candidate_base_report(root=repo)
         if not update["ok"]:
-            gaps = gaps + tuple(update["required_gaps"])
+            gaps = gaps + _gap_tuple(update)
             ok = False
     proof_readiness: dict[str, object] = {}
     if ok and not apply:
-        proof_readiness = proof_readiness_report(repo, git.current_head(repo))
-        gaps = gaps + tuple(str(gap) for gap in proof_readiness["required_gaps"])
-        ok = not proof_readiness["blocking"]
+        proof_readiness = proof_readiness_report(repo, current_head)
+        gaps = gaps + _gap_tuple(proof_readiness)
+        ok = not bool(proof_readiness["blocking"])
     state = (
         "ready_to_land"
         if ok and not apply
@@ -204,7 +222,7 @@ def land(
         next_actions=land_domain.land_next_actions(
             ok=ok,
             gaps=gaps,
-            current_head=git.current_head(repo),
+            current_head=current_head,
         ),
         governance_context=governance,
         data={
@@ -217,7 +235,7 @@ def land(
                 "apply": apply,
                 "authorized": authorize,
                 "expect_head": expect_head,
-                "current_head": git.current_head(repo),
+                "current_head": current_head,
                 "decision": decision.state,
             },
         },
@@ -237,6 +255,7 @@ def publish(
     """Report publish readiness without pushing."""
     repo = resolve_root(root)
     governance = context_for_root(repo)
+    current_head = git.current_head(repo)
     decision = evaluate_mutation(
         MutationRequest(
             command="publish",
@@ -245,26 +264,27 @@ def publish(
             expect_head=expect_head,
         ),
         root=repo,
-        current_head=git.current_head(repo),
+        current_head=current_head,
     )
     audit = land_domain.repository_audit_after_admission(repo, decision)
     branch = workspace_status(repo)["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    gaps = tuple(audit["required_gaps"]) + decision.gaps + release_carrier_gaps
+    gaps = _gap_tuple(audit) + decision.gaps + release_carrier_gaps
     ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
     remote_availability = git.remote_availability(repo)
     local_ci_fallback = land_domain.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
+        current_head=current_head,
     )
     publication = land_domain.publication_readiness(
         branch=str(branch),
         local_ok=ok,
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
-        root=repo,
+        local_ci_fallback=local_ci_fallback,
     )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")
@@ -277,11 +297,7 @@ def publish(
         "remote_availability_state": remote_availability_state,
         "hosted_ci_status_claimed": False,
         "submit_branch": str(publication.get("submit_branch") or ""),
-        "next_publication_action": str(
-            (publication.get("next_actions") or [""])[0]
-            if isinstance(publication.get("next_actions"), list)
-            else ""
-        ),
+        "next_publication_action": _first_string(publication.get("next_actions")),
     }
     result = EthosResult(
         command="publish",
@@ -307,7 +323,7 @@ def publish(
                 "apply": apply,
                 "authorized": authorize,
                 "expect_head": expect_head,
-                "current_head": git.current_head(repo),
+                "current_head": current_head,
                 "decision": decision.state,
             },
         },

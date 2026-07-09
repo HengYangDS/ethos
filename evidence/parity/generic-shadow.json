@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "dfe76fd9ec23df6a4cd67bb9ee6d180f2093eb8a",
-    "target_head": "dfe76fd9ec23df6a4cd67bb9ee6d180f2093eb8a",
-    "product_semantic_sha256": "72c119814e93dff652375b17bace06c73714ef780762f8e1058c67ade83a60d0",
-    "target_semantic_sha256": "72c119814e93dff652375b17bace06c73714ef780762f8e1058c67ade83a60d0",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "067457a51c85ce8ec09de5a4014b4baf919cb9f8",
+    "target_head": "067457a51c85ce8ec09de5a4014b4baf919cb9f8",
+    "product_semantic_sha256": "13d4c26d6cecf88cd0bb485ba3060a12046b2e6c6f3825cc7670ab05e064a627",
+    "target_semantic_sha256": "13d4c26d6cecf88cd0bb485ba3060a12046b2e6c6f3825cc7670ab05e064a627",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709",
-    "target_head": "dfe76fd9ec23df6a4cd67bb9ee6d180f2093eb8a",
-    "product_head": "dfe76fd9ec23df6a4cd67bb9ee6d180f2093eb8a",
+    "target_root": "<repo>",
+    "target_head": "067457a51c85ce8ec09de5a4014b4baf919cb9f8",
+    "product_head": "067457a51c85ce8ec09de5a4014b4baf919cb9f8",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/module-layout-semantic-debt-20260709 --json"
+      "<repo>/.venv/bin/python -m ethos.cli status --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli prove --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli report --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "<repo>/.venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli land --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli publish --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "2ddf052e341918bd6d89e90c2f148ffb94a9ebe29af89118adfbaa8d138d0d59"
+        "sha256": "758feff7d28f206b12c483b62dfd974e12c5c763ec49643ecb7dc84fb414af0b"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "8f35ca4509c955facd6b971022bf283c103b2d3c76e4a711bee6ee62a63c3ba3"
+        "sha256": "2dfcfcdb0b62cf65672988fccff668f27a0e2aacbf5f736f79cc810ab1283b86"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "9234299ebf5cc8f775922af7099d806f6bcfe8746c5a58cb91bc8ac204884813"
+        "sha256": "c64404b787af4666db9f3febba9898779a52a360afaca9ebd2f34062f1236041"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "1580375297a57eb80133797140559b085e940f1d6a06e8d996e9872be855ee3c"
+        "sha256": "dda4326f750860ce188f405662524e28a7f8b99594f598920fc8e3046fd0c28b"
       },
       {
         "path": "rules",

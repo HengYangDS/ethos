@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import ethos.surface.cli.quality.core as q
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def _capture(monkeypatch):
@@ -39,9 +42,18 @@ def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_p
         "quality yaml",
     ]
     assert emitted[0]["data"]["tool"] == "lychee"
-    assert emitted[1]["data"]["command"][:2] == ["bash", "tools/ci/scripts/run-shell-lint.sh"]
-    assert emitted[2]["data"]["command"][:2] == ["bash", "tools/ci/scripts/run-config-lint.sh"]
-    assert emitted[3]["data"]["command"][:2] == ["bash", "tools/ci/scripts/run-config-lint.sh"]
+    assert emitted[1]["data"]["command"][:2] == [
+        "bash",
+        "tools/ci/scripts/run-shell-lint.sh",
+    ]
+    assert emitted[2]["data"]["command"][:2] == [
+        "bash",
+        "tools/ci/scripts/run-config-lint.sh",
+    ]
+    assert emitted[3]["data"]["command"][:2] == [
+        "bash",
+        "tools/ci/scripts/run-config-lint.sh",
+    ]
 
 
 def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
@@ -87,7 +99,11 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
     monkeypatch.setattr(
         q,
         "signature_policy_report",
-        lambda _repo: {"required_gaps": [], "head_subject_ok": False, "head_signature_ok": False},
+        lambda _repo: {
+            "required_gaps": [],
+            "head_subject_ok": False,
+            "head_signature_ok": False,
+        },
     )
     monkeypatch.setattr(
         q.repository_audit_module,
@@ -350,3 +366,104 @@ def test_quality_commits_enforce_head_adds_signature_and_subject_gaps(monkeypatc
         "head_subject_not_conventional",
         "head_signature_not_good",
     ]
+
+
+def test_full_gate_registry_includes_official_openspec_validation() -> None:
+    payload = run_ethos("quality", "gates", "--json")
+
+    assert payload["ok"] is True
+    assert "self-audit" not in payload["data"]["gates"]
+    assert payload["data"]["gates"]["repository-audit"]["command"][1:] == [
+        "-m",
+        "ethos.cli",
+        "audit",
+        "--mode",
+        "shape",
+        "--json",
+    ]
+    assert payload["data"]["gates"]["openspec"]["command"] == [
+        "openspec",
+        "validate",
+        "--all",
+        "--strict",
+        "--json",
+    ]
+    assert payload["data"]["gates"]["python-types"]["command"] == [
+        "ethos",
+        "quality",
+        "types",
+        "--json",
+    ]
+
+
+def test_quality_determinism_commands_are_available() -> None:
+    for command in (
+        ("quality", "command-surface", "--json"),
+        ("quality", "format-policy", "--json"),
+        ("quality", "projection-drift", "--json"),
+        ("quality", "evidence-freshness", "--json"),
+        ("quality", "command-examples", "--json"),
+        ("quality", "coupling-audit", "--json"),
+        ("quality", "docs-registry", "--json"),
+        ("quality", "provenance", "--json"),
+        ("quality", "claims", "--json"),
+    ):
+        payload = run_ethos(*command)
+        assert payload["ok"] is True
+        assert payload["required_gaps"] == []
+
+
+def test_quality_evidence_freshness_reports_evolution_protocol() -> None:
+    payload = run_ethos("quality", "evidence-freshness", "--json")
+
+    assert payload["ok"] is True
+    assert payload["required_gaps"] == []
+    assert payload["data"]["evolution"]["ok"] is True
+    assert payload["data"]["evolution"]["required_gaps"] == []
+    assert payload["data"]["topology"]["ok"] is True
+    assert payload["data"]["topology"]["layout"]["claims_root"] == "evidence/claims"
+    assert payload["data"]["topology"]["layout"]["chronicle_root"] == ("evidence/chronicle")
+    assert payload["summary"]["topology_issue_count"] == 0
+
+
+def test_quality_coupling_audit_reports_git_native_boundary() -> None:
+    payload = run_ethos("quality", "coupling-audit", "--json")
+
+    assert payload["ok"] is True
+    assert payload["command"] == "quality coupling-audit"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["git_native"]["strongly_bound"] is True
+    assert payload["data"]["git_native"]["layer"] == "product_semantic_hard_binding"
+    assert payload["data"]["openspec_governance"]["layer"] == ("mandatory_governance_dependency")
+    assert payload["data"]["openspec_governance"]["not_a_second_command_plane"] is True
+    assert payload["data"]["native_protocols"]["layer"] == "native_protocol_binding"
+    assert payload["data"]["native_protocols"]["provider_optional"] is False
+    assert payload["data"]["release_host_profile"]["provider"] == "gitlab"
+    assert payload["data"]["product_toolchain"]["profile"] == "product-toolchain"
+    assert payload["data"]["product_toolchain"]["layer"] == ("product_toolchain_binding")
+    assert {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": "coupling-audit.schema.json",
+        "ok": True,
+        "required_gaps": [],
+    } in payload["diagnostics"]
+    assert "schema_validation" not in payload["data"]
+
+
+def test_quality_types_enforces_ty_policy_tiers() -> None:
+    completed = run_ethos_raw("quality", "types", "--json")
+    payload = json.loads(completed.stdout)
+
+    assert payload["command"] == "quality types"
+    packages = payload["data"]["packages"]
+    # Zero-tolerance tier packages must report a zero limit; ratchet tiers a baseline.
+    # ethos-core absorbs the former ethos-contracts and ethos-quality zero-tolerance
+    # packages; ethos remains the ratchet-tier runtime.
+    assert packages["packages/ethos-core"]["limit"] == 0
+    assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
+    assert packages["packages/ethos"]["tier"] == "ratchet"
+    assert packages["packages/ethos"]["limit"] == 65
+    assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
+    # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
+    assert completed.returncode == (0 if payload["ok"] else 1)

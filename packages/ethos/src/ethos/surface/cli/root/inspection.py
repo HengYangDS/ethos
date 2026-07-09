@@ -187,7 +187,7 @@ def report(
     result = EthosResult(
         command="report",
         ok=bool(payload["ok"]),
-        state="ready" if payload["ok"] else "gapped",
+        state=str(payload.get("state") or ("ready" if payload["ok"] else "gapped")),
         summary=payload["summary"],
         required_gaps=tuple(payload["required_gaps"]),
         next_actions=tuple(payload["next_actions"]),

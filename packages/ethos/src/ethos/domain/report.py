@@ -147,6 +147,9 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         audit, claim_report, playbooks, status_payload
     )
     advisory_action_items = reporting_gaps.advisory_next_actions(advisory_gap_items)
+    has_advisory_signals = bool(advisory_gap_items or coordination_advisory_gaps)
+    report_ok = all(value == 1 for value in scores.values()) and not result_required_gaps
+    report_state = "gapped" if not report_ok else "advisory" if has_advisory_signals else "ready"
     report_gap_layers = reporting_gaps.gap_layers(
         result_required_gaps,
         parity_gaps,
@@ -167,8 +170,11 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         coordination_required_gaps=coordination_required_gaps,
         playbooks=playbooks,
     )
+    if report_state == "advisory" and advisory_action_items:
+        next_actions = advisory_action_items
     return {
-        "ok": all(value == 1 for value in scores.values()) and not result_required_gaps,
+        "ok": report_ok,
+        "state": report_state,
         "summary": {
             "profile": audit_profile,
             "read_model": "governed_repository_scorecard_v2",

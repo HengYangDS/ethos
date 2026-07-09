@@ -260,7 +260,11 @@ agents that share a directory. Across product and adopter profiles,
 `ethos report --json` mirrors status-required coordination gaps into report
 `required_gaps` and `data.gap_layers.coordination_risk.required_gaps`; advisory
 coordination signals stay advisory, classify into the same invalid-state
-taxonomy, and never grant cleanup authority.
+taxonomy, and never grant cleanup authority. If the scorecard has no blocking
+`required_gaps` but does have advisory signals, the top-level command remains
+`ok=true` while reporting `state=advisory`; in that state, top-level
+`next_actions` mirror the bounded advisory inspection or repair actions instead
+of implying that full proof alone will erase the advisory layer.
 Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is
@@ -438,7 +442,10 @@ loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos report`. `ethos report --json` projects required gaps through
 repository-neutral layers: `governance_audit` for the active repository governance
 verdict, `capability_parity` for migration or adopter parity, and
-`playbook_projection` for assistant-facing projection proof. Each layer exposes
+`playbook_projection` for assistant-facing projection proof. Advisory signals
+are a visible, non-blocking layer: `ok=true` means they do not block transitions,
+while `state=advisory` distinguishes them from a fully ready scorecard. Each
+layer exposes
 `invalid_states`, a reduction of its `required_gaps` onto the governed taxonomy in
 `system/invalid_states.toml`; the top-level `data.invalid_states` is the same
 projection across all reported layers. Its summary uses `governance_gap_count`

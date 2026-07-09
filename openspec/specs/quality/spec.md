@@ -475,6 +475,8 @@ identity, hard-quality gaps, and coordination risk separately.
   in report `required_gaps` and `gap_layers.coordination_risk.required_gaps`
 - **AND** advisory coordination signals stay advisory and do not authorize foreign
   Work Lane cleanup
+- **AND** advisory-only scorecards report `state=advisory` with `ok=true` rather
+  than collapsing advisory visibility into `state=ready`
 - **AND** effective score reflects hard floors and required coordination risk
   rather than presenting a misleading green nominal score alone
 

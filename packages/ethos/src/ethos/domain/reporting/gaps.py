@@ -68,6 +68,13 @@ def advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
                     "--json",
                 ]
             )
+        if gap.endswith(":evidence.head_unbound") or gap == "evidence.head_unbound":
+            actions.extend(
+                [
+                    "ethos quality claims --json",
+                    "ethos quality evidence-freshness --json",
+                ]
+            )
     return tuple(dict.fromkeys(actions))
 
 

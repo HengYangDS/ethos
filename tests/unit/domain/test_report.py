@@ -205,10 +205,14 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
     monkeypatch.setattr(
-        reporting_scoring, "product_boundary_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "product_boundary_report",
+        lambda _repo: {"required_gaps": []},
     )
     monkeypatch.setattr(
-        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "contributor_policy_report",
+        lambda _repo: {"required_gaps": []},
     )
     monkeypatch.setattr(
         reporting_scoring,
@@ -324,15 +328,23 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
     payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
 
     assert payload["ok"] is True
+    assert payload["state"] == "advisory"
     assert payload["required_gaps"] == ()
     assert payload["summary"]["advisory_gap_count"] == 2
+    assert payload["next_actions"] == (
+        "ethos orient --json",
+        "ethos lane status --json",
+    )
     advisory = payload["data"]["advisory_signals"]
     assert advisory["blocking"] is False
     assert advisory["advisory_gaps"] == [
         "foreign_work_lane_present",
         "work_lane_missing_lease:work/orphan",
     ]
-    assert advisory["next_actions"] == ["ethos orient --json", "ethos lane status --json"]
+    assert advisory["next_actions"] == [
+        "ethos orient --json",
+        "ethos lane status --json",
+    ]
 
 
 def test_scorecard_next_actions_route_module_layout_gaps() -> None:
@@ -351,11 +363,15 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
 def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
-        reporting_scoring, "coverage_quality_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "coverage_quality_report",
+        lambda _repo: {"required_gaps": []},
     )
     monkeypatch.setattr(reporting_scoring, "ty_gate_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
-        reporting_scoring, "docstring_coverage_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "docstring_coverage_report",
+        lambda _repo: {"required_gaps": []},
     )
     monkeypatch.setattr(
         reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
@@ -366,7 +382,9 @@ def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_p
         lambda _repo: {"required_gaps": ["product-boundary:README.md:1"]},
     )
     monkeypatch.setattr(
-        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "contributor_policy_report",
+        lambda _repo: {"required_gaps": []},
     )
 
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
@@ -401,10 +419,14 @@ def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
         reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
     )
     monkeypatch.setattr(
-        reporting_scoring, "product_boundary_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "product_boundary_report",
+        lambda _repo: {"required_gaps": []},
     )
     monkeypatch.setattr(
-        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring,
+        "contributor_policy_report",
+        lambda _repo: {"required_gaps": []},
     )
 
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)

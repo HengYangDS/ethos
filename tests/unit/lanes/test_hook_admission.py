@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from ethos.adapters.admission import core as admission_core
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
@@ -534,6 +535,107 @@ def test_push_identity_policy_accepts_configured_user_over_new_range(
     assert identity["checked_commit_count"] == 1
     assert identity["violations"] == []
     assert report["ok"] is True
+
+
+def test_push_identity_policy_reports_missing_configured_user_and_unreadable_head(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+
+    report = push_identity_policy_report(root=repo, pushed_head="missing-head")
+
+    assert report["ok"] is False
+    assert "push_identity_user_name_missing" in report["required_gaps"]
+    assert "push_identity_user_email_missing" in report["required_gaps"]
+    assert "push_identity_commit_range_unreadable" in report["required_gaps"]
+
+
+def test_push_identity_policy_reports_author_and_committer_independently(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    remote_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Other Author")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "other-author@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    (repo / "author.txt").write_text("author\n", encoding="utf-8")
+    git(repo, "add", "author.txt")
+    git(repo, "commit", "-m", "author drift")
+    author_drift_head = git(repo, "rev-parse", "HEAD")
+
+    author_drift = push_identity_policy_report(
+        root=repo, pushed_head=author_drift_head, remote_head=remote_head
+    )
+
+    assert (
+        f"pushed_commit_author_not_configured_identity:{author_drift_head}"
+        in author_drift["required_gaps"]
+    )
+    assert (
+        f"pushed_commit_committer_not_configured_identity:{author_drift_head}"
+        not in author_drift["required_gaps"]
+    )
+
+    second_repo = init_repo(tmp_path / "second-repo")
+    second_remote_head = git(second_repo, "rev-parse", "HEAD")
+    git(second_repo, "config", "user.name", "Canonical User")
+    git(second_repo, "config", "user.email", "canonical@example.invalid")
+    git(second_repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Other Committer")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "other-committer@example.invalid")
+    (second_repo / "committer.txt").write_text("committer\n", encoding="utf-8")
+    git(second_repo, "add", "committer.txt")
+    git(second_repo, "commit", "-m", "committer drift")
+    committer_drift_head = git(second_repo, "rev-parse", "HEAD")
+
+    committer_drift = push_identity_policy_report(
+        root=second_repo, pushed_head=committer_drift_head, remote_head=second_remote_head
+    )
+
+    assert (
+        f"pushed_commit_author_not_configured_identity:{committer_drift_head}"
+        not in committer_drift["required_gaps"]
+    )
+    assert (
+        f"pushed_commit_committer_not_configured_identity:{committer_drift_head}"
+        in committer_drift["required_gaps"]
+    )
+
+
+def test_push_identity_helpers_tolerate_git_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_range_run(args, **kwargs):
+        if args[:3] == ["git", "cat-file", "-e"]:
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ["git", "rev-list"]:
+            return subprocess.CompletedProcess(args, 1, "", "fatal")
+        raise AssertionError(args)
+
+    monkeypatch.setattr(admission_core.subprocess, "run", fake_range_run)
+    assert admission_core._pushed_commit_range(tmp_path, pushed_head="h1", remote_head="") == []
+
+    def fake_identity_run(args, **kwargs):
+        return subprocess.CompletedProcess(args, 0, "malformed", "")
+
+    monkeypatch.setattr(admission_core.subprocess, "run", fake_identity_run)
+    assert admission_core._commit_identity(tmp_path, "h1") == {
+        "author_name": "",
+        "author_email": "",
+        "committer_name": "",
+        "committer_email": "",
+    }
 
 
 def _trust_bearing_evidence(head: str) -> dict[str, object]:

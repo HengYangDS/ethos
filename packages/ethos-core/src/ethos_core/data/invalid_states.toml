@@ -50,6 +50,8 @@ match_prefixes = [
   "git_user_name_mismatch",
   "git_user_email_mismatch",
   "git_identity_not_allowed",
+  "push_identity_",
+  "pushed_commit_",
   "package_version_mismatch",
   "package_missing",
   "target_package_missing",

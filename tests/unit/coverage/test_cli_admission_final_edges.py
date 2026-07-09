@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.admission.closeout_intent.core as closeout_intent
 import ethos.adapters.admission.core as admission
 import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.admission.shell as admission_shell
@@ -292,6 +293,19 @@ def test_admission_prewrite_and_hook_success_edges(
             root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"
         )["ok"]
         is True
+    )
+    # A sanctioned accepted-ref advance also carries a matching closeout-intent marker
+    # (official closeout writes one before its CAS); without it the move blocks as a raw
+    # ref move. Write the marker the transition would carry so this stays an admit case.
+    closeout_intent.write_closeout_intent(
+        root=tmp_path,
+        transition=closeout_intent.CloseoutTransition(
+            ref_name="refs/heads/dev",
+            old_value="old",
+            new_value="new",
+            candidate_head="new",
+        ),
+        evidence_digest="d",
     )
     assert (
         admission.ref_move_admission_report(

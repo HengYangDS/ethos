@@ -4,6 +4,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.closeout_intent.core import consume_closeout_intent
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
@@ -383,6 +384,20 @@ def ref_move_admission_report(
             if fast_forward.returncode != 0:
                 gaps.append("accepted_ref_move_not_fast_forward")
         gaps.extend(proof_gaps(repo, new_value))
+        # Official-closeout discrimination (R12 load-bearing nail): the substantive
+        # checks above cannot tell an official `ethos land --closeout` apart from a raw
+        # `git update-ref` to the same proven candidate head — both are byte-identical.
+        # Require a one-shot closeout-intent marker written by official closeout for the
+        # EXACT transition. A raw ref move carries none -> no_closeout_intent (a marker
+        # for a different move -> mismatch; an expired one -> stale; a reused nonce -> no
+        # marker again). The marker is consumed here but does NOT admit: it only proves
+        # "this is my process's closeout"; legality is still the checks above (R19 — the
+        # marker is a local discipline layer, not a trust root; forge re-execution is).
+        intent = consume_closeout_intent(
+            root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
+        )
+        if intent["gap"]:
+            gaps.append(str(intent["gap"]))
         reason = "accepted_ref_move_bypasses_candidate_train"
     elif branch == policy.candidate_branch:
         gaps.extend(proof_gaps(repo, new_value))

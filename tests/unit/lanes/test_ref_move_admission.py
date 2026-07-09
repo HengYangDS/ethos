@@ -11,6 +11,7 @@ test_hook_admission.py so each file stays a cohesive, bounded contract suite.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -18,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -183,15 +186,31 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
     assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
 
 
-def test_ref_move_admission_admits_fast_forward_to_proven_candidate_head(
+def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
+    """Write the closeout-intent marker official closeout would write for this move."""
+    write_closeout_intent(
+        root=repo,
+        transition=CloseoutTransition(
+            ref_name="refs/heads/dev",
+            old_value=old_value,
+            new_value=new_value,
+            candidate_head=new_value,
+        ),
+        evidence_digest="digest",
+    )
+
+
+def test_ref_move_admission_admits_official_closeout_with_intent_marker(
     tmp_path: Path,
 ) -> None:
-    """Happy path (self-harm guard): a fast-forward of dev to the live candidate head
-    carrying a complete executed proof is exactly what closeout produces — it must be
-    admitted with no boundary gaps, or the moat would deadlock the sanctioned path."""
+    """B7 happy path (self-harm guard): a fast-forward of dev to the live candidate head
+    carrying a complete executed proof AND a matching closeout-intent marker is exactly
+    what official closeout produces — it must be admitted with no boundary gaps, or the
+    moat would deadlock the sanctioned path."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")  # c1 IS the live candidate head
     record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
@@ -199,6 +218,88 @@ def test_ref_move_admission_admits_fast_forward_to_proven_candidate_head(
 
     assert report["ok"] is True
     assert report["required_gaps"] == []
+
+
+def test_ref_move_admission_blocks_raw_move_without_closeout_intent(tmp_path: Path) -> None:
+    """B1 (the load-bearing nail): a raw `git update-ref refs/heads/dev <candidate_head>
+    <old>` is byte-identical to official closeout's CAS — fast-forward, == live candidate
+    head, complete proof — yet carries NO closeout-intent marker. Without the marker it
+    must block, or raw git could promote a proven candidate head bypassing closeout."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+
+    report = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
+    )
+
+    assert report["ok"] is False
+    assert "accepted_ref_move_no_closeout_intent" in report["required_gaps"]
+
+
+def test_ref_move_admission_blocks_reused_closeout_intent(tmp_path: Path) -> None:
+    """B6: the marker is one-shot. Once admission consumes it, a second identical move
+    finds no marker and blocks — a nonce cannot authorize two promotions."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
+
+    first = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
+    )
+    second = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
+    )
+
+    assert first["ok"] is True
+    assert second["ok"] is False
+    assert "accepted_ref_move_no_closeout_intent" in second["required_gaps"]
+
+
+def test_ref_move_admission_blocks_mismatched_closeout_intent(tmp_path: Path) -> None:
+    """B4: a marker whose old/new binding does not match the actual ref move is refused
+    (a marker minted for a different transition cannot authorize this one)."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    # Marker binds a different old_value than the actual move.
+    _write_matching_intent(repo, old_value="0" * 40, new_value=candidate_head)
+
+    report = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
+    )
+
+    assert report["ok"] is False
+    assert "closeout_intent_mismatch" in report["required_gaps"]
+
+
+def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None:
+    """B5: an expired marker is refused (TTL bounds how long a written intent stays
+    admissible, so a crashed closeout's residue cannot be reused later)."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _write_matching_intent(repo, old_value=base, new_value=candidate_head)
+    _backdate_markers(repo)
+
+    report = ref_move_admission_report(
+        root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
+    )
+
+    assert report["ok"] is False
+    assert "closeout_intent_stale" in report["required_gaps"]
+
+
+def _backdate_markers(repo: Path) -> None:
+    """Expire every closeout-intent marker by rewriting expires_at into the past."""
+    from ethos.adapters.admission.closeout_intent.core import _marker_dir
+
+    marker_dir = _marker_dir(repo)
+    for path in marker_dir.glob("*.json"):
+        marker = json.loads(path.read_text(encoding="utf-8"))
+        marker["expires_at"] = "2000-01-01T00:00:00+00:00"
+        path.write_text(json.dumps(marker), encoding="utf-8")
 
 
 def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Path) -> None:

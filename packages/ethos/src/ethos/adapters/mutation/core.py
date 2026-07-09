@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
+from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.core import clear_closeout_intent
+from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_intents
+from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
@@ -17,6 +21,7 @@ from ethos.repository.openspec.audit import completed_unarchived_changes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
@@ -307,12 +312,67 @@ def apply_candidate_to_accepted(
     # check-time / use-time TOCTOU window is eliminated).
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
     accepted_old = _git(root, "rev-parse", "--verify", accepted_ref).stdout.strip()
+    transition = CloseoutTransition(
+        ref_name=accepted_ref,
+        old_value=accepted_old,
+        new_value=candidate_head,
+        candidate_head=candidate_head,
+    )
+    # Write the one-shot closeout-intent marker in the SAME capture as accepted_old +
+    # candidate_head, immediately before the CAS. This is what lets the reference-
+    # transaction hook tell THIS official closeout apart from a hand-typed raw ref move
+    # to the same candidate head (R12). The marker is consumed and re-verified by the
+    # hook's admission; it is a local discipline signal, not a trust root (R19). Cleared
+    # on every terminal path below so a consumed/dead marker never lingers as a reusable
+    # admit token; crash residue is reclaimed by its TTL and the stale sweep.
+    sweep_stale_closeout_intents(root)
+    intent = write_closeout_intent(
+        root=root,
+        transition=transition,
+        evidence_digest=_candidate_evidence_digest(candidate_path, candidate_head),
+    )
+    try:
+        return _advance_accepted_ref(
+            root=root,
+            policy=policy,
+            transition=transition,
+            candidate_path=candidate_path,
+            current_head=current_head,
+        )
+    finally:
+        clear_closeout_intent(root, str(intent["nonce"]))
+
+
+def _candidate_evidence_digest(candidate_path: Path, candidate_head: str) -> str:
+    """The executed-proof evidence digest bound to candidate_head, or '' if absent.
+
+    Binds the closeout-intent marker to the exact proof the closeout carries, so a
+    marker minted for one proof cannot authorize a move of a differently-proven tree.
+    """
+    record = executed_proof_record(candidate_path, candidate_head)
+    if not isinstance(record, dict):
+        return ""
+    evidence = record.get("evidence")
+    return str(evidence.get("digest", "")) if isinstance(evidence, dict) else ""
+
+
+def _advance_accepted_ref(
+    *,
+    root: Path,
+    policy: BranchRolePolicy,
+    transition: CloseoutTransition,
+    candidate_path: Path,
+    current_head: str,
+) -> dict[str, object]:
+    accepted_branch = policy.accepted_branch
+    candidate_branch = policy.candidate_branch
+    candidate_head = transition.candidate_head
     completed = _git(
         root,
         "update-ref",
-        accepted_ref,
-        candidate_head,
-        accepted_old,
+        transition.ref_name,
+        transition.new_value,
+        transition.old_value,
         check=False,
         env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
@@ -320,8 +380,8 @@ def apply_candidate_to_accepted(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": policy.accepted_branch,
-            "source_branch": policy.candidate_branch,
+            "branch": accepted_branch,
+            "source_branch": candidate_branch,
             "head": current_head,
             "previous_head": current_head,
             "required_gaps": ["accepted_advanced_concurrently"],
@@ -340,8 +400,8 @@ def apply_candidate_to_accepted(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": policy.accepted_branch,
-            "source_branch": policy.candidate_branch,
+            "branch": accepted_branch,
+            "source_branch": candidate_branch,
             "head": current_head,
             "candidate_head": candidate_head,
             "previous_head": current_head,
@@ -354,8 +414,8 @@ def apply_candidate_to_accepted(
         return {
             "ok": False,
             "state": "blocked",
-            "branch": policy.accepted_branch,
-            "source_branch": policy.candidate_branch,
+            "branch": accepted_branch,
+            "source_branch": candidate_branch,
             "head": current_head,
             "candidate_head": candidate_head,
             "previous_head": current_head,
@@ -369,8 +429,8 @@ def apply_candidate_to_accepted(
     return {
         "ok": True,
         "state": "accepted_validated",
-        "branch": policy.accepted_branch,
-        "source_branch": policy.candidate_branch,
+        "branch": accepted_branch,
+        "source_branch": candidate_branch,
         "head": candidate_head,
         "previous_head": current_head,
         "proof_carry": proof_carry,

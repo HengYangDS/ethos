@@ -264,7 +264,11 @@ def _backend_control_current_gaps(
             f"{expected_external}:{external_backend_state or 'missing'}"
         )
 
-    if rollback_mode != "embedded_fallback":
+    allowed_rollback_modes = {"embedded_fallback"}
+    if expected_external_state == "retired" and control_state == "retired":
+        allowed_rollback_modes.add("git_revert_or_restore_from_history")
+
+    if rollback_mode not in allowed_rollback_modes:
         gaps.append(
             f"retirement_backend_control_rollback_mode_invalid:{rollback_mode or 'missing'}"
         )

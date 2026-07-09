@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 180 --json",
   "freshness": {
-    "product_head": "4ff6608772ff03dea3a1c88fca4a75090082206f",
-    "target_head": "4ff6608772ff03dea3a1c88fca4a75090082206f",
-    "product_semantic_sha256": "d020d56df03c6247ac2a7c1f7cff4250495ab77a5d6a6620b8b2d5e9a50bf267",
-    "target_semantic_sha256": "d020d56df03c6247ac2a7c1f7cff4250495ab77a5d6a6620b8b2d5e9a50bf267",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "1dd43e4eae4452055cfe93f4e95ebe4fe40e7de8",
+    "target_head": "1dd43e4eae4452055cfe93f4e95ebe4fe40e7de8",
+    "product_semantic_sha256": "1bfec995cb07dfd974ce4b98b2608aace37d67523db1b82379ef4e79cc3e3595",
+    "target_semantic_sha256": "1bfec995cb07dfd974ce4b98b2608aace37d67523db1b82379ef4e79cc3e3595",
+    "command_sha256": "928fc4e2a939cefad29143006f6f9f0486733e6e26404736aff0c6342374752f"
   },
   "shadow": {
     "ok": true,
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "4ff6608772ff03dea3a1c88fca4a75090082206f",
-    "product_head": "4ff6608772ff03dea3a1c88fca4a75090082206f",
+    "target_head": "1dd43e4eae4452055cfe93f4e95ebe4fe40e7de8",
+    "product_head": "1dd43e4eae4452055cfe93f4e95ebe4fe40e7de8",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -76,17 +76,17 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "6e53b6ef671f7a2513a88f8dcf0232bceef666391a1dbad438322858e5e0b493"
+        "sha256": "df211209c6663f01747c134f2a8b83b3a4a77f465cbec6b401797e74ad574ba7"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1626e9534c89d1433d32337068f2d4fc010d9f0fd806edbe224490d999be8f1b"
+        "sha256": "2969faf44d26f18136dec930668c30f5d06139e23078a043341a6c989bf7f00a"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "6c0540b7e45529dc9c717d23f1b8698281068db44f11478b7594fe8d4d953707"
+        "sha256": "e062f65b78359ef08e87c42d1929081b54527f6f9cac60a2a5dca3b400cf4d79"
       },
       {
         "path": "openspec",

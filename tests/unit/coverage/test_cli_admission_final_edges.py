@@ -591,6 +591,18 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     )
     assert result is not None and result.exit_code == 1
 
+    missing_cwd = tmp_path / "missing-cwd"
+    missing_cwd.mkdir()
+    monkeypatch.chdir(missing_cwd)
+    missing_cwd.rmdir()
+    missing_result = _gate_runner.run_inprocess_cli_gate(
+        ActionNode(id="missing-cwd", kind="command", command=("ethos", "status", "--json")),
+        tmp_path,
+    )
+    assert missing_result is not None
+    assert missing_result.exit_code == 1
+    assert "FileNotFoundError" in missing_result.stderr
+
     monkeypatch.setattr(docs_commands, "known_commands", lambda: {"ethos custom"})
     assert docs_commands.known_ethos_command("ethos custom") is True
     assert docs_commands.command_root("env") == ""

@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from ethos.domain.report import _advisory_next_actions
-from ethos.domain.report import _gap_layers
+from ethos.domain.reporting.gaps import advisory_next_actions
+from ethos.domain.reporting.gaps import gap_layers
 from ethos.repository.adoption.planner import adoption_plan
 from ethos_core.contracts.package.ontology import package_ontology_report
 from tests.support.contract_helpers import git
@@ -810,8 +810,8 @@ def test_report_advisory_layer_classifies_protected_openspec_residue() -> None:
         "openspec_protected_branch_active_change_unarchived:"
         "main:release_root:ethos-release-hardening"
     )
-    next_actions = _advisory_next_actions((protected_residue_gap,))
-    layers = _gap_layers(
+    next_actions = advisory_next_actions((protected_residue_gap,))
+    layers = gap_layers(
         result_required_gaps=(),
         parity_gaps={"ok": True, "required_gaps": []},
         playbooks={"ok": True, "required_gaps": [], "advisory_gaps": []},

@@ -228,6 +228,7 @@ def test_parity_shadow_write_evidence_for_external_adopter_writes_target_evidenc
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
+    monkeypatch.setenv("ETHOS_ACTOR", "codex")
     target = init_git_repo(tmp_path / "sample-adopter")
     _checkout_work_lane(target)
 
@@ -293,6 +294,7 @@ def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
+    monkeypatch.setenv("ETHOS_ACTOR", "codex")
     target = init_git_repo(tmp_path / "sample-adopter")
     _set_durable_evidence_root(target, "docs/evidence")
     _checkout_work_lane(target)

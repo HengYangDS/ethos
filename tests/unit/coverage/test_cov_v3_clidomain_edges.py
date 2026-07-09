@@ -7,12 +7,12 @@ import json
 import subprocess
 from typing import TYPE_CHECKING
 
+import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.core import MutationDecision
 from ethos.domain import land_support
 from ethos.domain import orient
-from ethos.domain import report
 from ethos.domain import status
 from ethos.surface.cli import hook
 
@@ -241,14 +241,14 @@ def test_next_actions_falls_back_to_report_next_actions() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.domain.report._advisory_next_actions non-matching gap (branch 257->255)
+# ethos.domain.reporting.gaps.advisory_next_actions non-matching gap (branch 257->255)
 # --------------------------------------------------------------------------- #
 
 
 def test_advisory_next_actions_skips_non_matching_gap() -> None:
     # A gap that is not a 4-part openspec-unarchived signal fails the guard at line 257,
     # taking the branch 257->255 back to the loop head and yielding no actions.
-    assert report._advisory_next_actions(("some_unrelated_gap",)) == ()
+    assert reporting_gaps.advisory_next_actions(("some_unrelated_gap",)) == ()
 
 
 # --------------------------------------------------------------------------- #

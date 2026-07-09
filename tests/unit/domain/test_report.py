@@ -6,13 +6,16 @@ from typing import Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-from ethos.domain import report as report_domain
+import ethos.domain.report as report_domain
+import ethos.domain.reporting.gaps as reporting_gaps
+import ethos.domain.reporting.parity.core as reporting_parity
+import ethos.domain.reporting.scoring as reporting_scoring
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 
 
 def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
     assert (
-        report_domain._terminal_control(
+        reporting_scoring.terminal_control(
             result_required_gaps=(),
             hard_quality_gap_count=0,
             stage_gates={"authoring_allowed": True, "integration_allowed": False},
@@ -24,11 +27,11 @@ def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
 def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:
     """Hard quality gaps should route to the narrowest available owner command."""
 
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": ["module_layout_flat_growth:pkg"]},
     ) == ("ethos quality module-layout --json",)
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": ["quality_gap_without_specific_owner"]},
     ) == ("ethos quality --json",)
@@ -45,7 +48,7 @@ def test_adopter_product_root_resolves_runtime_and_profile_fallback(
     configured_product.mkdir()
 
     runtime_payload = {"runtime_binding": {"runner_source_root": product.as_posix()}}
-    assert report_domain.adopter_product_root(repo, runtime_payload, None) == product.resolve()
+    assert reporting_parity.adopter_product_root(repo, runtime_payload, None) == product.resolve()
 
     same_repo_payload = {"runtime_binding": {"runner_source_root": repo.as_posix()}}
     empty_runtime_payload = {"runtime_binding": {"runner_source_root": ""}}
@@ -54,21 +57,21 @@ def test_adopter_product_root_resolves_runtime_and_profile_fallback(
         def __init__(self) -> None:
             self.tables = {"external_backend": {"product_root": "../configured-product"}}
 
-    monkeypatch.setattr(report_domain, "load_repository_profile", lambda _repo: Profile())
+    monkeypatch.setattr(reporting_parity, "load_repository_profile", lambda _repo: Profile())
 
     assert (
-        report_domain.adopter_product_root(repo, same_repo_payload, None)
+        reporting_parity.adopter_product_root(repo, same_repo_payload, None)
         == configured_product.resolve()
     )
     assert (
-        report_domain.adopter_product_root(repo, empty_runtime_payload, None)
+        reporting_parity.adopter_product_root(repo, empty_runtime_payload, None)
         == configured_product.resolve()
     )
-    assert report_domain.adopter_product_root(repo, {}, product) == product.resolve()
+    assert reporting_parity.adopter_product_root(repo, {}, product) == product.resolve()
 
 
 def test_scorecard_next_actions_route_parity_gaps() -> None:
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=1,
         hard_quality_floor={"required_gaps": []},
     ) == ("ethos parity gaps --adopter <adopter>",)
@@ -138,7 +141,7 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "code_size_report",
         lambda _repo: {
             "ok": False,
@@ -146,18 +149,18 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
         },
     )
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "module_layout_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
     monkeypatch.setattr(
-        report_domain, "product_boundary_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring, "product_boundary_report", lambda _repo: {"required_gaps": []}
     )
     monkeypatch.setattr(
-        report_domain, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
     )
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "standard_adapter_registry",
         lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
     )
@@ -254,12 +257,12 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
     )
     monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
     monkeypatch.setattr(
-        report_domain,
-        "_hard_quality_floor_report",
+        reporting_scoring,
+        "hard_quality_floor_report",
         lambda _repo: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "standard_adapter_registry",
         lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
     )
@@ -281,7 +284,7 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
 def test_scorecard_next_actions_route_module_layout_gaps() -> None:
     """Module-layout hard floor gaps should point at the module-layout gate."""
 
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0,
         hard_quality_floor={
             "required_gaps": [
@@ -292,42 +295,44 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
 
 
 def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(report_domain, "code_size_report", lambda _repo: {"required_gaps": []})
-    monkeypatch.setattr(report_domain, "module_layout_report", lambda _repo: {"required_gaps": []})
+    monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
         "product_boundary_report",
         lambda _repo: {"required_gaps": ["product-boundary:README.md:1"]},
     )
     monkeypatch.setattr(
-        report_domain, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
     )
 
-    floor = report_domain._hard_quality_floor_report(tmp_path)
+    floor = reporting_scoring.hard_quality_floor_report(tmp_path)
 
     assert floor["ok"] is False
     assert "product-boundary:README.md:1" in floor["required_gaps"]
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0, hard_quality_floor=floor
     ) == ("ethos quality product-boundary --json",)
 
 
 def test_scorecard_next_actions_route_contributor_policy_gaps() -> None:
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": ["identity_mode_missing:.ethos/workspace.toml:1"]},
     ) == ("ethos quality contributor-policy --json",)
 
 
 def test_scorecard_next_actions_route_clean_ready_state_to_full_proof() -> None:
-    assert report_domain._scorecard_next_actions(
+    assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0,
         hard_quality_floor={"required_gaps": []},
     ) == ("ethos prove --full",)
 
 
 def test_advisory_next_actions_route_closeout_residue_signal() -> None:
-    actions = report_domain._advisory_next_actions(("work_lane_closeout_residue_present",))
+    actions = reporting_gaps.advisory_next_actions(("work_lane_closeout_residue_present",))
 
     assert actions == ("ethos orient --json", "ethos lane status --json")
 
@@ -362,7 +367,7 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
     monkeypatch.setattr(
         report_domain,
         "claims_report",
-        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+        lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
     )
     monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
@@ -421,12 +426,12 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
     )
     monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
     monkeypatch.setattr(
-        report_domain,
+        reporting_parity,
         "profile_identity",
         lambda _repo: "domain-adopter",
     )
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "standard_adapter_registry",
         lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
     )
@@ -486,7 +491,7 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
     monkeypatch.setattr(
         report_domain,
         "claims_report",
-        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+        lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
     )
     monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
@@ -551,9 +556,9 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
         },
     )
     monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
-    monkeypatch.setattr(report_domain, "profile_identity", lambda _repo: "domain-adopter")
+    monkeypatch.setattr(reporting_parity, "profile_identity", lambda _repo: "domain-adopter")
     monkeypatch.setattr(
-        report_domain,
+        reporting_scoring,
         "standard_adapter_registry",
         lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
     )

@@ -103,6 +103,57 @@ SCHEMA = (
 )
 
 
+def _migrate_retired_lease_schema(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "leases"):
+        return
+    columns = _table_columns(connection, "leases")
+    current = {"id", "subject", "owner", "expires_at", "payload_json"}
+    retired = {"id", "owner", "resource", "expires_at", "created_at"}
+    if current.issubset(columns):
+        return
+    if not retired.issubset(columns):
+        return
+    rows = connection.execute(
+        """
+        select id, resource, owner, expires_at
+        from leases
+        order by id
+        """
+    ).fetchall()
+    connection.execute("alter table leases rename to leases_retired_resource")
+    connection.execute(
+        """
+        create table leases (
+          id text primary key,
+          subject text not null,
+          owner text not null,
+          expires_at text not null,
+          payload_json text not null
+        )
+        """
+    )
+    for row in rows:
+        subject = str(row[1] or "")
+        if not subject:
+            continue
+        connection.execute(
+            """
+            insert or replace into leases(id, subject, owner, expires_at, payload_json)
+            values (?, ?, ?, ?, ?)
+            """,
+            (row[0], subject, row[2], row[3], "{}"),
+        )
+    connection.execute("drop table leases_retired_resource")
+
+
+def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    row = connection.execute(
+        "select 1 from sqlite_master where type = 'table' and name = ?",
+        (table,),
+    ).fetchone()
+    return row is not None
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -112,6 +163,7 @@ def initialize_state(db_path: Path) -> None:
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma journal_mode = wal")
         connection.execute("pragma foreign_keys = on")
+        _migrate_retired_lease_schema(connection)
         for statement in SCHEMA:
             connection.execute(statement)
         connection.execute(
@@ -276,7 +328,9 @@ def _lease_rows(db_path: Path) -> list[sqlite3.Row | tuple[Any, ...]]:
             return _select_lease_rows(connection)
 
 
-def _select_lease_rows(connection: sqlite3.Connection) -> list[sqlite3.Row | tuple[Any, ...]]:
+def _select_lease_rows(
+    connection: sqlite3.Connection,
+) -> list[sqlite3.Row | tuple[Any, ...]]:
     columns = _table_columns(connection, "leases")
     if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
         return []

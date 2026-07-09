@@ -54,3 +54,49 @@ surface_path_globs = ["packages/ethos/src/ethos/cli.py", "packages/ethos/src/eth
 # Test files carry broad contract coverage; capped at the same category limit as
 # surface (still bounded to prevent unbounded growth), not the product limit.
 test_effective_max_lines = 800
+
+[gates.local-state-audit]
+command = "tools/ci/scripts/run-local-state-audit.sh"
+blocking = true
+
+[[rule]]
+id = "local-state-boundary"
+risk = "local-state-truth-boundary"
+paths = [
+  ".config/checks/local-state/**",
+  "tools/ci/local_state_audit.py",
+  "tools/ci/scripts/run-local-state-audit.sh",
+]
+requires = ["local-state-audit"]
+evidence = ["build/evidence/local-state/audit.json"]
+
+[gates.quality-audit]
+command = ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py ."
+blocking = true
+
+[[rule]]
+id = "quality-gate-governance"
+risk = "quality-gate-owner-drift"
+paths = [
+  ".agents/skills/ethos-quality-gate-governance/**",
+  ".config/checks/**",
+  "tools/ci/scripts/**",
+  "system/tools.toml",
+]
+requires = ["quality-audit"]
+evidence = ["quality_gate_audit"]
+
+[gates.skill-portfolio-audit]
+command = ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py ."
+blocking = true
+
+[[rule]]
+id = "skill-portfolio-governance"
+risk = "skill-package-projection-drift"
+paths = [
+  ".agents/skills/**",
+  "rules/skills.md",
+  "docs/governance/playbooks-and-skills.md",
+]
+requires = ["skill-portfolio-audit"]
+evidence = ["skill_portfolio_audit"]

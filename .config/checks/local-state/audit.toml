@@ -19,6 +19,12 @@ ignored_roots = [
   ".cache/",
   ".ethos/state/",
   "node_modules/",
+  "__pycache__/",
+]
+
+ignored_excluded_roots = [
+  ".venv/",
+  "node_modules/",
 ]
 
 denied_root_cache_roots = [
@@ -37,6 +43,7 @@ forbidden_tracked_roots = [
   ".cache/",
   ".ethos/state/",
   "node_modules/",
+  "__pycache__/",
 ]
 
 allowed_state_placeholders = [

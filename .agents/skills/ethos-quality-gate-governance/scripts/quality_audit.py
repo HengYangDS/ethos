@@ -102,7 +102,7 @@ def owner_gaps(root: Path) -> list[str]:
     gaps: list[str] = []
     gaps.extend(_required_file_gaps(root))
     gaps.extend(_active_tool_gaps(root))
-    gaps.extend(_pyproject_policy_gaps(root))
+    gaps.extend(pyproject_policy_gaps(root))
     gaps.extend(_coverage_policy_gaps(root))
     gaps.extend(_python_test_runner_gaps(root))
     gaps.extend(_quality_reference_gaps(root))
@@ -139,14 +139,57 @@ def _tool_gate_gaps(concern: str, expected_gate: str, record: dict[str, Any]) ->
     return gaps
 
 
-def _pyproject_policy_gaps(root: Path) -> list[str]:
-    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
-    forbidden_tool_tables = ("[tool.ruff", "[tool.pytest", "[tool.coverage", "[tool.ty")
-    return [
-        f"quality_policy_in_pyproject:{marker}"
-        for marker in forbidden_tool_tables
-        if marker in pyproject
-    ]
+def pyproject_policy_gaps(root: Path) -> list[str]:
+    """Return quality-policy ownership gaps found in pyproject.toml."""
+    pyproject, gaps = load_toml(root / "pyproject.toml")
+    if gaps:
+        return gaps
+    tool = pyproject.get("tool") if isinstance(pyproject.get("tool"), dict) else {}
+    if not isinstance(tool, dict):
+        return []
+    result: list[str] = []
+    result.extend(_ruff_pyproject_gaps(tool.get("ruff")))
+    result.extend(_pytest_pyproject_gaps(tool.get("pytest")))
+    result.extend(
+        f"quality_policy_in_pyproject:[tool.{table}"
+        for table in ("coverage", "ty")
+        if table in tool
+    )
+    return sorted(result)
+
+
+def _ruff_pyproject_gaps(raw: object) -> list[str]:
+    if raw is None:
+        return []
+    if raw == {"cache-dir": "build/runtime/tool-cache/ruff"}:
+        return []
+    if not isinstance(raw, dict):
+        return ["quality_policy_in_pyproject:[tool.ruff"]
+    return [f"quality_policy_in_pyproject:[tool.ruff].{key}" for key in sorted(raw)]
+
+
+def _pytest_pyproject_gaps(raw: object) -> list[str]:
+    if raw is None:
+        return []
+    if not isinstance(raw, dict):
+        return ["quality_policy_in_pyproject:[tool.pytest"]
+    allowed = {"ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}}
+    if raw == allowed:
+        return []
+    gaps: list[str] = []
+    for key, value in sorted(raw.items()):
+        if key != "ini_options":
+            gaps.append(f"quality_policy_in_pyproject:[tool.pytest].{key}")
+            continue
+        if not isinstance(value, dict):
+            gaps.append("quality_policy_in_pyproject:[tool.pytest.ini_options]")
+            continue
+        gaps.extend(
+            f"quality_policy_in_pyproject:[tool.pytest.ini_options].{option}"
+            for option in sorted(value)
+            if option != "cache_dir" or value[option] != "build/runtime/tool-cache/pytest"
+        )
+    return gaps
 
 
 def _coverage_policy_gaps(root: Path) -> list[str]:
@@ -222,8 +265,14 @@ def main() -> int:
         "ok": not unique_gaps,
         "root": str(root),
         "checks": {
-            "types": {"ok": bool(type_report.get("ok")), "state": type_report.get("state")},
-            "docstrings": {"ok": bool(doc_report.get("ok")), "state": doc_report.get("state")},
+            "types": {
+                "ok": bool(type_report.get("ok")),
+                "state": type_report.get("state"),
+            },
+            "docstrings": {
+                "ok": bool(doc_report.get("ok")),
+                "state": doc_report.get("state"),
+            },
             "module_layout": {
                 "ok": bool(layout_report.get("ok")),
                 "state": layout_report.get("state"),

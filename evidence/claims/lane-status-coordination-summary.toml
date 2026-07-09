@@ -6,7 +6,7 @@ summary = "ETHOS lane status exposes Work Lane coordination small signals in sum
 
 [evidence]
 dated = "evidence/chronicle/lane-status-coordination-summary/2026-07-09.md"
-sha256 = "b88fb72fe59e4c7a08c440e6260c55446b987ddd7f3e223aef7f1e8713fb47e2"
+sha256 = "cfeee802f42ce6925d19554711d2f3ed476847c1a410069934dffd08f69f07e2"
 evidence_ids = ["evidence:lane-status-coordination-summary"]
 binding = "lane status coordination summary source, tests, docs, OpenSpec, and evidence binding"
 verifier = "semantic"
@@ -32,7 +32,7 @@ owner = "ethos-repository"
 scope = "Lane status reader-view visibility for Work Lane coordination small signals"
 
 [carriers]
-openspec = "openspec/changes/lane-status-coordination-summary-20260709"
+openspec = "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709"
 fallback = "Use full data.coordination from ethos lane status --json if the lifted summary fields drift."
 kill_signal = "lane status summary grants mutation authority over foreign lanes or hides existing coordination advisory signals."
 
@@ -42,10 +42,11 @@ targets = [
   "tests/unit/cli/lane_status/test_next_actions.py",
   "docs/reference/command-plane.md",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/lane-status-coordination-summary-20260709/proposal.md",
-  "openspec/changes/lane-status-coordination-summary-20260709/design.md",
-  "openspec/changes/lane-status-coordination-summary-20260709/tasks.md",
-  "openspec/changes/lane-status-coordination-summary-20260709/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/proposal.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/tasks.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/specs/repository-governance/spec.md",
   "evidence/chronicle/lane-status-coordination-summary/2026-07-09.md",
   "evidence/claims/lane-status-coordination-summary.toml",
   "evidence/parity/generic-shadow.json",

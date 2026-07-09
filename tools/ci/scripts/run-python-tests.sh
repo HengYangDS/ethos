@@ -27,6 +27,14 @@ mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 coverage_lock_acquired="false"
 
+cleanup_denied_runtime_residue() {
+  # These homes are explicitly denied by the generated-artifact topology. They
+  # are ignored local residue, never repository truth; clearing them before the
+  # trust-bearing test gate keeps stale host state from deciding product tests.
+  rm -rf .pytest_cache .ruff_cache
+  rm -rf build/runtime/gitlab-ci-local
+}
+
 cleanup_root_coverage_artifacts() {
   rm -f .coverage .coverage.*
   rm -f coverage.xml junit.xml
@@ -59,6 +67,7 @@ coverage_lock_acquired="true"
 # shards can corrupt the combined report, and root coverage files violate the
 # generated-artifact topology before tests reach the real product assertions.
 # These files are ignored local evidence, not repository truth.
+cleanup_denied_runtime_residue
 cleanup_root_coverage_artifacts
 trap cleanup_and_release EXIT
 rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*

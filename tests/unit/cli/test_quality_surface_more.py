@@ -314,6 +314,23 @@ def test_quality_provenance_emits_planned_evidence_envelope(monkeypatch, tmp_pat
     assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == evidence["digest"]
 
 
+def test_quality_commits_enforce_head_keeps_subject_and_signature_gaps_independent(
+    monkeypatch,
+) -> None:
+    emitted = _capture(monkeypatch)
+    reports = [
+        {"required_gaps": [], "head_subject_ok": False, "head_signature_ok": True},
+        {"required_gaps": [], "head_subject_ok": True, "head_signature_ok": False},
+    ]
+    monkeypatch.setattr(q, "signature_policy_report", lambda _repo: reports.pop(0))
+
+    q.commits(enforce_head=True, json_output=True)
+    q.commits(enforce_head=True, json_output=True)
+
+    assert emitted[0]["required_gaps"] == ["head_subject_not_conventional"]
+    assert emitted[1]["required_gaps"] == ["head_signature_not_good"]
+
+
 def test_quality_commits_enforce_head_adds_signature_and_subject_gaps(monkeypatch) -> None:
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(

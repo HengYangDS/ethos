@@ -32,6 +32,9 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--durations" in script
     assert "COVERAGE_FILE" in script
     assert "cleanup_root_coverage_artifacts" in script
+    assert "cleanup_denied_runtime_residue" in script
+    assert "rm -rf .pytest_cache .ruff_cache" in script
+    assert "rm -rf build/runtime/gitlab-ci-local" in script
     assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in script
     assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
     assert ".coverage.*" in (ROOT / ".gitignore").read_text(encoding="utf-8")

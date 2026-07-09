@@ -17,4 +17,6 @@ Purpose: define what can support a repository truth claim.
 - Command JSON is machine evidence; Markdown explains human judgment.
 - Generated runtime logs and JSONL streams are not truth until summarized into
   tracked evidence.
+- Local fallback evidence must be gathered on a stable Git HEAD; if HEAD moves
+  during a gate bundle, discard the evidence and rerun on the new head.
 - Evidence must distinguish dry-run readiness from executed proof.

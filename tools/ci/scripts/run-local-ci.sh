@@ -11,6 +11,14 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
+ethos_local_ci_head="$(tools/ci/scripts/require-stable-head.sh capture)"
+_ethos_verify_local_ci_head_stability() {
+  tools/ci/scripts/require-stable-head.sh verify \
+    "${ethos_local_ci_head}" \
+    "tools/ci/scripts/run-local-ci.sh"
+}
+trap _ethos_verify_local_ci_head_stability EXIT
+
 tools/ci/scripts/run-python-lint.sh
 tools/ci/scripts/run-config-lint.sh
 tools/ci/scripts/run-json-schema-check.sh

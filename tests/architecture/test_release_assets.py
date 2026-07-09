@@ -101,10 +101,12 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / ".config/checks/docstrings/policy.toml").exists()
     assert (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
+    assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
     assert 'concern = "product_boundary"' in tools
     assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
     assert 'concern = "local_ci_fallback"' in tools
+    assert "tools/ci/scripts/require-stable-head.sh" in tools
     assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
     assert 'tool = "ethos-docstrings-google"' in tools

@@ -166,7 +166,7 @@ gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.s
 [[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
-config = "tools/ci/scripts/run-local-ci.sh"
+config = "tools/ci/scripts/run-local-ci.sh + tools/ci/scripts/require-stable-head.sh"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
 gate = "tools/ci/scripts/run-local-ci.sh"

@@ -116,7 +116,7 @@ gate = "tools/ci/scripts/run-product-boundary.sh"
 [[tool]]
 concern = "repository_hygiene"
 tool = "python stdlib + git ls-files"
-config = "tools/ci/scripts/run-repository-hygiene.sh"
+config = ".config/checks/repository-hygiene/policy.toml"
 profile = "minimal"
 gate = "tools/ci/scripts/run-repository-hygiene.sh"
 

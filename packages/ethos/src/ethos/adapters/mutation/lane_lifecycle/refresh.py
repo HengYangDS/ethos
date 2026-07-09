@@ -423,9 +423,7 @@ def _unmerged_paths(
     runtime: LaneRefreshRuntime | None = None,
 ) -> list[str]:
     active_runtime = runtime or LaneRefreshRuntime()
-    completed = active_runtime.run_git(
-        root, "diff", "--name-only", "--diff-filter=U", check=False
-    )
+    completed = active_runtime.run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
     if completed.returncode != 0:
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]

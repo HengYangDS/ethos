@@ -631,8 +631,7 @@ def test_selection_ref_gaps_cover_experiment_evaluation_and_practice_change_edge
                     "rejected_candidates": ["same"],
                     "evidence_refs": [],
                     "decision_refs": [],
-                }
-                ,
+                },
                 {
                     "id": "unselected-evaluation",
                     "candidate_set": "known-candidates",

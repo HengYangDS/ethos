@@ -140,6 +140,7 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
         owner="agent-a",
         ttl_seconds=3600,
     )
+
     def fail_worktree_remove(
         root: Path,
         *args: str,

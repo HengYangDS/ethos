@@ -326,7 +326,6 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
     }
 
 
-
 def _retirement_leases_by_branch(
     worktrees: list[dict[str, str]], *, current_path: Path
 ) -> dict[str, dict[str, object]]:
@@ -343,6 +342,7 @@ def _retirement_leases_by_branch(
         }
     )
     return leases
+
 
 def _retirement_shared_runtime() -> lane_retirement_core.lane_retirement_shared.RetirementRuntime:
     return lane_retirement_core.lane_retirement_shared.RetirementRuntime(run_git=run_git)

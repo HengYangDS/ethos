@@ -88,6 +88,8 @@ tool discovery or provider CLI output as repository proof.
 - **THEN** the evidence SHALL name GitHub and GitLab provider observation state
 - **AND** it SHALL include the Git head, remote URL, command, tool availability,
   and execution state
+- **AND** execute mode SHALL normalize provider facts such as latest observed
+  head, status, conclusion, ref, and URL when the provider CLI returns them
 - **AND** it SHALL explicitly set hosted GitHub status claimed, hosted GitLab
   status claimed, and remote publication claimed to false unless separate hosted
   facts are promoted through the publication evidence class.

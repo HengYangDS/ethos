@@ -53,6 +53,47 @@ def _status_command(provider: str) -> list[str]:
     raise ValueError(provider)
 
 
+def _github_facts(stdout_json: Any) -> dict[str, Any]:
+    if not isinstance(stdout_json, list) or not stdout_json:
+        return {}
+    latest = stdout_json[0]
+    if not isinstance(latest, dict):
+        return {}
+    return {
+        "latest_head": str(latest.get("headSha") or ""),
+        "latest_status": str(latest.get("status") or ""),
+        "latest_conclusion": str(latest.get("conclusion") or ""),
+        "latest_url": str(latest.get("url") or ""),
+    }
+
+
+def _gitlab_facts(stdout_json: Any) -> dict[str, Any]:
+    if not isinstance(stdout_json, list) or not stdout_json:
+        return {}
+    latest = stdout_json[0]
+    if not isinstance(latest, dict):
+        return {}
+    ref = latest.get("ref")
+    sha = latest.get("sha") or latest.get("commit_sha")
+    web_url = latest.get("web_url") or latest.get("url")
+    status = latest.get("status")
+    return {
+        "latest_head": str(sha or ""),
+        "latest_status": str(status or ""),
+        "latest_conclusion": str(status or ""),
+        "latest_url": str(web_url or ""),
+        "latest_ref": str(ref or ""),
+    }
+
+
+def _provider_facts(provider: str, stdout_json: Any) -> dict[str, Any]:
+    if provider == "github":
+        return _github_facts(stdout_json)
+    if provider == "gitlab":
+        return _gitlab_facts(stdout_json)
+    raise ValueError(provider)
+
+
 def _observe(provider: str, *, execute: bool) -> dict[str, Any]:
     tool = _provider_tool(provider)
     available = shutil.which(tool)
@@ -70,6 +111,7 @@ def _observe(provider: str, *, execute: bool) -> dict[str, Any]:
         "stderr_preview": "",
         "observation_state": "tool_unavailable" if available is None else "not_executed",
         "hosted_status_claimed": False,
+        "provider_facts": {},
     }
     if not execute or available is None:
         return record
@@ -82,6 +124,7 @@ def _observe(provider: str, *, execute: bool) -> dict[str, Any]:
         record["stdout_json"] = json.loads(result.stdout) if result.stdout.strip() else None
     except json.JSONDecodeError:
         record["stdout_json"] = None
+    record["provider_facts"] = _provider_facts(provider, record["stdout_json"])
     record["observation_state"] = "observed" if result.returncode == 0 else "observation_failed"
     return record
 

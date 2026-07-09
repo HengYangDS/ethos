@@ -7,6 +7,7 @@ import json
 import tomllib
 from typing import TYPE_CHECKING
 
+import ethos.repository.adoption.scaffold.skills.core as skill_scaffold
 from ethos.repository.adoption.scaffold.decisions.core import decision_code_links
 from ethos.repository.adoption.scaffold.decisions.core import decision_dependency_map
 from ethos.repository.adoption.scaffold.decisions.core import decision_index
@@ -36,12 +37,6 @@ from ethos.repository.adoption.scaffold.openspec import openspec_families
 from ethos.repository.adoption.scaffold.openspec import openspec_readme
 from ethos.repository.adoption.scaffold.openspec import openspec_spec
 from ethos.repository.adoption.scaffold.openspec import openspec_specs_readme
-from ethos.repository.adoption.scaffold.skills.core import adoption_profile_skill
-from ethos.repository.adoption.scaffold.skills.core import adoption_profile_skill_package
-from ethos.repository.adoption.scaffold.skills.core import governance_skill
-from ethos.repository.adoption.scaffold.skills.core import governance_skill_package
-from ethos.repository.adoption.scaffold.skills.core import skill_portfolio_skill
-from ethos.repository.adoption.scaffold.skills.core import skill_portfolio_skill_package
 from ethos_core.contracts.skill.activation import normalize_skill_activation
 from ethos_core.contracts.skill.activation import skill_registry_digest
 
@@ -60,9 +55,11 @@ OPENSPEC_CAPABILITIES = (
     "proof-hosts",
 )
 BASE_ADOPTION_FILES = (
+    ".gitignore",
     "AGENTS.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
+    ".config/ethos/generated-artifacts.toml",
     ".ethos/project.toml",
     ".ethos/workspace.toml",
     ".ethos/rules.toml",
@@ -106,7 +103,112 @@ BASE_ADOPTION_FILES = (
     "system/schemas/kernel/.gitkeep",
 )
 
+
+def gitignore() -> str:
+    return """# Python and local editor/runtime state.
+.venv/
+__pycache__/
+*.py[cod]
+
+# ETHOS local coordination state is host-local.
+.ethos/state/*
+!.ethos/state/.gitignore
+
+# Semantic ignored generated homes. The declarative contract lives in
+# .config/ethos/generated-artifacts.toml; these directories are outputs, not
+# repository truth.
+.cache/
+build/
+
+# Root tool caches and package output are denied residue. Tools must route
+# caches to build/runtime/tool-cache/<tool>/, provider work to
+# build/runtime/work/<provider>/, machine evidence to build/evidence/ or
+# build/ethos/, and local artifacts to build/artifacts/<kind>/.
+.import_linter_cache/
+.import-linter-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.uv-cache/
+dist/
+
+# Root coverage and pytest residue may be ignored local cleanup debt, but
+# tracked copies are still generated-artifact topology violations.
+.coverage
+.coverage.*
+coverage.xml
+junit.xml
+"""
+
+
+def generated_artifacts_toml() -> str:
+    return (
+        "# Declarative generated-artifact topology contract for this adopted\n"
+        "# repository.\n"
+        "# Runtime bytes belong in ignored semantic homes; only curated evidence becomes\n"
+        "# repository truth after review/promotion.\n"
+        "\n"
+        "[contract]\n"
+        'name = "generated-artifact-topology"\n'
+        "version = 1\n"
+        'truth_boundary = "declarative_policy"\n'
+        "\n"
+        "[lifecycle.runtime_cache]\n"
+        'homes = [".cache/local-state", ".ethos/state", "build/runtime/tool-cache", '
+        '"build/runtime/work"]\n'
+        "tracked = false\n"
+        "promotion_allowed = false\n"
+        'rule = "delete or recreate from source commands; never promote runtime cache"\n'
+        "\n"
+        "[lifecycle.machine_evidence]\n"
+        'homes = ["build/evidence", "build/ethos"]\n'
+        "tracked = false\n"
+        "promotion_allowed = true\n"
+        'rule = "regenerate on HEAD movement; promote only by explicit review or command"\n'
+        "\n"
+        "[lifecycle.local_artifact]\n"
+        'homes = ["build/artifacts"]\n'
+        "tracked = false\n"
+        "promotion_allowed = false\n"
+        'rule = "rebuild from package metadata or release commands"\n'
+        "\n"
+        "[lifecycle.curated_evidence]\n"
+        'homes = ["docs/evidence", "evidence/chronicle", "evidence/parity"]\n'
+        "tracked = true\n"
+        "promotion_allowed = false\n"
+        'rule = "retire or supersede by tracked review; do not clean as cache"\n'
+        "\n"
+        "[denied.root_cache]\n"
+        "homes = [\n"
+        '  ".import_linter_cache",\n'
+        '  ".import-linter-cache",\n'
+        '  ".pytest_cache",\n'
+        '  ".ruff_cache",\n'
+        '  ".mypy_cache",\n'
+        '  ".tox",\n'
+        '  ".nox",\n'
+        '  ".uv-cache",\n'
+        "]\n"
+        "\n"
+        "[denied.legacy_flat_home]\n"
+        'homes = ["build/cache", "build/runtime/gitlab-ci-local", "dist"]\n'
+        "\n"
+        "[routes]\n"
+        'tool_cache = "build/runtime/tool-cache/<tool>"\n'
+        'provider_work = "build/runtime/work/<provider>"\n'
+        'machine_evidence = "build/evidence/<concern>"\n'
+        'ethos_machine_projection = "build/ethos/<concern>"\n'
+        'local_artifact = "build/artifacts/<kind>"\n'
+        'curated_evidence = "docs/evidence/<topic> or '
+        'evidence/chronicle/<topic>/<date>.md"\n'
+    )
+
+
 STATIC_DEFAULT_FILES = {
+    ".gitignore": gitignore(),
+    ".config/ethos/generated-artifacts.toml": generated_artifacts_toml(),
     ".ethos/rules.toml": """[command_plane]
 public = "ethos"
 
@@ -286,9 +388,9 @@ def _gitlab_ci() -> str:
 
 def default_files(root: Path, profile: str) -> dict[str, str]:
     project_name = json.dumps(root.name)
-    governance_skill_text = governance_skill()
-    skill_portfolio_skill_text = skill_portfolio_skill()
-    adoption_profile_skill_text = adoption_profile_skill()
+    governance_skill_text = skill_scaffold.governance_skill()
+    skill_portfolio_skill_text = skill_scaffold.skill_portfolio_skill()
+    adoption_profile_skill_text = skill_scaffold.adoption_profile_skill()
     governance_digest = _package_digest_from_content({"SKILL.md": governance_skill_text})
     skill_portfolio_digest = _package_digest_from_content({"SKILL.md": skill_portfolio_skill_text})
     adoption_profile_digest = _package_digest_from_content(
@@ -312,15 +414,15 @@ def default_files(root: Path, profile: str) -> dict[str, str]:
         ".agents/skills/activation.toml": _skills_activation_with_digest(),
         ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill_text,
         ".agents/skills/ethos-repository-governance/package.toml": (
-            governance_skill_package(governance_digest)
+            skill_scaffold.governance_skill_package(governance_digest)
         ),
         ".agents/skills/ethos-skill-portfolio-governance/SKILL.md": skill_portfolio_skill_text,
         ".agents/skills/ethos-skill-portfolio-governance/package.toml": (
-            skill_portfolio_skill_package(skill_portfolio_digest)
+            skill_scaffold.skill_portfolio_skill_package(skill_portfolio_digest)
         ),
         ".agents/skills/ethos-adoption-profile-governance/SKILL.md": adoption_profile_skill_text,
         ".agents/skills/ethos-adoption-profile-governance/package.toml": (
-            adoption_profile_skill_package(adoption_profile_digest)
+            skill_scaffold.adoption_profile_skill_package(adoption_profile_digest)
         ),
         "docs/README.md": docs_readme(root),
         "docs/index.md": docs_index(root),

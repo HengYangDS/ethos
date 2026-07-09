@@ -8,6 +8,19 @@ Generated raw streams stay under ignored local state such as `.ethos/` or build
 artifacts. They become repository truth only after a reviewer promotes a
 bounded summary into this tree and binds it from a claim or chronicle record.
 
+## Promotion Path
+
+Machine evidence starts in ignored generated homes such as `build/evidence/` or
+`build/ethos/`. Promotion is an explicit review act, not a move or copy by
+directory convention. A promoted record must preserve the command, scope,
+verifier, digest, HEAD, and bounded claim before it is tracked under
+`docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
+
+Runtime caches (`.cache/local-state/`, `.ethos/state/`,
+`build/runtime/tool-cache/`, `build/runtime/work/`) and local artifacts
+(`build/artifacts/`) are outside the promotion path. They are deleted or
+regenerated, not summarized as proof.
+
 ## Layout
 
 | Path | Duty |

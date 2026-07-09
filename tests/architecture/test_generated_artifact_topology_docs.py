@@ -28,13 +28,37 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
     docs_topology = (ROOT / "docs/architecture/docs-topology.md").read_text(encoding="utf-8")
 
     assert "ethos quality generated-artifacts --json" in architecture
+    assert "## Promotion path" in architecture
+    assert "runtime command -> build/evidence/<concern>/" in architecture
+    assert "reviewed summary with command, scope, verifier, digest, HEAD" in architecture
+    assert ".config/ethos/generated-artifacts.toml" in architecture
     assert "fleet retirement-readiness" in architecture
     assert "ethos quality generated-artifacts --root <repo> --json" in architecture
     assert "ethos quality generated-artifacts" in command_plane
     assert "build/runtime/tool-cache/" in command_plane
+    assert "runtime caches and local artifacts are regenerated, not promoted" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
     assert "ethos quality docs-topology --json" in docs_topology
     assert "Minimal Semantic Documentation Topology Contract" in command_plane
+
+
+def test_evidence_docs_bind_machine_to_curated_promotion_path() -> None:
+    root_evidence = (ROOT / "evidence/README.md").read_text(encoding="utf-8")
+    docs_evidence = (ROOT / "docs/evidence/README.md").read_text(encoding="utf-8")
+
+    assert "## Promotion Path" in root_evidence
+    for required in (
+        "`build/evidence/`",
+        "`build/ethos/`",
+        "command, scope,\nverifier, digest, HEAD",
+        "`docs/evidence/`",
+        "`evidence/chronicle/`",
+        "`evidence/parity/`",
+    ):
+        assert required in root_evidence
+    assert "Runtime caches" in root_evidence
+    assert "outside the promotion path" in root_evidence
+    assert "Machine output belongs under generated homes" in docs_evidence
 
 
 def test_generated_artifact_topology_is_in_docs_index() -> None:

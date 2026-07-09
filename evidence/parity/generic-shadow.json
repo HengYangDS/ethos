@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "7666a26a2d47103bd33696f98dd8a2108c7e6cc6",
-    "target_head": "7666a26a2d47103bd33696f98dd8a2108c7e6cc6",
-    "product_semantic_sha256": "f8077b66adebfc90e47d044eb334f0e8e3ea4308cb670098a92984d19984a872",
-    "target_semantic_sha256": "f8077b66adebfc90e47d044eb334f0e8e3ea4308cb670098a92984d19984a872",
+    "product_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
+    "target_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
+    "product_semantic_sha256": "5db48414517caa188c9a299707a965239dc4d4acb613f6874007ecb4b95fc16c",
+    "target_semantic_sha256": "5db48414517caa188c9a299707a965239dc4d4acb613f6874007ecb4b95fc16c",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709",
-    "target_head": "7666a26a2d47103bd33696f98dd8a2108c7e6cc6",
-    "product_head": "7666a26a2d47103bd33696f98dd8a2108c7e6cc6",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709",
+    "target_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
+    "product_head": "9dbf8753233e3052abdaf3ad63f9d566f204fc52",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/parity-shadow-target-evidence-root-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/land-proof-readiness-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "837e343a7ace3c0076c84938d98d1fb0120760025f04b40fe8873fc4c564da5d"
+        "sha256": "010f8d4771416ab5f606ddf68fd7f32394f78a8d53f9e6c53d9f5fdb8f3614da"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "0ba46a7b6984b32805f9f82e9dbc7f75b97c0d73fbc2a59a1ca46d67e7ba359d"
+        "sha256": "cb1ec876570f47991d2c5aece1b206a4114613dc548fcd549675456a7655e210"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "7cbb028d5e68cfd898b99075d4660f0e7ea1272f5f3f55e0135b4208a3535f68"
+        "sha256": "227b4752312a0d47511bc81f25f14fa94d3c49912a7a1b76895ecce2528f0988"
       },
       {
         "path": "rules",

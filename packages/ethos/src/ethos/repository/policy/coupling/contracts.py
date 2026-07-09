@@ -217,7 +217,7 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "required_for": ["product repository proof execution"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "gapped:toolchain_unavailable",
-        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
+        "proof_gate": "tools/ci/scripts/run-python-tests.sh",
     },
     "hatchling_build_backend": {
         "required_for": ["Python package build"],
@@ -229,13 +229,13 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "required_for": ["unit and architecture proof"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "gapped:test_runner_unavailable",
-        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
+        "proof_gate": "tools/ci/scripts/run-python-tests.sh",
     },
     "ruff_lint_runner": {
         "required_for": ["lint diagnostics"],
         "replaceability": "replaceable-adapter",
         "degradation_state": "gapped:lint_runner_unavailable",
-        "proof_gate": "uv run --group dev ruff check .",
+        "proof_gate": "tools/ci/scripts/run-python-lint.sh",
     },
     "gitlab_release_profile": {
         "required_for": ["hosted release profile"],
@@ -280,7 +280,7 @@ BINDING_METADATA: dict[str, dict[str, object]] = {
         "required_for": ["provider boundary regression tests"],
         "replaceability": "fixture-only",
         "degradation_state": "nonblocking:test_fixture_absent",
-        "proof_gate": "uv run --group dev pytest tests/unit tests/architecture -q",
+        "proof_gate": "tools/ci/scripts/run-python-tests.sh",
     },
 }
 PRODUCT_SEMANTIC_DOCS = (

@@ -38,6 +38,11 @@ def test_default_files_github_profile_emits_workflow(tmp_path: Path) -> None:
     workflow = files[".github/workflows/ethos.yml"]
     assert workflow.startswith("name: ethos")
     assert "runs-on: ubuntu-latest" in workflow
+    assert "ethos status --json" in workflow
+    assert "ethos report --json" in workflow
+    assert "ethos prove --json" in workflow
+    assert "tools/ci/scripts/run-python" not in workflow
+    assert "uv run --group dev pytest" not in workflow
     # Other profiles do not take the branch, so the workflow file is absent.
     assert ".github/workflows/ethos.yml" not in default_files(tmp_path, "generic")
 

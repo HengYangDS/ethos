@@ -25,6 +25,7 @@ from ethos.repository.registry.docs.commands import ethos_command_key
 from ethos.repository.registry.docs.commands import ethos_invocation_tokens
 from ethos.repository.registry.docs.commands import has_command_example
 from ethos.repository.registry.docs.commands import known_ethos_command
+from ethos.repository.registry.docs.commands import known_non_ethos_command
 from ethos.repository.registry.docs.commands import requires_product_examples
 from ethos.repository.registry.docs.commands import tokens
 from ethos.repository.registry.docs.health import docs_health_report
@@ -292,6 +293,8 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
 
     assert tokens("unterminated 'quote") == ["unterminated", "'quote"]
     assert command_root("env FOO=1 uv run --package ethos ethos prove --json") == "ethos"
+    assert known_non_ethos_command("tools/ci/scripts/run-python-lint.sh") is True
+    assert known_non_ethos_command("tools/ci/run-python-lint.sh") is False
     assert ethos_invocation_tokens(["python", "-m", "ethos.cli", "status"]) == [
         "ethos",
         "status",

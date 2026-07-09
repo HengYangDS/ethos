@@ -8,6 +8,8 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-uv run --group dev ruff check .
-uv run --group dev ruff format --check .
+ruff_config_path=".config/checks/ruff/ruff.toml"
+
+uv run --group dev ruff check --config "${ruff_config_path}" .
+uv run --group dev ruff format --config "${ruff_config_path}" --check .
 tools/ci/scripts/run-ruff-ratchet.sh

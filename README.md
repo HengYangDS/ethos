@@ -136,8 +136,8 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 ## Development
 
 ```bash
-uv run --group dev pytest
-uv run --group dev ruff check .
+tools/ci/scripts/run-python-tests.sh
+tools/ci/scripts/run-python-lint.sh
 uv run --package ethos ethos orient --json
 uv run --package ethos ethos status --json
 uv run --package ethos ethos report --json

@@ -21,8 +21,8 @@ product release-file requirement.
 Release readiness is proven with:
 
 ```bash
-uv run --group dev pytest tests/unit tests/architecture -q
-uv run --group dev ruff check .
+tools/ci/scripts/run-python-tests.sh
+tools/ci/scripts/run-python-lint.sh
 uv build --all-packages
 npm ci --ignore-scripts
 npm run ethos -- --version

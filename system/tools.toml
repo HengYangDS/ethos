@@ -15,14 +15,14 @@ schema = "system/schemas/contracts/tools.schema.json"
 [[tool]]
 concern = "python_format_lint"
 tool = "ruff"
-config = "ruff.toml + .config/checks/ruff/"
+config = ".config/checks/ruff/ruff.toml + .config/checks/ruff/ratchet.toml"
 profile = "minimal"
 gate = "tools/ci/scripts/run-python-lint.sh"
 
 [[tool]]
 concern = "tests"
 tool = "pytest + pytest-xdist + pytest-timeout"
-config = "pytest.ini + .config/checks/pytest/policy.toml"
+config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
 gate = "tools/ci/scripts/run-python-tests.sh"

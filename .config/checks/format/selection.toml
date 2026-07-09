@@ -6,7 +6,7 @@ runner = "tools/ci/scripts/run-format-selection.sh"
 [[format]]
 extensions = [".py", ".pyi"]
 carrier = "Python source"
-owner = "ruff.toml + .config/checks/ruff/"
+owner = ".config/checks/ruff/ruff.toml"
 execution = "tools/ci/scripts/run-python-lint.sh"
 truth_boundary = "source"
 

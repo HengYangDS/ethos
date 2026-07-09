@@ -24,6 +24,8 @@ completed = subprocess.run(
     [
         "ruff",
         "check",
+        "--config",
+        ".config/checks/ruff/ruff.toml",
         ".",
         "--select",
         select,

@@ -10,7 +10,13 @@ from ethos.repository.adoption.scaffold.core import default_files
 PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
 PROFILE_READ_FILES = {
     "generic": (".git", ".gitignore", "README.md"),
-    "python": ("pyproject.toml", "uv.lock", "noxfile.py", "pytest.ini", "ruff.toml"),
+    "python": (
+        "pyproject.toml",
+        "uv.lock",
+        "noxfile.py",
+        ".config/checks/pytest/pytest.ini",
+        ".config/checks/ruff/ruff.toml",
+    ),
     "monorepo": ("packages", "pyproject.toml", "package.json"),
     "github": (".github/workflows", ".git/config"),
     "gitlab": (".gitlab-ci.yml", ".gitlab", ".git/config"),

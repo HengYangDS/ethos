@@ -385,7 +385,17 @@ root_subject = \"sample\"
     assert "docstrings" not in node_ids
 
 
-def test_prove_execute_can_select_real_gates() -> None:
+def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> None:
+    import ethos.surface.cli.root.proof as proof_cli
+
+    recorded: dict[str, object] = {}
+
+    def capture_executed_proof(repo: Path, evidence: dict[str, object]) -> Path:
+        recorded["repo"] = repo
+        recorded["evidence"] = evidence
+        return tmp_path / "proof-record.json"
+
+    monkeypatch.setattr(proof_cli, "record_executed_proof", capture_executed_proof)
     payload = run_ethos(
         "prove",
         "--execute",
@@ -403,6 +413,7 @@ def test_prove_execute_can_select_real_gates() -> None:
     assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"proven"}
     assert {run["verdict"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
     assert all(run["trust_bearing"] is True for run in payload["data"]["evidence"]["runs"])
+    assert recorded == {"repo": Path.cwd(), "evidence": payload["data"]["evidence"]}
 
 
 def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypatch) -> None:

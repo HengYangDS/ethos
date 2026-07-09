@@ -294,7 +294,8 @@ translate.
 
 Configuration follows separation of concerns, MECE, SSOT, and DRY. Package and
 workspace metadata stay in `pyproject.toml`; tool-native config belongs to the
-smallest stable owner (`pytest.ini`, `ruff.toml`, or `.config/checks/<concern>/`);
+smallest stable concern owner under `.config/checks/<concern>/` unless the tool or
+repository substrate has no explicit-config mode;
 ignored tool runtime caches belong under `build/runtime/tool-cache/`; generated
 proof evidence belongs under `build/evidence/`; reusable runner scripts live
 under `tools/ci/scripts/`; hosted CI remains

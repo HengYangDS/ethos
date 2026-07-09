@@ -277,12 +277,10 @@ def _gitlab_ci() -> str:
         "  script:\n"
         "    - pip install uv\n"
         "    - npm install -g @fission-ai/openspec\n"
-        "    - uv run --group dev pytest tests/unit tests/architecture -q\n"
-        "    - uv run --group dev ruff check .\n"
+        "    - ethos status --json\n"
+        "    - ethos report --json\n"
+        "    - ethos prove --json\n"
         "    - openspec validate --all --strict --json\n"
-        "    - uv run --package ethos ethos report --json\n"
-        "    - uv run --package ethos ethos prove --json\n"
-        "    - uv run --package ethos ethos quality release-policy --json\n"
     )
 
 
@@ -352,8 +350,9 @@ def default_files(root: Path, profile: str) -> dict[str, str]:
             "name: ethos\non: [push, pull_request]\njobs:\n"
             "  verify:\n    runs-on: ubuntu-latest\n    steps:\n"
             "      - uses: actions/checkout@v4\n      - uses: astral-sh/setup-uv@v5\n"
-            "      - run: uv run --group dev pytest tests/unit tests/architecture -q\n"
-            "      - run: uv run --package ethos ethos report --json\n"
+            "      - run: ethos status --json\n"
+            "      - run: ethos report --json\n"
+            "      - run: ethos prove --json\n"
         )
     return files
 

@@ -34,11 +34,11 @@ REQUIRED_FILES = (
     ".config/checks/docstrings/policy.toml",
     ".config/checks/module-layout/policy.toml",
     ".config/checks/ty/policy.toml",
+    ".config/checks/ruff/ruff.toml",
+    ".config/checks/pytest/pytest.ini",
     ".config/checks/taplo/taplo.toml",
     ".config/checks/yaml/yamllint.yaml",
     ".config/checks/shell/.shellcheckrc",
-    "ruff.toml",
-    "pytest.ini",
     "system/tools.toml",
 )
 
@@ -134,7 +134,7 @@ def _tool_gate_gaps(concern: str, expected_gate: str, record: dict[str, Any]) ->
     if record.get("planned") is True:
         gaps.append(f"quality_active_tool_marked_planned:{concern}")
     gate = str(record.get("gate") or "")
-    if expected_gate.startswith(".config/") and gate != expected_gate:
+    if gate != expected_gate:
         gaps.append(f"quality_gate_owner_mismatch:{concern}:{gate or '<missing>'}")
     return gaps
 

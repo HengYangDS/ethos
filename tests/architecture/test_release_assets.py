@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +19,16 @@ def test_gitlab_visible_project_files_exist() -> None:
     files = {path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*") if path.is_file()}
 
     assert required <= files
+
+
+def test_merge_request_template_uses_current_ethos_command_plane() -> None:
+    template = (ROOT / ".gitlab/merge_request_templates/default.md").read_text(encoding="utf-8")
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+
+    assert "ethos audit --mode shape --json" in template
+    assert "ethos audit --mode shape --json" in contributing
+    assert "ethos self audit" not in template
+    assert "ethos self audit" not in contributing
 
 
 def test_contributing_declares_commit_and_signature_policy() -> None:
@@ -67,8 +78,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
 
 def test_configuration_layout_is_separated_by_concern() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    ruff = (ROOT / "ruff.toml").read_text(encoding="utf-8")
-    pytest = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+    ruff = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
+    pytest = (ROOT / ".config/checks/pytest/pytest.ini").read_text(encoding="utf-8")
     config_readme = (ROOT / ".config/README.md").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
@@ -76,15 +87,18 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert "[tool.uv.workspace]" in pyproject
     assert "[tool.pytest" not in pyproject
     assert "[tool.ruff" not in pyproject
-    assert 'extend = ".config/checks/ruff/ruff.toml"' in ruff
+    assert not (ROOT / "ruff.toml").exists()
+    assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
     assert "error::ResourceWarning" in pytest
     assert "Separation of concerns" in config_readme
     assert "system/tools.toml" in config_readme
-    assert 'config = "pytest.ini + .config/checks/pytest/policy.toml"' in tools
-    assert 'config = "ruff.toml + .config/checks/ruff/"' in tools
+    assert (
+        'config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"' in tools
+    )
+    assert 'config = ".config/checks/ruff/ruff.toml + .config/checks/ruff/ratchet.toml"' in tools
     assert 'config = ".config/checks/import-linter/"' in tools
     assert 'config = ".config/checks/lychee/"' in tools
     assert 'config = ".config/checks/coverage/coverage.ini"' in tools
@@ -279,6 +293,49 @@ def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
     assert "--cov-fail-under=${coverage_hard_floor}" in audit
     assert "--cov-fail-under={hard_floor:g}" not in audit
     assert "quality_python_tests_missing:--cov-fail-under=100" not in audit
+
+
+def test_quality_audit_requires_config_check_owners_not_root_tool_files() -> None:
+    audit = (
+        ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
+    ).read_text(encoding="utf-8")
+    required_files = audit.split("REQUIRED_FILES = (", 1)[1].split(")", 1)[0]
+
+    assert '".config/checks/ruff/ruff.toml"' in required_files
+    assert '".config/checks/pytest/pytest.ini"' in required_files
+    assert '"ruff.toml"' not in required_files
+    assert '"pytest.ini"' not in required_files
+
+
+def test_quality_audit_detects_owner_script_gate_mismatch() -> None:
+    audit_path = ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
+    spec = importlib.util.spec_from_file_location("quality_audit_under_test", audit_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module._tool_gate_gaps(
+        "tests",
+        "tools/ci/scripts/run-python-tests.sh",
+        {"gate": "pytest"},
+    ) == ["quality_gate_owner_mismatch:tests:pytest"]
+    assert (
+        module._tool_gate_gaps(
+            "tests",
+            "tools/ci/scripts/run-python-tests.sh",
+            {"gate": "tools/ci/scripts/run-python-tests.sh"},
+        )
+        == []
+    )
+
+
+def test_quality_openspec_uses_current_coverage_floor_language() -> None:
+    spec = (ROOT / "openspec/specs/quality/spec.md").read_text(encoding="utf-8")
+
+    assert "95 percent hard coverage floor" not in spec
+    assert "configured hard coverage floor" in spec
+    assert "current hard floor" in spec
 
 
 def test_quality_gate_reference_uses_coverage_policy_ssot() -> None:

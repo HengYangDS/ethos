@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import shlex
 from typing import TYPE_CHECKING
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
+ALLOWED_REPOSITORY_COMMAND_PATTERNS = ("tools/ci/scripts/*.sh",)
 REQUIRED_COMMAND_EXAMPLES = (
     "ethos land",
     "ethos publish",
@@ -148,7 +150,7 @@ def command_examples_report(root: Path) -> dict[str, object]:
                     f"unknown_ethos_command_example:{record['path']}:{lineno}:"
                     f"{best_ethos_command_key(logical_command) or 'ethos'}"
                 )
-            elif command != "ethos" and command not in ALLOWED_NON_ETHOS_ROOTS:
+            elif command != "ethos" and not known_non_ethos_command(logical_command):
                 gaps.append(f"unknown_command_example:{record['path']}:{lineno}:{command}")
     if not gaps and requires_product_examples(examples):
         for required in REQUIRED_COMMAND_EXAMPLES:
@@ -178,6 +180,16 @@ def command_scope(path: str) -> str:
     if path.startswith("docs/archive/"):
         return "archive"
     return "product"
+
+
+def known_non_ethos_command(command: str) -> bool:
+    """Return whether a non-ETHOS command example is an admitted repository command."""
+    root = command_root(command)
+    if root in ALLOWED_NON_ETHOS_ROOTS:
+        return True
+    return any(
+        fnmatch.fnmatchcase(root, pattern) for pattern in ALLOWED_REPOSITORY_COMMAND_PATTERNS
+    )
 
 
 def tokens(command: str) -> list[str]:

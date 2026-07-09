@@ -993,7 +993,7 @@ config path, install strategy, and evidence output.
 Configuration follows separation of concerns:
 
 - `pyproject.toml` is Python packaging, dependency groups, and uv workspace metadata.
-- Tool runtime configuration uses tool-native SSOT files (`pytest.ini`, `ruff.toml`).
+- Tool runtime configuration uses concern-owned SSOT files under `.config/checks/`, with owner scripts passing explicit config paths.
 - Reusable gate policy payloads live under `.config/checks/<tool>/`.
 - Hosted CI files are provider projections over those commands, not another policy store.
 
@@ -1002,9 +1002,9 @@ and hosted execution projection do not own each other's semantics.
 
 | Concern | Default tool | Config carrier | Profile |
 | --- | --- | --- | --- |
-| Python format/lint | `ruff` | `ruff.toml` + `.config/checks/ruff/` | minimal |
+| Python format/lint | `ruff` | `.config/checks/ruff/ruff.toml` + `.config/checks/ruff/ratchet.toml` | minimal |
 | Python typing | `ty`; optional `mypy` strict | `.config/checks/ty/`, `.config/checks/mypy/` | product |
-| Tests | `pytest` | `pytest.ini` | minimal |
+| Tests | `pytest` | `.config/checks/pytest/pytest.ini` + `.config/checks/pytest/policy.toml` | minimal |
 | Coverage | `coverage.py` | `.config/checks/coverage/` | product |
 | Import boundaries | `import-linter` | `.config/boundaries/` | product |
 | Dependency hygiene | `deptry` | `.config/checks/deptry/` | product |

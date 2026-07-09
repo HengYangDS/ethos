@@ -250,3 +250,34 @@ def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_pa
         "quality claims",
         "quality evidence-freshness",
     ]
+
+
+def test_quality_provenance_emits_planned_evidence_envelope(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "head-abc")
+
+    q.provenance(objective="closeout proof", root=tmp_path, json_output=True)
+
+    payload = emitted[0]
+    assert payload["command"] == "quality provenance"
+    assert payload["ok"] is True
+    assert payload["state"] == "ready"
+    assert payload["next_actions"] == ["ethos prove --json"]
+    evidence = payload["data"]["evidence"]
+    assert evidence["id"] == "ethos:closeout proof"
+    assert evidence["head"] == "head-abc"
+    assert evidence["runs"][0] == {
+        "action_id": "planned-proof",
+        "command": ["ethos", "prove", "--json"],
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+        "state": "planned",
+        "evidence_class": "proof",
+        "verdict": "not_run",
+        "trust_bearing": False,
+        "diagnostics": [],
+        "governance_ref": "",
+    }
+    assert payload["summary"] == {"evidence_digest": evidence["digest"]}
+    assert payload["data"]["provenance"]["subject"][0]["digest"]["sha256"] == evidence["digest"]

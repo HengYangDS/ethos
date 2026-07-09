@@ -1,5 +1,5 @@
 # Pytest execution policy owned by .config/checks/pytest/.
-# pytest.ini remains at repo root because pytest discovers it natively.
+# Pytest policy is split from pytest.ini: the owner script passes both explicitly.
 workers_env = "ETHOS_TEST_WORKERS"
 default_workers = 8
 durations_env = "ETHOS_TEST_DURATIONS"

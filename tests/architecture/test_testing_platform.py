@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> None:
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     dev_deps = "\n".join(pyproject["dependency-groups"]["dev"])
-    pytest_ini = (ROOT / "pytest.ini").read_text(encoding="utf-8")
+    pytest_ini = (ROOT / ".config/checks/pytest/pytest.ini").read_text(encoding="utf-8")
     script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
     policy = tomllib.loads((ROOT / ".config/checks/pytest/policy.toml").read_text(encoding="utf-8"))
 
@@ -53,7 +53,10 @@ def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None
     by_concern = {tool["concern"]: tool for tool in tools}
 
     assert by_concern["tests"]["gate"] == "tools/ci/scripts/run-python-tests.sh"
-    assert by_concern["tests"]["config"] == "pytest.ini + .config/checks/pytest/policy.toml"
+    assert (
+        by_concern["tests"]["config"]
+        == ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
+    )
     assert by_concern["tests"]["artifacts"] == "build/evidence/quality/tests/"
     assert by_concern["test_performance"]["planned"] is True
     assert by_concern["test_reporting"]["planned"] is True

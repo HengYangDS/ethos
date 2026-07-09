@@ -88,6 +88,20 @@ def test_command_examples_do_not_leak_retired_roots() -> None:
     assert any(example["command"].startswith("ethos ") for example in report["examples"])
 
 
+def test_command_examples_allow_repo_owned_ci_scripts_only(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "```bash\ntools/ci/scripts/run-python-tests.sh\ntools/dev/run-anything.sh\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert (
+        "unknown_command_example:README.md:3:tools/dev/run-anything.sh" in report["required_gaps"]
+    )
+    assert not any("tools/ci/scripts/run-python-tests.sh" in gap for gap in report["required_gaps"])
+
+
 def test_command_examples_treat_evidence_as_observational(tmp_path: Path) -> None:
     (tmp_path / "evidence").mkdir(parents=True)
     (tmp_path / "README.md").write_text(

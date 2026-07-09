@@ -10,6 +10,7 @@ cd "${repo_root}"
 
 coverage_config_dir=".config/checks/coverage"
 coverage_policy_path="${coverage_config_dir}/policy.toml"
+pytest_config_path=".config/checks/pytest/pytest.ini"
 evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
 coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
@@ -72,6 +73,8 @@ PY
 workers="${ETHOS_TEST_WORKERS:-8}"
 durations="${ETHOS_TEST_DURATIONS:-20}"
 pytest_args=(
+  -c "${pytest_config_path}"
+  --rootdir=.
   --cov-config="${coverage_config_dir}/coverage.ini"
   --cov=ethos
   --cov=ethos_core

@@ -90,6 +90,7 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
 
     result = adoption_plan(tmp_path, profile="gitlab", apply=True)
     release = (tmp_path / ".ethos" / "release.toml").read_text(encoding="utf-8")
+    ci = (tmp_path / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
     assert result["profile"] == "gitlab"
     assert ".gitlab-ci.yml" in result["planned_files"]
@@ -98,6 +99,12 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     assert 'provider = "gitlab"' in release
     assert "[host_profile.surfaces]" in release
     assert 'ci = ".gitlab-ci.yml"' in release
+    assert "ethos status --json" in ci
+    assert "ethos report --json" in ci
+    assert "ethos prove --json" in ci
+    assert "tools/ci/scripts/run-python" not in ci
+    assert "uv run --group dev pytest" not in ci
+    assert "uv run --group dev ruff" not in ci
 
 
 def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:

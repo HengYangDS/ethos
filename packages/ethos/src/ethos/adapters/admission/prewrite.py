@@ -171,14 +171,15 @@ def _work_lane_lease_check(
 
 
 def _work_lane_lease_owner(*, root: Path, status: dict[str, object], branch: str) -> str:
-    worktrees = status.get("worktrees") if isinstance(status.get("worktrees"), list) else []
     current_path = Path(str(status.get("root") or root)).resolve()
-    leases = leases_by_branch(cast_worktrees(worktrees), current_path=current_path)
+    leases = leases_by_branch(cast_worktrees(status.get("worktrees")), current_path=current_path)
     lease = leases.get(branch, {})
     return str(lease.get("owner") or "").strip()
 
 
-def cast_worktrees(value: list[object]) -> list[dict[str, str]]:
+def cast_worktrees(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
     result: list[dict[str, str]] = []
     for item in value:
         if not isinstance(item, dict):

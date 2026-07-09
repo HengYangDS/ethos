@@ -98,6 +98,30 @@ def test_coverage_quality_report_reports_missing_latest_artifact(tmp_path: Path)
     assert report["required_gaps"] == [
         "coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml"
     ]
+    assert report["advisory_gaps"] == []
+
+
+def test_coverage_quality_report_treats_active_writer_lock_as_in_progress(
+    tmp_path: Path,
+) -> None:
+    write_coverage_policy(tmp_path)
+    lock = tmp_path / "build" / "evidence" / "quality" / "tests" / "coverage" / ".write.lock"
+    lock.mkdir(parents=True)
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["state"] == "in_progress"
+    assert report["required_gaps"] == []
+    assert report["advisory_gaps"] == [
+        "coverage_artifact_writer_active:build/evidence/quality/tests/coverage/.write.lock"
+    ]
+    assert report["latest_artifact"] == {
+        "path": "build/evidence/quality/tests/coverage/coverage.xml",
+        "present": False,
+        "writer_active": True,
+        "writer_lock": "build/evidence/quality/tests/coverage/.write.lock",
+    }
 
 
 def test_coverage_quality_report_reports_missing_policy_and_config(tmp_path: Path) -> None:

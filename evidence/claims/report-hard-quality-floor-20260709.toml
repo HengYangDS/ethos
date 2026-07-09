@@ -1,0 +1,46 @@
+[claim]
+id = "report-hard-quality-floor-20260709"
+subject = "ethos:report-hard-quality-floor"
+state = "active"
+change_id = "2026-07-09-report-hard-quality-floor"
+summary = "ETHOS report aggregates coverage, type, and public-surface docstring required gaps into the product hard quality floor and routes them to standalone quality commands."
+
+[evidence]
+dated = "evidence/chronicle/report-hard-quality-floor-20260709/2026-07-09.md"
+sha256 = "02ae8feb3d4b649a9a813f4f63c1db93e73b97352075a2c789f7705b7830017b"
+evidence_ids = ["evidence:report-hard-quality-floor-20260709"]
+binding = "Report hard quality floor aggregation and next-action routing evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --write-evidence --json",
+  "uv run --package ethos ethos parity gaps --json",
+]
+
+[boundary]
+owner = "ethos-reporting"
+scope = "Product scorecard hard quality floor read model for existing coverage, type, docstring, size, layout, product-boundary, and contributor-policy gates"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-report-hard-quality-floor"
+
+fallback = "Run standalone `ethos quality coverage`, `ethos quality types`, and `ethos quality docstrings` before trusting a green report."
+kill_signal = "`ethos report --json` can be ready while an existing product hard quality gate reports required gaps."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "packages/ethos/src/ethos/repository/policy/coverage.py",
+  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/policy/test_coverage.py",
+  "tests/unit/cli/test_quality_surface_more.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-report-hard-quality-floor",
+  "evidence/chronicle/report-hard-quality-floor-20260709/2026-07-09.md",
+  "evidence/claims/report-hard-quality-floor-20260709.toml",
+  "evidence/parity/generic-shadow.json",
+]

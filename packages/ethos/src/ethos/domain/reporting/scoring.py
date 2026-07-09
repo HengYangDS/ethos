@@ -3,10 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.gates.ty import ty_gate_report
 from ethos.domain.prove import code_size_report
 from ethos.repository.evidence.parity import parity_ledger_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
+from ethos.repository.policy.coverage import coverage_quality_report
+from ethos.repository.policy.docstrings.core import docstring_coverage_report
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.registry.standards import standard_adapter_registry
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
@@ -82,11 +85,17 @@ def product_scores(
 def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     code_size = code_size_report(repo)
+    coverage = coverage_quality_report(repo)
+    types = ty_gate_report(repo)
+    docstrings = docstring_coverage_report(repo)
     module_layout = module_layout_report(repo)
     product_boundary = product_boundary_report(repo)
     contributor_policy = contributor_policy_report(repo)
     gate_reports = {
         "python-size": code_size,
+        "coverage": coverage,
+        "types": types,
+        "docstrings": docstrings,
         "module-layout": module_layout,
         "product-boundary": product_boundary,
         "contributor-policy": contributor_policy,
@@ -137,21 +146,42 @@ def scorecard_next_actions(
     """Return bounded next actions for report without hiding hard quality gaps."""
     quality_gaps = cast("list[str]", hard_quality_floor["required_gaps"])
     if quality_gaps:
-        commands: list[str] = []
-        if any(gap.startswith("code_size_") for gap in quality_gaps):
-            commands.append("ethos quality code-size --json")
-        if any(gap.startswith("module_layout_") for gap in quality_gaps):
-            commands.append("ethos quality module-layout --json")
-        if any("product-boundary" in gap or "product_boundary" in gap for gap in quality_gaps):
-            commands.append("ethos quality product-boundary --json")
-        if any("contributor" in gap or "identity" in gap for gap in quality_gaps):
-            commands.append("ethos quality contributor-policy --json")
-        return tuple(commands or ["ethos quality --json"])
+        return _hard_quality_next_actions(quality_gaps)
     if parity_pending_count:
         return ("ethos parity gaps --adopter <adopter>",)
     if playbooks and playbooks.get("ok") is not True:
         return ("ethos playbooks check --mode v2-strict --json",)
     return ("ethos prove --full",)
+
+
+def _hard_quality_next_actions(quality_gaps: list[str]) -> tuple[str, ...]:
+    """Route hard quality gaps to the narrowest standalone quality command."""
+    commands: list[str] = []
+    if _has_prefixed_gap(quality_gaps, ("code_size_",)):
+        commands.append("ethos quality code-size --json")
+    if _has_prefixed_gap(quality_gaps, ("coverage_",)):
+        commands.append("ethos quality coverage --json")
+    if _has_prefixed_gap(quality_gaps, ("ty_",)):
+        commands.append("ethos quality types --json")
+    if _has_prefixed_gap(quality_gaps, ("docstring_", "public_docstring_missing:")):
+        commands.append("ethos quality docstrings --json")
+    if _has_prefixed_gap(quality_gaps, ("module_layout_",)):
+        commands.append("ethos quality module-layout --json")
+    if _has_token_gap(quality_gaps, ("product-boundary", "product_boundary")):
+        commands.append("ethos quality product-boundary --json")
+    if _has_token_gap(quality_gaps, ("contributor", "identity")):
+        commands.append("ethos quality contributor-policy --json")
+    return tuple(commands or ["ethos quality --json"])
+
+
+def _has_prefixed_gap(quality_gaps: list[str], prefixes: tuple[str, ...]) -> bool:
+    """Return whether any quality gap starts with one of the given prefixes."""
+    return any(gap.startswith(prefixes) for gap in quality_gaps)
+
+
+def _has_token_gap(quality_gaps: list[str], tokens: tuple[str, ...]) -> bool:
+    """Return whether any quality gap contains one of the given legacy tokens."""
+    return any(any(token in gap for token in tokens) for gap in quality_gaps)
 
 
 def first_hour(*, product_profile: bool, required_gaps: tuple[str, ...]) -> dict[str, object]:

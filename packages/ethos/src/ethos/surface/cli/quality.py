@@ -295,6 +295,9 @@ def coverage(
             "latest_line_percent": cast("dict[str, object]", report["latest_artifact"]).get(
                 "line_percent"
             ),
+            "writer_active": cast("dict[str, object]", report["latest_artifact"]).get(
+                "writer_active", False
+            ),
         },
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,

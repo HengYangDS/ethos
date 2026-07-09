@@ -147,8 +147,34 @@ def test_quality_coverage_reports_policy_and_latest_artifact(monkeypatch, tmp_pa
     assert emitted[0]["summary"] == {
         "current_hard_floor": 95.0,
         "latest_line_percent": 96.0,
+        "writer_active": False,
     }
     assert emitted[0]["data"] == report
+
+
+def test_quality_coverage_surfaces_active_writer(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    report = {
+        "ok": True,
+        "state": "in_progress",
+        "policy": {"current_hard_floor": 95.0},
+        "latest_artifact": {"line_percent": None, "writer_active": True},
+        "required_gaps": [],
+        "advisory_gaps": [
+            "coverage_artifact_writer_active:build/evidence/quality/tests/coverage/.write.lock"
+        ],
+    }
+    monkeypatch.setattr(q, "coverage_quality_report", lambda _repo: report)
+
+    q.coverage(root=tmp_path, json_output=True)
+
+    assert emitted[0]["state"] == "in_progress"
+    assert emitted[0]["summary"] == {
+        "current_hard_floor": 95.0,
+        "latest_line_percent": None,
+        "writer_active": True,
+    }
+    assert emitted[0]["required_gaps"] == []
 
 
 def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path):

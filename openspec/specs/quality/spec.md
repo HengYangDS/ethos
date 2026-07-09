@@ -123,8 +123,8 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 
 #### Scenario: Report exposes hard quality-floor gaps
 
-- **WHEN** a product hard quality gate such as Python size or module layout
-  reports required gaps
+- **WHEN** a product hard quality gate such as Python size, module layout,
+  coverage, type policy, or public-surface docstrings reports required gaps
 - **THEN** `ethos report --json` includes those gaps in its blocking
   `required_gaps`
 - **AND** the report state is not ready
@@ -143,6 +143,9 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
   `fail_under` diverges from the hard floor, branch coverage is disabled while
   required, the latest artifact is missing or malformed, or latest coverage is
   below the hard floor
+- **AND** when the Python test owner script holds the coverage evidence write
+  lock and the latest artifact is temporarily absent, the command reports the
+  writer as in-progress advisory state rather than a stale coverage failure
 - **AND** the command remains read-only and does not replace the reusable Python
   test gate owner script
 

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
-    "target_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
-    "product_semantic_sha256": "32c54e817da56fe6b7b0d8d896fbb7218d105af0e0d8331ad6d5ccb9c966ed22",
-    "target_semantic_sha256": "32c54e817da56fe6b7b0d8d896fbb7218d105af0e0d8331ad6d5ccb9c966ed22",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
+    "target_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
+    "product_semantic_sha256": "d06bd8f719d2bf774cd113a4d86edeecbf6add8b276421a9682010adc4dcc4dc",
+    "target_semantic_sha256": "d06bd8f719d2bf774cd113a4d86edeecbf6add8b276421a9682010adc4dcc4dc",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709",
-    "target_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
-    "product_head": "8541b33b748054f29df9914fb6b9f022dedb0f01",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709",
+    "target_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
+    "product_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/publish-local-ci-evidence-readmodel-replay-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "bc1eeb68ff2d646b57c3bfda32d3e94d20fd8a067c48e42732b6836aa7ccaf9a"
+        "sha256": "b3cd685058835f3fcab74024bc4633282417faa6c9e7e682e38e6bd949102087"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "593c4a3dbb0e289a4039631eb98391ba490edb5dfc411849162b8a36cc86d982"
+        "sha256": "e77e6a01d68dd228284a52f55f9c3b2b4cb3dd5d39f9909b3175f82f299f11bb"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "eff522806e978311a762da8481a588d0249884843cbdcf07ac559bf6292c3a69"
+        "sha256": "437cf25cd592c8ddf1ed7819820659499d03fa09f5d019586565be629265cda3"
       },
       {
         "path": "rules",

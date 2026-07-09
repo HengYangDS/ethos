@@ -37,6 +37,25 @@ def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -
     ) == ("ethos quality --json",)
 
 
+def test_scorecard_next_actions_route_coverage_types_and_docstring_gaps() -> None:
+    """Product hard quality gaps should point to their standalone read models."""
+
+    assert reporting_scoring.scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={
+            "required_gaps": [
+                "coverage_latest_below_floor:94.00<95.00",
+                "ty_ratchet_exceeded:packages/ethos:66>65",
+                "docstring_coverage_below_minimum:94.00<95.00",
+            ],
+        },
+    ) == (
+        "ethos quality coverage --json",
+        "ethos quality types --json",
+        "ethos quality docstrings --json",
+    )
+
+
 def test_adopter_product_root_resolves_runtime_and_profile_fallback(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -151,6 +170,21 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     monkeypatch.setattr(
         reporting_scoring,
         "module_layout_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "coverage_quality_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "ty_gate_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "docstring_coverage_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
     monkeypatch.setattr(
@@ -297,6 +331,13 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
 def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
+        reporting_scoring, "coverage_quality_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(reporting_scoring, "ty_gate_report", lambda _repo: {"required_gaps": []})
+    monkeypatch.setattr(
+        reporting_scoring, "docstring_coverage_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
     )
     monkeypatch.setattr(
@@ -315,6 +356,61 @@ def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_p
     assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0, hard_quality_floor=floor
     ) == ("ethos quality product-boundary --json",)
+
+
+def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
+    monkeypatch.setattr(
+        reporting_scoring,
+        "coverage_quality_report",
+        lambda _repo: {"required_gaps": ["coverage_artifact_missing:coverage.xml"]},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "ty_gate_report",
+        lambda _repo: {"required_gaps": ["ty_zero_tolerance_violation:packages/ethos-core:1"]},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "docstring_coverage_report",
+        lambda _repo: {"required_gaps": ["public_docstring_missing:pkg/mod.py:pkg.mod"]},
+    )
+    monkeypatch.setattr(
+        reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
+        reporting_scoring, "product_boundary_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
+        reporting_scoring, "contributor_policy_report", lambda _repo: {"required_gaps": []}
+    )
+
+    floor = reporting_scoring.hard_quality_floor_report(tmp_path)
+
+    assert floor["ok"] is False
+    assert floor["gate_ids"] == [
+        "python-size",
+        "coverage",
+        "types",
+        "docstrings",
+        "module-layout",
+        "product-boundary",
+        "contributor-policy",
+    ]
+    assert floor["required_gaps"] == [
+        "coverage_artifact_missing:coverage.xml",
+        "ty_zero_tolerance_violation:packages/ethos-core:1",
+        "public_docstring_missing:pkg/mod.py:pkg.mod",
+    ]
+    assert reporting_scoring.scorecard_next_actions(
+        parity_pending_count=0, hard_quality_floor=floor
+    ) == (
+        "ethos quality coverage --json",
+        "ethos quality types --json",
+        "ethos quality docstrings --json",
+    )
 
 
 def test_scorecard_next_actions_route_contributor_policy_gaps() -> None:

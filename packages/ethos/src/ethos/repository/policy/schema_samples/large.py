@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from ethos.repository.policy.schema_samples.shared import _campaign_package_contract_sample
-from ethos.repository.policy.schema_samples.shared import _intake_projection_contract_sample
-from ethos.repository.policy.schema_samples.shared import _trust_closeout_contract_sample
+from ethos.repository.policy.schema_samples.shared import campaign_package_contract_sample
+from ethos.repository.policy.schema_samples.shared import intake_projection_contract_sample
+from ethos.repository.policy.schema_samples.shared import trust_closeout_contract_sample
 
 
-def _campaign_closeout_contract_sample() -> dict[str, Any]:
+def campaign_closeout_contract_sample() -> dict[str, Any]:
+    """Return the large campaign closeout schema sample."""
     remote_availability = {
         "kind": "git_remote_availability",
         "remote": "origin",
@@ -98,12 +99,12 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         "state": "local_ready",
         "workspace": {},
         "evolution": {},
-        "campaigns": _campaign_package_contract_sample(),
+        "campaigns": campaign_package_contract_sample(),
         "release": {},
         "parity": {},
         "shadow_parity": {},
         "claims": {},
-        "intake_projection": _intake_projection_contract_sample(),
+        "intake_projection": intake_projection_contract_sample(),
         "publication": publication,
         "remote_publication": {
             "remote_push": "not_performed",
@@ -121,9 +122,9 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
         },
         "packages": {
             "local_closeout": {},
-            "trust_closeout": _trust_closeout_contract_sample(),
-            "campaign": _campaign_package_contract_sample(),
-            "intake_projection": _intake_projection_contract_sample(),
+            "trust_closeout": trust_closeout_contract_sample(),
+            "campaign": campaign_package_contract_sample(),
+            "intake_projection": intake_projection_contract_sample(),
             "publication": publication,
             "release": {},
             "parity": {},
@@ -132,7 +133,8 @@ def _campaign_closeout_contract_sample() -> dict[str, Any]:
     }
 
 
-def _workspace_status_contract_sample() -> dict[str, Any]:
+def workspace_status_contract_sample() -> dict[str, Any]:
+    """Return the workspace status schema sample."""
     return {
         "root": "/repo",
         "branch": "dev",

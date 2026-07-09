@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 
-def _campaign_package_contract_sample() -> dict[str, Any]:
+def campaign_package_contract_sample() -> dict[str, Any]:
+    """Return a reusable campaign closeout package sample."""
     return {
         "kind": "campaign_closeout",
         "ok": True,
@@ -27,7 +28,8 @@ def _campaign_package_contract_sample() -> dict[str, Any]:
     }
 
 
-def _intake_projection_contract_sample() -> dict[str, Any]:
+def intake_projection_contract_sample() -> dict[str, Any]:
+    """Return a reusable intake projection package sample."""
     return {
         "kind": "intake_projection",
         "state": "unconfigured",
@@ -42,7 +44,8 @@ def _intake_projection_contract_sample() -> dict[str, Any]:
     }
 
 
-def _trust_closeout_contract_sample() -> dict[str, Any]:
+def trust_closeout_contract_sample() -> dict[str, Any]:
+    """Return a reusable trust closeout package sample."""
     return {
         "kind": "trust_closeout",
         "claim_report_ok": True,

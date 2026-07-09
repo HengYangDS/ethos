@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 
-def _campaign_contract_sample() -> dict[str, Any]:
+def campaign_contract_sample() -> dict[str, Any]:
+    """Return a minimal campaign schema sample."""
     return {
         "id": "terminal-openspec-productization",
         "state": "active",
@@ -33,7 +34,8 @@ def _campaign_contract_sample() -> dict[str, Any]:
     }
 
 
-def _shadow_parity_contract_sample() -> dict[str, Any]:
+def shadow_parity_contract_sample() -> dict[str, Any]:
+    """Return a shadow parity schema sample."""
     return {
         "ok": True,
         "state": "matched",
@@ -97,7 +99,8 @@ def _shadow_parity_contract_sample() -> dict[str, Any]:
     }
 
 
-def _promotion_target_contract_sample() -> dict[str, Any]:
+def promotion_target_contract_sample() -> dict[str, Any]:
+    """Return a promotion target schema sample."""
     return {
         "kind": "evidence",
         "path": "evidence/sample.md",
@@ -105,7 +108,8 @@ def _promotion_target_contract_sample() -> dict[str, Any]:
     }
 
 
-def _trust_envelope_contract_sample() -> dict[str, Any]:
+def trust_envelope_contract_sample() -> dict[str, Any]:
+    """Return a trust envelope schema sample."""
     return {
         "claim_id": "sample-trust",
         "state": "active",
@@ -140,7 +144,8 @@ def _trust_envelope_contract_sample() -> dict[str, Any]:
     }
 
 
-def _capability_profile_contract_sample() -> dict[str, Any]:
+def capability_profile_contract_sample() -> dict[str, Any]:
+    """Return a capability profile schema sample."""
     return {
         "family": "ethos-repository",
         "owner": {
@@ -167,7 +172,8 @@ def _capability_profile_contract_sample() -> dict[str, Any]:
     }
 
 
-def _skill_activation_contract_sample() -> dict[str, Any]:
+def skill_activation_contract_sample() -> dict[str, Any]:
+    """Return a skill activation schema sample."""
     return {
         "meta": {"version": 2, "owner": "ethos"},
         "coverage": {"required_roots": ["skills", "docs", "packages"]},
@@ -197,7 +203,8 @@ def _skill_activation_contract_sample() -> dict[str, Any]:
     }
 
 
-def _skill_package_manifest_contract_sample() -> dict[str, Any]:
+def skill_package_manifest_contract_sample() -> dict[str, Any]:
+    """Return a skill package manifest schema sample."""
     return {
         "schema_version": 2,
         "id": "ethos-repository-governance",

@@ -91,3 +91,25 @@ def test_package_ontology_contract_lives_in_semantic_subpackage_not_suffix_modul
     assert not ROOT.joinpath(
         "packages/ethos-core/src/ethos_core/contracts/package_ontology.py"
     ).exists()
+
+
+SKILL_ACTIVATION_DEBT = (
+    "module_layout_suffix_module:"
+    "packages/ethos-core/src/ethos_core/contracts/skill_activation.py:skill_activation"
+)
+
+
+def test_skill_activation_contract_lives_in_semantic_subpackage_not_suffix_module() -> None:
+    """Keep skill activation under contracts/skill/ instead of suffix-flat debt."""
+    report = module_layout_report(ROOT)
+    suffix_gaps = {finding["gap"] for finding in report["suffix_module_findings"]}
+    policy_text = ROOT.joinpath(report["policy"]).read_text(encoding="utf-8")
+
+    assert SKILL_ACTIVATION_DEBT not in suffix_gaps
+    assert SKILL_ACTIVATION_DEBT not in policy_text
+    assert ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/skill/activation.py"
+    ).is_file()
+    assert not ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/skill_activation.py"
+    ).exists()

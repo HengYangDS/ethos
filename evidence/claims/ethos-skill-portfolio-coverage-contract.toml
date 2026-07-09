@@ -12,9 +12,9 @@ binding = "semantic skill portfolio coverage evidence binding"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/cli/test_contracts.py::test_playbooks_commands_expose_repo_local_skills tests/unit/cli/test_contracts.py::test_playbooks_strict_mode_requires_portfolio_primary_subjects tests/unit/cli/test_contracts.py::test_playbooks_strict_mode_rejects_duplicate_primary_subject_owner tests/unit/governance/validation/test_schemas.py::test_schema_validation_report_covers_all_ethos_schemas -q",
-  "uv run --group dev ty check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill_activation.py",
-  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill_activation.py tests/unit/cli/test_contracts.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill_activation.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev ty check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill/activation.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill/activation.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill/activation.py tests/unit/cli/test_contracts.py",
   "uv run --group dev openspec status --change skill-portfolio-coverage-contract --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality projection-drift --json",
 ]

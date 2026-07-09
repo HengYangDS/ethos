@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from ethos_core.contracts.skill_activation import normalize_skill_activation
-from ethos_core.contracts.skill_activation import skill_registry_digest
+from ethos_core.contracts.skill.activation import normalize_skill_activation
+from ethos_core.contracts.skill.activation import skill_registry_digest
 
 
 def test_normalizes_activation_contract_without_compatibility_surface() -> None:

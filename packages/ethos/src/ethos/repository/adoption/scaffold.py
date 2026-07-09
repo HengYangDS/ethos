@@ -33,17 +33,17 @@ from ethos.repository.adoption.scaffold_docs.skills import governance_skill
 from ethos.repository.adoption.scaffold_docs.skills import governance_skill_package
 from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill
 from ethos.repository.adoption.scaffold_docs.skills import skill_portfolio_skill_package
-from ethos.repository.adoption.scaffold_openspec import _capability_profile
-from ethos.repository.adoption.scaffold_openspec import _openspec_capability_template
-from ethos.repository.adoption.scaffold_openspec import _openspec_change_template
-from ethos.repository.adoption.scaffold_openspec import _openspec_changes_readme
-from ethos.repository.adoption.scaffold_openspec import _openspec_config
-from ethos.repository.adoption.scaffold_openspec import _openspec_families
-from ethos.repository.adoption.scaffold_openspec import _openspec_readme
-from ethos.repository.adoption.scaffold_openspec import _openspec_spec
-from ethos.repository.adoption.scaffold_openspec import _openspec_specs_readme
-from ethos_core.contracts.skill_activation import normalize_skill_activation
-from ethos_core.contracts.skill_activation import skill_registry_digest
+from ethos.repository.adoption.scaffold_openspec import capability_profile
+from ethos.repository.adoption.scaffold_openspec import openspec_capability_template
+from ethos.repository.adoption.scaffold_openspec import openspec_change_template
+from ethos.repository.adoption.scaffold_openspec import openspec_changes_readme
+from ethos.repository.adoption.scaffold_openspec import openspec_config
+from ethos.repository.adoption.scaffold_openspec import openspec_families
+from ethos.repository.adoption.scaffold_openspec import openspec_readme
+from ethos.repository.adoption.scaffold_openspec import openspec_spec
+from ethos.repository.adoption.scaffold_openspec import openspec_specs_readme
+from ethos_core.contracts.skill.activation import normalize_skill_activation
+from ethos_core.contracts.skill.activation import skill_registry_digest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -303,13 +303,13 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         ".ethos/project.toml": (f'[meta]\nname = {project_name}\nproduct = "ETHOS"\nversion = 1\n'),
         ".ethos/workspace.toml": _workspace_toml(root, profile),
         ".ethos/release.toml": release_toml(profile),
-        "openspec/config.yaml": _openspec_config(root),
-        "openspec/README.md": _openspec_readme(),
-        "openspec/specs/README.md": _openspec_specs_readme(),
-        "openspec/specs/families.toml": _openspec_families(),
-        "openspec/specs/capability.template.toml": _openspec_capability_template(),
-        "openspec/changes/README.md": _openspec_changes_readme(),
-        "openspec/changes/template.md": _openspec_change_template(),
+        "openspec/config.yaml": openspec_config(root),
+        "openspec/README.md": openspec_readme(),
+        "openspec/specs/README.md": openspec_specs_readme(),
+        "openspec/specs/families.toml": openspec_families(),
+        "openspec/specs/capability.template.toml": openspec_capability_template(),
+        "openspec/changes/README.md": openspec_changes_readme(),
+        "openspec/changes/template.md": openspec_change_template(),
         ".agents/skills/README.md": _skills_readme(),
         ".agents/skills/activation.toml": _skills_activation_with_digest(),
         ".agents/skills/ethos-repository-governance/SKILL.md": governance_skill_text,
@@ -343,8 +343,8 @@ def _default_files(root: Path, profile: str) -> dict[str, str]:
         **STATIC_DEFAULT_FILES,
     }
     for family in OPENSPEC_CAPABILITIES:
-        files[f"openspec/specs/{family}/spec.md"] = _openspec_spec(family)
-        files[f"openspec/specs/{family}/capability.toml"] = _capability_profile(family)
+        files[f"openspec/specs/{family}/spec.md"] = openspec_spec(family)
+        files[f"openspec/specs/{family}/capability.toml"] = capability_profile(family)
     if profile == "gitlab":
         files[".gitlab-ci.yml"] = _gitlab_ci()
     if profile == "github":

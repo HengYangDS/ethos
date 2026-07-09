@@ -8,7 +8,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _openspec_config(root: Path) -> str:
+def openspec_config(root: Path) -> str:
+    """Return the scaffolded OpenSpec config for an adopted repository."""
     return f"""schema: spec-driven
 context: |
   {root.name} uses OpenSpec as the official specification-change surface.
@@ -30,7 +31,8 @@ rules:
 """
 
 
-def _openspec_readme() -> str:
+def openspec_readme() -> str:
+    """Return the scaffolded OpenSpec workspace README."""
     return """# OpenSpec Workspace
 
 This workspace is the ETHOS case and specification carrier. Use `ethos ...` as
@@ -43,7 +45,8 @@ lives under `openspec/specs/<capability>/spec.md` after promotion.
 """
 
 
-def _openspec_specs_readme() -> str:
+def openspec_specs_readme() -> str:
+    """Return the scaffolded OpenSpec specs README."""
     return """# OpenSpec Capability Specs
 
 Each capability directory contains accepted behavior in `spec.md` and ETHOS
@@ -53,7 +56,8 @@ capability directories exactly; aliases are diagnostic only.
 """
 
 
-def _openspec_changes_readme() -> str:
+def openspec_changes_readme() -> str:
+    """Return the scaffolded OpenSpec changes README."""
     return """# OpenSpec Changes
 
 Active changes are ETHOS case carriers. They record intended change and review
@@ -65,7 +69,8 @@ with `ethos openspec --lifecycle --json`.
 """
 
 
-def _openspec_families() -> str:
+def openspec_families() -> str:
+    """Return the scaffolded OpenSpec family registry."""
     return """[families.kernel]
 description = "Pure ETHOS kernel contracts, result envelopes, and provider-neutral semantics."
 
@@ -89,7 +94,8 @@ description = "Conformance, fixtures, parity, closeout evidence, and proof-host 
 """
 
 
-def _openspec_capability_template() -> str:
+def openspec_capability_template() -> str:
+    """Return the scaffolded OpenSpec capability template."""
     return """family = "repository-governance"
 primary_invariant = "State the one behavior this capability protects."
 routing_question = "Ask the question that selects this capability over peers."
@@ -113,7 +119,8 @@ required_gates = ["claims", "schemas"]
 """
 
 
-def _openspec_change_template() -> str:
+def openspec_change_template() -> str:
+    """Return the scaffolded OpenSpec change template."""
     return """# Change Template
 
 Create `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md`
@@ -133,7 +140,8 @@ facet:authority=<source|test|schema|docs|openspec|claim|evidence>
 """
 
 
-def _openspec_spec(family: str) -> str:
+def openspec_spec(family: str) -> str:
+    """Return the scaffolded OpenSpec spec for a capability family."""
     titles = {
         "kernel": "Pure Kernel",
         "contracts": "Provider-neutral Contracts",
@@ -165,7 +173,8 @@ The {family} family SHALL describe one bounded product concern.
 """
 
 
-def _capability_profile(family: str) -> str:
+def capability_profile(family: str) -> str:
+    """Return the scaffolded capability profile for an OpenSpec family."""
     scopes = {
         "kernel": "pure kernel result and action graph semantics",
         "contracts": "provider-neutral repository contracts",

@@ -1,8 +1,8 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:bf3aa6e16cd9a22cc49e1c4cc0c2192c22054a57f4e3fcace1fb10e84c2f2366"
-expected_generator_digest = "sha256:2f29ae21064f04eff02bb62ef5edad841df4754f34ba244ecd2672fcf9fc490a"
+expected_registry_digest = "sha256:6f8eb836f8ca4e4fd55b4bd1a98a5daa03b351235aff70c08d072313f521b79e"
+expected_generator_digest = "sha256:be0c3b214501f0e8078e86be4538725dd722aa58a21f10e0804bb62d9efa4c4a"
 
 [coverage]
 required_primary_subjects = [
@@ -128,7 +128,7 @@ path_globs = [
   "docs/governance/playbooks-and-skills.md",
   "system/schemas/kernel/skill-*.schema.json",
   "packages/ethos/src/ethos/assistants/**",
-  "packages/ethos-core/src/ethos_core/contracts/skill_activation.py",
+  "packages/ethos-core/src/ethos_core/contracts/skill/activation.py",
   "tests/unit/assistants/**",
   "tests/unit/cli/test_contracts.py",
 ]

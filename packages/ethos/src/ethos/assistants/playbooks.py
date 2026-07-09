@@ -18,8 +18,8 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_relative_root
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import table_version
-from ethos_core.contracts.skill_activation import normalize_skill_activation
-from ethos_core.contracts.skill_activation import skill_registry_digest
+from ethos_core.contracts.skill.activation import normalize_skill_activation
+from ethos_core.contracts.skill.activation import skill_registry_digest
 
 PLAYBOOK_MODES = ("v2-strict",)
 PLAYBOOK_ACTIVATION_VERSION = 2

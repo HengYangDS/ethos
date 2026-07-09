@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.readiness import enterprise as readiness
+from ethos.domain.readiness import enterprise as readiness
 
 if TYPE_CHECKING:
     from pathlib import Path

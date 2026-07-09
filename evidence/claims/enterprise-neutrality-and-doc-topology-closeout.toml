@@ -44,7 +44,7 @@ kill_signal = "Enterprise readiness is claimed from prose while any owner gate r
 
 [promotion]
 targets = [
-  { kind = "source", path = "packages/ethos/src/ethos/repository/policy/readiness/enterprise.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/domain/readiness/enterprise.py" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/boundary/readiness.py" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/_base.py" },
   { kind = "source", path = "packages/ethos/src/ethos/repository/registry/docs/commands.py" },

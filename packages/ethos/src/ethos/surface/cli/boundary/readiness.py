@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from ethos.repository.policy.readiness.enterprise import enterprise_readiness_report
+from ethos.domain.readiness.enterprise import enterprise_readiness_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit

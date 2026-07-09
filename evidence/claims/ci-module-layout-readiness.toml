@@ -1,0 +1,44 @@
+[claim]
+id = "ci-module-layout-readiness"
+subject = "ethos:ci-module-layout-readiness"
+state = "active"
+summary = "Enterprise-readiness aggregation belongs to the domain layer and local CI import-linter stays strict."
+
+[evidence]
+dated = "evidence/chronicle/ci-module-layout-readiness/2026-07-09.md"
+sha256 = "43abdea446b9db8065cff622fc61a4a691aef40e973294bf99e7d28a752b677f"
+evidence_ids = ["evidence:ci-module-layout-readiness"]
+binding = "Digest-bound evidence for restoring module-layout/import-linter readiness."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py",
+  "tools/ci/scripts/run-import-linter.sh",
+  "uv run --group dev ruff check packages/ethos/src/ethos/domain/readiness/enterprise.py packages/ethos/src/ethos/domain/readiness/__init__.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/readiness/enterprise.py packages/ethos/src/ethos/domain/readiness/__init__.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+]
+
+[boundary]
+owner = "quality"
+scope = "Import-linter and module-layout readiness for enterprise-readiness aggregation placement"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-ci-module-layout-readiness"
+fallback = "Move the enterprise-readiness aggregator back only if an equivalent domain-level orchestration owner preserves import-linter contracts."
+kill_signal = "tools/ci/scripts/run-import-linter.sh reports repository policy importing domain or adapters, or enterprise-readiness CLI no longer emits the same aggregate result."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/domain/readiness/__init__.py",
+  "packages/ethos/src/ethos/domain/readiness/enterprise.py",
+  "packages/ethos/src/ethos/surface/cli/boundary/readiness.py",
+  "tests/unit/policy/test_enterprise_readiness.py",
+  "tests/unit/cli/test_quality_readiness.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-ci-module-layout-readiness/proposal.md",
+  "openspec/changes/archive/2026-07-09-ci-module-layout-readiness/design.md",
+  "openspec/changes/archive/2026-07-09-ci-module-layout-readiness/tasks.md",
+  "openspec/changes/archive/2026-07-09-ci-module-layout-readiness/specs/quality/spec.md",
+  "evidence/chronicle/ci-module-layout-readiness/2026-07-09.md",
+  "evidence/claims/ci-module-layout-readiness.toml",
+]

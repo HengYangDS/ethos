@@ -122,6 +122,36 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
     assert active_leases(db_path) == []
 
 
+def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> None:
+    from ethos.adapters.store.state import delete_lease
+
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                resource text not null default '',
+                expires_at text not null default '',
+                created_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, resource, expires_at, created_at)
+            values ('lease:old', 'agent', 'work/feature',
+                    '2099-07-01T00:00:00+00:00',
+                    '2026-07-01T00:00:00+00:00')
+            """
+        )
+        connection.commit()
+
+    assert delete_lease(db_path, subject="work/feature") == 0
+
+
 def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     tmp_path: Path,
 ) -> None:

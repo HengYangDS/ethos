@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
-    "target_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
-    "product_semantic_sha256": "d06bd8f719d2bf774cd113a4d86edeecbf6add8b276421a9682010adc4dcc4dc",
-    "target_semantic_sha256": "d06bd8f719d2bf774cd113a4d86edeecbf6add8b276421a9682010adc4dcc4dc",
+    "product_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
+    "target_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
+    "product_semantic_sha256": "5a9dbee0e522d6db0519f8a9103e33bbbd65d40622073cddacc4c43f8151bb38",
+    "target_semantic_sha256": "5a9dbee0e522d6db0519f8a9103e33bbbd65d40622073cddacc4c43f8151bb38",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709",
-    "target_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
-    "product_head": "1e8d913b5b3acc2f20dbfe441923dc587d3479fc",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709",
+    "target_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
+    "product_head": "cbe78d6f4c316c2e0a6e3f1c0033e83a98ddd50b",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/report-hard-quality-floor-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-lease-json-fallback-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "b3cd685058835f3fcab74024bc4633282417faa6c9e7e682e38e6bd949102087"
+        "sha256": "cf174a8e7940a9aee2c2bea0115e8c052555d338d19ca74884612bef29c6a997"
       },
       {
         "path": "evidence/claims",

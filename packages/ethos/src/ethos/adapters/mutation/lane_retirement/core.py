@@ -14,7 +14,6 @@ from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
@@ -241,11 +240,6 @@ def _linked_work_lane(
         ):
             return cast("dict[str, object]", lane)
     return None
-
-
-def _active_lane_leases(repo: Path) -> dict[str, dict[str, object]]:
-    db_path = repo / ".ethos" / "state" / "state.sqlite"
-    return {str(lease["subject"]): lease for lease in active_leases(db_path)}
 
 
 def _superseded_retirement_lane(

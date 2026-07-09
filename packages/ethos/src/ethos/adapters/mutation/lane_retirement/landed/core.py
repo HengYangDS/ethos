@@ -9,7 +9,6 @@ from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 
@@ -153,11 +152,6 @@ def _landed_expect_head_gaps(
 
 def _current_actor() -> str:
     return os.environ.get("ETHOS_ACTOR", "").strip()
-
-
-def _active_lane_leases(repo: Path) -> dict[str, dict[str, object]]:
-    db_path = repo / ".ethos" / "state" / "state.sqlite"
-    return {str(lease["subject"]): lease for lease in active_leases(db_path)}
 
 
 def _retirement_lane(

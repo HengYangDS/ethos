@@ -46,14 +46,20 @@ def parity_gaps(
 ) -> None:
     """Report remaining product/adopter parity gaps."""
     repo = resolve_root(root)
+    self_adopter = adopter in {None, "generic"}
+    target_root = target or (repo if self_adopter else None)
     report = parity_gaps_report(
         adopter=adopter,
         root=repo,
-        target=target,
-        current_target_head=git_adapter.current_tracked_head(target) if target is not None else "",
+        target=target_root,
+        current_target_head=git_adapter.current_tracked_head(target_root)
+        if target_root is not None
+        else "",
         current_product_head=git_adapter.current_tracked_head(repo),
         acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, adopter),
-        acceptable_target_heads=land_domain.acceptable_parity_target_heads(repo, target, adopter),
+        acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+            repo, target_root, adopter
+        ),
     )
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None

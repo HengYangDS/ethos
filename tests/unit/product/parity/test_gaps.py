@@ -115,6 +115,15 @@ def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
     assert payload["data"]["evidence"]["path"] == "evidence/parity/generic-shadow.json"
 
 
+def test_parity_gaps_defaults_target_to_repo_for_self_governance() -> None:
+    payload = run_ethos("parity", "gaps", "--json")
+
+    freshness = payload["data"]["evidence"]["provenance"]["freshness"]
+    assert freshness["current_target_head"]
+    assert freshness["current_target_semantic_sha256"]
+    assert freshness["target_semantic_current"] is True
+
+
 def test_parity_gaps_rejects_shadow_evidence_without_false_negative_gate(
     tmp_path: Path,
 ) -> None:

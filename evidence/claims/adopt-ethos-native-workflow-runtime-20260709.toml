@@ -2,11 +2,11 @@
 id = "adopt-ethos-native-workflow-runtime-20260709"
 subject = "ethos:workflow-runtime-practice-evolution"
 state = "active"
-summary = "ETHOS introduces a native workflow runtime read model under a governed commitment model where practice claims are evolution carriers and external frameworks remain bounded carriers, adapters, or method packs."
+summary = "ETHOS introduces a native workflow runtime read model under a governed passage model where governed commitments are auditable handles, practice claims are evolution carriers, and external frameworks remain bounded carriers, adapters, or method packs."
 
 [evidence]
 dated = "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07-09.md"
-sha256 = "82f6d5a9bad67f52ebf4bcaa6a2d01cef288c038edea224a1125bb7af5982e4a"
+sha256 = "81699107fa5177263bc8350bf371a66871900465884c786e715a72bad47bcc15"
 evidence_ids = ["evidence:adopt-ethos-native-workflow-runtime-20260709"]
 binding = "digest-bound workflow runtime and practice-evolution adoption evidence"
 verifier = "semantic"
@@ -17,6 +17,10 @@ tests = [
   "uv run --package ethos ethos quality module-layout --root . --json",
   "uv run --package ethos ethos report --root . --json",
   "uv run --group dev pytest -q tests/unit/kernel/test_invalid_states.py tests/unit/product/parity/test_gaps.py",
+  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py tests/unit/domain/test_plan.py tests/unit/domain/test_report.py tests/unit/assistants/test_skill_packages.py",
+  "uv run --package ethos ethos orient --json",
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv run --group dev pytest -q tests/unit/kernel/test_invalid_states.py tests/unit/lanes/hook/test_path_admission.py tests/architecture/test_product_boundaries.py::test_product_surfaces_are_author_and_adopter_neutral",
 ]
 
 [scope]
@@ -39,18 +43,20 @@ source = [
   "packages/ethos/src/ethos/repository/adoption/practice/selection.py",
   "packages/ethos/src/ethos/domain/plan.py",
   "packages/ethos/src/ethos/domain/report.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
 ]
 tests = [
   "tests/unit/governance/test_evolution_ledger.py",
   "tests/unit/kernel/test_workflow_contract.py",
   "tests/unit/domain/test_plan.py",
   "tests/unit/domain/test_report.py",
+  "tests/unit/domain/reporting/test_coordination.py",
   "tests/unit/assistants/test_skill_packages.py",
 ]
 
 [boundary]
 owner = "ethos-repository"
-scope = "Workflow runtime read model and governed commitment-effect evolution; practice claims carry evaluated practice changes while external frameworks remain bounded carriers, adapters, projections, or method packs."
+scope = "Workflow runtime read model and governed-passage practice evolution; governed commitments are auditable handles, practice claims carry evaluated practice changes, and external frameworks remain bounded carriers, adapters, projections, or method packs."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709"
@@ -81,9 +87,11 @@ targets = [
   "packages/ethos/src/ethos/repository/adoption/practice/selection.py",
   "packages/ethos/src/ethos/domain/plan.py",
   "packages/ethos/src/ethos/domain/report.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
   "tests/unit/governance/test_evolution_ledger.py",
   "tests/unit/kernel/test_workflow_contract.py",
   "tests/unit/domain/test_plan.py",
   "tests/unit/domain/test_report.py",
+  "tests/unit/domain/reporting/test_coordination.py",
   "tests/unit/assistants/test_skill_packages.py",
 ]

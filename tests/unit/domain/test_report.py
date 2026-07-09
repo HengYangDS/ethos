@@ -818,4 +818,5 @@ def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Pa
     payload = report_domain.scorecard_report(tmp_path)
 
     assert payload["ok"] is False
+    assert payload["data"]["scores"]["workflow_runtime"] == 0
     assert "workflow_runtime_public_commands_invalid" in payload["required_gaps"]

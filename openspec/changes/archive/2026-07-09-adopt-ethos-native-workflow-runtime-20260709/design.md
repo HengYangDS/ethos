@@ -13,16 +13,17 @@ skill/eval harness. Spec Kit, Task Master, BMAD, Superpowers, Agent OS,
 OpenSPDD, Shotgun, fspec, and adjacent systems contribute other useful practice
 patterns. The adoption target is therefore not a Comet import and not another
 framework layer. It is an ETHOS-native runtime/evolution read model for the root
-cycle: practice as vessel, evidence as verification, commitment as law, and
-retirement as non-attachment.
+cycle: question, bounded practice, evidence, judgment, commitment inscription,
+and release of the vessel.
 
-The key abstraction is governed commitment, not mechanism. A practice
-claim is the evolution carrier for a proposed commitment effect: it binds a
-subject, question, claim, boundary, falsifiers, candidate set, experiment,
-evaluation, commitment targets, commitment effect, and fate records. Workflow
-runtime, candidate comparison, handoff freshness, skill eval metadata,
+The key abstraction is the governed passage, not mechanism. A governed
+commitment is only the minimal auditable engineering handle for that passage. A
+practice claim is the evolution carrier for a proposed commitment effect: it
+binds a subject, question, claim, boundary, falsifiers, candidate set,
+experiment, evaluation, commitment targets, commitment effect, and fate records.
+Workflow runtime, candidate comparison, handoff freshness, skill eval metadata,
 task/scenario projections, and method-pack invocation are subordinate surfaces
-that help test or execute that claim.
+that help test or execute that judgment.
 
 ## Design
 
@@ -60,13 +61,13 @@ It adds these ETHOS-owned contracts:
 
 ## Evolution Relationship
 
-ETHOS already has a learning/evolution path:
+ETHOS already has a learning/evolution judgment loop:
 
 ```text
-observe -> hypothesize -> experiment -> prove -> canonize -> retire
+question -> boundary -> hypothesis -> experiment/review -> proof -> judgment -> inscription or release
 ```
 
-That path is higher-level than the workflow runtime. Research and investigations
+That loop is higher-level than the workflow runtime. Research and investigations
 live in `docs/research/` and may inform OpenSpec changes. Falsifiable
 hypotheses live in `evolution/ledger.toml`. Long-running coordinated work lives
 in `evolution/campaigns/<campaign-id>/campaign.toml`. Experiments are bounded
@@ -119,9 +120,9 @@ evidence, and retirement conditions.
 ## Practice Selection And Fate
 
 This change treats Comet, OpenSpec-alone, and adjacent SDD/agent workflow
-systems as carriers or candidate practices under one governed commitment model;
-the practice claim is the evolution carrier, not the root authority. ETHOS
-selects practices by evidence-weighted fit and supports practice fate
-governance: a practice may create, compose with, refine, replace, remove, or be
-rejected from governed commitments according to its relation to incumbent
-boundaries and evidence.
+systems as carriers or candidate practices under one governed passage model; the
+practice claim is the evolution carrier, not the root authority. ETHOS selects
+practices by evidence-weighted fit and supports practice fate governance: a
+practice may create, compose with, refine, replace, remove, reject, or archive
+commitment effects according to its relation to incumbent boundaries and
+evidence.

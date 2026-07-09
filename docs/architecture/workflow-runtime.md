@@ -19,25 +19,27 @@ The deeper model is not tool adoption, workflow enthusiasm, or a list of
 parallel mechanisms. ETHOS treats work as the vessel for testing understanding:
 
 ```text
-practice as vessel -> evidence as verification -> commitment as law -> retirement as non-attachment
+question -> practice as vessel -> evidence as verification -> commitment as law -> release of the vessel
 ```
 
-The root object is therefore not a tool, not a workflow, and not even the
-practice claim itself. The root object is a **governed commitment**: a bounded
-promise about a repository subject that may become law only after authority,
-evidence, claim, and chronicle binding.
+More fundamentally, ETHOS governs a **passage**, not a mechanism and not a new
+object of attachment. The passage is the auditable movement from a question
+about the repository to admitted repository law, or to a bounded refusal,
+archive, or retirement. A **governed commitment** is the minimal engineering
+handle for that passage: a bounded promise about a repository subject that may
+become law only after authority, evidence, claim, and chronicle binding. It is a
+handle for judgment, not a second ontology.
 
 Practice is the vessel. A **governed practice claim** is the evolution carrier
-that asks whether a practice deserves to create, compose with, refine,
-supersede, retire, or be rejected from those commitments:
+that asks how a tested practice should affect commitments:
 
 ```text
-subject + question + claim + boundary + falsifiers
-  -> candidate practices
-  -> experiment and evaluation
-  -> commitment targets
+question + subject + boundary + falsifiers
+  -> candidate practices or incumbent practice
+  -> experiment, review, proof, and evaluation
+  -> judgment over commitment targets
   -> commitment effect: create / compose / refine / replace / remove / reject
-  -> fate: introduce / compose / refine / supersede / retire / reject
+  -> fate of carriers: introduce / compose / refine / supersede / retire / reject / archive
 ```
 
 A framework, workflow, spec format, skill pack, task graph, or scenario system
@@ -53,27 +55,29 @@ rejected according to its relation to existing commitments and the evidence it
 can bind. Its deeper outcome is the commitment effect: create a new commitment,
 compose with one, refine one, replace one, remove one, or refuse to admit one.
 This is the operational reading of the root constraint: do not cling to the
-vessel; use the vessel to verify the Dao of the work, then either canonize the
-verified commitment or release the vessel.
+vessel; use the vessel to expose, test, and govern the work, then either
+canonize the verified commitment or release the vessel.
 
-Therefore ETHOS asks four questions before it adopts anything from Comet,
+Therefore ETHOS asks five questions before it adopts anything from Comet,
 OpenSpec, Spec Kit, Task Master, BMAD, Superpowers, Agent OS, OpenSPDD, Shotgun,
 fspec, or similar frameworks:
 
-1. What practice is being tested, independent of the tool that carries it?
-2. What evidence would falsify or confirm it?
-3. What commitment would be created, preserved, refined, replaced, removed, or
+1. What question is being answered, and which repository boundary owns it?
+2. What practice is being tested, independent of the tool that carries it?
+3. What evidence would falsify or confirm it?
+4. What commitment would be created, preserved, refined, replaced, removed, or
    refused if judgment passes?
-4. What should happen to the practice carrier once the commitment effect is
+5. What should happen to the practice carrier once the commitment effect is
    known?
 
 In this model, "upper replacement" is not the default move. If ETHOS does not
 already own a practice in the same boundary, the correct act is introduction. If
 the old practice is still valid but narrow, the act may be composition or
-refinement. If the old practice is redundant, unsafe, or false, the act is
-retirement. Supersession is reserved for the narrower case where a new practice
-intentionally covers and replaces an incumbent commitment boundary with
-migration, fallback, kill signal, evidence, and retirement conditions.
+refinement. If the old practice is redundant, unsafe, false, stale, or
+misbounded, the act is retirement or rejection. Supersession is reserved for the
+narrower case where a new practice intentionally covers and replaces an
+incumbent commitment boundary with migration, fallback, kill signal, evidence,
+and retirement conditions.
 
 ## Decision
 
@@ -139,17 +143,16 @@ guards, and evidence refs. It must not store hypotheses or experiments as hidden
 runtime phases.
 
 Therefore, a framework study such as the Comet/OpenSpec research is not merely a
-workflow run. It is a research input that can produce a falsifiable hypothesis,
-a bounded experiment, proof evidence, and then a decision to create, revise,
-replace, retire, or refuse a commitment. The durable unit is the governed
-commitment; the practice claim is the evolution carrier that helps execute and
-inspect it.
+workflow run. It is a research input in the governed passage: question,
+boundary, falsifier, experiment, evidence, judgment, and inscription or release.
+The durable engineering handle is the governed commitment; the practice claim is
+the evolution carrier that helps execute and inspect the judgment.
 
 ## Practice Selection And Fate
 
 ETHOS must support **multi-candidate selection**, but the more fundamental model
-is not "always supersede." ETHOS governs the commitment effect of trustworthy
-practice claims.
+is not "always supersede" and not "add another mechanism." ETHOS governs the
+passage from question to commitment effect for trustworthy practice claims.
 
 - A practice claim names the subject, question, boundary, claim, falsifiers,
   candidate set, experiment, evaluation, commitment targets, commitment effect,

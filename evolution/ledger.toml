@@ -72,7 +72,7 @@ owner = "ethos-maintainers"
 subject = "ethos:workflow-runtime-practice-evolution"
 question = "How should ETHOS govern reusable workflow and self-evolution practices after studying Comet 0.4, OpenSpec, Spec Kit, Task Master, BMAD, Superpowers, Agent OS, OpenSPDD, Shotgun, fspec, and adjacent systems?"
 claim = "ETHOS should govern commitment effects through bounded practice claims: a practice is tested through evidence, promoted only as a repository commitment effect, and released when redundant, false, unsafe, or overreaching. Tools and frameworks are carriers, adapters, projections, or method packs rather than authority."
-boundary = "The root object is the governed commitment, not a workflow phase, task store, framework, skill pack, practice claim, or mechanism. The practice claim is the evolution carrier that explains how a practice was tested and what commitment effect it proposes."
+boundary = "The root model is the governed passage from question to repository law, bounded refusal, archive, or retirement. A governed commitment is the auditable handle for that passage; it is not a workflow phase, task store, framework, skill pack, practice claim, or mechanism. The practice claim is the evolution carrier that explains how a practice was tested and what commitment effect it proposes."
 incumbent_relation = "There was no single incumbent for the upper practice-evolution boundary. OpenSpec remains the incumbent spec/change/archive carrier and is composed, not superseded. Comet and adjacent systems were references, not ETHOS authority."
 falsifiers = [
   "A selected tool or runtime can mark lifecycle truth without ETHOS evidence, claim, and chronicle binding.",

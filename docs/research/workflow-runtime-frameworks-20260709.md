@@ -23,12 +23,13 @@ The previous binary framing, "Comet vs OpenSpec", is too shallow. Source reading
 In short: **Comet is more extensible as a workflow system; OpenSpec is more appropriate as a spec carrier. ETHOS should become the governing kernel above both.**
 
 The more fundamental conclusion is that ETHOS should not govern frameworks as
-objects of attachment. It should govern **bounded commitments through practice
-claims**: what practice is being asserted, where its boundary is, what would
-falsify it, which candidates were compared, which experiment and evidence were
-used, what commitment effect is proposed, and whether the practice creates,
-composes with, refines, replaces, removes, or is rejected from governed
-commitments.
+objects of attachment. It should govern the **passage from question to
+repository law, bounded refusal, archive, or retirement**. Practice claims are
+evolution carriers inside that passage: they name what practice is being
+asserted, where its boundary is, what would falsify it, which candidates were
+compared, which experiment and evidence were used, what commitment effect is
+proposed, and whether the practice introduces, composes with, refines,
+supersedes, retires, archives, or is rejected from governed commitments.
 
 ## ETHOS non-negotiable boundary
 
@@ -176,6 +177,9 @@ ETHOS should not reimplement all method prose; instead, treat these as method pa
 
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle.
 
+This chain is the auditable engineering handle for the deeper governed passage:
+question -> boundary -> test -> judgment -> inscription or release.
+
 ### Layer 1: Practice-claim evolution carrier
 
 Represent reusable methods and framework lessons as governed practice claims:
@@ -184,7 +188,7 @@ Represent reusable methods and framework lessons as governed practice claims:
 - candidate practices or carriers;
 - experiment protocol and evaluation record;
 - commitment targets if the claim passes;
-- fate records: introduce, compose, refine, supersede, retire, or reject.
+- fate records: introduce, compose, refine, supersede, retire, reject, or archive.
 
 This layer prevents a false binary such as "Comet vs OpenSpec" from becoming
 the model. OpenSpec can remain a carrier while Comet-style runtime ideas,
@@ -285,8 +289,8 @@ Status: see front matter.
 Purpose: compare Comet 0.4, OpenSpec, Spec Kit, Task Master, BMAD,
 Superpowers, Agent OS, OpenSPDD, Shotgun, fspec, and adjacent SDD/agent
 workflow systems as practice carriers so ETHOS can choose what to introduce,
-compose, refine, supersede, retire, or reject without adopting an external
-lifecycle authority.
+compose, refine, supersede, retire, reject, or archive without adopting an
+external lifecycle authority.
 
 See also: [Workflow Runtime](../architecture/workflow-runtime.md),
 [Evolution Campaign](../governance/evolution-campaign.md), and

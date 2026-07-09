@@ -108,13 +108,19 @@ ETHOS is kernel-first. The product model is:
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-The center is **governed commitment**: a bounded repository promise about a
-subject under an authority. ETHOS does not govern mechanisms for their own
-sake. It governs how a commitment is proposed, tested, admitted, changed,
-superseded, retired, or rejected. A workflow, framework, skill pack, task graph,
-scenario system, spec format, or method is only a vessel when it helps a
-commitment become clearer, better evidenced, safer to change, or ready to
-leave.
+The center is the **governed passage** from question to repository law: a
+question is bounded to a subject, tested through evidence, judged as a change to
+commitments, and then either admitted, composed, refined, superseded, retired,
+rejected, or archived. A **governed commitment** is the minimal auditable
+engineering handle for that passage: a bounded repository promise about a
+subject under an authority. It is not a new object of attachment and not a
+parallel ontology.
+
+ETHOS does not govern mechanisms for their own sake. It governs how a question
+becomes, changes, or leaves repository law. A workflow, framework, skill pack,
+task graph, scenario system, spec format, or method is only a vessel when it
+helps a commitment become clearer, better evidenced, safer to change, or ready
+to leave.
 
 - Authority: authority order, truth boundaries, product principles, and
   decision policy. North Star is a derived reader view, not the authority.
@@ -138,9 +144,9 @@ leave.
 Practice claims belong under this chain. They are evolution carriers that ask
 whether a reusable way of working should create, compose with, refine,
 supersede, retire, or be rejected from the repository's commitments. The root
-question is therefore not "which mechanism should ETHOS add?" but "which
-commitment should survive evidence, and what should happen to the practices and
-carriers around it?"
+question is therefore not "which mechanism should ETHOS add?" but "what question
+is being governed, which commitment should survive evidence, and what should
+happen to the practices and carriers around it?"
 
 ## Governed Repository
 

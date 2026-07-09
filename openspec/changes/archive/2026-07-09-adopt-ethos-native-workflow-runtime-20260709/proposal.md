@@ -16,12 +16,15 @@ This change promotes the research outcome into repository truth and adds a
 minimal ETHOS-native workflow runtime read model under the existing kernel and
 command plane.
 
-The deeper design target is governed commitment. ETHOS should decide
+The deeper design target is the governed passage from question to repository
+law, bounded refusal, archive, or retirement. A governed commitment is only the
+minimal auditable engineering handle for that passage. ETHOS should decide
 whether a practice deserves to create, compose with, refine, replace, remove, or
-be rejected from a repository commitment by binding its subject, boundary,
-falsifiers, candidate comparison, experiment, evaluation, commitment targets,
-commitment effect, and fate. The runtime and framework mechanisms are
-projections that help execute that claim; they are not the root object.
+be rejected from a repository commitment by binding its question, subject,
+boundary, falsifiers, candidate comparison, experiment, evaluation, commitment
+targets, commitment effect, and carrier fate. The runtime and framework
+mechanisms are projections that help execute that judgment; they are not the
+center.
 
 ## What Changes
 
@@ -65,11 +68,12 @@ projections that help execute that claim; they are not the root object.
 ## Practice Selection And Fate
 
 This change treats Comet, OpenSpec-alone, and adjacent SDD/agent workflow
-systems as carriers or candidate practices under one governed commitment model;
-the practice claim is the evolution carrier, not the root authority. ETHOS
-selects practices by evidence-weighted fit and supports practice fate
-governance: introduce when no incumbent commitment owns the boundary, compose
-when bounded carriers each contribute, refine when an incumbent remains valid,
-supersede only when a new practice covers and replaces an incumbent commitment
-boundary, retire when an incumbent is redundant or wrong, and reject when a
-candidate remains bounded learning.
+systems as carriers or candidate practices under one governed passage model; the
+practice claim is the evolution carrier, not the root authority. ETHOS selects
+practices by evidence-weighted fit and supports practice fate governance:
+introduce when no incumbent commitment owns the boundary, compose when bounded
+carriers each contribute, refine when an incumbent remains valid, supersede only
+when a new practice covers and replaces an incumbent commitment boundary, retire
+when an incumbent is redundant, wrong, unsafe, stale, or misbounded, reject when
+a candidate remains bounded learning, and archive judged learning when the
+carrier no longer participates in active governance.

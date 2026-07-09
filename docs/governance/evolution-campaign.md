@@ -10,30 +10,34 @@ relations:
 
 ETHOS governs repository evolution through one repository-truth ledger at `evolution/ledger.toml` plus campaign manifests under `evolution/campaigns/`. Documentation explains the mechanism; it does not store a parallel ledger.
 
-ETHOS governs repository evolution through:
+ETHOS governs repository evolution as a judgment loop, not as a pile of
+independent mechanisms:
 
 ```text
-observe -> hypothesize -> experiment -> prove -> canonize -> retire
+question -> boundary -> hypothesis -> experiment/review -> proof -> judgment -> inscription or release
 ```
 
-The more fundamental unit is a **governed practice claim**. It names the
+The more fundamental movement is the **governed passage** from a question to a
+repository commitment, bounded refusal, archive, or retirement. A **governed
+practice claim** is the evolution carrier for that passage. It names the
 subject, question, claim, boundary, falsifiers, relation to incumbents,
-candidate set, experiment, evaluation, commitment targets, and fate records.
-Hypotheses, candidate sets, experiments, evaluations, practice changes,
-campaign steps, runtime nodes, and scorecards are projections that help test and
-promote that claim. They are not the root object.
+candidate set, experiment, evaluation, commitment targets, commitment effect,
+and fate records. Hypotheses, candidate sets, experiments, evaluations, practice
+changes, campaign steps, runtime nodes, and scorecards are projections that help
+test and promote that claim. They are not the center.
 
 The root discipline is:
 
 ```text
-以实践为器，以证据验道，以承诺成法，以退役去执
+以问定域，以实践为器，以证据验道，以承诺成法，以退藏去执
 ```
 
-In operational terms: research and experiments are vessels, not authorities;
-evidence tests whether a practice deserves trust; a proven practice becomes a
-repository commitment only through source, schema, docs, OpenSpec, claims,
-evidence, and Chronicle; obsolete, false, redundant, or overreaching practices
-must be retired, rejected, or bounded instead of preserved as process residue.
+In operational terms: research and experiments are vessels, not authorities; a
+question must be bounded before it can be tested; evidence tests whether a
+practice deserves trust; a proven practice becomes a repository commitment only
+through source, schema, docs, OpenSpec, claims, evidence, and Chronicle;
+obsolete, false, redundant, stale, misbounded, or overreaching practices must be
+retired, rejected, or archived instead of preserved as process residue.
 
 Repository audit checks command-plane growth, package ontology drift, docs metadata,
 schema coverage, profile leakage, and adapter boundaries. Evolution records
@@ -49,17 +53,14 @@ not create a private command plane or a second product lifecycle.
 objects. A hypothesis should be challenged, proven, canonized, or retired; it
 must not linger as implicit roadmap text.
 
-`ethos campaign hypotheses --json` reads `evolution/ledger.toml` and exposes active hypotheses as first-class
-objects. A hypothesis should be challenged, proven, canonized, or retired; it
-must not linger as implicit roadmap text.
-
 The same ledger also admits first-class practice-evolution records. ETHOS does
 not ultimately govern tools or mechanisms as objects of attachment; it governs
-which practice claims become trustworthy commitments:
+which questions may become trustworthy commitment effects:
 
-- `practice_claim`: the root practice-evolution object. It binds the subject,
-  question, claim, boundary, falsifiers, candidate set, experiment, evaluation,
-  practice-change refs, commitment targets, evidence refs, and decision refs;
+- `practice_claim`: the practice-evolution carrier inside a governed passage.
+  It binds the subject, question, claim, boundary, falsifiers, candidate set,
+  experiment, evaluation, practice-change refs, commitment targets, evidence refs,
+  and decision refs;
 - `candidate_set`: a bounded set of competing practices, frameworks, adapters,
   method packs, projections, or implementation strategies answering the same
   governance question;
@@ -75,18 +76,19 @@ which practice claims become trustworthy commitments:
   learning.
 
 This makes multi-candidate selection, introduction, composition, refinement,
-real supersession, retirement, and rejection part of repository truth rather
-than assistant narrative. The objects still do not create a second lifecycle:
-all practice evolution must bind to source, schemas, OpenSpec, claims, evidence,
-and Chronicle before it becomes canon.
+real supersession, retirement, rejection, and archive part of repository truth
+rather than assistant narrative. The objects still do not create a second
+lifecycle: all practice evolution must bind to source, schemas, OpenSpec,
+claims, evidence, and Chronicle before it becomes canon.
 
 The fate terms are intentionally asymmetric. Introduction is valid only when no
 incumbent owns the boundary. Composition keeps multiple bounded carriers.
 Refinement improves a valid incumbent in place. Supersession requires an
 incumbent, coverage of that incumbent's responsibility boundary, migration,
 fallback, kill signal, evidence, and retirement conditions. Retirement removes a
-redundant, unsafe, false, stale, or overreaching incumbent. Rejection keeps a
-candidate as bounded learning without promotion.
+redundant, unsafe, false, stale, misbounded, or overreaching incumbent. Rejection
+keeps a candidate as bounded learning without promotion. Archive preserves
+judged learning after the carrier no longer participates in active governance.
 
 `ethos quality evidence-freshness --json` checks the ledger as part of the
 evidence freshness read model. Active hypotheses must cite resolvable proof,

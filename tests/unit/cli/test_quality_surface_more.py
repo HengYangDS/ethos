@@ -214,6 +214,33 @@ def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path)
     assert emitted[0]["data"]["missing"][0]["qualified_name"] == "mod.public"
 
 
+def test_quality_claims_surfaces_advisory_summary_without_blocking(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "head-123")
+
+    def fake_claims_report(repo, *, current_head=""):
+        return {
+            "ok": True,
+            "required_gaps": [],
+            "advisory_gaps": ["sample:evidence.head_unbound"],
+            "claims": {"sample": {"state": "active"}},
+            "claims_root": "evidence/claims",
+        }
+
+    monkeypatch.setattr(q, "claims_report", fake_claims_report)
+
+    q.claims(root=tmp_path, json_output=True)
+
+    assert emitted[0]["ok"] is True
+    assert emitted[0]["state"] == "clean"
+    assert emitted[0]["required_gaps"] == []
+    assert emitted[0]["summary"] == {
+        "claim_count": 1,
+        "advisory_gap_count": 1,
+    }
+    assert emitted[0]["data"]["advisory_gaps"] == ["sample:evidence.head_unbound"]
+
+
 def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_path: Path):
     emitted = _capture(monkeypatch)
     seen: dict[str, str] = {}

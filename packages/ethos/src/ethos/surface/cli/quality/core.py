@@ -822,10 +822,16 @@ def claims(
     repo = resolve_root(root)
     current_head = git_adapter.current_head(repo)
     report = claims_report(repo, current_head=current_head)
+    advisory_gaps = cast("list[str]", report.get("advisory_gaps", []))
+    claims = cast("dict[str, object]", report.get("claims", {}))
     result = EthosResult(
         command="quality claims",
         ok=bool(report["ok"]),
         state="clean" if report["ok"] else "blocked",
+        summary={
+            "claim_count": len(claims),
+            "advisory_gap_count": len(advisory_gaps),
+        },
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         next_actions=("ethos prove --json",),
         data=report,

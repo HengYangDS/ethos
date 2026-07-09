@@ -310,32 +310,27 @@ def test_gitlab_emulator_runtime_state_stays_under_build_runtime() -> None:
     assert not root_state.exists()
 
 
-def test_local_emulator_normal_run_refuses_untracked_materialization(tmp_path: Path) -> None:
+def test_local_emulator_normal_run_refuses_untracked_materialization(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    monkeypatch.setattr(ci_templates, "ROOT", tmp_path)
+
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
     output = tmp_path / "github-run.json"
-    untracked = ROOT / "tests/provider-emulator-untracked.txt"
+    untracked = tmp_path / "tests/provider-emulator-untracked.txt"
     untracked.parent.mkdir(parents=True, exist_ok=True)
     untracked.write_text("untracked\n", encoding="utf-8")
-    try:
-        result = subprocess.run(
-            [
-                sys.executable,
-                "tools/ci/ci_templates.py",
-                "emulator-evidence",
-                "github",
-                "--mode",
-                "run",
-                "--output",
-                str(output),
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    finally:
-        untracked.unlink(missing_ok=True)
 
-    assert result.returncode == 1
+    result_code = ci_templates.emulator_evidence(
+        "github",
+        mode="run",
+        dry_run=False,
+        allow_untracked=False,
+        output=output,
+    )
+
+    assert result_code == 1
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["ok"] is False
     assert payload["materialization"]["mode_allows_untracked"] is False

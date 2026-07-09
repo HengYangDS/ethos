@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ethos.domain.report as report_domain
 import ethos.domain.reporting.scoring as reporting_scoring
 import ethos.surface.cli.root.inspection as root_inspection
 from ethos.domain.reporting.gaps import advisory_next_actions
@@ -96,6 +97,11 @@ def test_report_scorecard_is_derived_from_governance_checks(monkeypatch) -> None
         "coverage_quality_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
+
+    def clean_parity_gaps_report(**_kwargs):
+        return {"ok": True, "required_gaps": [], "pending_packages": []}
+
+    monkeypatch.setattr(report_domain, "parity_gaps_report", clean_parity_gaps_report)
 
     payload = run_ethos("report", "--json")
 

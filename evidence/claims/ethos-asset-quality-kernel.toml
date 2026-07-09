@@ -110,7 +110,7 @@ targets = [
   "packages/ethos/pyproject.toml",
   "packages/ethos/src/ethos/adapters/gates/runner.py",
   "packages/ethos-core/src/ethos_core/contracts/capability/parity.py",
-  "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
+  "packages/ethos-core/src/ethos_core/contracts/package/ontology.py",
   "packages/ethos-core/src/ethos_core/action_graph/core.py",
   "packages/ethos-core/README.md",
   "pyproject.toml",

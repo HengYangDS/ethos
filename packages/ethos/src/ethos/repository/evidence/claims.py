@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.repository.profile import profile_root
-from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 
 if TYPE_CHECKING:

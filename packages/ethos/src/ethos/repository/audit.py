@@ -23,8 +23,8 @@ from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
-from ethos_core.contracts.package_ontology import package_ontology_report
-from ethos_core.contracts.package_ontology import workspace_package_config_report
+from ethos_core.contracts.package.ontology import package_ontology_report
+from ethos_core.contracts.package.ontology import workspace_package_config_report
 from ethos_core.contracts.system.contracts import system_contracts_report
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]

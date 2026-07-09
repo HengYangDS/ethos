@@ -6,7 +6,7 @@ from pathlib import Path
 
 import ethos_core.contracts.system.contracts as system_contracts
 from ethos_core.contracts import rules
-from ethos_core.contracts.package_ontology import workspace_package_config_report
+from ethos_core.contracts.package.ontology import workspace_package_config_report
 from ethos_core.invalid_states import UNCLASSIFIED
 from ethos_core.invalid_states import classify
 from ethos_core.invalid_states import invalid_state_categories

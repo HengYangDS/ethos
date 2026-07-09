@@ -69,3 +69,25 @@ def test_system_contracts_live_in_semantic_subpackage_not_suffix_module() -> Non
     assert not ROOT.joinpath(
         "packages/ethos-core/src/ethos_core/contracts/system_contracts.py"
     ).exists()
+
+
+PACKAGE_ONTOLOGY_DEBT = (
+    "module_layout_suffix_module:"
+    "packages/ethos-core/src/ethos_core/contracts/package_ontology.py:package_ontology"
+)
+
+
+def test_package_ontology_contract_lives_in_semantic_subpackage_not_suffix_module() -> None:
+    """Keep package ontology under contracts/package/ instead of suffix-flat debt."""
+    report = module_layout_report(ROOT)
+    suffix_gaps = {finding["gap"] for finding in report["suffix_module_findings"]}
+    policy_text = ROOT.joinpath(report["policy"]).read_text(encoding="utf-8")
+
+    assert PACKAGE_ONTOLOGY_DEBT not in suffix_gaps
+    assert PACKAGE_ONTOLOGY_DEBT not in policy_text
+    assert ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/package/ontology.py"
+    ).is_file()
+    assert not ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/package_ontology.py"
+    ).exists()

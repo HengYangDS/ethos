@@ -7,7 +7,7 @@ from pathlib import Path
 from ethos.domain.report import _advisory_next_actions
 from ethos.domain.report import _gap_layers
 from ethos.repository.adoption.planner import adoption_plan
-from ethos_core.contracts.package_ontology import package_ontology_report
+from ethos_core.contracts.package.ontology import package_ontology_report
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos

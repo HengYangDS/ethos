@@ -470,7 +470,7 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
 
 
 def test_repository_audit_uses_canonical_package_ontology_contract() -> None:
-    from ethos_core.contracts.package_ontology import package_ontology_report
+    from ethos_core.contracts.package.ontology import package_ontology_report
 
     contract = package_ontology_report()
     audit = repository_audit(ROOT, openspec_mode="shape")

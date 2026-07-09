@@ -10,9 +10,9 @@ from pathlib import Path
 
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
-from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
-from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos_core.contracts.package_ontology import package_ontology_report
+from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
+from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_core.contracts.package.ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {

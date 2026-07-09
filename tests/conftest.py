@@ -8,10 +8,13 @@ state directory and clears only that worker-owned directory around each test.
 A second autouse fixture gives the suite a HERMETIC git identity: many tests shell out
 to `git commit` in throwaway repos, which fails when the runner has no global
 user.name/user.email (the case in CI's clean container — the dominant cause of
-"passes locally, red in CI"). Binding GIT_AUTHOR_*/GIT_COMMITTER_* per test makes the
-suite self-contained instead of depending on the developer's ambient machine config.
-The fixture also disables commit signing through Git's environment-backed config so
-global `commit.gpgsign=true` cannot make temporary test commits depend on local keys.
+"passes locally, red in CI"). Binding GIT_AUTHOR_*/GIT_COMMITTER_* per test makes
+the suite self-contained instead of depending on the developer's ambient machine
+config. The fixture also disables commit signing through Git's environment-backed
+config so global `commit.gpgsign=true` cannot make temporary test commits depend
+on local keys. It also binds `init.templateDir` to a repository-owned empty
+template directory so temporary test repositories never inherit developer-global
+hooks such as pre-commit.
 """
 
 from __future__ import annotations
@@ -45,10 +48,14 @@ def _hermetic_git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
     """Bind a deterministic git identity so `git commit` in test repos never depends
     on ambient global config (absent in CI). Covers both the author/committer used by
     plumbing and the config-derived identity read by signature policy checks."""
+    git_template = _REPO_ROOT / "build" / "runtime" / "work" / "pytest-empty-git-template"
+    git_template.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("GIT_AUTHOR_NAME", "ETHOS Test")
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@ethos.local")
     monkeypatch.setenv("GIT_COMMITTER_NAME", "ETHOS Test")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@ethos.local")
-    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
     monkeypatch.setenv("GIT_CONFIG_KEY_0", "commit.gpgsign")
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "false")
+    monkeypatch.setenv("GIT_CONFIG_KEY_1", "init.templateDir")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_1", git_template.as_posix())

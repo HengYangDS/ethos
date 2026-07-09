@@ -7,12 +7,12 @@ summary = "ETHOS admission blocks ASCII control characters in target path tokens
 
 [evidence]
 dated = "evidence/chronicle/control-character-path-admission-20260709/2026-07-09.md"
-sha256 = "b7fb616cc122c6afbd84b2ca884e2c4c76244cd01a43549d4a69466118da2ac4"
+sha256 = "4ec46e4d0ff3963040cbf29eef6683674360f780db8f068934af0a49afbb3a10"
 evidence_ids = ["evidence:control-character-path-admission-20260709"]
 binding = "control-character path-token admission evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --package ethos pytest tests/unit/lanes/test_hook_admission.py tests/unit/lanes/hook/test_path_admission.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
+  "uv run --package ethos pytest tests/unit/lanes/test_hook_admission.py tests/unit/lanes/hook/test_path_admission.py tests/unit/cli/hook/test_path_admission.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
   "tools/ci/scripts/run-python-lint.sh",
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --package ethos ethos quality code-size --json",
@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --write-evidence --json",
+  "uv run --package ethos ethos parity gaps --json",
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]
 
@@ -27,6 +29,7 @@ tests = [
 packages = ["ethos"]
 tests = [
   "tests/unit/lanes/hook/test_path_admission.py",
+  "tests/unit/cli/hook/test_path_admission.py",
   "tests/unit/lanes/test_hook_admission.py",
 ]
 
@@ -53,4 +56,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "tests/unit/lanes/hook/__init__.py",
   "tests/unit/lanes/hook/test_path_admission.py",
+  "tests/unit/cli/hook/__init__.py",
+  "tests/unit/cli/hook/test_path_admission.py",
+  "evidence/parity/generic-shadow.json",
 ]

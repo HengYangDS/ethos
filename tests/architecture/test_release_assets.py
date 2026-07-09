@@ -150,6 +150,16 @@ def test_ci_node_installer_is_architecture_aware() -> None:
     assert "ETHOS_CI_DOWNLOAD_ATTEMPTS" in downloader
 
 
+def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-secrets-scan.sh").read_text(encoding="utf-8")
+
+    assert '"git", "ls-files", "-z"' in runner
+    assert "ethos-gitleaks-tracked" in runner
+    assert "--source ." not in runner
+    assert '--source "${scan_root}"' in runner
+    assert "tracked files" in runner
+
+
 def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
     installer = (ROOT / "tools/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")

@@ -13,12 +13,51 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 report_dir="${ETHOS_SECRETS_REPORT_DIR:-build/evidence/quality/secrets}"
 mkdir -p "${report_dir}"
 
-# Full working-tree scan (`--no-git`) so the gate fails on any secret currently
-# present in tracked files, independent of commit history. `--redact` keeps the
-# matched value out of logs and the report.
+scan_parent="$(mktemp -d "${TMPDIR:-/tmp}/ethos-gitleaks-tracked.XXXXXX")"
+scan_root="${scan_parent}/ethos-gitleaks-tracked"
+mkdir -p "${scan_root}"
+trap 'rm -rf "${scan_parent}"' EXIT
+
+# Secret scanning is a source-quality gate over tracked files, not a host-state
+# audit over ignored caches or generated local evidence. Materialize the Git
+# tracked file set into an isolated mirror and scan that mirror as a regular
+# directory so untracked `.cache/`, `build/`, and `.ethos/state/` residue cannot
+# create false quality failures while tracked secrets still fail deterministically.
+python - "${repo_root}" "${scan_root}" <<'PY'
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+scan_root = Path(sys.argv[2])
+completed = subprocess.run(
+    ["git", "ls-files", "-z"],
+    cwd=repo,
+    check=True,
+    stdout=subprocess.PIPE,
+)
+for raw_path in completed.stdout.split(b"\0"):
+    if not raw_path:
+        continue
+    relative = raw_path.decode("utf-8", errors="surrogateescape")
+    source = repo / relative
+    target = scan_root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if source.is_symlink():
+        os.symlink(os.readlink(source), target)
+    elif source.is_file():
+        shutil.copy2(source, target)
+PY
+
+# `--no-git` intentionally applies to the tracked-file mirror, not to the full
+# worktree. `--redact` keeps matched values out of logs and the report.
 gitleaks detect \
-  --source . \
-  --config .gitleaks.toml \
+  --source "${scan_root}" \
+  --config "${repo_root}/.gitleaks.toml" \
   --no-git \
   --redact \
   --report-format json \

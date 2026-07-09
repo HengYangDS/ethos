@@ -10,3 +10,7 @@ discoverable alongside the other `.config/checks/<concern>/` gates.
 - Policy: `/.gitleaks.toml` (`[extend] useDefault = true` + allowlist)
 - Installer: `tools/ci/scripts/install-gitleaks.sh` (pinned prebuilt binary)
 - Runner: `tools/ci/scripts/run-secrets-scan.sh`
+- Scope: the runner materializes `git ls-files` into a temporary
+  `ethos-gitleaks-tracked` mirror before scanning, so the gate covers tracked
+  source deterministically and excludes gitignored local caches or generated
+  host-state residue.

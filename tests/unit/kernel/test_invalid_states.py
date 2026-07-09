@@ -157,7 +157,11 @@ def test_classify_all_groups_in_chain_order() -> None:
     grouped = classify_all(
         ("authority_graph_missing", "openspec_config_missing", "evidence_stale:x")
     )
-    assert list(grouped) == ["authority_gap", "carrier_invalid", "evidence_missing_or_stale"]
+    assert list(grouped) == [
+        "authority_gap",
+        "carrier_invalid",
+        "evidence_missing_or_stale",
+    ]
 
 
 def test_longest_prefix_wins_on_overlap() -> None:
@@ -170,6 +174,19 @@ def test_coordination_advisories_reduce_to_change_unbounded() -> None:
     assert classify("foreign_work_lane_present") == "change_unbounded"
     assert classify("unbound_work_lane_ref_present") == "change_unbounded"
     assert classify("work_lane_missing_lease:work/raw") == "change_unbounded"
+
+
+def test_head_unbound_evidence_advisories_reduce_to_evidence() -> None:
+    assert classify("sample:evidence.head_unbound") == "evidence_missing_or_stale"
+    assert classify("evidence.head_unbound") == "evidence_missing_or_stale"
+
+
+def test_coverage_artifact_gaps_reduce_to_evidence() -> None:
+    assert classify("coverage_artifact_missing") == "evidence_missing_or_stale"
+    assert (
+        classify("coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml")
+        == "evidence_missing_or_stale"
+    )
 
 
 def test_runtime_and_projection_failures_reduce_to_substrate() -> None:
@@ -217,3 +234,7 @@ def test_projection_counts_grouped_gaps() -> None:
         "category_count": 2,
         "gap_count": 2,
     }
+
+
+def test_whitespace_path_admission_reduces_to_subject_ambiguous() -> None:
+    assert classify("prewrite_path_invalid_whitespace") == "subject_ambiguous"

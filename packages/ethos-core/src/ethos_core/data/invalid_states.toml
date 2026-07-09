@@ -47,7 +47,9 @@ match_prefixes = [
   "editor_root_",
   "path_not_allowed_source",
   "path_invalid_control_character",
+  "path_invalid_whitespace",
   "prewrite_path_invalid_control_character",
+  "prewrite_path_invalid_whitespace",
   "git_repository_missing",
   "git_user_name_mismatch",
   "git_user_email_mismatch",
@@ -186,6 +188,8 @@ question = "Is the evidence present, fresh, HEAD-bound, and actually executed?"
 summary = "The Evidence — executed proof, gate result, digest, or freshness binding — is missing, stale, dry-run-only, or not bound to the pushed/expected HEAD."
 match_prefixes = [
   "evidence_missing_or_stale",
+  "evidence.head_unbound",
+  "coverage_artifact_missing",
   "evidence_stale",
   "evidence_required",
   "evidence_gap",

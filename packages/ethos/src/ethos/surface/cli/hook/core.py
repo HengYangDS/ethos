@@ -12,7 +12,7 @@ import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
-from ethos.adapters.admission.prewrite import has_control_character
+from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -40,7 +40,9 @@ def admit(
         root=repo,
         layer=layer,
         paths=[
-            path if path.is_absolute() or has_control_character(path.as_posix()) else repo / path
+            path
+            if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+            else repo / path
             for path in paths
         ],
         editor_root=editor_root,
@@ -94,7 +96,10 @@ def pre_push(
     """
     repo = resolve_root(root)
     report = push_admission_report(
-        root=repo, target_ref=target_ref, pushed_head=pushed_head, remote_head=remote_head
+        root=repo,
+        target_ref=target_ref,
+        pushed_head=pushed_head,
+        remote_head=remote_head,
     )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""

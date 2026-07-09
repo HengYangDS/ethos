@@ -97,10 +97,10 @@ def classify(gap: str) -> str:
     """
     best_id = UNCLASSIFIED
     best_len = -1
+    segments = (gap, *gap.split(":"))
     for category in invalid_state_categories():
         for prefix in category.match_prefixes:
-            stem = gap.split(":", 1)[0]
-            if (stem.startswith(prefix) or gap.startswith(prefix)) and len(prefix) > best_len:
+            if any(segment.startswith(prefix) for segment in segments) and len(prefix) > best_len:
                 best_id, best_len = category.id, len(prefix)
     return best_id
 

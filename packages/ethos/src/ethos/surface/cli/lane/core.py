@@ -11,6 +11,7 @@ from typing import cast
 from cyclopts import Parameter
 
 import ethos.domain.prove as prove_domain
+from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
@@ -178,7 +179,12 @@ def prewrite(
     repo = resolve_root(root)
     report = prewrite_guard(
         root=repo,
-        paths=[path if path.is_absolute() else repo / path for path in paths],
+        paths=[
+            path
+            if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+            else repo / path
+            for path in paths
+        ],
         editor_root=editor_root,
         require_editor_root=require_editor_root,
     )

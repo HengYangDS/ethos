@@ -15,6 +15,16 @@ _CONTROL_CHARACTER_UPPER_BOUND = 32
 _DELETE_CONTROL_CODE_POINT = 127
 
 
+def has_path_whitespace(text: str) -> bool:
+    """Return whether a path token contains whitespace and is therefore ambiguous."""
+    return any(character.isspace() for character in text)
+
+
+def has_invalid_path_token_character(text: str) -> bool:
+    """Return whether a path token is unsafe to join or admit as a single subject."""
+    return has_control_character(text) or has_path_whitespace(text)
+
+
 def prewrite_guard(
     *,
     root: Path,
@@ -261,6 +271,15 @@ def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
             "allowed": False,
             "reason": "path_invalid_control_character",
         }
+    if has_path_whitespace(path_text):
+        return {
+            "path": path_text,
+            "relative_path": "",
+            "ignored": False,
+            "tracked_candidate": False,
+            "allowed": False,
+            "reason": "path_invalid_whitespace",
+        }
     root_path = root.resolve()
     resolved = (path if path.is_absolute() else root_path / path).resolve()
     try:
@@ -328,6 +347,8 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     reasons = {str(path["reason"]) for path in blocked_paths}
     if "path_invalid_control_character" in reasons:
         return "prewrite_path_invalid_control_character"
+    if "path_invalid_whitespace" in reasons:
+        return "prewrite_path_invalid_whitespace"
     if "path_outside_worktree" in reasons:
         return "prewrite_path_outside_worktree"
     if blocked_paths:

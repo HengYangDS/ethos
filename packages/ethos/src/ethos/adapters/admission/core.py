@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.admission.closeout_intent.core import consume_closeout_intent
-from ethos.adapters.admission.prewrite import has_control_character
+from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
@@ -213,7 +213,12 @@ def _commit_identity(root: Path, revision: str) -> dict[str, str]:
     )
     parts = completed.stdout.rstrip("\n").split("\x00")
     if completed.returncode != 0 or len(parts) != _COMMIT_IDENTITY_FIELD_COUNT:
-        return {"author_name": "", "author_email": "", "committer_name": "", "committer_email": ""}
+        return {
+            "author_name": "",
+            "author_email": "",
+            "committer_name": "",
+            "committer_email": "",
+        }
     return {
         "author_name": parts[0],
         "author_email": parts[1],
@@ -423,7 +428,9 @@ def _normalize_layer(layer: str) -> str:
 
 def _target_paths(root: Path, paths: list[Path]) -> list[Path]:
     return [
-        path if path.is_absolute() or has_control_character(path.as_posix()) else root / path
+        path
+        if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+        else root / path
         for path in paths
     ]
 

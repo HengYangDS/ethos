@@ -14,6 +14,7 @@ def test_git_hooks_use_repo_bound_python_runtime() -> None:
         '"$repo_root/.venv/bin/python"',
         "packages/ethos/src:$repo_root/packages/ethos-core/src",
         '"$ethos_python" -m ethos.cli hook pre-push',
+        '--remote-head "$remote_sha"',
         '"$ethos_python" -m ethos.cli hook admit pre-tool',
     ):
         assert expected in scripts

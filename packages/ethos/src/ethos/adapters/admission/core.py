@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
@@ -104,6 +106,7 @@ def push_admission_report(
     root: Path,
     target_ref: str,
     pushed_head: str,
+    remote_head: str = "",
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -120,6 +123,10 @@ def push_admission_report(
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
+    identity_report = push_identity_policy_report(
+        root=repo, pushed_head=pushed_head, remote_head=remote_head
+    )
+    identity_gaps = list(cast("list[str]", identity_report["required_gaps"]))
     base = {
         "ok": True,
         "state": "admitted",
@@ -128,20 +135,159 @@ def push_admission_report(
         "target_branch": branch,
         "role": role,
         "pushed_head": pushed_head,
+        "remote_head": remote_head,
+        "identity_policy": identity_report,
         "decision": {"action": "allow", "reason": "push_admitted"},
         "required_gaps": [],
     }
-    if role not in PROTECTED_WRITE_ROLES:
-        return base
-    gaps = proof_gaps(repo, pushed_head)
+    proof_required = role in PROTECTED_WRITE_ROLES
+    proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
+    gaps = [*identity_gaps, *proof_required_gaps]
     if gaps:
+        reason = (
+            "push_to_protected_role_not_proven"
+            if proof_required_gaps
+            else "pushed_commit_identity_not_allowed"
+        )
         base.update(
             ok=False,
             state="blocked",
             required_gaps=gaps,
-            decision={"action": "block", "reason": "push_to_protected_role_not_proven"},
+            decision={"action": "block", "reason": reason},
         )
     return base
+
+
+def _git_config(root: Path, key: str) -> str:
+    completed = subprocess.run(
+        ["git", "config", "--get", key],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout.strip()
+
+
+def _commit_exists(root: Path, revision: str) -> bool:
+    if not revision or revision == "0" * 40:
+        return False
+    completed = subprocess.run(
+        ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+    )
+    return completed.returncode == 0
+
+
+def _pushed_commit_range(root: Path, *, pushed_head: str, remote_head: str) -> list[str]:
+    if not _commit_exists(root, pushed_head):
+        return []
+    revspec = pushed_head
+    if _commit_exists(root, remote_head):
+        revspec = f"{remote_head}..{pushed_head}"
+    completed = subprocess.run(
+        ["git", "rev-list", revspec],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return []
+    return [line for line in completed.stdout.splitlines() if line]
+
+
+def _commit_identity(root: Path, revision: str) -> dict[str, str]:
+    completed = subprocess.run(
+        ["git", "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    parts = completed.stdout.rstrip("\n").split("\x00")
+    if completed.returncode != 0 or len(parts) != 4:
+        return {"author_name": "", "author_email": "", "committer_name": "", "committer_email": ""}
+    return {
+        "author_name": parts[0],
+        "author_email": parts[1],
+        "committer_name": parts[2],
+        "committer_email": parts[3],
+    }
+
+
+def push_identity_policy_report(
+    *, root: Path, pushed_head: str, remote_head: str = ""
+) -> dict[str, object]:
+    """Report optional push-range Git identity admission.
+
+    The mechanism is intentionally repository-local and opt-in: ETHOS remains
+    organization-native and does not hardcode a product author. Repositories that
+    need a canonical forge identity enable ``ethos.pushIdentityPolicy`` in local or
+    repo config. ``configured-user`` means every newly pushed commit must have both
+    author and committer equal to the checkout's configured ``user.name`` and
+    ``user.email``.
+    """
+    mode = _git_config(root, "ethos.pushIdentityPolicy")
+    if mode != "configured-user":
+        return {
+            "ok": True,
+            "mode": mode or "disabled",
+            "expected_identity": "",
+            "checked_commit_count": 0,
+            "violations": [],
+            "required_gaps": [],
+        }
+    expected_name = _git_config(root, "user.name")
+    expected_email = _git_config(root, "user.email")
+    expected_identity = (
+        f"{expected_name} <{expected_email}>" if expected_name or expected_email else ""
+    )
+    gaps: list[str] = []
+    violations: list[dict[str, str]] = []
+    if not expected_name:
+        gaps.append("push_identity_user_name_missing")
+    if not expected_email:
+        gaps.append("push_identity_user_email_missing")
+    head_exists = _commit_exists(root, pushed_head)
+    commits = (
+        _pushed_commit_range(root, pushed_head=pushed_head, remote_head=remote_head)
+        if head_exists
+        else []
+    )
+    if pushed_head and not head_exists:
+        gaps.append("push_identity_commit_range_unreadable")
+    for commit in commits:
+        identity = _commit_identity(root, commit)
+        author_ok = (
+            identity["author_name"] == expected_name and identity["author_email"] == expected_email
+        )
+        committer_ok = (
+            identity["committer_name"] == expected_name
+            and identity["committer_email"] == expected_email
+        )
+        if author_ok and committer_ok:
+            continue
+        violation = {
+            "commit": commit,
+            "author": f"{identity['author_name']} <{identity['author_email']}>",
+            "committer": f"{identity['committer_name']} <{identity['committer_email']}>",
+        }
+        violations.append(violation)
+        if not author_ok:
+            gaps.append(f"pushed_commit_author_not_configured_identity:{commit}")
+        if not committer_ok:
+            gaps.append(f"pushed_commit_committer_not_configured_identity:{commit}")
+    return {
+        "ok": not gaps,
+        "mode": mode,
+        "expected_identity": expected_identity,
+        "checked_commit_count": len(commits),
+        "violations": violations,
+        "required_gaps": gaps,
+    }
 
 
 def ref_move_admission_report(
@@ -170,8 +316,6 @@ def ref_move_admission_report(
     sanctioned `ethos land --closeout` path satisfies (1)+(2) by construction, so only
     out-of-band ref moves are blocked.
     """
-    import subprocess
-
     from ethos.adapters.mutation.core import proof_gaps
     from ethos_core.contracts.branch.roles import load_branch_role_policy
 

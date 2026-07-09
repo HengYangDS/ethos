@@ -289,6 +289,9 @@ policy organization-native rather than person-native or adopter-private.
   and at least one bot or service role
 - **AND** Git author, Git committer, Work Lane actor, reviewer, maintainer,
   bot, team, and adopter-side owner remain distinct identity facts
+- **AND** an opt-in local pre-push identity policy may require newly pushed
+  commits to match the checkout's configured Git identity without creating a
+  product-hardcoded personal author
 
 #### Scenario: Enterprise readiness aggregates closeout layers
 

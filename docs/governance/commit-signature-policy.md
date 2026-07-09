@@ -24,11 +24,24 @@ identities. Multi-contributor repositories extend that policy with additional
 role-based human, team, reviewer, contributor, service, or bot identities rather
 than by hardcoding a product author. Commit subjects follow Conventional
 Commits in this repository. `ethos quality commits --json` checks local identity
-membership and signing
-configuration; `ethos quality commits --enforce-head --json` additionally
-requires the current HEAD subject and signature to pass release policy. ETHOS
-does not use tracked historical alias metadata as a product governance
-mechanism.
+membership and signing configuration; `ethos quality commits --enforce-head
+--json` additionally requires the current HEAD subject and signature to pass
+release policy.
+
+A governed checkout may also enable a local, repository-scoped pre-push identity
+policy without turning a person into product authority:
+
+```bash
+git config ethos.pushIdentityPolicy configured-user
+```
+
+When that policy is enabled, `.githooks/pre-push` passes the remote tip to
+`ethos hook pre-push`; the hook checks every newly pushed commit in the range and
+requires both Git author and Git committer to match the checkout's configured
+`user.name` and `user.email`. This is a local admission policy for a repository
+or forge account, not tracked historical alias metadata and not a product-wide
+built-in author. ETHOS does not use tracked historical alias metadata as a
+product governance mechanism.
 
 Status: see front matter.
 

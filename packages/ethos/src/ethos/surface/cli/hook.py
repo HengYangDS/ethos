@@ -68,6 +68,7 @@ def pre_push(
     target_ref: str,
     pushed_head: str,
     *,
+    remote_head: Annotated[str, Parameter(name="--remote-head")] = "",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -78,7 +79,9 @@ def pre_push(
     a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
     """
     repo = resolve_root(root)
-    report = push_admission_report(root=repo, target_ref=target_ref, pushed_head=pushed_head)
+    report = push_admission_report(
+        root=repo, target_ref=target_ref, pushed_head=pushed_head, remote_head=remote_head
+    )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
     result = EthosResult(

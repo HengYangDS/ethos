@@ -96,6 +96,16 @@ def test_scorecard_next_actions_route_parity_gaps() -> None:
     ) == ("ethos parity gaps --adopter <adopter>",)
 
 
+def test_scorecard_next_actions_route_coordination_required_gaps() -> None:
+    """Required coordination risk should route to read-only lane inspection."""
+
+    assert reporting_scoring.scorecard_next_actions(
+        parity_pending_count=0,
+        hard_quality_floor={"required_gaps": []},
+        coordination_required_gaps=("coordination_gap:current_scope_unknown",),
+    ) == ("ethos orient --json", "ethos lane status --json")
+
+
 def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     """Report must not claim ready when standalone hard quality gates are blocked."""
 

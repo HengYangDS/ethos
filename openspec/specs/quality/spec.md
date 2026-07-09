@@ -438,8 +438,12 @@ identity, hard-quality gaps, and coordination risk separately.
 - **WHEN** `ethos report --json` summarizes repository readiness
 - **THEN** the summary identifies the governed report read model
 - **AND** hard quality gaps and coordination risk are counted explicitly
-- **AND** effective score reflects those hard floors rather than presenting a
-  misleading green nominal score alone
+- **AND** product and adopter profiles expose status-required coordination gaps
+  in report `required_gaps` and `gap_layers.coordination_risk.required_gaps`
+- **AND** advisory coordination signals stay advisory and do not authorize foreign
+  Work Lane cleanup
+- **AND** effective score reflects hard floors and required coordination risk
+  rather than presenting a misleading green nominal score alone
 
 ### Requirement: Local-ci fallback projects owner scripts from target root
 

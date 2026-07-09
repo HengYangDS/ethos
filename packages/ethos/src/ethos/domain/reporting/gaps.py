@@ -77,13 +77,38 @@ def string_list(value: object) -> list[str]:
     return [str(item) for item in value if str(item)]
 
 
+def coordination_risk_gaps(
+    audit: dict[str, object],
+    status_payload: dict[str, object],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return report-visible blocking and advisory Work Lane coordination risks."""
+    coordination = cast("dict[str, object]", status_payload.get("coordination") or {})
+    audit_required = tuple(
+        gap
+        for gap in string_list(audit.get("required_gaps"))
+        if gap.startswith("coordination_gap:")
+    )
+    status_required = tuple(string_list(coordination.get("required_gaps")))
+    required = tuple(dict.fromkeys((*audit_required, *status_required)))
+    required_set = set(required)
+    audit_coordination = tuple(string_list(audit.get("coordination_gaps")))
+    status_advisory = tuple(string_list(coordination.get("advisory_gaps")))
+    advisory = tuple(
+        dict.fromkeys(
+            gap for gap in (*audit_coordination, *status_advisory) if gap not in required_set
+        )
+    )
+    return required, advisory
+
+
 def gap_layers(
     result_required_gaps: tuple[str, ...],
     parity_gaps: dict[str, object],
     playbooks: dict[str, object],
     advisory: tuple[tuple[str, ...], tuple[str, ...]],
     hard_quality_floor: dict[str, object] | None = None,
-    coordination_gaps: tuple[str, ...] = (),
+    coordination_required_gaps: tuple[str, ...] = (),
+    coordination_advisory_gaps: tuple[str, ...] = (),
 ) -> dict[str, dict[str, object]]:
     advisory_gaps, advisory_next_actions = advisory
     hard_quality_floor = hard_quality_floor or adopter_quality_floor_report()
@@ -117,12 +142,14 @@ def gap_layers(
         ),
         "coordination_risk": {
             "scope": "coordination_risk",
-            "blocking": False,
-            "ok": True,
-            "required_gaps": [],
-            "advisory_gaps": list(coordination_gaps),
-            "gap_count": len(coordination_gaps),
-            "invalid_states": invalid_state_projection(list(coordination_gaps)),
+            "blocking": bool(coordination_required_gaps),
+            "ok": not coordination_required_gaps,
+            "required_gaps": list(coordination_required_gaps),
+            "advisory_gaps": list(coordination_advisory_gaps),
+            "gap_count": len(coordination_required_gaps) + len(coordination_advisory_gaps),
+            "invalid_states": invalid_state_projection(
+                [*list(coordination_required_gaps), *list(coordination_advisory_gaps)]
+            ),
         },
         "advisory_signals": {
             "scope": "advisory_signals",

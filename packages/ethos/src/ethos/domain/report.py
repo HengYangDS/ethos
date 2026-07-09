@@ -127,9 +127,16 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         generic_parity_pending_count if product_profile else adopter_parity_pending_count
     )
     hard_quality_gap_count = len(cast("list[str]", hard_quality_floor["required_gaps"]))
+    coordination_required_gaps, coordination_advisory_gaps = reporting_gaps.coordination_risk_gaps(
+        audit, status_payload
+    )
+    result_required_gaps = tuple(
+        dict.fromkeys((*result_required_gaps, *coordination_required_gaps))
+    )
     hard_quality_penalty = int(hard_quality_gap_count > 0)
-    effective_score = max(0, nominal_score - hard_quality_penalty)
-    coordination_gaps = tuple(reporting_gaps.string_list(audit.get("coordination_gaps")))
+    coordination_risk_penalty = int(bool(coordination_required_gaps))
+    effective_score = max(0, nominal_score - hard_quality_penalty - coordination_risk_penalty)
+    coordination_risk_count = len(coordination_required_gaps) + len(coordination_advisory_gaps)
     advisory_gap_items = reporting_gaps.advisory_gaps(
         audit, claim_report, playbooks, status_payload
     )
@@ -140,7 +147,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         playbooks,
         (advisory_gap_items, advisory_action_items),
         hard_quality_floor,
-        coordination_gaps,
+        coordination_required_gaps,
+        coordination_advisory_gaps,
     )
     terminal_control_state = reporting_scoring.terminal_control(
         result_required_gaps=result_required_gaps,
@@ -150,6 +158,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     next_actions = reporting_scoring.scorecard_next_actions(
         parity_pending_count=parity_pending_count,
         hard_quality_floor=hard_quality_floor,
+        coordination_required_gaps=coordination_required_gaps,
         playbooks=playbooks,
     )
     return {
@@ -164,7 +173,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "terminal_control": terminal_control_state,
             "governance_gap_count": len(result_required_gaps),
             "hard_quality_gap_count": hard_quality_gap_count,
-            "coordination_risk_count": len(coordination_gaps),
+            "coordination_risk_count": coordination_risk_count,
             "parity_pending_count": parity_pending_count,
             "advisory_gap_count": len(advisory_gap_items),
         },
@@ -179,10 +188,10 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
                 "effective_score": effective_score,
                 "effective_max_score": max_score,
                 "hard_quality_floor_penalty": hard_quality_penalty,
-                "coordination_risk_penalty": 0,
+                "coordination_risk_penalty": coordination_risk_penalty,
                 "note": (
-                    "effective_score subtracts hard local quality-floor risk "
-                    "from the nominal capability score"
+                    "effective_score subtracts hard local quality-floor and "
+                    "required coordination risk from the nominal capability score"
                 ),
             },
             "first_hour": reporting_scoring.first_hour(

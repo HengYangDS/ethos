@@ -256,7 +256,10 @@ blocked only when a required coordination gap is present, such as unknown curren
 or foreign scope. Same-file or ancestor-scope overlap is surfaced as advisory
 contention through `coordination_gap:scope_overlap:<branch>` so Git's
 fast-forward land remains the mutation arbiter without serializing unrelated
-agents that share a directory.
+agents that share a directory. Across product and adopter profiles,
+`ethos report --json` mirrors status-required coordination gaps into report
+`required_gaps` and `data.gap_layers.coordination_risk.required_gaps`; advisory
+coordination signals stay advisory and never grant cleanup authority.
 Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is

@@ -141,12 +141,15 @@ def scorecard_next_actions(
     *,
     parity_pending_count: int,
     hard_quality_floor: dict[str, object],
+    coordination_required_gaps: tuple[str, ...] = (),
     playbooks: dict[str, object] | None = None,
 ) -> tuple[str, ...]:
     """Return bounded next actions for report without hiding hard quality gaps."""
     quality_gaps = cast("list[str]", hard_quality_floor["required_gaps"])
     if quality_gaps:
         return _hard_quality_next_actions(quality_gaps)
+    if coordination_required_gaps:
+        return ("ethos orient --json", "ethos lane status --json")
     if parity_pending_count:
         return ("ethos parity gaps --adopter <adopter>",)
     if playbooks and playbooks.get("ok") is not True:

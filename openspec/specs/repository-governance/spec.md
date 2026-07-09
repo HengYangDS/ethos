@@ -1003,6 +1003,15 @@ reader views without treating them as transition-blocking required gaps.
 - **AND** `gap_layers.advisory_signals.next_actions` routes to read-only coordination inspection commands
 - **AND** the advisories do not become report `required_gaps`
 
+#### Scenario: Report carries Work Lane coordination blockers
+
+- **WHEN** `ethos report --json` runs for a product or adopter profile and workspace status contains required Work Lane coordination gaps
+- **THEN** those required coordination gaps appear in report `required_gaps`
+- **AND** `gap_layers.coordination_risk.required_gaps` carries the required coordination gaps
+- **AND** `gap_layers.coordination_risk.advisory_gaps` carries advisory coordination signals without making them required
+- **AND** product and adopter profiles both surface required coordination gaps as blockers
+- **AND** the scorecard remains read-only and does not authorize foreign Work Lane cleanup
+
 ### Requirement: Generated Evidence Boundary
 ETHOS SHALL keep generated proof artifacts outside repository truth while making
 latest-artifact writes deterministic enough for proof gates.

@@ -86,22 +86,82 @@ def _runs_prove_head(runs: object) -> bool:
     return trust_bearing_count > 0
 
 
+def _run_merge_key(run: dict[str, Any], fallback_index: int) -> str:
+    """Return the stable key used when merging same-HEAD proof runs."""
+    action_id = str(run.get("action_id") or "").strip()
+    if action_id:
+        return f"action:{action_id}"
+    legacy_id = str(run.get("id") or "").strip()
+    if legacy_id:
+        return f"legacy:{legacy_id}"
+    return f"index:{fallback_index}"
+
+
+def _merge_same_head_evidence(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    """Merge already-verified and newly-proven evidence for one immutable HEAD.
+
+    The merge is an availability mechanism, not a bypass: the existing record is
+    read through ``executed_proof_record`` before this function is called, and the
+    incoming evidence is written only by a successful ``ethos prove --execute``.
+    Runs are keyed by action id so a later real gate execution refreshes that
+    gate's evidence while preserving previously proven gates for the same HEAD.
+    """
+    head = str(incoming.get("head", ""))
+    merged_runs: list[dict[str, Any]] = []
+    positions: dict[str, int] = {}
+    for source in (existing, incoming):
+        runs = source.get("runs") if isinstance(source, dict) else None
+        if not isinstance(runs, list):
+            continue
+        for run in runs:
+            if not isinstance(run, dict):
+                continue
+            key = _run_merge_key(run, len(merged_runs))
+            if key in positions:
+                merged_runs[positions[key]] = run
+            else:
+                positions[key] = len(merged_runs)
+                merged_runs.append(run)
+    merged = {
+        "id": str(incoming.get("id") or existing.get("id") or ""),
+        "head": head,
+        "durability": str(incoming.get("durability") or existing.get("durability") or "local"),
+        "runs": merged_runs,
+    }
+    merged["digest"] = _evidence_digest(merged)
+    return merged
+
+
 def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
-    """Persist the executed EvidenceSet body under .ethos/state/proof/<head>.json.
+    """Persist or extend the executed EvidenceSet for a single HEAD.
 
     Stores the FULL evidence body (not just a summary) so the record is later
-    self-authenticating: its digest is recomputable from its own contents.
+    self-authenticating: its digest is recomputable from its own contents. If a
+    valid record already exists for the same HEAD, merge the newly proven gate
+    runs into it. This lets agents build promotion-complete proof from short,
+    restartable gate batches without weakening the land completeness check.
     """
     head = str(evidence.get("head", ""))
     proof_dir = proof_state_dir(root)
     proof_dir.mkdir(parents=True, exist_ok=True)
     path = proof_dir / f"{head}.json"
+    existing_record = executed_proof_record(root, head)
+    existing_evidence = (
+        existing_record.get("evidence")
+        if isinstance(existing_record, dict) and isinstance(existing_record.get("evidence"), dict)
+        else None
+    )
+    sealed_evidence = (
+        _merge_same_head_evidence(existing_evidence, evidence)
+        if isinstance(existing_evidence, dict)
+        else {**evidence, "digest": _evidence_digest(evidence)}
+    )
     record = {
         "schema_version": 2,
         "head": head,
         "state": "proven",
-        "evidence": evidence,
-        "evidence_digest": evidence.get("digest", ""),
+        "evidence": sealed_evidence,
+        "evidence_digest": sealed_evidence.get("digest", ""),
     }
     path.write_text(_stable_json(record), encoding="utf-8")
     return path

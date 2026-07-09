@@ -45,6 +45,10 @@ fi
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 coverage_lock_acquired="false"
+sharded_mode="false"
+if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
+  sharded_mode="true"
+fi
 
 cleanup_denied_runtime_residue() {
   # These homes are explicitly denied by the generated-artifact topology. They
@@ -85,13 +89,29 @@ coverage_lock_acquired="true"
 # interrupted local runs may also leave root `.coverage*` files behind. Stale
 # shards can corrupt the combined report, and root coverage files violate the
 # generated-artifact topology before tests reach the real product assertions.
-# These files are ignored local evidence, not repository truth.
+# These files are ignored local evidence, not repository truth. Sharded mode is
+# resumable for one immutable HEAD: completed shard coverage is preserved only
+# when the stored head marker matches the captured stable head.
 cleanup_denied_runtime_residue
 cleanup_root_coverage_artifacts
 trap cleanup_and_release EXIT
-rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
-rm -f "${coverage_evidence_dir}/coverage.xml"
-rm -f "${pytest_evidence_dir}/junit.xml"
+shard_state_dir="${pytest_evidence_dir}/shards"
+shard_head_path="${shard_state_dir}/head.txt"
+if [[ "${sharded_mode}" == "true" ]]; then
+  mkdir -p "${shard_state_dir}"
+  if [[ ! -f "${shard_head_path}" ]] || [[ "$(cat "${shard_head_path}")" != "${ethos_python_test_head}" ]]; then
+    rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
+    rm -f "${coverage_evidence_dir}/coverage.xml"
+    rm -f "${pytest_evidence_dir}"/junit*.xml
+    rm -rf "${shard_state_dir}"
+    mkdir -p "${shard_state_dir}"
+    printf '%s\n' "${ethos_python_test_head}" > "${shard_head_path}"
+  fi
+else
+  rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*
+  rm -f "${coverage_evidence_dir}/coverage.xml"
+  rm -f "${pytest_evidence_dir}/junit.xml"
+fi
 
 coverage_hard_floor="$(
   "${ethos_python}" - "${coverage_policy_path}" <<'PY'
@@ -156,7 +176,7 @@ run_coverage() {
   "${coverage_runner[@]}" "$@"
 }
 
-if [[ "${shards}" == "1" || "${shards}" == "serial" ]]; then
+if [[ "${sharded_mode}" != "true" ]]; then
   run_pytest \
     "${pytest_common_args[@]}" \
     "${pytest_junit_arg[@]}" \
@@ -201,6 +221,12 @@ PY
     done < "${shard_file}"
     shard_coverage_file="${coverage_evidence_dir}/.coverage.shard-${shard_index}"
     shard_junit="${pytest_evidence_dir}/junit-shard-${shard_index}.xml"
+    shard_passed_marker="${pytest_evidence_dir}/shards/shard-${shard_index}.passed"
+    if [[ -s "${shard_coverage_file}" && -f "${shard_passed_marker}" ]]; then
+      echo "reusing completed pytest shard ${shard_index}/${shards}" >&2
+      continue
+    fi
+    rm -f "${shard_coverage_file}" "${shard_junit}" "${shard_passed_marker}"
     COVERAGE_FILE="${shard_coverage_file}" run_pytest \
       "${pytest_common_args[@]}" \
       --cov-report= \
@@ -208,6 +234,16 @@ PY
       --junitxml="${shard_junit}" \
       "${shard_nodeids[@]}" \
       -q
+    printf '%s\n' "${ethos_python_test_head}" > "${shard_passed_marker}"
+  done
+  for shard_index in $(seq 1 "${shards}"); do
+    shard_file="${pytest_evidence_dir}/shards/shard-${shard_index}.txt"
+    shard_coverage_file="${coverage_evidence_dir}/.coverage.shard-${shard_index}"
+    shard_passed_marker="${pytest_evidence_dir}/shards/shard-${shard_index}.passed"
+    if [[ -s "${shard_file}" && ! ( -s "${shard_coverage_file}" && -f "${shard_passed_marker}" ) ]]; then
+      echo "pytest shard ${shard_index}/${shards} has no completed coverage evidence" >&2
+      exit 1
+    fi
   done
   # Sharded execution still ends with coverage combine / coverage xml / coverage
   # report using the same hard floor, so sharding changes process topology only.

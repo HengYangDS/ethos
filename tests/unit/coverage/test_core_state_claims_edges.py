@@ -97,6 +97,42 @@ def test_mutation_proof_record_rejects_forgery_and_accepts_sealed(tmp_path: Path
     )
 
 
+def test_mutation_proof_record_merges_same_head_gate_runs(tmp_path: Path) -> None:
+    first = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "repository-audit",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+    second = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "claims",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+
+    mutation_proof.record_executed_proof(tmp_path, first)
+    path = mutation_proof.record_executed_proof(tmp_path, second)
+
+    record = mutation_proof.executed_proof_record(tmp_path, "h1")
+    assert record is not None
+    evidence = record["evidence"]
+    runs = evidence["runs"]
+    assert [run["action_id"] for run in runs] == ["repository-audit", "claims"]
+    assert evidence["digest"] == mutation_proof._evidence_digest(evidence)
+    assert json.loads(path.read_text(encoding="utf-8"))["evidence_digest"] == evidence["digest"]
+
+
 def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> None:
     source = tmp_path / "source"
     target = tmp_path / "target"

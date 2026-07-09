@@ -61,6 +61,9 @@ def test_python_test_gate_can_shard_without_lowering_coverage_floor() -> None:
     assert "coverage combine" in script
     assert "coverage xml" in script
     assert "coverage report" in script
+    assert "shard_passed_marker" in script
+    assert "reusing completed pytest shard" in script
+    assert "ethos_python_test_head" in script
     assert '--fail-under="${coverage_hard_floor}"' in script
     assert "--cov-fail-under=0" in script
     assert "--cov-fail-under=${coverage_hard_floor}" in script

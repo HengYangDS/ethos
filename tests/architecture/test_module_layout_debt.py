@@ -47,3 +47,25 @@ def test_capability_parity_contract_lives_in_semantic_subpackage_not_suffix_modu
     assert not ROOT.joinpath(
         "packages/ethos-core/src/ethos_core/contracts/capability_parity.py"
     ).exists()
+
+
+SYSTEM_CONTRACTS_DEBT = (
+    "module_layout_suffix_module:"
+    "packages/ethos-core/src/ethos_core/contracts/system_contracts.py:system_contracts"
+)
+
+
+def test_system_contracts_live_in_semantic_subpackage_not_suffix_module() -> None:
+    """Keep system contracts under contracts/system/ instead of suffix-flat debt."""
+    report = module_layout_report(ROOT)
+    suffix_gaps = {finding["gap"] for finding in report["suffix_module_findings"]}
+    policy_text = ROOT.joinpath(report["policy"]).read_text(encoding="utf-8")
+
+    assert SYSTEM_CONTRACTS_DEBT not in suffix_gaps
+    assert SYSTEM_CONTRACTS_DEBT not in policy_text
+    assert ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/system/contracts.py"
+    ).is_file()
+    assert not ROOT.joinpath(
+        "packages/ethos-core/src/ethos_core/contracts/system_contracts.py"
+    ).exists()

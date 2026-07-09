@@ -8,8 +8,8 @@ import pytest
 from ethos_core import models
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
-from ethos_core.contracts.system_contracts import load_system_contract
-from ethos_core.contracts.system_contracts import system_contracts_report
+from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.system.contracts import system_contracts_report
 from ethos_core.result import EthosResult
 
 
@@ -193,7 +193,7 @@ def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
 
 
 def test_system_contracts_have_real_validating_schemas() -> None:
-    from ethos_core.contracts.system_contracts import system_contracts_report
+    from ethos_core.contracts.system.contracts import system_contracts_report
 
     report = system_contracts_report(Path())
 
@@ -205,7 +205,7 @@ def test_system_contracts_have_real_validating_schemas() -> None:
 
 
 def test_system_contract_schema_violation_blocks() -> None:
-    from ethos_core.contracts.system_contracts import _schema_validation_gaps
+    from ethos_core.contracts.system.contracts import _schema_validation_gaps
 
     schema_path = Path("system/schemas/contracts/authority.schema.json")
     # An authority contract missing its required `order` violates the schema.

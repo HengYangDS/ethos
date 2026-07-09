@@ -70,11 +70,11 @@ def test_release_toml_github_profile_appends_host_block() -> None:
     assert 'provider = "github"' in toml
 
 
-def test_active_change_names_in_ref_returns_empty_on_git_failure(
+def testactive_change_names_in_ref_returns_empty_on_git_failure(
     tmp_path: Path,
 ) -> None:
     # ls-tree against a nonexistent ref in a non-repo fails -> [].
-    assert audit_openspec._active_change_names_in_ref(tmp_path, "no-such-ref") == []
+    assert audit_openspec.active_change_names_in_ref(tmp_path, "no-such-ref") == []
 
 
 def test_current_branch_role_resolves_from_policy(tmp_path: Path) -> None:
@@ -99,7 +99,7 @@ def test_protected_branch_report_deduplicates_same_branch_role_change(
     monkeypatch.setattr(audit_openspec, "load_branch_role_policy", lambda _root: _Policy())
     monkeypatch.setattr(audit_openspec, "_branch_exists", lambda _root, _branch: True)
     monkeypatch.setattr(
-        audit_openspec, "_active_change_names_in_ref", lambda _root, _branch: ["change-a"]
+        audit_openspec, "active_change_names_in_ref", lambda _root, _branch: ["change-a"]
     )
 
     report = audit_openspec.protected_branch_active_change_report(tmp_path, current_branch="work")

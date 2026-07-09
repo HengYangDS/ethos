@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.registry.commands import READER_VIEW_COMMANDS
 from ethos.repository.registry.commands import SCORECARD_COMMANDS
-from ethos_core.contracts.system_contracts import load_system_contract
+from ethos_core.contracts.system.contracts import load_system_contract
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.models import Authority
 from ethos_core.models import Subject

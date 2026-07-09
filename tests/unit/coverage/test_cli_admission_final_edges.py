@@ -30,6 +30,10 @@ import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
 import ethos.surface.cli.root.registry as root_registry
+from ethos.repository.audit_design import front_matter_ok
+from ethos.repository.audit_openspec import active_change_violations_for_role
+from ethos.repository.audit_openspec import completed_unarchived_changes
+from ethos.repository.audit_openspec import openspec_provider_missing_report
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
@@ -342,29 +346,26 @@ def test_audit_coupling_config_and_misc_edges(
     assert adapters_config.code_size_policy(tmp_path / "missing") == {}
 
     doc = tmp_path / "doc.md"
-    assert repository_audit._front_matter_ok(doc) is False
+    assert front_matter_ok(doc) is False
     doc.write_text("no frontmatter", encoding="utf-8")
-    assert repository_audit._front_matter_ok(doc) is False
+    assert front_matter_ok(doc) is False
     doc.write_text(
         "---\nsubject: s\nrole: r\nstate: active\nrelations: []\n---\n", encoding="utf-8"
     )
-    assert repository_audit._front_matter_ok(doc) is True
+    assert front_matter_ok(doc) is True
     changes = tmp_path / "openspec" / "changes" / "done"
     changes.mkdir(parents=True)
     (changes / "tasks.md").write_text("- [x] one\n- [X] two\n", encoding="utf-8")
-    assert repository_audit._completed_unarchived_changes(tmp_path / "openspec") == [
+    assert completed_unarchived_changes(tmp_path / "openspec") == [
         "openspec_completed_change_unarchived:done"
     ]
-    assert (
-        repository_audit._active_change_violations_for_role(tmp_path / "openspec", "work_lane")
-        == []
-    )
-    assert repository_audit._active_change_violations_for_role(
-        tmp_path / "openspec", "accepted_root"
-    ) == ["openspec_active_change_unarchived:done:accepted_root"]
-    assert repository_audit._active_change_violations_for_role(
-        tmp_path / "openspec", "candidate"
-    ) == ["openspec_active_change_unarchived:done:candidate"]
+    assert active_change_violations_for_role(tmp_path / "openspec", "work_lane") == []
+    assert active_change_violations_for_role(tmp_path / "openspec", "accepted_root") == [
+        "openspec_active_change_unarchived:done:accepted_root"
+    ]
+    assert active_change_violations_for_role(tmp_path / "openspec", "candidate") == [
+        "openspec_active_change_unarchived:done:candidate"
+    ]
     (tmp_path / ".githooks").mkdir()
     (tmp_path / ".githooks" / "pre-commit").write_text("", encoding="utf-8")
     monkeypatch.setattr(
@@ -377,7 +378,7 @@ def test_audit_coupling_config_and_misc_edges(
     assert "write_admission_not_armed:reference-transaction_script_missing" in gaps
     assert "write_admission_not_armed:core.hooksPath" in gaps
     assert repository_audit.openspec_shape_report(tmp_path)["ok"] is False
-    assert repository_audit._openspec_provider_missing_report(tmp_path)["required_gaps"] == [
+    assert openspec_provider_missing_report(tmp_path)["required_gaps"] == [
         "openspec_reporter_not_configured"
     ]
 

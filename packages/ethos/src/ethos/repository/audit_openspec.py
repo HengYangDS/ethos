@@ -67,7 +67,7 @@ def official_config_report(root: Path) -> dict[str, object]:
     return {"ok": not gaps, "path": path.as_posix(), "required_gaps": gaps}
 
 
-def _active_change_names(openspec_root: Path) -> list[str]:
+def active_change_names(openspec_root: Path) -> list[str]:
     """Return active OpenSpec change directory names, excluding archive/templates."""
     changes_root = openspec_root / "changes"
     if not changes_root.exists():
@@ -99,7 +99,7 @@ def protected_branch_active_change_report(root: Path, *, current_branch: str) ->
     for branch, role in branches:
         if not branch or branch == current_branch or not _branch_exists(root, branch):
             continue
-        for change in _active_change_names_in_ref(root, branch):
+        for change in active_change_names_in_ref(root, branch):
             key = (branch, role, change)
             if key in seen:
                 continue
@@ -150,7 +150,8 @@ def _branch_exists(root: Path, branch: str) -> bool:
     return completed.returncode == 0
 
 
-def _active_change_names_in_ref(root: Path, ref: str) -> list[str]:
+def active_change_names_in_ref(root: Path, ref: str) -> list[str]:
+    """Return active OpenSpec change names found in a protected branch Git tree."""
     completed = subprocess.run(
         ["git", "ls-tree", "-r", "--name-only", ref, "--", "openspec/changes"],
         cwd=root,
@@ -172,7 +173,7 @@ def _active_change_names_in_ref(root: Path, ref: str) -> list[str]:
     return sorted(active)
 
 
-def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
+def active_change_violations_for_role(openspec_root: Path, role: str) -> list[str]:
     """Block active OpenSpec carriers on candidate, accepted-root, and release-root roles.
 
     Active changes are legal authoring carriers in Work Lanes. Once a change is
@@ -184,7 +185,7 @@ def _active_change_violations_for_role(openspec_root: Path, role: str) -> list[s
         return []
     return [
         f"openspec_active_change_unarchived:{name}:{role}"
-        for name in _active_change_names(openspec_root)
+        for name in active_change_names(openspec_root)
     ]
 
 
@@ -205,7 +206,7 @@ def _current_branch_role(root: Path) -> str:
     return load_branch_role_policy(root).role_for_branch(_current_branch(root))
 
 
-def _completed_unarchived_changes(openspec_root: Path) -> list[str]:
+def completed_unarchived_changes(openspec_root: Path) -> list[str]:
     """Active OpenSpec changes whose tasks are all complete but which are not archived.
 
     Uses ETHOS's OWN signal (every task box in tasks.md checked) rather than the
@@ -274,14 +275,14 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
         required_gaps.append("openspec_specs_missing")
     current_branch = _current_branch(root)
     required_gaps.extend(
-        _active_change_violations_for_role(
+        active_change_violations_for_role(
             openspec_root, load_branch_role_policy(root).role_for_branch(current_branch)
         )
     )
     protected_branch_residue = protected_branch_active_change_report(
         root, current_branch=current_branch
     )
-    required_gaps.extend(_completed_unarchived_changes(openspec_root))
+    required_gaps.extend(completed_unarchived_changes(openspec_root))
     metadata_compatibility = openspec_metadata_compatibility_report(root)
     required_gaps.extend(metadata_compatibility["required_gaps"])
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))
@@ -296,7 +297,8 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
     }
 
 
-def _openspec_provider_missing_report(root: Path) -> dict[str, object]:
+def openspec_provider_missing_report(root: Path) -> dict[str, object]:
+    """Return the deep-mode gap used when no OpenSpec provider reporter is configured."""
     shape = openspec_shape_report(root)
     return {
         "ok": False,

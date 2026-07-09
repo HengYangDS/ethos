@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos_core.contracts.system.contracts as system_contracts
 from ethos.assistants import playbooks
 from ethos.repository import context
 from ethos.repository.adoption import planner
@@ -14,7 +15,6 @@ from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.repository.release import core as release_core
 from ethos.testing import fixtures
 from ethos_core.contracts import rules
-from ethos_core.contracts import system_contracts
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -63,7 +63,7 @@ def test_rule_attestation_gaps_skips_facts_when_not_dict() -> None:
 
 
 def test_system_contracts_report_contract_without_schema_ref(tmp_path: Path) -> None:
-    # A valid contract lacking a 'schema' key -> system_contracts.py 83 isinstance False -> 83->69 loop back.
+    # A valid contract lacking a 'schema' key -> system/contracts.py 83 isinstance False -> 83->69 loop back.
     system_dir = tmp_path / "system"
     system_dir.mkdir()
     (system_dir / "authority.toml").write_text('title = "authority"\n', encoding="utf-8")

@@ -84,7 +84,7 @@ DESIGN_INTEGRITY_VENDOR_TERMS = (
 )
 
 
-def _design_integrity_report(root: Path) -> dict[str, object]:
+def design_integrity_report(root: Path) -> dict[str, object]:
     """Audit canonical design docs for kernel and boundary regressions.
 
     This is deliberately a projection over existing canonical docs, not a new
@@ -142,7 +142,8 @@ def _design_integrity_report(root: Path) -> dict[str, object]:
     }
 
 
-def _front_matter_ok(path: Path) -> bool:
+def front_matter_ok(path: Path) -> bool:
+    """Return whether a required governance document has the ETHOS front matter."""
     if not path.exists():
         return False
     text = path.read_text(encoding="utf-8")

@@ -314,7 +314,10 @@ def refresh_candidate_from_accepted(
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
     gaps.extend(
         _apply_gaps(
-            apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
+            apply=apply,
+            authorized=authorized,
+            expect_head=expect_head,
+            current_head=current_head,
         )
     )
     if gaps:
@@ -523,7 +526,10 @@ def refresh_work_lane_base(
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
     gaps.extend(
         _apply_gaps(
-            apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
+            apply=apply,
+            authorized=authorized,
+            expect_head=expect_head,
+            current_head=current_head,
         )
     )
     if gaps:
@@ -566,9 +572,7 @@ def refresh_work_lane_base(
             }
         )
     completed = active_runtime.run_git(root, "rebase", policy.candidate_branch, check=False)
-    projection_resolution = _resolve_projection_rebase(
-        root, completed, runtime=active_runtime
-    )
+    projection_resolution = _resolve_projection_rebase(root, completed, runtime=active_runtime)
     if completed.returncode != 0 and projection_resolution["ok"]:
         refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
         return _work_base_report(

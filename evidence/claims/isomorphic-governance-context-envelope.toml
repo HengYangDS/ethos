@@ -6,7 +6,7 @@ summary = "Primary ETHOS command results expose the shared governed-repository c
 
 [evidence]
 dated = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md"
-sha256 = "6d3279578b5ffa90baaaa6cb349cd2938a3a2a30478035af2a35dbd3540b1f43"
+sha256 = "dce6a2750f18a6d72e2a79722139127a5c18ee897f72ffef065d22017650d92a"
 evidence_ids = ["evidence:isomorphic-governance-context-envelope"]
 binding = "Primary command envelope governance_context for product and adopted repositories; status.data remains workspace-status schema data."
 verifier = "semantic"

@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b88b0c8b8d97b9c97673d39349041968c4277eee",
-    "target_head": "b88b0c8b8d97b9c97673d39349041968c4277eee",
-    "product_semantic_sha256": "d0b5e27dbd89439a628d4483e2cddc51726dc6332c80519c2889281b5176bcca",
-    "target_semantic_sha256": "d0b5e27dbd89439a628d4483e2cddc51726dc6332c80519c2889281b5176bcca",
+    "product_head": "fee0755bbd66ad96dc4094085018d891835cc55e",
+    "target_head": "fee0755bbd66ad96dc4094085018d891835cc55e",
+    "product_semantic_sha256": "9f2d8cc0b4b0285fe62d590c41a81935154c345ae88b8645eaecec17fda978a0",
+    "target_semantic_sha256": "9f2d8cc0b4b0285fe62d590c41a81935154c345ae88b8645eaecec17fda978a0",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/isomorphic-governance-context-20260709",
-    "target_head": "b88b0c8b8d97b9c97673d39349041968c4277eee",
-    "product_head": "b88b0c8b8d97b9c97673d39349041968c4277eee",
+    "target_head": "fee0755bbd66ad96dc4094085018d891835cc55e",
+    "product_head": "fee0755bbd66ad96dc4094085018d891835cc55e",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e23364affb45eb965450a13c2b23f0b11a902f34ed150aeb560722223fb82ff0"
+        "sha256": "d853ed60a618fe629f1fba0842d8a04d932d5adcfc4a4f88a9efe19b0b848db1"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "cba78d407c240ce75b91422a379c8fd12851f0ecabbf45168f33675f96db689d"
+        "sha256": "393abd360a643b1c5647ebea53cda51bc7c39add76649836b5a52588c8038e1b"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "1a1e0a9c86f2e70e92c20cc6ab7acd204d5aab5a50057e74665b4efafdcba151"
+        "sha256": "615fcab5eeeb65343b8ed0c5db4e08edb1b5ea4d31a808f27ea4136eb690796c"
       },
       {
         "path": "rules",

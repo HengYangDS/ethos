@@ -127,9 +127,9 @@ ethos prove --scope proof-kernel --host --probe
 ethos campaign hypotheses
 ethos campaign closeout --adopter <adopter-id> --target <repo>
 ethos intake status
-ethos hook admit pre-tool <path> --editor-root <worktree-path> --require-editor-root
+ethos hook admit pre-tool <paths> --editor-root <worktree-path> --require-editor-root
 ethos hook admit pre-run --command <shell-command>
-ethos hook admit post-write <path> --editor-root <worktree-path>
+ethos hook admit post-write <paths> --editor-root <worktree-path>
 ethos parity ledger
 ethos parity gaps --adopter <adopter-id>
 ethos parity gaps --adopter <adopter-id> --target <repo>
@@ -198,7 +198,7 @@ ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <
 ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim> --apply
 ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
-ethos lane prewrite <path> --editor-root <worktree-path> --require-editor-root
+ethos lane prewrite <paths> --editor-root <worktree-path> --require-editor-root
 ethos lane retire-landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire-superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
 ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
@@ -347,9 +347,9 @@ Hook admission:
 
 ```bash
 ethos hook admit context --expected-root <repo-root>
-ethos hook admit pre-tool <path> --editor-root <worktree-path> --require-editor-root
-ethos hook admit pre-run <path> --command <shell-command> --editor-root <worktree-path>
-ethos hook admit post-write <path> --editor-root <worktree-path>
+ethos hook admit pre-tool <paths> --editor-root <worktree-path> --require-editor-root
+ethos hook admit pre-run <paths> --command <shell-command> --editor-root <worktree-path>
+ethos hook admit post-write <paths> --editor-root <worktree-path>
 ```
 
 `ethos hook admit --json` is the product decision endpoint for write-capable

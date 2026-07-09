@@ -25,7 +25,7 @@ from ethos_core.result import EthosResult
 @hook_app.command
 def admit(
     layer: str,
-    paths: tuple[Path, ...] = (),
+    paths: Annotated[tuple[Path, ...], Parameter(consume_multiple=True)] = (),
     *,
     command: Annotated[str, Parameter(name="--command")] = "",
     editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,

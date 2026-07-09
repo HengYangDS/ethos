@@ -150,11 +150,21 @@ Research calibration as of this design review changes the implementation posture
 | GitLab Duo Agent Platform | Developer Flow can create draft merge requests from issues, iterate on MR feedback, research, split MRs, and resolve conflicts. | L3 merge-request executor and research backend; MR state is projection. |
 | SWE-agent family | Issue-to-patch / issue-to-repair runner optimized for benchmarkable repository tasks. | Patch producer or lane executor depending on root/head/evidence capability. |
 | Beads | AI-oriented dependency graph, stable ids, ready queue, branch-friendly storage, JSON surfaces. | Optional local task-ledger adapter; not Change, Claim, or Chronicle. |
+| Renovate / Dependabot | Dependency scanners that can open pull requests and sometimes dashboard issues. | Supply-chain signal and candidate-patch producers; PRs still require ETHOS proof and claim binding. |
+| CodeQL / SonarQube / Semgrep | Static analysis, rule findings, code-scanning alerts, pull-request comments, and suggested fixes. | Sensor plane and evidence-candidate plane; findings are signals until admitted, deduped, and proved. |
 
 The common pattern is clear: modern systems are converging on issue as trigger,
 agent as assignee, branch or PR/MR as output, and comments as telemetry. ETHOS
 must sit one layer deeper: signal as input, Work Lane as containment, proof as
 truth boundary, claim as limited speech, chronicle as judged memory.
+
+The second common pattern is equally important: mature non-agent systems already
+perform large parts of the sensing loop. Dependency bots, static analyzers,
+runtime monitors, CI checks, security scanners, and review bots can discover
+invalid states faster than a general agent committee. ETHOS should not replace
+those sensors. It should normalize their findings into intake envelopes,
+deduplicate them as issue candidates, and admit only the bounded changes that
+pass repository authority.
 
 ## Layer Ownership
 
@@ -167,6 +177,49 @@ truth boundary, claim as limited speech, chronicle as judged memory.
 
 The thin waist is ETHOS command JSON and repository evidence, not any external
 board or agent runtime.
+
+## Terminal Organ Model
+
+The terminal design is not a bigger agent. It is a governed organism whose
+organs have different authorities:
+
+| Organ | Function | May do | Must not do |
+| --- | --- | --- | --- |
+| Sensor | Perceive disturbances from reports, scanners, humans, boards, CI, runtime logs, dependency bots, and agents. | Emit signals and intake envelopes. | Decide truth, create commitments, or mutate source. |
+| Normalizer | Convert heterogeneous signals into typed ETHOS envelopes. | Preserve provenance, subject hints, evidence hints, and risk hints. | Hide source uncertainty or collapse signals into issues. |
+| Adjudicator | Dedupe, classify, prioritize, and decide whether a candidate deserves attention. | Produce issue candidates and recommended dispositions. | Treat issue existence as change authorization. |
+| Admitter | Convert a candidate into a bounded change only when authority, scope, owner, proof route, and rollback are known. | Create or bind OpenSpec, claim, Work Lane, and proof expectations. | Let provider assignment, agent confidence, or board priority authorize mutation. |
+| Executor | Perform bounded work through a human, local agent, hosted agent, or automation backend. | Produce patches, branches, result packages, logs, and evidence candidates. | Claim completion, publish, or rewrite authority. |
+| Prover | Run repository gates with HEAD, scope, command, and artifact binding. | Admit evidence and constrain claims. | Substitute green provider status or agent narrative for proof. |
+| Chronicler | Record judged memory, remaining risk, supersession, rejection, and learning. | Preserve decisions and trigger upstream guardrail proposals. | Store raw telemetry as truth or preserve every event as doctrine. |
+| Upstreamer | Move repeated failures into rules, hooks, schemas, scaffolds, defaults, or skills. | Reduce future ambiguity and prevent recurrence. | Grant ETHOS new authority without the same admission and proof discipline. |
+
+The organ model is the guard against both under-automation and over-automation.
+It lets ETHOS use many powerful surfaces while keeping one governed kernel.
+
+## Autonomy Invariants
+
+ETHOS becomes more autonomous only when autonomy reduces ungoverned discretion.
+The following invariants are stronger than any vendor integration:
+
+1. Every autonomous step must narrow a type, not blur one: signal to envelope,
+   envelope to candidate, candidate to admitted change, change to Work Lane,
+   Work Lane to proof, proof to claim, claim to chronicle.
+2. Every write-capable step must have a stop condition: expected head, owner,
+   root, scope, forbidden paths, proof route, rollback, and publication
+   boundary.
+3. Every repeated failure must move upstream only after judgment: incident to
+   diagnosis, diagnosis to hypothesis, hypothesis to change, change to proof,
+   proof to rule / hook / schema / scaffold / default.
+4. Every automation must retire more ambiguity than it creates. A bot that
+   creates more untriaged cards, stale branches, or unverifiable claims than it
+   resolves is negative autonomy.
+5. ETHOS may not self-authorize authority expansion. Changes to authority
+   order, release policy, protected roots, proof gates, external publication, or
+   backend trust levels require maintainer-visible admission and evidence.
+
+The Dao-aligned direction is therefore not maximum action. It is minimum
+unproven action and maximum proven learning.
 
 ## Kernel Flow
 
@@ -395,14 +448,29 @@ itself, certify itself, or publish itself outside configured authority.
 
 ## First Implementation Slice
 
-The first implementation slice should be read-only.
+The first implementation slice is now read-only intake mining.
 
-Proposed future command: `ethos intake mine --json`.
+Current command:
 
-This is not yet an implemented command. It is intentionally written as proposed
-text rather than as a current executable command example.
+```bash
+ETHOS_ACTOR=codex uv run --package ethos ethos intake mine --json
+```
 
-Initial sources:
+As of the current implementation, this command reads repository claim evidence
+signals and projects them into intake envelopes and issue candidates without
+mutating the repository. Its output is explicitly bounded:
+
+- `repository_truth=false`;
+- `writes=[]`;
+- `truth_boundary=repository-readmodel`;
+- `auto_raise_allowed=false` in the summary;
+- `auto_dispatch_allowed=false` in the summary.
+
+This makes `intake mine` an E0/E1 read model: it senses and classifies; it does
+not raise external issues, admit changes, create Work Lanes, assign agents,
+prove, land, publish, or chronicle by itself.
+
+Current and future sources:
 
 ```bash
 ETHOS_ACTOR=codex uv run --package ethos ethos report --root <target-root> --json
@@ -412,14 +480,10 @@ ETHOS_ACTOR=codex uv run --package ethos ethos lane status --root <target-root> 
 ETHOS_ACTOR=codex uv run --package ethos ethos campaign hypotheses --root <target-root> --json
 ```
 
-Initial output:
-
-```text
-build/evidence/intake/candidates.json
-```
-
-This output is generated evidence candidate material. It should not be committed
-as truth unless summarized into durable evidence or used by a promoted claim.
+The current machine output lives in command JSON under `intake_envelopes` and
+`issue_candidates`. Future adapters may also write generated evidence-candidate
+artifacts, but those artifacts should not be committed as truth unless they are
+summarized into durable evidence or used by a promoted claim.
 
 Minimum candidate quality:
 
@@ -432,15 +496,25 @@ Minimum candidate quality:
 - no candidate carries mutation authority;
 - no output claims more than the source command proves.
 
+The next safe slice is not automatic dispatch. It is issue projection dry run:
+`ethos intake raise --dry-run --json`. Its job is to show what would be raised
+to GitHub, GitLab, Multica, Beads, or another board without creating provider
+truth. It must preserve `Issue != Change` and keep
+`auto_dispatch_allowed=false`.
+
 ## Later Slices
 
-1. Proposed future `intake raise` dry-run / apply adapter for GitHub, GitLab,
-   Multica, or Beads projections.
-2. Proposed future `dispatch plan` flow to produce a dispatch envelope.
-3. Proposed future `dispatch assign` dry-run / apply adapter to project an
-   assignment into Codex, Copilot, GitLab Duo, OpenHands, or another backend.
+1. `intake raise --dry-run --json`, followed later by explicitly authorized
+   apply adapters for GitHub, GitLab, Multica, Beads, or other board
+   projections.
+2. `dispatch plan` to produce a dispatch envelope from an admitted change.
+3. `dispatch assign --dry-run --json`, followed later by authorized apply
+   adapters to project assignments into Codex, Copilot, GitLab Duo, OpenHands,
+   or another backend.
 4. Result-package import and proof binding.
-5. Chronicle-backed evolution decisions and upstream guardrail generation.
+5. Chronicle-backed evolution decisions.
+6. Upstream guardrail proposal and promotion: rule, hook, schema, scaffold,
+   default, or skill.
 
 Each slice must keep the command plane small. New commands must reduce invalid
 states, not create a parallel lifecycle.
@@ -459,6 +533,12 @@ Research calibration used during this design review:
 - [GitLab Duo Agent Platform Developer Flow](https://docs.gitlab.com/user/duo_agent_platform/flows/foundational_flows/developer/)
 - [Beads documentation](https://gastownhall.github.io/beads/)
 - [SWE-agent repository](https://github.com/SWE-agent/SWE-agent)
+- [Renovate pull requests](https://docs.renovatebot.com/key-concepts/pull-requests/)
+- [Renovate how it works](https://docs.renovatebot.com/key-concepts/how-renovate-works/)
+- [Dependabot pull requests](https://docs.github.com/en/code-security/concepts/supply-chain-security/dependabot-pull-requests)
+- [CodeQL code scanning](https://docs.github.com/en/code-security/concepts/code-scanning/codeql/codeql-code-scanning)
+- [SonarQube issues](https://docs.sonarsource.com/sonarqube-server/user-guide/issues/introduction)
+- [Semgrep AppSec Platform findings dedupe](https://semgrep.dev/docs/kb/semgrep-appsec-platform/findings-count-differ-api-platform)
 
 ## Terminal Formula
 

@@ -117,7 +117,6 @@ It does not mint truth. Truth remains source, tests, schemas, governed docs,
 OpenSpec records, claims, evidence, command JSON, and Chronicle records after
 promotion.
 
-
 ## Evolution Layer Boundary
 
 ETHOS also owns a learning and evolution mechanism. It is separate from the
@@ -145,7 +144,6 @@ a bounded experiment, proof evidence, and then a decision to create, revise,
 replace, retire, or refuse a commitment. The durable unit is the governed
 commitment; the practice claim is the evolution carrier that helps execute and
 inspect it.
-
 
 ## Practice Selection And Fate
 

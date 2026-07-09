@@ -60,6 +60,11 @@ def _patch_report_scorecard_dependencies(monkeypatch, *, profile: str) -> None:
     monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
         report_domain,
+        "workflow_runtime_report",
+        lambda _repo: {"ok": True, "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        report_domain,
         "playbooks_report",
         lambda _repo, mode="v2-strict": {
             "ok": True,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
 if TYPE_CHECKING:
@@ -49,6 +50,14 @@ def change_scope_paths(root: Path, *, base_ref: str = "") -> tuple[str, ...]:
     committed = committed_change_paths(root, base_ref)
     dirty = changed_paths(root)
     return tuple(dict.fromkeys((*committed, *dirty)))
+
+
+def change_scope_paths_from_status(root: Path, status_payload: dict[str, Any]) -> tuple[str, ...]:
+    """Return current change-scope paths using workspace status role semantics."""
+    role = str(status_payload.get("role") or "")
+    role_policy = cast("dict[str, object]", status_payload.get("role_policy") or {})
+    base_ref = str(role_policy.get("candidate_branch") or "") if role == "work_lane" else ""
+    return change_scope_paths(root, base_ref=base_ref)
 
 
 def dirty_provenance(root: Path) -> dict[str, object]:

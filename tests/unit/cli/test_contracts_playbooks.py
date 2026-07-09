@@ -322,6 +322,71 @@ boundary = "workflow-package-projection"
     assert route["data"]["selected"][0]["matched_paths"] == ["src/code.py"]
 
 
+def test_playbooks_changed_scope_in_work_lane_includes_committed_delta(
+    tmp_path: Path,
+) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    skills_root = root / ".agents" / "skills"
+    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
+    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    (skills_root / "activation.toml").write_text(
+        f"""
+[meta]
+version = 2
+
+[[skill]]
+id = "docs-governance"
+package_manifest = "{package_manifest.relative_to(root).as_posix()}"
+subject = "changed-scope"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+path_globs = ["docs/**"]
+pre_reads = ["README.md"]
+post_checks = ["ethos report --json"]
+commands = ["ethos status"]
+boundary = "workflow-package-projection"
+""".lstrip(),
+        encoding="utf-8",
+    )
+    git(root, "add", ".agents")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add playbook routing",
+    )
+    git(root, "branch", "candidate/dev")
+    git(root, "checkout", "-b", "work/docs", "candidate/dev")
+    (root / "docs").mkdir()
+    (root / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+    git(root, "add", "docs/guide.md")
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "add docs guide",
+    )
+
+    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
+
+    assert git(root, "status", "--porcelain") == ""
+    assert payload["ok"] is True
+    assert payload["data"]["changed_paths"] == ["docs/guide.md"]
+    selected = payload["data"]["selected"][0]
+    assert selected["id"] == "docs-governance"
+    assert selected["matched_paths"] == ["docs/guide.md"]
+    assert payload["data"]["unmatched_paths"] == []
+
+
 def test_playbooks_changed_scope_without_changed_paths_selects_nothing(
     tmp_path: Path,
 ) -> None:

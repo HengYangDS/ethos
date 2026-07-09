@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.playbooks import route_playbook
@@ -46,7 +47,8 @@ def playbooks_route(
     """Route a subject to repo-local ETHOS playbooks."""
     repo = resolve_root(root)
     route_subject = "changed-scope" if changed else subject
-    changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
+    status_payload = workspace_status(repo)
+    changed_paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     report = route_playbook(
         repo,
         route_subject,

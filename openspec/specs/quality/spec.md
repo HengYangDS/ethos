@@ -234,6 +234,22 @@ and curated evidence remain distinct authority surfaces.
 - **AND** cleanup commands may remove denied residue but do not make a producer
   that recreates denied homes compliant.
 
+
+### Requirement: No Compatibility Residue Gate
+
+ETHOS SHALL enforce destructive cutover by blocking compatibility residue in
+production source after migration closeout.
+
+#### Scenario: Production compatibility residue is blocked
+
+- **WHEN** `ethos quality no-compat --json` runs
+- **THEN** ETHOS scans product production source roots
+- **AND** it reports required gaps for compatibility shims, deprecated surfaces,
+  legacy wrappers, dynamic export forwarding, and import-path shells
+- **AND** it does not scan test fixtures that intentionally contain blocked
+  examples
+- **AND** the default product proof floor includes the no-compat gate
+
 ### Requirement: Python Module Layout Gate
 
 ETHOS SHALL gate Python module layout as a quality property so semantic

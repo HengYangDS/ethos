@@ -147,5 +147,6 @@ def load_command_groups(argv: list[str]) -> None:
     for name in selected:
         importlib.import_module(groups[name])
         if name == "quality":
+            importlib.import_module("ethos.surface.cli.quality.cutover.core")
             importlib.import_module("ethos.surface.cli.boundary.product")
             importlib.import_module("ethos.surface.cli.boundary.readiness")

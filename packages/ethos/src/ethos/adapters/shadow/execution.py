@@ -32,7 +32,15 @@ def run_external(
             timeout_seconds=timeout_seconds,
         )
     return run_json_command(
-        [sys.executable, "-m", "ethos.cli", *command, "--root", target.as_posix(), "--json"],
+        [
+            sys.executable,
+            "-m",
+            "ethos.cli",
+            *command,
+            "--root",
+            target.as_posix(),
+            "--json",
+        ],
         cwd=Path.cwd(),
         timeout_seconds=timeout_seconds,
     )
@@ -146,6 +154,7 @@ def run_json_command(
             capture_output=True,
             check=False,
             timeout=timeout_seconds,
+            start_new_session=True,
         )
     except subprocess.TimeoutExpired as exc:
         return {

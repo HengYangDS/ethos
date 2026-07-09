@@ -127,6 +127,7 @@ platforms = ["osx-arm64"]
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd))
         return subprocess.CompletedProcess(
@@ -174,6 +175,7 @@ ethos = "python -m ethos.cli"
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd))
         return subprocess.CompletedProcess(
@@ -220,6 +222,7 @@ members = ["packages/ethos"]
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd))
         return subprocess.CompletedProcess(
@@ -242,7 +245,10 @@ members = ["packages/ethos"]
         "required_gaps": [],
     }
     assert calls == [
-        (["uv", "run", "--package", "ethos", "ethos", "status", "--json"], repo.resolve())
+        (
+            ["uv", "run", "--package", "ethos", "ethos", "status", "--json"],
+            repo.resolve(),
+        )
     ]
 
 
@@ -260,6 +266,7 @@ def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd))
         return subprocess.CompletedProcess(
@@ -292,6 +299,7 @@ def test_external_shadow_runner_uses_root_option_for_rooted_commands(
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         calls.append((command, cwd))
         return subprocess.CompletedProcess(
@@ -316,7 +324,12 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "pixi.toml").write_text("", encoding="utf-8")
-    payload = {"ok": False, "command": "status", "state": "blocked", "required_gaps": ["x"]}
+    payload = {
+        "ok": False,
+        "command": "status",
+        "state": "blocked",
+        "required_gaps": ["x"],
+    }
 
     def fake_run(
         command: list[str],
@@ -326,6 +339,7 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
         capture_output: bool,
         check: bool,
         timeout: int,
+        start_new_session: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 1, stdout=json.dumps(payload), stderr="")
 
@@ -359,3 +373,59 @@ def test_shadow_exit_code_above_one_is_process_failure_even_with_verdict() -> No
             "json": {"ok": False, "command": "status", "required_gaps": []},
         }
     )
+
+
+def test_shadow_json_runner_isolates_timeout_process_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        text: bool,
+        capture_output: bool,
+        check: bool,
+        timeout: int,
+        start_new_session: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(
+            {
+                "command": command,
+                "cwd": cwd,
+                "text": text,
+                "capture_output": capture_output,
+                "check": check,
+                "timeout": timeout,
+                "start_new_session": start_new_session,
+            }
+        )
+        raise subprocess.TimeoutExpired(command, timeout, output="partial", stderr="late")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = shadow_execution.run_json_command(
+        ["ethos", "status", "--json"],
+        cwd=tmp_path,
+        timeout_seconds=7,
+    )
+
+    assert result == {
+        "exit_code": 124,
+        "stdout": "partial",
+        "stderr": "late",
+        "json": {},
+    }
+    assert calls == [
+        {
+            "command": ["ethos", "status", "--json"],
+            "cwd": tmp_path,
+            "text": True,
+            "capture_output": True,
+            "check": False,
+            "timeout": 7,
+            "start_new_session": True,
+        }
+    ]

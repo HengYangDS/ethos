@@ -11,6 +11,7 @@ from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.ethos_cli_runner import write_role_policy
 
 
@@ -398,6 +399,35 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert payload["ok"] is True
     assert payload["state"] == "local_publish_ready"
     assert payload["required_gaps"] == []
+
+
+def test_publish_tolerates_git_pre_push_remote_arguments(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+
+    payload = run_ethos(
+        "publish",
+        "--json",
+        "origin",
+        "ssh://git@example.invalid/group/repo.git",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "local_publish_ready"
+    assert payload["required_gaps"] == []
+    assert payload["summary"]["remote_push"] == "not_performed"
+
+
+def test_publish_rejects_non_hook_positional_arguments(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+
+    completed = run_ethos_raw("publish", "--json", "unexpected", cwd=repo)
+
+    assert completed.returncode != 0
 
 
 def test_publish_dry_run_blocks_release_root_active_openspec_residue(

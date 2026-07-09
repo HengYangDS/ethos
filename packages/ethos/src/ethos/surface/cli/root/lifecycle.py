@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import Any
 from typing import cast
+
+from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
 import ethos.domain.land as land_domain
@@ -45,6 +48,22 @@ class _CloseoutPayload:
     update: dict[str, object]
     gaps: tuple[str, ...]
     ok: bool
+
+
+@dataclass(frozen=True)
+class _PublishOptions:
+    """CLI options for `ethos publish`, including legacy hook metadata."""
+
+    legacy_hook_args: Annotated[
+        tuple[str, ...],
+        Parameter(name="*", show=False),
+    ] = ()
+    apply: bool = False
+    authorize: bool = False
+    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+
+
+_DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
 
 
 def _mapping_payload(value: object) -> dict[str, object]:
@@ -113,6 +132,13 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
     actions = [str(action) for action in publication_actions]
     actions.append("ethos report")
     return tuple(dict.fromkeys(actions))
+
+
+def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
+    """Accept Git pre-push remote metadata from old hook projections only."""
+    if len(args) in {0, 2}:
+        return
+    raise SystemExit(2)
 
 
 @app.command
@@ -245,23 +271,25 @@ def land(
 
 @app.command
 def publish(
+    options: Annotated[
+        _PublishOptions,
+        Parameter(name="*"),
+    ] = _DEFAULT_PUBLISH_OPTIONS,
     *,
-    apply: bool = False,
-    authorize: bool = False,
-    expect_head: str | None = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report publish readiness without pushing."""
+    _validate_legacy_publish_hook_args(options.legacy_hook_args)
     repo = resolve_root(root)
     governance = context_for_root(repo)
     current_head = git.current_head(repo)
     decision = evaluate_mutation(
         MutationRequest(
             command="publish",
-            apply=apply,
-            authorized=authorize,
-            expect_head=expect_head,
+            apply=options.apply,
+            authorized=options.authorize,
+            expect_head=options.expect_head,
         ),
         root=repo,
         current_head=current_head,
@@ -303,7 +331,11 @@ def publish(
         command="publish",
         ok=ok,
         state=(
-            "local_publish_ready" if ok and not apply else "blocked" if gaps else decision.state
+            "local_publish_ready"
+            if ok and not options.apply
+            else "blocked"
+            if gaps
+            else decision.state
         ),
         summary=publish_summary,
         required_gaps=gaps,
@@ -320,12 +352,12 @@ def publish(
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": {
-                "apply": apply,
-                "authorized": authorize,
-                "expect_head": expect_head,
+                "apply": options.apply,
+                "authorized": options.authorize,
+                "expect_head": options.expect_head,
                 "current_head": current_head,
                 "decision": decision.state,
             },
         },
     )
-    emit(result, json_output=json_output, enforce=apply)
+    emit(result, json_output=json_output, enforce=options.apply)

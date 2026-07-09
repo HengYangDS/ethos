@@ -443,7 +443,13 @@ def test_product_behavior_does_not_live_in_tools_directory() -> None:
     tools_root = ROOT / "tools"
     assert tools_root.exists()
     allowed = {tools_root / "ci", tools_root / "ci" / "scripts"}
-    assert {path for path in tools_root.rglob("*") if path.is_dir()} <= allowed
+    runtime_cache_dirs = {"__pycache__", ".pytest_cache", ".ruff_cache"}
+    product_dirs = {
+        path
+        for path in tools_root.rglob("*")
+        if path.is_dir() and not any(part in runtime_cache_dirs for part in path.parts)
+    }
+    assert product_dirs <= allowed
     assert all(path.suffix == ".sh" for path in (tools_root / "ci" / "scripts").iterdir())
 
 

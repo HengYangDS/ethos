@@ -14,10 +14,10 @@ tests = [
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py tests/unit/cli/test_quality_boundary.py tests/unit/governance/validation/test_gates.py tests/architecture/test_product_boundaries.py tests/unit/kernel/test_skill_activation.py -q",
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py --cov-config=.config/checks/coverage/coverage.ini --cov=ethos.repository.policy.boundary.product --cov-report=term-missing --cov-fail-under=100 -q",
   "tools/ci/scripts/run-product-boundary.sh",
-  "uv run --package ethos ethos openspec --lifecycle --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
-  "uv run --package ethos ethos plan --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
-  "uv run --package ethos ethos quality product-boundary --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
-  "uv run --package ethos ethos quality contributor-policy --root /Users/yheng/projects/ethos-worktrees/enterprise-product-boundary-20260709 --json",
+  "uv run --package ethos ethos openspec --lifecycle --root <worktree> --json",
+  "uv run --package ethos ethos plan --changed --root <worktree> --json",
+  "uv run --package ethos ethos quality product-boundary --root <worktree> --json",
+  "uv run --package ethos ethos quality contributor-policy --root <worktree> --json",
 ]
 
 [scope]

@@ -30,3 +30,4 @@ belongs under `docs/plans/` with `state: planned` until promoted.
 - [Repository Profile Contract](repository-profile-contract.md)
 - [Config Boundary Model](config-boundary-model.md)
 - [Standards Adoption Policy](standards-adoption-policy.md)
+- [Enterprise Readiness Closeout](enterprise-readiness-closeout.md)

@@ -98,6 +98,7 @@ ethos quality docs
 ethos quality proof-policy
 ethos quality tool-profiles
 ethos quality package-ontology
+ethos quality enterprise-readiness
 ethos quality claims
 ethos quality docs-registry
 ethos quality docs-topology
@@ -138,6 +139,13 @@ ethos explain <gap-or-signal>
 ```
 
 `ethos quality docs-topology --json` audits the Minimal Semantic Documentation Topology Contract. It requires the minimal semantic common docs kernel (`docs/README.md`, `docs/decisions/`, `docs/evidence/`, `docs/history/`, and `docs/reference/`) while forbidding `current`/`future` roots such as `docs/current/` and `docs/future/`. Product or adopter roots such as `docs/architecture/`, `docs/concepts/`, `docs/start/`, `docs/governance/`, `docs/plans/`, and `docs/research/` are extensions, not required kernel lanes. `ethos fleet retirement-readiness --target <repo> --root <product> --json` uses the same audit as a blocking embedded-backend retirement gate.
+
+`ethos quality enterprise-readiness --json` is an aggregate closeout gate for
+general-purpose enterprise use. It composes existing owner gates for product
+boundary neutrality, role-based contributor policy, semantic docs topology,
+generic parity, release/distribution boundaries, claim carriers, and the shared
+governed-repository context. It is read-only: remote publication and foreign
+Work Lane cleanup remain separate states requiring their own authority.
 
 `ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, governed-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
 

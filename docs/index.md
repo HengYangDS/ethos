@@ -24,6 +24,7 @@ Start with [Start](start/quickstart.md), then read
 [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
+[Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Repository Profile Contract](governance/repository-profile-contract.md),
 [Config Boundary Model](governance/config-boundary-model.md),
@@ -73,6 +74,7 @@ or maintainer break-glass evidence.
 - Skills: [Skills](../.agents/skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
+- Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
 - Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)

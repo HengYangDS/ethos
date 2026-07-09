@@ -15,8 +15,8 @@ tests = [
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/openspec/protocol/core.py tests/unit/product/test_openspec_cache.py",
   "uv run openspec validate ethos-openspec-product-protocol --strict --json",
   "uv run --package ethos ethos openspec --lifecycle --json",
-  "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-openspec-product-protocol --execute --write-evidence --json",
-  "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target <workspace>/ethos-work-openspec-product-protocol --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter reference-adopter --target <adopter-repo> --execute --write-evidence --json",
 ]
 
 [scope]
@@ -42,7 +42,6 @@ targets = [
   "evidence/claims/ethos-openspec-product-protocol.toml",
   "evidence/chronicle/openspec-product-protocol/2026-07-02.md",
   "evidence/parity/generic-shadow.json",
-  "evidence/parity/alphasim-dmgr-shadow.json",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
   "openspec/changes/archive/2026-07-01-ethos-openspec-product-protocol/proposal.md",

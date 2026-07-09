@@ -16,10 +16,10 @@ tests = [
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos campaign status --json",
   "uv run --package ethos ethos campaign closeout --json",
-  "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-campaign-orchestration --execute --write-evidence --json",
-  "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target <workspace>/ethos-work-campaign-orchestration --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter reference-adopter --target <adopter-repo> --execute --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
-  "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
+  "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
 ]
 
 [scope]
@@ -50,7 +50,6 @@ targets = [
   "evidence/claims/ethos-campaign-orchestration.toml",
   "evidence/chronicle/campaign-orchestration/2026-07-02.md",
   "evidence/parity/generic-shadow.json",
-  "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/evolution-campaign.md",
   "docs/plans/terminal-governance-product-design.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",

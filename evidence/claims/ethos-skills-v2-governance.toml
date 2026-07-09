@@ -24,11 +24,11 @@ tests = [
   "uv run --package ethos ethos quality projection-drift --json",
   "uv run --package ethos ethos report --json",
   "uv run --package ethos ethos prove --execute --gate playbooks-v2 --json",
-  "uv run --package ethos ethos playbooks check --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-  "uv run --package ethos ethos playbooks route --changed --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-  "uv run --package ethos ethos report --root /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
-  "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
+  "uv run --package ethos ethos playbooks check --root <adopter-repo> --json",
+  "uv run --package ethos ethos playbooks route --changed --root <adopter-repo> --json",
+  "uv run --package ethos ethos report --root <adopter-repo> --json",
+  "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
+  "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 30 --json",
 ]
 
 [scope]

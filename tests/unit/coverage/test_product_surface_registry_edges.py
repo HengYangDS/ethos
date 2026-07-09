@@ -392,6 +392,7 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     assert imported == [
         "ethos.surface.cli.quality",
         "ethos.surface.cli.boundary.product",
+        "ethos.surface.cli.boundary.readiness",
     ]
     imported.clear()
     _base.load_command_groups([])

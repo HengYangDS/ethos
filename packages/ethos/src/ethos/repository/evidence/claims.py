@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
@@ -29,6 +30,38 @@ REPOSITORY_OVERCLAIM_PHRASES = (
     " is closed",
     "retirement is safe",
     "backend retirement",
+)
+_MAC_HOME_PREFIX = "/" + "Users" + "/"
+_HOME_PROJECT_PREFIX = "~" + "/" + "projects"
+ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS = (
+    (
+        "private_adopter_literal",
+        re.compile(
+            r"\bprivate\s+(?:adopter|profile|repository|project|domain)\s+`?"
+            r"(?!generic\b|reference-adopter\b|sample-adopter\b|example-adopter\b)"
+            r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+\b"
+            r"`?"
+            r"|\b(?:adopter|profile)\s*=\s*`?"
+            r"(?!generic\b|reference-adopter\b|sample-adopter\b|example-adopter\b)"
+            r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+\b"
+            r"`?"
+            r"|\b--adopter\s+"
+            r"(?!generic\b|reference-adopter\b|sample-adopter\b|example-adopter\b)"
+            r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+\b"
+            r"|\bevidence/parity/(?!generic-shadow\.json|<adopter-id>-shadow\.json)"
+            r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+-shadow\.json\b"
+            r"|\badopters/(?!<adopter-id>\b|reference-adopter\b|sample-adopter\b|example-adopter\b)"
+            r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "local_workstation_path",
+        re.compile(
+            rf"(?:{re.escape(_MAC_HOME_PREFIX)}|{re.escape(_HOME_PROJECT_PREFIX)}/)"
+            r"[^\s\"']+"
+        ),
+    ),
 )
 
 
@@ -88,6 +121,31 @@ def _has_repository_overclaim(text: str, verifier: str) -> bool:
         return False
     lowered = text.lower()
     return any(phrase in lowered for phrase in REPOSITORY_OVERCLAIM_PHRASES)
+
+
+def _active_product_claim_private_gaps(claim_id: str, payload: dict[str, Any]) -> list[str]:
+    """Return active-claim gaps for private adopter, workstation, or project literals.
+
+    Historical chronicles and archived OpenSpec records may retain factual names.
+    Active product claims are different: they are live trust envelopes. They must
+    not require a named private adopter, local workstation path, or private
+    project token to understand product authority, evidence, fallback, or
+    promotion scope.
+    """
+    text = _payload_text(payload)
+    gaps: list[str] = []
+    for kind, pattern in ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS:
+        if pattern.search(text):
+            gaps.append(f"{claim_id}:active_claim_private_coupling:{kind}")
+    return gaps
+
+
+def _payload_text(value: object) -> str:
+    if isinstance(value, dict):
+        return "\n".join(f"{key}={_payload_text(item)}" for key, item in sorted(value.items()))
+    if isinstance(value, list):
+        return "\n".join(_payload_text(item) for item in value)
+    return str(value)
 
 
 def _normalized_digest(value: object) -> str:
@@ -251,6 +309,7 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
             continue
         is_active = claim.get("state") == "active"
         if is_active:
+            gaps.extend(_active_product_claim_private_gaps(claim_id, payload))
             active_identity = "\n".join(
                 [
                     path.stem,

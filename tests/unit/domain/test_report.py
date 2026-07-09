@@ -382,13 +382,13 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
     monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", lambda _repo: "head")
 
     def fake_parity_gaps_report(**kwargs):
-        if kwargs.get("adopter") == "alphasim-dmgr":
+        if kwargs.get("adopter") == "domain-adopter":
             return {
                 "ok": True,
-                "adopter": "alphasim-dmgr",
+                "adopter": "domain-adopter",
                 "required_gaps": [],
                 "pending_packages": [],
-                "evidence": {"path": "docs/evidence/parity/alphasim-dmgr-shadow.json"},
+                "evidence": {"path": "docs/evidence/parity/domain-adopter-shadow.json"},
             }
         return {
             "ok": False,
@@ -412,7 +412,7 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
     monkeypatch.setattr(
         report_domain,
         "profile_identity",
-        lambda _repo: "alphasim-dmgr",
+        lambda _repo: "domain-adopter",
     )
     monkeypatch.setattr(
         report_domain,
@@ -426,7 +426,7 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
     assert payload["next_actions"] == ("ethos playbooks check --mode v2-strict --json",)
     assert payload["data"]["parity"]["scope"] == {
         "generic_gap_count": 1,
-        "adopter": "alphasim-dmgr",
+        "adopter": "domain-adopter",
         "adopter_gap_count": 0,
         "domain_profile_parity_closed": True,
         "note": (
@@ -435,7 +435,7 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
         ),
     }
     assert payload["data"]["parity"]["adopter_gaps"]["evidence"]["path"] == (
-        "docs/evidence/parity/alphasim-dmgr-shadow.json"
+        "docs/evidence/parity/domain-adopter-shadow.json"
     )
 
 
@@ -511,15 +511,15 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
 
     def fake_parity_gaps_report(**kwargs):
         calls.append(kwargs)
-        if kwargs.get("adopter") == "alphasim-dmgr":
+        if kwargs.get("adopter") == "domain-adopter":
             return {
                 "ok": bool(kwargs["root"] == product_root),
-                "adopter": "alphasim-dmgr",
+                "adopter": "domain-adopter",
                 "required_gaps": []
                 if kwargs["root"] == product_root
-                else ["parity_evidence_invalid:alphasim-dmgr:product_head"],
+                else ["parity_evidence_invalid:domain-adopter:product_head"],
                 "pending_packages": [],
-                "evidence": {"path": "docs/evidence/parity/alphasim-dmgr-shadow.json"},
+                "evidence": {"path": "docs/evidence/parity/domain-adopter-shadow.json"},
             }
         return {
             "ok": False,
@@ -540,7 +540,7 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
         },
     )
     monkeypatch.setattr(report_domain, "available_profiles", lambda: ())
-    monkeypatch.setattr(report_domain, "profile_identity", lambda _repo: "alphasim-dmgr")
+    monkeypatch.setattr(report_domain, "profile_identity", lambda _repo: "domain-adopter")
     monkeypatch.setattr(
         report_domain,
         "standard_adapter_registry",
@@ -552,7 +552,7 @@ def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
         product_root=product_root,
     )
 
-    adopter_call = next(call for call in calls if call.get("adopter") == "alphasim-dmgr")
+    adopter_call = next(call for call in calls if call.get("adopter") == "domain-adopter")
     assert adopter_call["root"] == product_root
     assert adopter_call["target"] == adopter_root
     assert adopter_call["current_product_head"] == "product-head"

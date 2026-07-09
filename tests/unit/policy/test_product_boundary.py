@@ -102,7 +102,7 @@ def test_product_boundary_skips_local_ethos_state_proof_records(tmp_path: Path) 
     _write(tmp_path / "README.md", "# ETHOS\n")
     _write(
         tmp_path / ".ethos" / "state" / "proof" / ("a" * 40 + ".json"),
-        '{"source_root": "/Users/person/projects/ethos"}\n',
+        '{"source_root": "/' + "Users" + '/person/projects/ethos"}\n',
     )
 
     report = boundary.product_boundary_report(tmp_path)

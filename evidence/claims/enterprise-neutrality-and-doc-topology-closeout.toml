@@ -1,0 +1,62 @@
+[claim]
+id = "enterprise-neutrality-and-doc-topology-closeout"
+subject = "ethos:enterprise-neutrality-and-doc-topology-closeout"
+state = "active"
+summary = "ETHOS enterprise-neutrality and documentation-topology closeout is bound to an executable aggregate readiness gate."
+
+[evidence]
+dated = "evidence/chronicle/enterprise-neutrality-and-doc-topology-closeout/2026-07-09.md"
+sha256 = "91bcfa4c4d4db9a9bcb3019adaa6da8332c61effbfd897d88cb6f81f9bfcc418"
+evidence_ids = ["evidence:enterprise-neutrality-and-doc-topology-closeout"]
+binding = "enterprise-readiness aggregate gate, product-boundary neutrality, semantic docs topology, organization-native identity, generic parity, distribution boundary, and local-vs-remote closeout separation"
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/unit/governance/test_claims.py tests/unit/policy/test_product_boundary.py tests/unit/domain/test_report.py -q",
+  "uv run --package ethos ethos quality enterprise-readiness --json",
+  "uv run --package ethos ethos quality product-boundary --json",
+  "uv run --package ethos ethos quality docs-topology --json",
+  "uv run --package ethos ethos quality contributor-policy --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/policy/test_enterprise_readiness.py",
+  "tests/unit/cli/test_quality_readiness.py",
+]
+docs = [
+  "docs/governance/enterprise-readiness-closeout.md",
+  "docs/reference/command-plane.md",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Enterprise-neutral readiness aggregate over existing owner gates; local closeout only"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-enterprise-neutrality-and-doc-topology-closeout"
+fallback = "Use owner gates directly: product-boundary, docs-topology, contributor-policy, generic parity, release-policy, generated-artifacts, report, and proof."
+kill_signal = "Enterprise readiness is claimed from prose while any owner gate reports a required gap, or while remote publication / foreign lane cleanup is implied without separate authorization."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos/src/ethos/repository/policy/readiness/enterprise.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/boundary/readiness.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/_base.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/repository/registry/docs/commands.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/repository/evidence/claims.py" },
+  { kind = "tests", path = "tests/unit/policy/test_enterprise_readiness.py" },
+  { kind = "tests", path = "tests/unit/cli/test_quality_readiness.py" },
+  { kind = "tests", path = "tests/unit/governance/test_claims.py" },
+  { kind = "tests", path = "tests/unit/policy/test_product_boundary.py" },
+  { kind = "tests", path = "tests/unit/domain/test_report.py" },
+  { kind = "docs", path = "docs/governance/enterprise-readiness-closeout.md" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "openspec", path = "openspec/specs/quality/spec.md" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-09-enterprise-neutrality-and-doc-topology-closeout" },
+  { kind = "evidence", path = "evidence/chronicle/enterprise-neutrality-and-doc-topology-closeout/2026-07-09.md" },
+]

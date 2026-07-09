@@ -38,7 +38,7 @@ distributions = [
   "distributions/npm",
 ]
 adopters = [
-  "alphasim-dmgr",
+  "reference-adopter",
 ]
 
 [boundary]

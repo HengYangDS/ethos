@@ -149,3 +149,4 @@ def load_command_groups(argv: list[str]) -> None:
         importlib.import_module(f"ethos.surface.cli.{name}")
         if name == "quality":
             importlib.import_module("ethos.surface.cli.boundary.product")
+            importlib.import_module("ethos.surface.cli.boundary.readiness")

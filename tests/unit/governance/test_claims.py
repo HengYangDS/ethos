@@ -332,6 +332,62 @@ def test_digest_only_claim_rejects_summary_overclaim(tmp_path: Path) -> None:
     assert "sample:semantic_overclaim_requires_semantic_verifier" in report["required_gaps"]
 
 
+def test_active_product_claim_rejects_private_adopter_and_workstation_literals(
+    tmp_path: Path,
+) -> None:
+    claims = tmp_path / "evidence" / "claims"
+    evidence = tmp_path / "evidence"
+    carrier = tmp_path / "openspec" / "specs" / "quality"
+    target = tmp_path / "docs" / "guide.md"
+    claims.mkdir(parents=True)
+    evidence.mkdir(parents=True, exist_ok=True)
+    carrier.mkdir(parents=True)
+    target.parent.mkdir(parents=True)
+    evidence_file = evidence / "sample.md"
+    evidence_file.write_text("sample\n", encoding="utf-8")
+    (carrier / "spec.md").write_text("spec\n", encoding="utf-8")
+    target.write_text("guide\n", encoding="utf-8")
+    workstation_path = "/" + "Users" + "/example/project"
+    (claims / "sample.toml").write_text(
+        "\n".join(
+            [
+                "[claim]",
+                'id = "sample"',
+                'subject = "ethos:sample"',
+                'state = "active"',
+                f'summary = "uses private project `domain-adopter` and {workstation_path} as authority"',
+                "",
+                "[evidence]",
+                'dated = "evidence/sample.md"',
+                f'sha256 = "{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
+                'binding = "digest-bound evidence binding"',
+                'verifier = "semantic"',
+                'evidence_ids = ["evidence:sample"]',
+                "",
+                "[boundary]",
+                'owner = "ethos"',
+                'scope = "sample"',
+                "",
+                "[carriers]",
+                'openspec = "openspec/specs/quality/spec.md"',
+                "",
+                'fallback = "use generic profile evidence"',
+                'kill_signal = "private repository names become product authority"',
+                "",
+                "[promotion]",
+                'targets = ["docs/guide.md"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = claims_report(tmp_path)
+
+    assert report["ok"] is False
+    assert "sample:active_claim_private_coupling:private_adopter_literal" in report["required_gaps"]
+    assert "sample:active_claim_private_coupling:local_workstation_path" in report["required_gaps"]
+
+
 def _write_head_claim(tmp_path: Path, *, head: str | None) -> None:
     claims = tmp_path / "evidence" / "claims"
     evidence = tmp_path / "evidence"

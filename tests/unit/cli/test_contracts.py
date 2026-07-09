@@ -521,6 +521,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "docs-registry",
         "docs-topology",
         "docstrings",
+        "enterprise-readiness",
         "evidence-freshness",
         "format-policy",
         "generated-artifacts",

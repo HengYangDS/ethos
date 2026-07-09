@@ -23,8 +23,8 @@ tests = [
   "uv run --package ethos ethos prove --expect-head \"$(git rev-parse HEAD)\" --json",
   "uv run --package ethos ethos prove --full --execute --json",
   "uv run --package ethos ethos parity gaps --json",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/di-effect --execute --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity shadow --target <sample-adopter-repo> --execute --timeout-seconds 60 --json",
 ]
 
 [scope]
@@ -45,7 +45,7 @@ scope = "Productization convergence across authority kernel, first-hour workflow
 [carriers]
 openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence"
 
-fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, dmgr raw/cache parity, domain backend retirement, and di-effect publish readiness."
+fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, reference-adopter raw/cache parity, domain backend retirement, and sample-adopter publish readiness."
 kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete."
 
 [promotion]

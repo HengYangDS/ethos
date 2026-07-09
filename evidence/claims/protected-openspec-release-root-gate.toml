@@ -12,7 +12,7 @@ binding = "semantic release-root OpenSpec carrier readiness gate"
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_modes.py::test_release_readiness_blocks_active_change_on_non_current_release_root tests/unit/cli/test_contracts_closeout.py::test_publish_dry_run_blocks_release_root_active_openspec_residue -q",
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate uv run --group dev ethos publish --json",
+  "ETHOS_ROOT=<workspace>/ethos-worktrees/protected-openspec-release-root-gate uv run --group dev ethos publish --json",
 ]
 
 [scope]

@@ -12,10 +12,10 @@ evidence_ids = ["evidence:root-philosophy-clarity"]
 binding = "semantic root constraint clarity evidence binding"
 verifier = "semantic"
 tests = [
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev pytest tests/architecture/test_product_design_contract.py tests/unit/kernel/test_contracts.py -q",
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --change root-philosophy-clarity --json",
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos audit --mode shape --json",
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/root-philosophy-clarity uv run --group dev ethos openspec --lifecycle --json",
+  "ETHOS_ROOT=<worktree> uv run --group dev pytest tests/architecture/test_product_design_contract.py tests/unit/kernel/test_contracts.py -q",
+  "ETHOS_ROOT=<worktree> uv run --group dev ethos openspec --change root-philosophy-clarity --json",
+  "ETHOS_ROOT=<worktree> uv run --group dev ethos audit --mode shape --json",
+  "ETHOS_ROOT=<worktree> uv run --group dev ethos openspec --lifecycle --json",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-shell-lint.sh",

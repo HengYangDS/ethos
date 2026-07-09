@@ -268,6 +268,20 @@ policy organization-native rather than person-native or adopter-private.
 - **AND** Git author, Git committer, Work Lane actor, reviewer, maintainer,
   bot, team, and adopter-side owner remain distinct identity facts
 
+#### Scenario: Enterprise readiness aggregates closeout layers
+
+- **WHEN** `ethos quality enterprise-readiness --json` runs
+- **THEN** ETHOS reports every enterprise closeout planning layer from L0
+  through L8
+- **AND** the report lifts required gaps from workspace status, report
+  scorecard, product boundary, docs topology, contributor policy, governance
+  context, generic parity, generated artifacts, release policy, and
+  claim-carrier checks
+- **AND** the report is clean only when every layer is clean
+- **AND** the report states that remote publication, external adopter
+  retirement, and foreign Work Lane cleanup are outside the local closeout claim
+  unless separately authorized
+
 ### Requirement: Evidence Freshness Protocol Gate
 
 ETHOS SHALL treat evidence freshness as the read model that checks claim

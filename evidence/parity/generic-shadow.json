@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "ead0016aa08981390f5a6026241d8badf7837811",
-    "target_head": "ead0016aa08981390f5a6026241d8badf7837811",
-    "product_semantic_sha256": "142fb49f54e98a3a29b2333d81446df1206b02b534789e84c71af380e465adda",
-    "target_semantic_sha256": "142fb49f54e98a3a29b2333d81446df1206b02b534789e84c71af380e465adda",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
+    "target_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
+    "product_semantic_sha256": "8bc792efd0f56a49acf5f6fb3bd23f993faea7c91949f1d9744daaa72e27bef1",
+    "target_semantic_sha256": "8bc792efd0f56a49acf5f6fb3bd23f993faea7c91949f1d9744daaa72e27bef1",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,10 +35,16 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709",
-    "target_head": "ead0016aa08981390f5a6026241d8badf7837811",
-    "product_head": "ead0016aa08981390f5a6026241d8badf7837811",
-    "changed_paths": [],
+    "target_root": "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709",
+    "target_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
+    "product_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
+    "changed_paths": [
+      "packages/ethos-core/src/ethos_core/data/invalid_states.toml",
+      "system/invalid_states.toml",
+      "tests/unit/governance/test_claims.py",
+      "tests/unit/policy/test_enterprise_readiness.py",
+      "tests/unit/policy/test_product_boundary.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +57,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +82,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "728410d2637a3b618a95991e77dd5c1c3a5b98fb18b4dfef3b008cb0bbe044a0"
+        "sha256": "23ac45c3f29807713f1517c3f85be8cea5954f17e15c43229e14d912250bcade"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6e90a257d99a59ae7afacc5e33e0b380ca3bae06a27018131b6963d2fdf58a77"
+        "sha256": "4eee902cfa6b4e58df60fcb2d5e230716e97d09ff3df33b7fc2ab4a5dd01288c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "8e4e21a4f2bb4c897f7aba46120f9438e86dfcc164bae7e80188b45ad7c57209"
+        "sha256": "4cc23edb23a24b958b3b7f7fc0f6faf4359d4b073b8b17fc4dd5c84df55f517c"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "793aa6d9920a061d19c7112019511806b34f131273bda846c1d9022e2d3a82db"
+        "sha256": "75107663c2df37e0b29083f76f9a2d12e166e9bbd8e132c130c9162662635a29"
       },
       {
         "path": "rules",

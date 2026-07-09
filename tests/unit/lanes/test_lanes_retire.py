@@ -856,3 +856,71 @@ def test_dirty_provenance_lives_in_semantic_subpackage(tmp_path: Path) -> None:
 
     assert report["dirty"] is True
     assert report["summary"]["untracked"] == 1
+
+
+def test_delete_json_projection_lease_ignores_absent_or_malformed_projection(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    assert retirement_shared.delete_json_projection_lease(repo, subject="work/landed") == 0
+
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text("{not-json", encoding="utf-8")
+    assert retirement_shared.delete_json_projection_lease(repo, subject="work/landed") == 0
+
+    lease_path.write_text(json.dumps([{"branch": "work/landed"}]), encoding="utf-8")
+    assert retirement_shared.delete_json_projection_lease(repo, subject="work/landed") == 0
+
+    lease_path.write_text(json.dumps({"leases": "not-a-list"}), encoding="utf-8")
+    assert retirement_shared.delete_json_projection_lease(repo, subject="work/landed") == 0
+
+
+def test_delete_json_projection_lease_matches_branch_or_subject_and_preserves_rows(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {"subject": "work/landed", "owner": "agent-subject"},
+                    {"branch": "work/other", "owner": "agent-other"},
+                    "opaque-row",
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    removed = retirement_shared.delete_json_projection_lease(repo, subject="work/landed")
+
+    assert removed == 1
+    payload = json.loads(lease_path.read_text(encoding="utf-8"))
+    assert payload == {
+        "leases": [
+            {"branch": "work/other", "owner": "agent-other"},
+            "opaque-row",
+        ],
+        "schema_version": 1,
+    }
+
+
+def test_delete_json_projection_lease_leaves_projection_when_subject_is_absent(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    original = {"leases": [{"branch": "work/other", "owner": "agent-other"}]}
+    lease_path.write_text(json.dumps(original), encoding="utf-8")
+
+    assert retirement_shared.delete_json_projection_lease(repo, subject="work/landed") == 0
+    assert json.loads(lease_path.read_text(encoding="utf-8")) == original

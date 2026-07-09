@@ -23,6 +23,15 @@ coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
 coverage_lock_dir="${coverage_evidence_dir}/.write.lock"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
+workers="${ETHOS_TEST_WORKERS:-8}"
+durations="${ETHOS_TEST_DURATIONS:-20}"
+shards="${ETHOS_TEST_SHARDS:-1}"
+if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
+  if ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; then
+    echo "ETHOS_TEST_SHARDS must be a positive integer" >&2
+    exit 2
+  fi
+fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-}}"
 if [[ -z "${ethos_python}" && -x "${repo_root}/.venv/bin/python" ]]; then
   ethos_python="${repo_root}/.venv/bin/python"
@@ -97,9 +106,6 @@ if not isinstance(value, int | float):
 print(f"{value:g}")
 PY
 )"
-workers="${ETHOS_TEST_WORKERS:-8}"
-durations="${ETHOS_TEST_DURATIONS:-20}"
-shards="${ETHOS_TEST_SHARDS:-1}"
 pytest_targets=(tests/unit tests/architecture)
 pytest_common_args=(
   -c "${pytest_config_path}"
@@ -158,10 +164,6 @@ if [[ "${shards}" == "1" || "${shards}" == "serial" ]]; then
     "${pytest_targets[@]}" \
     -q
 else
-  if ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; then
-    echo "ETHOS_TEST_SHARDS must be a positive integer" >&2
-    exit 2
-  fi
   nodeids_path="${pytest_evidence_dir}/nodeids.txt"
   run_pytest --collect-only -q -c "${pytest_config_path}" --rootdir=. "${pytest_targets[@]}" > "${nodeids_path}"
   "${ethos_python}" - "${nodeids_path}" "${pytest_evidence_dir}" "${shards}" <<'PY'

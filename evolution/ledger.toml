@@ -89,14 +89,14 @@ commitment_targets = [
   "docs/governance/evolution-campaign.md",
   "system/workflows.toml",
   "evolution/ledger.toml",
-  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
 ]
 evidence_refs = [
   "docs/research/workflow-runtime-frameworks-20260709.md",
   "docs/architecture/workflow-runtime.md",
 ]
 decision_refs = [
-  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
 ]
 
 [[candidate_set]]
@@ -252,7 +252,7 @@ evidence_refs = [
   "docs/architecture/workflow-runtime.md",
 ]
 decision_refs = [
-  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
 ]
 
 [[evaluation_record.metric_results]]
@@ -308,5 +308,5 @@ evidence_refs = [
   "docs/research/workflow-runtime-frameworks-20260709.md",
 ]
 decision_refs = [
-  "openspec/changes/adopt-ethos-native-workflow-runtime-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
 ]

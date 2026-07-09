@@ -60,6 +60,12 @@ truth rather than truth stores.
   map without treating skills as repository truth above source, tests, schemas,
   docs, OpenSpec, claims, evidence, or command JSON
 
+#### Scenario: Skill eval metadata is inspected
+- **WHEN** a skill package declares eval metadata
+- **THEN** ETHOS validates the metric names, pass@k bounds, instability-gap bounds, treatment id, and evidence refs
+- **AND** the metadata is reported as package quality metadata
+- **AND** eval metadata does not replace package digests, proof commands, claims, or evidence
+
 ### Requirement: Projection Boundary
 
 ETHOS SHALL keep assistant, MCP, ACP, hosted CI, workflow runtimes, external

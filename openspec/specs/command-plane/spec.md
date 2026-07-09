@@ -17,6 +17,12 @@ ETHOS SHALL keep the normal user workflow under five transition commands:
 - **AND** maintainer/reference commands are not counted as advanced public
   workflow commands
 
+#### Scenario: Workflow runtime projection is reported
+- **WHEN** `ethos plan --json` or `ethos report --json` projects workflow runtime state
+- **THEN** the projection is nested under existing command payloads
+- **AND** it does not add a new public lifecycle command
+- **AND** it references the same transition commands, guards, and evidence boundaries as the ETHOS command plane
+
 ### Requirement: CLI Surface Delegation
 The CLI SHALL compose output and UX while delegating semantics to core,
 contracts, repository, assistants, and adapters packages.
@@ -75,6 +81,11 @@ centered on `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 - **THEN** the next action enters through an `ethos ...` command
 - **AND** raw OpenSpec CLI commands remain adapter implementation detail or
   maintainer reference rather than the adopter first-hour workflow
+
+#### Scenario: Runtime adoption uses OpenSpec as carrier
+- **WHEN** workflow runtime semantics are changed
+- **THEN** an OpenSpec change carrier records the intent and deltas
+- **AND** official OpenSpec validation remains carrier validation rather than runtime authority
 
 ### Requirement: Explain Command Projects Invalid-State Signals
 

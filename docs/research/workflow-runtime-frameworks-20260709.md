@@ -3,7 +3,7 @@ subject: ethos:workflow-runtime-frameworks-20260709
 role: research
 state: active
 relations:
-  informs: docs/architecture/workflow-runtime.md, openspec/changes/adopt-ethos-native-workflow-runtime-20260709
+  informs: docs/architecture/workflow-runtime.md, openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709
 ---
 
 # ETHOS Framework Research Report: Comet, OpenSpec, and Adjacent SDD/Agent Workflow Systems

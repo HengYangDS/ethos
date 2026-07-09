@@ -10,4 +10,4 @@
 - [x] Add first-class evolution candidate set, experiment protocol, evaluation, and practice-change records.
 - [x] Bind claim and chronicle evidence.
 - [x] Run OpenSpec lifecycle validation and focused tests.
-- [ ] Run HEAD-bound executed proof and land readiness checks.
+- [x] Run HEAD-bound executed proof and land readiness checks.

@@ -160,10 +160,12 @@ change is explicitly selected.
   capability profile health, and out-of-scope boundaries.
 
 ### Requirement: Optional tool adapters remain replaceable
-
 ETHOS SHALL expose optional adapter boundaries for environment runners, graph
-systems, task ledgers, and agent method packs without making them product
-substrate.
+systems, task ledgers, external workflow frameworks, and agent method packs
+without making them product substrate. Useful external practices MAY be mapped
+to ETHOS contracts, adapters, evidence classes, projections, or method packs
+only through accepted governance changes that keep lifecycle truth inside the
+ETHOS kernel contract.
 
 #### Scenario: Adapter profile is reported
 
@@ -172,3 +174,8 @@ substrate.
   visible as adapter-only boundaries
 - **AND** their output SHALL NOT replace ETHOS proof, OpenSpec lifecycle checks,
   claims, evidence, or Git-native Work Lane semantics.
+
+#### Scenario: External workflow frameworks are classified
+- **WHEN** ETHOS evaluates Comet, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec
+- **THEN** their useful practices may be mapped to ETHOS contracts, adapters, evidence classes, projections, or method packs
+- **AND** their command planes, hidden state directories, task stores, and phase names do not become ETHOS lifecycle truth by default

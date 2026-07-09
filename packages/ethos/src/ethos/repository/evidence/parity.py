@@ -15,7 +15,7 @@ from ethos.repository.evidence.parity_validation import semantic_tree_digest
 from ethos.repository.evidence.parity_validation import sha256_text
 from ethos.repository.evidence.parity_validation import string_list
 from ethos.repository.evidence.parity_validation import tracked_evidence_provenance
-from ethos_core.contracts.capability_parity import capability_parity_records
+from ethos_core.contracts.capability.parity import capability_parity_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

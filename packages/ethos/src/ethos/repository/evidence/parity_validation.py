@@ -6,7 +6,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos_core.contracts.capability_parity import capability_parity_records
+from ethos_core.contracts.capability.parity import capability_parity_records
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

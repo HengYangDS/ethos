@@ -14,6 +14,7 @@ from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.docs.topology import docs_topology_report
+from ethos.repository.policy.governance.kernel import governance_kernel_report
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.release.core import release_policy_report
 
@@ -60,7 +61,7 @@ PLANNING_LAYERS: tuple[dict[str, object], ...] = (
             "product and adopter repositories use one status/plan/prove/land/publish "
             "command loop with orient/report as read-only projections"
         ),
-        "checks": ("governance-context",),
+        "checks": ("governance-context", "governance-kernel"),
     },
     {
         "id": "L5-profile-and-parity-boundary",
@@ -101,6 +102,7 @@ CLOSURE_CLAIMS: tuple[str, ...] = (
     "enterprise-product-boundary-20260709",
     "native-docs-topology",
     "isomorphic-governance-context-envelope",
+    "enterprise-kernel-completion-20260709",
 )
 
 
@@ -125,6 +127,7 @@ def enterprise_readiness_report(root: Path) -> dict[str, object]:
     )
     claims = claims_report(root, current_head=current_head)
     governance_context = context_for_root(root)
+    governance_kernel = governance_kernel_report(root)
     checks: dict[str, dict[str, object]] = {
         "workspace-status": _workspace_status_check(status),
         "scorecard": _scorecard_check(scorecard),
@@ -135,6 +138,7 @@ def enterprise_readiness_report(root: Path) -> dict[str, object]:
         "release-policy": _simple_report_check(release_policy),
         "generic-parity": _simple_report_check(parity),
         "governance-context": _governance_context_check(governance_context),
+        "governance-kernel": _simple_report_check(governance_kernel),
         "claim-carriers": _claim_carrier_check(root, claims),
     }
     layer_results = [_layer_result(layer, checks) for layer in PLANNING_LAYERS]

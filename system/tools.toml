@@ -100,6 +100,13 @@ profile = "product"
 gate = "tools/ci/scripts/run-dependency-hygiene.sh"
 
 [[tool]]
+concern = "governance_kernel"
+tool = "ethos-governance-kernel"
+config = "packages/ethos/src/ethos/repository/policy/governance/kernel.py"
+profile = "product"
+gate = "tools/ci/scripts/run-governance-kernel.sh"
+
+[[tool]]
 concern = "product_boundary"
 tool = "ethos-product-boundary"
 config = "packages/ethos/src/ethos/repository/policy/boundary/product.py"

@@ -43,6 +43,8 @@ ethos report
 ```
 
 This is the command grammar. `status`, `plan`, `prove`, `land`, and `publish`
+
+The same transition command semantics apply in the product repository and in adopted repositories.
 are the transition verbs; `report` is the payoff view. Every maintainer,
 quality, parity, assistant, playbook, fleet, hook, lane, or docs command is a
 domain lens or repair surface over that grammar. It must project a kernel
@@ -143,9 +145,17 @@ ethos explain <gap-or-signal>
 `ethos quality enterprise-readiness --json` is an aggregate closeout gate for
 general-purpose enterprise use. It composes existing owner gates for product
 boundary neutrality, role-based contributor policy, semantic docs topology,
-generic parity, release/distribution boundaries, claim carriers, and the shared
-governed-repository context. It is read-only: remote publication and foreign
-Work Lane cleanup remain separate states requiring their own authority.
+generic parity, release/distribution boundaries, claim carriers, governance
+kernel, and the shared governed-repository context. It is read-only: remote
+publication and foreign Work Lane cleanup remain separate states requiring their
+own authority.
+
+`ethos quality governance-kernel --json` is the independent guard for
+Isomorphic Governance. It checks the live `governance_context`, the
+product/adopter governance profile isomorphism, the product docs that make the
+contract discoverable, and the generic adoption scaffold. A clean verdict means
+product and adopted repositories share the same kernel and same transition
+command semantics; only profile and adapter bindings may vary.
 
 `ethos quality generated-artifacts --json` audits the Generated Artifact Topology Contract. It routes repository paths into declarative interface, local runtime, generated output, curated evidence, governed-docs, source-tree, package-metadata, and review-required classes; it blocks tracked generated drift outside `.cache/local-state/`, `build/ethos/`, and `build/evidence/`, while keeping `.config/ethos/` declarative-only and requiring curated evidence promotion under `docs/evidence/`, `evidence/chronicle/`, or `evidence/parity/`.
 

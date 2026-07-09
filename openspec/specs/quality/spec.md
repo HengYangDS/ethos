@@ -287,6 +287,23 @@ policy organization-native rather than person-native or adopter-private.
 - **AND** repository policy modules do not import domain or adapter modules to
   make the enterprise-readiness result pass import-linter
 
+#### Scenario: Governance kernel is independently enforced
+
+- **WHEN** `ethos quality governance-kernel --json` runs
+- **THEN** ETHOS checks the live `governance_context`, governance profile
+  isomorphism, first-glance product docs, and generic adoption scaffold
+- **AND** the gate requires `Authority -> Subject -> Commitment -> Change ->
+  Evidence -> Claim -> Chronicle` as the shared kernel chain
+- **AND** the gate requires `ethos status`, `ethos plan`, `ethos prove`,
+  `ethos land`, and `ethos publish` as the same transition command semantics
+  for product and adopted repositories
+- **AND** product and adopted repositories may differ only by authority binding,
+  profile configuration, adapter binding, strictness, and rollout
+- **AND** the gate blocks a second command plane, product cloning, profile-driven
+  kernel changes, or adopter-specific product authority
+- **AND** `tools/ci/scripts/run-governance-kernel.sh` is the reusable owner
+  script and participates in the local product-boundary and local-CI gate bundle
+
 ### Requirement: Evidence Freshness Protocol Gate
 
 ETHOS SHALL treat evidence freshness as the read model that checks claim

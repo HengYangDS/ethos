@@ -103,8 +103,11 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert (ROOT / "tools/ci/scripts/run-local-ci.sh").exists()
     assert (ROOT / "tools/ci/scripts/require-stable-head.sh").exists()
     assert (ROOT / "tools/ci/scripts/run-product-boundary.sh").exists()
+    assert (ROOT / "tools/ci/scripts/run-governance-kernel.sh").exists()
     assert 'concern = "product_boundary"' in tools
     assert 'gate = "tools/ci/scripts/run-product-boundary.sh"' in tools
+    assert 'concern = "governance_kernel"' in tools
+    assert 'gate = "tools/ci/scripts/run-governance-kernel.sh"' in tools
     assert 'concern = "local_ci_fallback"' in tools
     assert "tools/ci/scripts/require-stable-head.sh" in tools
     assert 'gate = "tools/ci/scripts/run-local-ci.sh"' in tools
@@ -232,6 +235,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
     assert "tools/ci/scripts/run-module-layout.sh" in gitlab
     assert "tools/ci/scripts/run-module-layout.sh" in precommit
     assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
+    assert "tools/ci/scripts/run-governance-kernel.sh" in local_ci
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
     assert "tools/ci/scripts/run-product-boundary.sh" in precommit
 

@@ -1,0 +1,63 @@
+[claim]
+id = "enterprise-kernel-completion-20260709"
+subject = "ethos:enterprise-kernel-completion-20260709"
+state = "active"
+summary = "ETHOS product and governed repositories share one executable governance-kernel gate and transition command plane."
+
+[evidence]
+dated = "evidence/chronicle/enterprise-kernel-completion-20260709/2026-07-09.md"
+sha256 = "ae46e50694b81b5ea27a78639fcf605adaccba38cef72e786468bd24eb01b20b"
+evidence_ids = ["evidence:enterprise-kernel-completion-20260709"]
+binding = "governance-kernel gate, enterprise-readiness L4, generic adoption scaffold, command-plane docs, OpenSpec quality spec, owner script, and focused tests"
+verifier = "semantic"
+tests = [
+  "uv run --package ethos ethos quality governance-kernel --json",
+  "uv run --package ethos ethos quality product-boundary --json",
+  "uv run --package ethos ethos quality enterprise-readiness --json",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/repository/policy/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/repository/policy/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
+  "uv run --group dev pytest -q tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py tests/architecture/test_readme_isomorphic_governance.py tests/architecture/test_product_design_contract.py",
+  "tools/ci/scripts/run-governance-kernel.sh",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/policy/test_governance_kernel.py",
+  "tests/unit/policy/test_enterprise_readiness.py",
+  "tests/unit/cli/test_quality_readiness.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/architecture/test_release_assets.py",
+]
+docs = [
+  "docs/reference/command-plane.md",
+  "openspec/specs/quality/spec.md",
+]
+
+[boundary]
+owner = "ethos-quality"
+scope = "Executable governance-kernel quality gate for product and governed repositories; local closeout only"
+
+[carriers]
+openspec = "openspec/specs/quality/spec.md"
+fallback = "Run owner gates directly: governance-kernel, product-boundary, enterprise-readiness, generic parity, report, and HEAD-bound proof."
+kill_signal = "Product and governed repository semantics diverge into separate command planes, product cloning, profile-driven kernel mutation, or adopter-specific product authority."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos/src/ethos/repository/policy/governance/kernel.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/repository/policy/readiness/enterprise.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/boundary/readiness.py" },
+  { kind = "source", path = "tools/ci/scripts/run-governance-kernel.sh" },
+  { kind = "source", path = "tools/ci/scripts/run-product-boundary.sh" },
+  { kind = "source", path = "tools/ci/scripts/run-local-ci.sh" },
+  { kind = "source", path = "system/tools.toml" },
+  { kind = "tests", path = "tests/unit/policy/test_governance_kernel.py" },
+  { kind = "tests", path = "tests/unit/policy/test_enterprise_readiness.py" },
+  { kind = "tests", path = "tests/unit/cli/test_quality_readiness.py" },
+  { kind = "tests", path = "tests/architecture/test_testing_platform.py" },
+  { kind = "tests", path = "tests/architecture/test_release_assets.py" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "openspec", path = "openspec/specs/quality/spec.md" },
+  { kind = "evidence", path = "evidence/chronicle/enterprise-kernel-completion-20260709/2026-07-09.md" },
+]

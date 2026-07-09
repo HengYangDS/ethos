@@ -68,6 +68,7 @@ def test_enterprise_readiness_report_closes_all_planning_layers(
             "scorecard_commands": ["ethos report"],
         },
     )
+    monkeypatch.setattr(readiness, "governance_kernel_report", clean)
     for claim in readiness.CLOSURE_CLAIMS:
         path = tmp_path / "evidence" / "claims" / f"{claim}.toml"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -95,6 +96,8 @@ def test_enterprise_readiness_report_closes_all_planning_layers(
     ]
     assert report["boundary"]["foreign_work_lanes"] == "observe_only_without_handoff_or_break_glass"
     assert report["boundary"]["identity_model"] == "external_role_policy"
+    l4 = next(layer for layer in report["layers"] if layer["id"] == "L4-shared-command-plane")
+    assert "governance-kernel" in l4["checks"]
 
 
 def test_enterprise_readiness_reports_blocking_gaps(monkeypatch, tmp_path: Path) -> None:
@@ -160,6 +163,16 @@ def test_enterprise_readiness_reports_blocking_gaps(monkeypatch, tmp_path: Path)
             "transition_commands": ["ethos status"],
             "reader_view_commands": [],
             "scorecard_commands": [],
+        },
+    )
+    monkeypatch.setattr(
+        readiness,
+        "governance_kernel_report",
+        lambda _root: {
+            "ok": False,
+            "state": "blocked",
+            "summary": {},
+            "required_gaps": ["governance_kernel_transition_commands_mismatch"],
         },
     )
 

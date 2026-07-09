@@ -9,3 +9,4 @@ cd "${repo_root}"
 
 uv run --all-packages --group dev python -m ethos.cli quality product-boundary --json
 uv run --all-packages --group dev python -m ethos.cli quality contributor-policy --json
+uv run --all-packages --group dev python -m ethos.cli quality governance-kernel --json

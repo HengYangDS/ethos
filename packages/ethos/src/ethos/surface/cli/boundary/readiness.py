@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from ethos.domain.readiness.enterprise import enterprise_readiness_report
+from ethos.repository.policy.governance.kernel import governance_kernel_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -35,6 +36,33 @@ def enterprise_readiness(
             )
             if report["required_gaps"]
             else "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+        ),
+        data=report,
+    )
+    emit(result, json_output=json_output)
+
+
+@quality_app.command(name="governance-kernel")
+def governance_kernel(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Audit the single kernel shared by product and adopted repositories."""
+    repo = resolve_root(root)
+    report = governance_kernel_report(repo)
+    result = EthosResult(
+        command="quality governance-kernel",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(cast("dict[str, object]", report["summary"])),
+        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
+        next_actions=(
+            (
+                "repair governance kernel, profile/adoption scaffold, and command-plane docs"
+                if report["required_gaps"]
+                else "ethos quality enterprise-readiness --json"
+            ),
         ),
         data=report,
     )

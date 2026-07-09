@@ -6,7 +6,7 @@ summary = "ETHOS retired adoption scaffold suffix-flat residue into semantic sub
 
 [evidence]
 dated = "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md"
-sha256 = "cf18db23d120d1fc1bf2116156439253482e9fe6aa96b08dc7c243f884a1fc7b"
+sha256 = "c99043557216fda63e5f10b33baebcab806e55663722f846604a76a9abc8daee"
 evidence_ids = ["evidence:adoption-scaffold-semantic-20260709"]
 binding = "Semantic scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation."
 verifier = "semantic"
@@ -17,6 +17,7 @@ tests = [
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality evidence-freshness --json",
   "uv run --package ethos ethos parity gaps --adopter generic --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --write-evidence --json",
   "uv run --package ethos ethos openspec --lifecycle --json",
 ]
 
@@ -57,6 +58,7 @@ targets = [
   "tests/unit/coverage/test_free_surface_quality_edges.py",
   "evidence/claims/native-docs-topology.toml",
   "evidence/claims/openspec-semantic-capability-layout.toml",
+  "evidence/parity/generic-shadow.json",
   "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md",
   "evidence/claims/adoption-scaffold-semantic-20260709.toml",
 ]

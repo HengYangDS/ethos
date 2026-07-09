@@ -4,6 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 import ethos.adapters.shadow.core as shadow_core
 import ethos.adapters.shadow.execution as shadow_execution
@@ -119,17 +120,8 @@ platforms = ["osx-arm64"]
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((command, cwd))
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
         return subprocess.CompletedProcess(
             command,
             0,
@@ -167,17 +159,8 @@ ethos = "python -m ethos.cli"
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((command, cwd))
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
         return subprocess.CompletedProcess(
             command,
             0,
@@ -214,17 +197,8 @@ members = ["packages/ethos"]
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((command, cwd))
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
         return subprocess.CompletedProcess(
             command,
             0,
@@ -258,17 +232,8 @@ def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((command, cwd))
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
         return subprocess.CompletedProcess(
             command,
             0,
@@ -291,17 +256,8 @@ def test_external_shadow_runner_uses_root_option_for_rooted_commands(
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        calls.append((command, cwd))
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
         return subprocess.CompletedProcess(
             command,
             0,
@@ -331,16 +287,7 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
         "required_gaps": ["x"],
     }
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 1, stdout=json.dumps(payload), stderr="")
 
     monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
@@ -381,28 +328,24 @@ def test_shadow_json_runner_isolates_timeout_process_session(
 ) -> None:
     calls: list[dict[str, object]] = []
 
-    def fake_run(
-        command: list[str],
-        *,
-        cwd: Path,
-        text: bool,
-        capture_output: bool,
-        check: bool,
-        timeout: int,
-        start_new_session: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         calls.append(
             {
                 "command": command,
-                "cwd": cwd,
-                "text": text,
-                "capture_output": capture_output,
-                "check": check,
-                "timeout": timeout,
-                "start_new_session": start_new_session,
+                "cwd": kwargs["cwd"],
+                "text": kwargs["text"],
+                "capture_output": kwargs["capture_output"],
+                "check": kwargs["check"],
+                "timeout": kwargs["timeout"],
+                "start_new_session": kwargs["start_new_session"],
             }
         )
-        raise subprocess.TimeoutExpired(command, timeout, output="partial", stderr="late")
+        raise subprocess.TimeoutExpired(
+            command,
+            kwargs["timeout"],
+            output="partial",
+            stderr="late",
+        )
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 

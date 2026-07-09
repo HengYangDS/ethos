@@ -272,6 +272,39 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
     assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
 
 
+def test_projection_rebase_skips_empty_projection_patch(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+    diff_calls = 0
+
+    def run_git(_root: Path, *args: str, check: bool = True):
+        nonlocal diff_calls
+        del check
+        calls.append(tuple(args))
+        if args[:3] == ("diff", "--name-only", "--diff-filter=U"):
+            diff_calls += 1
+            if diff_calls == 1:
+                return cp(stdout="evidence/parity/generic-shadow.json\n")
+            return cp(stdout="")
+        if args[:1] in {("checkout",), ("add",)}:
+            return cp(returncode=0)
+        if args == ("-c", "core.editor=true", "rebase", "--continue"):
+            return cp(returncode=1, stderr="No changes -- Patch already applied.")
+        if args == ("rebase", "--skip"):
+            return cp(returncode=0)
+        return cp(returncode=1, stderr="unexpected git call")
+
+    monkeypatch.setattr(lanes_refresh, "run_git", run_git)
+
+    resolved = lanes_refresh._resolve_projection_rebase(
+        tmp_path,
+        cp(returncode=1, stderr="projection conflict"),
+    )
+
+    assert resolved["ok"] is True
+    assert resolved["paths"] == ["evidence/parity/generic-shadow.json"]
+    assert ("rebase", "--skip") in calls
+
+
 def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
     monkeypatch,
     tmp_path: Path,

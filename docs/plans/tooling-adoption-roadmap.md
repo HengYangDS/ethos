@@ -1,23 +1,69 @@
 ---
 subject: ethos:tooling-adoption-roadmap
 role: plan
-state: planned
+state: active
 relations:
-  canonical_for: planned adoption of reusable product tooling mechanisms
+  canonical_for: completed baseline and future sequencing for reusable product tooling mechanisms
   derives_from: ETHOS product design contract, system tool catalog, quality gate policy
 ---
 
 # Tooling Adoption Roadmap
 
-Status: planned.
+Status: active baseline plus future sequencing.
 
 Purpose: define how ETHOS admits reusable tooling mechanisms without turning
 any adopter repository, personal work history, hosted provider, or helper tool
 into product ontology.
 
-This is a plan, not current runtime truth. A roadmap item becomes active only
-after source, tests, schema or configuration owner, OpenSpec carrier, claim,
-evidence, and command output land through the ETHOS lifecycle.
+See also: [Forge Provider Contract](../governance/forge-provider-contract.md),
+[Mechanism Comparison Audit](../reference/mechanism-comparison-audit.md),
+[OpenSpec Governance](../governance/openspec-governance.md), and
+[Runbook Registry](../reference/runbook-registry.md).
+
+This document now separates the completed current baseline from future adapter
+sequencing. A mechanism is current only when source, tests, schema or
+configuration owner, OpenSpec carrier, claim, evidence, and command output have
+landed through the ETHOS lifecycle. A mechanism listed as planned, optional, or
+deferred remains future work even when its design appears here.
+
+## Completion Boundary
+
+The July 9 planning and execution closeout completed the repository-truth
+baseline for the requested tooling plan. Current truth is limited to the owner
+surfaces, gates, specs, claims, and evidence that have landed in this repository.
+Future sequencing remains explicit so ETHOS does not confuse a roadmap entry
+with an active gate.
+
+Completed baseline:
+
+- GitHub and GitLab are symmetric forge-provider projections over one
+  Git-native ETHOS contract.
+- Provider templates, tracked hosted CI files, and template drift checks are
+  active owner surfaces.
+- Local GitHub and GitLab emulator wrappers emit local evidence only and set
+  hosted-status claim booleans to false.
+- The local CI fallback bundle is HEAD-stable local owner-gate evidence, not
+  hosted CI proof.
+- OpenSpec remains a mandatory official governance dependency, with
+  official-compatible ETHOS capability/profile, claim-binding, evidence-ref, and
+  archive lifecycle checks layered after official validation.
+- Format selection, dependency hygiene, prose spelling, JSON Schema hygiene,
+  Python vulnerability audit over uv-exported resolved requirements, C4-like
+  architecture projection drift, runbook registry, MCP smoke, closeout evidence
+  manifest, local-state audit, hosted-provider observation, SBOM, and release
+  attestation envelopes have active owner surfaces where cataloged as active.
+- Superpowers, Nox, Pixi, Pants, task ledgers, Dagger, external signing, OSV,
+  image/package scanning, and broad policy suites remain adapter/profile work
+  unless a later accepted decision and proof promote a specific bounded gate.
+
+Non-claims:
+
+- No hosted GitHub status is claimed by local gates or local emulators.
+- No hosted GitLab status is claimed by local gates or local emulators.
+- No remote publication or remote release is claimed by the local closeout.
+- No domain runtime from an adopter repository becomes ETHOS product ontology.
+- No method pack, MCP server, environment runner, or graph build system becomes
+  required ETHOS substrate.
 
 ## Adoption Axiom
 

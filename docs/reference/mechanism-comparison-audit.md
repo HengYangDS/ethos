@@ -106,6 +106,36 @@ Use these rules when judging future tooling proposals:
 1. Active product references must not require knowledge of a named private
    repository, personal work history, or single author to understand the product.
 
+## Completion Closeout
+
+The July 9 closeout binds the mechanism audit to the repository's completed
+current baseline. ETHOS has accepted the mechanism value from the compared
+repositories where it reduces invalid states for a broad governed-repository
+audience, and it has rejected ontology drift where a mechanism belongs to an
+adopter, provider, host, method pack, or local operator workflow.
+
+Completed current baseline:
+
+1. GitHub and GitLab are symmetric provider projections over one ETHOS command
+   and evidence contract.
+1. Local CI fallback, GitHub emulator, GitLab emulator, and hosted-provider
+   observation are separate evidence classes with hosted success unclaimed by
+   local evidence.
+1. OpenSpec remains an official mandatory governance dependency, extended by
+   ETHOS-compatible capability/profile, claim, evidence, and archive checks
+   after official validation.
+1. Format selection, lint, dependency hygiene, JSON Schema hygiene, prose
+   spelling, Python vulnerability audit over uv-exported resolved requirements,
+   architecture/C4 projection drift, runbook, MCP smoke, local-state, closeout
+   manifest, SBOM, and release-attestation gates have active owner surfaces
+   where cataloged as active.
+1. Nox, Pixi, Pants, task ledgers, Dagger, Superpowers, OSV, image/package
+   scanning, external signing, and richer hosted artifact capture remain
+   adapter/profile sequencing unless separately promoted by evidence.
+
+The closeout is locally proven only. It does not claim hosted CI success, remote
+publication, remote release, or adopter-domain runtime parity.
+
 ## Current Conclusion
 
 The current ETHOS form is suitable for selective adoption, not wholesale tool

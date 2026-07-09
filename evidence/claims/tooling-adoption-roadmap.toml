@@ -3,13 +3,13 @@ id = "tooling-adoption-roadmap"
 subject = "ethos:tooling-adoption-roadmap"
 state = "active"
 change_id = "tooling-adoption-roadmap"
-summary = "ETHOS records a provider-neutral tooling adoption roadmap and has activated local owner gates, including pip-audit over uv-exported resolved requirements, without promoting adopter tools into product ontology."
+summary = "ETHOS records the completed tooling adoption baseline and future adapter sequencing, including provider mirror support, local CI emulation, OpenSpec-compatible profile checks, quality and architecture gates, and replaceable tool boundaries."
 
 [evidence]
 dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
-sha256 = "ff0fa7036c3bc0fcbf1e09fc67c77e7650c925a038e6c50645b7b49a21a43cf4"
+sha256 = "193f1b2b3b6c3fa3aae33ccfe3ac6c0b43e0d0c485957a3d48929edff443e99e"
 evidence_ids = ["evidence:tooling-adoption-roadmap"]
-binding = "Roadmap, mechanism comparison audit, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
+binding = "Completed roadmap baseline, mechanism comparison audit, closeout carrier, active owner gates, and explicit future adapter sequencing evidence binding"
 verifier = "semantic"
 tests = [
   "tools/ci/scripts/run-dependency-hygiene.sh",
@@ -23,6 +23,7 @@ tests = [
   "tools/ci/scripts/run-markdown-lint.sh",
   "uv run --package ethos ethos quality schemas --json",
   "uv run --package ethos ethos prove --execute --expect-head <head> --json",
+  "tools/ci/scripts/run-closeout-evidence-manifest.sh",
 ]
 
 [boundary]
@@ -32,8 +33,8 @@ owner = "ethos-governance"
 scope = "Planning, comparison, and selected gate surfaces for GitHub/GitLab provider parity, local CI emulators, quality and architecture tooling, OpenSpec schema customization, Superpowers boundary, optional tool adapters, and remaining OSV, image-scan, signing, and release adapters"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-09-security-vulnerability-gates"
-fallback = "Keep current GitLab CI and local owner gate bundle while implementing provider parity in follow-up Work Lanes."
+openspec = "openspec/changes/archive/2026-07-09-complete-planning-closeout"
+fallback = "Keep current active owner gates and adapter boundaries; defer only separately scoped future adapters such as OSV, image scanning, external signing, and richer runner matrices."
 kill_signal = "A planned adapter is reported as an active ETHOS gate, or GitHub/GitLab/Superpowers/Nox/Pixi/Pants/Backlog becomes product ontology instead of a bounded adapter."
 
 [promotion]
@@ -62,6 +63,13 @@ targets = [
   "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/quality/spec.md",
   "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/proof-hosts/spec.md",
   "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/adapters/spec.md",
+
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/proposal.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/design.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/tasks.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/specs/repository-governance/spec.md",
   "openspec/specs/quality/spec.md",
   "openspec/specs/proof-hosts/spec.md",
   "openspec/specs/adapters/spec.md",

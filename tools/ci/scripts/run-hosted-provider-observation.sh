@@ -11,4 +11,9 @@ args=()
 if [ "${ETHOS_HOSTED_OBSERVATION_EXECUTE:-0}" = "1" ]; then
   args+=(--execute)
 fi
-uv run --package ethos python tools/ci/hosted_observation.py "${args[@]}"
+
+if [ "${#args[@]}" -eq 0 ]; then
+  uv run --package ethos python tools/ci/hosted_observation.py
+else
+  uv run --package ethos python tools/ci/hosted_observation.py "${args[@]}"
+fi

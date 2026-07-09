@@ -47,6 +47,11 @@ def test_closeout_manifest_hashes_reviewed_evidence_carriers() -> None:
     topic = payload["topics"][0]
     assert topic["id"] == "tooling-adoption-roadmap"
     assert {item["role"] for item in topic["files"]} == {"claim", "chronicle", "openspec"}
+    openspec_file = next(item for item in topic["files"] if item["role"] == "openspec")
+    assert (
+        openspec_file["path"]
+        == "openspec/changes/archive/2026-07-09-complete-planning-closeout/tasks.md"
+    )
     assert all(len(item["sha256"]) == SHA256_HEX_LENGTH for item in topic["files"])
 
 

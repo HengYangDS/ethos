@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "d3077ac76af2436a174ae9d0531c81bd0c404deb",
-    "target_head": "d3077ac76af2436a174ae9d0531c81bd0c404deb",
-    "product_semantic_sha256": "7d35bb8fea25ffb9843579c77939f754f6b32a649d007ba329768f0974beec1b",
-    "target_semantic_sha256": "7d35bb8fea25ffb9843579c77939f754f6b32a649d007ba329768f0974beec1b",
+    "product_head": "4096f3f59e819a1ef144607af759b970658bf646",
+    "target_head": "4096f3f59e819a1ef144607af759b970658bf646",
+    "product_semantic_sha256": "4ab29e6a004928d0bb3a1152acfa9786472ff498a58fccbf98091b89592f5be5",
+    "target_semantic_sha256": "4ab29e6a004928d0bb3a1152acfa9786472ff498a58fccbf98091b89592f5be5",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709",
-    "target_head": "d3077ac76af2436a174ae9d0531c81bd0c404deb",
-    "product_head": "d3077ac76af2436a174ae9d0531c81bd0c404deb",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709",
+    "target_head": "4096f3f59e819a1ef144607af759b970658bf646",
+    "product_head": "4096f3f59e819a1ef144607af759b970658bf646",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/terminal-embedded-retired-readiness-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/provider-local-emulator-hardening-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "30f1cc03d65f98d6ad9f75448fb0d64bce612e41568237f99dc780ea23438afa"
+        "sha256": "f0e47a4e07881fa797930dc4c42e8e5e4886086f722f41ae44d8d1c4198d2803"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "75107663c2df37e0b29083f76f9a2d12e166e9bbd8e132c130c9162662635a29"
+        "sha256": "41550a1805a43c3ebab0c3ff33b4b4df40a543f69eadf71d5ac87f442271b291"
       },
       {
         "path": "rules",

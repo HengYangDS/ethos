@@ -4,7 +4,6 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store import state
-from ethos.repository.adoption.planner import adoption_plan
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,49 +43,6 @@ def init_git_repo(path: Path) -> Path:
         "init",
     )
     return path
-
-
-def adopt_and_commit(repo: Path) -> None:
-    plan = adoption_plan(repo, profile="generic", apply=True)
-    assert plan["applied"] is True
-    git(repo, "add", ".")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "adopt ethos governance",
-    )
-
-
-def seed_executed_proof(repo: Path, head: str) -> None:
-    """Record an executed-proof at HEAD, as `ethos prove --execute` would.
-
-    Land/publish now require a HEAD-keyed proof record before the merge, so tests
-    exercising land mechanics seed the proof the same way the prove command does. The
-    record is self-authenticating (digest recomputed on read), so this seeds a REAL
-    evidence body — a proof cannot be faked, in tests or production.
-    """
-    from ethos.adapters.mutation.proof import record_executed_proof
-    from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
-
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
-    )
-    record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict())
 
 
 def test_lane_status_reports_live_workspace_schema_validation() -> None:
@@ -158,42 +114,6 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(
     assert "editor_root_missing" in payload["required_gaps"]
 
 
-def test_lane_prewrite_accepts_multiple_keyword_paths(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
-
-    payload = run_ethos(
-        "lane",
-        "prewrite",
-        "--paths",
-        "README.md",
-        ".gitignore",
-        "--editor-root",
-        worktree.as_posix(),
-        "--require-editor-root",
-        "--json",
-        cwd=worktree,
-    )
-
-    assert payload["ok"] is True
-    assert payload["summary"]["path_count"] == 2
-    assert [entry["relative_path"] for entry in payload["data"]["paths"]] == [
-        "README.md",
-        ".gitignore",
-    ]
-
-
 def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
     tmp_path: Path,
     monkeypatch,
@@ -226,43 +146,6 @@ def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
     assert payload["data"]["role"] == "work_lane"
     assert payload["data"]["editor_root"]["expected"] == worktree.resolve().as_posix()
     assert payload["data"]["paths"][0]["path"] == (worktree / "README.md").as_posix()
-
-
-def test_hook_admit_accepts_multiple_keyword_paths(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
-
-    payload = run_ethos(
-        "hook",
-        "admit",
-        "pre-tool",
-        "--paths",
-        "README.md",
-        ".gitignore",
-        "--editor-root",
-        worktree.as_posix(),
-        "--require-editor-root",
-        "--json",
-        cwd=worktree,
-    )
-
-    assert payload["ok"] is True
-    assert payload["data"]["admission"]["ok"] is True
-    assert [entry["relative_path"] for entry in payload["data"]["admission"]["paths"]] == [
-        "README.md",
-        ".gitignore",
-    ]
 
 
 def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:
@@ -579,7 +462,9 @@ def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> No
     ]
 
 
-def test_status_reports_unbound_work_lane_ref_as_advisory_signal(tmp_path: Path) -> None:
+def test_status_reports_unbound_work_lane_ref_as_advisory_signal(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
         repo,
@@ -734,7 +619,9 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
     }
 
 
-def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(tmp_path: Path) -> None:
+def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(
         repo,

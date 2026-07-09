@@ -114,7 +114,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
         encoding="utf-8",
     )
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "prove",
         "--execute",
         "--gate",

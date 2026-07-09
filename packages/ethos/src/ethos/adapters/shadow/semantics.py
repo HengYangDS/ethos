@@ -385,7 +385,7 @@ def _ready_state_for_command(command: object) -> str | None:
     if command == "land":
         return "ready_to_land"
     if command == "publish":
-        return "ready_to_publish"
+        return "local_publish_ready"
     return None
 
 

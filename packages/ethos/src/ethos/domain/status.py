@@ -13,6 +13,7 @@ from typing import cast
 
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.git import current_head as git_current_head
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
@@ -81,7 +82,7 @@ def adopter_audit(root: Path) -> dict[str, object]:
     """Compose the adopter-repository audit (adopter + schema + claims + docs)."""
     adopter = inspect_adopter(root)
     schemas = schema_validation_report(root)
-    claims = claims_report(root)
+    claims = claims_report(root, current_head=git_current_head(root))
     docs = docs_health_report(root)
     gaps = list(cast("list[str]", adopter["required_gaps"])) + [
         f"schema:{gap}" for gap in cast("list[str]", schemas["required_gaps"])

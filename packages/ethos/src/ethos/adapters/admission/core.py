@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import shlex
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.admission.shell import command_risk
+from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
 
@@ -42,19 +43,6 @@ HOOK_LAYERS = {
         "fallback": True,
     },
 }
-
-_MUTATION_PATTERNS = (
-    " write_text(",
-    ".write_text(",
-    " >",
-    ">>",
-    " tee ",
-    "sed -i",
-    "python -c",
-    "rm ",
-    "mv ",
-    "cp ",
-)
 
 
 def hook_admission_report(
@@ -203,25 +191,33 @@ def ref_move_admission_report(
         "decision": {"action": "allow", "reason": "ref_move_admitted"},
         "required_gaps": [],
     }
-    if branch != policy.accepted_branch or new_value in (zero, "") or new_value == old_value:
+    if new_value in (zero, "") or new_value == old_value:
         return base
 
     gaps: list[str] = []
-    contained = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", new_value, policy.candidate_branch],
-        cwd=repo,
-        capture_output=True,
-        check=False,
-    )
-    if contained.returncode != 0:
-        gaps.append("accepted_advance_not_candidate_validated")
-    gaps.extend(_proof_gaps(repo, new_value))
+    reason = ""
+    if branch == policy.accepted_branch:
+        contained = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", new_value, policy.candidate_branch],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        )
+        if contained.returncode != 0:
+            gaps.append("accepted_advance_not_candidate_validated")
+        gaps.extend(_proof_gaps(repo, new_value))
+        reason = "accepted_ref_move_bypasses_candidate_train"
+    elif branch == policy.candidate_branch:
+        gaps.extend(_proof_gaps(repo, new_value))
+        reason = "protected_ref_move_not_proven"
+    else:
+        return base
     if gaps:
         base.update(
             ok=False,
             state="blocked",
             required_gaps=gaps,
-            decision={"action": "block", "reason": "accepted_ref_move_bypasses_candidate_train"},
+            decision={"action": "block", "reason": reason},
         )
     return base
 
@@ -284,8 +280,8 @@ def _pre_run_report(
     require_editor_root: bool,
     command: str,
 ) -> dict[str, object]:
-    stash_policy = _git_stash_policy(command)
-    risk = _command_risk(command)
+    stash_policy = git_stash_policy(command)
+    risk = command_risk(command, role=str(base["role"]))
     base["command"] = command
     base["command_risk"] = risk
     base["git_stash_policy"] = stash_policy
@@ -305,66 +301,6 @@ def _pre_run_report(
         require_editor_root=require_editor_root,
         admitted_reason="prewrite_admitted",
     )
-
-
-def _command_risk(command: str) -> dict[str, object]:
-    lowered = f" {command.lower()} "
-    risky = any(pattern in lowered for pattern in _MUTATION_PATTERNS)
-    return {
-        "tracked_mutation_risk": risky,
-        "reason": "command_text_matches_mutation_pattern" if risky else "observe_only_command",
-    }
-
-
-def _git_stash_policy(command: str) -> dict[str, object]:
-    tokens = _shell_tokens(command)
-    operation = _git_stash_operation(tokens)
-    if operation is None:
-        return {"forbidden": False, "operation": "", "reason": "not_git_stash"}
-    if operation in {"list", "show"}:
-        return {"forbidden": False, "operation": operation, "reason": "observe_only_stash_read"}
-    return {
-        "forbidden": True,
-        "operation": operation,
-        "reason": "stash_is_hidden_change_carrier",
-    }
-
-
-def _shell_tokens(command: str) -> list[str]:
-    try:
-        return shlex.split(command)
-    except ValueError:
-        return command.split()
-
-
-def _git_stash_operation(tokens: list[str]) -> str | None:
-    for index, token in enumerate(tokens):
-        if token != "git":
-            continue
-        stash_index = _find_git_subcommand(tokens, start=index + 1)
-        if stash_index is None or tokens[stash_index] != "stash":
-            continue
-        if stash_index + 1 >= len(tokens) or tokens[stash_index + 1].startswith("-"):
-            return "push"
-        return tokens[stash_index + 1]
-    return None
-
-
-def _find_git_subcommand(tokens: list[str], *, start: int) -> int | None:
-    index = start
-    while index < len(tokens):
-        token = tokens[index]
-        if token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
-            index += 2
-            continue
-        if token.startswith(("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=")):
-            index += 1
-            continue
-        if token.startswith("-"):
-            index += 1
-            continue
-        return index
-    return None
 
 
 def _post_write_report(

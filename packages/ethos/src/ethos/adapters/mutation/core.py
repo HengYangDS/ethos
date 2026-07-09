@@ -214,7 +214,14 @@ def apply_land_to_candidate(
     if not base_report["ok"]:
         return base_report
     candidate_path = Path(str(base_report["path"]))
-    completed = _git(candidate_path, "merge", "--ff-only", current_head, check=False)
+    completed = _git(
+        candidate_path,
+        "merge",
+        "--ff-only",
+        current_head,
+        check=False,
+        env={"ETHOS_ALLOW_REF_MOVE": "1"},
+    )
     if completed.returncode != 0:
         return {
             "ok": False,

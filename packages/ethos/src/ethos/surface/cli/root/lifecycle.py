@@ -257,12 +257,14 @@ def publish(
     remote_availability = git.remote_availability(repo)
     local_ci_fallback = land_domain.local_ci_fallback_package(
         remote_availability=remote_availability,
+        root=repo,
     )
     publication = land_domain.publication_readiness(
         branch=str(branch),
         local_ok=ok,
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
+        root=repo,
     )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")
@@ -284,7 +286,9 @@ def publish(
     result = EthosResult(
         command="publish",
         ok=ok,
-        state=("ready_to_publish" if ok and not apply else "blocked" if gaps else decision.state),
+        state=(
+            "local_publish_ready" if ok and not apply else "blocked" if gaps else decision.state
+        ),
         summary=publish_summary,
         required_gaps=gaps,
         next_actions=_publish_next_actions(ok=ok, publication=publication),

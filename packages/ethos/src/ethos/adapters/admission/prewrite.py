@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch_roles import PROTECTED_WRITE_ROLES
 from ethos_core.contracts.branch_roles import ROLE_DETACHED
@@ -25,6 +27,13 @@ def prewrite_guard(
     runtime_check = _runtime_binding_check(status)
     checked_paths = [_check_path(root=root, path=path, role=role) for path in paths]
     tracked_write_requested = any(path["tracked_candidate"] for path in checked_paths)
+    lease_check = _work_lane_lease_check(
+        root=root,
+        status=status,
+        role=role,
+        branch=effective["branch"],
+        tracked_write_requested=tracked_write_requested,
+    )
     editor_check = _editor_root_check(
         root=root,
         editor_root=editor_root,
@@ -33,6 +42,7 @@ def prewrite_guard(
     blocked_paths = [path for path in checked_paths if path["allowed"] is False]
     error = _error(
         runtime_check=runtime_check,
+        lease_check=lease_check,
         editor_check=editor_check,
         blocked_paths=blocked_paths,
     )
@@ -45,6 +55,7 @@ def prewrite_guard(
         "status_branch": status_branch,
         "effective_context": effective,
         "runtime_binding": runtime_check,
+        "work_lane_lease": lease_check,
         "editor_root": editor_check,
         "paths": checked_paths,
         "blocked_paths": blocked_paths,
@@ -110,6 +121,70 @@ def _git_path(root: Path) -> Path:
         return root / ".git"
     path = Path(completed.stdout.strip())
     return path if path.is_absolute() else root / path
+
+
+def _work_lane_lease_check(
+    *,
+    root: Path,
+    status: dict[str, object],
+    role: str,
+    branch: str,
+    tracked_write_requested: bool,
+) -> dict[str, object]:
+    if role != ROLE_WORK_LANE or not tracked_write_requested:
+        return {
+            "ok": True,
+            "required": False,
+            "branch": branch,
+            "owner": "",
+            "actor": os.environ.get("ETHOS_ACTOR", "").strip(),
+            "reason": "not_required",
+        }
+    owner = _work_lane_lease_owner(root=root, status=status, branch=branch)
+    actor = os.environ.get("ETHOS_ACTOR", "").strip()
+    if not owner:
+        return {
+            "ok": False,
+            "required": True,
+            "branch": branch,
+            "owner": "",
+            "actor": actor,
+            "reason": f"work_lane_missing_lease:{branch}",
+        }
+    if actor != owner:
+        return {
+            "ok": False,
+            "required": True,
+            "branch": branch,
+            "owner": owner,
+            "actor": actor,
+            "reason": f"work_lane_actor_mismatch:{branch}",
+        }
+    return {
+        "ok": True,
+        "required": True,
+        "branch": branch,
+        "owner": owner,
+        "actor": actor,
+        "reason": "matched",
+    }
+
+
+def _work_lane_lease_owner(*, root: Path, status: dict[str, object], branch: str) -> str:
+    worktrees = status.get("worktrees") if isinstance(status.get("worktrees"), list) else []
+    current_path = Path(str(status.get("root") or root)).resolve()
+    leases = leases_by_branch(cast_worktrees(worktrees), current_path=current_path)
+    lease = leases.get(branch, {})
+    return str(lease.get("owner") or "").strip()
+
+
+def cast_worktrees(value: list[object]) -> list[dict[str, str]]:
+    result: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        result.append({str(key): str(val) for key, val in item.items()})
+    return result
 
 
 def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
@@ -210,6 +285,7 @@ def _is_ignored(root: Path, relative_path: str) -> bool:
 def _error(
     *,
     runtime_check: dict[str, object],
+    lease_check: dict[str, object],
     editor_check: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
@@ -219,6 +295,8 @@ def _error(
         return "prewrite_path_outside_worktree"
     if blocked_paths:
         return "protected_lane_prewrite_blocked"
+    if lease_check["ok"] is not True:
+        return str(lease_check["reason"])
     if editor_check["ok"] is not True:
         return str(editor_check["reason"])
     return ""

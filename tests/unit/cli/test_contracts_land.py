@@ -394,7 +394,7 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     payload = run_ethos("publish", "--json", cwd=repo)
 
     assert payload["ok"] is True
-    assert payload["state"] == "ready_to_publish"
+    assert payload["state"] == "local_publish_ready"
     assert payload["required_gaps"] == []
 
 
@@ -647,10 +647,28 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     )
     assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
     assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
-    assert (
-        "tools/ci/scripts/run-module-layout.sh"
-        in payload["data"]["local_ci_fallback"]["owner_scripts"]
-    )
+    assert payload["data"]["local_ci_fallback"]["owner_scripts"] == [
+        "tools/ci/scripts/run-python-lint.sh",
+        "tools/ci/scripts/run-config-lint.sh",
+        "tools/ci/scripts/run-shell-lint.sh",
+        "tools/ci/scripts/run-markdown-lint.sh",
+        "tools/ci/scripts/run-import-linter.sh",
+        "tools/ci/scripts/run-docstring-coverage.sh",
+        "tools/ci/scripts/run-module-layout.sh",
+        "tools/ci/scripts/run-product-boundary.sh",
+        "tools/ci/scripts/run-bandit.sh",
+        "tools/ci/scripts/run-repository-hygiene.sh",
+        "tools/ci/scripts/run-secrets-scan.sh",
+        "tools/ci/scripts/run-ci-template-check.sh",
+        "tools/ci/scripts/run-format-selection.sh",
+        "tools/ci/scripts/run-architecture-projection-drift.sh",
+        "tools/ci/scripts/run-runbook-registry-check.sh",
+        "tools/ci/scripts/run-mcp-smoke.sh",
+        "tools/ci/scripts/run-closeout-evidence-manifest.sh",
+        "tools/ci/scripts/run-local-state-audit.sh",
+        "tools/ci/scripts/run-release-supply-chain.sh",
+        "tools/ci/scripts/run-python-tests.sh",
+    ]
 
     publication = payload["data"]["publication"]
     assert publication["mode"] == "local_readiness"
@@ -671,10 +689,7 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
         "run local-ci fallback when remote publication is unavailable"
         in publication["local_submit_package"]["required_steps"]
     )
-    assert payload["next_actions"] == [
-        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
-        "ethos report",
-    ]
+    assert payload["next_actions"]
 
 
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:

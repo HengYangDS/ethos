@@ -49,7 +49,7 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
                 "assistants doctor": "ready",
                 "playbooks route": "routed",
                 "land": "ready_to_land",
-                "publish": "ready_to_publish",
+                "publish": "local_publish_ready",
             }
             payload = {
                 "ok": True,
@@ -80,7 +80,7 @@ def test_shadow_accepted_difference_exposes_counts_and_command_context(
             "assistants doctor": "ready",
             "playbooks route": "routed",
             "land": "ready_to_land",
-            "publish": "ready_to_publish",
+            "publish": "local_publish_ready",
         }
         return {
             "exit_code": 0,

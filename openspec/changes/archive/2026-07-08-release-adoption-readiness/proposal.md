@@ -19,7 +19,7 @@ bounded results are summarized into evidence and claim surfaces.
 ## What Changes
 
 - Record current product HEAD, candidate/origin alignment, and local
-  `ready_to_publish` status.
+  `local_publish_ready` status.
 - Record release build, npm launcher smoke, artifact SHA-256 digests, and
   release attestation tag.
 - Record generic, Python, and GitLab external adoption pilots.

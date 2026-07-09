@@ -163,10 +163,14 @@ def test_prewrite_rejects_tracked_path_from_accepted_root(tmp_path: Path) -> Non
     assert report["role"] == "accepted_root"
 
 
-def test_prewrite_allows_owned_work_lane_with_matching_editor_root(tmp_path: Path) -> None:
+def test_prewrite_allows_owned_work_lane_with_matching_editor_root(
+    tmp_path: Path, monkeypatch
+) -> None:
     repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
+    start_work_lane(root=repo, name="owned", path=worktree, owner="agent:test", apply=True)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
 
     report = prewrite_guard(
         root=worktree,
@@ -213,10 +217,14 @@ def test_prewrite_blocks_product_root_when_runner_source_differs(
     assert report["runtime_binding"]["runner_matches_audit_root"] is False
 
 
-def test_prewrite_rejects_work_lane_without_editor_root_binding(tmp_path: Path) -> None:
+def test_prewrite_rejects_work_lane_without_editor_root_binding(
+    tmp_path: Path, monkeypatch
+) -> None:
     repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
+    start_work_lane(root=repo, name="owned", path=worktree, owner="agent:test", apply=True)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
 
     report = prewrite_guard(
         root=worktree,

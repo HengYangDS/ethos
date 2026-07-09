@@ -64,8 +64,9 @@ def campaign_closeout_report(
         branch=branch,
         local_ok=local_ready,
         policy=load_branch_role_policy(repo),
+        root=repo,
     )
-    remote_publication = remote_publication_deferred()
+    remote_publication = remote_publication_deferred(root=repo)
     trust_closeout = trust_closeout_package(
         workspace=status_payload,
         claims=claim_report,

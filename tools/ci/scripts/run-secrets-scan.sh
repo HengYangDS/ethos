@@ -62,3 +62,13 @@ gitleaks detect \
   --redact \
   --report-format json \
   --report-path "${report_dir}/report.json"
+
+# History scan is a separate hard gate: current tracked-tree cleanliness does not
+# prove governed release history is free of leaked material. This scan traverses
+# Git history, not ignored host-state residue.
+gitleaks git \
+  --source "${repo_root}" \
+  --config "${repo_root}/.gitleaks.toml" \
+  --redact \
+  --report-format json \
+  --report-path "${report_dir}/history-report.json"

@@ -1,0 +1,58 @@
+[claim]
+id = "review-hardening"
+subject = "ethos:review-hardening"
+state = "active"
+change_id = "review-hardening-2026-07-09"
+summary = "ETHOS review-hardening binds proof, admission, report, publish, local-ci, and supply-chain fixes to tests, OpenSpec, and command evidence without compatibility residue."
+
+[evidence]
+dated = "evidence/chronicle/review-hardening/2026-07-09.md"
+sha256 = "e30952987e1fe98f38bb9c87b4f84e341740492562ca0c16e0571e96b7410a69"
+evidence_ids = ["evidence:review-hardening"]
+binding = "semantic review-hardening evidence binding for fail-closed proof, admission, report, publish, local-ci, and supply-chain hardening"
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest tests/unit/cli/test_contracts_proof.py tests/unit/cli/test_lifecycle_hardening.py::test_prove_execute_reports_failed_gate_as_required_gap -q",
+  "uv run --group dev pytest tests/unit/lanes/test_hook_admission.py tests/unit/coverage/test_cli_admission_final_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/cli/test_contracts_land.py tests/unit/cli/test_quality_surface_more.py tests/unit/domain/test_report.py tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_projection_semantics.py tests/unit/product/parity/test_accepted_differences.py tests/unit/release/test_policy_attestation.py tests/architecture/test_release_assets.py -q",
+  "bash -n tools/ci/scripts/install-gitleaks.sh tools/ci/scripts/run-secrets-scan.sh",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos playbooks route --changed --json",
+  "uv run --package ethos ethos plan --changed --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head <HEAD> --json",
+]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Expert-review hardening across command-plane, admission, report, publish, local-ci fallback, and release supply-chain evidence"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-review-hardening-2026-07-09"
+fallback = "Do not land review hardening until focused tests, OpenSpec lifecycle, report, and head-bound proof are clean."
+kill_signal = "A blocking proof exits zero, protected-root mutation is admitted without bound paths, old publish vocabulary remains, or release supply-chain evidence omits checksum, history scan, transitive SBOM, or attestation materials."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/install-gitleaks.sh",
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "evidence/claims/review-hardening.toml",
+  "evidence/chronicle/review-hardening/2026-07-09.md",
+  "openspec/changes/archive/2026-07-08-review-hardening-2026-07-09",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
+  "packages/ethos/src/ethos/adapters/admission/shell.py",
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "packages/ethos/src/ethos/domain/land_support.py",
+  "packages/ethos/src/ethos/domain/report.py",
+  "packages/ethos/src/ethos/repository/evidence/freshness.py",
+  "packages/ethos/src/ethos/repository/release/attestation.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "packages/ethos/src/ethos/surface/cli/root/proof.py",
+  "system/tools.toml",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/lanes/test_hook_admission.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "tests/architecture/test_release_assets.py",
+]

@@ -37,7 +37,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     status_payload = workspace_status(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
-    claim_report = claims_report(repo)
+    current_head = git_adapter.current_tracked_head(repo)
+    claim_report = claims_report(repo, current_head=current_head)
     command_report = command_registry_report(repo)
     projection = projection_contract()
     schemas_report = schema_validation_report(repo)
@@ -51,7 +52,6 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     hard_quality_floor = (
         _hard_quality_floor_report(repo) if product_profile else _adopter_quality_floor_report()
     )
-    current_head = git_adapter.current_tracked_head(repo)
     adopter_id = profile_identity(repo) if not product_profile else ""
     parity_root = (
         repo if product_profile else adopter_product_root(repo, status_payload, product_root)
@@ -108,6 +108,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             context_projection_score,
         )
     )
+    nominal_score = sum(scores.values())
+    max_score = len(scores)
     result_required_gaps = tuple(cast("list[str]", audit["required_gaps"]))
     if product_profile:
         result_required_gaps = (
@@ -122,6 +124,10 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     parity_pending_count = (
         generic_parity_pending_count if product_profile else adopter_parity_pending_count
     )
+    hard_quality_gap_count = len(cast("list[str]", hard_quality_floor["required_gaps"]))
+    hard_quality_penalty = int(hard_quality_gap_count > 0)
+    effective_score = max(0, nominal_score - hard_quality_penalty)
+    coordination_gaps = tuple(_strings(audit.get("coordination_gaps")))
     advisory_gaps = _advisory_gaps(audit, claim_report, playbooks, status_payload)
     advisory_next_actions = _advisory_next_actions(advisory_gaps)
     gap_layers = _gap_layers(
@@ -130,6 +136,12 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         playbooks,
         (advisory_gaps, advisory_next_actions),
         hard_quality_floor,
+        coordination_gaps,
+    )
+    terminal_control = _terminal_control(
+        result_required_gaps=result_required_gaps,
+        hard_quality_gap_count=hard_quality_gap_count,
+        stage_gates=cast("dict[str, object]", audit.get("stage_gates") or {}),
     )
     next_actions = _scorecard_next_actions(
         parity_pending_count=parity_pending_count,
@@ -139,9 +151,16 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     return {
         "ok": all(value == 1 for value in scores.values()) and not result_required_gaps,
         "summary": {
-            "score": sum(scores.values()),
-            "max_score": len(scores),
+            "profile": audit_profile,
+            "read_model": "governed_repository_scorecard_v2",
+            "score": nominal_score,
+            "max_score": max_score,
+            "effective_score": effective_score,
+            "effective_max_score": max_score,
+            "terminal_control": terminal_control,
             "governance_gap_count": len(result_required_gaps),
+            "hard_quality_gap_count": hard_quality_gap_count,
+            "coordination_risk_count": len(coordination_gaps),
             "parity_pending_count": parity_pending_count,
             "advisory_gap_count": len(advisory_gaps),
         },
@@ -150,6 +169,18 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         "data": {
             "governance_context": audit["governance_context"],
             "scores": scores,
+            "score_model": {
+                "nominal_score": nominal_score,
+                "nominal_max_score": max_score,
+                "effective_score": effective_score,
+                "effective_max_score": max_score,
+                "hard_quality_floor_penalty": hard_quality_penalty,
+                "coordination_risk_penalty": 0,
+                "note": (
+                    "effective_score subtracts hard local quality-floor risk "
+                    "from the nominal capability score"
+                ),
+            },
             "first_hour": _first_hour(
                 product_profile=product_profile, required_gaps=result_required_gaps
             ),
@@ -344,6 +375,19 @@ def _adopter_quality_floor_report() -> dict[str, object]:
     }
 
 
+def _terminal_control(
+    *,
+    result_required_gaps: tuple[str, ...],
+    hard_quality_gap_count: int,
+    stage_gates: dict[str, object],
+) -> str:
+    if result_required_gaps or hard_quality_gap_count:
+        return "partial"
+    if any(value is False for value in stage_gates.values() if isinstance(value, bool)):
+        return "partial"
+    return "closed_loop"
+
+
 def _scorecard_next_actions(
     *,
     parity_pending_count: int,
@@ -462,6 +506,7 @@ def _gap_layers(
     playbooks: dict[str, object],
     advisory: tuple[tuple[str, ...], tuple[str, ...]],
     hard_quality_floor: dict[str, object] | None = None,
+    coordination_gaps: tuple[str, ...] = (),
 ) -> dict[str, dict[str, object]]:
     advisory_gaps, advisory_next_actions = advisory
     hard_quality_floor = hard_quality_floor or _adopter_quality_floor_report()
@@ -493,6 +538,15 @@ def _gap_layers(
             ok=bool(hard_quality_floor["ok"]),
             gaps=list(cast("list[str]", hard_quality_floor["required_gaps"])),
         ),
+        "coordination_risk": {
+            "scope": "coordination_risk",
+            "blocking": False,
+            "ok": True,
+            "required_gaps": [],
+            "advisory_gaps": list(coordination_gaps),
+            "gap_count": len(coordination_gaps),
+            "invalid_states": invalid_state_projection(list(coordination_gaps)),
+        },
         "advisory_signals": {
             "scope": "advisory_signals",
             "blocking": False,

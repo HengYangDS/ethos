@@ -39,6 +39,7 @@ _NON_GAP_TOKENS = {
     "adopter_gap_count",
     "adopter_gaps",  # report field carrying adopter parity gaps, not a gap
     "generic_gap_count",
+    "hard_quality_gap_count",
     "parity_gap_count",
     "required_gap_closure",
     "required_gap_kinds",
@@ -48,6 +49,7 @@ _NON_GAP_TOKENS = {
     "baseline_gap_limit",
     "unclassified_invalid_state",
     "required_gap",  # policy-result field name, not an emitted gap
+    "not_required",  # prewrite diagnostic reason, not an emitted gap
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap
     "missing_required_path_count",  # docs-topology report field, not an emitted gap

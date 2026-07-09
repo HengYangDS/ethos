@@ -11,6 +11,10 @@
 set -euo pipefail
 
 version="${GITLEAKS_VERSION:-8.30.1}"
+# Pinned upstream archive SHA-256 values for the default version. Override the
+# variables only when intentionally updating the pin and this script together.
+GITLEAKS_LINUX_X64_SHA256="${GITLEAKS_LINUX_X64_SHA256:-551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb}"
+GITLEAKS_LINUX_ARM64_SHA256="${GITLEAKS_LINUX_ARM64_SHA256:-e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080}"
 
 if command -v gitleaks >/dev/null 2>&1; then
   # Local developers (e.g. `brew install gitleaks`) already have it; skip the
@@ -23,15 +27,15 @@ fi
 
 if ! command -v curl >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y --no-install-recommends curl ca-certificates tar
-elif ! command -v tar >/dev/null 2>&1; then
+  apt-get install -y --no-install-recommends curl ca-certificates tar coreutils
+elif ! command -v tar >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y --no-install-recommends tar
+  apt-get install -y --no-install-recommends tar coreutils
 fi
 
 case "$(uname -m)" in
-  x86_64|amd64) arch="x64" ;;
-  aarch64|arm64) arch="arm64" ;;
+  x86_64|amd64) arch="x64"; archive_sha256="${GITLEAKS_LINUX_X64_SHA256}" ;;
+  aarch64|arm64) arch="arm64"; archive_sha256="${GITLEAKS_LINUX_ARM64_SHA256}" ;;
   *) echo "Unsupported gitleaks architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
@@ -47,11 +51,17 @@ trap 'rm -rf "${tmpdir}"' EXIT
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "${cache_dir}"
 
-if [ ! -s "${archive_path}" ] || ! tar tzf "${archive_path}" >/dev/null 2>&1; then
+verify_archive_checksum() {
+  printf '%s  %s\n' "${archive_sha256}" "${archive_path}" | sha256sum -c -
+}
+
+if [ ! -s "${archive_path}" ] || ! tar tzf "${archive_path}" >/dev/null 2>&1 || ! verify_archive_checksum >/dev/null 2>&1; then
   rm -f "${archive_path}"
   echo "Installing gitleaks ${version} for linux-${arch} from ${url}"
   "${script_dir}/download-file.sh" "${url}" "${archive_path}"
 fi
+
+verify_archive_checksum
 
 if ! tar tzf "${archive_path}" | grep -qx 'gitleaks'; then
   echo "gitleaks binary not found in ${archive_path}" >&2

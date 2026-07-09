@@ -168,17 +168,21 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert mutation_core.apply_land_to_candidate(
         root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready_decision
     )["required_gaps"] == ["candidate_update_failed"]
-    monkeypatch.setattr(
-        mutation_core,
-        "_git",
-        lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
-    )
+    merge_envs: list[dict[str, str] | None] = []
+
+    def fake_land_git(root, *args, check=True, **kwargs):
+        if args[:1] == ("merge",):
+            merge_envs.append(kwargs.get("env"))
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "_git", fake_land_git)
     assert (
         mutation_core.apply_land_to_candidate(
             root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready_decision
         )["state"]
         == "candidate_validated"
     )
+    assert merge_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
 
     monkeypatch.setattr(
         mutation_core,

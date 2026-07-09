@@ -162,7 +162,7 @@ def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
     assert "tracked files" in runner
 
 
-def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
+def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     installer = (ROOT / "tools/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
@@ -171,9 +171,24 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply() -> None:
     assert "build/cache/ci-tools" in installer
     assert "tar tzf" in installer
     assert "gitleaks_${version}_linux_${arch}.tar.gz" in installer
+    assert "sha256sum -c" in installer
+    assert "GITLEAKS_LINUX_X64_SHA256" in installer
+    assert "GITLEAKS_LINUX_ARM64_SHA256" in installer
     assert 'concern = "ci_tool_supply"' in tools
     assert 'config = "tools/ci/scripts/download-file.sh"' in tools
     assert 'artifacts = "build/cache/ci-tools/"' in tools
+    assert 'checksums = "pinned installer SHA-256 values"' in tools
+
+
+def test_secrets_gate_scans_current_tree_and_git_history() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-secrets-scan.sh").read_text(encoding="utf-8")
+    tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
+
+    assert "gitleaks detect" in runner
+    assert "--no-git" in runner
+    assert "gitleaks git" in runner
+    assert "history-report.json" in runner
+    assert "history = true" in tools.split('concern = "secrets"', 1)[1].split("[[tool]]", 1)[0]
 
 
 def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:

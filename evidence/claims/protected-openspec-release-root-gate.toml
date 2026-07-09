@@ -29,7 +29,7 @@ scope = "Release-root OpenSpec carrier publish-readiness gate"
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate"
 fallback = "Keep protected branch residue visible as advisory until publish readiness can block it."
-kill_signal = "ethos publish can report ready_to_publish while the release root contains active OpenSpec carriers."
+kill_signal = "ethos publish can report local readiness while the release root contains active OpenSpec carriers."
 
 [promotion]
 targets = [

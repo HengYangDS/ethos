@@ -186,3 +186,41 @@ def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path)
     }
     assert emitted[0]["required_gaps"] == ["docstring_coverage_below_minimum:50.00<95.00"]
     assert emitted[0]["data"]["missing"][0]["qualified_name"] == "mod.public"
+
+
+def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_path: Path):
+    emitted = _capture(monkeypatch)
+    seen: dict[str, str] = {}
+    monkeypatch.setattr(q._gitio, "current_head", lambda _repo: "head-123")
+
+    def fake_claims_report(repo, *, current_head=""):
+        seen["claims_repo"] = repo.as_posix()
+        seen["claims_head"] = current_head
+        return {"ok": True, "required_gaps": [], "advisory_gaps": [], "claims": {}}
+
+    def fake_freshness_report(repo, *, current_head=""):
+        seen["freshness_repo"] = repo.as_posix()
+        seen["freshness_head"] = current_head
+        return {
+            "ok": True,
+            "summary": {"evidence_roots": ["evidence"]},
+            "required_gaps": [],
+            "data": {"claims": {}},
+        }
+
+    monkeypatch.setattr(q, "claims_report", fake_claims_report)
+    monkeypatch.setattr(q, "evidence_freshness_report", fake_freshness_report)
+
+    q.claims(root=tmp_path, json_output=True)
+    q.evidence_freshness(root=tmp_path, json_output=True)
+
+    assert seen == {
+        "claims_repo": tmp_path.as_posix(),
+        "claims_head": "head-123",
+        "freshness_repo": tmp_path.as_posix(),
+        "freshness_head": "head-123",
+    }
+    assert [item["command"] for item in emitted] == [
+        "quality claims",
+        "quality evidence-freshness",
+    ]

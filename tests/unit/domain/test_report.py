@@ -82,7 +82,7 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     monkeypatch.setattr(
         report_domain,
         "claims_report",
-        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+        lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
     )
     monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
@@ -198,7 +198,7 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
     monkeypatch.setattr(
         report_domain,
         "claims_report",
-        lambda _repo: {"ok": True, "required_gaps": [], "advisory_gaps": []},
+        lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
     )
     monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(

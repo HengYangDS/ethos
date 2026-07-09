@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from ethos.domain import plan
 
+BOOM_MESSAGE = "boom"
+
 
 def test_path_matches_supports_prefix_and_glob_patterns():
     assert plan.path_matches("docs/guide.md", "docs/**") is True
@@ -126,7 +128,11 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
     monkeypatch.setattr(
         plan,
         "claims_report",
-        lambda _repo: {"ok": False, "required_gaps": ["claims_missing", "digest_stale:x"]},
+        lambda _repo, *, current_head: {
+            "ok": False,
+            "head": current_head,
+            "required_gaps": ["claims_missing", "digest_stale:x"],
+        },
     )
     monkeypatch.setattr(
         plan,
@@ -183,7 +189,11 @@ def test_rule_fact_snapshot_marks_missing_prewrite_guard_unavailable(tmp_path, m
     monkeypatch.setattr(
         plan, "audit_for_root", lambda _repo: {"mode": "product", "ok": True, "required_gaps": []}
     )
-    monkeypatch.setattr(plan, "claims_report", lambda _repo: {"ok": True, "required_gaps": []})
+    monkeypatch.setattr(
+        plan,
+        "claims_report",
+        lambda _repo, *, current_head: {"ok": True, "head": current_head, "required_gaps": []},
+    )
     monkeypatch.setattr(
         plan,
         "command_registry_report",
@@ -201,11 +211,15 @@ def test_rule_fact_snapshot_marks_missing_prewrite_guard_unavailable(tmp_path, m
 
 def test_rule_fact_snapshot_converts_adapter_failures_to_unavailable_facts(tmp_path, monkeypatch):
     def explode(_repo):
-        raise RuntimeError("boom")
+        raise RuntimeError(BOOM_MESSAGE)
+
+    def explode_claims(_repo, *, current_head: str):
+        del current_head
+        raise RuntimeError(BOOM_MESSAGE)
 
     monkeypatch.setattr(plan, "workspace_status", explode)
     monkeypatch.setattr(plan, "audit_for_root", explode)
-    monkeypatch.setattr(plan, "claims_report", explode)
+    monkeypatch.setattr(plan, "claims_report", explode_claims)
     monkeypatch.setattr(plan, "command_registry_report", explode)
     monkeypatch.setattr(
         plan, "projection_contract", lambda: (_ for _ in ()).throw(RuntimeError("bad"))

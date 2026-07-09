@@ -64,7 +64,7 @@ def test_shadow_semantic_diff_accepts_external_stricter_land_gap() -> None:
 def test_shadow_semantic_diff_accepts_external_protected_root_mutation_for_land_publish() -> None:
     for command, ready_state in (
         (("land",), "ready_to_land"),
-        (("publish",), "ready_to_publish"),
+        (("publish",), "local_publish_ready"),
     ):
         external = {
             "ok": False,

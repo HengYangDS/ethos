@@ -485,7 +485,7 @@ def test_shadow_projection_marks_accepted_ready_states() -> None:
         ("assistants doctor", "assistant_ready", "ready"),
         ("playbooks route", "route_ready", "routed"),
         ("land", "readiness", "ready_to_land"),
-        ("publish", "readiness", "ready_to_publish"),
+        ("publish", "readiness", "local_publish_ready"),
     ]
     for command_name, ready_key, ready_state in cases:
         external = {

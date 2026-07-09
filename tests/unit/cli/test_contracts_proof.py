@@ -13,7 +13,7 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 
 
 def test_full_proof_requires_executed_evidence() -> None:
-    payload = run_ethos("prove", "--full", "--json")
+    payload = run_ethos_blocked("prove", "--full", "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
@@ -46,7 +46,7 @@ proof legacy objective
         encoding="utf-8",
     )
 
-    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
+    payload = run_ethos_blocked("prove", "--root", tmp_path.as_posix(), "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
@@ -57,7 +57,7 @@ def test_prove_missing_gate_dependency_reports_concrete_rerun(tmp_path: Path) ->
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "prove",
         "--root",
         repo.as_posix(),
@@ -81,7 +81,7 @@ def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "prove",
         "--execute",
         "--gate",
@@ -145,7 +145,7 @@ def test_prove_accepts_host_probe_compatibility_flags_without_claiming_host_trut
 
 
 def test_prove_rejects_unknown_proof_scope() -> None:
-    payload = run_ethos("prove", "--scope", "unknown-scope", "--json")
+    payload = run_ethos_blocked("prove", "--scope", "unknown-scope", "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
@@ -169,7 +169,17 @@ def test_prove_accepts_matching_expected_head() -> None:
 
 
 def test_prove_rejects_mismatched_expected_head() -> None:
-    payload = run_ethos("prove", "--expect-head", "not-the-current-head", "--json")
+    payload = run_ethos_blocked("prove", "--expect-head", "not-the-current-head", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert "expected_head_mismatch" in payload["required_gaps"]
+    assert payload["data"]["expected_head"]["expected"] == "not-the-current-head"
+    assert payload["data"]["expected_head"]["ok"] is False
+
+
+def test_prove_rejects_mismatched_expected_head_with_nonzero_exit() -> None:
+    payload = run_ethos_blocked("prove", "--expect-head", "not-the-current-head", "--json")
 
     assert payload["ok"] is False
     assert payload["state"] == "gapped"
@@ -353,7 +363,7 @@ root_subject = \"sample\"
         encoding="utf-8",
     )
 
-    payload = run_ethos("prove", "--root", str(repo), "--json")
+    payload = run_ethos_blocked("prove", "--root", str(repo), "--json")
 
     assert payload["summary"]["gate_count"] == 11
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
@@ -431,7 +441,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
 
     monkeypatch.setattr(proof_cli, "LocalSubprocessRunner", PassingDiagnosticRunner)
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "prove",
         "--execute",
         "--gate",

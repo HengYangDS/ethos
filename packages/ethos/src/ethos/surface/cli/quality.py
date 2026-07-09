@@ -795,7 +795,8 @@ def evidence_freshness(
 ) -> None:
     """Check declared evidence roots and claim digests."""
     repo = resolve_root(root)
-    report = evidence_freshness_report(repo)
+    current_head = _gitio.current_head(repo)
+    report = evidence_freshness_report(repo, current_head=current_head)
     result = EthosResult(
         command="quality evidence-freshness",
         ok=bool(report["ok"]),
@@ -816,7 +817,8 @@ def claims(
 ) -> None:
     """Validate claim evidence digests."""
     repo = resolve_root(root)
-    report = claims_report(repo)
+    current_head = _gitio.current_head(repo)
+    report = claims_report(repo, current_head=current_head)
     result = EthosResult(
         command="quality claims",
         ok=bool(report["ok"]),

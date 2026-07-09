@@ -6,6 +6,7 @@ surface can stay out of the land module and the domain package remains acyclic.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,6 +29,8 @@ def command_is_executed_proof(command: object) -> bool:
 
 def remote_publication_deferred(
     remote_availability: dict[str, object] | None = None,
+    *,
+    root: Path | None = None,
 ) -> dict[str, object]:
     """Describe the deferred remote-publication state (no remote adapter success)."""
     availability = remote_availability or {
@@ -50,12 +53,14 @@ def remote_publication_deferred(
         "state": "deferred",
         "reason": reason,
         "availability": availability,
-        "fallback": local_ci_fallback_package(remote_availability=availability),
+        "fallback": local_ci_fallback_package(remote_availability=availability, root=root),
     }
 
 
 def local_ci_fallback_package(
     remote_availability: dict[str, object] | None = None,
+    *,
+    root: Path | None = None,
 ) -> dict[str, object]:
     """Describe local CI fallback evidence without claiming hosted CI success."""
     availability = remote_availability or {
@@ -72,17 +77,43 @@ def local_ci_fallback_package(
         "hosted_ci_status_claimed": False,
         "remote_availability_state": str(availability.get("state") or "not_probed"),
         "command": "tools/ci/scripts/run-local-ci.sh",
-        "owner_scripts": [
-            "tools/ci/scripts/run-python-lint.sh",
-            "tools/ci/scripts/run-config-lint.sh",
-            "tools/ci/scripts/run-shell-lint.sh",
-            "tools/ci/scripts/run-docstring-coverage.sh",
-            "tools/ci/scripts/run-module-layout.sh",
-            "tools/ci/scripts/run-product-boundary.sh",
-            "tools/ci/scripts/run-repository-hygiene.sh",
-            "tools/ci/scripts/run-python-tests.sh",
-        ],
+        "owner_scripts": local_ci_owner_scripts(root=root),
     }
+
+
+def local_ci_owner_scripts(*, root: Path | None = None) -> list[str]:
+    """Project owner gates invoked by the target repo's local-ci script."""
+    script = (root or Path.cwd()) / "tools/ci/scripts/run-local-ci.sh"
+    if script.exists():
+        return list(
+            dict.fromkeys(
+                re.findall(
+                    r"tools/ci/scripts/[A-Za-z0-9_.-]+\.sh",
+                    script.read_text(encoding="utf-8"),
+                )
+            )
+        )
+    return [
+        "tools/ci/scripts/run-python-lint.sh",
+        "tools/ci/scripts/run-config-lint.sh",
+        "tools/ci/scripts/run-shell-lint.sh",
+        "tools/ci/scripts/run-markdown-lint.sh",
+        "tools/ci/scripts/run-import-linter.sh",
+        "tools/ci/scripts/run-docstring-coverage.sh",
+        "tools/ci/scripts/run-module-layout.sh",
+        "tools/ci/scripts/run-bandit.sh",
+        "tools/ci/scripts/run-repository-hygiene.sh",
+        "tools/ci/scripts/run-secrets-scan.sh",
+        "tools/ci/scripts/run-ci-template-check.sh",
+        "tools/ci/scripts/run-format-selection.sh",
+        "tools/ci/scripts/run-architecture-projection-drift.sh",
+        "tools/ci/scripts/run-runbook-registry-check.sh",
+        "tools/ci/scripts/run-mcp-smoke.sh",
+        "tools/ci/scripts/run-closeout-evidence-manifest.sh",
+        "tools/ci/scripts/run-local-state-audit.sh",
+        "tools/ci/scripts/run-release-supply-chain.sh",
+        "tools/ci/scripts/run-python-tests.sh",
+    ]
 
 
 def land_next_actions(
@@ -151,6 +182,7 @@ def local_submit_package(
     branch: str,
     submit_branch: str,
     remote_availability: dict[str, object] | None = None,
+    root: Path | None = None,
 ) -> dict[str, object]:
     """Plan the local submit-branch package (remote push deferred)."""
     return {
@@ -163,6 +195,7 @@ def local_submit_package(
         "remote_availability": remote_availability or {"state": "not_probed", "available": False},
         "local_ci_fallback": local_ci_fallback_package(
             remote_availability=remote_availability,
+            root=root,
         ),
         "required_steps": [
             "land work lane to candidate role",
@@ -214,6 +247,7 @@ def publication_readiness(
     local_ok: bool,
     policy: BranchRolePolicy,
     remote_availability: dict[str, object] | None = None,
+    root: Path | None = None,
 ) -> dict[str, object]:
     """Assemble publication readiness with remote probe and local-ci fallback."""
     submit_branch = policy.submit_branch_for_source(branch)
@@ -239,12 +273,13 @@ def publication_readiness(
         # Reachability remains visible under remote_availability.state.
         "remote_state": "deferred",
         "remote_availability": availability,
-        "fallback_evidence": local_ci_fallback_package(remote_availability=availability),
+        "fallback_evidence": local_ci_fallback_package(remote_availability=availability, root=root),
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(
             branch=branch,
             submit_branch=submit_branch,
             remote_availability=availability,
+            root=root,
         ),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": next_actions,

@@ -13,6 +13,7 @@ import pytest
 
 import ethos.adapters.admission.core as admission
 import ethos.adapters.admission.prewrite as admission_prewrite
+import ethos.adapters.admission.shell as admission_shell
 import ethos.adapters.config as adapters_config
 import ethos.adapters.mutation.core as mutation_core
 import ethos.adapters.store.retrieval.query as retrieval_query
@@ -64,10 +65,15 @@ def test_admission_prewrite_and_hook_success_edges(
         root=tmp_path, paths=[tmp_path / "README.md"], editor_root=tmp_path
     )
     assert blocked["error"] == "protected_lane_prewrite_blocked"
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     monkeypatch.setattr(
         admission_prewrite,
         "workspace_status",
-        lambda root: {"role": ROLE_WORK_LANE, "branch": "work/x"},
+        lambda root: {
+            "role": ROLE_WORK_LANE,
+            "branch": "work/x",
+            "closeout_support": {"owner": "agent-a"},
+        },
     )
     missing_editor = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[tmp_path / "README.md"]
@@ -131,29 +137,86 @@ def test_admission_prewrite_and_hook_success_edges(
     assert admission.hook_admission_report(root=tmp_path, layer="git")["state"] == "fallback"
     assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")
 
-    assert admission._git_stash_policy("git stash") == {
+    assert admission_shell.git_stash_policy("git stash") == {
         "forbidden": True,
         "operation": "push",
         "reason": "stash_is_hidden_change_carrier",
     }
-    assert admission._git_stash_policy("git stash -u")["operation"] == "push"
-    malformed_stash = admission._git_stash_policy("git stash '")
+    assert admission_shell.git_stash_policy("git stash -u")["operation"] == "push"
+    malformed_stash = admission_shell.git_stash_policy("git stash '")
     assert malformed_stash["forbidden"] is True
     assert malformed_stash["reason"] == "stash_is_hidden_change_carrier"
     assert (
-        admission._git_stash_policy("git --git-dir=/tmp/repo/.git stash clear")["operation"]
+        admission_shell.git_stash_policy("git --git-dir=/tmp/repo/.git stash clear")["operation"]
         == "clear"
     )
-    assert admission._git_stash_policy("git --bare") == {
+    assert admission_shell.git_stash_policy("git --bare") == {
         "forbidden": False,
         "operation": "",
         "reason": "not_git_stash",
     }
-    assert admission._git_stash_policy("git -C") == {
+    assert admission_shell.git_stash_policy("git -C") == {
         "forbidden": False,
         "operation": "",
         "reason": "not_git_stash",
     }
+    assert admission_shell.command_risk("", role=ROLE_WORK_LANE) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git --bare", role=ROLE_WORK_LANE) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git branch --list", role=ROLE_WORK_LANE) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git worktree list", role=ROLE_WORK_LANE) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git branch -D old", role=ROLE_WORK_LANE) == {
+        "tracked_mutation_risk": True,
+        "reason": "command_text_matches_mutation_pattern",
+    }
+    assert admission_shell.command_risk("cat README.md", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git status", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("git branch --list", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("ethos status --json", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": False,
+        "reason": "observe_only_command",
+    }
+    assert admission_shell.command_risk("python scripts/task.py", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": True,
+        "reason": "protected_role_unknown_command_requires_paths",
+    }
+    assert admission_shell.command_risk("git worktree remove ../x", role=ROLE_ACCEPTED_ROOT) == {
+        "tracked_mutation_risk": True,
+        "reason": "protected_role_unknown_command_requires_paths",
+    }
+    assert admission_shell._is_protected_read_command([]) is True
+    assert admission_shell._git_command_is_read_only(["git"]) is False
+    assert admission_shell._git_command_is_read_only(["git", "stash", "show"]) is True
+    assert admission_shell._git_branch_is_read_only(["--"]) is False
+    assert admission_shell._git_branch_is_read_only(["--set-upstream-to=origin/dev"]) is False
+    assert admission_shell._git_branch_is_read_only(["--list", "-vv"]) is True
+    assert admission_shell._git_branch_is_read_only(["--format", "%(refname)"]) is True
+    assert admission_shell._git_branch_is_read_only(["--unknown"]) is True
+    assert admission_shell._git_branch_is_read_only(["dev"]) is False
+    assert admission_shell._git_worktree_is_read_only([]) is True
+    assert admission_shell._git_worktree_is_read_only(["remove"]) is False
+    assert admission_shell._first_non_option(["--json"]) is None
+    assert admission_shell._first_non_option(["--json", "status"]) == "status"
 
     policy = SimpleNamespace(
         accepted_branch="dev",

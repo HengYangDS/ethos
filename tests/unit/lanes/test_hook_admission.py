@@ -18,6 +18,7 @@ from ethos.adapters.mutation.core import _proof_gaps
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.store import state
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 
@@ -119,10 +120,82 @@ def test_pre_tool_hook_blocks_protected_root_write_tool_without_declared_paths(
     assert "protected_root_pretool_paths_required" in report["required_gaps"]
 
 
-def test_pre_tool_hook_admits_owned_work_lane_with_editor_root(tmp_path: Path) -> None:
+def test_pre_tool_hook_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+
+    report = hook_admission_report(
+        root=worktree,
+        layer="pre-tool",
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["role"] == "work_lane"
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "work_lane_missing_lease:work/feature",
+    }
+    assert report["admission"]["work_lane_lease"]["ok"] is False
+    assert "work_lane_missing_lease:work/feature" in report["required_gaps"]
+
+
+def test_pre_tool_hook_blocks_work_lane_actor_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        owner="agent-a",
+        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-b")
+
+    report = hook_admission_report(
+        root=worktree,
+        layer="pre-tool",
+        paths=[worktree / "README.md"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "work_lane_actor_mismatch:work/feature",
+    }
+    assert report["admission"]["work_lane_lease"] == {
+        "ok": False,
+        "required": True,
+        "branch": "work/feature",
+        "owner": "agent-a",
+        "actor": "agent-b",
+        "reason": "work_lane_actor_mismatch:work/feature",
+    }
+
+
+def test_pre_tool_hook_admits_leased_work_lane_for_matching_actor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        owner="agent-a",
+        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
 
     report = hook_admission_report(
         root=worktree,
@@ -140,12 +213,30 @@ def test_pre_tool_hook_admits_owned_work_lane_with_editor_root(tmp_path: Path) -
         "reason": "prewrite_admitted",
     }
     assert report["admission"]["ok"] is True
+    assert report["admission"]["work_lane_lease"] == {
+        "ok": True,
+        "required": True,
+        "branch": "work/feature",
+        "owner": "agent-a",
+        "actor": "agent-a",
+        "reason": "matched",
+    }
 
 
-def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(tmp_path: Path) -> None:
+def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        owner="agent-a",
+        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
     git(worktree, "checkout", "--detach")
     git_dir = Path(git(worktree, "rev-parse", "--absolute-git-dir"))
     rebase_dir = git_dir / "rebase-merge"
@@ -231,6 +322,39 @@ def test_pre_run_hook_blocks_mutation_risk_without_target_paths(tmp_path: Path) 
         "tracked_mutation_risk": True,
         "reason": "command_text_matches_mutation_pattern",
     }
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "hook_prerun_paths_required",
+    }
+    assert "hook_prerun_paths_required" in report["required_gaps"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python scripts/generate.py",
+        "git apply patch.diff",
+        "touch README.md",
+    ],
+)
+def test_pre_run_hook_blocks_unknown_or_mutating_protected_root_commands_without_paths(
+    tmp_path: Path,
+    command: str,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    report = hook_admission_report(
+        root=repo,
+        layer="pre-run",
+        command=command,
+        editor_root=repo,
+        require_editor_root=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["role"] == "accepted_root"
+    assert report["command_risk"]["tracked_mutation_risk"] is True
     assert report["decision"] == {
         "action": "block",
         "reason": "hook_prerun_paths_required",
@@ -493,6 +617,27 @@ def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:
         root=tmp_path, ref_name="refs/heads/dev", old_value=base, new_value=work
     )
     assert "accepted_advance_not_candidate_validated" not in advanced["required_gaps"]
+
+
+def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    candidate_head = "c" * 40
+
+    report = ref_move_admission_report(
+        root=repo,
+        ref_name="refs/heads/candidate/dev",
+        old_value=head,
+        new_value=candidate_head,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["decision"] == {
+        "action": "block",
+        "reason": "protected_ref_move_not_proven",
+    }
+    assert any("proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"])
 
 
 def test_official_closeout_sets_ref_move_admission_context(monkeypatch, tmp_path) -> None:

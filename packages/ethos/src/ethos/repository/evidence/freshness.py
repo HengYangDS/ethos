@@ -13,16 +13,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def evidence_freshness_report(root: Path) -> dict[str, Any]:
+def evidence_freshness_report(root: Path, *, current_head: str = "") -> dict[str, Any]:
     """Compose claim, evolution, and evidence-topology freshness checks.
 
     Args:
         root: Repository root to inspect.
+        current_head: Git HEAD used to classify active claim freshness.
 
     Returns:
         A read-only report for the public evidence freshness quality gate.
     """
-    claim_report = claims_report(root)
+    claim_report = claims_report(root, current_head=current_head)
     evolution = evolution_report(root)
     topology = evidence_topology_report(root)
     evidence_root = profile_relative_root(root, "durable_evidence")
@@ -35,6 +36,7 @@ def evidence_freshness_report(root: Path) -> dict[str, Any]:
         "ok": bool(claim_report["ok"]) and bool(evolution["ok"]) and bool(topology["ok"]),
         "summary": {
             "evidence_roots": [evidence_root],
+            "current_head": current_head,
             "evolution_active_count": evolution["active_count"],
             "topology_issue_count": len(topology["required_gaps"]),
         },

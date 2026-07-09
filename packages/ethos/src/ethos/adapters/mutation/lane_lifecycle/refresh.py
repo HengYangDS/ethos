@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import TypedDict
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.lane_lifecycle.projection_rebase.core import resolve_projection_rebase
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -19,10 +19,6 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-PARITY_EVIDENCE_ROOT = Path("evidence/parity")
-PARITY_SHADOW_SUFFIX = "-shadow.json"
-MAX_PROJECTION_REBASE_STEPS = 64
 
 
 def _repo_root_adapter(root: Path) -> Path:
@@ -64,59 +60,6 @@ class LaneRefreshRuntime:
     changed_paths: Callable[[Path], list[str]] = _changed_paths_adapter
     is_ancestor: Callable[[Path, str, str], bool] = _is_ancestor_adapter
     run_git: Callable[..., Any] = _run_git_adapter
-
-
-class _ProjectionResolution(TypedDict):
-    ok: bool
-    paths: list[str]
-    gaps: list[str]
-    next_actions: list[str]
-
-
-class _ProjectionRebaseResolution(TypedDict):
-    ok: bool
-    paths: list[str]
-    gaps: list[str]
-    next_actions: list[str]
-    stderr: str
-
-
-def _projection_resolution(
-    *,
-    ok: bool,
-    paths: list[str] | None = None,
-    gaps: list[str] | None = None,
-    next_actions: list[str] | None = None,
-) -> _ProjectionResolution:
-    return {
-        "ok": ok,
-        "paths": paths or [],
-        "gaps": gaps or [],
-        "next_actions": next_actions or [],
-    }
-
-
-def _projection_rebase_resolution(
-    *,
-    ok: bool,
-    paths: list[str] | None = None,
-    gaps: list[str] | None = None,
-    next_actions: list[str] | None = None,
-    stderr: str = "",
-) -> _ProjectionRebaseResolution:
-    return {
-        "ok": ok,
-        "paths": paths or [],
-        "gaps": gaps or [],
-        "next_actions": next_actions or [],
-        "stderr": stderr,
-    }
-
-
-def _append_unique(target: list[str], values: list[str]) -> None:
-    for value in values:
-        if value not in target:
-            target.append(value)
 
 
 def bootstrap_candidate(
@@ -385,123 +328,6 @@ def refresh_candidate_from_accepted(
     )
 
 
-def _resolve_projection_only_rebase_conflict(
-    root: Path,
-    *,
-    runtime: LaneRefreshRuntime | None = None,
-) -> _ProjectionResolution:
-    active_runtime = runtime or LaneRefreshRuntime()
-    paths = _unmerged_paths(root, runtime=active_runtime)
-    adopters = [_parity_adopter(path) for path in paths]
-    result = _projection_resolution(ok=False)
-    if paths and all(adopters):
-        checkout = active_runtime.run_git(root, "checkout", "--ours", "--", *paths, check=False)
-        if checkout.returncode != 0:
-            result = _projection_resolution(ok=False, paths=paths)
-        else:
-            added = active_runtime.run_git(root, "add", *paths, check=False)
-            if added.returncode != 0:
-                result = _projection_resolution(ok=False, paths=paths)
-            else:
-                result = _projection_resolution(
-                    ok=True,
-                    paths=paths,
-                    gaps=[
-                        f"projection_regeneration_required:parity:{adopter}" for adopter in adopters
-                    ],
-                    next_actions=[
-                        (
-                            "ethos parity shadow --adopter "
-                            f"{adopter} --target . --execute --write-evidence --json"
-                        )
-                        for adopter in adopters
-                    ],
-                )
-    return result
-
-
-def _unmerged_paths(
-    root: Path,
-    *,
-    runtime: LaneRefreshRuntime | None = None,
-) -> list[str]:
-    active_runtime = runtime or LaneRefreshRuntime()
-    completed = active_runtime.run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
-    if completed.returncode != 0:
-        return []
-    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
-
-
-def _parity_adopter(path: str) -> str:
-    candidate = Path(path)
-    if candidate.parent != PARITY_EVIDENCE_ROOT or not candidate.name.endswith(
-        PARITY_SHADOW_SUFFIX
-    ):
-        return ""
-    adopter = candidate.name[: -len(PARITY_SHADOW_SUFFIX)]
-    return adopter or ""
-
-
-def _empty_projection_patch(stderr: str) -> bool:
-    lowered = stderr.lower()
-    return (
-        "no changes" in lowered
-        or "nothing to commit" in lowered
-        or "patch is empty" in lowered
-        or "previous cherry-pick is now empty" in lowered
-    )
-
-
-def _resolve_projection_rebase(
-    root: Path,
-    initial: object,
-    *,
-    runtime: LaneRefreshRuntime | None = None,
-) -> _ProjectionRebaseResolution:
-    active_runtime = runtime or LaneRefreshRuntime()
-    paths: list[str] = []
-    gaps: list[str] = []
-    next_actions: list[str] = []
-    completed = initial
-    for _ in range(MAX_PROJECTION_REBASE_STEPS):
-        if getattr(completed, "returncode", 1) == 0:
-            return _projection_rebase_resolution(
-                ok=bool(paths),
-                paths=paths,
-                gaps=gaps,
-                next_actions=next_actions,
-                stderr="",
-            )
-        projection_resolution = _resolve_projection_only_rebase_conflict(
-            root, runtime=active_runtime
-        )
-        if projection_resolution["ok"]:
-            _append_unique(paths, projection_resolution["paths"])
-            _append_unique(gaps, projection_resolution["gaps"])
-            _append_unique(next_actions, projection_resolution["next_actions"])
-            completed = active_runtime.run_git(
-                root, "-c", "core.editor=true", "rebase", "--continue", check=False
-            )
-            continue
-        if paths and _empty_projection_patch(str(getattr(completed, "stderr", ""))):
-            completed = active_runtime.run_git(root, "rebase", "--skip", check=False)
-            continue
-        return _projection_rebase_resolution(
-            ok=False,
-            paths=paths,
-            gaps=gaps,
-            next_actions=next_actions,
-            stderr=str(getattr(completed, "stderr", "")),
-        )
-    return _projection_rebase_resolution(
-        ok=False,
-        paths=paths,
-        gaps=gaps,
-        next_actions=next_actions,
-        stderr="projection rebase recovery exceeded bounded step limit",
-    )
-
-
 def refresh_work_lane_base(
     *,
     root: Path,
@@ -572,7 +398,7 @@ def refresh_work_lane_base(
             }
         )
     completed = active_runtime.run_git(root, "rebase", policy.candidate_branch, check=False)
-    projection_resolution = _resolve_projection_rebase(root, completed, runtime=active_runtime)
+    projection_resolution = resolve_projection_rebase(root, completed, runtime=active_runtime)
     if completed.returncode != 0 and projection_resolution["ok"]:
         refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
         return _work_base_report(

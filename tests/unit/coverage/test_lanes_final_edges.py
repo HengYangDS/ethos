@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
-import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
+import ethos.adapters.mutation.lane_lifecycle.projection_rebase.core as lane_projection_rebase
 from ethos.adapters.mutation import lanes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -224,14 +224,14 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
     calls: list[tuple[str, ...]] = []
 
     monkeypatch.setattr(
-        lanes_refresh,
+        lane_projection_rebase,
         "run_git",
         fake_git({("diff",): cp(returncode=1)}, calls=calls),
     )
-    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
+    assert lane_projection_rebase.resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
 
     monkeypatch.setattr(
-        lanes_refresh,
+        lane_projection_rebase,
         "run_git",
         fake_git(
             {
@@ -240,7 +240,7 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
             }
         ),
     )
-    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path) == {
+    assert lane_projection_rebase.resolve_projection_only_rebase_conflict(tmp_path) == {
         "ok": False,
         "paths": ["evidence/parity/generic-shadow.json"],
         "gaps": [],
@@ -248,7 +248,7 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
     }
 
     monkeypatch.setattr(
-        lanes_refresh,
+        lane_projection_rebase,
         "run_git",
         fake_git(
             {
@@ -257,7 +257,7 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
             }
         ),
     )
-    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path) == {
+    assert lane_projection_rebase.resolve_projection_only_rebase_conflict(tmp_path) == {
         "ok": False,
         "paths": ["evidence/parity/generic-shadow.json"],
         "gaps": [],
@@ -265,11 +265,11 @@ def test_refresh_base_projection_resolution_edge_failures(monkeypatch, tmp_path:
     }
 
     monkeypatch.setattr(
-        lanes_refresh,
+        lane_projection_rebase,
         "run_git",
         fake_git({("diff",): cp(stdout="evidence/parity/generic-shadow.json\nREADME.md\n")}),
     )
-    assert lanes_refresh._resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
+    assert lane_projection_rebase.resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
 
 
 def test_projection_rebase_skips_empty_projection_patch(monkeypatch, tmp_path: Path) -> None:
@@ -293,9 +293,9 @@ def test_projection_rebase_skips_empty_projection_patch(monkeypatch, tmp_path: P
             return cp(returncode=0)
         return cp(returncode=1, stderr="unexpected git call")
 
-    monkeypatch.setattr(lanes_refresh, "run_git", run_git)
+    monkeypatch.setattr(lane_projection_rebase, "run_git", run_git)
 
-    resolved = lanes_refresh._resolve_projection_rebase(
+    resolved = lane_projection_rebase.resolve_projection_rebase(
         tmp_path,
         cp(returncode=1, stderr="projection conflict"),
     )

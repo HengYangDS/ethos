@@ -196,6 +196,20 @@ def test_emit_handles_closed_pipes(monkeypatch) -> None:
     emit(EthosResult(command="status", ok=True, state="ready"), json_output=True)
 
 
+def test_emit_handles_nonblocking_closed_pipes(monkeypatch) -> None:
+    import builtins
+
+    from ethos.surface.cli._base import emit
+    from ethos_core.result import EthosResult
+
+    def closed_nonblocking_pipe(*args, **kwargs) -> None:
+        raise BlockingIOError
+
+    monkeypatch.setattr(builtins, "print", closed_nonblocking_pipe)
+
+    emit(EthosResult(command="publish", ok=True, state="ready"), json_output=True)
+
+
 def test_quality_package_ontology_rejects_retired_workspace_config(
     tmp_path: Path,
 ) -> None:

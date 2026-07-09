@@ -105,7 +105,7 @@ def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> Non
             print(f"{result.command}: {result.state}")
             for action in result.next_actions:
                 print(f"next: {action}")
-    except BrokenPipeError:
+    except (BrokenPipeError, BlockingIOError):
         return
     if enforce and not result.ok:
         raise SystemExit(1)

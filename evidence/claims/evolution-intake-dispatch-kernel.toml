@@ -1,0 +1,45 @@
+[claim]
+id = "evolution-intake-dispatch-kernel"
+subject = "ethos:evolution-intake-dispatch-kernel"
+state = "active"
+summary = "ETHOS records a planned Agentic Evolution Kernel design that keeps external issue trackers, managed-agent platforms, automation canvases, and coding-agent runtimes as adapters while preserving repository truth, evidence, claims, and chronicle as the governance center."
+
+[evidence]
+dated = "evidence/chronicle/agentic-evolution-kernel/2026-07-09.md"
+sha256 = "5c25a8b5efa3d6119f528bf534aaacdda08025de19a7e8534ca22fc792863744"
+evidence_ids = ["evidence:evolution-intake-dispatch-kernel"]
+binding = "Draft design substrate and boundary evidence for agentic issue intake, dispatch, and bounded repository evolution"
+verifier = "semantic"
+readiness_checks = [
+  "ETHOS_ACTOR=codex uv run --package ethos ethos status --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos playbooks route --changed --root <work-lane-root> --mode v2-strict --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos plan --changed --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos quality docs --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos openspec --lifecycle --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos quality claims --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos prove --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos prove --execute --expect-head 1216775b93383028e072c39d04498f0284eeac0f --root <work-lane-root> --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos report --root <work-lane-root> --json",
+]
+
+[boundary]
+owner = "ethos-governance"
+scope = "Design-only boundary for agentic issue intake, managed-agent platforms, execution backends, evidence binding, and bounded repository evolution guardrails"
+
+[carriers]
+openspec = "openspec/changes/agentic-evolution-kernel"
+
+fallback = "Keep external agentic tools as manual context and execution aids until intake and dispatch admission are implemented in later Work Lanes."
+kill_signal = "An external board, issue state, agent assignment, task completion, or agent narrative is treated as repository truth, mutation authority, proof, publication, or chronicle without ETHOS evidence and claim binding."
+
+[promotion]
+targets = [
+  "docs/plans/agentic-evolution-kernel.md",
+  "openspec/changes/agentic-evolution-kernel/.openspec.yaml",
+  "openspec/changes/agentic-evolution-kernel/proposal.md",
+  "openspec/changes/agentic-evolution-kernel/design.md",
+  "openspec/changes/agentic-evolution-kernel/tasks.md",
+  "openspec/changes/agentic-evolution-kernel/specs/repository-governance/spec.md",
+  "evidence/chronicle/agentic-evolution-kernel/2026-07-09.md",
+  "evidence/claims/evolution-intake-dispatch-kernel.toml",
+]

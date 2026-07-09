@@ -6,7 +6,7 @@ summary = "ETHOS retired repository audit suffix-module debt into semantic subpa
 
 [evidence]
 dated = "evidence/chronicle/audit-semantic-subpackages-20260709/2026-07-09.md"
-sha256 = "26dbd5569b2b7c6dccd72981f290f81a489a3eb3bd6ec59928c966ad79806f68"
+sha256 = "9837d734373183d2d05346b3fb4a2e1454602bdd0c4cb2803a98bf05c7e90867"
 evidence_ids = ["evidence:audit-semantic-subpackages-20260709"]
 binding = "Semantic subpackage migration, no compatibility import shells, module-layout ratchet shrink, and full Python proof gate."
 verifier = "semantic"

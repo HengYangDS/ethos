@@ -14,6 +14,7 @@ from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.status.bindings import has_changed_paths
+from ethos.adapters.repo.status.bindings import worktree_binding
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store import state
 
@@ -514,6 +515,10 @@ def test_has_changed_paths_fails_closed_when_worktree_path_disappears(tmp_path: 
     missing = tmp_path / "missing-candidate"
 
     assert has_changed_paths(missing) is True
+
+
+def test_worktree_binding_reports_absent_path(tmp_path: Path) -> None:
+    assert worktree_binding("", current_path=tmp_path.resolve()) == "absent"
 
 
 def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:

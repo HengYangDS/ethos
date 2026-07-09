@@ -12,6 +12,10 @@ silently granting cleanup authority.
 
 - `worktree_binding` gains the physical-path state `missing` for Git worktree
   registry entries whose path no longer exists.
+- Candidate read-model bindings explicitly distinguish `absent` (configured
+  candidate branch not created), `unbound` (branch exists without a candidate
+  worktree), and `missing` (registered candidate worktree path disappeared)
+  while actual worktree entries remain physical bindings only.
 - Foreign Work Lane readers treat a missing physical path as unobservable dirty
   state: `dirty=false`, `dirty_paths=[]`, and coordination remains advisory for
   accepted-root readers.

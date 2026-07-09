@@ -326,7 +326,9 @@
           "enum": [
             "current",
             "linked",
-            "missing"
+            "missing",
+            "unbound",
+            "absent"
           ]
         },
         "behind_accepted": {

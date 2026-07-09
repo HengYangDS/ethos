@@ -257,6 +257,12 @@ def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
     )
 
     assert status["ok"] is True
+    assert [
+        gap
+        for diagnostic in status["diagnostics"]
+        if diagnostic["kind"] == "schema_validation"
+        for gap in diagnostic["required_gaps"]
+    ] == []
     assert docs["ok"] is True
     assert examples["ok"] is True
 

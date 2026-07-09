@@ -13,6 +13,11 @@ or clean it.
 - Keep Git worktree metadata as the source fact.
 - Extend the existing `worktree_binding` vocabulary with `missing`.
 - Derive `missing` by comparing Git's registry path against filesystem reality.
+- Keep candidate read-model bindings (`absent` when the configured candidate
+  branch is absent, `unbound` when the branch exists without a worktree, and
+  `missing` when registry metadata points at a missing path) distinct from
+  actual worktree list entries, which remain physical `current`, `linked`, or
+  `missing` bindings.
 - When foreign-lane dirty paths would require entering a missing directory,
   return an empty dirty-path set and let `worktree_binding=missing` carry the
   disorder signal.

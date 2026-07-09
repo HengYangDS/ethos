@@ -800,6 +800,19 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** if the candidate path disappears during dirty inspection, ETHOS treats
   the candidate state as unsafe to close out rather than crashing
 
+#### Scenario: Candidate absent or unbound binding remains schema-valid
+
+- **GIVEN** an adopted repository has not yet created the configured candidate
+  branch
+- **WHEN** `ethos status --json` reads workspace status
+- **THEN** ETHOS reports the candidate with `worktree_binding=absent`
+- **AND** the workspace-status schema accepts that candidate read-model state
+- **AND** actual worktree list entries remain limited to physical bindings
+  `current`, `linked`, or `missing`
+- **AND** if the candidate branch exists without a candidate worktree, ETHOS
+  reports the candidate with `worktree_binding=unbound` without using `unbound`
+  for actual worktree entries
+
 ### Requirement: Unbound Work Lane Ref Retirement
 
 ETHOS SHALL govern local unbound Work Lane ref cleanup through explicit,

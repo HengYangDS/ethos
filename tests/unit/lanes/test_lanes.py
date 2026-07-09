@@ -706,6 +706,7 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
         "behind_accepted": 0,
     }
     assert "candidate_branch_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Path) -> None:
@@ -717,7 +718,9 @@ def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Pa
     assert status["candidate"]["exists"] is True
     assert status["candidate"]["worktree_exists"] is False
     assert status["candidate"]["worktree_path"] == ""
+    assert status["candidate"]["worktree_binding"] == "unbound"
     assert "candidate_worktree_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_missing_candidate_registry_worktree_without_crashing(

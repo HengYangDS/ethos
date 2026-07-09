@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
-    "target_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
-    "product_semantic_sha256": "b7a89440f35b9034a9ed615723dbe8e927b5989a6f41e915120bf057098da24c",
-    "target_semantic_sha256": "b7a89440f35b9034a9ed615723dbe8e927b5989a6f41e915120bf057098da24c",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "e27d9593684a379e630acc3d19e683891c0b3e01",
+    "target_head": "e27d9593684a379e630acc3d19e683891c0b3e01",
+    "product_semantic_sha256": "ac0d0c1a3c8395a0f5af7107372722d0cbb18fb173d5fcb29112f34e36eadf32",
+    "target_semantic_sha256": "ac0d0c1a3c8395a0f5af7107372722d0cbb18fb173d5fcb29112f34e36eadf32",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -36,9 +36,11 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
-    "product_head": "993ed6356bb99f0b628fca2f7923e633d98444db",
-    "changed_paths": [],
+    "target_head": "e27d9593684a379e630acc3d19e683891c0b3e01",
+    "product_head": "e27d9593684a379e630acc3d19e683891c0b3e01",
+    "changed_paths": [
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -81,7 +83,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "0b51336cae537263b705e2bbe05d37b2889775e7aa293907efafb03b64f0f6f8"
+        "sha256": "2d2f7664301fc021f402859d42a4aaf92d974f197f8c890c8a6ecc108a24e7c2"
       },
       {
         "path": "evidence/claims",

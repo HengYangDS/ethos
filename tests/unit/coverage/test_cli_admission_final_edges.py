@@ -633,7 +633,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
 
     def always_unavailable(candidate: Path) -> None:
         attempted.append(candidate)
-        raise OSError("cwd unavailable")
+        raise OSError
 
     monkeypatch.setattr(_gate_runner.os, "chdir", always_unavailable)
     _gate_runner._restore_cwd(None, missing_root)

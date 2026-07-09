@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import builtins
 import json
 import re
 from pathlib import Path
 
+import ethos.adapters.openspec.cli as openspec_cli
 from ethos.domain.reporting.gaps import advisory_next_actions
 from ethos.domain.reporting.gaps import gap_layers
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
+from ethos_core.result import EthosResult
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
@@ -183,11 +187,6 @@ def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> Non
 
 
 def test_emit_handles_closed_pipes(monkeypatch) -> None:
-    import builtins
-
-    from ethos.surface.cli._base import emit
-    from ethos_core.result import EthosResult
-
     def closed_pipe(*args, **kwargs) -> None:
         raise BrokenPipeError
 
@@ -197,11 +196,6 @@ def test_emit_handles_closed_pipes(monkeypatch) -> None:
 
 
 def test_emit_handles_nonblocking_closed_pipes(monkeypatch) -> None:
-    import builtins
-
-    from ethos.surface.cli._base import emit
-    from ethos_core.result import EthosResult
-
     def closed_nonblocking_pipe(*args, **kwargs) -> None:
         raise BlockingIOError
 
@@ -564,8 +558,6 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    import ethos.adapters.openspec.cli as openspec_cli
-
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
 
@@ -942,10 +934,8 @@ def test_retired_self_command_group_is_not_available() -> None:
 
 
 def test_quality_types_enforces_ty_policy_tiers() -> None:
-    import json as _json
-
     completed = run_ethos_raw("quality", "types", "--json")
-    payload = _json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
 
     assert payload["command"] == "quality types"
     packages = payload["data"]["packages"]

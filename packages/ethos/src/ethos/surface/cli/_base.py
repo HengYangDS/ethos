@@ -10,6 +10,7 @@ surface acyclic.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -122,8 +123,6 @@ def load_command_groups(argv: list[str]) -> None:
     group is imported. With no recognizable group token (e.g. `--help`), all groups
     load so the full command surface is shown.
     """
-    import importlib
-
     groups = (
         "fleet",
         "intake",

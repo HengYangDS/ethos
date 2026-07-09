@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "be78250c07c0a2d4c1c4e224dec284966b733901",
-    "target_head": "be78250c07c0a2d4c1c4e224dec284966b733901",
-    "product_semantic_sha256": "a1e0671d3b774b752460b6539b33ffb619395ecc5042ce322c4419ecc2b33845",
-    "target_semantic_sha256": "a1e0671d3b774b752460b6539b33ffb619395ecc5042ce322c4419ecc2b33845",
+    "product_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
+    "target_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
+    "product_semantic_sha256": "76dc55cd4ad10f33fb978d5b1f5fb3f8f28ea233435a150c819340499883064a",
+    "target_semantic_sha256": "76dc55cd4ad10f33fb978d5b1f5fb3f8f28ea233435a150c819340499883064a",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/root-host-residue-gate-20260709",
-    "target_head": "be78250c07c0a2d4c1c4e224dec284966b733901",
-    "product_head": "be78250c07c0a2d4c1c4e224dec284966b733901",
+    "target_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
+    "product_head": "c8a90cca98b4083ef3640cf3b67af94da87960d7",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "d1542c06908f6760d135d4d22ec310183f8af21f303320a52f6d23a110e284c8"
+        "sha256": "e746d6cbd8ebd83f7bff6464108d74cd206366fb464582807537563479fb2ffe"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "4db448b46a8d2fe9f395d43322df8754ab83ca8b6988e2e107d3233be06abda1"
+        "sha256": "a7fa31fb6669dae4bd11c0948d2dcf2c3cbec24529aa3035f985db26ab795ba7"
       },
       {
         "path": "rules",

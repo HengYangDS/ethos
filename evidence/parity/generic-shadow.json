@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "e70b72a85a64fecaa703e456282a0b5757f39740",
-    "target_head": "e70b72a85a64fecaa703e456282a0b5757f39740",
-    "product_semantic_sha256": "7e204814a7d3ad6f8dc17985d12683a9f7187cb580fd3319c7f40a1b7686e7a8",
-    "target_semantic_sha256": "7e204814a7d3ad6f8dc17985d12683a9f7187cb580fd3319c7f40a1b7686e7a8",
+    "product_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
+    "target_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
+    "product_semantic_sha256": "31211a5b7469d8f0d7b08758097be9e0b0c18dd2e330b7dc9edc58e0f069f9e0",
+    "target_semantic_sha256": "31211a5b7469d8f0d7b08758097be9e0b0c18dd2e330b7dc9edc58e0f069f9e0",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709",
-    "target_head": "e70b72a85a64fecaa703e456282a0b5757f39740",
-    "product_head": "e70b72a85a64fecaa703e456282a0b5757f39740",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709",
+    "target_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
+    "product_head": "e8b3df4d19e94f9317d79e939104118c3c61cf51",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/self-parity-target-binding-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/skill-activation-semantic-package-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,12 +81,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "e5e7e75fbd439e86490d0ffb1f42b1c3f100f2ed6f5262f8bd37640bee8861da"
+        "sha256": "6b7c3efab888f97583a6d1cb21ffab25cf60b3f6e516911821d07d9afe2be8f6"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "393abd360a643b1c5647ebea53cda51bc7c39add76649836b5a52588c8038e1b"
+        "sha256": "36b06921ff703b71ba4853e42e46dd505e43c4b12dae24ba4d7d67192b4f16ea"
       },
       {
         "path": "openspec",

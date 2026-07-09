@@ -322,9 +322,10 @@ bind the actor or obtain handoff.
 linked Work Lanes whose semantic truth has already been absorbed into the current
 accepted root but whose stale branch content must not be landed. It is dry-run by
 default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
-to the current accepted head, and a non-empty `--reason`, then deletes
-`refs/heads/<branch>` with a head-bound ref transaction and removes the previously
-verified-clean linked worktree. If the worktree removal fails after ref deletion,
+to the current accepted head, a non-empty `--reason`, and accepted-root tree
+content that matches the lane's changed paths, then deletes `refs/heads/<branch>`
+with a head-bound ref transaction and removes the previously verified-clean
+linked worktree. If the worktree removal fails after ref deletion,
 ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
 not replace `ethos land` or `retire-landed`; it closes a distinct superseded
 linked-lane residue state.

@@ -137,6 +137,7 @@ match_prefixes = [
   "retire_reason_required",
   "unbound_retire_",
   "superseded_retire_",
+  "superseded_lane_",
   "absorbed_by_",
   "accepted_head_unavailable",
   "promotion_",

@@ -28,6 +28,7 @@ Start with [Start](start/quickstart.md), then read
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Repository Profile Contract](governance/repository-profile-contract.md),
 [Config Boundary Model](governance/config-boundary-model.md),
+[Post-Publication Governance Plan](plans/post-publication-governance-plan.md),
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
 [Workflow Runtime](architecture/workflow-runtime.md),
@@ -80,6 +81,7 @@ or maintainer break-glass evidence.
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
 - Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
+- Post-publication governance: [Post-Publication Governance Plan](plans/post-publication-governance-plan.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
 - Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)

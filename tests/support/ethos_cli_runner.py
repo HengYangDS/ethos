@@ -24,6 +24,16 @@ PYTHONPATH = os.pathsep.join(
 )
 
 
+class ImplicitApplyCheckoutError(AssertionError):
+    """Raised when a test would mutate the repository checkout by default."""
+
+    def __str__(self) -> str:
+        return (
+            "run_ethos* --apply calls must pass cwd=tmp_repo or --root tmp_repo; "
+            "refusing to run a mutating command against the repository checkout"
+        )
+
+
 def _test_git_config_overlay_keys(env: MutableMapping[str, str]) -> tuple[str, ...]:
     """Return pytest's indexed Git config overlay environment keys."""
     raw_count = env.get("GIT_CONFIG_COUNT", "0")
@@ -83,7 +93,22 @@ def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:
     return json.loads(completed.stdout)
 
 
+def _reject_implicit_apply_against_repository_checkout(
+    args: tuple[str, ...], *, cwd: Path | None
+) -> None:
+    """Fail tests that would apply mutations to the real checkout by default.
+
+    The helper's fallback cwd is the repository under test. Read-only contract
+    tests may use that default, but mutating ``--apply`` calls must bind an
+    explicit temporary repository via either ``cwd=...`` or ``--root ...``.
+    """
+    if "--apply" not in args or cwd is not None or "--root" in args:
+        return
+    raise ImplicitApplyCheckoutError
+
+
 def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    _reject_implicit_apply_against_repository_checkout(args, cwd=cwd)
     if "--help" in args or "--version" in args:
         return _run_subprocess(*args, cwd=cwd)
     if "--json" not in args:

@@ -32,6 +32,22 @@ def _actor_env(actor: str) -> Iterator[None]:
             os.environ["ETHOS_ACTOR"] = previous
 
 
+def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
+    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(repo, "add", "obsolete.txt")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "absorb obsolete lane delta",
+    )
+    return git(repo, "rev-parse", "dev")
+
+
 def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
@@ -133,7 +149,7 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
         "obsolete lane delta",
     )
     head = git(lane, "rev-parse", "HEAD")
-    accepted = git(repo, "rev-parse", "dev")
+    accepted = absorb_obsolete_delta_in_accepted(repo)
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
@@ -220,7 +236,7 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
         "obsolete lane delta",
     )
     head = git(lane, "rev-parse", "HEAD")
-    accepted = git(repo, "rev-parse", "dev")
+    accepted = absorb_obsolete_delta_in_accepted(repo)
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
@@ -248,7 +264,7 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
     assert git(repo, "rev-parse", "--verify", "work/superseded") == head
 
 
-def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
+def test_retire_superseded_work_lane_blocks_unabsorbed_lane_delta(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -269,6 +285,179 @@ def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
     )
     head = git(lane, "rev-parse", "HEAD")
     accepted = git(repo, "rev-parse", "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/superseded",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="accepted root already carries the semantic fix",
+                apply=True,
+                authorized=True,
+            ),
+        )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert lane.exists()
+    assert git(repo, "rev-parse", "--verify", "work/superseded") == head
+
+
+def test_retire_superseded_work_lane_fails_closed_when_merge_base_unavailable(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    lane = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
+    (lane / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(lane, "add", "obsolete.txt")
+    git(
+        lane,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "obsolete lane delta",
+    )
+    head = git(lane, "rev-parse", "HEAD")
+    accepted = absorb_obsolete_delta_in_accepted(repo)
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/superseded",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+
+    def fail_merge_base(
+        root: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        if args[:1] == ("merge-base",):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="no merge base")
+        return lane_lifecycle_core.run_git(root, *args, check=check)
+
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        run_git=fail_merge_base,
+        shared=RetirementRuntime(run_git=fail_merge_base),
+    )
+
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="accepted root already carries the semantic fix",
+                apply=True,
+                authorized=True,
+            ),
+            runtime=runtime,
+        )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert lane.exists()
+    assert git(repo, "rev-parse", "--verify", "work/superseded") == head
+
+
+def test_retire_superseded_work_lane_fails_closed_when_delta_diff_unavailable(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    lane = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
+    (lane / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(lane, "add", "obsolete.txt")
+    git(
+        lane,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "obsolete lane delta",
+    )
+    head = git(lane, "rev-parse", "HEAD")
+    accepted = absorb_obsolete_delta_in_accepted(repo)
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/superseded",
+        owner="agent-a",
+        ttl_seconds=3600,
+    )
+
+    def fail_diff(
+        root: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        if args[:1] == ("diff",):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="diff unavailable")
+        return lane_lifecycle_core.run_git(root, *args, check=check)
+
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        run_git=fail_diff,
+        shared=RetirementRuntime(run_git=fail_diff),
+    )
+
+    with _actor_env("agent-a"):
+        report = lane_retirement_core.retire_superseded_work_lane(
+            root=repo,
+            request=SupersededLaneRetirementRequest(
+                branch="work/superseded",
+                expect_head=head,
+                absorbed_by=accepted,
+                reason="accepted root already carries the semantic fix",
+                apply=True,
+                authorized=True,
+            ),
+            runtime=runtime,
+        )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert lane.exists()
+    assert git(repo, "rev-parse", "--verify", "work/superseded") == head
+
+
+def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    lane = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
+    (lane / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(lane, "add", "obsolete.txt")
+    git(
+        lane,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "obsolete lane delta",
+    )
+    head = git(lane, "rev-parse", "HEAD")
+    accepted = absorb_obsolete_delta_in_accepted(repo)
     db = repo / ".ethos" / "state" / "state.sqlite"
     state.acquire_lease(db, subject="work/superseded", owner="agent-a", ttl_seconds=3600)
 

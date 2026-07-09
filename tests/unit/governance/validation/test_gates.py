@@ -33,6 +33,7 @@ def test_gate_registry_has_real_default_gates() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "no-compat",
         "product-boundary",
     } <= set(registry)
     assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
@@ -41,6 +42,8 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["docstrings"].command == ("tools/ci/scripts/run-docstring-coverage.sh",)
     assert registry["module-layout"].command == ("tools/ci/scripts/run-module-layout.sh",)
     assert registry["module-layout"].execution_mode == "adapter"
+    assert registry["no-compat"].command == ("tools/ci/scripts/run-no-compat.sh",)
+    assert registry["no-compat"].execution_mode == "adapter"
     assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
     assert registry["product-boundary"].execution_mode == "adapter"
     assert registry["python-types"].execution_mode == "inprocess"
@@ -71,6 +74,8 @@ def test_gate_registry_classifies_product_toolchain_profile() -> None:
         assert registry[gate_id].profile == "product-toolchain"
         assert registry[gate_id].toolchain == "uv-python"
 
+    assert registry["no-compat"].profile == "product"
+    assert registry["no-compat"].toolchain == "ethos"
     assert registry["product-boundary"].profile == "product"
     assert registry["product-boundary"].toolchain == "ethos"
 
@@ -101,6 +106,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "no-compat",
         "python-size",
         "toml-config",
         "yaml-config",
@@ -116,6 +122,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     ]
     assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
+    assert nodes["no-compat"].to_dict()["command"] == ["tools/ci/scripts/run-no-compat.sh"]
     assert nodes["product-boundary"].to_dict()["command"] == [
         "tools/ci/scripts/run-product-boundary.sh"
     ]
@@ -181,6 +188,7 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
+    assert nodes["no-compat"].to_dict()["command"] == ["tools/ci/scripts/run-no-compat.sh"]
     assert nodes["product-boundary"].to_dict()["command"] == [
         "tools/ci/scripts/run-product-boundary.sh"
     ]

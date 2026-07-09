@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
@@ -358,13 +360,22 @@ def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None
     assert refreshed_head != previous_head
 
 
-def test_land_apply_requires_authorization_and_expected_head() -> None:
-    payload = run_ethos_blocked("land", "--apply", "--json")
+def test_land_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos_blocked("land", "--apply", "--json", cwd=repo)
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert "authorization_required" in payload["required_gaps"]
     assert "expect_head_required" in payload["required_gaps"]
+
+
+def test_cli_runner_rejects_implicit_apply_against_repository_checkout() -> None:
+    args = ("land", "--apply", "--json")
+
+    with pytest.raises(AssertionError, match="--apply calls must pass cwd"):
+        run_ethos_blocked(*args)
 
 
 def test_land_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -> None:
@@ -635,8 +646,10 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     assert retire_payload["data"]["mutation"]["expect_head"] == work_head
 
 
-def test_publish_apply_requires_authorization_and_expected_head() -> None:
-    payload = run_ethos_blocked("publish", "--apply", "--json")
+def test_publish_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+
+    payload = run_ethos_blocked("publish", "--apply", "--json", cwd=repo)
 
     assert payload["ok"] is False
     assert payload["state"] == "blocked"

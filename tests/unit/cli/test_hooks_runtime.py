@@ -18,3 +18,11 @@ def test_git_hooks_use_repo_bound_python_runtime() -> None:
         '"$ethos_python" -m ethos.cli hook admit pre-tool',
     ):
         assert expected in scripts
+
+
+def test_pre_commit_blocks_staged_python_format_drift() -> None:
+    script = Path(".githooks/pre-commit").read_text(encoding="utf-8")
+
+    assert "git diff --cached --name-only --diff-filter=ACMR -- '*.py'" in script
+    assert "ruff format --check" in script
+    assert "pre_commit_python_format_failed" in script

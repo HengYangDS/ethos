@@ -16,6 +16,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 PARITY_EVIDENCE_ROOT = Path("evidence/parity")
 PARITY_SHADOW_SUFFIX = "-shadow.json"
+MAX_PROJECTION_REBASE_STEPS = 64
 
 
 class _ProjectionResolution(TypedDict):
@@ -23,6 +24,14 @@ class _ProjectionResolution(TypedDict):
     paths: list[str]
     gaps: list[str]
     next_actions: list[str]
+
+
+class _ProjectionRebaseResolution(TypedDict):
+    ok: bool
+    paths: list[str]
+    gaps: list[str]
+    next_actions: list[str]
+    stderr: str
 
 
 def _projection_resolution(
@@ -38,6 +47,29 @@ def _projection_resolution(
         "gaps": gaps or [],
         "next_actions": next_actions or [],
     }
+
+
+def _projection_rebase_resolution(
+    *,
+    ok: bool,
+    paths: list[str] | None = None,
+    gaps: list[str] | None = None,
+    next_actions: list[str] | None = None,
+    stderr: str = "",
+) -> _ProjectionRebaseResolution:
+    return {
+        "ok": ok,
+        "paths": paths or [],
+        "gaps": gaps or [],
+        "next_actions": next_actions or [],
+        "stderr": stderr,
+    }
+
+
+def _append_unique(target: list[str], values: list[str]) -> None:
+    for value in values:
+        if value not in target:
+            target.append(value)
 
 
 def bootstrap_candidate(
@@ -334,6 +366,56 @@ def _parity_adopter(path: str) -> str:
     return adopter or ""
 
 
+def _empty_projection_patch(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return (
+        "no changes" in lowered
+        or "nothing to commit" in lowered
+        or "patch is empty" in lowered
+        or "previous cherry-pick is now empty" in lowered
+    )
+
+
+def _resolve_projection_rebase(root: Path, initial: object) -> _ProjectionRebaseResolution:
+    paths: list[str] = []
+    gaps: list[str] = []
+    next_actions: list[str] = []
+    completed = initial
+    for _ in range(MAX_PROJECTION_REBASE_STEPS):
+        if getattr(completed, "returncode", 1) == 0:
+            return _projection_rebase_resolution(
+                ok=bool(paths),
+                paths=paths,
+                gaps=gaps,
+                next_actions=next_actions,
+                stderr="",
+            )
+        projection_resolution = _resolve_projection_only_rebase_conflict(root)
+        if projection_resolution["ok"]:
+            _append_unique(paths, projection_resolution["paths"])
+            _append_unique(gaps, projection_resolution["gaps"])
+            _append_unique(next_actions, projection_resolution["next_actions"])
+            completed = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
+            continue
+        if paths and _empty_projection_patch(str(getattr(completed, "stderr", ""))):
+            completed = run_git(root, "rebase", "--skip", check=False)
+            continue
+        return _projection_rebase_resolution(
+            ok=False,
+            paths=paths,
+            gaps=gaps,
+            next_actions=next_actions,
+            stderr=str(getattr(completed, "stderr", "")),
+        )
+    return _projection_rebase_resolution(
+        ok=False,
+        paths=paths,
+        gaps=gaps,
+        next_actions=next_actions,
+        stderr="projection rebase recovery exceeded bounded step limit",
+    )
+
+
 def refresh_work_lane_base(
     *,
     root: Path,
@@ -399,29 +481,27 @@ def refresh_work_lane_base(
             }
         )
     completed = run_git(root, "rebase", policy.candidate_branch, check=False)
-    projection_resolution = _resolve_projection_only_rebase_conflict(root)
+    projection_resolution = _resolve_projection_rebase(root, completed)
     if completed.returncode != 0 and projection_resolution["ok"]:
-        continued = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
-        if continued.returncode == 0:
-            refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-            return _work_base_report(
-                {
-                    "ok": True,
-                    "state": "base_refreshed_projection_stale",
-                    "branch": branch,
-                    "previous_head": current_head,
-                    "head": refreshed_head,
-                    "candidate_branch": policy.candidate_branch,
-                    "candidate_head": candidate_head,
-                    "candidate_path": candidate_path,
-                    "required_gaps": [],
-                    "projection_refresh_required": True,
-                    "projection_refresh_gaps": projection_resolution["gaps"],
-                    "stale_projection_paths": projection_resolution["paths"],
-                    "next_actions": projection_resolution["next_actions"]
-                    + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
-                }
-            )
+        refreshed_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+        return _work_base_report(
+            {
+                "ok": True,
+                "state": "base_refreshed_projection_stale",
+                "branch": branch,
+                "previous_head": current_head,
+                "head": refreshed_head,
+                "candidate_branch": policy.candidate_branch,
+                "candidate_head": candidate_head,
+                "candidate_path": candidate_path,
+                "required_gaps": [],
+                "projection_refresh_required": True,
+                "projection_refresh_gaps": projection_resolution["gaps"],
+                "stale_projection_paths": projection_resolution["paths"],
+                "next_actions": projection_resolution["next_actions"]
+                + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
+            }
+        )
     if completed.returncode != 0:
         run_git(root, "rebase", "--abort", check=False)
         return _work_base_report(

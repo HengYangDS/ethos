@@ -100,6 +100,78 @@ def test_lane_refresh_base_resolves_parity_projection_conflict_as_stale_projecti
     assert (worktree / "FEATURE.md").read_text(encoding="utf-8") == "# feature\n"
 
 
+def test_lane_refresh_base_resolves_repeated_parity_projection_conflicts(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    _start_feature_lane(repo, worktree)
+    projection = Path("evidence/parity/generic-shadow.json")
+    (candidate / projection.parent).mkdir(parents=True, exist_ok=True)
+    (worktree / projection.parent).mkdir(parents=True, exist_ok=True)
+
+    (candidate / "PROOF.md").write_text("# candidate proof\n", encoding="utf-8")
+    (candidate / projection).write_text(
+        '{"freshness":{"product_head":"candidate-after-proof"}}\n',
+        encoding="utf-8",
+    )
+    git(candidate, "add", "PROOF.md", projection.as_posix())
+    _commit(candidate, "candidate proof and projection")
+
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    _commit(worktree, "feature semantics")
+    (worktree / projection).write_text(
+        '{"freshness":{"product_head":"work-stale-1"}}\n',
+        encoding="utf-8",
+    )
+    git(worktree, "add", projection.as_posix())
+    _commit(worktree, "first stale projection")
+    (worktree / "FEATURE.md").write_text("# feature\n\nformatted\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    _commit(worktree, "feature followup")
+    (worktree / projection).write_text(
+        '{"freshness":{"product_head":"work-stale-2"}}\n',
+        encoding="utf-8",
+    )
+    git(worktree, "add", projection.as_posix())
+    _commit(worktree, "second stale projection")
+
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    payload = run_ethos(
+        "lane",
+        "refresh-base",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        previous_head,
+        "--json",
+        cwd=worktree,
+    )
+
+    refreshed_head = git(worktree, "rev-parse", "HEAD")
+    assert payload["ok"] is True
+    assert payload["state"] == "base_refreshed_projection_stale"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["previous_head"] == previous_head
+    assert payload["data"]["head"] == refreshed_head
+    assert payload["data"]["candidate_head"] == candidate_head
+    assert payload["data"]["projection_refresh_required"] is True
+    assert payload["data"]["stale_projection_paths"] == [projection.as_posix()]
+    assert payload["data"]["projection_refresh_gaps"] == [
+        "projection_regeneration_required:parity:generic"
+    ]
+    assert (worktree / projection).read_text(encoding="utf-8") == (
+        candidate / projection
+    ).read_text(encoding="utf-8")
+    assert (worktree / "FEATURE.md").read_text(encoding="utf-8") == ("# feature\n\nformatted\n")
+
+
 def test_lane_refresh_base_keeps_real_content_conflict_blocking(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

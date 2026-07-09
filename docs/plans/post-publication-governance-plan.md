@@ -75,7 +75,7 @@ intended disposition.
 
 No-compatibility-residue gate is part of the product proof floor. It blocks
 production-source compatibility residue such as compatibility shims, deprecated
-surfaces, legacy wrappers, dynamic export forwarding, and import-path shells.
+surfaces, retired wrappers, dynamic export forwarding, and import-path shells.
 
 This gate complements module-layout checks. Module layout blocks facades and
 import aliases; no-compat blocks semantic cutover residue that would otherwise
@@ -119,3 +119,7 @@ Remote publication is not release. Release requires version, changelog, tag,
 distribution artifacts, SBOM/attestation, and release evidence to agree under
 release governance. Do not infer release readiness from local closeout or remote
 branch publication alone.
+
+## See Also
+
+See also: [Product Design Contract](../governance/product-design-contract.md), [Release Governance](../governance/release-governance.md), and [Terminal Governance Product Design](terminal-governance-product-design.md).

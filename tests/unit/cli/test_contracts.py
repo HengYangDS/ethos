@@ -544,6 +544,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "governance-kernel",
         "markdown-links",
         "module-layout",
+        "no-compat",
         "npm",
         "package-ontology",
         "product-boundary",

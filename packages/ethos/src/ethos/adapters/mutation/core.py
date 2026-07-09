@@ -9,6 +9,7 @@ from typing import cast
 import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.openspec.audit import active_change_names
 from ethos.repository.openspec.audit import active_change_violations_for_role
@@ -30,7 +31,11 @@ def proof_gaps(root: Path, current_head: str) -> list[str]:
     record = executed_proof_record(root, current_head)
     if record is None:
         return ["proof_not_proven"]
-    return []
+    # Completeness: a valid proof record must also cover the required land floor,
+    # not merely be one passing trust-bearing run. A focused `prove --gate X` is a
+    # valid record but not promotion-worthy — this closes "proven != required gates
+    # passed" at the promotion gate (land/closeout/push consume proof_gaps).
+    return promotion_completeness_gaps(root, current_head)
 
 
 def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:

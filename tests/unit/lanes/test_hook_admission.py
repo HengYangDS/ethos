@@ -640,20 +640,33 @@ def test_push_identity_helpers_tolerate_git_failures(
     }
 
 
-def _trust_bearing_evidence(head: str) -> dict[str, object]:
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
+def _trust_bearing_evidence(head: str, root: Path | None = None) -> dict[str, object]:
+    """Seed a COMPLETE executed-proof evidence body.
+
+    Post-completeness-binding, a promotion proof must cover the required land floor
+    (not a single run). Generate one passing trust-bearing run per required gate id
+    for `root` (defaults to the product floor when root is None), so the seeded proof
+    is promotion-worthy — the shape a real `ethos prove --execute` produces.
+    """
+    from ethos.adapters.mutation.proof import _promotion_required_gate_ids
+
+    required = _promotion_required_gate_ids(root if root is not None else Path())
+    runs = tuple(
+        ProofRun(
+            action_id=gate_id,
+            command=("pytest",),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="proven",
+            evidence_class="test",
+            verdict="passed",
+            trust_bearing=True,
+            diagnostics=(),
+        )
+        for gate_id in required
     )
-    return EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    return EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
 
 
 def test_proof_state_dir_defaults_to_repository_local_state(
@@ -674,7 +687,7 @@ def test_proof_state_dir_test_override_is_worker_local(
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
     monkeypatch.setenv("ETHOS_TEST_PROOF_STATE_DIR", proof_dir.as_posix())
 
-    path = record_executed_proof(tmp_path, _trust_bearing_evidence(head))
+    path = record_executed_proof(tmp_path, _trust_bearing_evidence(head, tmp_path))
 
     assert path == proof_dir / f"{head}.json"
     assert executed_proof_record(tmp_path, head) is not None
@@ -750,7 +763,8 @@ def test_executed_proof_record_rejects_forgery(
 
     # Real CLI proof records may combine non-trust diagnostic passes with
     # trust-bearing proven gates. Lock that shape so land accepts valid executed proof
-    # without confusing state with verdict.
+    # without confusing state with verdict. `executed_proof_record` is integrity-only,
+    # so a mixed non-trust + trust shape verifies as a valid record.
     trust_run = ProofRun(
         action_id="python-tests",
         command=("pytest",),
@@ -768,6 +782,11 @@ def test_executed_proof_record_rejects_forgery(
     ).to_dict()
     record_executed_proof(tmp_path, evidence)
     assert executed_proof_record(tmp_path, head) is not None
+    # This mixed proof is a valid record but does NOT cover the required land floor,
+    # so proof_gaps reports incomplete (completeness is a promotion-gate concern,
+    # separate from record integrity). A complete proof clears it.
+    assert any(g.startswith("proof_incomplete") for g in proof_gaps(tmp_path, head))
+    record_executed_proof(tmp_path, _trust_bearing_evidence(head, tmp_path))
     assert proof_gaps(tmp_path, head) == []
 
 
@@ -937,3 +956,17 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path) ->
     closeout = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
     assert closeout.returncode == 0
     assert g("rev-parse", "dev").stdout.strip() != dev_head
+
+
+def test_promotion_completeness_helper_edges(tmp_path: Path) -> None:
+    """Cover the two defensive branches of the completeness helpers:
+    non-list runs -> not covered; no record present -> no completeness gaps
+    (the caller's proof_not_proven path owns absence)."""
+    from ethos.adapters.mutation.proof import _runs_cover_required_set
+    from ethos.adapters.mutation.proof import promotion_completeness_gaps
+
+    # 131: non-list runs are never a covering set.
+    assert _runs_cover_required_set("not-a-list", ("g",)) is False
+    # 148: no proof record at head -> completeness reports nothing (absence is the
+    # caller's proof_not_proven concern, not incompleteness).
+    assert promotion_completeness_gaps(tmp_path, "f" * 40) == []

@@ -10,6 +10,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.repository.adoption.planner import adoption_plan
 
 if TYPE_CHECKING:
@@ -76,16 +77,22 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     from ethos.repository.evidence.core import EvidenceSet
     from ethos.repository.evidence.core import ProofRun
 
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
+    # Seed a COMPLETE promotion proof (one passing trust-bearing run per required
+    # gate id for `repo`): post-completeness-binding, land/publish require the proof
+    # to cover the required land floor, not just contain one trust-bearing run.
+    runs = tuple(
+        ProofRun(
+            action_id=gate_id,
+            command=("pytest",),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="proven",
+            evidence_class="test",
+            verdict="passed",
+            trust_bearing=True,
+            diagnostics=(),
+        )
+        for gate_id in _promotion_required_gate_ids(repo)
     )
-    record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict())
+    record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict())

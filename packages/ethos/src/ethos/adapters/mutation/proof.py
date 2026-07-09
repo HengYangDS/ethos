@@ -23,6 +23,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from ethos.repository.policy.gates import default_gate_ids
+
 _DEFAULT_PROOF_DIR = Path(".ethos") / "state" / "proof"
 _TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
 
@@ -102,6 +104,59 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
     }
     path.write_text(_stable_json(record), encoding="utf-8")
     return path
+
+
+def _promotion_required_gate_ids(root: Path) -> tuple[str, ...]:
+    """Return the gate ids a promotion proof must fully cover for this root.
+
+    This is the LAND floor: exactly the default (non-full) gate set that
+    `ethos prove --execute` runs — verified to equal a real executed proof's
+    action_ids. `full=True` adds release-only gates (build/npm-pack/openspec)
+    that the land proof legitimately does not carry, so completeness binds to
+    the default set, not the full set.
+    """
+    return default_gate_ids(full=False, root=root)
+
+
+def _runs_cover_required_set(runs: object, required: tuple[str, ...]) -> bool:
+    """Return whether the executed runs cover EVERY required gate id.
+
+    A run's `action_id` is the gate id (gate.to_node -> ActionNode(id) ->
+    ProofRun(action_id=node.id)). Promotion completeness is set-coverage of the
+    required floor, not `trust_bearing_count > 0`: a focused single-gate proof
+    (e.g. `prove --gate proof-policy`) does not cover the floor and is rejected.
+    """
+    if not isinstance(runs, list):
+        return False
+    present = {run.get("action_id") for run in runs if isinstance(run, dict)}
+    return all(gate_id in present for gate_id in required)
+
+
+def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
+    """Return completeness gaps for a promotion at head, or [] if the proof covers
+    the required land floor.
+
+    Separate from `executed_proof_record` (record integrity): a proof may be a
+    valid, non-forged record yet be a FOCUSED/diagnostic proof that does not cover
+    the required gate set. Promotion (land/closeout/push) requires full coverage —
+    this closes "proven != required gates passed". Callers already establish record
+    validity via executed_proof_record; this adds the completeness dimension.
+    """
+    record = executed_proof_record(root, head)
+    if record is None:
+        return []  # integrity/existence handled by the caller's proof_not_proven path
+    evidence = record.get("evidence")
+    runs = evidence.get("runs") if isinstance(evidence, dict) else None
+    required = _promotion_required_gate_ids(root)
+    if _runs_cover_required_set(runs, required):
+        return []
+    present = (
+        {run.get("action_id") for run in runs if isinstance(run, dict)}
+        if isinstance(runs, list)
+        else set()
+    )
+    missing = sorted(g for g in required if g not in present)
+    return [f"proof_incomplete:{','.join(missing)}"]
 
 
 def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:

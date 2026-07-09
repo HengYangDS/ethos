@@ -8,6 +8,7 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.mutation.remediation.core import remediation_for_gaps
@@ -25,19 +26,25 @@ def seed_proof(root: Path, head: str) -> None:
     from ethos.repository.evidence.core import EvidenceSet
     from ethos.repository.evidence.core import ProofRun
 
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
+    # Seed a COMPLETE promotion proof: one passing trust-bearing run per required
+    # gate id for `root`, so it covers the land floor (post-completeness-binding a
+    # single-run proof is a valid record but not promotion-worthy).
+    runs = tuple(
+        ProofRun(
+            action_id=gate_id,
+            command=("pytest",),
+            exit_code=0,
+            stdout="",
+            stderr="",
+            state="proven",
+            evidence_class="test",
+            verdict="passed",
+            trust_bearing=True,
+            diagnostics=(),
+        )
+        for gate_id in _promotion_required_gate_ids(root)
     )
-    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     record_executed_proof(root, evidence)
 
 

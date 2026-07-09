@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
-    "target_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
-    "product_semantic_sha256": "8bc792efd0f56a49acf5f6fb3bd23f993faea7c91949f1d9744daaa72e27bef1",
-    "target_semantic_sha256": "8bc792efd0f56a49acf5f6fb3bd23f993faea7c91949f1d9744daaa72e27bef1",
+    "product_head": "1d5c7699ce91498ceca0119026db2d6267675d37",
+    "target_head": "1d5c7699ce91498ceca0119026db2d6267675d37",
+    "product_semantic_sha256": "e30c79721245e26976b4ee500be811419186860b560bac3fa977bd1e4fb94db9",
+    "target_semantic_sha256": "e30c79721245e26976b4ee500be811419186860b560bac3fa977bd1e4fb94db9",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -36,15 +36,9 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/enterprise-neutrality-and-doc-topology-20260709",
-    "target_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
-    "product_head": "63634db6242a60407bf3435b99d8b088bcd3e9b3",
-    "changed_paths": [
-      "packages/ethos-core/src/ethos_core/data/invalid_states.toml",
-      "system/invalid_states.toml",
-      "tests/unit/governance/test_claims.py",
-      "tests/unit/policy/test_enterprise_readiness.py",
-      "tests/unit/policy/test_product_boundary.py"
-    ],
+    "target_head": "1d5c7699ce91498ceca0119026db2d6267675d37",
+    "product_head": "1d5c7699ce91498ceca0119026db2d6267675d37",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -87,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "4eee902cfa6b4e58df60fcb2d5e230716e97d09ff3df33b7fc2ab4a5dd01288c"
+        "sha256": "d53ed665da09b2698fc392305a3d1967ba75a8b3aa78e7025da65f667396d30a"
       },
       {
         "path": "evidence/claims",

@@ -31,6 +31,8 @@ Start with [Start](start/quickstart.md), then read
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
 [Workflow Runtime](architecture/workflow-runtime.md),
+[Declarative Governance Compiler](architecture/declarative-governance-compiler.md),
+[Declarative Runtime Spine Modernization](plans/declarative-runtime-spine-modernization.md),
 [Action Graph](architecture/action-graph.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the

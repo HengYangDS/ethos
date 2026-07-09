@@ -163,13 +163,20 @@ def test_refresh_candidate_from_accepted_reset_failure(
     accepted_head = _head(repo)
 
     real_git = lanes_refresh.run_git
+    reset_envs: list[dict[str, str] | None] = []
 
-    def _fail_reset(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    def _fail_reset(
+        root: Path,
+        *args: str,
+        check: bool = True,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         if "reset" in args:
+            reset_envs.append(env)
             return subprocess.CompletedProcess(
                 args=["git", *args], returncode=1, stdout="", stderr="reset boom"
             )
-        return real_git(root, *args, check=check)
+        return real_git(root, *args, check=check, env=env)
 
     monkeypatch.setattr(lanes_refresh, "run_git", _fail_reset)
     result = lanes_refresh.refresh_candidate_from_accepted(
@@ -178,6 +185,7 @@ def test_refresh_candidate_from_accepted_reset_failure(
     assert result["ok"] is False
     assert "candidate_refresh_from_accepted_failed" in result["required_gaps"]
     assert result["stderr"] == "reset boom"
+    assert reset_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
 
 
 def test_refresh_work_lane_base_protected_root(tmp_path: Path) -> None:

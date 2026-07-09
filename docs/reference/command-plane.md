@@ -306,7 +306,10 @@ still aborts as `refresh_base_failed`.
 `ethos lane candidate --refresh-from-accepted --json` checks whether a clean
 candidate train can be reset to the accepted root. Apply mode requires
 `--authorize` plus `--expect-head`; it is the recovery path when accepted-root
-closeout reports `candidate_diverged_from_accepted`.
+closeout reports `candidate_diverged_from_accepted`. The apply path is a
+sanctioned ETHOS candidate ref move: it carries the scoped official ref-move
+context needed by the reference-transaction hook while still failing closed on
+stale heads, dirty candidate worktrees, or reset errors.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
 remove another active agent's worktree. Leased lanes are owner-bound: when the

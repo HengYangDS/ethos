@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.repository.adoption.planner import adoption_plan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def git(root: Path, *args: str) -> str:
@@ -152,6 +149,40 @@ def test_lane_candidate_refresh_from_accepted_resets_clean_diverged_candidate(
     assert payload["data"]["previous_head"] == old_candidate_head
     assert payload["data"]["head"] == accepted_head
     assert git(candidate, "rev-parse", "HEAD") == accepted_head
+
+
+def test_lane_candidate_refresh_from_accepted_uses_official_ref_move_context(
+    tmp_path: Path,
+) -> None:
+    repo, candidate, accepted_head, old_candidate_head = _diverged_candidate_repo(tmp_path)
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
+    (hooks / "reference-transaction").write_text(
+        hook_src.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (hooks / "reference-transaction").chmod(0o755)
+    git(repo, "config", "core.hooksPath", hooks.as_posix())
+    git(repo, "config", "ethos.acceptedBranch", "dev")
+
+    payload = run_ethos(
+        "lane",
+        "candidate",
+        "--refresh-from-accepted",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        accepted_head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "refreshed_from_accepted"
+    assert payload["data"]["previous_head"] == old_candidate_head
+    assert payload["data"]["head"] == accepted_head
+    assert git(candidate, "rev-parse", "HEAD") == accepted_head
+    assert git(candidate, "status", "--short") == ""
 
 
 def test_land_closeout_reports_actionable_candidate_divergence(

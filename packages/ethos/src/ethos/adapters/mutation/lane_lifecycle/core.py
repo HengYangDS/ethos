@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
 
 
-def run_git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    effective_env = None if env is None else {**os.environ, **env}
     return subprocess.run(
         ["git", *args],
         cwd=root,
         check=check,
         text=True,
         capture_output=True,
+        env=effective_env,
     )
 
 

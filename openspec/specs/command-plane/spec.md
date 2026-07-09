@@ -161,6 +161,15 @@ candidate head, just like accepted-root closeout.
 - **AND** sanctioned land may proceed only through the explicit ETHOS ref-move
   allowance after its own proof checks
 
+#### Scenario: official candidate refresh carries scoped ref-move context
+
+- **WHEN** `ethos lane candidate --refresh-from-accepted --apply --authorize`
+  resets a clean candidate worktree to the accepted root under an armed
+  reference-transaction hook
+- **THEN** the reset carries the scoped official ref-move allowance
+- **AND** the command still requires `--expect-head` and reports
+  `candidate_refresh_from_accepted_failed` if the reset fails
+
 ### Requirement: Publish reports local readiness without remote publication
 
 `ethos publish` SHALL report local publish readiness and deferred remote

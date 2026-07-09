@@ -45,8 +45,13 @@ def _is_ancestor_adapter(root: Path, ancestor: str, descendant: str) -> bool:
     return is_ancestor(root, ancestor, descendant)
 
 
-def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
-    return run_git(root, *args, check=check)
+def _run_git_adapter(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> Any:
+    return run_git(root, *args, check=check, env=env)
 
 
 @dataclass(frozen=True)
@@ -300,7 +305,12 @@ def refresh_candidate_from_accepted(
             }
         )
     completed = active_runtime.run_git(
-        Path(candidate_path), "reset", "--hard", current_head, check=False
+        Path(candidate_path),
+        "reset",
+        "--hard",
+        current_head,
+        check=False,
+        env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
     if completed.returncode != 0:
         return _candidate_report(

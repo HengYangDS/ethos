@@ -70,6 +70,17 @@ def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
     assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)
 
 
+def test_prewrite_block_next_actions_cover_ownerless_actor_mismatch() -> None:
+    assert admission._prewrite_block_next_actions(
+        {
+            "work_lane_lease": {
+                "reason": "work_lane_actor_mismatch:work/x",
+                "owner": "",
+            }
+        }
+    ) == ["set ETHOS_ACTOR to the lane lease owner or obtain handoff"]
+
+
 def test_admission_prewrite_and_hook_success_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

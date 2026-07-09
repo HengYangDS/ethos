@@ -158,6 +158,42 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(
     assert "editor_root_missing" in payload["required_gaps"]
 
 
+def test_lane_prewrite_accepts_multiple_keyword_paths(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        owner="agent-a",
+        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+
+    payload = run_ethos(
+        "lane",
+        "prewrite",
+        "--paths",
+        "README.md",
+        ".gitignore",
+        "--editor-root",
+        worktree.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is True
+    assert payload["summary"]["path_count"] == 2
+    assert [entry["relative_path"] for entry in payload["data"]["paths"]] == [
+        "README.md",
+        ".gitignore",
+    ]
+
+
 def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
     tmp_path: Path,
     monkeypatch,
@@ -190,6 +226,43 @@ def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
     assert payload["data"]["role"] == "work_lane"
     assert payload["data"]["editor_root"]["expected"] == worktree.resolve().as_posix()
     assert payload["data"]["paths"][0]["path"] == (worktree / "README.md").as_posix()
+
+
+def test_hook_admit_accepts_multiple_keyword_paths(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        owner="agent-a",
+        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+
+    payload = run_ethos(
+        "hook",
+        "admit",
+        "pre-tool",
+        "--paths",
+        "README.md",
+        ".gitignore",
+        "--editor-root",
+        worktree.as_posix(),
+        "--require-editor-root",
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is True
+    assert payload["data"]["admission"]["ok"] is True
+    assert [entry["relative_path"] for entry in payload["data"]["admission"]["paths"]] == [
+        "README.md",
+        ".gitignore",
+    ]
 
 
 def test_hook_admit_pre_tool_blocks_accepted_root(tmp_path: Path) -> None:

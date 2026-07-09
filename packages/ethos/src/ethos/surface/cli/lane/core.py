@@ -167,7 +167,7 @@ def candidate(
 
 @lane_app.command
 def prewrite(
-    paths: tuple[Path, ...],
+    paths: Annotated[tuple[Path, ...], Parameter(consume_multiple=True)],
     *,
     editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
     require_editor_root: bool = False,

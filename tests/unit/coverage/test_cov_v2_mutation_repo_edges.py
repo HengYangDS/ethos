@@ -27,6 +27,19 @@ def _git(root: Path, *args: str) -> None:
     )
 
 
+def _init_repo_with_commit(root: Path, branch: str = "dev") -> None:
+    _git(root, "init", "-b", branch)
+    (root / "README.md").write_text("base\n", encoding="utf-8")
+    _git(root, "add", "README.md")
+    _git(root, "commit", "-m", "base")
+
+
+def _commit_readme(root: Path, content: str, message: str) -> None:
+    (root / "README.md").write_text(content, encoding="utf-8")
+    _git(root, "add", "README.md")
+    _git(root, "commit", "-m", message)
+
+
 # --- mutation/proof.py -------------------------------------------------------
 
 
@@ -135,6 +148,105 @@ def test_git_files_empty_outside_repo(tmp_path: Path) -> None:
 def test_commits_equivalent_over_paths_empty_head(tmp_path: Path) -> None:
     # An empty head short-circuits to an empty tuple (line 124).
     assert git.commits_equivalent_over_paths(tmp_path, "", relevant_paths=("packages",)) == ()
+
+
+def test_remote_tracking_sync_reports_local_ahead(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+    _git(tmp_path, "branch", "origin/dev")
+    _commit_readme(tmp_path, "next\n", "next")
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "local_ahead"
+    assert result["remote_ref"] == "origin/dev"
+    assert result["ahead"] == 1
+    assert result["behind"] == 0
+    assert result["available"] is True
+    assert result["advisory_gaps"] == ["remote_tracking_local_ahead:origin/dev:1:0"]
+
+
+def test_remote_tracking_sync_reports_missing_ref(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "remote_tracking_missing"
+    assert result["available"] is False
+    assert result["remote_head"] == ""
+    assert result["advisory_gaps"] == ["remote_tracking_missing:origin/dev"]
+
+
+def test_remote_tracking_sync_reports_synchronized(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+    _git(tmp_path, "branch", "origin/dev")
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "synchronized"
+    assert result["ahead"] == 0
+    assert result["behind"] == 0
+    assert result["advisory_gaps"] == []
+
+
+def test_remote_tracking_sync_reports_local_behind(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+    _git(tmp_path, "checkout", "-b", "origin/dev")
+    _commit_readme(tmp_path, "remote\n", "remote")
+    _git(tmp_path, "checkout", "dev")
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "local_behind"
+    assert result["ahead"] == 0
+    assert result["behind"] == 1
+    assert result["advisory_gaps"] == ["remote_tracking_local_behind:origin/dev:0:1"]
+
+
+def test_remote_tracking_sync_reports_diverged(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+    _git(tmp_path, "checkout", "-b", "origin/dev")
+    _commit_readme(tmp_path, "remote\n", "remote")
+    _git(tmp_path, "checkout", "dev")
+    _commit_readme(tmp_path, "local\n", "local")
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "diverged"
+    assert result["ahead"] == 1
+    assert result["behind"] == 1
+    assert result["advisory_gaps"] == ["remote_tracking_diverged:origin/dev:1:1"]
+
+
+def test_remote_tracking_sync_reports_unknown_branch(tmp_path: Path) -> None:
+    _init_repo_with_commit(tmp_path)
+
+    result = git.remote_tracking_sync(tmp_path, "")
+
+    assert result["state"] == "branch_unknown"
+    assert result["remote_ref"] == "origin"
+    assert result["advisory_gaps"] == ["remote_tracking_branch_unknown"]
+
+
+def test_remote_tracking_sync_handles_malformed_rev_list_counts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _init_repo_with_commit(tmp_path)
+
+    def malformed_counts(root: Path, *args: str) -> str:
+        if args[:3] == ("rev-parse", "--verify", "origin/dev"):
+            return "remote-head"
+        if args[:3] == ("rev-list", "--left-right", "--count"):
+            return "not-a-count"
+        return git.git_stdout(root, *args)
+
+    monkeypatch.setattr(git, "git_stdout", malformed_counts)
+
+    result = git.remote_tracking_sync(tmp_path, "dev")
+
+    assert result["state"] == "synchronized"
+    assert result["ahead"] == 0
+    assert result["behind"] == 0
+    assert result["advisory_gaps"] == []
 
 
 def test_remote_availability_unconfigured(tmp_path: Path) -> None:

@@ -20,6 +20,14 @@ def campaign_closeout_contract_sample() -> dict[str, Any]:
         "required_gaps": [],
         "advisory_gaps": [],
     }
+    remote_sync = {
+        "kind": "git_remote_tracking_sync",
+        "state": "not_checked",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
     local_ci_fallback = {
         "kind": "local_ci_fallback",
         "evidence_class": "local_fallback",
@@ -64,6 +72,7 @@ def campaign_closeout_contract_sample() -> dict[str, Any]:
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "remote_availability": remote_availability,
+        "remote_sync": remote_sync,
         "fallback_evidence": local_ci_fallback,
         "submit_branch": "review/example",
         "local_submit_package": {

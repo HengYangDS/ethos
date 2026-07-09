@@ -87,6 +87,18 @@ def _first_string(value: object) -> str:
     return ""
 
 
+def _int_value(value: object, *, default: int = 0) -> int:
+    """Return an integer from a JSON scalar without trusting arbitrary objects."""
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
+
+
 def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
     return EthosResult(
         command="land",
@@ -307,7 +319,11 @@ def publish(
     )
     gaps = _gap_tuple(audit) + decision.gaps + release_carrier_gaps
     ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
-    remote_availability = git.remote_availability(repo)
+    remote_sync = git.remote_tracking_sync(repo, str(branch))
+    remote_availability = {
+        **git.remote_availability(repo),
+        "tracking_sync": remote_sync,
+    }
     local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
@@ -329,6 +345,9 @@ def publish(
         "remote_push": remote_push,
         "remote_publication_state": remote_state,
         "remote_availability_state": remote_availability_state,
+        "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
+        "remote_ahead": _int_value(remote_sync.get("ahead")),
+        "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
         "submit_branch": str(publication.get("submit_branch") or ""),
         "next_publication_action": _first_string(publication.get("next_actions")),
@@ -355,6 +374,7 @@ def publish(
             },
             "remote_push": remote_push,
             "remote_availability": remote_availability,
+            "remote_sync": remote_sync,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": {

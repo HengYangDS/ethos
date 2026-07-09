@@ -809,6 +809,59 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_actions"]
 
 
+def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli
+
+    local_head = "a" * 40
+    remote_head = "b" * 40
+
+    monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda _repo: local_head)
+    monkeypatch.setattr(
+        lifecycle_cli.git,
+        "remote_availability",
+        lambda _repo: {
+            "kind": "git_remote_availability",
+            "remote": "origin",
+            "state": "available",
+            "available": True,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [],
+        },
+    )
+    monkeypatch.setattr(
+        lifecycle_cli.git,
+        "remote_tracking_sync",
+        lambda _repo, branch, remote="origin": {
+            "kind": "git_remote_tracking_sync",
+            "remote": remote,
+            "branch": branch,
+            "remote_ref": f"{remote}/{branch}",
+            "state": "local_ahead",
+            "local_head": local_head,
+            "remote_head": remote_head,
+            "ahead": 2,
+            "behind": 0,
+            "available": True,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_tracking_local_ahead:{remote}/{branch}:2"],
+        },
+    )
+
+    payload = run_ethos("publish", "--json")
+
+    assert payload["summary"]["remote_sync_state"] == "local_ahead"
+    assert payload["summary"]["remote_ahead"] == 2
+    assert payload["summary"]["remote_behind"] == 0
+    sync = payload["data"]["remote_sync"]
+    assert sync == payload["data"]["publication"]["remote_sync"]
+    assert sync["local_head"] == local_head
+    assert sync["remote_head"] == remote_head
+    assert sync["remote_ref"].endswith("/" + sync["branch"])
+    assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
+
+
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_role_policy(repo)

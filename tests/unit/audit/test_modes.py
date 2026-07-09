@@ -5,6 +5,7 @@ from pathlib import Path
 
 import ethos.repository.openspec.audit as openspec_audit
 import ethos.surface.cli.root.reference as reference_cli
+from ethos.domain.reporting import scoring as reporting_scoring
 from ethos.repository import audit
 from ethos.repository import audit as repository_audit_module
 from ethos.repository.audit import _write_admission_armed_gaps
@@ -120,6 +121,11 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
         reference_cli,
         "openspec_governance_report",
         forbidden_openspec,
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "coverage_quality_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
 
     payload = ethos_cli_runner.run_ethos("report", "--json")

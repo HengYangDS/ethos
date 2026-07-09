@@ -19,9 +19,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _COUNT_RE = re.compile(r"Found (\d+) diagnostic")
+_DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
-def _diagnostic_count(root: Path, package_src: str) -> int:
+def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
+    command = f"ty check {package_src}"
     completed = subprocess.run(
         ["ty", "check", package_src],
         cwd=root,
@@ -30,10 +32,40 @@ def _diagnostic_count(root: Path, package_src: str) -> int:
         check=False,
     )
     output = completed.stdout + completed.stderr
+    return {
+        "count": _diagnostic_count_from_output(output),
+        "command": command,
+        "diagnostic_excerpt": _diagnostic_excerpt(output),
+    }
+
+
+def _diagnostic_count_from_output(output: str) -> int:
     if "All checks passed" in output:
         return 0
     match = _COUNT_RE.search(output)
     return int(match.group(1)) if match else 0
+
+
+def _diagnostic_excerpt(output: str) -> list[str]:
+    return [line for line in (line.strip() for line in output.splitlines()) if line][
+        :_DIAGNOSTIC_EXCERPT_LIMIT
+    ]
+
+
+def _package_result(root: Path, package: str, *, tier: str, limit: int) -> dict[str, object]:
+    report = _diagnostic_report(root, f"{package}/src")
+    return {
+        "count": report["count"],
+        "limit": limit,
+        "tier": tier,
+        "command": report["command"],
+        "diagnostic_excerpt": report["diagnostic_excerpt"],
+    }
+
+
+def _count_value(report: dict[str, object]) -> int:
+    value = report["count"]
+    return value if isinstance(value, int) else 0
 
 
 def ty_gate_report(root: Path) -> dict[str, object]:
@@ -52,13 +84,15 @@ def ty_gate_report(root: Path) -> dict[str, object]:
     results: dict[str, dict[str, object]] = {}
     gaps: list[str] = []
     for package in zero_tolerance:
-        count = _diagnostic_count(root, f"{package}/src")
-        results[package] = {"count": count, "limit": 0, "tier": "zero_tolerance"}
+        package_result = _package_result(root, package, tier="zero_tolerance", limit=0)
+        count = _count_value(package_result)
+        results[package] = package_result
         if count > 0:
             gaps.append(f"ty_zero_tolerance_violation:{package}:{count}")
     for package, baseline in ratchet.items():
-        count = _diagnostic_count(root, f"{package}/src")
-        results[package] = {"count": count, "limit": baseline, "tier": "ratchet"}
+        package_result = _package_result(root, package, tier="ratchet", limit=baseline)
+        count = _count_value(package_result)
+        results[package] = package_result
         if count > baseline:
             gaps.append(f"ty_ratchet_exceeded:{package}:{count}>{baseline}")
     return {

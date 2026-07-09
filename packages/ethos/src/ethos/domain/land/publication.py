@@ -214,6 +214,19 @@ def publication_readiness(
         "required_gaps": [],
         "advisory_gaps": [],
     }
+    sync_value = availability.get("tracking_sync")
+    sync = (
+        cast("dict[str, object]", sync_value)
+        if isinstance(sync_value, dict)
+        else {
+            "kind": "git_remote_tracking_sync",
+            "state": "not_checked",
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [],
+        }
+    )
     remote_available = availability.get("available") is True
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
     evidence_status = fallback.get("evidence_status")
@@ -234,6 +247,7 @@ def publication_readiness(
         # Reachability remains visible under remote_availability.state.
         "remote_state": "deferred",
         "remote_availability": availability,
+        "remote_sync": sync,
         "fallback_evidence": fallback,
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(

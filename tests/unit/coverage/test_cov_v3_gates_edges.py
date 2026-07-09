@@ -24,10 +24,15 @@ def _write_policy(root: Path, toml: str) -> None:
     policy_path.write_text(toml, encoding="utf-8")
 
 
-def _fake_count(root: Path, package_src: str) -> int:
+def _fake_diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     # zero-tolerance src -> 3 (>0 forces ty.py 57->58); ratchet src -> 5 (>2 forces 62->63).
     assert root.exists()
-    return 3 if package_src.startswith("packages/zt") else 5
+    count = 3 if package_src.startswith("packages/zt") else 5
+    return {
+        "count": count,
+        "command": f"ty check {package_src}",
+        "diagnostic_excerpt": [f"Found {count} diagnostics"],
+    }
 
 
 def _inprocess_decline(node: ActionNode, root: Path) -> ActionRunResult | None:
@@ -75,7 +80,7 @@ def test_ty_gate_report_flags_zero_tolerance_and_ratchet_violations(
             ]
         ),
     )
-    monkeypatch.setattr(ty_mod, "_diagnostic_count", _fake_count)
+    monkeypatch.setattr(ty_mod, "_diagnostic_report", _fake_diagnostic_report)
 
     report = ty_gate_report(tmp_path)
 
@@ -83,6 +88,40 @@ def test_ty_gate_report_flags_zero_tolerance_and_ratchet_violations(
     assert "ty_ratchet_exceeded:packages/rt:5>2" in report["required_gaps"]
     assert report["ok"] is False
     assert report["state"] == "blocked"
+
+
+def test_ty_gate_report_exposes_command_and_diagnostic_excerpt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_policy(
+        tmp_path,
+        "\n".join(
+            [
+                "[zero_tolerance]",
+                "packages = []",
+                "",
+                "[ratchet]",
+                '"packages/rt" = 2',
+                "",
+            ]
+        ),
+    )
+
+    class Completed:
+        returncode = 1
+        stdout = "error[not-iterable]: object is not iterable\n\nFound 5 diagnostics\n"
+        stderr = ""
+
+    monkeypatch.setattr(ty_mod.subprocess, "run", lambda *_args, **_kwargs: Completed())
+
+    report = ty_gate_report(tmp_path)
+    package = report["packages"]["packages/rt"]
+
+    assert package["command"] == "ty check packages/rt/src"
+    assert package["diagnostic_excerpt"] == [
+        "error[not-iterable]: object is not iterable",
+        "Found 5 diagnostics",
+    ]
 
 
 def test_ty_gate_report_allows_counts_at_or_below_policy(
@@ -107,7 +146,15 @@ def test_ty_gate_report_allows_counts_at_or_below_policy(
     def count(_root: Path, package_src: str) -> int:
         return 0 if package_src.startswith("packages/zt") else 2
 
-    monkeypatch.setattr(ty_mod, "_diagnostic_count", count)
+    def diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
+        count_value = count(root, package_src)
+        return {
+            "count": count_value,
+            "command": f"ty check {package_src}",
+            "diagnostic_excerpt": [],
+        }
+
+    monkeypatch.setattr(ty_mod, "_diagnostic_report", diagnostic_report)
 
     report = ty_gate_report(tmp_path)
 

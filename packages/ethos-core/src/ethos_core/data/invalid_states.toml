@@ -278,6 +278,7 @@ match_prefixes = [
   "external_product_repository_audit_gap",
   "external_required_gap_superset",
   "external_stricter_required_gap",
+  "remote_tracking_",
   "base_refreshed_projection_stale",
   "projection_",
   "projection_regeneration_required",

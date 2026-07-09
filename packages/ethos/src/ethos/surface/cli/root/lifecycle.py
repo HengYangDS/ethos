@@ -15,6 +15,7 @@ from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import candidate_base_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
+from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
@@ -183,6 +184,11 @@ def land(
         if not update["ok"]:
             gaps = gaps + tuple(update["required_gaps"])
             ok = False
+    proof_readiness: dict[str, object] = {}
+    if ok and not apply:
+        proof_readiness = proof_readiness_report(repo, git.current_head(repo))
+        gaps = gaps + tuple(str(gap) for gap in proof_readiness["required_gaps"])
+        ok = not proof_readiness["blocking"]
     state = (
         "ready_to_land"
         if ok and not apply
@@ -206,6 +212,7 @@ def land(
             "openspec_lifecycle": lifecycle,
             "candidate_update": update,
             "closeout_support": closeout_support,
+            "proof_readiness": proof_readiness,
             "mutation": {
                 "apply": apply,
                 "authorized": authorize,

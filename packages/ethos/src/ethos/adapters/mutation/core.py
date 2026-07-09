@@ -33,6 +33,21 @@ def _proof_gaps(root: Path, current_head: str) -> list[str]:
     return []
 
 
+def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:
+    """Describe whether the exact HEAD has valid executed proof evidence."""
+    gaps = _proof_gaps(root, current_head)
+    return {
+        "kind": "executed_proof_readiness",
+        "head": current_head,
+        "state": "proven" if not gaps else "missing",
+        "blocking": bool(gaps),
+        "required_gaps": gaps,
+        "next_action": ""
+        if not gaps
+        else f"ethos prove --execute --expect-head {current_head} --json",
+    }
+
+
 def _candidate_proof_gaps(candidate_path: Path, candidate_head: str) -> list[str]:
     """Blocking gaps when closeout lacks proof for the head being promoted."""
     return _proof_gaps(candidate_path, candidate_head)

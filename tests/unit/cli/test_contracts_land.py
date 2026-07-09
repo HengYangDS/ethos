@@ -185,6 +185,106 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
     }
 
 
+def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["proof_not_proven"]
+    assert payload["next_actions"] == [f"ethos prove --execute --expect-head {work_head} --json"]
+    assert payload["data"]["proof_readiness"] == {
+        "kind": "executed_proof_readiness",
+        "head": work_head,
+        "state": "missing",
+        "blocking": True,
+        "required_gaps": ["proof_not_proven"],
+        "next_action": f"ethos prove --execute --expect-head {work_head} --json",
+    }
+
+
+def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--owner",
+        "agent:test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    work_head = git(worktree, "rev-parse", "HEAD")
+    seed_executed_proof(worktree, work_head)
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is True
+    assert payload["state"] == "ready_to_land"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["proof_readiness"] == {
+        "kind": "executed_proof_readiness",
+        "head": work_head,
+        "state": "proven",
+        "blocking": False,
+        "required_gaps": [],
+        "next_action": "",
+    }
+
+
 def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

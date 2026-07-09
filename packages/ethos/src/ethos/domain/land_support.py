@@ -98,6 +98,8 @@ def land_next_actions(
         return ("ethos land --closeout --json",)
     if "candidate_base_stale" in gaps:
         return (f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json",)
+    if "proof_not_proven" in gaps:
+        return (f"ethos prove --execute --expect-head {current_head} --json",)
     return ("ethos prove --json",)
 
 

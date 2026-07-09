@@ -94,7 +94,7 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
         "ethos_core.contracts.branch_roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr(
-        "ethos.adapters.mutation.core._proof_gaps", lambda root, head: ["proof_not_proven"]
+        "ethos.adapters.mutation.core.proof_gaps", lambda root, head: ["proof_not_proven"]
     )
     blocked = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"

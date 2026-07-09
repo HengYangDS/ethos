@@ -19,7 +19,7 @@ from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch_roles import load_branch_role_policy
 
 
-def _proof_gaps(root: Path, current_head: str) -> list[str]:
+def proof_gaps(root: Path, current_head: str) -> list[str]:
     """Blocking gaps when no executed proof is bound to the exact current HEAD.
 
     Binds the mutation to executed proof: a land/publish cannot proceed unless
@@ -35,7 +35,7 @@ def _proof_gaps(root: Path, current_head: str) -> list[str]:
 
 def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:
     """Describe whether the exact HEAD has valid executed proof evidence."""
-    gaps = _proof_gaps(root, current_head)
+    gaps = proof_gaps(root, current_head)
     return {
         "kind": "executed_proof_readiness",
         "head": current_head,
@@ -48,9 +48,9 @@ def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:
     }
 
 
-def _candidate_proof_gaps(candidate_path: Path, candidate_head: str) -> list[str]:
+def _candidate_gaps_for_proof(candidate_path: Path, candidate_head: str) -> list[str]:
     """Blocking gaps when closeout lacks proof for the head being promoted."""
-    return _proof_gaps(candidate_path, candidate_head)
+    return proof_gaps(candidate_path, candidate_head)
 
 
 def _openspec_carrier_gaps(root: Path, role: str) -> list[str]:
@@ -98,7 +98,7 @@ def _closeout_candidate_gaps(
         return ["candidate_diverged_from_accepted"]
     gaps = _openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
     if require_proof:
-        gaps.extend(_candidate_proof_gaps(candidate_path, candidate_head))
+        gaps.extend(_candidate_gaps_for_proof(candidate_path, candidate_head))
     return gaps
 
 
@@ -142,7 +142,7 @@ def evaluate_mutation(
         closeout = cast("dict[str, object]", status.get("closeout_support", {}))
         gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
     if request.apply:
-        gaps.extend(_proof_gaps(root, current_head))
+        gaps.extend(proof_gaps(root, current_head))
     if gaps:
         return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
     if not request.apply:

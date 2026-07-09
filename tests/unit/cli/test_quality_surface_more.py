@@ -191,7 +191,7 @@ def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path)
 def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_path: Path):
     emitted = _capture(monkeypatch)
     seen: dict[str, str] = {}
-    monkeypatch.setattr(q._gitio, "current_head", lambda _repo: "head-123")
+    monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "head-123")
 
     def fake_claims_report(repo, *, current_head=""):
         seen["claims_repo"] = repo.as_posix()

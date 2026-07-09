@@ -84,7 +84,6 @@ def hook_admission_report(
             paths=target_paths,
             editor_root=editor_root,
             require_editor_root=require_editor_root,
-            admitted_reason="prewrite_admitted",
         )
     if normalized_layer == "pre-run":
         return _pre_run_report(
@@ -114,7 +113,7 @@ def push_admission_report(
     executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
     lanes, feature branches) are admitted untouched.
     """
-    from ethos.adapters.mutation.core import _proof_gaps
+    from ethos.adapters.mutation.core import proof_gaps
     from ethos_core.contracts.branch_roles import load_branch_role_policy
 
     repo = root.resolve()
@@ -134,7 +133,7 @@ def push_admission_report(
     }
     if role not in PROTECTED_WRITE_ROLES:
         return base
-    gaps = _proof_gaps(repo, pushed_head)
+    gaps = proof_gaps(repo, pushed_head)
     if gaps:
         base.update(
             ok=False,
@@ -173,7 +172,7 @@ def ref_move_admission_report(
     """
     import subprocess
 
-    from ethos.adapters.mutation.core import _proof_gaps
+    from ethos.adapters.mutation.core import proof_gaps
     from ethos_core.contracts.branch_roles import load_branch_role_policy
 
     repo = root.resolve()
@@ -205,10 +204,10 @@ def ref_move_admission_report(
         )
         if contained.returncode != 0:
             gaps.append("accepted_advance_not_candidate_validated")
-        gaps.extend(_proof_gaps(repo, new_value))
+        gaps.extend(proof_gaps(repo, new_value))
         reason = "accepted_ref_move_bypasses_candidate_train"
     elif branch == policy.candidate_branch:
-        gaps.extend(_proof_gaps(repo, new_value))
+        gaps.extend(proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base
@@ -253,7 +252,6 @@ def _prewrite_report(
     paths: list[Path],
     editor_root: Path | None,
     require_editor_root: bool,
-    admitted_reason: str,
 ) -> dict[str, object]:
     admission = prewrite_guard(
         root=repo,
@@ -266,7 +264,7 @@ def _prewrite_report(
     base["branch"] = admission["branch"]
     if admission["ok"] is True:
         base["state"] = "admitted"
-        base["decision"] = {"action": "allow", "reason": admitted_reason}
+        base["decision"] = {"action": "allow", "reason": "prewrite_admitted"}
         return base
     return _blocked(base, str(admission["error"]))
 
@@ -299,7 +297,6 @@ def _pre_run_report(
         paths=paths,
         editor_root=editor_root,
         require_editor_root=require_editor_root,
-        admitted_reason="prewrite_admitted",
     )
 
 

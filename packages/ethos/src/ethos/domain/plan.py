@@ -280,7 +280,7 @@ def rule_fact_snapshot(
         facts["openspec_state"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
         facts["host_readiness"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
     try:
-        claims = claims_report(repo)
+        claims = claims_report(repo, current_head=head)
         claim_gaps = [str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))]
         if audit_mode == "adopter":
             claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]

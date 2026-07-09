@@ -14,7 +14,7 @@ from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.mutation import core
-from ethos.adapters.mutation.core import _proof_gaps
+from ethos.adapters.mutation.core import proof_gaps
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -501,7 +501,7 @@ def test_executed_proof_record_rejects_forgery(
         json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}), encoding="utf-8"
     )
     assert executed_proof_record(tmp_path, head) is None
-    assert "proof_not_proven" in _proof_gaps(tmp_path, head)
+    assert "proof_not_proven" in proof_gaps(tmp_path, head)
 
     # Non-proven local state never admits a proof even if the file is present.
     (proof_dir / f"{head}.json").write_text(
@@ -569,7 +569,7 @@ def test_executed_proof_record_rejects_forgery(
     ).to_dict()
     record_executed_proof(tmp_path, evidence)
     assert executed_proof_record(tmp_path, head) is not None
-    assert _proof_gaps(tmp_path, head) == []
+    assert proof_gaps(tmp_path, head) == []
 
 
 def test_ref_move_admission_blocks_accepted_bypass(tmp_path) -> None:

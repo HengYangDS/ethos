@@ -10,6 +10,17 @@ from ethos.domain import report as report_domain
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 
 
+def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
+    assert (
+        report_domain._terminal_control(
+            result_required_gaps=(),
+            hard_quality_gap_count=0,
+            stage_gates={"authoring_allowed": True, "integration_allowed": False},
+        )
+        == "partial"
+    )
+
+
 def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:
     """Hard quality gaps should route to the narrowest available owner command."""
 

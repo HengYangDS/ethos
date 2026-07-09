@@ -46,6 +46,12 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
     return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
 
 
+def test_prewrite_cast_worktrees_skips_non_dict_entries() -> None:
+    assert admission_prewrite.cast_worktrees([{"branch": "work/x"}, "bad"]) == [
+        {"branch": "work/x"}
+    ]
+
+
 def test_admission_prewrite_and_hook_success_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -70,10 +76,23 @@ def test_admission_prewrite_and_hook_success_edges(
         admission_prewrite,
         "workspace_status",
         lambda root: {
+            "root": root.as_posix(),
             "role": ROLE_WORK_LANE,
             "branch": "work/x",
-            "closeout_support": {"owner": "agent-a"},
+            "worktrees": [
+                {
+                    "path": root.as_posix(),
+                    "branch": "work/x",
+                    "head": "a" * 40,
+                    "worktree_binding": "current",
+                }
+            ],
         },
+    )
+    monkeypatch.setattr(
+        admission_prewrite,
+        "leases_by_branch",
+        lambda worktrees, current_path: {"work/x": {"owner": "agent-a"}},
     )
     missing_editor = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[tmp_path / "README.md"]
@@ -226,7 +245,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         "ethos_core.contracts.branch_roles.load_branch_role_policy", lambda root: policy
     )
-    monkeypatch.setattr("ethos.adapters.mutation.core._proof_gaps", lambda root, head: [])
+    monkeypatch.setattr("ethos.adapters.mutation.core.proof_gaps", lambda root, head: [])
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: cp(returncode=0))
     assert (
         admission.push_admission_report(

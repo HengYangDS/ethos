@@ -795,7 +795,7 @@ def evidence_freshness(
 ) -> None:
     """Check declared evidence roots and claim digests."""
     repo = resolve_root(root)
-    current_head = _gitio.current_head(repo)
+    current_head = git_adapter.current_head(repo)
     report = evidence_freshness_report(repo, current_head=current_head)
     result = EthosResult(
         command="quality evidence-freshness",
@@ -817,7 +817,7 @@ def claims(
 ) -> None:
     """Validate claim evidence digests."""
     repo = resolve_root(root)
-    current_head = _gitio.current_head(repo)
+    current_head = git_adapter.current_head(repo)
     report = claims_report(repo, current_head=current_head)
     result = EthosResult(
         command="quality claims",

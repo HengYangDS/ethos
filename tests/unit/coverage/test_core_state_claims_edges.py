@@ -129,7 +129,7 @@ def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> 
 
 def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     monkeypatch.setattr(
         mutation_core, "workspace_status", lambda root: status_for(closeout_gaps=["trust_gap"])
     )
@@ -301,7 +301,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
 def test_mutation_admission_blocks_unarchived_openspec_carriers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "done"
     change.mkdir(parents=True)
@@ -319,7 +319,7 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
 def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] started\n- [ ] not archived\n", encoding="utf-8")
@@ -338,7 +338,7 @@ def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
 def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ethos_core.invalid_states import NODE_ORDER
+from ethos_core.state.invalid import NODE_ORDER
 
 _ALLOWED_NODE_KINDS = {"control", "producer", "action", "handoff", "guardrail"}
 _ALLOWED_ENFORCEMENT = {"guarded", "handoff-guarded", "evidence-only", "advisory"}

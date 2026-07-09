@@ -15,6 +15,8 @@ from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos_core.contracts.branch.roles import BranchRolePolicy
+
 _COMMIT_IDENTITY_FIELD_COUNT = 4
 
 HOOK_LAYERS = {
@@ -146,11 +148,22 @@ def push_admission_report(
     }
     proof_required = role in PROTECTED_WRITE_ROLES
     proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
-    gaps = [*identity_gaps, *proof_required_gaps]
+    # The push plane must enforce the SAME candidate-train topology as the local ref-move
+    # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
+    # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
+    # not the live candidate head / not a fast-forward). remote_head is the accepted
+    # old-value, pushed_head the new. Only the accepted branch carries this invariant;
+    # the candidate branch's proof gate is already covered above.
+    topology_gaps = (
+        accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
+        if branch == policy.accepted_branch
+        else []
+    )
+    gaps = [*identity_gaps, *proof_required_gaps, *topology_gaps]
     if gaps:
         reason = (
             "push_to_protected_role_not_proven"
-            if proof_required_gaps
+            if proof_required_gaps or topology_gaps
             else "pushed_commit_identity_not_allowed"
         )
         base.update(
@@ -299,6 +312,59 @@ def push_identity_policy_report(
     }
 
 
+_ZERO_OID = "0" * 40
+
+
+def accepted_advance_gaps(
+    repo: Path,
+    policy: BranchRolePolicy,
+    *,
+    old_value: str,
+    new_value: str,
+) -> list[str]:
+    """Topology gaps for an advance of the accepted branch to `new_value`.
+
+    The candidate-train invariant — the accepted branch only ever advances to the LIVE
+    candidate head, by a fast-forward — is enforced HERE so BOTH the local ref-move
+    reducer and the push reducer share one definition. Emits, distinctly:
+      * accepted_advance_not_candidate_validated: new_value is not contained in candidate
+      * accepted_ref_move_not_candidate_head: contained but != the live candidate head
+      * accepted_ref_move_not_fast_forward: old_value is not an ancestor of new_value
+    Proof and closeout-intent are NOT included — proof is added by each caller, and the
+    marker is a local-only signal a push cannot carry. old_value all-zeros (ref creation)
+    skips only the fast-forward check (==candidate_head still pins the target).
+    """
+    candidate_branch = policy.candidate_branch
+    gaps: list[str] = []
+    contained = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", new_value, candidate_branch],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+    )
+    candidate_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", candidate_branch],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+        text=True,
+    ).stdout.strip()
+    if contained.returncode != 0:
+        gaps.append("accepted_advance_not_candidate_validated")
+    elif new_value != candidate_head:
+        gaps.append("accepted_ref_move_not_candidate_head")
+    if old_value not in (_ZERO_OID, ""):
+        fast_forward = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", old_value, new_value],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        )
+        if fast_forward.returncode != 0:
+            gaps.append("accepted_ref_move_not_fast_forward")
+    return gaps
+
+
 def ref_move_admission_report(
     *,
     root: Path,
@@ -349,45 +415,11 @@ def ref_move_admission_report(
     gaps: list[str] = []
     reason = ""
     if branch == policy.accepted_branch:
-        # The accepted branch may only ever advance to the LIVE candidate head, by a
-        # fast-forward, carrying a complete executed proof. Three escapes exist even when
-        # a commit is candidate-related AND proven, so each is checked distinctly:
-        #   * not candidate-validated: new_value is not contained in the candidate branch
-        #     at all — work that never went through the train (existing invariant).
-        #   * not candidate-head: new_value IS candidate-contained but is an intermediate
-        #     commit, not the live candidate head. Only the head the train validated may
-        #     be promoted; an ancestor of it was never a tip a closeout would accept.
-        #   * not fast-forward: old_value is not an ancestor of new_value — a rollback to
-        #     an older (still candidate-contained, still proven) commit rewinds accepted
-        #     history out of band. `git merge --ff-only` gives the sanctioned closeout
-        #     this for free.
-        #   * proof gaps: new_value lacks a complete executed proof (see proof_gaps).
-        contained = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", new_value, policy.candidate_branch],
-            cwd=repo,
-            capture_output=True,
-            check=False,
-        )
-        candidate_head = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", policy.candidate_branch],
-            cwd=repo,
-            capture_output=True,
-            check=False,
-            text=True,
-        ).stdout.strip()
-        if contained.returncode != 0:
-            gaps.append("accepted_advance_not_candidate_validated")
-        elif new_value != candidate_head:
-            gaps.append("accepted_ref_move_not_candidate_head")
-        if old_value not in (zero, ""):
-            fast_forward = subprocess.run(
-                ["git", "merge-base", "--is-ancestor", old_value, new_value],
-                cwd=repo,
-                capture_output=True,
-                check=False,
-            )
-            if fast_forward.returncode != 0:
-                gaps.append("accepted_ref_move_not_fast_forward")
+        # Topology invariant (contained + ==candidate_head + fast-forward) is shared with
+        # the push reducer via accepted_advance_gaps, so a raw ref move and a raw push are
+        # judged identically. Proof and the closeout-intent marker are added below — proof
+        # binds both planes, but the marker is a local-only "is this my closeout?" signal.
+        gaps.extend(accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value))
         gaps.extend(proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw

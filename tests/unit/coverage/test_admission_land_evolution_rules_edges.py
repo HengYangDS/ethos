@@ -107,7 +107,11 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
     blocked = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"
     )
-    assert blocked["required_gaps"] == ["proof_not_proven"]
+    # The accepted-branch push now enforces the candidate-train topology (shared with the
+    # ref-move reducer via accepted_advance_gaps), so a proven-but-off-train push blocks
+    # on BOTH proof and topology. On this empty tmp repo the containment check fails.
+    assert "proof_not_proven" in blocked["required_gaps"]
+    assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
     allowed = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/work/x", pushed_head="h1"
     )

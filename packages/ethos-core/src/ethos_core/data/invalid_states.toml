@@ -202,6 +202,7 @@ match_prefixes = [
   "trust_bearing_proof_missing",
   "proof_not_proven",
   "proof_invalid",
+  "adopter_profile_missing_code_correctness_gates",
   "push_to_protected_role_not_proven",
   "protected_ref_move_not_proven",
   "expect_head_mismatch",

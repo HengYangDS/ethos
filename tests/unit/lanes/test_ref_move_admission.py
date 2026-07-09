@@ -21,6 +21,7 @@ import pytest
 
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
+from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -353,3 +354,82 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     closeout = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
     assert closeout.returncode == 0
     assert g("rev-parse", "dev").stdout.strip() != dev_head
+
+
+# ── H2: the push plane enforces the SAME candidate-train topology as the ref-move plane ──
+def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
+    """A push of a proven commit that candidate never validated must block — the same
+    accepted_advance_gaps the local ref-move reducer applies, so a raw `git push` cannot
+    promote off-train work the ref hook would refuse."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    _advance_candidate(repo, "c1")
+    git(repo, "checkout", "-q", "-b", "work/x")
+    off_train = _advance_candidate(repo, "d")  # commit on work/x, never on candidate
+    record_executed_proof(repo, _complete_proof_evidence(off_train, repo))
+
+    report = push_admission_report(
+        root=repo, target_ref="refs/heads/dev", pushed_head=off_train, remote_head=base
+    )
+
+    assert report["ok"] is False
+    assert "accepted_advance_not_candidate_validated" in report["required_gaps"]
+
+
+def test_push_admission_blocks_non_head_intermediate(tmp_path: Path) -> None:
+    """B/H2: pushing a candidate-contained but non-head proven commit to dev must block."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    c1 = _advance_candidate(repo, "c1")
+    _advance_candidate(repo, "c2")  # live candidate head is c2
+    record_executed_proof(repo, _complete_proof_evidence(c1, repo))
+
+    report = push_admission_report(
+        root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=base
+    )
+
+    assert report["ok"] is False
+    assert "accepted_ref_move_not_candidate_head" in report["required_gaps"]
+
+
+def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
+    """C/H2: a force-push rewinding dev to an older proven commit (non-fast-forward)
+    must block at the push plane — the rollback needs zero forgery."""
+    repo, _base = _accepted_boundary_repo(tmp_path)
+    c1 = _advance_candidate(repo, "c1")
+    c2 = _advance_candidate(repo, "c2")
+    record_executed_proof(repo, _complete_proof_evidence(c1, repo))
+
+    report = push_admission_report(
+        root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=c2
+    )
+
+    assert report["ok"] is False
+    assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
+
+
+def test_push_admission_admits_fast_forward_to_proven_candidate_head(tmp_path: Path) -> None:
+    """A fast-forward push of dev to the live candidate head carrying a complete proof is
+    the sanctioned publish — it must be admitted (no marker needed: a push carries no
+    in-process closeout-intent, only the topology + proof gates apply)."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+
+    report = push_admission_report(
+        root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
+    )
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+
+
+def test_push_admission_leaves_work_lane_push_untouched(tmp_path: Path) -> None:
+    """A push to a non-accepted (work-lane) ref carries no candidate-train topology."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    git(repo, "checkout", "-q", "-b", "work/x")
+    head = _advance_candidate(repo, "w")
+
+    report = push_admission_report(
+        root=repo, target_ref="refs/heads/work/x", pushed_head=head, remote_head=base
+    )
+
+    assert report["ok"] is True

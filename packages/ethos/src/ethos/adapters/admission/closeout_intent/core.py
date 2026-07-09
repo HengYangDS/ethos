@@ -130,7 +130,14 @@ def _is_expired(marker: dict[str, Any], *, now: datetime) -> bool:
         return True
     try:
         expires = datetime.fromisoformat(expires_raw)
-    except ValueError:
+    except (ValueError, TypeError):
+        return True
+    # ETHOS's writer always emits tz-aware UTC (datetime.now(UTC).isoformat()). A
+    # parseable-but-naive timestamp is therefore corrupt/adversarial — and comparing it
+    # to the aware `now` would raise TypeError and escape as an unhandled crash that
+    # bricks every closeout (sweep is the first step of official closeout). Treat any
+    # non-aware value as expired so the sweep reclaims it instead of crashing.
+    if expires.tzinfo is None:
         return True
     return now >= expires
 

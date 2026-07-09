@@ -23,6 +23,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from ethos.repository.policy.gates import adopter_code_correctness_gap
 from ethos.repository.policy.gates import default_gate_ids
 
 _DEFAULT_PROOF_DIR = Path(".ethos") / "state" / "proof"
@@ -145,18 +146,26 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     record = executed_proof_record(root, head)
     if record is None:
         return []  # integrity/existence handled by the caller's proof_not_proven path
+    gaps: list[str] = []
+    # An adopter root whose profile declares NO native code-correctness gates has a
+    # proof floor with no tests/lint/types dimension — a contentless proof must not be
+    # promotion-worthy. This is a completeness requirement (not an executable gate), so
+    # it is surfaced here rather than injected into the executable floor.
+    adopter_gap = adopter_code_correctness_gap(root)
+    if adopter_gap:
+        gaps.append(adopter_gap)
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None
     required = _promotion_required_gate_ids(root)
-    if _runs_cover_required_set(runs, required):
-        return []
-    present = (
-        {run.get("action_id") for run in runs if isinstance(run, dict)}
-        if isinstance(runs, list)
-        else set()
-    )
-    missing = sorted(g for g in required if g not in present)
-    return [f"proof_incomplete:{','.join(missing)}"]
+    if not _runs_cover_required_set(runs, required):
+        present = (
+            {run.get("action_id") for run in runs if isinstance(run, dict)}
+            if isinstance(runs, list)
+            else set()
+        )
+        missing = sorted(g for g in required if g not in present)
+        gaps.append(f"proof_incomplete:{','.join(missing)}")
+    return gaps
 
 
 def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:

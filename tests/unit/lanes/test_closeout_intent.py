@@ -173,6 +173,40 @@ def test_marker_missing_expires_at_is_treated_as_expired(tmp_path: Path) -> None
     assert result == {"present": True, "gap": "closeout_intent_stale"}
 
 
+def test_marker_with_naive_but_parseable_timestamp_is_expired_not_crash(tmp_path: Path) -> None:
+    """A parseable-but-tz-naive expires_at must be treated as expired, never raise.
+
+    Regression for the DoS where `now >= fromisoformat("2099-01-01T00:00:00")` compared an
+    aware `now` to a naive value and raised an uncaught TypeError — planting one such
+    marker used to brick every closeout via sweep. consume and sweep must both survive it.
+    """
+    marker = _write(tmp_path)
+    path = _marker_path(tmp_path, str(marker["nonce"]))
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    stored["expires_at"] = "2099-01-01T00:00:00"  # far-future but NAIVE (no offset)
+    path.write_text(json.dumps(stored), encoding="utf-8")
+
+    result = closeout_intent.consume_closeout_intent(
+        root=tmp_path, ref_name="refs/heads/dev", old_value="old", new_value="new"
+    )
+    assert result == {"present": True, "gap": "closeout_intent_stale"}
+
+
+def test_sweep_reclaims_naive_timestamp_marker_without_crashing(tmp_path: Path) -> None:
+    """sweep_stale_closeout_intents is the FIRST step of official closeout; a planted
+    naive-timestamp marker must be reclaimed there, not brick the sweep."""
+    marker = _write(tmp_path)
+    path = _marker_path(tmp_path, str(marker["nonce"]))
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    stored["expires_at"] = "2099-01-01T00:00:00"
+    path.write_text(json.dumps(stored), encoding="utf-8")
+
+    swept = closeout_intent.sweep_stale_closeout_intents(tmp_path)
+
+    assert str(marker["nonce"]) in swept
+    assert not path.exists()
+
+
 def test_marker_dir_resolves_inside_real_git_dir(tmp_path: Path) -> None:
     """In a real repo, `git rev-parse --git-path` resolves the marker dir under the git
     dir (the linked-worktree-safe path), not a hardcoded <root>/.git."""

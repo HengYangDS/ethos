@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph.core import ActionGraph
@@ -343,18 +344,85 @@ ADOPTER_DEFAULT_GATE_IDS = (
 )
 
 
-def _has_repository_profile(root: Path | None) -> bool:
+def _is_product_root(root: Path) -> bool:
+    """Return True when ``root`` is the ETHOS product repository itself.
+
+    Mirrors ethos.repository.context.is_product_root by the same two anchor files, but
+    inlined to keep gates.py off context.py's heavier import chain. The product repo
+    must never be treated as an adopter (which would drop its own code-correctness
+    floor), even if it grew a `.ethos/profile.toml`.
+    """
+    return (root / "packages" / "ethos" / "README.md").exists() and (
+        root / "system" / "schemas" / "kernel"
+    ).exists()
+
+
+def _adopter_native_code_correctness_gates(profile: object) -> tuple[str, ...]:
+    """Gate ids an adopter's profile declares as its native code-correctness proof.
+
+    An adopter drops the product's code-correctness gates (they run product-owned
+    `tools/ci/scripts/*`), so it MUST declare equivalents under
+    `[proof] code_correctness_gates = [...]`. Promotion completeness then requires
+    those gate ids to have run — an adopter proof with no code-correctness dimension is
+    NOT complete (a contentless proof must not promote).
+    """
+    tables = getattr(profile, "tables", {})
+    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
+    declared = proof_table.get("code_correctness_gates") if isinstance(proof_table, dict) else None
+    if not isinstance(declared, list):
+        return ()
+    return tuple(str(gate_id) for gate_id in declared if str(gate_id))
+
+
+def _adopter_profile_active(root: Path | None) -> bool:
+    """Return True only for a VALID adopter profile on a non-product root.
+
+    Keying the floor on bare `.exists` let any `.ethos/profile.toml` — 0-byte, invalid
+    TOML, or the product repo's own — downgrade the 19-gate product floor to the 11-gate
+    adopter floor, dropping every code-correctness gate with no forgery. Require the
+    profile to exist, PARSE (`valid`), and the root to not be the product itself.
+    """
     if root is None:
         return False
-    return load_repository_profile(root).exists
+    if _is_product_root(root):
+        return False
+    profile = load_repository_profile(root)
+    return profile.exists and profile.valid
+
+
+ADOPTER_MISSING_CODE_CORRECTNESS_GATE = "adopter_profile_missing_code_correctness_gates"
+
+
+def adopter_code_correctness_gap(root: Path | None) -> str:
+    """Return a completeness gap when an active adopter declares no native
+    code-correctness gates, else ''.
+
+    Separate from `default_gate_ids` (which drives BOTH proof execution and the
+    completeness floor, so it may only contain registry-executable gate ids). The
+    "an adopter proof must carry a code-correctness dimension" rule is a COMPLETENESS
+    requirement, surfaced here and folded into promotion_completeness_gaps — it must not
+    put a non-executable sentinel into the executable floor.
+    """
+    if not _adopter_profile_active(root):
+        return ""
+    profile = load_repository_profile(cast("Path", root))
+    if _adopter_native_code_correctness_gates(profile):
+        return ""
+    return ADOPTER_MISSING_CODE_CORRECTNESS_GATE
 
 
 def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[str, ...]:
-    if _has_repository_profile(root):
+    if _adopter_profile_active(root):
         # Adopted repositories expose their proof depth through `.ethos/profile.toml`
         # and repository-native gates. The product code-correctness floor must not
-        # assume product-owned `tools/ci/scripts/*` exist in every adopter.
-        return ADOPTER_DEFAULT_GATE_IDS
+        # assume product-owned `tools/ci/scripts/*` exist in every adopter — but the
+        # adopter's DECLARED native code-correctness gates join the executable floor so
+        # promotion completeness requires them. The "declared none" case is enforced by
+        # adopter_code_correctness_gap (a completeness gap), NOT by a non-executable
+        # sentinel here — this set must stay registry-executable for gate_graph.
+        profile = load_repository_profile(cast("Path", root))
+        native = _adopter_native_code_correctness_gates(profile)
+        return (*ADOPTER_DEFAULT_GATE_IDS, *native)
     if full:
         return PRODUCT_FULL_GATE_IDS
     # The product default proof floor is the CODE-CORRECTNESS core (tests + lint +

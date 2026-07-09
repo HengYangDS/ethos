@@ -288,9 +288,12 @@ def test_admission_prewrite_and_hook_success_edges(
         return cp(returncode=0)
 
     monkeypatch.setattr(subprocess, "run", admitted_git)
+    # pushed_head must be the live candidate head ("new" per the mock) and remote_head
+    # empty (skips the fast-forward check), so the accepted-branch push topology gate
+    # (candidate-containment + ==candidate_head) admits the sanctioned advance.
     assert (
         admission.push_admission_report(
-            root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"
+            root=tmp_path, target_ref="refs/heads/dev", pushed_head="new"
         )["ok"]
         is True
     )

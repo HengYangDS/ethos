@@ -14,4 +14,4 @@ required_roots = [
 id = "tooling-adoption-roadmap"
 claim = "evidence/claims/tooling-adoption-roadmap.toml"
 chronicle = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
-openspec = "openspec/changes/archive/2026-07-09-tooling-plan-execution/tasks.md"
+openspec = "openspec/changes/archive/2026-07-09-security-vulnerability-gates/tasks.md"

@@ -204,8 +204,9 @@ gate = "tools/ci/scripts/run-secrets-scan.sh"
 concern = "python_vuln"
 tool = "pip-audit"
 config = ".config/checks/security/audit.toml"
+artifacts = "build/evidence/quality/security/"
+gate = "tools/ci/scripts/run-python-vulnerability-audit.sh"
 profile = "security"
-planned = true
 
 [[tool]]
 concern = "osv_vuln"

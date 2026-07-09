@@ -23,6 +23,10 @@ def test_new_tool_profile_boundaries_are_explicit() -> None:
     adapters = {adapter["id"]: adapter for adapter in payload["data"]["tool_adapters"]}
 
     assert adapters["deptry"]["boundary"] == "package-local-metadata-check-not-vulnerability-audit"
+    assert (
+        adapters["pip-audit"]["boundary"]
+        == "uv-exported-resolved-requirements-scan-not-direct-uv-lock-or-osv-claim"
+    )
     assert adapters["codespell"]["asset_classes"] == ["markdown-docs"]
     assert adapters["check-jsonschema"]["asset_classes"] == [
         "json-contracts",

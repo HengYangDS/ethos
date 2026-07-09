@@ -55,6 +55,8 @@ jobs:
         run: tools/ci/scripts/run-module-layout.sh
       - name: Security lint
         run: tools/ci/scripts/run-bandit.sh
+      - name: Python vulnerability audit
+        run: tools/ci/scripts/run-python-vulnerability-audit.sh
       - name: Secrets scan
         run: tools/ci/scripts/run-secrets-scan.sh
       - name: Markdown lint

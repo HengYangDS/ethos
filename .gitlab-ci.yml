@@ -33,7 +33,7 @@ default:
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
 # (architecture), docstrings, product-boundary/contributor policy, bandit
-# (security), gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
+# (security + Python vulnerability audit), gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
 # markdown lint, lychee (doc links), provider projection drift, local emulator
 # boundaries, format selection, architecture projection, runbook/MCP smoke,
 # closeout evidence, local-state, and release supply-chain checks.
@@ -115,6 +115,11 @@ ethos:security:
   stage: quality
   script:
     - tools/ci/scripts/run-bandit.sh
+    - tools/ci/scripts/run-python-vulnerability-audit.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/security/
 
 ethos:secrets:
   <<: *python_setup

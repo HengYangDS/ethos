@@ -90,7 +90,7 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         assert script.is_file()
         assert script.stat().st_mode & stat.S_IXUSR
 
-    for concern in ["python_vuln", "osv_vuln", "image_package_scan", "signing"]:
+    for concern in ["osv_vuln", "image_package_scan", "signing"]:
         block = _tool_block(concern)
         assert "planned = true" in block
 

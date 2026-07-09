@@ -61,6 +61,7 @@ def test_active_dependency_prose_schema_gates_have_all_owner_surfaces() -> None:
         "dependency_hygiene": "tools/ci/scripts/run-dependency-hygiene.sh",
         "prose": "tools/ci/scripts/run-prose-check.sh",
         "json_schema": "tools/ci/scripts/run-json-schema-check.sh",
+        "python_vuln": "tools/ci/scripts/run-python-vulnerability-audit.sh",
     }
     combined_ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8") + (
         ROOT / ".gitlab-ci.yml"
@@ -80,11 +81,34 @@ def test_active_dependency_prose_schema_gates_have_all_owner_surfaces() -> None:
         assert gate in runbook
 
 
-def test_vulnerability_scanners_remain_planned_until_lock_input_is_supported() -> None:
+def test_python_vulnerability_audit_scans_uv_exported_resolved_input() -> None:
     config = tomllib.loads((ROOT / ".config/checks/security/audit.toml").read_text())
-    assert config["pip_audit"]["state"] == "planned_profile_gate"
-    assert "uv.lock" in config["pip_audit"]["reason"]
+    assert config["pip_audit"]["state"] == "active_owner_gate"
+    assert "uv export" in config["pip_audit"]["input"]
+    assert "pip-audit reads uv.lock directly" in config["pip_audit"]["forbidden_claims"]
 
-    for concern in ["python_vuln", "osv_vuln", "image_package_scan", "signing"]:
+    payload = _run_json(["tools/ci/scripts/run-python-vulnerability-audit.sh"])
+    persisted = json.loads(
+        (ROOT / "build/evidence/quality/security/python-vulnerability-audit.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert payload == persisted
+    assert payload["kind"] == "ethos_python_vulnerability_audit"
+    assert payload["ok"] is True
+    assert payload["evidence_class"] == "local_owner_gate"
+    assert payload["tool_input"] == "uv-exported-resolved-requirements"
+    assert payload["dependency_count"] > 0
+    assert payload["vulnerability_count"] == 0
+    assert "OSV scan passed" in payload["not_claimed"]
+    assert "pip-audit reads uv.lock directly" in payload["not_claimed"]
+
+
+def test_non_pip_vulnerability_scanners_remain_planned() -> None:
+    config = tomllib.loads((ROOT / ".config/checks/security/audit.toml").read_text())
+    assert config["osv_scanner"]["state"] == "planned_profile_gate"
+
+    for concern in ["osv_vuln", "image_package_scan", "signing"]:
         block = _tool_block(concern)
         assert "planned = true" in block

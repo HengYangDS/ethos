@@ -31,6 +31,7 @@ tools/ci/scripts/run-docstring-coverage.sh
 tools/ci/scripts/run-module-layout.sh
 tools/ci/scripts/run-product-boundary.sh
 tools/ci/scripts/run-bandit.sh
+tools/ci/scripts/run-python-vulnerability-audit.sh
 tools/ci/scripts/run-repository-hygiene.sh
 tools/ci/scripts/run-secrets-scan.sh
 tools/ci/scripts/run-ci-template-check.sh

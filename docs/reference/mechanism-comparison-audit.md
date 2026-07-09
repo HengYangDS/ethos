@@ -42,7 +42,7 @@ multi-contributor enterprise adopters.
 | Format policy | Tool-native formatters and format-selection policy route file types to owners. | `.config/checks/format/selection.toml` plus `run-format-selection.sh`. | Keep report-first audit; add fix modes only after stable ownership. |
 | Python lint, type, and test | Broad lint, type, test, import, property, performance, mutation, and report matrices. | Ruff, ty, pytest/coverage, import-linter, docstring coverage, module layout, repository hygiene. | Keep compact hard floor; add matrix breadth only for ETHOS product risk. |
 | Docs, prose, and config lint | Markdown/prose/config hygiene, documentation metadata, and generated report checks. | Markdownlint, Taplo, Yamllint, JSON syntax, docs registry/topology, shell lint. | Prose and metadata breadth remain maturity debt until owner config, runner, CI projection, and proof exist. |
-| Security and dependency hygiene | Secret scanning, dependency audits, vulnerability scans, tool-supply governance. | Gitleaks, Bandit, dependency hygiene, schema hygiene, prose spelling, SBOM, and release attestation active; vulnerability scanners planned. | Activate vulnerability scans through separate security lanes with supported lock inputs and owner surfaces. |
+| Security and dependency hygiene | Secret scanning, dependency audits, vulnerability scans, tool-supply governance. | Gitleaks, Bandit, dependency hygiene, `pip-audit` over uv-exported resolved requirements, schema hygiene, prose spelling, SBOM, and release attestation active; OSV/image scanners planned. | Keep `pip-audit` input-bound and activate additional scanners only through pinned tool supply and owner surfaces. |
 | Architecture and diagrams | Import boundaries, package topology, dependency graphs, C4-like model projections. | Import-linter, module-layout, source-owned C4-like model, Mermaid projection, architecture drift gate. | Keep lightweight source-to-projection gate; richer diagram stacks remain optional. |
 | OpenSpec schema/profile | Official OpenSpec plus repo-local schemas, facets, capability profiles, provider specs, claims, and evidence. | Official validation first, then ETHOS lifecycle/schema/profile/claim/evidence checks. | Use compatible extension; do not fork OpenSpec syntax or `WHEN`/`THEN` semantics. |
 | Claims, evidence, chronicle | Delivery evidence, closeout logs, parity, retained manifests, cleanup operations. | Claims, chronicle, parity ledger, closeout evidence manifest, local-state audit, proof evidence. | Add retained digest and cleanup fixed points later; keep evidence classes explicit. |
@@ -79,8 +79,8 @@ ETHOS is deliberately or temporarily lighter in these areas:
 1. no task-ledger product dependency in core;
 1. less full-stack local CI emulator handoff and runtime matrix breadth;
 1. less prose/metadata breadth until owner surfaces exist;
-1. less dependency and vulnerability gate maturity until the tools are admitted
-   through owner surfaces;
+1. less multi-scanner vulnerability breadth until OSV and image/package scanners
+   are admitted through pinned tool supply and owner surfaces;
 1. less MCP assembly/runtime breadth by design;
 1. no domain runtime mechanics in product core;
 1. no external signing upload, hosted CI observation capture, image scan, or

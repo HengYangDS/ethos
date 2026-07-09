@@ -15,12 +15,14 @@ ASSET_CLASSES = (
             "complexity",
             "determinism",
             "dependency-hygiene",
+            "vulnerability",
         ),
         default_adapters=(
             "ruff",
             "pytest",
             "ty",
             "deptry",
+            "pip-audit",
             "ethos-docstrings-google",
             "ethos-module-layout",
         ),
@@ -166,6 +168,13 @@ TOOL_ADAPTERS = (
         asset_classes=("python-code",),
         dimensions=("dependency-hygiene",),
         boundary="package-local-metadata-check-not-vulnerability-audit",
+    ),
+    ToolAdapterProfile(
+        id="pip-audit",
+        standard="Python dependency vulnerability audit",
+        asset_classes=("python-code",),
+        dimensions=("vulnerability",),
+        boundary="uv-exported-resolved-requirements-scan-not-direct-uv-lock-or-osv-claim",
     ),
     ToolAdapterProfile(
         id="codespell",

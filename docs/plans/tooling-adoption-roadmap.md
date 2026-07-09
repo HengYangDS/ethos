@@ -151,8 +151,12 @@ Deliverables:
 1. Keep dependency hygiene active through `deptry` package-local owner gates.
 1. Keep prose spelling active through `codespell` report-first checks.
 1. Keep JSON Schema metaschema hygiene active through `check-jsonschema`.
-1. Activate vulnerability scanners under a security profile only after a supported
-   resolved dependency input and pinned scanner supply exist.
+1. Keep the `pip-audit` vulnerability gate active through a frozen `uv export`
+   resolved requirements input, while preserving the boundary that `pip-audit`
+   does not read `uv.lock` directly.
+1. Activate OSV, image/package scanning, or external signing only after pinned
+   tool supply, owner configs, runner scripts, CI projections, and proof coverage
+   exist.
 1. Keep report-first file-format audits for Python, Markdown, TOML, YAML, JSON,
    shell, and ecosystem-native formats.
 1. Add a source-owned architecture model and generated diagram projection only
@@ -198,9 +202,8 @@ Deliverables:
 1. Add provider artifact observation capture for supported hosted providers.
 
 Deferred non-goals for this plan: external signing upload, image/package
-scanning, and vulnerability-adapter activation remain separate Work Lanes until
-tool supply, owner configs, runner scripts, CI projections, and proof coverage
-exist.
+scanning, and OSV scanner activation remain separate Work Lanes until tool
+supply, owner configs, runner scripts, CI projections, and proof coverage exist.
 
 Acceptance evidence:
 

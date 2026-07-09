@@ -80,3 +80,9 @@ id = "RUN-HOSTED-PROVIDER-OBSERVATION"
 command = "tools/ci/scripts/run-hosted-provider-observation.sh"
 category = "hosted-provider-observation"
 evidence = "build/evidence/hosted-ci/observation.json"
+
+[[entry]]
+id = "RUN-PYTHON-VULNERABILITY-AUDIT"
+command = "tools/ci/scripts/run-python-vulnerability-audit.sh"
+category = "security-vulnerability"
+evidence = "build/evidence/quality/security/python-vulnerability-audit.json"

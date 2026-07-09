@@ -545,11 +545,28 @@ def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
         current_scope_state="unknown",
     )
 
-    assert required == [
-        "coordination_gap:current_scope_unknown",
+    assert required == ["coordination_gap:current_scope_unknown"]
+    assert advisory == [
+        "foreign_work_lane_present",
         "coordination_gap:foreign_scope_unknown:work/unknown",
     ]
-    assert advisory == ["foreign_work_lane_present"]
+
+
+def test_foreign_unknown_scope_is_advisory_when_current_scope_is_bounded() -> None:
+    required, advisory = repo_coordination.coordination_gaps(
+        [
+            {
+                "branch": "work/unknown",
+                "lease_state": "leased",
+                "coordination_state": "unknown",
+            }
+        ],
+        current_role="work_lane",
+        current_scope_state="bounded",
+    )
+
+    assert required == []
+    assert "coordination_gap:foreign_scope_unknown:work/unknown" in advisory
 
 
 def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(tmp_path: Path) -> None:

@@ -166,7 +166,7 @@ def coordination_gaps(
             continue
         state = str(lane.get("coordination_state") or "unknown")
         if state == "unknown":
-            required.append(f"coordination_gap:foreign_scope_unknown:{branch}")
+            advisory.append(f"coordination_gap:foreign_scope_unknown:{branch}")
         elif state == "overlap":
             # Same-file conflict only (path_overlaps is a same-file/ancestor oracle:
             # two different files in one directory do NOT overlap). Git's ff-only land

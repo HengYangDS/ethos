@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
-    "target_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
-    "product_semantic_sha256": "7cb38105d17a3ee4e39ff3fd5ad510c2cb4c570d9798267aa25cc57ee7b22804",
-    "target_semantic_sha256": "7cb38105d17a3ee4e39ff3fd5ad510c2cb4c570d9798267aa25cc57ee7b22804",
+    "product_head": "ead0016aa08981390f5a6026241d8badf7837811",
+    "target_head": "ead0016aa08981390f5a6026241d8badf7837811",
+    "product_semantic_sha256": "142fb49f54e98a3a29b2333d81446df1206b02b534789e84c71af380e465adda",
+    "target_semantic_sha256": "142fb49f54e98a3a29b2333d81446df1206b02b534789e84c71af380e465adda",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709",
-    "target_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
-    "product_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709",
+    "target_head": "ead0016aa08981390f5a6026241d8badf7837811",
+    "product_head": "ead0016aa08981390f5a6026241d8badf7837811",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/security-vulnerability-gates-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "bcea61b1c34428bc7a3d5b9605637d1be39db5b7f5daa69af11cc02c4a80388f"
+        "sha256": "728410d2637a3b618a95991e77dd5c1c3a5b98fb18b4dfef3b008cb0bbe044a0"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "3a9f75de99eb5bacb819253e092025ac0b82eb6423d55bdef6a14c52fc8377f4"
+        "sha256": "6e90a257d99a59ae7afacc5e33e0b380ca3bae06a27018131b6963d2fdf58a77"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "aac9fe40c2a1e8f5ac2ec7df056701430344995161bcfb340e60539cc28f6158"
+        "sha256": "8e4e21a4f2bb4c897f7aba46120f9438e86dfcc164bae7e80188b45ad7c57209"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "227b4752312a0d47511bc81f25f14fa94d3c49912a7a1b76895ecce2528f0988"
+        "sha256": "793aa6d9920a061d19c7112019511806b34f131273bda846c1d9022e2d3a82db"
       },
       {
         "path": "rules",

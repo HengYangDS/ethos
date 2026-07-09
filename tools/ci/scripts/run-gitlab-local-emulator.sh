@@ -12,5 +12,9 @@ dry_run_flag=()
 if [ "${ETHOS_LOCAL_EMULATOR_DRY_RUN:-0}" = "1" ]; then
   dry_run_flag=(--dry-run)
 fi
+allow_untracked_flag=()
+if [ "${ETHOS_LOCAL_EMULATOR_ALLOW_UNTRACKED:-0}" = "1" ]; then
+  allow_untracked_flag=(--allow-untracked)
+fi
 
-uv run --package ethos python tools/ci/ci_templates.py emulator-evidence gitlab --mode "${mode}" "${dry_run_flag[@]}"
+uv run --package ethos python tools/ci/ci_templates.py emulator-evidence gitlab --mode "${mode}" "${dry_run_flag[@]}" "${allow_untracked_flag[@]}"

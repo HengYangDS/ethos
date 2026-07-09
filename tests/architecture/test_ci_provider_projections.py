@@ -146,9 +146,61 @@ def test_local_emulator_wrappers_emit_non_claim_evidence_in_dry_run() -> None:
         assert payload == persisted
         assert payload["provider"] == provider
         assert payload["dry_run"] is True
+        assert payload["head_start"] == payload["head_end"] == payload["head"]
+        assert payload["head_stable"] is True
+        assert payload["git_start"]["changed_scope"]["untracked_count"] >= 0
+        assert payload["git_end"]["changed_scope"]["untracked_preview_limit"] == 12
+        assert payload["files"]["config"]["exists"] is True
+        assert payload["files"]["projected_file"]["exists"] is True
+        assert payload["files"]["template_file"]["exists"] is True
+        assert payload["materialization"] == {
+            "issue": "",
+            "mode_allows_untracked": True,
+            "normal_run_refuses_untracked_by_default": True,
+            "untracked_allowed": False,
+            "untracked_policy": "refuse_before_emulator_run",
+        }
         assert payload["hosted_github_status_claimed"] is False
         assert payload["hosted_gitlab_status_claimed"] is False
         assert "local provider emulator evidence only" in payload["claim_boundary"]
+
+
+def test_local_emulator_normal_run_refuses_untracked_materialization(tmp_path: Path) -> None:
+    output = tmp_path / "github-run.json"
+    untracked = ROOT / "tests/provider-emulator-untracked.txt"
+    untracked.parent.mkdir(parents=True, exist_ok=True)
+    untracked.write_text("untracked\n", encoding="utf-8")
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "tools/ci/ci_templates.py",
+                "emulator-evidence",
+                "github",
+                "--mode",
+                "run",
+                "--output",
+                str(output),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        untracked.unlink(missing_ok=True)
+
+    assert result.returncode == 1
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["materialization"]["mode_allows_untracked"] is False
+    assert payload["materialization"]["untracked_allowed"] is False
+    assert (
+        "provider materialization can omit untracked files" in payload["materialization"]["issue"]
+    )
+    assert "tests/provider-emulator-untracked.txt" in payload["materialization"]["issue"]
+    assert payload["hosted_github_status_claimed"] is False
+    assert payload["hosted_gitlab_status_claimed"] is False
 
 
 def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters() -> None:

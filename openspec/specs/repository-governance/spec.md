@@ -997,7 +997,10 @@ land -> publish` semantics.
 - **WHEN** a GitHub or GitLab provider projection is emulated locally
 - **THEN** the evidence SHALL name the local emulator evidence class
 - **AND** it SHALL record the provider, template or projection path, command,
-  scope, Git head, dirty state, and return code
+  start and end Git head, dirty state, return code, and changed-scope summary
+- **AND** it SHALL record whether the Git head stayed stable for the emulator run
+- **AND** normal emulator run modes SHALL refuse untracked files by default
+  because provider materialization can omit them
 - **AND** it SHALL explicitly state that hosted provider status was not claimed.
 
 ### Requirement: Tool adoption remains profile and adapter scoped

@@ -218,6 +218,38 @@ def test_acquire_lease_skips_empty_retired_resource_rows(tmp_path: Path) -> None
     assert {item["subject"] for item in leases} == {"work/new"}
 
 
+def test_initialize_state_leaves_unknown_lease_schema_unmigrated(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                expires_at text not null default ''
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, expires_at)
+            values ('lease:unknown', 'agent-old', '2099-07-01T00:00:00+00:00')
+            """
+        )
+        connection.commit()
+
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        columns = {row[1] for row in connection.execute("pragma table_info(leases)").fetchall()}
+        rows = connection.execute("select id, owner, expires_at from leases").fetchall()
+    assert columns == {"id", "owner", "expires_at"}
+    assert rows == [("lease:unknown", "agent-old", "2099-07-01T00:00:00+00:00")]
+
+
 def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> None:
     from ethos.adapters.store.state import delete_lease
 

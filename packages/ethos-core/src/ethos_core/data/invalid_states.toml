@@ -157,6 +157,7 @@ match_prefixes = [
   "git_stash_forbidden",
   "handoff_required",
   "foreign_work_lane_",
+  "unbound_work_lane_ref_present",
   "enterprise_readiness_coordination_blocking",
   "retirement_",
   "external_not_default",

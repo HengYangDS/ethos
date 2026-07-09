@@ -760,7 +760,9 @@ when no linked Git worktree exists for the branch.
   `worktree_binding=unbound`
 - **AND** `foreign_work_lanes` does not include that branch
 - **AND** coordination reports an advisory unbound Work Lane ref signal without
-  treating the ref as a blocking closeout gap.
+  treating the ref as a blocking closeout gap
+- **AND** the advisory signal classifies into the invalid-state taxonomy instead
+  of `unclassified_invalid_state`.
 
 ### Requirement: Work Lane Coordination Read Model
 

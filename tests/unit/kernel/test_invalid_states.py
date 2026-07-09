@@ -59,6 +59,7 @@ _NON_GAP_TOKENS = {
     "missing_required_state_paths",  # docs-topology report field, not an emitted gap
     "role_root_mismatch_count",  # docs-topology report field, not an emitted gap
     "role_root_mismatches",  # docs-topology report field, not an emitted gap
+    "physical_target_homes_present",  # audit payload field, not an emitted gap
     *NODE_ORDER,  # the category ids themselves are not gaps
     "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
     "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted
@@ -66,7 +67,8 @@ _NON_GAP_TOKENS = {
 
 _GAP_RE = re.compile(
     r'"([a-z_]+(?:_gap|_missing|_stale|_mismatch|_invalid|_drift|_unbounded|'
-    r"_overreach|_required|_not_[a-z_]+|_bypass|_unarmed|_not_armed|_ambiguous)"
+    r"_overreach|_required|_present|_not_[a-z_]+|_bypass|_unarmed|_not_armed|"
+    r"_ambiguous)"
     r'[a-z_]*)"'
 )
 
@@ -166,6 +168,7 @@ def test_longest_prefix_wins_on_overlap() -> None:
 
 def test_coordination_advisories_reduce_to_change_unbounded() -> None:
     assert classify("foreign_work_lane_present") == "change_unbounded"
+    assert classify("unbound_work_lane_ref_present") == "change_unbounded"
     assert classify("work_lane_missing_lease:work/raw") == "change_unbounded"
 
 

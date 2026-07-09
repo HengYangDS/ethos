@@ -259,7 +259,8 @@ fast-forward land remains the mutation arbiter without serializing unrelated
 agents that share a directory. Across product and adopter profiles,
 `ethos report --json` mirrors status-required coordination gaps into report
 `required_gaps` and `data.gap_layers.coordination_risk.required_gaps`; advisory
-coordination signals stay advisory and never grant cleanup authority.
+coordination signals stay advisory, classify into the same invalid-state
+taxonomy, and never grant cleanup authority.
 Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is

@@ -224,18 +224,23 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
         _ = check
+        reset_attempts = fake_git_sync_failed.reset_attempts
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
+            fake_git_sync_failed.reset_attempts = reset_attempts + 1
             return cp(stdout="", stderr="sync failed", returncode=1)
         return cp(stdout="h1\n", returncode=0)
 
+    fake_git_sync_failed.reset_attempts = 0
     monkeypatch.setattr(mutation_core, "_git", fake_git_sync_failed)
     failed_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )
     assert failed_sync["required_gaps"] == ["accepted_worktree_sync_failed"]
     assert failed_sync["state"] == "blocked"
+    assert failed_sync["sync_attempts"] == 1
+    assert fake_git_sync_failed.reset_attempts == 1
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
@@ -254,6 +259,54 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
+
+
+def test_closeout_retries_transient_accepted_worktree_sync_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(
+        mutation_core,
+        "evaluate_closeout_mutation",
+        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
+    )
+    monkeypatch.setattr(
+        mutation_core,
+        "workspace_status",
+        lambda root: status_for(
+            role=ROLE_ACCEPTED_ROOT,
+            candidate={
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "/tmp/c",
+                "head": "c2",
+            },
+        ),
+    )
+    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    reset_attempts = {"count": 0}
+
+    def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
+        _ = check
+        if args[:1] == ("update-ref",):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("reset", "--hard"):
+            reset_attempts["count"] += 1
+            if reset_attempts["count"] == 1:
+                return cp(stdout="", stderr="Unable to create index.lock", returncode=1)
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("status", "--short"):
+            return cp(stdout="", returncode=0)
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_retry)
+
+    retried_sync = mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )
+
+    assert retried_sync["state"] == "accepted_validated"
+    assert retried_sync["sync_attempts"] == 2
 
 
 def test_closeout_blocks_dirty_accepted_worktree_after_sync(

@@ -335,14 +335,7 @@ def apply_candidate_to_accepted(
     # contains the previous tree. A checked hard reset is therefore the narrow Git-native
     # synchronization step: it cannot discard admitted user edits (dirty roots were
     # blocked) and it makes the promoted truth visible in the accepted checkout.
-    synced = _git(
-        root,
-        "reset",
-        "--hard",
-        candidate_head,
-        check=False,
-        env={"ETHOS_ALLOW_REF_MOVE": "1"},
-    )
+    synced, sync_attempts = _sync_accepted_worktree(root, candidate_head)
     if synced.returncode != 0:
         return {
             "ok": False,
@@ -354,6 +347,7 @@ def apply_candidate_to_accepted(
             "previous_head": current_head,
             "required_gaps": ["accepted_worktree_sync_failed"],
             "stderr": synced.stderr.strip(),
+            "sync_attempts": sync_attempts,
         }
     post_status = _git(root, "status", "--short", check=False)
     if post_status.returncode != 0 or post_status.stdout.strip():
@@ -380,6 +374,7 @@ def apply_candidate_to_accepted(
         "head": candidate_head,
         "previous_head": current_head,
         "proof_carry": proof_carry,
+        "sync_attempts": sync_attempts,
         "required_gaps": [],
     }
 
@@ -441,6 +436,34 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
 def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     completed = _git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
     return completed.returncode == 0
+
+
+def _sync_accepted_worktree(
+    root: Path, candidate_head: str
+) -> tuple[subprocess.CompletedProcess[str], int]:
+    """Synchronize the accepted checkout after the accepted ref CAS has won."""
+    first = _reset_accepted_worktree(root, candidate_head)
+    if first.returncode == 0 or not _is_transient_sync_failure(first.stderr):
+        return first, 1
+    second = _reset_accepted_worktree(root, candidate_head)
+    return second, 2
+
+
+def _reset_accepted_worktree(root: Path, candidate_head: str) -> subprocess.CompletedProcess[str]:
+    """Hard-reset the accepted checkout with accepted-ref movement allowed."""
+    return _git(
+        root,
+        "reset",
+        "--hard",
+        candidate_head,
+        check=False,
+        env={"ETHOS_ALLOW_REF_MOVE": "1"},
+    )
+
+
+def _is_transient_sync_failure(stderr: str) -> bool:
+    text = stderr.lower()
+    return "index.lock" in text or "could not lock index" in text
 
 
 def _git(

@@ -24,5 +24,6 @@ def test_pre_commit_blocks_staged_python_format_drift() -> None:
     script = Path(".githooks/pre-commit").read_text(encoding="utf-8")
 
     assert "git diff --cached --name-only --diff-filter=ACMR -- '*.py'" in script
-    assert "ruff format --check" in script
+    assert 'ruff_config_path=".config/checks/ruff/ruff.toml"' in script
+    assert 'ruff format --config "${ruff_config_path}" --check' in script
     assert "pre_commit_python_format_failed" in script

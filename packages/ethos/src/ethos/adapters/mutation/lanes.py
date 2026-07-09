@@ -8,6 +8,7 @@ import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
 import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 import ethos.adapters.mutation.lanes_refresh as lanes_refresh
+import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
@@ -350,6 +351,7 @@ def retire_landed_work_lanes(
         "workspace_status": landed_retirement.workspace_status,
         "active_leases": landed_retirement.active_leases,
         "delete_lease": landed_retirement.delete_lease,
+        "leases_by_branch": landed_retirement.leases_by_branch,
         "is_ancestor": landed_retirement.__dict__["is_ancestor"],
         "run_git": landed_retirement.lane_retirement_shared.__dict__["run_git"],
     }
@@ -358,6 +360,7 @@ def retire_landed_work_lanes(
         landed_retirement.workspace_status = workspace_status
         landed_retirement.active_leases = active_leases
         landed_retirement.delete_lease = delete_lease
+        landed_retirement.leases_by_branch = _retire_landed_leases_by_branch
         landed_retirement.__dict__["is_ancestor"] = is_ancestor
         landed_retirement.lane_retirement_shared.__dict__["run_git"] = run_git
         return landed_retirement.retire_landed_work_lanes(
@@ -371,8 +374,28 @@ def retire_landed_work_lanes(
         landed_retirement.workspace_status = previous["workspace_status"]
         landed_retirement.active_leases = previous["active_leases"]
         landed_retirement.delete_lease = previous["delete_lease"]
+        landed_retirement.leases_by_branch = previous["leases_by_branch"]
         landed_retirement.__dict__["is_ancestor"] = previous["is_ancestor"]
         landed_retirement.lane_retirement_shared.__dict__["run_git"] = previous["run_git"]
+
+
+def _retire_landed_leases_by_branch(
+    worktrees: list[dict[str, str]], *, current_path: Path
+) -> dict[str, dict[str, object]]:
+    """Keep facade monkeypatches visible while preserving JSON lease fallback."""
+    leases = status_bindings.leases_by_branch(worktrees, current_path=current_path)
+    control_root = current_path
+    for worktree in worktrees:
+        if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
+            control_root = Path(str(worktree["path"]))
+            break
+    leases.update(
+        {
+            str(lease["subject"]): lease
+            for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+        }
+    )
+    return leases
 
 
 def retire_superseded_work_lane(

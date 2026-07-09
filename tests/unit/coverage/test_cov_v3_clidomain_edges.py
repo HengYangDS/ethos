@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from typing import TYPE_CHECKING
 
 import ethos.domain.land.core as land_core
@@ -314,7 +315,7 @@ def test_hook_admit_handles_non_dict_decision(
 
 def test_cli_module_entrypoint_invokes_main() -> None:
     completed = subprocess.run(
-        ["python", "-m", "ethos.cli", "--help"],
+        [sys.executable, "-m", "ethos.cli", "--help"],
         check=False,
         capture_output=True,
         text=True,

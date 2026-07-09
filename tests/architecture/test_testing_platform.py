@@ -48,6 +48,15 @@ def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:
     assert "coverage evidence writes are serialized" in script
 
 
+def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+
+    assert "tools/ci/scripts/require-stable-head.sh capture" in script
+    assert "tools/ci/scripts/require-stable-head.sh verify" in script
+    assert "_ethos_verify_python_test_head_stability" in script
+    assert "trap cleanup_and_release EXIT" in script
+
+
 def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}

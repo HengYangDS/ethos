@@ -8,6 +8,13 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
+ethos_python_test_head="$(tools/ci/scripts/require-stable-head.sh capture)"
+_ethos_verify_python_test_head_stability() {
+  tools/ci/scripts/require-stable-head.sh verify \
+    "${ethos_python_test_head}" \
+    "tools/ci/scripts/run-python-tests.sh"
+}
+
 coverage_config_dir=".config/checks/coverage"
 coverage_policy_path="${coverage_config_dir}/policy.toml"
 pytest_config_path=".config/checks/pytest/pytest.ini"
@@ -34,6 +41,7 @@ release_coverage_lock() {
 cleanup_and_release() {
   cleanup_root_coverage_artifacts
   release_coverage_lock
+  _ethos_verify_python_test_head_stability
 }
 
 # The latest coverage XML and pytest-cov SQLite shards are one generated evidence

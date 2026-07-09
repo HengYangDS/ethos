@@ -232,7 +232,7 @@ def test_quality_claims_surfaces_advisory_summary_without_blocking(monkeypatch, 
     q.claims(root=tmp_path, json_output=True)
 
     assert emitted[0]["ok"] is True
-    assert emitted[0]["state"] == "clean"
+    assert emitted[0]["state"] == "advisory"
     assert emitted[0]["required_gaps"] == []
     assert emitted[0]["summary"] == {
         "claim_count": 1,
@@ -267,6 +267,8 @@ def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_pa
     q.claims(root=tmp_path, json_output=True)
     q.evidence_freshness(root=tmp_path, json_output=True)
 
+    assert emitted[0]["state"] == "clean"
+    assert emitted[0]["summary"] == {"claim_count": 0, "advisory_gap_count": 0}
     assert seen == {
         "claims_repo": tmp_path.as_posix(),
         "claims_head": "head-123",

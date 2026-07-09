@@ -827,7 +827,9 @@ def claims(
     result = EthosResult(
         command="quality claims",
         ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
+        state=(
+            "advisory" if report["ok"] and advisory_gaps else "clean" if report["ok"] else "blocked"
+        ),
         summary={
             "claim_count": len(claims),
             "advisory_gap_count": len(advisory_gaps),

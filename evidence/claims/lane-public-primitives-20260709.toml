@@ -7,7 +7,7 @@ summary = "Work Lane lifecycle shared helpers moved to a semantic public primiti
 
 [evidence]
 dated = "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md"
-sha256 = "5c84b7a6394dd718e95a176d7e4081ce351e26945229e6121afa0b377d79e658"
+sha256 = "80beb6a15b570c1eb18a9e22b17704a6953843d9834d240ecd507fb6fcf35de6"
 evidence_ids = ["evidence:lane-public-primitives-20260709"]
 binding = "Focused lifecycle tests, module-layout regression tests, status parser regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
 verifier = "semantic"
@@ -38,7 +38,7 @@ scope = "Work Lane lifecycle helper visibility and changed-file private from-imp
 
 [carriers]
 openspec = "openspec/specs/quality/spec.md"
-fallback = "Use public primitives from ethos.adapters.mutation.lane_lifecycle.core; do not restore private sibling imports or compatibility re-export shims."
+fallback = "Use public primitives from ethos.adapters.mutation.lane_lifecycle.core and semantic lane_retirement subpackages; do not restore private sibling imports, suffix-flat modules, or compatibility re-export shims."
 kill_signal = "A changed Work Lane lifecycle module imports a private helper from a sibling module, or module-layout permits a changed product file containing from-ellipsis-import-private."
 
 [promotion]
@@ -47,7 +47,9 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py",
-  "packages/ethos/src/ethos/adapters/mutation/lanes_retire.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
   "packages/ethos/src/ethos/repository/policy/layout/imports/core.py",
   "packages/ethos/src/ethos/repository/policy/layout/core.py",
   "openspec/specs/quality/spec.md",

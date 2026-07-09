@@ -8,9 +8,9 @@ from typing import cast
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.mutation.lanes_retire import remove_linked_lane
-from ethos.adapters.mutation.lanes_retire import retire_authority_guidance
-from ethos.adapters.mutation.lanes_retire import retire_mutation_binding
+from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
+from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
+from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease

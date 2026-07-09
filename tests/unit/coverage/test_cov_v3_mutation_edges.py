@@ -7,10 +7,10 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
 from ethos.adapters.mutation import lanes_refresh
-from ethos.adapters.mutation import lanes_retire
 from ethos.adapters.store.state import acquire_lease
 
 if TYPE_CHECKING:
@@ -174,10 +174,10 @@ def test_refresh_work_lane_base_protected_root(tmp_path: Path) -> None:
     assert "protected_root_mutation" in result["required_gaps"]
 
 
-# --- mutation/lanes_retire.py ------------------------------------------------
+# --- mutation/lane_retirement/unbound.py ------------------------------------
 
 
 def test_unbound_work_lane_ref_skips_non_matching_entries() -> None:
     # Non-dict and non-matching ref rows are skipped, looping on (branch 294->293).
     status = {"coordination": {"unbound_work_lane_refs": ["junk", {"branch": "work/other"}]}}
-    assert lanes_retire._unbound_work_lane_ref(status, "work/target") is None
+    assert unbound_retirement._unbound_work_lane_ref(status, "work/target") is None

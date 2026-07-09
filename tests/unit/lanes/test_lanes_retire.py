@@ -3,8 +3,9 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
+import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 import ethos.adapters.repo.status.core as repo_status
-from ethos.adapters.mutation import lanes_retire
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
@@ -308,9 +309,9 @@ def test_remove_linked_lane_restores_ref_when_worktree_remove_fails(
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         raise AssertionError(args)
 
-    monkeypatch.setattr(lanes_retire, "run_git", fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = lanes_retire.remove_linked_lane(repo, lane, expect_head="a" * 40)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,
@@ -350,9 +351,9 @@ def test_remove_linked_lane_reports_restore_failure_when_partial_cleanup_persist
             return subprocess.CompletedProcess(args, 1, stdout="", stderr="restore failed")
         raise AssertionError(args)
 
-    monkeypatch.setattr(lanes_retire, "run_git", fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = lanes_retire.remove_linked_lane(repo, lane, expect_head="a" * 40)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,
@@ -638,7 +639,7 @@ def test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head(
     ]
 
 
-def test_lanes_retire_repo_root_falls_back_when_git_root_unavailable(
+def test_lane_retirement_repo_root_falls_back_when_git_root_unavailable(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -656,16 +657,16 @@ def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_pa
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
-    real_git = lanes_retire.run_git
+    real_git = retirement_shared.run_git
 
     def fake_git(root: Path, *args: str, check: bool = True):
         if args[:2] == ("update-ref", "-d"):
             return subprocess.CompletedProcess(["git", *args], 1, "", "locked ref")
         return real_git(root, *args, check=check)
 
-    monkeypatch.setattr(lanes_retire, "run_git", fake_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_git)
 
-    report = lanes_retire.retire_unbound_work_lane_ref(
+    report = unbound_retirement.retire_unbound_work_lane_ref(
         root=repo,
         branch="work/stale-ref",
         expect_head=head,
@@ -709,16 +710,16 @@ def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(tmp_path: Pat
     assert "unbound_retire_not_work_lane" in wrong_role["required_gaps"]
 
 
-def test_lanes_retire_handles_malformed_status_fragments() -> None:
-    assert lanes_retire._unbound_work_lane_ref({}, "work/x") is None
+def test_lane_retirement_handles_malformed_status_fragments() -> None:
+    assert unbound_retirement._unbound_work_lane_ref({}, "work/x") is None
     assert (
-        lanes_retire._unbound_work_lane_ref(
+        unbound_retirement._unbound_work_lane_ref(
             {"coordination": {"unbound_work_lane_refs": {}}}, "work/x"
         )
         is None
     )
-    assert lanes_retire._branch_binding({}, "work/x") is None
-    assert lanes_retire._branch_binding({"branch_bindings": {}}, "work/x") is None
+    assert unbound_retirement._branch_binding({}, "work/x") is None
+    assert unbound_retirement._branch_binding({"branch_bindings": {}}, "work/x") is None
 
 
 def test_dirty_provenance_lives_in_semantic_subpackage(tmp_path: Path) -> None:

@@ -20,4 +20,4 @@ kind = "test"
 ref = "tests/unit/lanes/test_lanes_retire.py::test_retire_landed_work_lane_requires_matching_owner_for_leased_lane"
 
 [[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/mutation/lanes_retire.py"
+path = "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py"

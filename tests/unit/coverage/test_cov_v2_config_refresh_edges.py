@@ -6,9 +6,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
 from ethos.adapters import config
 from ethos.adapters.mutation import lanes_refresh
-from ethos.adapters.mutation import lanes_retire
 
 # --- adapters/config.py ------------------------------------------------------
 
@@ -100,10 +100,10 @@ def test_candidate_report_includes_stderr_when_present() -> None:
     assert report["stderr"] == "boom"
 
 
-# --- adapters/mutation/lanes_retire.py ---------------------------------------
+# --- adapters/mutation/lane_retirement/landed/core.py ------------------------
 
 
 def test_has_changed_paths_true_outside_repo(tmp_path: Path) -> None:
     # `git status` fails outside a repo, so the helper conservatively returns True
     # (lines 278-279).
-    assert lanes_retire.has_changed_paths(tmp_path) is True
+    assert landed_retirement.has_changed_paths(tmp_path) is True

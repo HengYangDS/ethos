@@ -3,9 +3,9 @@ flat_directory_limit = 8
 suffix_flat_group_min = 3
 flat_growth_existing_module_limit = 5
 flat_growth_added_module_limit = 2
-baseline_gap_limit = 10
+baseline_gap_limit = 9
 enforce_baseline_kind_limits = true
-baseline_suffix_module_limit = 9
+baseline_suffix_module_limit = 8
 baseline_suffix_flat_limit = 0
 baseline_flat_directory_limit = 1
 baseline_private_alias_limit = 0
@@ -16,7 +16,6 @@ allowed_suffix_modules = [
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/contracts/branch_roles.py:branch_roles",
   "module_layout_suffix_module:packages/ethos-core/src/ethos_core/invalid_states.py:invalid_states",
   "module_layout_suffix_module:packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py:lanes_refresh",
-  "module_layout_suffix_module:packages/ethos/src/ethos/adapters/mutation/lanes_retire.py:lanes_retire",
   "module_layout_suffix_module:packages/ethos/src/ethos/domain/land_support.py:land_support",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/adoption/scaffold_openspec.py:scaffold_openspec",
   "module_layout_suffix_module:packages/ethos/src/ethos/repository/audit_design.py:audit_design",

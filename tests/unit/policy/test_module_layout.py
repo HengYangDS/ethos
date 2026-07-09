@@ -869,3 +869,19 @@ def test_lane_lifecycle_modules_do_not_import_sibling_private_helpers() -> None:
     offenders = [path for path in targets if forbidden in Path(path).read_text(encoding="utf-8")]
 
     assert offenders == []
+
+
+def test_lane_retirement_uses_semantic_subpackage_not_suffix_flat_module() -> None:
+    old_module = Path("packages/ethos/src/ethos/adapters/mutation/lanes_retire.py")
+    lanes_source = Path("packages/ethos/src/ethos/adapters/mutation/lanes.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert not old_module.exists()
+    assert "lanes_retire" not in lanes_source
+    assert Path(
+        "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py"
+    ).exists()
+    assert Path(
+        "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py"
+    ).exists()

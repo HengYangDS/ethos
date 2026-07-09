@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
-    "target_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
-    "product_semantic_sha256": "05f7739ccf60b1b130bd220b8a64e2d27e20f8157b4427138892fc2ee661f75b",
-    "target_semantic_sha256": "05f7739ccf60b1b130bd220b8a64e2d27e20f8157b4427138892fc2ee661f75b",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
+    "target_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
+    "product_semantic_sha256": "7cb38105d17a3ee4e39ff3fd5ad510c2cb4c570d9798267aa25cc57ee7b22804",
+    "target_semantic_sha256": "7cb38105d17a3ee4e39ff3fd5ad510c2cb4c570d9798267aa25cc57ee7b22804",
+    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709",
-    "target_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
-    "product_head": "f92421964282ddc9a1cc0f58336db6fc01c3a3f5",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709",
+    "target_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
+    "product_head": "530e24b73dba1daf1bfaa7c3c4dde8a29e177487",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/retire-landed-result-idempotence-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/ci-head-stability-guard-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "460664282e012482b38a98ebc236c2f108ff90a19a1542b8a45c1a203110de1c"
+        "sha256": "3a9f75de99eb5bacb819253e092025ac0b82eb6423d55bdef6a14c52fc8377f4"
       },
       {
         "path": "evidence/claims",
@@ -96,7 +96,7 @@
       {
         "path": "rules",
         "kind": "directory",
-        "sha256": "00859f1e314d9579d37644cbd8402ff582204aad97e77df6c4176887b89391b5"
+        "sha256": "d48b711dc0969859aa98bd5edb8d873ae281d4ad5e15fee27272c28627fc6755"
       }
     ]
   },

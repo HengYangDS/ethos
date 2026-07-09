@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
-    "target_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
-    "product_semantic_sha256": "c45b9f2557547f96bcdb05c0d4ded6f77c880c4f259d38f23fa6b4ab933623ce",
-    "target_semantic_sha256": "c45b9f2557547f96bcdb05c0d4ded6f77c880c4f259d38f23fa6b4ab933623ce",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
+    "target_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
+    "product_semantic_sha256": "899379fe0737240105b66514f33572271c684e0c222582952996246990a596ed",
+    "target_semantic_sha256": "899379fe0737240105b66514f33572271c684e0c222582952996246990a596ed",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709",
-    "target_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
-    "product_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709",
+    "target_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
+    "product_head": "efbb5e3661072263a27eaf13767fa5538749a0ca",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/absorb-legacy-sqlite-lease-delete-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "017cb0e39ae4b2c8fb4acc2edb810923b0f9d801bb6d2f41e460b06f2e4ce6e5"
+        "sha256": "5cbe834db4f7ad6baba47498f9c74f80475529c49dfe8eddb4b270ae10ef5357"
       },
       {
         "path": "evidence/claims",

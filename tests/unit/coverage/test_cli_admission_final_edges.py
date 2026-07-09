@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, TC002, TC003, PT018
+# ruff: noqa: ARG005, TC002, PT018
 # Monkeypatch-heavy coverage edge tests intentionally preserve callable signatures
 # matching patched runtime functions; unused parameters document those contracts.
 
@@ -580,6 +580,12 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         )
         is None
     )
+    assert (
+        _gate_runner.run_inprocess_cli_gate(
+            ActionNode(id="no-json", kind="command", command=("ethos", "status")), tmp_path
+        )
+        is None
+    )
     monkeypatch.setattr(_gate_runner, "load_command_groups", lambda argv: None)
     monkeypatch.setattr(
         _gate_runner,
@@ -590,6 +596,38 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         ActionNode(id="x", kind="command", command=("ethos", "status", "--json")), tmp_path
     )
     assert result is not None and result.exit_code == 1
+    module_result = _gate_runner.run_inprocess_cli_gate(
+        ActionNode(
+            id="module",
+            kind="command",
+            command=("python", "-m", "ethos.cli", "status", "--json"),
+        ),
+        tmp_path,
+    )
+    assert module_result is not None and module_result.exit_code == 1
+
+    missing_cwd = tmp_path / "missing-cwd"
+    missing_cwd.mkdir()
+    monkeypatch.chdir(missing_cwd)
+    missing_cwd.rmdir()
+    missing_result = _gate_runner.run_inprocess_cli_gate(
+        ActionNode(id="missing-cwd", kind="command", command=("ethos", "status", "--json")),
+        tmp_path,
+    )
+    assert missing_result is not None
+    assert missing_result.exit_code == 1
+    assert "FileNotFoundError" in missing_result.stderr
+
+    assert _gate_runner._current_cwd() == tmp_path
+    missing_root = tmp_path / "missing-root"
+    missing_root.mkdir()
+    missing_previous = tmp_path / "missing-previous"
+    missing_previous.mkdir()
+    missing_root.rmdir()
+    missing_previous.rmdir()
+    _gate_runner._restore_cwd(missing_previous, missing_root)
+    assert Path.cwd() == Path("/")
+    monkeypatch.chdir(tmp_path)
 
     monkeypatch.setattr(docs_commands, "known_commands", lambda: {"ethos custom"})
     assert docs_commands.known_ethos_command("ethos custom") is True

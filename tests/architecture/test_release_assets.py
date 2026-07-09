@@ -85,8 +85,6 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
-    assert "[tool.pytest" not in pyproject
-    assert "[tool.ruff" not in pyproject
     assert not (ROOT / "ruff.toml").exists()
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
@@ -128,6 +126,17 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert 'config = ".config/checks/docstrings/policy.toml"' in tools
     assert 'tool = "ethos-docstrings-google"' in tools
     assert 'concern = "python_docstrings"' in tools
+
+
+def test_pyproject_only_routes_direct_tool_caches() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert "[tool.pytest.ini_options]" in pyproject
+    assert 'cache_dir = "build/runtime/tool-cache/pytest"' in pyproject
+    assert "[tool.ruff]" in pyproject
+    assert 'cache-dir = "build/runtime/tool-cache/ruff"' in pyproject
+    assert "select =" not in pyproject
+    assert "strict-config" not in pyproject
 
 
 def test_ci_lychee_installer_is_architecture_aware() -> None:

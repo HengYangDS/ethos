@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -134,6 +135,84 @@ def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None
     assert lanes["work/landed"]["required_gaps"] == []
     assert lanes["work/active"]["retire_ready"] is False
     assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
+
+
+def test_retire_landed_work_lane_reads_json_projection_lease(monkeypatch, tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/landed",
+                        "owner": "agent-json",
+                        "expires_at": "2999-01-01T00:00:00Z",
+                        "worktree_path": landed.as_posix(),
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
+    report = retire_landed_work_lanes(root=repo, branch="work/landed")
+
+    assert report["ok"] is True
+    assert report["state"] == "planned"
+    assert report["required_gaps"] == []
+    selected = next(lane for lane in report["lanes"] if lane["branch"] == "work/landed")
+    assert selected["lease_owner"] == "agent-json"
+    assert selected["lease_state"] == "leased"
+
+
+def test_retire_landed_work_lane_apply_removes_json_projection_lease(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    landed = tmp_path / "repo-work-landed"
+    git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
+    head = git(repo, "rev-parse", "work/landed")
+    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    lease_path.parent.mkdir(parents=True)
+    lease_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "leases": [
+                    {
+                        "branch": "work/landed",
+                        "owner": "agent-json",
+                        "expires_at": "2999-01-01T00:00:00Z",
+                        "worktree_path": landed.as_posix(),
+                    },
+                    {
+                        "branch": "work/other",
+                        "owner": "agent-other",
+                        "expires_at": "2999-01-01T00:00:00Z",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
+    report = retire_landed_work_lanes(root=repo, branch="work/landed", expect_head=head, apply=True)
+
+    assert report["ok"] is True
+    assert report["state"] == "retired"
+    assert not landed.exists()
+    assert git(repo, "branch", "--list", "work/landed") == ""
+    leases = json.loads(lease_path.read_text(encoding="utf-8"))["leases"]
+    assert [lease["branch"] for lease in leases] == ["work/other"]
 
 
 def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_path: Path) -> None:

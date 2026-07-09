@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -53,6 +54,38 @@ def remove_linked_lane(
         "stderr": remove.stderr.strip(),
         "rollback_stderr": restore.stderr.strip(),
     }
+
+
+def delete_json_projection_lease(repo: Path, *, subject: str) -> int:
+    """Remove a Work Lane lease from the JSON local-state projection."""
+    path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
+    if not path.exists():
+        return 0
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+    rows = payload.get("leases")
+    if not isinstance(rows, list):
+        return 0
+    kept: list[object] = []
+    removed = 0
+    for row in rows:
+        branch = ""
+        if isinstance(row, dict):
+            branch = str(row.get("branch") or row.get("subject") or "")
+        if branch == subject:
+            removed += 1
+        else:
+            kept.append(row)
+    if not removed:
+        return 0
+    payload = dict(payload)
+    payload["leases"] = kept
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return removed
 
 
 def retire_authority_guidance(gaps: list[str]) -> dict[str, str]:

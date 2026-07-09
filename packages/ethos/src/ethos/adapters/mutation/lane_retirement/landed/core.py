@@ -7,6 +7,7 @@ from typing import cast
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
@@ -23,10 +24,11 @@ def retire_landed_work_lanes(
     """Retire clean linked Work Lanes already merged into accepted truth."""
     repo = repo_root(root)
     status = workspace_status(repo)
-    leases = _active_lane_leases(repo)
+    worktrees = cast("list[dict[str, object]]", status["worktrees"])
+    leases = leases_by_branch(cast("list[dict[str, str]]", worktrees), current_path=repo)
     lanes = [
         _retirement_lane(repo, lane, leases=leases)
-        for lane in cast("list[dict[str, object]]", status["worktrees"])
+        for lane in worktrees
         if lane["role"] == ROLE_WORK_LANE
     ]
     selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
@@ -86,6 +88,7 @@ def retire_landed_work_lanes(
     # Release the lane's lease so it cannot outlive the lane: a recreated
     # same-named branch must re-acquire, not inherit a stale lease.
     delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
+    lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
     return {
         "ok": True,
         "state": "retired",

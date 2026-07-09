@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
+import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import delete_lease
@@ -46,7 +48,10 @@ def retire_superseded_work_lane(
         _superseded_retirement_lane(
             repo,
             selected,
-            leases=_active_lane_leases(repo),
+            leases=leases_by_branch(
+                cast("list[dict[str, str]]", status["worktrees"]),
+                current_path=repo,
+            ),
         )
         if selected
         else {}
@@ -99,6 +104,7 @@ def retire_superseded_work_lane(
         report.update(removed)
         return report
     delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
+    lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
     report["state"] = "retired_superseded"
     report["retired"] = lane
     report["retire_ready"] = True

@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
@@ -13,20 +20,38 @@ from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
+@dataclass(frozen=True)
+class LandedRetirementRuntime:
+    """Explicit dependencies used to retire landed Work Lanes."""
+
+    repo_root: Callable[[Path], Path] = repo_root
+    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
+    leases_by_branch: Callable[..., dict[str, dict[str, object]]] = leases_by_branch
+    is_ancestor: Callable[[Path, str, str], bool] = is_ancestor
+    delete_lease: Callable[..., int] = delete_lease
+    shared: lane_retirement_shared.RetirementRuntime = field(
+        default_factory=lane_retirement_shared.RetirementRuntime
+    )
+
+
 def retire_landed_work_lanes(
     *,
     root: Path,
     branch: str | None = None,
     expect_head: str | None = None,
     apply: bool = False,
+    runtime: LandedRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Retire clean linked Work Lanes already merged into accepted truth."""
-    repo = repo_root(root)
-    status = workspace_status(repo)
+    active_runtime = runtime or LandedRetirementRuntime()
+    repo = active_runtime.repo_root(root)
+    status = active_runtime.workspace_status(repo)
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
-    leases = leases_by_branch(cast("list[dict[str, str]]", worktrees), current_path=repo)
+    leases = active_runtime.leases_by_branch(
+        cast("list[dict[str, str]]", worktrees), current_path=repo
+    )
     lanes = [
-        _retirement_lane(repo, lane, leases=leases)
+        _retirement_lane(repo, lane, leases=leases, runtime=active_runtime)
         for lane in worktrees
         if lane["role"] == ROLE_WORK_LANE
     ]
@@ -71,7 +96,9 @@ def retire_landed_work_lanes(
             "required_gaps": [],
         }
     lane = selected[0]
-    removed = lane_retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
+    removed = lane_retirement_shared.remove_linked_lane(
+        repo, lane, expect_head=expect_head, runtime=active_runtime.shared
+    )
     if removed:
         return {
             "branch": branch or "",
@@ -84,9 +111,9 @@ def retire_landed_work_lanes(
             ),
             **removed,
         }
-    # Release the lane's lease so it cannot outlive the lane: a recreated
-    # same-named branch must re-acquire, not inherit a stale lease.
-    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
+    active_runtime.delete_lease(
+        repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"])
+    )
     lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
     return {
         "ok": True,
@@ -104,9 +131,10 @@ def retire_landed_work_lanes(
     }
 
 
-def has_changed_paths(root: Path) -> bool:
+def has_changed_paths(root: Path, *, runtime: LandedRetirementRuntime | None = None) -> bool:
     """Return whether a Work Lane path has tracked or untracked local changes."""
-    completed = lane_retirement_shared.run_git(
+    active_runtime = runtime or LandedRetirementRuntime()
+    completed = active_runtime.shared.run_git(
         root,
         "status",
         "--porcelain",
@@ -155,16 +183,21 @@ def _current_actor() -> str:
 
 
 def _retirement_lane(
-    repo: Path, lane: dict[str, object], *, leases: dict[str, dict[str, object]] | None = None
+    repo: Path,
+    lane: dict[str, object],
+    *,
+    leases: dict[str, dict[str, object]] | None = None,
+    runtime: LandedRetirementRuntime | None = None,
 ) -> dict[str, object]:
+    active_runtime = runtime or LandedRetirementRuntime()
     gaps: list[str] = []
     branch = str(lane["branch"])
     path = Path(str(lane["path"]))
     lease = (leases or {}).get(branch, {})
     lease_owner = str(lease.get("owner") or "")
-    if not is_ancestor(repo, branch, "HEAD"):
+    if not active_runtime.is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_not_merged")
-    if has_changed_paths(path):
+    if has_changed_paths(path, runtime=active_runtime):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,

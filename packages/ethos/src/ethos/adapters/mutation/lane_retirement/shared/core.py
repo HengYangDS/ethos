@@ -1,13 +1,30 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import Protocol
+
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+class GitRunner(Protocol):
+    def __call__(self, root: Path, *args: str, check: bool = True) -> Any: ...
+
+
+def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
+    return run_git(root, *args, check=check)
+
+
+@dataclass(frozen=True)
+class RetirementRuntime:
+    """Explicit adapter binding for Work Lane retirement operations."""
+
+    run_git: GitRunner = _run_git_adapter
 
 
 def remove_linked_lane(
@@ -15,10 +32,12 @@ def remove_linked_lane(
     lane: dict[str, object],
     *,
     expect_head: str | None,
+    runtime: RetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Delete a lane ref head-bound, then remove its previously clean worktree."""
+    active_runtime = runtime or RetirementRuntime()
     ref = f"refs/heads/{lane['branch']}"
-    delete = run_git(
+    delete = active_runtime.run_git(
         repo,
         "update-ref",
         "-d",
@@ -33,10 +52,17 @@ def remove_linked_lane(
             "required_gaps": ["branch_delete_failed"],
             "stderr": delete.stderr.strip(),
         }
-    remove = run_git(repo, "worktree", "remove", "--force", str(lane["path"]), check=False)
+    remove = active_runtime.run_git(
+        repo,
+        "worktree",
+        "remove",
+        "--force",
+        str(lane["path"]),
+        check=False,
+    )
     if remove.returncode == 0:
         return {}
-    restore = run_git(
+    restore = active_runtime.run_git(
         repo,
         "update-ref",
         ref,

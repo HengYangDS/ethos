@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import cast
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Callable
 
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
@@ -13,6 +15,21 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+@dataclass(frozen=True)
+class UnboundRetirementRuntime:
+    """Explicit dependencies used to retire unbound Work Lane refs."""
+
+    repo_root: Callable[[Path], Path] = repo_root
+    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
+    delete_lease: Callable[..., int] = delete_lease
+    shared: lane_retirement_shared.RetirementRuntime = field(
+        default_factory=lane_retirement_shared.RetirementRuntime
+    )
 
 
 def retire_unbound_work_lane_ref(
@@ -23,10 +40,12 @@ def retire_unbound_work_lane_ref(
     reason: str = "",
     apply: bool = False,
     authorized: bool = False,
+    runtime: UnboundRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Retire a work-lane ref that is not linked to a local worktree."""
-    repo = repo_root(root)
-    status = workspace_status(repo)
+    active_runtime = runtime or UnboundRetirementRuntime()
+    repo = active_runtime.repo_root(root)
+    status = active_runtime.workspace_status(repo)
     branch = branch.strip()
     reason = reason.strip()
     current = _unbound_work_lane_ref(status, branch)
@@ -42,6 +61,7 @@ def retire_unbound_work_lane_ref(
             "expect_head": expect_head,
             "apply": apply,
             "authorized": authorized,
+            "runtime": active_runtime,
         }
     )
     report = {
@@ -65,7 +85,7 @@ def retire_unbound_work_lane_ref(
         return report
     if not apply:
         return report
-    deleted = lane_retirement_shared.run_git(
+    deleted = active_runtime.shared.run_git(
         repo,
         "update-ref",
         "-d",
@@ -79,7 +99,7 @@ def retire_unbound_work_lane_ref(
         report["required_gaps"] = ["unbound_ref_delete_failed"]
         report["stderr"] = deleted.stderr.strip()
         return report
-    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=branch)
+    active_runtime.delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=branch)
     report["state"] = "retired_unbound"
     report["retired_ref"] = f"refs/heads/{branch}"
     return report
@@ -94,11 +114,12 @@ def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
     expect_head = cast("str | None", context["expect_head"])
     apply = bool(context["apply"])
     authorized = bool(context["authorized"])
+    runtime = cast("UnboundRetirementRuntime", context["runtime"])
     policy = load_branch_role_policy(repo)
     gaps: list[str] = []
     if not branch:
         gaps.append("unbound_retire_branch_required")
-    elif not _branch_exists(repo, branch):
+    elif not _branch_exists(repo, branch, runtime=runtime):
         gaps.append("unbound_retire_branch_not_found")
     elif policy.role_for_branch(branch) != ROLE_WORK_LANE:
         gaps.append("unbound_retire_not_work_lane")
@@ -115,8 +136,14 @@ def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
     return gaps
 
 
-def _branch_exists(root: Path, branch: str) -> bool:
-    completed = lane_retirement_shared.run_git(root, "rev-parse", "--verify", branch, check=False)
+def _branch_exists(
+    root: Path,
+    branch: str,
+    *,
+    runtime: UnboundRetirementRuntime | None = None,
+) -> bool:
+    active_runtime = runtime or UnboundRetirementRuntime()
+    completed = active_runtime.shared.run_git(root, "rev-parse", "--verify", branch, check=False)
     return completed.returncode == 0
 
 

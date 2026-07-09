@@ -212,7 +212,7 @@ def bootstrap_candidate(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    """Bootstrap candidate role while preserving this module's patchable adapters."""
+    """Bootstrap candidate role through the lane refresh command contract."""
     return _call_refresh(
         "bootstrap_candidate",
         root=root,
@@ -229,7 +229,7 @@ def refresh_candidate_from_accepted(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    """Refresh candidate from accepted while preserving patchable adapters."""
+    """Refresh candidate from accepted through the lane refresh command contract."""
     return _call_refresh(
         "refresh_candidate_from_accepted",
         root=root,
@@ -246,7 +246,7 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    """Refresh a work lane base while preserving patchable adapters."""
+    """Refresh a Work Lane base through the lane refresh command contract."""
     return _call_refresh(
         "refresh_work_lane_base",
         root=root,
@@ -338,48 +338,10 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
     }
 
 
-def retire_landed_work_lanes(
-    *,
-    root: Path,
-    branch: str | None = None,
-    expect_head: str | None = None,
-    apply: bool = False,
-) -> dict[str, object]:
-    """Retire landed lanes while preserving this module's patchable adapters."""
-    previous = {
-        "repo_root": landed_retirement.__dict__["repo_root"],
-        "workspace_status": landed_retirement.workspace_status,
-        "delete_lease": landed_retirement.delete_lease,
-        "leases_by_branch": landed_retirement.leases_by_branch,
-        "is_ancestor": landed_retirement.__dict__["is_ancestor"],
-        "run_git": landed_retirement.lane_retirement_shared.__dict__["run_git"],
-    }
-    try:
-        landed_retirement.__dict__["repo_root"] = repo_root
-        landed_retirement.workspace_status = workspace_status
-        landed_retirement.delete_lease = delete_lease
-        landed_retirement.leases_by_branch = _retire_landed_leases_by_branch
-        landed_retirement.__dict__["is_ancestor"] = is_ancestor
-        landed_retirement.lane_retirement_shared.__dict__["run_git"] = run_git
-        return landed_retirement.retire_landed_work_lanes(
-            root=root,
-            branch=branch,
-            expect_head=expect_head,
-            apply=apply,
-        )
-    finally:
-        landed_retirement.__dict__["repo_root"] = previous["repo_root"]
-        landed_retirement.workspace_status = previous["workspace_status"]
-        landed_retirement.delete_lease = previous["delete_lease"]
-        landed_retirement.leases_by_branch = previous["leases_by_branch"]
-        landed_retirement.__dict__["is_ancestor"] = previous["is_ancestor"]
-        landed_retirement.lane_retirement_shared.__dict__["run_git"] = previous["run_git"]
 
-
-def _retire_landed_leases_by_branch(
+def _retirement_leases_by_branch(
     worktrees: list[dict[str, str]], *, current_path: Path
 ) -> dict[str, dict[str, object]]:
-    """Keep facade monkeypatches visible while preserving JSON lease fallback."""
     leases = status_bindings.leases_by_branch(worktrees, current_path=current_path)
     control_root = current_path
     for worktree in worktrees:
@@ -394,33 +356,70 @@ def _retire_landed_leases_by_branch(
     )
     return leases
 
+def _retirement_shared_runtime() -> lane_retirement_core.lane_retirement_shared.RetirementRuntime:
+    return lane_retirement_core.lane_retirement_shared.RetirementRuntime(run_git=run_git)
+
+
+def _landed_retirement_runtime() -> landed_retirement.LandedRetirementRuntime:
+    return landed_retirement.LandedRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        leases_by_branch=_retirement_leases_by_branch,
+        is_ancestor=is_ancestor,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
+def _superseded_retirement_runtime() -> lane_retirement_core.SupersededRetirementRuntime:
+    return lane_retirement_core.SupersededRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        leases_by_branch=_retirement_leases_by_branch,
+        is_ancestor=is_ancestor,
+        run_git=run_git,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
+def _unbound_retirement_runtime() -> unbound_retirement.UnboundRetirementRuntime:
+    return unbound_retirement.UnboundRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
+def retire_landed_work_lanes(
+    *,
+    root: Path,
+    branch: str | None = None,
+    expect_head: str | None = None,
+    apply: bool = False,
+) -> dict[str, object]:
+    """Retire landed Work Lanes through explicit runtime bindings."""
+    return landed_retirement.retire_landed_work_lanes(
+        root=root,
+        branch=branch,
+        expect_head=expect_head,
+        apply=apply,
+        runtime=_landed_retirement_runtime(),
+    )
+
 
 def retire_superseded_work_lane(
     *,
     root: Path,
     request: SupersededLaneRetirementRequest,
 ) -> dict[str, object]:
-    """Retire a superseded linked lane while preserving patchable adapters."""
-    previous = {
-        "repo_root": lane_retirement_core.__dict__["repo_root"],
-        "workspace_status": lane_retirement_core.workspace_status,
-        "delete_lease": lane_retirement_core.delete_lease,
-        "is_ancestor": lane_retirement_core.__dict__["is_ancestor"],
-        "run_git": lane_retirement_core.__dict__["run_git"],
-    }
-    try:
-        lane_retirement_core.__dict__["repo_root"] = repo_root
-        lane_retirement_core.workspace_status = workspace_status
-        lane_retirement_core.delete_lease = delete_lease
-        lane_retirement_core.__dict__["is_ancestor"] = is_ancestor
-        lane_retirement_core.__dict__["run_git"] = run_git
-        return lane_retirement_core.retire_superseded_work_lane(root=root, request=request)
-    finally:
-        lane_retirement_core.__dict__["repo_root"] = previous["repo_root"]
-        lane_retirement_core.workspace_status = previous["workspace_status"]
-        lane_retirement_core.delete_lease = previous["delete_lease"]
-        lane_retirement_core.__dict__["is_ancestor"] = previous["is_ancestor"]
-        lane_retirement_core.__dict__["run_git"] = previous["run_git"]
+    """Retire a superseded linked Work Lane through explicit runtime bindings."""
+    return lane_retirement_core.retire_superseded_work_lane(
+        root=root,
+        request=request,
+        runtime=_superseded_retirement_runtime(),
+    )
 
 
 def retire_unbound_work_lane_ref(
@@ -432,25 +431,13 @@ def retire_unbound_work_lane_ref(
     apply: bool = False,
     authorized: bool = False,
 ) -> dict[str, object]:
-    """Retire an unbound lane ref while preserving this module's patchable adapters."""
-    previous = {
-        "workspace_status": unbound_retirement.workspace_status,
-        "delete_lease": unbound_retirement.delete_lease,
-        "run_git": unbound_retirement.lane_retirement_shared.__dict__["run_git"],
-    }
-    try:
-        unbound_retirement.workspace_status = workspace_status
-        unbound_retirement.delete_lease = delete_lease
-        unbound_retirement.lane_retirement_shared.__dict__["run_git"] = run_git
-        return unbound_retirement.retire_unbound_work_lane_ref(
-            root=root,
-            branch=branch,
-            expect_head=expect_head,
-            reason=reason,
-            apply=apply,
-            authorized=authorized,
-        )
-    finally:
-        unbound_retirement.workspace_status = previous["workspace_status"]
-        unbound_retirement.delete_lease = previous["delete_lease"]
-        unbound_retirement.lane_retirement_shared.__dict__["run_git"] = previous["run_git"]
+    """Retire an unbound Work Lane ref through explicit runtime bindings."""
+    return unbound_retirement.retire_unbound_work_lane_ref(
+        root=root,
+        branch=branch,
+        expect_head=expect_head,
+        reason=reason,
+        apply=apply,
+        authorized=authorized,
+        runtime=_unbound_retirement_runtime(),
+    )

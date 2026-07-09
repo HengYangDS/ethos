@@ -16,6 +16,7 @@ import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
 import ethos.repository.openspec.metadata as openspec_metadata
+import ethos.surface.cli.hook.core as hook_cli
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.registry.docs.commands import best_ethos_command_key
 from ethos.repository.registry.docs.commands import command_examples_report
@@ -34,7 +35,6 @@ from ethos.repository.registry.docs.links import slugify_heading
 from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.surface.cli import _base
 from ethos.surface.cli import _gate_runner
-from ethos.surface.cli import hook as hook_cli
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.result import EthosResult
 
@@ -390,13 +390,13 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     monkeypatch.setattr("importlib.import_module", lambda name: imported.append(name))
     _base.load_command_groups(["quality", "docs"])
     assert imported == [
-        "ethos.surface.cli.quality",
+        "ethos.surface.cli.quality.core",
         "ethos.surface.cli.boundary.product",
         "ethos.surface.cli.boundary.readiness",
     ]
     imported.clear()
     _base.load_command_groups([])
-    assert "ethos.surface.cli.hook" in imported
+    assert "ethos.surface.cli.hook.core" in imported
     imported.clear()
     _base.load_command_groups(["status"])
     assert imported == []

@@ -15,8 +15,8 @@ from ethos.domain.land.trust.core import trust_closeout_package
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.evidence.parity.core import parity_gaps_report
+from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.repository.release.core import release_policy_report
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 

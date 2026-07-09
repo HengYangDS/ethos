@@ -862,7 +862,7 @@ def test_module_layout_blocks_dynamic_export_without_lazy_import(tmp_path: Path)
 def test_lane_lifecycle_modules_do_not_import_sibling_private_helpers() -> None:
     targets = (
         "packages/ethos/src/ethos/adapters/mutation/lanes.py",
-        "packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py",
+        "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
     )
     forbidden = "from ethos.adapters.mutation.lanes_retire import _"
 

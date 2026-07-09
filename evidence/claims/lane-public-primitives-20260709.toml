@@ -46,7 +46,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/__init__.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
-  "packages/ethos/src/ethos/adapters/mutation/lanes_refresh.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",

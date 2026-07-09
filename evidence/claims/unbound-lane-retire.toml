@@ -11,7 +11,7 @@ evidence_ids = ["evidence:unbound-lane-retire"]
 binding = "semantic unbound Work Lane ref retirement evidence binding"
 verifier = "semantic"
 tests = [
-  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lanes.py packages/ethos/src/ethos/surface/cli/lane.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lanes.py packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py",
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_blocks_head_mismatch tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_blocks_linked_worktree tests/unit/lanes/test_lanes.py::test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head tests/unit/cli/test_contracts.py::test_lane_retire_unbound_apply_removes_matching_ref tests/unit/cli/test_contracts.py::test_lane_retire_unbound_apply_requires_authorization -q",
 ]
 
@@ -44,7 +44,7 @@ targets = [
   "evidence/chronicle/unbound-lane-retire/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-unbound-lane-retire",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
-  "packages/ethos/src/ethos/surface/cli/lane.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "packages/ethos/src/ethos/repository/registry/docs",
   "packages/ethos/src/ethos/repository/policy/coupling",
   "tests/unit/lanes/test_lanes.py",

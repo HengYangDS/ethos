@@ -5,7 +5,7 @@ from typing import cast
 
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.domain.prove import code_size_report
-from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.coverage import coverage_quality_report

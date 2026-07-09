@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
 import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
-import ethos.adapters.mutation.lanes_refresh as lanes_refresh
 import ethos.adapters.repo.status.bindings as status_bindings
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor

@@ -4,7 +4,7 @@ Each test drives one uncovered gap-emitting branch in the evidence cluster:
 - ethos.repository.evidence.claims: change-claim evidence-ref validation
   (111, 116-117, 121-122, 126, 130, 132, 145) and normal-claim digest/date
   gates (250-251, 294-295, 299-300).
-- ethos.repository.evidence.parity_validation: the None-target command-identity
+- ethos.repository.evidence.parity.validation: the None-target command-identity
   branch 328->330.
 All lines are reached through the real public/underscore-prefixed functions.
 """
@@ -15,7 +15,7 @@ import hashlib
 from typing import TYPE_CHECKING
 
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.parity_validation import command_matches_identity
+from ethos.repository.evidence.parity.validation import command_matches_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -174,7 +174,7 @@ def test_normal_claim_dated_file_without_sha256_is_gap(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.repository.evidence.parity_validation :: command_matches_identity
+# ethos.repository.evidence.parity.core.validation :: command_matches_identity
 # --------------------------------------------------------------------------- #
 
 

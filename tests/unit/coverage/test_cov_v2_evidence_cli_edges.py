@@ -2,8 +2,8 @@
 """Coverage-closure edge tests for the evidence/parity + surface CLI + playbooks cluster.
 
 Second coverage pass (v2): each test drives one specific uncovered line in
-- ethos.repository.evidence.parity (210, 233-244, 412)
-- ethos.surface.cli.parity (117, 119)
+- ethos.repository.evidence.parity.core (210, 233-244, 412)
+- ethos.surface.cli.parity.core (117, 119)
 - ethos.surface.cli.assistants (200-211)
 - ethos.assistants.playbooks (85, 142, 190, 332, 334, 342, 384, 432, 478, 486)
 """
@@ -15,15 +15,15 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.shadow.core as shadow_core
+import ethos.repository.evidence.parity.core as parity
+import ethos.surface.cli.parity.core as parity_cli
 from ethos.assistants import playbooks
 from ethos.assistants.skills import portfolio
-from ethos.repository.evidence import parity
 from ethos.repository.evidence.shadow.payload import identity_evidence_inputs
 from ethos.surface.cli import assistants as assistants_cli
-from ethos.surface.cli import parity as parity_cli
 
 # --------------------------------------------------------------------------- #
-# ethos.repository.evidence.parity
+# ethos.repository.evidence.parity.core
 # --------------------------------------------------------------------------- #
 
 
@@ -106,7 +106,7 @@ def test_shadow_parity_report_flags_target_mismatch(tmp_path: Path) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.surface.cli.parity
+# ethos.surface.cli.parity.core
 # --------------------------------------------------------------------------- #
 
 

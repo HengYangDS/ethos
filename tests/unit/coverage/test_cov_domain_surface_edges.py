@@ -9,12 +9,12 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.domain.land.core as land_core
+import ethos.surface.cli.quality.core as quality
 
 # ruff: noqa: ARG005, TC002
 from ethos.assistants import projections
 from ethos.domain.orient import _current_head
 from ethos.domain.orient import _next_actions
-from ethos.surface.cli import quality
 from ethos_core.result import EthosResult
 
 

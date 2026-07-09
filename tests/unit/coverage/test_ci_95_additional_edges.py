@@ -15,13 +15,13 @@ import pytest
 
 import ethos.adapters.shadow.execution as shadow_execution
 import ethos.adapters.shadow.semantics as shadow_semantics
+import ethos.repository.evidence.parity.core as parity
 from ethos.adapters.mutation import lanes
 from ethos.adapters.store import state
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import sources as retrieval_sources
-from ethos.repository.evidence import parity
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 

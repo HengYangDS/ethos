@@ -13,8 +13,8 @@ binding = "Report hard quality floor aggregation and next-action routing evidenc
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest -q tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
-  "uv run --group dev ruff check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/reporting/scoring.py packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/domain/test_report.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py",
   "tools/ci/scripts/run-python-tests.sh",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
@@ -34,7 +34,7 @@ kill_signal = "`ethos report --json` can be ready while an existing product hard
 targets = [
   "packages/ethos/src/ethos/domain/reporting/scoring.py",
   "packages/ethos/src/ethos/repository/policy/coverage.py",
-  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
   "tests/unit/domain/test_report.py",
   "tests/unit/policy/test_coverage.py",
   "tests/unit/cli/test_quality_surface_more.py",

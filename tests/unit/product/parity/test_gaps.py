@@ -5,10 +5,10 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.domain.land.parity.core import acceptable_parity_product_heads
-from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
-from ethos.repository.evidence.parity import _shadow_evidence_command
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity_validation import semantic_tree_digest
+from ethos.repository.evidence.parity.core import PARITY_RELEVANT_PATHS
+from ethos.repository.evidence.parity.core import _shadow_evidence_command
+from ethos.repository.evidence.parity.core import parity_gaps_report
+from ethos.repository.evidence.parity.validation import semantic_tree_digest
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.product.parity.snapshots import complete_parity_evidence
 from tests.unit.product.parity.snapshots import git_head

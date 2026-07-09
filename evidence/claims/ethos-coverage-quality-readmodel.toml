@@ -13,9 +13,9 @@ verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py::test_quality_coverage_reports_policy_and_latest_artifact tests/unit/cli/test_contracts.py::test_quality_help_lists_canonical_commands -q",
   "uv run --group dev pytest tests/unit/kernel/test_invalid_states.py::test_every_emitted_gap_classifies_to_exactly_one_node -q",
-  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
-  "uv run --group dev ty check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
+  "uv run --group dev ty check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py",
   "tools/ci/scripts/run-python-tests.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality coverage --json",
 ]
@@ -53,7 +53,7 @@ targets = [
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/tasks.md",
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/specs/ethos-quality/spec.md",
   "packages/ethos/src/ethos/repository/policy/coverage.py",
-  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
   "tests/unit/policy/test_coverage.py",
   "tests/unit/cli/test_quality_surface_more.py",
   "tests/unit/cli/test_contracts.py",

@@ -14,8 +14,8 @@ import ethos.adapters.repo.git as git_adapter
 import ethos.domain.land.parity.core as land_parity
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.adoption.retirement.core import retirement_readiness_report
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.evidence.parity.core import parity_gaps_report
+from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit

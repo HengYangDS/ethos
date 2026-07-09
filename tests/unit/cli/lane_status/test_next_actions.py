@@ -4,8 +4,8 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.store import state
-from ethos.surface.cli.lane import _lane_status_next_actions
-from ethos.surface.cli.lane import _lane_status_summary
+from ethos.surface.cli.lane.core import _lane_status_next_actions
+from ethos.surface.cli.lane.core import _lane_status_summary
 
 if TYPE_CHECKING:
     from pathlib import Path

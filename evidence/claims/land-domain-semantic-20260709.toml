@@ -12,8 +12,8 @@ binding = "Semantic land-domain package migration, no compatibility import shell
 verifier = "semantic"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
-  "uv run --group dev ruff check packages/ethos/src/ethos/domain/land packages/ethos/src/ethos/domain/campaign/closeout.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py packages/ethos/src/ethos/surface/cli/parity.py packages/ethos/src/ethos/surface/cli/fleet.py packages/ethos/src/ethos/surface/cli/intake.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/cli/test_contracts_land.py tests/unit/product/parity/test_gaps.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/land packages/ethos/src/ethos/domain/campaign/closeout.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py packages/ethos/src/ethos/surface/cli/parity.py packages/ethos/src/ethos/surface/cli/fleet.py packages/ethos/src/ethos/surface/cli/intake.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/cli/test_contracts_land.py tests/unit/product/parity/test_gaps.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/domain/land packages/ethos/src/ethos/domain/campaign/closeout.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py packages/ethos/src/ethos/surface/cli/parity/core.py packages/ethos/src/ethos/surface/cli/fleet.py packages/ethos/src/ethos/surface/cli/intake.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/cli/test_contracts_land.py tests/unit/product/parity/test_gaps.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/land packages/ethos/src/ethos/domain/campaign/closeout.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py packages/ethos/src/ethos/surface/cli/parity/core.py packages/ethos/src/ethos/surface/cli/fleet.py packages/ethos/src/ethos/surface/cli/intake.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/cli/test_contracts_land.py tests/unit/product/parity/test_gaps.py",
   "uv run --group dev pytest tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/product/parity/test_gaps.py tests/unit/cli/test_contracts_land.py -q",
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality evidence-freshness --json",
@@ -44,7 +44,7 @@ targets = [
   "packages/ethos/src/ethos/domain/campaign/closeout.py",
   "packages/ethos/src/ethos/domain/report.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
-  "packages/ethos/src/ethos/surface/cli/parity.py",
+  "packages/ethos/src/ethos/surface/cli/parity/core.py",
   "packages/ethos/src/ethos/surface/cli/fleet.py",
   "packages/ethos/src/ethos/surface/cli/intake.py",
   "tests/architecture/test_release_assets.py",

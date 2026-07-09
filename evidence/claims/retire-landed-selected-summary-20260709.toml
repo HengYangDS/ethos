@@ -37,7 +37,7 @@ kill_signal = "retire-landed selected branch summaries omit selected readiness o
 
 [promotion]
 targets = [
-  "packages/ethos/src/ethos/surface/cli/lane.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/test_contracts_lane.py",
   "tests/unit/cli/test_contracts_land.py",
   "evidence/chronicle/retire-landed-selected-summary-20260709/2026-07-09.md",

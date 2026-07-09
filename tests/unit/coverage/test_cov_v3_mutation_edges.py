@@ -7,10 +7,10 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
-from ethos.adapters.mutation import lanes_refresh
 from ethos.adapters.store.state import acquire_lease
 
 if TYPE_CHECKING:
@@ -122,7 +122,7 @@ def test_active_lease_skips_non_matching_subject(tmp_path: Path) -> None:
     assert lanes._active_lease(db_path, "work/target") is None
 
 
-# --- mutation/lanes_refresh.py -----------------------------------------------
+# --- mutation/lane_lifecycle/refresh.py -------------------------------------
 
 
 def test_bootstrap_candidate_skips_branch_create_when_branch_exists(tmp_path: Path) -> None:

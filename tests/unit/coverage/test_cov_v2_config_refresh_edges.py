@@ -6,9 +6,9 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
 from ethos.adapters import config
-from ethos.adapters.mutation import lanes_refresh
 
 # --- adapters/config.py ------------------------------------------------------
 
@@ -36,7 +36,7 @@ def test_code_size_policy_empty_when_code_size_not_a_table(tmp_path: Path) -> No
     assert config.code_size_policy(tmp_path) == {}
 
 
-# --- adapters/mutation/lanes_refresh.py --------------------------------------
+# --- adapters/mutation/lane_lifecycle/refresh.py --------------------------------------
 
 
 def test_apply_gaps_expect_head_mismatch() -> None:

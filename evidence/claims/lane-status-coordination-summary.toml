@@ -12,7 +12,7 @@ binding = "lane status coordination summary source, tests, docs, OpenSpec, and e
 verifier = "semantic"
 tests = [
   "uv run --group dev pytest tests/unit/cli/lane_status/test_next_actions.py -q",
-  "uv run --group dev ruff check packages/ethos/src/ethos/surface/cli/lane.py tests/unit/cli/lane_status/test_next_actions.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/cli/lane_status/test_next_actions.py",
   "uv run --package ethos ethos quality types --json",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 60 --json",
   "uv run --package ethos ethos parity gaps --json",
@@ -38,7 +38,7 @@ kill_signal = "lane status summary grants mutation authority over foreign lanes 
 
 [promotion]
 targets = [
-  "packages/ethos/src/ethos/surface/cli/lane.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/lane_status/test_next_actions.py",
   "docs/reference/command-plane.md",
   "openspec/specs/repository-governance/spec.md",

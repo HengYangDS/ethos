@@ -5,6 +5,21 @@ from pathlib import Path
 from ethos.repository.policy.layout.core import module_layout_report
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_module_layout_ratchet_has_no_remaining_steady_state_debt() -> None:
+    """Keep semantic subpackages mandatory instead of preserving baseline debt."""
+    report = module_layout_report(ROOT)
+
+    assert report["summary"]["debt_count"] == 0
+    assert report["baseline_gap_count"] == 0
+    assert report["baseline_limit"] == 0
+    assert report["ratchet"]["state"] == "clear"
+    assert report["ratchet"]["baseline_gap_count"] == 0
+    assert report["ratchet"]["baseline_limit"] == 0
+    assert set(report["ratchet"]["debt_kinds"]) == set()
+
+
 CONTEXT_PROJECTION_DEBT = (
     "module_layout_suffix_module:"
     "packages/ethos-core/src/ethos_core/contracts/context_projection.py:context_projection"

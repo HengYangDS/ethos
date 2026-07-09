@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.surface.cli import quality as q
+import ethos.surface.cli.quality.core as q
 
 
 def _capture(monkeypatch):

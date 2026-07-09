@@ -19,8 +19,8 @@ from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.planner import adoption_scaffold_report
 from ethos.repository.adoption.planner import available_profiles
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity import parity_ledger_report
+from ethos.repository.evidence.parity.core import parity_gaps_report
+from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.docs.health import docs_health_report

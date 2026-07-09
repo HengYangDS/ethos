@@ -4,7 +4,7 @@ import json
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.evidence.parity.core import shadow_parity_report
 from tests.unit.product.parity.snapshots import SHADOW_COMMANDS
 from tests.unit.product.parity.snapshots import complete_parity_evidence
 from tests.unit.product.parity.snapshots import retarget_parity_evidence

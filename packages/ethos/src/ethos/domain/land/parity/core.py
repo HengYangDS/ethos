@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.adapters.repo.git as git_adapter
-from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
+from ethos.repository.evidence.parity.core import PARITY_RELEVANT_PATHS
 
 if TYPE_CHECKING:
     from pathlib import Path

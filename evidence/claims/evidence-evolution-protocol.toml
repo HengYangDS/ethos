@@ -40,7 +40,7 @@ kill_signal = "Evolution records need a separate proof root or command plane to 
 [promotion]
 targets = [
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
-  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",
   "packages/ethos/src/ethos/repository/policy/schema.py",
   "system/schemas/kernel/evolution-ledger.schema.json",

@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
-import ethos.adapters.mutation.lanes_refresh as lanes_refresh
+import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 from ethos.adapters.mutation import lanes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE

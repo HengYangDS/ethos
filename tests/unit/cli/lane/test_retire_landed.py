@@ -83,7 +83,7 @@ def test_summary_preserves_retired_selected_after_apply(monkeypatch, tmp_path: P
             "required_gaps": [],
         }
 
-    monkeypatch.setattr("ethos.surface.cli.lane.retire_landed_work_lanes", post_apply_report)
+    monkeypatch.setattr("ethos.surface.cli.lane.core.retire_landed_work_lanes", post_apply_report)
 
     payload = run_ethos(
         "lane",

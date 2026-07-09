@@ -42,7 +42,7 @@ kill_signal = "A successful retire-landed apply can omit selected readiness or m
 
 [promotion]
 targets = [
-  "packages/ethos/src/ethos/surface/cli/lane.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/lane/test_retire_landed.py",
   "evidence/chronicle/retire-landed-apply-verdict-20260709/2026-07-09.md",
   "evidence/claims/retire-landed-apply-verdict-20260709.toml",

@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING
 
 import ethos.domain.land.core as land_core
 import ethos.domain.reporting.gaps as reporting_gaps
+import ethos.surface.cli.hook.core as hook
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.core import MutationDecision
 from ethos.domain import orient
 from ethos.domain import status
-from ethos.surface.cli import hook
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -279,7 +279,7 @@ def test_status_worktree_gaps_mergescloseout_support_gaps() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ethos.surface.cli.hook.admit non-dict decision (branch 48->50)
+# ethos.surface.cli.hook.core.admit non-dict decision (branch 48->50)
 # --------------------------------------------------------------------------- #
 
 

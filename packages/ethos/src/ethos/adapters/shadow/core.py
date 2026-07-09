@@ -6,7 +6,7 @@ from typing import Any
 import ethos.adapters.shadow.execution as shadow_execution
 import ethos.adapters.shadow.identity as shadow_identity
 import ethos.adapters.shadow.semantics as shadow_semantics
-from ethos.repository.evidence.parity_validation import SHADOW_COMMAND_ARGS
+from ethos.repository.evidence.parity.validation import SHADOW_COMMAND_ARGS
 
 # The read-only shadow command set is defined once in the repository layer
 # (SHADOW_COMMAND_ARGS) so the executed commands and the parity-evidence display

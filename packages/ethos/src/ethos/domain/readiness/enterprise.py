@@ -9,7 +9,7 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.domain.report import scorecard_report
 from ethos.repository.context import context_for_root
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.parity import parity_gaps_report
+from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report

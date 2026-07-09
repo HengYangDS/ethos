@@ -123,18 +123,18 @@ def load_command_groups(argv: list[str]) -> None:
     group is imported. With no recognizable group token (e.g. `--help`), all groups
     load so the full command surface is shown.
     """
-    groups = (
-        "fleet",
-        "intake",
-        "quality",
-        "rules",
-        "lane",
-        "assistants",
-        "campaign",
-        "parity",
-        "playbooks",
-        "hook",
-    )
+    groups = {
+        "fleet": "ethos.surface.cli.fleet",
+        "intake": "ethos.surface.cli.intake",
+        "quality": "ethos.surface.cli.quality.core",
+        "rules": "ethos.surface.cli.rules",
+        "lane": "ethos.surface.cli.lane.core",
+        "assistants": "ethos.surface.cli.assistants",
+        "campaign": "ethos.surface.cli.campaign",
+        "parity": "ethos.surface.cli.parity.core",
+        "playbooks": "ethos.surface.cli.playbooks",
+        "hook": "ethos.surface.cli.hook.core",
+    }
     token = next((arg for arg in argv if not arg.startswith("-")), "")
     if token in groups:
         selected = [token]
@@ -145,7 +145,7 @@ def load_command_groups(argv: list[str]) -> None:
         # No command token (bare `ethos` / `ethos --help`): show the full surface.
         selected = list(groups)
     for name in selected:
-        importlib.import_module(f"ethos.surface.cli.{name}")
+        importlib.import_module(groups[name])
         if name == "quality":
             importlib.import_module("ethos.surface.cli.boundary.product")
             importlib.import_module("ethos.surface.cli.boundary.readiness")

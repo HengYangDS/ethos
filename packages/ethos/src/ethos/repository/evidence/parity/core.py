@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.repository.evidence.parity_validation import SHADOW_PARITY_COMMANDS
-from ethos.repository.evidence.parity_validation import parity_evidence
-from ethos.repository.evidence.parity_validation import string_list
-from ethos.repository.evidence.parity_validation import tracked_evidence_provenance
+from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
+from ethos.repository.evidence.parity.validation import parity_evidence
+from ethos.repository.evidence.parity.validation import string_list
+from ethos.repository.evidence.parity.validation import tracked_evidence_provenance
 from ethos.repository.evidence.shadow.payload import PARITY_RELEVANT_PATHS
 from ethos.repository.evidence.shadow.payload import SHADOW_PARITY_DIMENSIONS
 from ethos.repository.evidence.shadow.payload import build_tracked_parity_evidence

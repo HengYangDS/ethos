@@ -48,7 +48,7 @@ targets = [
   "packages/ethos-core/src/ethos_core/quality/gates.py",
   "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",
-  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "openspec/changes/archive/2026-07-08-ci-runner-boundary/proposal.md",

@@ -9,9 +9,9 @@ import pytest
 
 from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
 from ethos.repository.adoption.scaffold.core import default_files
-from ethos.repository.evidence.parity_validation import command_matches_identity
-from ethos.repository.evidence.parity_validation import semantic_tree_digest
-from ethos.repository.evidence.parity_validation import validate_parity_evidence
+from ethos.repository.evidence.parity.validation import command_matches_identity
+from ethos.repository.evidence.parity.validation import semantic_tree_digest
+from ethos.repository.evidence.parity.validation import validate_parity_evidence
 from ethos.repository.openspec.metadata import read_openspec_metadata
 from ethos.repository.policy import schema as policy_schema
 from ethos.repository.profile import load_repository_profile

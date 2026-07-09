@@ -6,7 +6,7 @@ summary = "ETHOS product and governed repositories share one executable governan
 
 [evidence]
 dated = "evidence/chronicle/enterprise-kernel-completion-20260709/2026-07-09.md"
-sha256 = "44c0b4dc56dc5fb5f062a4628fdeeef881ab5ab22f85f0d05342165de41f524f"
+sha256 = "d0b4d7a20571c4ee219de8223077b38dfd3208ad0f3fa67c6728aee1c401e1ab"
 evidence_ids = ["evidence:enterprise-kernel-completion-20260709"]
 binding = "governance-kernel gate, enterprise-readiness L4, generic adoption scaffold, command-plane docs, OpenSpec quality spec, owner script, and focused tests"
 verifier = "semantic"
@@ -14,8 +14,8 @@ tests = [
   "uv run --package ethos ethos quality governance-kernel --json",
   "uv run --package ethos ethos quality product-boundary --json",
   "uv run --package ethos ethos quality enterprise-readiness --json",
-  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/repository/policy/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/repository/policy/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/domain/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/governance packages/ethos/src/ethos/domain/readiness/enterprise.py packages/ethos/src/ethos/surface/cli/boundary/readiness.py tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py",
   "uv run --group dev pytest -q tests/unit/policy/test_governance_kernel.py tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/architecture/test_testing_platform.py tests/architecture/test_release_assets.py tests/architecture/test_readme_isomorphic_governance.py tests/architecture/test_product_design_contract.py",
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_quality_help_lists_canonical_commands tests/unit/policy/test_governance_kernel.py",
   "tools/ci/scripts/run-governance-kernel.sh",
@@ -48,7 +48,7 @@ kill_signal = "Product and governed repository semantics diverge into separate c
 [promotion]
 targets = [
   { kind = "source", path = "packages/ethos/src/ethos/repository/policy/governance/kernel.py" },
-  { kind = "source", path = "packages/ethos/src/ethos/repository/policy/readiness/enterprise.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/domain/readiness/enterprise.py" },
   { kind = "source", path = "packages/ethos-core/src/ethos_core/data/invalid_states.toml" },
   { kind = "source", path = "system/invalid_states.toml" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/boundary/readiness.py" },

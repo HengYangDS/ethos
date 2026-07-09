@@ -53,6 +53,19 @@ def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:
     assert "coverage evidence writes are serialized" in script
 
 
+def test_python_test_gate_can_shard_without_lowering_coverage_floor() -> None:
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+
+    assert "ETHOS_TEST_SHARDS" in script
+    assert "collect-only" in script
+    assert "coverage combine" in script
+    assert "coverage xml" in script
+    assert "coverage report" in script
+    assert '--fail-under="${coverage_hard_floor}"' in script
+    assert "--cov-fail-under=0" in script
+    assert "--cov-fail-under=${coverage_hard_floor}" in script
+
+
 def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
     script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
 

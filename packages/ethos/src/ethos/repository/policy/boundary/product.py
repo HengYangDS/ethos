@@ -24,6 +24,7 @@ from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
 from ethos.repository.policy.boundary.catalog import PACKAGE_METADATA_FILES
 from ethos.repository.policy.boundary.catalog import PERSONAL_PATTERNS
 from ethos.repository.policy.boundary.catalog import PHASE_PATTERNS
+from ethos.repository.policy.boundary.catalog import PRIVATE_DOMAIN_MARKER_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_INFRA_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRIVATE_REFERENCE_PATTERNS
 from ethos.repository.policy.boundary.catalog import PRODUCT_SURFACES
@@ -229,6 +230,10 @@ def product_boundary_report(root: Path) -> dict[str, object]:
     patterns.extend(("adopter_specific_literal", pattern) for pattern in ADOPTER_LITERAL_PATTERNS)
     patterns.extend(
         ("private_reference_literal", pattern) for pattern in PRIVATE_REFERENCE_PATTERNS
+    )
+    patterns.extend(
+        ("private_domain_marker_literal", pattern)
+        for pattern in PRIVATE_DOMAIN_MARKER_PATTERNS
     )
     patterns.extend(("generic_current_future_phase", pattern) for pattern in PHASE_PATTERNS)
     patterns.extend(("session_authority_literal", pattern) for pattern in SESSION_SURFACE_PATTERNS)

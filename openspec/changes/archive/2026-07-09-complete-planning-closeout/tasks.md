@@ -17,6 +17,6 @@
   validation second.
 - [x] Preserve format/lint/architecture/C4/tools gate owner-surface rules.
 - [x] Preserve Superpowers and MCP replaceability boundaries.
-- [x] Preserve dmgr/di-effect as mechanism inputs, not product ontology.
+- [x] Preserve generic domain mechanisms as inputs, not product ontology.
 - [x] Run focused gates, OpenSpec lifecycle, claims, report, and head-bound
   proof before landing.

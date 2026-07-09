@@ -17,8 +17,8 @@ external tool into product ontology.
 
 Record the completed baseline and future sequencing for GitHub/GitLab mirror
 providers, local CI emulation, OpenSpec official-compatible schema/profile
-customization, format/lint/architecture/C4/tool gates, dmgr/di-effect mechanism
-comparison, Superpowers replaceability, MCP projection boundaries, and release
+customization, format/lint/architecture/C4/tool gates, generic domain
+mechanism comparison, Superpowers replaceability, MCP projection boundaries, and release
 supply-chain envelopes.
 
 Update the roadmap, mechanism comparison audit, claim, chronicle, and closeout

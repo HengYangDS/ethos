@@ -139,6 +139,18 @@ _PRIVATE_REFERENCE_PATTERN_TEXTS = (
 PRIVATE_REFERENCE_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE) for pattern in _PRIVATE_REFERENCE_PATTERN_TEXTS
 )
+_PRIVATE_DOMAIN_MARKER_TEXTS = (
+    # Product surfaces must not preserve private adopter or domain-project
+    # shorthand as durable roadmap/evidence terms. The rule is shape-based:
+    # compact domain/tool abbreviations followed by slash-qualified mechanism
+    # names are not enterprise-neutral closeout language. Use generic role terms
+    # instead.
+    r"\b[a-z][a-z0-9]*mgr/[a-z][a-z0-9-]+(?:\s+[a-z][a-z0-9-]+){0,3}"
+    r"\s+(?:mechanism|mechanisms|comparison|inputs?)\b",
+)
+PRIVATE_DOMAIN_MARKER_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE) for pattern in _PRIVATE_DOMAIN_MARKER_TEXTS
+)
 _CURRENT_TOKEN = "cur" + "rent"
 _DEFERRED_TOKEN = "fu" + "ture"
 _CHAT_TOKEN = "cha" + "t"

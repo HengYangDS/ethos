@@ -93,6 +93,22 @@ def test_product_boundary_reports_release_visible_historical_leaks(tmp_path: Pat
     assert "release_visible_historical_boundary" in report["policy"]
 
 
+def test_product_boundary_reports_private_domain_marker_in_release_history(
+    tmp_path: Path,
+) -> None:
+    _write(tmp_path / "README.md", "# ETHOS\n")
+    marker_text = term_from_parts("d", "mgr", "/domain mechanism comparison\n")
+    _write(
+        tmp_path / "openspec" / "changes" / "archive" / "2026-07-09-closeout" / "proposal.md",
+        marker_text,
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["summary"]["by_kind"]["archival_private_domain_marker_literal"] == 1
+
+
 def test_release_visible_historical_filter_handles_skipped_state_cache_and_file_prefix(
     tmp_path: Path, monkeypatch
 ) -> None:

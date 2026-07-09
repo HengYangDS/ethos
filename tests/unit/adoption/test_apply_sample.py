@@ -9,30 +9,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:
-    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n", encoding="utf-8")
-
-    assert detect_repo_profile(tmp_path) == "python"
-
-
-def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
-    result = adoption_plan(tmp_path, apply=True)
-
-    assert result["applied"] is True
-    assert (tmp_path / ".ethos/project.toml").exists()
-    assert f'name = "{tmp_path.name}"' in (tmp_path / ".ethos/project.toml").read_text(
-        encoding="utf-8"
-    )
-    assert (tmp_path / ".ethos/state/.gitignore").read_text(encoding="utf-8").startswith("*")
-
-
-def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None:
-    (tmp_path / ".gitlab").mkdir()
-
-    result = adoption_plan(tmp_path, profile="gitlab", apply=True)
-
-    planned = set(result["planned_files"])
+def _assert_required_scaffold_files_exist(tmp_path: Path, planned: set[str]) -> None:
     required = {
+        ".gitignore",
+        ".config/ethos/generated-artifacts.toml",
         ".ethos/project.toml",
         ".ethos/workspace.toml",
         ".ethos/rules.toml",
@@ -88,13 +68,12 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
         ".gitlab-ci.yml",
     }
 
-    assert result["applied"] is True
     assert required <= planned
     for relative in required:
         assert (tmp_path / relative).exists(), relative
-    assert "sourceOfTruth" not in (tmp_path / ".agents/skills/activation.toml").read_text(
-        encoding="utf-8"
-    )
+
+
+def _assert_generated_skill_scaffold(tmp_path: Path) -> None:
     activation = (tmp_path / ".agents/skills/activation.toml").read_text(encoding="utf-8")
     package_manifest = (
         tmp_path / ".agents/skills/ethos-repository-governance/package.toml"
@@ -102,6 +81,8 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     skill_text = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
         encoding="utf-8"
     )
+
+    assert "sourceOfTruth" not in activation
     assert "version = 2" in activation
     assert 'subject = "repository-governance"' in activation
     assert 'operation = "govern"' in activation
@@ -122,6 +103,42 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert "## Trust Boundary" in skill_text
     assert (tmp_path / ".agents/skills/ethos-skill-portfolio-governance/SKILL.md").exists()
     assert (tmp_path / ".agents/skills/ethos-adoption-profile-governance/SKILL.md").exists()
+
+
+def _assert_generated_artifact_scaffold(tmp_path: Path) -> None:
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    generated_policy = (tmp_path / ".config/ethos/generated-artifacts.toml").read_text(
+        encoding="utf-8"
+    )
+    evidence_docs = (tmp_path / "docs/evidence/README.md").read_text(encoding="utf-8")
+
+    for denied_root in (
+        ".import_linter_cache/",
+        ".import-linter-cache/",
+        ".pytest_cache/",
+        ".ruff_cache/",
+        ".mypy_cache/",
+        ".tox/",
+        ".nox/",
+        ".uv-cache/",
+        "dist/",
+    ):
+        assert denied_root in gitignore
+    for semantic_home in (
+        'tool_cache = "build/runtime/tool-cache/<tool>"',
+        'provider_work = "build/runtime/work/<provider>"',
+        'machine_evidence = "build/evidence/<concern>"',
+        'local_artifact = "build/artifacts/<kind>"',
+        "lifecycle.runtime_cache",
+        "lifecycle.curated_evidence",
+    ):
+        assert semantic_home in generated_policy
+    assert "Machine output belongs under ignored homes" in evidence_docs
+    assert "`build/evidence/`" in evidence_docs
+    assert "never promoted" in evidence_docs
+
+
+def _assert_generated_docs_and_openspec(tmp_path: Path) -> None:
     assert "Authority" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "ethos prove" in (tmp_path / "CONTRIBUTING.md").read_text(encoding="utf-8")
     assert "Unreleased" in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
@@ -130,18 +147,79 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     assert not (tmp_path / "docs/plans/README.md").exists()
     assert "Decision Records" in (tmp_path / "docs/decisions/README.md").read_text(encoding="utf-8")
     assert "docs/governance" in (tmp_path / "docs/README.md").read_text(encoding="utf-8")
-    assert "primary_invariant" in (
-        tmp_path / "openspec/specs/repository-governance/capability.toml"
-    ).read_text(encoding="utf-8")
-    repository_profile = (
-        tmp_path / "openspec/specs/repository-governance/capability.toml"
-    ).read_text(encoding="utf-8")
-    assert "decision_axes" in repository_profile
-    assert "[recommended_facets]" in repository_profile
+    capability = (tmp_path / "openspec/specs/repository-governance/capability.toml").read_text(
+        encoding="utf-8"
+    )
+    assert "primary_invariant" in capability
+    assert "decision_axes" in capability
+    assert "[recommended_facets]" in capability
     assert "OpenSpec Workspace" in (tmp_path / "openspec/README.md").read_text(encoding="utf-8")
     assert "Change Template" in (tmp_path / "openspec/changes/template.md").read_text(
         encoding="utf-8"
     )
+
+
+def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n", encoding="utf-8")
+
+    assert detect_repo_profile(tmp_path) == "python"
+
+
+def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
+    result = adoption_plan(tmp_path, apply=True)
+
+    assert result["applied"] is True
+    assert (tmp_path / ".ethos/project.toml").exists()
+    assert f'name = "{tmp_path.name}"' in (tmp_path / ".ethos/project.toml").read_text(
+        encoding="utf-8"
+    )
+    assert (tmp_path / ".ethos/state/.gitignore").read_text(encoding="utf-8").startswith("*")
+
+
+def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None:
+    (tmp_path / ".gitlab").mkdir()
+
+    result = adoption_plan(tmp_path, profile="gitlab", apply=True)
+
+    assert result["applied"] is True
+    _assert_required_scaffold_files_exist(tmp_path, set(result["planned_files"]))
+    _assert_generated_skill_scaffold(tmp_path)
+    _assert_generated_artifact_scaffold(tmp_path)
+    _assert_generated_docs_and_openspec(tmp_path)
+
+
+def test_adopt_apply_extends_existing_gitignore_without_conflict(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".gitignore").write_text(
+        ".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8"
+    )
+
+    result = adoption_plan(tmp_path, profile="generic", apply=True)
+
+    assert result["applied"] is True
+    gitignore_plan = next(item for item in result["write_plan"] if item["path"] == ".gitignore")
+    assert gitignore_plan["action"] == "merge_gitignore"
+    assert gitignore_plan["conflict"] is False
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore.startswith(".ethos/state/*\n!.ethos/state/.gitignore\n")
+    assert ".import_linter_cache/" in gitignore
+    assert "build/" in gitignore
+
+
+def test_adopt_apply_extends_existing_gitignore_idempotently(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text(
+        ".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8"
+    )
+
+    first = adoption_plan(tmp_path, profile="generic", apply=True)
+    second = adoption_plan(tmp_path, profile="generic", apply=True)
+
+    assert first["applied"] is True
+    assert second["applied"] is True
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore.count(".import_linter_cache/") == 1
+    assert gitignore.count("# Semantic ignored generated homes") == 1
 
 
 def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(

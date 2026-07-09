@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "e4a36de36399aa503d3463f5d8f452dde0b1fac5",
-    "target_head": "e4a36de36399aa503d3463f5d8f452dde0b1fac5",
-    "product_semantic_sha256": "c46814ee65b88768941f529db2ae9a357a6dc35e77d43408e260e8f8d2ac4417",
-    "target_semantic_sha256": "c46814ee65b88768941f529db2ae9a357a6dc35e77d43408e260e8f8d2ac4417",
+    "product_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
+    "target_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
+    "product_semantic_sha256": "c45b9f2557547f96bcdb05c0d4ded6f77c880c4f259d38f23fa6b4ab933623ce",
+    "target_semantic_sha256": "c45b9f2557547f96bcdb05c0d4ded6f77c880c4f259d38f23fa6b4ab933623ce",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -36,8 +36,8 @@
   },
   "identity": {
     "target_root": "/Users/yheng/projects/ethos-worktrees/replay-publish-local-ci-evidence-readmodel-20260709",
-    "target_head": "e4a36de36399aa503d3463f5d8f452dde0b1fac5",
-    "product_head": "e4a36de36399aa503d3463f5d8f452dde0b1fac5",
+    "target_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
+    "product_head": "83e78a5c6b3e02ec5e1fc2ae871ac07fe1100ce3",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -81,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "47391e9b6280cd972a807f10d827237c3aac7f349ab475392708c62daf65097f"
+        "sha256": "017cb0e39ae4b2c8fb4acc2edb810923b0f9d801bb6d2f41e460b06f2e4ce6e5"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +91,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "e21bbfa1128edab1b3a6c3b13326384a30dbf150fbfce5e2a81e896901d995a7"
+        "sha256": "a5685df4ba3ccf4ffaa36691f85f2bbeeac8043231c46fde33175eb702262ff9"
       },
       {
         "path": "rules",

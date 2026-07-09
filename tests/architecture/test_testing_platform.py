@@ -116,10 +116,21 @@ def test_product_boundary_gate_is_owner_scripted_and_projected() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}
 
-    assert "ethos.cli quality product-boundary" in script
-    assert "ethos.cli quality contributor-policy" in script
+    assert "ethos.cli quality" in script
+    assert "run_ethos_quality product-boundary" in script
+    assert "run_ethos_quality contributor-policy" in script
+    assert "uv run --all-packages --group dev" not in script
     assert "active product surfaces and release metadata neutral" in script
     assert "tools/ci/scripts/run-product-boundary.sh" in local_ci
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
     assert "tools/ci/scripts/run-product-boundary.sh" in precommit
     assert by_concern["product_boundary"]["gate"] == "tools/ci/scripts/run-product-boundary.sh"
+
+
+def test_governance_kernel_gate_uses_local_command_plane_without_dev_env_sync() -> None:
+    script = (ROOT / "tools/ci/scripts/run-governance-kernel.sh").read_text(encoding="utf-8")
+
+    assert "ethos.cli quality governance-kernel" in script
+    assert "ETHOS_PYTHON" in script
+    assert "PYTHONPATH" in script
+    assert "uv run --all-packages --group dev" not in script

@@ -55,6 +55,17 @@ def init_repo(path: Path) -> Path:
     return path
 
 
+def test_cast_worktrees_treats_non_list_status_payload_as_empty() -> None:
+    assert admission_prewrite.cast_worktrees(None) == []
+    assert admission_prewrite.cast_worktrees({"branch": "work/x"}) == []
+
+
+def test_cast_worktrees_normalizes_dict_items_and_skips_noise() -> None:
+    assert admission_prewrite.cast_worktrees([{"branch": "work/x", "head": 1}, "noise"]) == [
+        {"branch": "work/x", "head": "1"}
+    ]
+
+
 def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     other = init_repo(tmp_path / "other")

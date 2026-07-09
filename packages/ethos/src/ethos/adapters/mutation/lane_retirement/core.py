@@ -8,13 +8,14 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 if TYPE_CHECKING:
+    import subprocess
     from collections.abc import Callable
 
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.lane_lifecycle.core import run_git as default_run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
@@ -45,7 +46,7 @@ class SupersededRetirementRuntime:
     workspace_status: Callable[[Path], dict[str, object]] = workspace_status
     leases_by_branch: Callable[..., dict[str, dict[str, object]]] = leases_by_branch
     is_ancestor: Callable[[Path, str, str], bool] = is_ancestor
-    run_git: Callable[..., object] = run_git
+    run_git: Callable[..., subprocess.CompletedProcess[str]] = default_run_git
     delete_lease: Callable[..., int] = delete_lease
     shared: lane_retirement_shared.RetirementRuntime = field(
         default_factory=lane_retirement_shared.RetirementRuntime
@@ -249,7 +250,10 @@ def _lane_delta_absorbed_by_accepted(
     base = _merge_base(repo, accepted_head, branch, runtime=runtime)
     if not base:
         return False
-    for path in _changed_paths_between(repo, base, head, runtime=runtime):
+    changed_paths = _changed_paths_between(repo, base, head, runtime=runtime)
+    if changed_paths is None:
+        return False
+    for path in changed_paths:
         if _tree_object(repo, head, path, runtime=runtime) != _tree_object(
             repo, accepted_head, path, runtime=runtime
         ):
@@ -277,13 +281,13 @@ def _changed_paths_between(
     head: str,
     *,
     runtime: SupersededRetirementRuntime | None = None,
-) -> tuple[str, ...]:
+) -> tuple[str, ...] | None:
     active_runtime = runtime or SupersededRetirementRuntime()
     completed = active_runtime.run_git(
         root, "diff", "--name-only", "--no-renames", "-z", base, head, check=False
     )
     if completed.returncode != 0:
-        return ("__ethos_diff_unavailable__",)
+        return None
     return tuple(path for path in completed.stdout.split("\0") if path)
 
 

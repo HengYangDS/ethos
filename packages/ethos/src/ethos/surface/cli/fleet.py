@@ -11,7 +11,7 @@ from pathlib import Path  # noqa: TC003 - cyclopts needs the runtime type for --
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
-import ethos.domain.land as land_domain
+import ethos.domain.land.parity.core as land_parity
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.evidence.parity import parity_gaps_report
@@ -73,10 +73,10 @@ def fleet_retirement_readiness(
             adopter=adopter,
             current_target_head=git_adapter.current_tracked_head(target),
             current_product_head=git_adapter.current_tracked_head(product_root),
-            acceptable_product_heads=land_domain.acceptable_parity_product_heads(
+            acceptable_product_heads=land_parity.acceptable_parity_product_heads(
                 product_root, adopter
             ),
-            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+            acceptable_target_heads=land_parity.acceptable_parity_target_heads(
                 product_root, target, adopter
             ),
         )
@@ -86,8 +86,8 @@ def fleet_retirement_readiness(
         target=target,
         current_target_head=git_adapter.current_tracked_head(target),
         current_product_head=git_adapter.current_tracked_head(product_root),
-        acceptable_product_heads=land_domain.acceptable_parity_product_heads(product_root, adopter),
-        acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+        acceptable_product_heads=land_parity.acceptable_parity_product_heads(product_root, adopter),
+        acceptable_target_heads=land_parity.acceptable_parity_target_heads(
             product_root, target, adopter
         ),
     )

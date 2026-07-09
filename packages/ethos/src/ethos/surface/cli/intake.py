@@ -7,7 +7,7 @@ decorator runs. Imports only what this group needs.
 
 from __future__ import annotations
 
-import ethos.domain.land as land_domain
+from ethos.domain.land.intake.core import intake_projection_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -24,7 +24,7 @@ def intake_status(
 ) -> None:
     """Report adopter intake ledger readiness."""
     repo = resolve_root(root)
-    projection = land_domain.intake_projection_report(repo)
+    projection = intake_projection_report(repo)
     gaps = tuple(str(gap) for gap in projection["required_gaps"])
     data = {
         "truth_boundary": "adopter-ledger",

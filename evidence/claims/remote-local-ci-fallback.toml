@@ -43,8 +43,8 @@ kill_signal = "Local fallback evidence is presented as hosted CI success or remo
 targets = [
   "tools/ci/scripts/run-local-ci.sh",
   "packages/ethos/src/ethos/adapters/repo/git.py",
-  "packages/ethos/src/ethos/domain/land_support.py",
-  "packages/ethos/src/ethos/domain/land.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/domain/land/core.py",
   "packages/ethos/src/ethos/cli.py",
   "system/tools.toml",
   "system/schemas/kernel/campaign-closeout.schema.json",

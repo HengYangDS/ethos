@@ -5,13 +5,13 @@ from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.land_support import acceptable_parity_product_heads
-from ethos.domain.land_support import acceptable_parity_target_heads
-from ethos.domain.land_support import intake_projection_report
-from ethos.domain.land_support import local_ci_fallback_package
-from ethos.domain.land_support import publication_readiness
-from ethos.domain.land_support import remote_publication_deferred
-from ethos.domain.land_support import trust_closeout_package
+from ethos.domain.land.intake.core import intake_projection_report
+from ethos.domain.land.parity.core import acceptable_parity_product_heads
+from ethos.domain.land.parity.core import acceptable_parity_target_heads
+from ethos.domain.land.publication import local_ci_fallback_package
+from ethos.domain.land.publication import publication_readiness
+from ethos.domain.land.publication import remote_publication_deferred
+from ethos.domain.land.trust.core import trust_closeout_package
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report

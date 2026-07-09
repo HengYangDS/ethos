@@ -6,7 +6,7 @@ from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signat
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
-import ethos.domain.land as land_domain
+import ethos.domain.land.parity.core as land_parity
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.repository.evidence.parity import build_tracked_parity_evidence
 from ethos.repository.evidence.parity import parity_gaps_report
@@ -58,8 +58,8 @@ def parity_gaps(
         if target_root is not None
         else "",
         current_product_head=git_adapter.current_tracked_head(repo),
-        acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, adopter),
-        acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+        acceptable_product_heads=land_parity.acceptable_parity_product_heads(repo, adopter),
+        acceptable_target_heads=land_parity.acceptable_parity_target_heads(
             repo, target_root, adopter
         ),
     )
@@ -117,8 +117,8 @@ def parity_shadow(
             adopter=adopter,
             current_target_head=git_adapter.current_tracked_head(target),
             current_product_head=git_adapter.current_tracked_head(repo),
-            acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, adopter),
-            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+            acceptable_product_heads=land_parity.acceptable_parity_product_heads(repo, adopter),
+            acceptable_target_heads=land_parity.acceptable_parity_target_heads(
                 repo, target, adopter
             ),
         )

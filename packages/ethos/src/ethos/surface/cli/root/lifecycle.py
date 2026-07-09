@@ -11,7 +11,8 @@ from typing import cast
 from cyclopts import Parameter
 
 import ethos.adapters.repo.git as git
-import ethos.domain.land as land_domain
+import ethos.domain.land.core as land_core
+import ethos.domain.land.publication as land_publication
 from ethos.adapters.mutation.core import MutationDecision
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
@@ -98,7 +99,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             else str(payload.update.get("state") or payload.mutation.command)
         ),
         required_gaps=payload.gaps,
-        next_actions=land_domain.closeout_next_actions(
+        next_actions=land_core.closeout_next_actions(
             ok=payload.ok, gaps=payload.gaps, current_head=git.current_head(payload.repo)
         ),
         governance_context=context_for_root(payload.audit_root),
@@ -106,7 +107,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             "repository_audit": payload.audit,
             "openspec_lifecycle": payload.lifecycle,
             "accepted_update": payload.update,
-            "closeout_bootstrap": land_domain.closeout_bootstrap_package(
+            "closeout_bootstrap": land_core.closeout_bootstrap_package(
                 repo=payload.repo,
                 audit_root=payload.audit_root,
                 required_gaps=payload.gaps,
@@ -166,8 +167,8 @@ def land(
             root=repo,
             current_head=current_head,
         )
-        audit_root = land_domain.closeout_audit_root(repo, decision)
-        audit = land_domain.repository_audit_after_admission(audit_root, decision)
+        audit_root = land_core.closeout_audit_root(repo, decision)
+        audit = land_core.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
         gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle)
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"])
@@ -209,7 +210,7 @@ def land(
         expect_head=expect_head,
     )
     decision = evaluate_mutation(request, root=repo, current_head=current_head)
-    audit = land_domain.repository_audit_after_admission(repo, decision)
+    audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
     gaps = _gap_tuple(audit) + decision.gaps + closeout_gaps + _gap_tuple(lifecycle)
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
@@ -245,7 +246,7 @@ def land(
         ok=ok,
         state=state,
         required_gaps=gaps,
-        next_actions=land_domain.land_next_actions(
+        next_actions=land_core.land_next_actions(
             ok=ok,
             gaps=gaps,
             current_head=current_head,
@@ -294,7 +295,7 @@ def publish(
         root=repo,
         current_head=current_head,
     )
-    audit = land_domain.repository_audit_after_admission(repo, decision)
+    audit = land_core.repository_audit_after_admission(repo, decision)
     branch = workspace_status(repo)["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
@@ -302,12 +303,12 @@ def publish(
     gaps = _gap_tuple(audit) + decision.gaps + release_carrier_gaps
     ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
     remote_availability = git.remote_availability(repo)
-    local_ci_fallback = land_domain.local_ci_fallback_package(
+    local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
         current_head=current_head,
     )
-    publication = land_domain.publication_readiness(
+    publication = land_publication.publication_readiness(
         branch=str(branch),
         local_ok=ok,
         policy=load_branch_role_policy(repo),

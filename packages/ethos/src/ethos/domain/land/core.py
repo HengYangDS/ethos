@@ -1,8 +1,8 @@
-"""Land/publish-stage domain reducers — closeout, submit, intake, publication.
+"""Land and accepted-root closeout reducers.
 
-Pure reducers over primitives + adapter reports for the land→publish tail of the
-loop. Imports flow downward (adapters/kernel), keeping the surface→domain layering
-acyclic.
+This module owns land-stage lifecycle decisions, runner binding, and repository
+audit handoff. Publication, parity freshness, intake projection, and trust
+closeout live in sibling semantic modules.
 """
 
 from __future__ import annotations
@@ -13,37 +13,7 @@ from typing import cast
 import ethos
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.land_support import acceptable_parity_product_heads
-from ethos.domain.land_support import acceptable_parity_target_heads
-from ethos.domain.land_support import closeout_next_actions
-from ethos.domain.land_support import command_is_executed_proof
-from ethos.domain.land_support import intake_projection_report
-from ethos.domain.land_support import land_next_actions
-from ethos.domain.land_support import local_ci_fallback_package
-from ethos.domain.land_support import local_submit_package
-from ethos.domain.land_support import publication_readiness
-from ethos.domain.land_support import remote_publication_deferred
-from ethos.domain.land_support import repository_audit_after_admission
-from ethos.domain.land_support import trust_closeout_package
 from ethos_core.contracts.branch.roles import load_branch_role_policy
-
-__all__ = (
-    "acceptable_parity_product_heads",
-    "acceptable_parity_target_heads",
-    "closeout_audit_root",
-    "closeout_bootstrap_package",
-    "closeout_next_actions",
-    "command_is_executed_proof",
-    "intake_projection_report",
-    "land_next_actions",
-    "local_ci_fallback_package",
-    "local_submit_package",
-    "publication_readiness",
-    "remote_publication_deferred",
-    "repository_audit_after_admission",
-    "runner_binding_report",
-    "trust_closeout_package",
-)
 
 
 def closeout_audit_root(repo: Path, decision: object) -> Path:
@@ -57,7 +27,7 @@ def closeout_audit_root(repo: Path, decision: object) -> Path:
     return Path(candidate_path) if candidate_path else repo
 
 
-def _runner_source_root(module_path: Path) -> Path:
+def runner_source_root(module_path: Path) -> Path:
     """Find the repository source root for a runner module when available."""
     for parent in (module_path.parent, *module_path.parents):
         if (parent / "pyproject.toml").exists() and (
@@ -71,18 +41,18 @@ def runner_binding_report(*, accepted_root: Path, audit_root: Path) -> dict[str,
     """Expose which ETHOS source tree provides the current closeout runner."""
     runner_module_path = Path(ethos.__file__).resolve()
     runner_package_root = runner_module_path.parent
-    runner_source_root = _runner_source_root(runner_module_path)
+    source_root = runner_source_root(runner_module_path)
     accepted_root_resolved = accepted_root.resolve()
     audit_root_resolved = audit_root.resolve()
-    runner_matches_accepted_root = runner_source_root == accepted_root_resolved
-    runner_matches_audit_root = runner_source_root == audit_root_resolved
+    runner_matches_accepted_root = source_root == accepted_root_resolved
+    runner_matches_audit_root = source_root == audit_root_resolved
     state = "bound_to_accepted_root" if runner_matches_accepted_root else "external_current_runner"
     return {
         "kind": "closeout_runner_binding",
         "state": state,
         "runner_module_path": runner_module_path.as_posix(),
         "runner_package_root": runner_package_root.as_posix(),
-        "runner_source_root": runner_source_root.as_posix(),
+        "runner_source_root": source_root.as_posix(),
         "accepted_root": accepted_root_resolved.as_posix(),
         "audit_root": audit_root_resolved.as_posix(),
         "runner_matches_accepted_root": runner_matches_accepted_root,
@@ -156,3 +126,53 @@ def closeout_bootstrap_package(
         ],
         "next_action": "run closeout with a current ETHOS runner against accepted_root",
     }
+
+
+def land_next_actions(
+    *,
+    ok: bool,
+    gaps: tuple[str, ...],
+    current_head: str,
+) -> tuple[str, ...]:
+    """Derive the recommended next commands after a land attempt."""
+    if ok:
+        return ("ethos publish",)
+    if "protected_root_mutation" in gaps:
+        return ("ethos land --closeout --json",)
+    if "candidate_base_stale" in gaps:
+        return (f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json",)
+    if "proof_not_proven" in gaps:
+        return (f"ethos prove --execute --expect-head {current_head} --json",)
+    return ("ethos prove --json",)
+
+
+def closeout_next_actions(
+    *,
+    ok: bool,
+    gaps: tuple[str, ...],
+    current_head: str,
+) -> tuple[str, ...]:
+    """Derive recommended next commands after accepted-root closeout."""
+    if ok:
+        return ("ethos lane retire-landed --branch <work-branch> --expect-head <work-lane-head>",)
+    if "candidate_diverged_from_accepted" in gaps:
+        return (
+            "ethos lane candidate --refresh-from-accepted "
+            f"--apply --authorize --expect-head {current_head} --json",
+        )
+    return ("ethos prove --json",)
+
+
+def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, object]:
+    """Run the shape audit after admission, or skip when mutation was blocked."""
+    from ethos.domain.status import audit_for_root
+
+    if not getattr(decision, "ok", False):
+        return {
+            "ok": False,
+            "state": "skipped",
+            "reason": "mutation_admission_blocked",
+            "required_gaps": [],
+            "root": repo.as_posix(),
+        }
+    return audit_for_root(repo, openspec_mode="shape")

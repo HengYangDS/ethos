@@ -46,7 +46,7 @@ targets = [
   "docs/governance/product-design-contract.md",
   "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
   "packages/ethos-core/src/ethos_core/quality/gates.py",
-  "packages/ethos/src/ethos/domain/land_support.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",
   "packages/ethos/src/ethos/surface/cli/quality.py",
   "openspec/specs/quality/spec.md",

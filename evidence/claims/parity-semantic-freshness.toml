@@ -49,7 +49,7 @@ targets = [
   "openspec/changes/archive/2026-07-06-parity-semantic-freshness/tasks.md",
   "openspec/changes/archive/2026-07-06-parity-semantic-freshness/specs/ethos-repository/spec.md",
   "docs/governance/product-design-contract.md",
-  "packages/ethos/src/ethos/domain/land_support.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/domain/report.py",
   "packages/ethos/src/ethos/repository/evidence/parity.py",
   "packages/ethos/src/ethos/repository/evidence/parity_validation.py",

@@ -8,9 +8,10 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.domain.land.core as land_core
+
 # ruff: noqa: ARG005, TC002
 from ethos.assistants import projections
-from ethos.domain import land
 from ethos.domain.orient import _current_head
 from ethos.domain.orient import _next_actions
 from ethos.surface.cli import quality
@@ -22,18 +23,18 @@ def test_land_closeout_audit_root_non_dict_candidate(monkeypatch, tmp_path: Path
     # yields a non-dict candidate, driving the isinstance guard to line 57's `return repo`.
     decision = SimpleNamespace(ok=True)
     monkeypatch.setattr(
-        land,
+        land_core,
         "workspace_status",
         lambda repo: {"candidate": "not-a-dict"},
     )
-    assert land.closeout_audit_root(tmp_path, decision) == tmp_path
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
 
 
 def test_runner_source_root_fallback_without_source_tree(tmp_path: Path) -> None:
     # No ancestor of this synthetic path has pyproject.toml + packages/ethos/src/ethos/__init__.py,
     # so the loop finds no match and falls through to line 69's `return module_path.parent`.
     module_path = tmp_path / "runner" / "ethos.py"
-    assert land._runner_source_root(module_path) == tmp_path / "runner"
+    assert land_core.runner_source_root(module_path) == tmp_path / "runner"
 
 
 def test_current_head_falls_back_to_matching_branch_binding_when_top_level_head_absent() -> None:

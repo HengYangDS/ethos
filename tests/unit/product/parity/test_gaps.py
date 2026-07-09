@@ -4,7 +4,7 @@ import json
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.domain.land import acceptable_parity_product_heads
+from ethos.domain.land.parity.core import acceptable_parity_product_heads
 from ethos.repository.evidence.parity import PARITY_RELEVANT_PATHS
 from ethos.repository.evidence.parity import _shadow_evidence_command
 from ethos.repository.evidence.parity import parity_gaps_report

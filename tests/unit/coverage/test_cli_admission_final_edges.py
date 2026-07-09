@@ -329,7 +329,7 @@ def test_cli_wrappers_emit_expected_results(
         lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="land_ready"),
     )
     monkeypatch.setattr(
-        lifecycle_cli.land_domain,
+        lifecycle_cli.land_core,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": True, "required_gaps": []},
     )
@@ -376,7 +376,7 @@ def test_cli_wrappers_emit_expected_results(
     assert emitted[-1].state == "candidate_validated"
 
     monkeypatch.setattr(
-        lifecycle_cli.land_domain,
+        lifecycle_cli.land_core,
         "repository_audit_after_admission",
         lambda repo, decision: {"ok": False, "required_gaps": ["audit_gap"]},
     )

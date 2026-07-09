@@ -13,12 +13,14 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.domain.land.core as land_core
+import ethos.domain.land.parity.core as land_parity
+import ethos.domain.land.publication as land_publication
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import git
 from ethos.adapters.store import state
-from ethos.domain import land
 from ethos.repository.evidence import claims
 from ethos.repository.registry import authority
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -619,16 +621,18 @@ def test_land_publication_and_parity_head_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     assert (
-        land.local_submit_package(branch="work/x", submit_branch="submit/x")["remote_state"]
+        land_publication.local_submit_package(branch="work/x", submit_branch="submit/x")[
+            "remote_state"
+        ]
         == "deferred"
     )
-    assert land.publication_readiness(branch="work/x", local_ok=False, policy=POLICY)[
+    assert land_publication.publication_readiness(branch="work/x", local_ok=False, policy=POLICY)[
         "required_gaps"
     ] == ["local_publish_readiness_blocked"]
-    monkeypatch.setattr(land, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(land, "workspace_status", lambda repo: {"candidate": {"head": "c1"}})
-    monkeypatch.setattr(land.git_adapter, "current_tracked_head", lambda root: "h1")
-    package = land.closeout_bootstrap_package(
+    monkeypatch.setattr(land_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(land_core, "workspace_status", lambda repo: {"candidate": {"head": "c1"}})
+    monkeypatch.setattr(land_core.git_adapter, "current_tracked_head", lambda root: "h1")
+    package = land_core.closeout_bootstrap_package(
         repo=tmp_path, audit_root=tmp_path / "candidate", required_gaps=("gap",)
     )
     assert package["blocking"] is True and "--expect-head h1" in package["command"]
@@ -659,14 +663,19 @@ def test_land_publication_and_parity_head_edges(
             return "h1\np1\nb0"
         return "h1"
 
-    monkeypatch.setattr(land.git_adapter, "current_tracked_head", lambda root: "h1")
-    monkeypatch.setattr(land.git_adapter, "git_stdout", _stub_git_stdout)
-    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ("h1", "p1", "b0")
-    monkeypatch.setattr(land.git_adapter, "same_git_repository", lambda left, right: True)
-    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ("h1", "p1", "b0")
-    monkeypatch.setattr(land.git_adapter, "current_tracked_head", lambda root: "")
-    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ()
-    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ()
+    monkeypatch.setattr(land_core.git_adapter, "current_tracked_head", lambda root: "h1")
+    monkeypatch.setattr(land_parity.git_adapter, "current_tracked_head", lambda root: "h1")
+    monkeypatch.setattr(land_parity.git_adapter, "git_stdout", _stub_git_stdout)
+    assert land_parity.acceptable_parity_product_heads(tmp_path, "generic") == ("h1", "p1", "b0")
+    monkeypatch.setattr(land_parity.git_adapter, "same_git_repository", lambda left, right: True)
+    assert land_parity.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == (
+        "h1",
+        "p1",
+        "b0",
+    )
+    monkeypatch.setattr(land_parity.git_adapter, "current_tracked_head", lambda root: "")
+    assert land_parity.acceptable_parity_product_heads(tmp_path, "generic") == ()
+    assert land_parity.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ()
 
 
 def test_authority_graph_empty_entries_are_valid(tmp_path: Path) -> None:

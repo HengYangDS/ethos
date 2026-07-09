@@ -35,7 +35,7 @@ kill_signal = "ethos publish reports local fallback evidence as current without 
 [promotion]
 targets = [
   "packages/ethos/src/ethos/domain/campaign/closeout.py",
-  "packages/ethos/src/ethos/domain/land_support.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "packages/ethos/src/ethos/repository/policy/schema_samples/large.py",
   "system/schemas/kernel/campaign-closeout.schema.json",

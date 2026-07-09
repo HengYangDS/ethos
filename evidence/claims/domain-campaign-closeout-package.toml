@@ -44,7 +44,7 @@ targets = [
   ".config/checks/module-layout/policy.toml",
   "packages/ethos/src/ethos/domain/campaign/__init__.py",
   "packages/ethos/src/ethos/domain/campaign/closeout.py",
-  "packages/ethos/src/ethos/domain/land.py",
+  "packages/ethos/src/ethos/domain/land/core.py",
   "packages/ethos/src/ethos/surface/cli/campaign.py",
   "evidence/chronicle/domain-campaign-closeout-package/2026-07-09.md",
   "evidence/claims/domain-campaign-closeout-package.toml",

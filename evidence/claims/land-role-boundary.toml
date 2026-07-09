@@ -23,4 +23,4 @@ ref = "tests/unit/cli/test_contracts_closeout.py::test_land_dry_run_blocks_candi
 path = "packages/ethos/src/ethos/adapters/mutation/core.py"
 
 [[promotion_targets]]
-path = "packages/ethos/src/ethos/domain/land_support.py"
+path = "packages/ethos/src/ethos/domain/land/publication.py"

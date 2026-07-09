@@ -5,10 +5,12 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import ethos.domain.land.core as land_core
+import ethos.domain.land.publication as land_publication
+import ethos.domain.land.trust.core as land_trust
 from ethos.adapters.admission import core as admission
 from ethos.adapters.repo import git as gitio
-from ethos.domain import land
-from ethos.domain import land_support
+from ethos.domain.land.intake.core import intake_projection_report
 from ethos.repository.adoption import evolution
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.evaluation import scope_matches_path
@@ -167,35 +169,35 @@ def test_evolution_ledger_campaign_and_candidate_edges(tmp_path: Path) -> None:
 
 
 def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
-    assert land.command_is_executed_proof("ethos prove --execute --json") is True
-    assert land.remote_publication_deferred()["state"] == "deferred"
-    assert land.land_next_actions(ok=False, gaps=("candidate_base_stale",), current_head="h1")[
+    assert land_trust.command_is_executed_proof("ethos prove --execute --json") is True
+    assert land_publication.remote_publication_deferred()["state"] == "deferred"
+    assert land_core.land_next_actions(ok=False, gaps=("candidate_base_stale",), current_head="h1")[
         0
     ].startswith("ethos lane refresh-base")
-    assert land.closeout_next_actions(
+    assert land_core.closeout_next_actions(
         ok=False, gaps=("candidate_diverged_from_accepted",), current_head="h1"
     )[0].startswith("ethos lane candidate")
 
     decision = SimpleNamespace(ok=False)
-    assert land.closeout_audit_root(tmp_path, decision) == tmp_path
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
     decision = SimpleNamespace(ok=True)
     monkeypatch.setattr(
-        land,
+        land_core,
         "workspace_status",
         lambda repo: {"candidate": {"worktree_path": str(tmp_path / "candidate")}},
     )
-    assert land.closeout_audit_root(tmp_path, decision) == tmp_path / "candidate"
-    skipped = land.repository_audit_after_admission(tmp_path, SimpleNamespace(ok=False))
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path / "candidate"
+    skipped = land_core.repository_audit_after_admission(tmp_path, SimpleNamespace(ok=False))
     assert skipped["state"] == "skipped"
 
-    assert land.intake_projection_report(tmp_path)["state"] == "unconfigured"
+    assert intake_projection_report(tmp_path)["state"] == "unconfigured"
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "intake.toml").write_text("provider = ''\n", encoding="utf-8")
-    assert land.intake_projection_report(tmp_path)["required_gaps"] == [
+    assert intake_projection_report(tmp_path)["required_gaps"] == [
         "intake_provider_missing:.ethos/intake.toml"
     ]
     (tmp_path / ".ethos" / "intake.toml").write_text("bad = [\n", encoding="utf-8")
-    assert land.intake_projection_report(tmp_path)["provider"] == "invalid"
+    assert intake_projection_report(tmp_path)["provider"] == "invalid"
 
     claims = {"ok": True, "claims": {}}
     workspace = {
@@ -203,7 +205,7 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         "branch": "work/x",
         "closeout_support": {"supported": True, "claim_binding": "missing"},
     }
-    gaps = land.trust_closeout_package(workspace=workspace, claims=claims)["required_gaps"]
+    gaps = land_trust.trust_closeout_package(workspace=workspace, claims=claims)["required_gaps"]
     assert "trust_claim_missing" in gaps
     assert "work_lane_claim_binding_missing:work/x" in gaps
     envelope = {
@@ -211,7 +213,7 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         "evidence": {"commands": ["ethos prove --execute --json"]},
         "required_gaps": [],
     }
-    ready = land.trust_closeout_package(
+    ready = land_trust.trust_closeout_package(
         workspace={
             "role": "work_lane",
             "branch": "work/x",
@@ -222,23 +224,23 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
     assert ready["blocking"] is False
 
 
-def test_land_support_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:
+def test_land_publication_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:
     decision = SimpleNamespace(ok=True)
     monkeypatch.setattr(
-        land_support,
+        land_core,
         "workspace_status",
         lambda _repo: {"candidate": "not-a-dict"},
     )
-    assert land_support.closeout_audit_root(tmp_path, decision) == tmp_path
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
 
     (tmp_path / ".ethos").mkdir(exist_ok=True)
     (tmp_path / ".ethos" / "intake.toml").write_text('provider = "gitlab"\n', encoding="utf-8")
-    configured = land_support.intake_projection_report(tmp_path)
+    configured = intake_projection_report(tmp_path)
     assert configured["state"] == "configured"
     assert configured["provider"] == "gitlab"
     assert configured["required_gaps"] == []
 
-    blocked = land_support.trust_closeout_package(
+    blocked = land_trust.trust_closeout_package(
         workspace={"role": "accepted_root", "branch": "dev"},
         claims={"ok": False, "required_gaps": ["claim_schema_invalid"], "claims": {}},
     )
@@ -321,12 +323,12 @@ def test_remote_availability_and_local_ci_fallback_edges(monkeypatch, tmp_path: 
     assert availability["advisory_gaps"] == ["remote_unavailable:origin"]
     assert ("git", "ls-remote", "--exit-code", "origin") in calls
 
-    deferred = land.remote_publication_deferred(availability)
+    deferred = land_publication.remote_publication_deferred(availability)
     assert deferred["state"] == "deferred"
     assert deferred["fallback"]["kind"] == "local_ci_fallback"
     assert deferred["fallback"]["hosted_ci_status_claimed"] is False
 
-    package = land.publication_readiness(
+    package = land_publication.publication_readiness(
         branch="work/x",
         local_ok=True,
         policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
@@ -357,7 +359,7 @@ def test_remote_availability_reports_configured_remote_available(
 
     assert availability["state"] == "available"
     assert availability["available"] is True
-    package = land.publication_readiness(
+    package = land_publication.publication_readiness(
         branch="work/x",
         local_ok=True,
         policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),

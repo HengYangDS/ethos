@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
-import ethos.domain.land as land_domain
+import ethos.domain.land.parity.core as land_parity
 import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.domain.reporting.parity.core as reporting_parity
 import ethos.domain.reporting.scoring as reporting_scoring
@@ -66,8 +66,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         target=repo,
         current_product_head=current_head,
         current_target_head=current_head,
-        acceptable_product_heads=land_domain.acceptable_parity_product_heads(repo, None),
-        acceptable_target_heads=land_domain.acceptable_parity_target_heads(repo, repo, None),
+        acceptable_product_heads=land_parity.acceptable_parity_product_heads(repo, None),
+        acceptable_target_heads=land_parity.acceptable_parity_target_heads(repo, repo, None),
     )
     adopter_parity_gaps = (
         parity_gaps_report(
@@ -76,10 +76,10 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             target=repo,
             current_product_head=current_product_head,
             current_target_head=current_head,
-            acceptable_product_heads=land_domain.acceptable_parity_product_heads(
+            acceptable_product_heads=land_parity.acceptable_parity_product_heads(
                 parity_root, adopter_id
             ),
-            acceptable_target_heads=land_domain.acceptable_parity_target_heads(
+            acceptable_target_heads=land_parity.acceptable_parity_target_heads(
                 parity_root, repo, adopter_id
             ),
         )

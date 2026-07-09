@@ -118,10 +118,10 @@ def test_parity_shadow_write_evidence_requires_execute(
     monkeypatch.setattr(parity_cli, "resolve_root", lambda root: tmp_path)
     monkeypatch.setattr(parity_cli.git_adapter, "current_tracked_head", lambda root: "")
     monkeypatch.setattr(
-        parity_cli.land_domain, "acceptable_parity_product_heads", lambda repo, adopter: ()
+        parity_cli.land_parity, "acceptable_parity_product_heads", lambda repo, adopter: ()
     )
     monkeypatch.setattr(
-        parity_cli.land_domain, "acceptable_parity_target_heads", lambda repo, target, adopter: ()
+        parity_cli.land_parity, "acceptable_parity_target_heads", lambda repo, target, adopter: ()
     )
     emitted: list[object] = []
     monkeypatch.setattr(

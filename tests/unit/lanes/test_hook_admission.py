@@ -193,6 +193,10 @@ def test_pre_tool_hook_blocks_work_lane_actor_mismatch(
         "actor": "agent-b",
         "reason": "work_lane_actor_mismatch:work/feature",
     }
+    assert report["next_actions"] == [
+        "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+        "ethos lane prewrite <path>",
+    ]
 
 
 def test_pre_tool_hook_admits_leased_work_lane_for_matching_actor(

@@ -410,7 +410,9 @@ def _prewrite_report(
         base["state"] = "admitted"
         base["decision"] = {"action": "allow", "reason": "prewrite_admitted"}
         return base
-    return _blocked(base, str(admission["error"]))
+    blocked = _blocked(base, str(admission["error"]))
+    blocked["next_actions"] = _prewrite_block_next_actions(admission)
+    return blocked
 
 
 def _pre_run_report(
@@ -480,6 +482,25 @@ def _fallback_report(base: dict[str, object]) -> dict[str, object]:
     base["decision"] = {"action": "allow", "reason": "fallback_hook_layer"}
     base["fallback"] = True
     return base
+
+
+def _prewrite_block_next_actions(admission: dict[str, object]) -> list[str]:
+    lease = admission.get("work_lane_lease")
+    if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
+        "work_lane_actor_mismatch:"
+    ):
+        owner = str(lease.get("owner") or "").strip()
+        if owner:
+            return [
+                f"set ETHOS_ACTOR={owner} and rerun the blocked command, or obtain lane handoff",
+                "ethos lane prewrite <path>",
+            ]
+        return ["set ETHOS_ACTOR to the lane lease owner or obtain handoff"]
+    if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
+        "work_lane_missing_lease:"
+    ):
+        return ["ethos lane start <name> --owner <owner> --apply --json"]
+    return ["ethos lane prewrite <path>"]
 
 
 def _blocked(base: dict[str, object], reason: str) -> dict[str, object]:

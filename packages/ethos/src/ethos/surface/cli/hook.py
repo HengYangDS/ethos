@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
+from typing import cast
 
 from cyclopts import Parameter
 
@@ -57,10 +58,19 @@ def admit(
             "decision": decision_action,
         },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane prewrite <path>",) if not report["ok"] else (),
+        next_actions=_hook_admit_next_actions(report),
         data=report,
     )
     emit(result, json_output=json_output, enforce=True)
+
+
+def _hook_admit_next_actions(report: dict[str, object]) -> tuple[str, ...]:
+    if report["ok"] is True:
+        return ()
+    actions = report.get("next_actions")
+    if isinstance(actions, list):
+        return tuple(str(action) for action in cast("list[object]", actions))
+    return ("ethos lane prewrite <path>",)
 
 
 @hook_app.command

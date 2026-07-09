@@ -27,6 +27,7 @@ import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
 import ethos.repository.registry.docs.commands as docs_commands
 import ethos.surface.cli._base as cli_base
+import ethos.surface.cli.hook as admission_cli
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
@@ -50,6 +51,23 @@ def test_prewrite_cast_worktrees_skips_non_dict_entries() -> None:
     assert admission_prewrite.cast_worktrees([{"branch": "work/x"}, "bad"]) == [
         {"branch": "work/x"}
     ]
+
+
+def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
+    report = {
+        "ok": False,
+        "next_actions": [
+            "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+            "ethos lane prewrite <path>",
+        ],
+    }
+
+    assert admission_cli._hook_admit_next_actions(report) == (
+        "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+        "ethos lane prewrite <path>",
+    )
+    assert admission_cli._hook_admit_next_actions({"ok": True}) == ()
+    assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)
 
 
 def test_admission_prewrite_and_hook_success_edges(

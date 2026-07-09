@@ -122,6 +122,102 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
     assert active_leases(db_path) == []
 
 
+def test_acquire_lease_migrates_retired_resource_column_schema(tmp_path: Path) -> None:
+    from ethos.adapters.store.state import acquire_lease
+
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            create table schema_migrations (
+                version integer primary key,
+                applied_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                resource text not null default '',
+                expires_at text not null default '',
+                created_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, resource, expires_at, created_at)
+            values ('lease:old', 'agent-old', 'work/old',
+                    '2099-07-01T00:00:00+00:00',
+                    '2026-07-01T00:00:00+00:00')
+            """
+        )
+        connection.commit()
+
+    lease = acquire_lease(
+        db_path,
+        subject="work/new",
+        owner="agent-new",
+        ttl_seconds=60,
+        payload={"path": "lane"},
+    )
+
+    leases = active_leases(db_path)
+    assert lease["subject"] == "work/new"
+    assert {item["subject"] for item in leases} == {"work/old", "work/new"}
+    assert next(item for item in leases if item["subject"] == "work/old")["owner"] == "agent-old"
+
+
+def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> None:
+    from ethos.adapters.store.state import acquire_lease
+
+    db_path = tmp_path / "state.sqlite"
+    first = acquire_lease(db_path, subject="work/current", owner="agent-a")
+
+    second = acquire_lease(db_path, subject="work/next", owner="agent-b")
+
+    leases = active_leases(db_path)
+    assert {item["subject"] for item in leases} == {"work/current", "work/next"}
+    assert first["subject"] == "work/current"
+    assert second["subject"] == "work/next"
+
+
+def test_acquire_lease_skips_empty_retired_resource_rows(tmp_path: Path) -> None:
+    from ethos.adapters.store.state import acquire_lease
+
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    db_path.parent.mkdir(parents=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            create table leases (
+                id text primary key,
+                owner text not null default '',
+                resource text not null default '',
+                expires_at text not null default '',
+                created_at text not null
+            )
+            """
+        )
+        connection.execute(
+            """
+            insert into leases(id, owner, resource, expires_at, created_at)
+            values ('lease:blank', 'agent-old', '',
+                    '2099-07-01T00:00:00+00:00',
+                    '2026-07-01T00:00:00+00:00')
+            """
+        )
+        connection.commit()
+
+    acquire_lease(db_path, subject="work/new", owner="agent-new", ttl_seconds=60)
+
+    leases = active_leases(db_path)
+    assert {item["subject"] for item in leases} == {"work/new"}
+
+
 def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> None:
     from ethos.adapters.store.state import delete_lease
 

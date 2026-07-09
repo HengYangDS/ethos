@@ -22,15 +22,11 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
-
-if TYPE_CHECKING:
-    from pathlib import Path as _Path
 
 
 def _worker_proof_dir() -> Path:
@@ -48,7 +44,7 @@ def _isolate_proof_records(monkeypatch: pytest.MonkeyPatch) -> object:
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_git_identity(monkeypatch: pytest.MonkeyPatch, tmp_path: "_Path") -> None:
+def _hermetic_git_identity(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Bind a deterministic git identity so `git commit` in test repos never depends
     on ambient global config (absent in CI). Covers both the author/committer used by
     plumbing and the config-derived identity read by signature policy checks."""

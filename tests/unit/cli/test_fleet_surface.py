@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from ethos.repository.adoption.planner import adoption_plan
 from tests.support.ethos_cli_runner import run_ethos

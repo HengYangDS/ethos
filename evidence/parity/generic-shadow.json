@@ -5,10 +5,10 @@
   "generated_on": "2026-07-09",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
   "freshness": {
-    "product_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
-    "target_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
-    "product_semantic_sha256": "a935b1707950597982bb640c034ee375625e6cefa1ce8a44f9f1e09bb82e66fe",
-    "target_semantic_sha256": "a935b1707950597982bb640c034ee375625e6cefa1ce8a44f9f1e09bb82e66fe",
+    "product_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
+    "target_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
+    "product_semantic_sha256": "0ac19b4c778ae2f060dea4efc276ad82eddde98a80e6f3aec99276e4e36ee40f",
+    "target_semantic_sha256": "0ac19b4c778ae2f060dea4efc276ad82eddde98a80e6f3aec99276e4e36ee40f",
     "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
   },
   "shadow": {
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709",
-    "target_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
-    "product_head": "4022b7fdf832d387e3a23a2f4228934121c9de2f",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/review-hardening",
+    "target_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
+    "product_head": "1b03f847e4405fabfaedcc0b4934d17895a7f80f",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/foreign-worktree-missing-readmodel-v2-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/review-hardening --json",
+      "/Users/yheng/projects/ethos-worktrees/review-hardening/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/review-hardening --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -81,17 +81,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c6d045846e7f044039496ee34b646972f734ea9378c1eeec2477b8fb0418110a"
+        "sha256": "948d8d68075b4cd9fbc2e9a9b1c3d2947ca8772924a160414ff3cf8ee829a3a8"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "cc61e635d00f65accf128a4cee623bd1ec769acb03ac9337bf10c445dc1ed9d7"
+        "sha256": "0d61eea5b8a7ba9d99357396c79921434ab77bd004904ea96693cc42e485b0d7"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "83e5f70c904511fe484f5606da9a945c6ad152258c4169951904e601489c19bb"
+        "sha256": "69250e07162c38f95926bee2009394f63c26a44ca1ae4caf4fad0dcce9463d35"
       },
       {
         "path": "rules",

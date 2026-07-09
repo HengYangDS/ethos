@@ -13,9 +13,9 @@ import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal
 import ethos.adapters.openspec.workspace.core as openspec_workspace
+import ethos.repository.openspec.audit as openspec_audit
+import ethos.repository.openspec.audit as openspec_audit_core
 import ethos.repository.openspec.metadata as openspec_metadata
-from ethos.repository import audit_openspec
-from ethos.repository import audit_openspec as audit_openspec_core
 from ethos_core.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
@@ -130,7 +130,7 @@ def test_proposal_capability_entry_skips_part_without_equals() -> None:
     assert entry["metadata"] == {"subject": "a", "reuse": "new"}
 
 
-# --- repository/audit_openspec.py --------------------------------------------
+# --- repository/openspec/audit.py --------------------------------------------
 
 
 def test_required_gaps_filters_non_blocked_role_and_empty_gap(
@@ -148,8 +148,8 @@ def test_required_gaps_filters_non_blocked_role_and_empty_gap(
             ]
         }
 
-    monkeypatch.setattr(audit_openspec, "protected_branch_active_change_report", _fake_report)
-    gaps = audit_openspec_core.protected_branch_active_change_required_gaps(
+    monkeypatch.setattr(openspec_audit, "protected_branch_active_change_report", _fake_report)
+    gaps = openspec_audit_core.protected_branch_active_change_required_gaps(
         Path("/nonexistent"), current_branch="work/x"
     )
     assert gaps == ["g3"]

@@ -20,4 +20,4 @@ kind = "test"
 ref = "tests/unit/audit/test_modes.py::test_openspec_shape_blocks_active_change_on_current_release_root"
 
 [[promotion_targets]]
-path = "packages/ethos/src/ethos/repository/audit_openspec.py"
+path = "packages/ethos/src/ethos/repository/openspec/audit.py"

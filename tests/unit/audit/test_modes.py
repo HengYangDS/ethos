@@ -3,13 +3,13 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import ethos.repository.openspec.audit as openspec_audit
 import ethos.surface.cli.root.reference as reference_cli
 from ethos.repository import audit
 from ethos.repository import audit as repository_audit_module
-from ethos.repository import audit_openspec
 from ethos.repository.audit import _write_admission_armed_gaps
-from ethos.repository.audit_openspec import openspec_shape_report
-from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
+from ethos.repository.openspec.audit import openspec_shape_report
+from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from tests.support import ethos_cli_runner
 
 
@@ -144,9 +144,9 @@ def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path, mo
         stdout = ""
         stderr = ""
 
-    monkeypatch.setattr(audit_openspec.subprocess, "run", lambda *_args, **_kwargs: Completed())
+    monkeypatch.setattr(openspec_audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
 
-    report = audit_openspec.openspec_shape_report(tmp_path)
+    report = openspec_audit.openspec_shape_report(tmp_path)
 
     assert report["ok"] is False
     assert "openspec_completed_change_unarchived:done-change" in report["required_gaps"]
@@ -342,9 +342,9 @@ def test_openspec_shape_rejects_legacy_project_version_config(tmp_path: Path, mo
         stdout = ""
         stderr = ""
 
-    monkeypatch.setattr(audit_openspec.subprocess, "run", lambda *_args, **_kwargs: Completed())
+    monkeypatch.setattr(openspec_audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
 
-    report = audit_openspec.openspec_shape_report(tmp_path)
+    report = openspec_audit.openspec_shape_report(tmp_path)
 
     assert report["ok"] is False
     assert "openspec_config_schema_missing" in report["required_gaps"]
@@ -362,9 +362,9 @@ def test_openspec_shape_rejects_invalid_official_config_yaml(tmp_path: Path, mon
         stdout = ""
         stderr = ""
 
-    monkeypatch.setattr(audit_openspec.subprocess, "run", lambda *_args, **_kwargs: Completed())
+    monkeypatch.setattr(openspec_audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
 
-    report = audit_openspec.openspec_shape_report(tmp_path)
+    report = openspec_audit.openspec_shape_report(tmp_path)
 
     assert report["ok"] is False
     assert any(gap.startswith("openspec_config_invalid:") for gap in report["required_gaps"])
@@ -380,9 +380,9 @@ def test_openspec_shape_accepts_official_spec_driven_config(tmp_path: Path, monk
         stdout = ""
         stderr = ""
 
-    monkeypatch.setattr(audit_openspec.subprocess, "run", lambda *_args, **_kwargs: Completed())
+    monkeypatch.setattr(openspec_audit.subprocess, "run", lambda *_args, **_kwargs: Completed())
 
-    report = audit_openspec.openspec_shape_report(tmp_path)
+    report = openspec_audit.openspec_shape_report(tmp_path)
 
     assert report["ok"] is True
     assert report["official_config"]["ok"] is True

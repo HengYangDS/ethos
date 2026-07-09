@@ -19,7 +19,7 @@ ref = "tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_pr
 path = "packages/ethos/src/ethos/adapters/openspec/openspec.py"
 
 [[promotion_targets]]
-path = "packages/ethos/src/ethos/repository/audit_openspec.py"
+path = "packages/ethos/src/ethos/repository/openspec/audit.py"
 
 [[promotion_targets]]
 path = "tests/unit/product/test_openspec_substrate.py"

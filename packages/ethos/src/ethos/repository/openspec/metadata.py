@@ -1,7 +1,7 @@
 """OpenSpec `.openspec.yaml` metadata compatibility — pure file-reading, repository layer.
 
 Extracted from `ethos.adapters.openspec` so the always-run shape audit
-(`ethos.repository.audit_openspec`) can consume it without importing the adapters
+(`ethos.repository.openspec.audit`) can consume it without importing the adapters
 layer, which the surface > domain > adapters > repository layering forbids. This logic
 touches only the filesystem (no `openspec` CLI, no subprocess), so it belongs in the
 repository layer beside the audit that uses it. The adapters archive-metadata code

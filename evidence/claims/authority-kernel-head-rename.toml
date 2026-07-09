@@ -35,7 +35,7 @@ targets = [
   "packages/ethos-core/src/ethos_core/kernel.py",
   "packages/ethos-core/src/ethos_core/models.py",
   "packages/ethos/src/ethos/repository/context.py",
-  "packages/ethos/src/ethos/repository/audit_design.py",
+  "packages/ethos/src/ethos/repository/design/integrity.py",
   "packages/ethos/src/ethos/adapters/store/state.py",
   "system/schemas/kernel/authority.schema.json",
   "system/invalid_states.toml",

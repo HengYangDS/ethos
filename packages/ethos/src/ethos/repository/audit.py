@@ -7,17 +7,17 @@ from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
-from ethos.repository.audit_design import DESIGN_INTEGRITY_DOCS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_TERMS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_REQUIRED_TERMS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_VENDOR_TERMS
-from ethos.repository.audit_design import design_integrity_report
-from ethos.repository.audit_design import front_matter_ok
-from ethos.repository.audit_openspec import openspec_provider_missing_report
-from ethos.repository.audit_openspec import openspec_shape_report
 from ethos.repository.context import governance_context
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_TERMS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_REQUIRED_TERMS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_VENDOR_TERMS
+from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.evidence.claims import claims_report
+from ethos.repository.openspec.audit import openspec_provider_missing_report
+from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report

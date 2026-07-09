@@ -31,10 +31,10 @@ import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
 import ethos.surface.cli.root.registry as root_registry
-from ethos.repository.audit_design import front_matter_ok
-from ethos.repository.audit_openspec import active_change_violations_for_role
-from ethos.repository.audit_openspec import completed_unarchived_changes
-from ethos.repository.audit_openspec import openspec_provider_missing_report
+from ethos.repository.design.integrity import front_matter_ok
+from ethos.repository.openspec.audit import active_change_violations_for_role
+from ethos.repository.openspec.audit import completed_unarchived_changes
+from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT

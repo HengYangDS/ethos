@@ -26,7 +26,7 @@ kill_signal = "An accepted_root or candidate checkout reports clean governance w
 
 [promotion]
 targets = [
-  "packages/ethos/src/ethos/repository/audit_openspec.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
   "packages/ethos/src/ethos/repository/audit.py",
   "tests/unit/coverage/test_cli_admission_final_edges.py",
   "openspec/changes/archive/2026-07-07-openspec-active-carrier-closeout-guard/proposal.md",

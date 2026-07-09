@@ -39,7 +39,7 @@ targets = [
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/design.md",
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/tasks.md",
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/specs/repository-governance/spec.md",
-  "packages/ethos/src/ethos/repository/audit_openspec.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
   "packages/ethos/src/ethos/cli.py",
   "tests/unit/audit/test_modes.py",
   "tests/unit/cli/test_contracts_closeout.py",

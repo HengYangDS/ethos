@@ -46,6 +46,6 @@ targets = [
   "openspec/changes/archive/2026-07-07-root-philosophy-clarity/specs/kernel/spec.md",
   "tests/architecture/test_product_design_contract.py",
   "tests/unit/kernel/test_contracts.py",
-  "packages/ethos/src/ethos/repository/audit_design.py",
+  "packages/ethos/src/ethos/repository/design/integrity.py",
   ".agents/skills/activation.toml",
 ]

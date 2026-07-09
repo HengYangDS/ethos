@@ -10,9 +10,9 @@ import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.repository.audit_openspec import active_change_names
-from ethos.repository.audit_openspec import active_change_violations_for_role
-from ethos.repository.audit_openspec import completed_unarchived_changes
+from ethos.repository.openspec.audit import active_change_names
+from ethos.repository.openspec.audit import active_change_violations_for_role
+from ethos.repository.openspec.audit import completed_unarchived_changes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE

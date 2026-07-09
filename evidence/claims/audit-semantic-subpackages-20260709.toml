@@ -1,0 +1,58 @@
+[claim]
+id = "audit-semantic-subpackages-20260709"
+subject = "ethos:audit-semantic-subpackages-20260709"
+state = "active"
+summary = "ETHOS retired repository audit suffix-module debt into semantic subpackages without compatibility facades."
+
+[evidence]
+dated = "evidence/chronicle/audit-semantic-subpackages-20260709/2026-07-09.md"
+sha256 = "26dbd5569b2b7c6dccd72981f290f81a489a3eb3bd6ec59928c966ad79806f68"
+evidence_ids = ["evidence:audit-semantic-subpackages-20260709"]
+binding = "Semantic subpackage migration, no compatibility import shells, module-layout ratchet shrink, and full Python proof gate."
+verifier = "semantic"
+tests = [
+  "uv run --package ethos ethos quality module-layout --json",
+  "uv run --group dev ruff check .",
+  "uv run --group dev ruff format --check .",
+  "ETHOS_TEST_WORKERS=8 tools/ci/scripts/run-python-tests.sh",
+  "uv run --all-packages --group dev pytest -q tests/architecture/test_release_assets.py::test_module_layout_gate_is_owned_by_policy_and_runner_surfaces tests/unit/audit/test_modes.py::test_report_uses_shallow_repository_audit",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/audit/test_modes.py",
+  "tests/unit/coverage/test_cli_admission_final_edges.py",
+  "tests/unit/coverage/test_cov_v3_openspec_edges.py",
+  "tests/unit/coverage/test_free_surface_quality_edges.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "Repository audit module-layout debt reduction by semantic subpackage migration."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard"
+fallback = "Revert the semantic moves and baseline shrink if defining-module imports or repository audit behavior regress; do not replace deleted modules with compatibility facades."
+kill_signal = "module-layout reports baseline growth, compatibility facades, package-root submodule imports, or callers require old audit suffix-flat import paths."
+
+[promotion]
+targets = [
+  ".config/checks/module-layout/policy.toml",
+  "packages/ethos/src/ethos/repository/design/__init__.py",
+  "packages/ethos/src/ethos/repository/design/integrity.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
+  "packages/ethos/src/ethos/repository/openspec/metadata.py",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "packages/ethos/src/ethos/adapters/openspec/core.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/audit/test_modes.py",
+  "tests/unit/coverage/test_cli_admission_final_edges.py",
+  "tests/unit/coverage/test_cov_v3_openspec_edges.py",
+  "tests/unit/coverage/test_free_surface_quality_edges.py",
+  "evidence/chronicle/audit-semantic-subpackages-20260709/2026-07-09.md",
+  "evidence/claims/audit-semantic-subpackages-20260709.toml",
+]

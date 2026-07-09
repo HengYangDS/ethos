@@ -17,8 +17,8 @@ from ethos.adapters.openspec.lifecycle.core import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.core import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.core import selected_change
 from ethos.adapters.openspec.workspace.core import openspec_workspace_signature
-from ethos.repository.audit_openspec import official_config_report
-from ethos.repository.audit_openspec import protected_branch_active_change_report
+from ethos.repository.openspec.audit import official_config_report
+from ethos.repository.openspec.audit import protected_branch_active_change_report
 
 if TYPE_CHECKING:
     from typing import Any

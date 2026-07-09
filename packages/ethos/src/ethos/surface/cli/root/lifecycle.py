@@ -19,8 +19,8 @@ from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.repository.audit_openspec import protected_branch_active_change_required_gaps
 from ethos.repository.context import context_for_root
+from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app

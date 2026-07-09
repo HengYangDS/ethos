@@ -232,8 +232,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         ("private_reference_literal", pattern) for pattern in PRIVATE_REFERENCE_PATTERNS
     )
     patterns.extend(
-        ("private_domain_marker_literal", pattern)
-        for pattern in PRIVATE_DOMAIN_MARKER_PATTERNS
+        ("private_domain_marker_literal", pattern) for pattern in PRIVATE_DOMAIN_MARKER_PATTERNS
     )
     patterns.extend(("generic_current_future_phase", pattern) for pattern in PHASE_PATTERNS)
     patterns.extend(("session_authority_literal", pattern) for pattern in SESSION_SURFACE_PATTERNS)

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-09",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "3c5e5133f257277de99287a535b05df56df0d494",
-    "target_head": "3c5e5133f257277de99287a535b05df56df0d494",
-    "product_semantic_sha256": "cea2b1aac3bea8311e2c4d280063c6d9dece83d40f471d87a6e58e7aa4c82931",
-    "target_semantic_sha256": "cea2b1aac3bea8311e2c4d280063c6d9dece83d40f471d87a6e58e7aa4c82931",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "661b258e58c88807841d9dc3bd5d84b7704a09ad",
+    "target_head": "661b258e58c88807841d9dc3bd5d84b7704a09ad",
+    "product_semantic_sha256": "0f85ae0bd33eaa5b751823578b54120dc31fb7685ba39e124de04ed024b4f079",
+    "target_semantic_sha256": "0f85ae0bd33eaa5b751823578b54120dc31fb7685ba39e124de04ed024b4f079",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,9 +35,9 @@
     "false_negative_count": 0
   },
   "identity": {
-    "target_root": "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709",
-    "target_head": "3c5e5133f257277de99287a535b05df56df0d494",
-    "product_head": "3c5e5133f257277de99287a535b05df56df0d494",
+    "target_root": "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709",
+    "target_head": "661b258e58c88807841d9dc3bd5d84b7704a09ad",
+    "product_head": "661b258e58c88807841d9dc3bd5d84b7704a09ad",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -51,15 +51,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json",
-      "/Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/system-contracts-semantic-package-20260709 --json"
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli status --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli plan --changed --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli prove --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli report --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli quality command-surface --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli playbooks route --changed --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli land --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json",
+      "/Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709/.venv/bin/python -m ethos.cli publish --root /Users/yheng/projects/ethos-worktrees/lane-status-coordination-discovery-20260709 --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,22 +76,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "14a6b9ad0a72779ea6dfe1de99b68bfa6b777d18c68728fe256344984c5b22ae"
+        "sha256": "e45b55c62fab1fc50f0b60b5836a5ece8055fcb35fe42b7444d96463954f23d0"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "c0a9a9b60d22c7f3a2302a8d35891e2dc1970a044a1a4d94715090b186e3cd87"
+        "sha256": "7d95693b8ae504631501c0523f788279937162f46ddcd6412dd28a2d636e8106"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "2868970b4c924a15bfeda5f99a5ead98a6a1f01784eb6b628ed425bb0373a389"
+        "sha256": "cae1133d8b14ae38ef5e21ef2bce0b3c24b3d9552038f9aa3343480d8e9e28d0"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "5c5577e55a721cde6dcddba9ed671620b973260fbe8be1702bd477028ce4eaa3"
+        "sha256": "1bfbbabf1e4482cbcc6044991ed5a85081379735ffea7e994e696f120449a5fe"
       },
       {
         "path": "rules",

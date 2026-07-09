@@ -32,7 +32,7 @@ workflow packages whose activation semantics are governed by ETHOS contracts.
 
 - Do not make skills, package manifests, MCP descriptors, or host metadata
   repository truth.
-- Do not require dmgr or other existing adopters to migrate to V2 before ETHOS
+- Do not require reference adopter or other existing adopters to migrate to V2 before ETHOS
   can ship the product-root V2 gate.
 - Do not introduce shell-script execution or arbitrary MCP mutation capability.
 - Do not archive CL-002 or CL-003 until implementation evidence and claims are
@@ -49,8 +49,8 @@ contract.
 
 ### Historical inputs normalize into a V2 IR
 
-ETHOS v1 and dmgr-style `activation.toml` records remain readable as
-historical replay fixtures. di-effect style `skill_activation_contracts.toml`
+ETHOS v1 and reference-adopter-style `activation.toml` records remain readable as
+historical replay fixtures. alternate activation style `skill_activation_contracts.toml`
 is supported as a fixture input. Importers preserve fixture fields and add V2
 enrichment rather than breaking existing shadow parity.
 
@@ -93,10 +93,10 @@ lifecycle semantics.
 
 1. Add OpenSpec artifacts and failing tests.
 2. Add V2 IR and schema validation.
-3. Normalize v1 and di-effect inputs into the IR.
+3. Normalize v1 and alternate mechanism corpus inputs into the IR.
 4. Add strict playbook check and route mode.
 5. Add skill package manifest validation and capability classification.
 6. Add scaffold, projection drift, report, repository-audit, and proof integration.
 7. Migrate the ETHOS product root skill package.
-8. Preserve dmgr v1 parity, refresh evidence only after verification.
+8. Preserve reference-adopter v1 parity, refresh evidence only after verification.
 9. Write dated evidence and claims, then archive the OpenSpec change.

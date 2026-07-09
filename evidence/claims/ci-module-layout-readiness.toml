@@ -6,7 +6,7 @@ summary = "Enterprise-readiness aggregation belongs to the domain layer and loca
 
 [evidence]
 dated = "evidence/chronicle/ci-module-layout-readiness/2026-07-09.md"
-sha256 = "43abdea446b9db8065cff622fc61a4a691aef40e973294bf99e7d28a752b677f"
+sha256 = "addce8dab4aeae1aa5b5900693b36bb37153ade842ce4831310c6567c8c194e1"
 evidence_ids = ["evidence:ci-module-layout-readiness"]
 binding = "Digest-bound evidence for restoring module-layout/import-linter readiness."
 verifier = "semantic"

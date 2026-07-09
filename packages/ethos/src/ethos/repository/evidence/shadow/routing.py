@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 REPOSITORY_TARGET = "<repo>"
+PRODUCT_REPOSITORY_TARGET = "<product-repo>"
+EXTERNAL_REPOSITORY_TARGET = "<target-repo>"
 
 
 def parity_evidence_repository_root(*, root: Path, target: Path | None) -> Path:
@@ -75,6 +77,21 @@ def target_identity(*, root: Path | None, adopter: str, target: Path) -> str:
     if adopter == "generic" and root is not None and same_git_repository(root, target):
         return REPOSITORY_TARGET
     return target.resolve().as_posix()
+
+
+def tracked_target_identity(*, root: Path | None, adopter: str, target: Path) -> str:
+    """Return the target identity safe for tracked parity evidence.
+
+    Runtime reports and refresh instructions may need an executable path. Tracked
+    product/adopter evidence is different: it is release-visible provenance. For
+    distinct Git repositories, keep the HEAD/digest binding but redact the raw
+    workstation path to a stable repository-role placeholder.
+    """
+    if adopter == "generic" and root is not None and same_git_repository(root, target):
+        return REPOSITORY_TARGET
+    if root is not None and git_common_dir(root) and git_common_dir(target):
+        return EXTERNAL_REPOSITORY_TARGET
+    return target_identity(root=root, adopter=adopter, target=target)
 
 
 def target_command_argument(identity: str) -> str:

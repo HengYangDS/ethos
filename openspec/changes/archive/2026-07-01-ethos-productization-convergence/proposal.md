@@ -32,6 +32,6 @@ not own, and how closeout should be proved.
 
 - Do not remove maintainer/reference commands.
 - Do not turn DocOS authority graph data into a lifecycle owner.
-- Do not hardcode dmgr raw/cache semantics in ETHOS core.
-- Do not claim hosted CI, remote publication, or dmgr raw/cache parity from
+- Do not hardcode adopter adopter-domain storage semantics in ETHOS core.
+- Do not claim hosted CI, remote publication, or adopter adopter-domain storage parity from
   local repository-audit.

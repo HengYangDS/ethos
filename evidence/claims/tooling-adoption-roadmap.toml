@@ -7,7 +7,7 @@ summary = "ETHOS records a provider-neutral tooling adoption roadmap and has act
 
 [evidence]
 dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
-sha256 = "611f8c6b3cdc4ac40989798ed8a55e5133282bf40328d8a8b1d93ed998e3dc83"
+sha256 = "ff0fa7036c3bc0fcbf1e09fc67c77e7650c925a038e6c50645b7b49a21a43cf4"
 evidence_ids = ["evidence:tooling-adoption-roadmap"]
 binding = "Roadmap, mechanism comparison audit, horizontal mechanism matrix, selected gate implementation, and forge-provider contract evidence binding"
 verifier = "semantic"

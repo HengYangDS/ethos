@@ -5,10 +5,10 @@ Official OpenSpec owns the archive command and spec merge semantics; ETHOS owns
 the repository product checks around closeout readiness, claim/evidence
 binding, and Work Lane sequencing.
 
-The useful alphasim-dmgr pattern is an archive audit as part of closeout proof,
+The useful reference-adopter pattern is an archive audit as part of closeout proof,
 not a second command plane. ETHOS narrows that pattern to product duties:
 directory identity, metadata presence, complete task state, and scoped delta
-spec shape. It intentionally avoids adopting alphasim domain vocabulary or
+spec shape. It intentionally avoids adopting reference-adopter domain vocabulary or
 retroactive formatting requirements that would rewrite historical narratives.
 
 ## Design

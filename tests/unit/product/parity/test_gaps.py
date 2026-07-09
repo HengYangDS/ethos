@@ -337,6 +337,35 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
     assert payload["data"]["evidence"]["path"] == ("evidence/parity/sample-adopter-shadow.json")
 
 
+def test_parity_gaps_rejects_release_visible_local_paths_in_shadow_evidence(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "evidence" / "parity"
+    evidence_dir.mkdir(parents=True)
+    evidence = complete_parity_evidence("sample-adopter")
+    evidence["shadow"]["release_note"] = "/" + "Users" + "/person/private-checkout"
+    (evidence_dir / "sample-adopter-shadow.json").write_text(
+        json.dumps(evidence),
+        encoding="utf-8",
+    )
+
+    payload = run_ethos(
+        "parity",
+        "gaps",
+        "--adopter",
+        "sample-adopter",
+        "--root",
+        tmp_path.as_posix(),
+        "--json",
+    )
+
+    assert payload["ok"] is False
+    assert (
+        "parity_evidence_invalid:sample-adopter:release_visible_local_path"
+        in payload["required_gaps"]
+    )
+
+
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
     tmp_path: Path,
 ) -> None:

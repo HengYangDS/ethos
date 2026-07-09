@@ -23,6 +23,6 @@ alone. A repository could otherwise set `external_backend.state =
 
 ## Out of Scope
 
-- No alphasim-dmgr backend state is changed.
+- No reference-adopter backend state is changed.
 - No rollback-window evidence is claimed complete.
 - No remote publication is performed while GitLab is unavailable.

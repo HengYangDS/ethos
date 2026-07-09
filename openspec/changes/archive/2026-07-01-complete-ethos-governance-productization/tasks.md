@@ -26,7 +26,7 @@
 
 - [x] 5.1 Add tests for Work Lane claim-binding projection and trust-bearing closeout gaps
 - [x] 5.2 Keep intake provider state as projection evidence in trust reports
-- [x] 5.3 Update dmgr reference adopter parity evidence and profile boundaries without hardcoding adopter terms in core
+- [x] 5.3 Update reference adopter parity evidence and profile boundaries without hardcoding adopter terms in core
 
 ## 6. Scaffold, Docs, And Final Proof
 

@@ -6,7 +6,7 @@ summary = "Product-boundary scanning excludes ignored .ethos/state local proof r
 
 [evidence]
 dated = "evidence/chronicle/product-boundary-local-state/2026-07-09.md"
-sha256 = "33ddc44c839ed6569e208f29745ab55d2a05de9a4beaee1ba61f6f0c5557ac23"
+sha256 = "6dec101368703ceea00ce71de1c6446b6d0e32efc61eaddb257331bc4f20bc14"
 evidence_ids = ["evidence:product-boundary-local-state"]
 binding = "product-boundary local-state regression, OpenSpec quality carrier, and report gate"
 verifier = "digest_only"

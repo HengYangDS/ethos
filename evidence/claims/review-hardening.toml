@@ -7,7 +7,7 @@ summary = "ETHOS review-hardening binds proof, admission, report, publish, local
 
 [evidence]
 dated = "evidence/chronicle/review-hardening/2026-07-09.md"
-sha256 = "e30952987e1fe98f38bb9c87b4f84e341740492562ca0c16e0571e96b7410a69"
+sha256 = "7f7617c1012de9dadb20c398df79cf6a270d8c3e01b15b01e368ba23a280ffc5"
 evidence_ids = ["evidence:review-hardening"]
 binding = "semantic review-hardening evidence binding for fail-closed proof, admission, report, publish, local-ci, and supply-chain hardening"
 verifier = "semantic"

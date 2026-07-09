@@ -164,6 +164,17 @@ historical evidence, archived change records, host-local state, tests,
 adopter-private records, local paths, or person attribution metadata as product
 defaults.
 
+Release-visible provenance is also part of the enterprise product boundary.
+Dated chronicles, parity evidence, archived OpenSpec changes, history records,
+and superseded decisions may preserve judged history, but they must preserve it
+with neutral repository-role terms. Raw workstation paths, personal attribution,
+named private adopters, private project dependency literals, and adopter-private
+shadow artifacts belong in the adopter repository, an explicitly ignored local
+state store, or a bounded private evidence archive outside the product
+distribution surface. The ETHOS product repository may keep generic parity
+fixtures such as `generic-shadow.json`; named adopter shadow evidence belongs
+with that adopter's own evidence root.
+
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
 single-kernel flag, kernel chain, shared transition commands, reader-view

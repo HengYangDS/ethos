@@ -6,7 +6,7 @@ summary = "The secrets gate follows gitleaks 8.30.1 history-scan CLI without wea
 
 [evidence]
 dated = "evidence/chronicle/gitleaks-cli-compat/2026-07-09.md"
-sha256 = "31da265006c99a6b97bb4e5ce6d14da3ae49d865277d923cae6abc05718a4a48"
+sha256 = "f2b0a1db1996633ed0708546bd2831bb9d2a7a2b66500f0f9bcb56144cfd80e9"
 evidence_ids = ["evidence:gitleaks-cli-compat"]
 binding = "Digest-bound evidence for gitleaks history-scan CLI compatibility."
 verifier = "semantic"

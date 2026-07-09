@@ -6,7 +6,7 @@ summary = "ETHOS OpenSpec lifecycle review enforces proposal protocol metadata a
 
 [evidence]
 dated = "evidence/chronicle/openspec-product-protocol/2026-07-02.md"
-sha256 = "dbd3181559774e971aa0bb14bceb145ff03b4a0634347210eda863dcf3ba71ba"
+sha256 = "b8a402189d49119f29c7d3b40ec12a3a38e386a9d4bc822c6c27ecd83a437dc7"
 evidence_ids = ["evidence:ethos-openspec-product-protocol"]
 binding = "digest-bound OpenSpec product protocol evidence"
 verifier = "semantic"

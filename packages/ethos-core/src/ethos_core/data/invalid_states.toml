@@ -86,6 +86,7 @@ match_prefixes = [
   "distribution_file_scope_leak",
   "root_workspace_package_publishable",
   "private_reference_literal",
+  "archival_",
   "identity_role_unknown",
   "identity_placeholder",
   "state_metadata_required",

@@ -176,7 +176,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     expected_command = (
         "uv run --package ethos ethos parity shadow --adopter sample-adopter "
-        f"--root {product.resolve().as_posix()} --target {target.resolve().as_posix()} "
+        "--root <product-repo> --target <target-repo> "
         "--execute --timeout-seconds 60 --json"
     )
 
@@ -185,7 +185,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     assert payload["data"]["evidence_written"] == evidence_path.relative_to(target).as_posix()
     assert not product_evidence_path.exists()
     assert evidence["adopter"] == "sample-adopter"
-    assert evidence["target"] == target.resolve().as_posix()
+    assert evidence["target"] == "<target-repo>"
     assert evidence["command"] == expected_command
     assert evidence["freshness"] == {
         "product_head": git_head(product),
@@ -209,7 +209,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
         "command_count": 2,
     }
     assert evidence["identity"] == {
-        "target_root": target.resolve().as_posix(),
+        "target_root": "<target-repo>",
         "target_head": git_head(target),
         "product_head": git_head(product),
         "changed_paths": [],
@@ -286,6 +286,8 @@ def test_parity_shadow_write_evidence_for_external_adopter_writes_target_evidenc
     assert evidence["freshness"]["target_head"] == git_head(target)
     assert evidence["identity"]["product_head"] == git_head(product)
     assert evidence["identity"]["target_head"] == git_head(target)
+    assert evidence["target"] == "<target-repo>"
+    assert evidence["identity"]["target_root"] == "<target-repo>"
 
 
 def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root(

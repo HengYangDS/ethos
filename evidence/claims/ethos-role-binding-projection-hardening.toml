@@ -6,7 +6,7 @@ summary = "ETHOS schema-governs configured branch-role provenance, standard Work
 
 [evidence]
 dated = "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md"
-sha256 = "4fefd58896dba324159fddec67443d313c3265ddb3f08e3cbd9c8ad3642954fa"
+sha256 = "29507b8673ac3d69006ab1eb49530fb931fac2d3450f32ac4cb843d49ea74224"
 evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
 binding = "semantic role-binding projection hardening evidence binding"
 verifier = "semantic"

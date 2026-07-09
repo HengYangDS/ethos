@@ -1,13 +1,13 @@
 ## Why
 
 ETHOS has a clean governance kernel, but the cross-repository comparison with
-dmgr and di-effect exposed concrete mechanism gaps: GitHub/GitLab parity,
+reference adopter and alternate mechanism corpus exposed concrete mechanism gaps: GitHub/GitLab parity,
 provider-local CI emulation, CI template consistency, actionlint, C4/LikeC4
 architecture projection, richer format/lint/security gates, evidence operations,
 runbook registry, MCP smoke, and release supply-chain gates.
 
 The gaps should be admitted as an ETHOS roadmap without promoting adopter tools
-such as Nox, Pixi, Pants, Backlog, Superpowers, or `di-effect policy run` into
+such as Nox, Pixi, Pants, Backlog, Superpowers, or `alternate mechanism corpus policy run` into
 product ontology.
 
 ## What Changes
@@ -31,5 +31,5 @@ product ontology.
 - No implementation of provider templates, emulators, C4 generation, actionlint,
   SBOM, signing, or MCP smoke in this change.
 - No new mandatory runtime dependency on Nox, Pixi, Pants, Backlog, Superpowers,
-  GitHub, GitLab, Dagger, or `di-effect policy run`.
+  GitHub, GitLab, Dagger, or `alternate mechanism corpus policy run`.
 - No hosted CI success or remote publication claim.

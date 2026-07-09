@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -11,7 +13,7 @@ from ethos.repository.evidence.parity_validation import sha256_text
 from ethos.repository.evidence.parity_validation import string_list
 from ethos.repository.evidence.shadow.routing import requires_product_root_argument
 from ethos.repository.evidence.shadow.routing import target_command_argument
-from ethos.repository.evidence.shadow.routing import target_identity
+from ethos.repository.evidence.shadow.routing import tracked_target_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,6 +34,20 @@ PARITY_RELEVANT_PATHS: tuple[str, ...] = (
     "uv.lock",
     "docs/governance",
 )
+_MAC_HOME_PREFIX = "/" + "Users" + "/"
+_HOME_PROJECT_PREFIX = "~" + "/" + "projects"
+_LOCAL_PATH_PATTERN = re.compile(
+    rf"(?:{re.escape(_MAC_HOME_PREFIX)}|{re.escape(_HOME_PROJECT_PREFIX)}/)[^\s\"']+"
+)
+
+
+@dataclass(frozen=True)
+class ShadowIdentityContext:
+    target: Path
+    root: Path | None
+    tracked_target: str
+    current_target_head: str
+    current_product_head: str
 
 
 SHADOW_PARITY_DIMENSIONS = [
@@ -60,7 +76,7 @@ def build_tracked_parity_evidence(
     root: Path | None = None,
 ) -> dict[str, object]:
     target = target.resolve()
-    target_name = target_identity(root=root, adopter=adopter, target=target)
+    target_name = tracked_target_identity(root=root, adopter=adopter, target=target)
     accepted_summary = shadow.get("accepted_summary")
     shadow_required_gaps = shadow.get("required_gaps")
     command = shadow_evidence_command(
@@ -106,9 +122,13 @@ def build_tracked_parity_evidence(
         },
         "identity": shadow_identity(
             shadow=shadow,
-            target=target,
-            current_target_head=current_target_head,
-            current_product_head=current_product_head,
+            context=ShadowIdentityContext(
+                target=target,
+                root=root,
+                tracked_target=target_name,
+                current_target_head=current_target_head,
+                current_product_head=current_product_head,
+            ),
         ),
         "verified_capabilities": migratable_capability_list(),
         "semantic_dimensions": string_list(shadow.get("semantic_dimensions"))
@@ -131,26 +151,45 @@ def int_value(value: object) -> int:
 def shadow_identity(
     *,
     shadow: dict[str, object],
-    target: Path,
-    current_target_head: str,
-    current_product_head: str,
+    context: ShadowIdentityContext,
 ) -> dict[str, object]:
     value = shadow.get("identity")
     if isinstance(value, dict):
         return {
-            "target_root": str(value.get("target_root") or target.resolve().as_posix()),
-            "target_head": str(value.get("target_head") or current_target_head),
-            "product_head": str(value.get("product_head") or current_product_head),
+            "target_root": _sanitize_tracked_path(
+                str(value.get("target_root") or context.target.resolve().as_posix()),
+                root=context.root,
+                target=context.target,
+                tracked_target=context.tracked_target,
+            ),
+            "target_head": str(value.get("target_head") or context.current_target_head),
+            "product_head": str(value.get("product_head") or context.current_product_head),
             "changed_paths": string_list(value.get("changed_paths")),
             "commands": string_list(value.get("commands")) or list(SHADOW_PARITY_COMMANDS),
-            "external_commands": string_list(value.get("external_commands")),
-            "embedded_commands": string_list(value.get("embedded_commands")),
+            "external_commands": [
+                _sanitize_tracked_path(
+                    command,
+                    root=context.root,
+                    target=context.target,
+                    tracked_target=context.tracked_target,
+                )
+                for command in string_list(value.get("external_commands"))
+            ],
+            "embedded_commands": [
+                _sanitize_tracked_path(
+                    command,
+                    root=context.root,
+                    target=context.target,
+                    tracked_target=context.tracked_target,
+                )
+                for command in string_list(value.get("embedded_commands"))
+            ],
             "evidence_inputs": identity_evidence_inputs(value.get("evidence_inputs")),
         }
     return {
-        "target_root": target.resolve().as_posix(),
-        "target_head": current_target_head,
-        "product_head": current_product_head,
+        "target_root": context.tracked_target,
+        "target_head": context.current_target_head,
+        "product_head": context.current_product_head,
         "changed_paths": [],
         "commands": list(SHADOW_PARITY_COMMANDS),
         "external_commands": [],
@@ -174,6 +213,23 @@ def identity_evidence_inputs(value: object) -> list[dict[str, str]]:
     return result
 
 
+def _sanitize_tracked_path(
+    value: str,
+    *,
+    root: Path | None,
+    target: Path,
+    tracked_target: str,
+) -> str:
+    """Redact host-local roots from tracked release-visible parity evidence."""
+    sanitized = value
+    target_root = target.resolve().as_posix()
+    sanitized = sanitized.replace(target_root, tracked_target)
+    if root is not None:
+        product_root = root.resolve().as_posix()
+        sanitized = sanitized.replace(product_root, "<product-repo>")
+    return _LOCAL_PATH_PATTERN.sub("<local-path>", sanitized)
+
+
 def shadow_evidence_command(
     *,
     adopter: str,
@@ -182,7 +238,7 @@ def shadow_evidence_command(
     root: Path | None,
     include_product_root: bool,
 ) -> str:
-    root_arg = f" --root {root.resolve().as_posix()}" if root and include_product_root else ""
+    root_arg = " --root <product-repo>" if root and include_product_root else ""
     return (
         f"uv run --package ethos ethos parity shadow --adopter {adopter}{root_arg} "
         f"--target {target} --execute --timeout-seconds {timeout_seconds} --json"

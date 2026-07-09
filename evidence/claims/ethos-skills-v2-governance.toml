@@ -6,7 +6,7 @@ summary = "ETHOS Skills V2 now separates activation semantics from provider-visi
 
 [evidence]
 dated = "evidence/chronicle/skills-v2-governance/2026-07-01.md"
-sha256 = "ccae4714e24999487cb2f17300dd4f4271a1fd9c9debb2984dbbe1be61ac4f68"
+sha256 = "3a81f4fb63ba4042f086b6d00067ac1eb14c97aa03e23af8055e8217a4c89fd4"
 evidence_ids = ["evidence:ethos-skills-v2-governance"]
 binding = "semantic skills-v2 governance evidence binding"
 verifier = "semantic"

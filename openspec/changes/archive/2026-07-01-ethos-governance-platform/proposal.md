@@ -16,7 +16,7 @@ documentation.
 - Add distribution governance for the npm launcher adapter.
 - Strengthen self-audit with playbook, OpenSpec family, command registry,
   claim, and schema instance checks.
-- Make adopter parity gaps evidence-driven and close alphasim-dmgr public
+- Make adopter parity gaps evidence-driven and close reference-adopter public
   command shadow parity from tracked evidence.
 - Upgrade standards adapters with lifecycle, input/output contracts, fallback,
   and retirement semantics.

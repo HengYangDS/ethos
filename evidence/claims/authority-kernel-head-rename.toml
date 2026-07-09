@@ -6,7 +6,7 @@ summary = "ETHOS current kernel truth names the authority head Authority, remove
 
 [evidence]
 dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
-sha256 = "84fc665f41acefb7e483cc317cd6b53612eb4072b99ff2f94d0bc3e1355b85e9"
+sha256 = "c6622192e28b854787aee73ece78741564004a4d75fb0b276d0027264daf7156"
 evidence_ids = ["evidence:authority-kernel-head-rename"]
 binding = "semantic authority-kernel-head recovery evidence binding"
 verifier = "semantic"

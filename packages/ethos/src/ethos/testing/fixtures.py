@@ -128,7 +128,7 @@ def malformed_governance_lifecycle() -> dict[str, object]:
 def reference_adopter_profile_fixture() -> dict[str, object]:
     return {
         "boundary": "adopter-profile-only",
-        "profile_terms": ["raw/cache parity", "domain cache contract"],
+        "profile_terms": ["adopter-domain storage parity", "domain cache contract"],
         "core_product_terms": [],
         "evidence": {
             "kind": "shadow_parity_evidence",

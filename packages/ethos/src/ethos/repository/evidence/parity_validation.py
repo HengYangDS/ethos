@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
@@ -31,6 +32,11 @@ SHADOW_COMMAND_ARGS: tuple[tuple[str, ...], ...] = (
 )
 SHADOW_PARITY_COMMANDS: tuple[str, ...] = tuple(
     "ethos " + " ".join(args) + " --json" for args in SHADOW_COMMAND_ARGS
+)
+_MAC_HOME_PREFIX = "/" + "Users" + "/"
+_HOME_PROJECT_PREFIX = "~" + "/" + "projects"
+_RELEASE_VISIBLE_LOCAL_PATH_PATTERN = re.compile(
+    rf"(?:{re.escape(_MAC_HOME_PREFIX)}|{re.escape(_HOME_PROJECT_PREFIX)}/)[^\s\"']+"
 )
 
 
@@ -248,6 +254,7 @@ def validate_parity_evidence(
         adopter=adopter,
         required_gaps=required_gaps,
     )
+    _validate_release_visible_payload(payload, adopter=adopter, required_gaps=required_gaps)
     if required_gaps:
         return [f"parity_evidence_invalid:{adopter}", *required_gaps]
     return []
@@ -310,6 +317,17 @@ def _validate_verified_capabilities(
         basis = capability_basis.get(capability)
         if not _valid_capability_basis(basis):
             required_gaps.append(f"parity_evidence_invalid:{adopter}:capability_basis:{capability}")
+
+
+def _validate_release_visible_payload(
+    payload: dict[str, object],
+    *,
+    adopter: str,
+    required_gaps: list[str],
+) -> None:
+    """Block host-local workstation roots from tracked parity evidence."""
+    if _RELEASE_VISIBLE_LOCAL_PATH_PATTERN.search(json.dumps(payload, sort_keys=True)):
+        required_gaps.append(f"parity_evidence_invalid:{adopter}:release_visible_local_path")
 
 
 def _valid_capability_basis(basis: object) -> bool:

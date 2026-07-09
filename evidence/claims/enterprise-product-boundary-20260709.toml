@@ -6,7 +6,7 @@ summary = "ETHOS product-boundary governance covers enterprise-neutral distribut
 
 [evidence]
 dated = "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md"
-sha256 = "3ac57408941f7d32b6ee7604a90d0686abbf454e5dd9763d23fff1f9c61b8151"
+sha256 = "97dcdb4068375b44094ffc7f5628bc062b0909026446906e842e906eda379008"
 evidence_ids = ["evidence:enterprise-product-boundary-20260709"]
 binding = "enterprise product boundary, active private-reference boundary, distribution manifest scope, and contributor identity policy"
 verifier = "semantic"

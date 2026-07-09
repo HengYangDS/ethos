@@ -6,7 +6,7 @@ summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection,
 
 [evidence]
 dated = "evidence/chronicle/governance-platform/2026-06-30.md"
-sha256 = "fc28a000adef11627233f78a8798cafd764226bd7388556f3bbb4c836ddc91a6"
+sha256 = "298b5304246e5652fd07054705b2e8dcb3130c95e91d589c59cc48cc8d375077"
 evidence_ids = ["evidence:ethos-repository-platform"]
 binding = "digest-bound evidence binding"
 verifier = "digest_only"

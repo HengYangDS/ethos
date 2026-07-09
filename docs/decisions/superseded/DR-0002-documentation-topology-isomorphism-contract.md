@@ -23,7 +23,7 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | --- | --- |
 | Decision ID | DR-0002 |
 | Kind | governance |
-| Decision Makers | Repository owner through 2026-07-08 chat instruction; implemented by local ETHOS work lane. |
+| Decision Makers | Repository owner through accepted repository instruction on 2026-07-08; implemented by local ETHOS work lane. |
 | Status | superseded |
 | Decision Date | 2026-07-07 |
 | Decision Version | 2 |
@@ -75,7 +75,7 @@ Adopt the Documentation Topology Isomorphism Contract:
 ## Consequences
 
 `ethos adopt` must create the common docs kernel for new adopters. Existing
-adopters such as alphasim-dmgr can keep richer domain-specific documentation,
+adopters such as reference-adopter can keep richer domain-specific documentation,
 but external ETHOS retirement readiness must prove that the common semantic kernel,
 decision-record surface, and forbidden-root checks are present and clean. Narrative assertions about docs
 organization are not enough.

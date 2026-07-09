@@ -39,7 +39,7 @@ The gate aggregates existing owner checks rather than replacing them:
 | Layer | Owner checks | Boundary |
 | --- | --- | --- |
 | L0 local-state baseline | `ethos status`, `ethos report` | Foreign Work Lanes remain observe-only without handoff or break-glass evidence. |
-| L1 product-boundary neutrality | `ethos quality product-boundary` | Active product surfaces must not ship personal, workstation, private-adopter, or session-authority defaults. |
+| L1 product-boundary neutrality | `ethos quality product-boundary` | Product surfaces and release-visible historical provenance must not ship personal, workstation, named private-adopter, private-reference, or session-authority defaults. |
 | L2 semantic docs topology | `ethos quality docs-topology` | Present truth is HEAD/evidence/authority-bound, not `docs/current`; intent is OpenSpec/plans/research, not `docs/future`. |
 | L3 organization-native identity | `ethos quality contributor-policy` | Git identity is provenance; authority is role, team, maintainer, bot, service, and adopter-owner policy. |
 | L4 shared command plane | governance context on command payloads | Product and adopter repositories share `status -> plan -> prove -> land -> publish`; `orient` and `report` remain read-only. |

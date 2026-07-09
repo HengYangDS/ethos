@@ -6,7 +6,7 @@ summary = "ETHOS report surfaces Work Lane coordination advisory signals without
 
 [evidence]
 dated = "evidence/chronicle/report-coordination-advisory/2026-07-09.md"
-sha256 = "e55a314f32f76b71d7d03dfa0c3cce8770fd2d6c3caff9908f65056015462fa1"
+sha256 = "6b8b7d8eb1cf950d523050481b8fa41ade29843151ab0d0027b8a774a1384e6e"
 evidence_ids = ["evidence:report-coordination-advisory"]
 binding = "report advisory read model, Work Lane coordination visibility, and OpenSpec repository-governance scenario"
 verifier = "digest_only"

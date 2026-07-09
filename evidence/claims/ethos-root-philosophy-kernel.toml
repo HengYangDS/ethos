@@ -7,7 +7,7 @@ summary = "ETHOS keeps the root text bound to the kernel as a restrained judgmen
 
 [evidence]
 dated = "evidence/chronicle/root-philosophy-kernel/2026-07-05.md"
-sha256 = "5f2eb18fd2a4e0c887b428a933daddc2ace274e6df8caacd915734c620e875b8"
+sha256 = "cae5d74965615ddf0d2145887ac3fe47cffbd02a534ff7f05de95f2ea7167cff"
 evidence_ids = ["evidence:ethos-root-philosophy-kernel"]
 binding = "semantic root-constraint kernel evidence binding"
 verifier = "semantic"

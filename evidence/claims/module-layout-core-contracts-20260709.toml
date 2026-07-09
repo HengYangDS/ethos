@@ -6,7 +6,7 @@ summary = "ETHOS retired two ethos-core suffix-module debts into semantic subpac
 
 [evidence]
 dated = "evidence/chronicle/module-layout-core-contracts-20260709/2026-07-09.md"
-sha256 = "16bbe7f4e55fe7c40138f6efc5fda654bb4b8a1cf708da640ca67859378dee38"
+sha256 = "eff019dd4538ebf02ea1c22fc759e568c35536e49187f3b25e682cecf5eecc9a"
 evidence_ids = ["evidence:module-layout-core-contracts-20260709"]
 binding = "Semantic subpackage migration, no compatibility facades, module-layout ratchet shrink, and focused proof."
 verifier = "semantic"

@@ -35,11 +35,14 @@ def _emit_policy_report(
 
 @quality_app.command(name="product-boundary")
 def product_boundary(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Audit active product surfaces for author, path, adopter, and phase leakage."""
+    """Audit product and release-visible historical surfaces for boundary leaks."""
     _emit_policy_report(
         command="quality product-boundary",
         report=product_boundary_report(resolve_root(root)),
-        next_action="neutralize active product surfaces; leave historical evidence classified",
+        next_action=(
+            "neutralize product and release-visible historical surfaces; keep "
+            "private provenance in adopter repositories or ignored local state"
+        ),
         json_output=json_output,
     )
 

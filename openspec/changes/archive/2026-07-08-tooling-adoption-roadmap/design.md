@@ -5,9 +5,9 @@ validation, and accepted spec delta format. The ETHOS product boundary adds
 repo-local lifecycle checks, capability profiles, claim binding, evidence refs,
 and archive/closeout guards after official validation.
 
-The dmgr comparison contributed practical local GitLab emulator, closeout,
+The reference adopter comparison contributed practical local GitLab emulator, closeout,
 local-state, Pixi/Nox/Pants, Backlog, package/release, and Superpowers boundary
-lessons. The di-effect comparison contributed dual GitHub/GitLab CI templates,
+lessons. The alternate mechanism corpus comparison contributed dual GitHub/GitLab CI templates,
 local `act` and `gitlab-ci-local` emulators, template consistency, actionlint,
 format-selection policy, LikeC4/C4 projection, MCP smoke, runbook registry,
 Docker-first runtime boundaries, and broad policy gates.
@@ -23,7 +23,7 @@ tracked hosted YAML, local emulators, and hosted observations are separate
 projection layers. Local emulators must label evidence as local provider
 emulation and must not claim hosted success.
 
-The roadmap contains a horizontal mechanism matrix across dmgr, di-effect, and
+The roadmap contains a horizontal mechanism matrix across reference adopter, alternate mechanism corpus, and
 ETHOS. The matrix distinguishes:
 
 - product-kernel mechanisms ETHOS already owns;
@@ -49,9 +49,9 @@ CI/hook projection, and tests/proof.
 
 ## Alternatives
 
-- Copy dmgr Pixi/Nox/Pants directly into ETHOS: rejected because it creates a
+- Copy adopter Pixi/Nox/Pants directly into ETHOS: rejected because it creates a
   second command plane and binds ETHOS to one adopter's local runtime.
-- Copy di-effect `policy run`: rejected because it duplicates ETHOS proof and
+- Copy alternate mechanism corpus `policy run`: rejected because it duplicates ETHOS proof and
   quality registry semantics.
 - Treat GitLab as primary and GitHub as secondary: rejected because the user
   requires GitHub and GitLab as mirrored repository carriers.

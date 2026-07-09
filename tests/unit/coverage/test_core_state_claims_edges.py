@@ -540,7 +540,7 @@ summary = "published and verified"
 dated = "evidence/proof.md"
 sha256 = "bad"
 evidence_ids = []
-binding = "raw/cache validates"
+binding = "adopter-domain storage validates"
 verifier = "digest"
 head = "old"
 

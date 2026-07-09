@@ -65,6 +65,59 @@ def test_product_boundary_ignores_local_ethos_state(tmp_path: Path) -> None:
     assert report["summary"]["scanned_file_count"] == 1
 
 
+def test_product_boundary_reports_release_visible_historical_leaks(tmp_path: Path) -> None:
+    _write(tmp_path / "README.md", "# ETHOS\n")
+    _write(
+        tmp_path / "evidence" / "chronicle" / "topic" / "2026-07-09.md",
+        term_from_parts(
+            "Command ran from /",
+            "Users",
+            "/person/private-repo.\n",
+            "Evidence used --adopter named-adopter.\n",
+        ),
+    )
+    _write(
+        tmp_path / "openspec" / "changes" / "archive" / "2026-07-09-private-adopter" / "tasks.md",
+        "The beta-suite reference repository is not release-neutral.\n",
+    )
+
+    report = boundary.product_boundary_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["summary"]["scanned_file_count"] == 1
+    assert report["summary"]["release_visible_historical_scanned_file_count"] == 2
+    by_kind = report["summary"]["by_kind"]
+    assert by_kind["archival_local_workstation_path"] == 1
+    assert by_kind["archival_adopter_specific_literal"] == 1
+    assert by_kind["archival_private_reference_literal"] >= 1
+    assert "release_visible_historical_boundary" in report["policy"]
+
+
+def test_release_visible_historical_filter_handles_skipped_state_cache_and_file_prefix(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _write(tmp_path / ".ethos" / "state" / "proof" / "local.md", "local\n")
+    _write(tmp_path / "evidence" / "__pycache__" / "ignored.md", "cache\n")
+
+    assert (
+        boundary._is_text_release_visible_historical_file(
+            tmp_path / ".ethos" / "state" / "proof" / "local.md", root=tmp_path
+        )
+        is False
+    )
+    assert (
+        boundary._is_text_release_visible_historical_file(
+            tmp_path / "evidence" / "__pycache__" / "ignored.md", root=tmp_path
+        )
+        is False
+    )
+
+    monkeypatch.setattr(boundary, "RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES", ("archive.md",))
+    _write(tmp_path / "archive.md", "archival /" + "Users" + "/person/project\n")
+
+    assert boundary.release_visible_historical_files(tmp_path) == [tmp_path / "archive.md"]
+
+
 def test_product_surface_file_filter_handles_historical_and_binary_paths(tmp_path: Path) -> None:
     _write(tmp_path / "docs" / "history" / "old.md", "historical\n")
     _write(
@@ -184,7 +237,7 @@ def test_product_boundary_accepts_neutral_distribution_manifest(tmp_path: Path) 
 
     assert report["ok"] is True
     assert report["policy"]["distribution_manifest_files"]
-    assert "distribution packages stay neutral" in report["policy"]["boundary"]
+    assert "distribution packages stay enterprise-neutral" in report["policy"]["boundary"]
 
 
 def test_distribution_manifest_helpers_ignore_malformed_payloads(tmp_path: Path) -> None:

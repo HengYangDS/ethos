@@ -8,6 +8,6 @@ The smallest durable fix is a prefix-level skip for `.ethos/state/**` before the
 existing skipped-directory checks. This keeps active `.ethos/*.toml` files in
 scope and removes only the host-local runtime subtree.
 
-The regression writes a proof JSON containing a `/Users/...` path under
+The regression writes a proof JSON containing a host-local path under
 `.ethos/state/proof/` and verifies that only `README.md` is scanned and no
 product-boundary gap is reported.

@@ -18,6 +18,7 @@ from ethos.repository.evidence.shadow.routing import parity_evidence_repository_
 from ethos.repository.evidence.shadow.routing import requires_product_root_argument
 from ethos.repository.evidence.shadow.routing import target_command_argument
 from ethos.repository.evidence.shadow.routing import target_identity
+from ethos.repository.evidence.shadow.routing import tracked_target_identity
 from ethos_core.contracts.capability.parity import capability_parity_records
 
 if TYPE_CHECKING:
@@ -228,7 +229,9 @@ def shadow_parity_report(
 ) -> dict[str, object]:
     target = target.resolve()
     if adopter:
-        target_name = target_identity(root=root or Path.cwd(), adopter=adopter, target=target)
+        target_name = tracked_target_identity(
+            root=root or Path.cwd(), adopter=adopter, target=target
+        )
         product_root = root or Path.cwd()
         evidence_root = parity_evidence_repository_root(root=product_root, target=target)
         evidence = parity_evidence(

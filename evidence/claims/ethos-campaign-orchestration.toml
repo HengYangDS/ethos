@@ -6,7 +6,7 @@ summary = "ETHOS campaigns are manifest-backed orchestration records for sequent
 
 [evidence]
 dated = "evidence/chronicle/campaign-orchestration/2026-07-02.md"
-sha256 = "2382224a2b3d61d99ad8f26c82a8c2a3e66657a8248e03abad8eff5ac0041cd0"
+sha256 = "2f3e6247a6304f9b46697cbc84c0551b63a806828f2d7746e65efaaa5e849202"
 evidence_ids = ["evidence:ethos-campaign-orchestration"]
 binding = "digest-bound campaign orchestration evidence"
 verifier = "digest_only"

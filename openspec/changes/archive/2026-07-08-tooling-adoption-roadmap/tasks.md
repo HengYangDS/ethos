@@ -6,7 +6,7 @@
 - [x] Add tooling adoption roadmap covering CI, local emulators, format/lint,
       architecture/C4, tools, OpenSpec schema customization, Superpowers, and
       optional adapters.
-- [x] Add horizontal dmgr/di-effect/ETHOS mechanism matrix covering provider
+- [x] Add horizontal reference adopter/alternate mechanism corpus/ETHOS mechanism matrix covering provider
       CI, local emulators, format, lint, architecture, C4, evidence, runbook,
       MCP, release, task ledger, Superpowers, Nox, Pixi, Pants, and domain
       runtime boundaries.

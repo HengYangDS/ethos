@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 REPOSITORY_OVERCLAIM_PHRASES = (
-    "raw/cache",
+    "adopter-domain storage",
     "parity passed",
     "hosted ci",
     "remote publication",

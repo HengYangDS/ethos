@@ -7,16 +7,16 @@ checkout roles and evaluates `ethos lane prewrite`; the missing product piece
 is a hook-facing decision report that hosts can call before write-capable tools
 or shell commands run.
 
-The absorbed pattern from `alphasim-dmgr-fix-b3` is the lane discipline around
+The absorbed pattern from `reference adopter workspace` is the lane discipline around
 protected roots, local candidate staging, explicit closeout, and evidence-bound
 claims. ETHOS keeps that as `campaign -> OpenSpec change -> Work Lane ->
 claim/evidence -> accepted-root closeout -> retire`, not as a single total
 lane. The campaign manifest now makes that explicit with `ordinal`,
 `depends_on`, and `lane_topology.mode = "strict_serial"`, so downstream steps
 can activate only after upstream lane closeout is retired. The absorbed pattern
-from `di-effect` is direct capability routing, facet metadata, and
+from `alternate mechanism corpus` is direct capability routing, facet metadata, and
 hook/projection checks as declared controls; ETHOS narrows that to its own
-command plane and avoids importing di-effect's broader ontology.
+command plane and avoids importing alternate mechanism corpus's broader ontology.
 
 ## Design
 

@@ -46,7 +46,10 @@ def test_quality_boundary_cli_commands_emit_policy_reports(monkeypatch, tmp_path
     assert emitted[0]["command"] == "quality product-boundary"
     assert emitted[0]["ok"] is False
     assert emitted[0]["next_actions"] == [
-        "neutralize active product surfaces; leave historical evidence classified"
+        (
+            "neutralize product and release-visible historical surfaces; keep "
+            "private provenance in adopter repositories or ignored local state"
+        )
     ]
     assert emitted[1]["command"] == "quality contributor-policy"
     assert emitted[1]["ok"] is True

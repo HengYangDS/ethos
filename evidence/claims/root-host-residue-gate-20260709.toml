@@ -6,7 +6,7 @@ summary = "Repository hygiene fails closed on configured root host-local residue
 
 [evidence]
 dated = "evidence/chronicle/root-host-residue-gate-20260709/2026-07-09.md"
-sha256 = "2cf0a15c5a9d4df7dcd8fa4c6677d05c76365692d63711280e61d55f68983813"
+sha256 = "8817e832e4de063bbb90ddf3c5feca50a635df9de43d408a95f715e3a919bc3f"
 evidence_ids = ["evidence:root-host-residue-gate-20260709"]
 binding = "Digest-bound evidence for repository hygiene host-local residue boundary."
 verifier = "semantic"

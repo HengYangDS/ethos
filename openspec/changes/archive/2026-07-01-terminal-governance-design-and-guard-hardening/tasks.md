@@ -23,7 +23,7 @@
 - [x] 4.2 Define capability profile, family, direct routing, reuse stance, and facet metadata duties.
 - [x] 4.3 Define archive closeout guards for live-spec scope, archived task state, directory identity, links, and evidence refs.
 - [x] 4.4 Define adopter scaffold requirements for inspectable OpenSpec config, templates, families, and first capabilities.
-- [x] 4.5 Record which `di-effect` and `alphasim-dmgr` patterns are absorbed and which project-specific terms stay out of ETHOS core.
+- [x] 4.5 Record which `alternate mechanism corpus` and `reference-adopter` patterns are absorbed and which project-specific terms stay out of ETHOS core.
 
 ## 5. Proof
 

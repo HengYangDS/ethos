@@ -6,7 +6,7 @@ summary = "ETHOS status reports missing foreign and candidate worktree bindings 
 
 [evidence]
 dated = "evidence/chronicle/foreign-worktree-missing-readmodel/2026-07-09.md"
-sha256 = "89cb8f668d01a447fe24b2ef3c11f9c1dda375ad2433dfb44b289c818066d6cb"
+sha256 = "8f969795373595a006afd14ab247a4a231b04ecf4f14b04d3106a96c7cecfd1c"
 evidence_ids = ["evidence:foreign-worktree-missing-readmodel"]
 binding = "Digest-bound evidence for fail-soft missing foreign Work Lane reader semantics."
 verifier = "semantic"

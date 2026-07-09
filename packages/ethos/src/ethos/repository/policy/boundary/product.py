@@ -1,210 +1,36 @@
 from __future__ import annotations
 
 import json
-import re
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
+    import re
     from collections.abc import Iterable
     from pathlib import Path
 
-PRODUCT_SURFACES = (
-    "AGENTS.md",
-    "CHANGELOG.md",
-    "README.md",
-    "CONTRIBUTING.md",
-    "LICENSE",
-    "package.json",
-    "pyproject.toml",
-    ".config",
-    ".github",
-    ".gitlab",
-    "packages",
-    "distributions",
-    ".ethos",
-    ".agents/skills",
-    "docs/README.md",
-    "docs/_meta",
-    "docs/architecture",
-    "docs/concepts",
-    "docs/evidence",
-    "docs/governance",
-    "docs/reference",
-    "docs/decisions/accepted",
-    "docs/plans",
-    "docs/start",
-    "evolution",
-    "openspec/specs",
-    "rules",
-    "system",
-    "tests/architecture",
-    "tools/ci/scripts",
-)
-HISTORICAL_SURFACE_PREFIXES = (
-    "evidence/",
-    "openspec/changes/archive/",
-    "docs/history/",
-    "docs/decisions/superseded/",
-)
-SKIPPED_PRODUCT_DIR_PARTS = {
-    ".ethos/state",
-    ".git",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-    "build",
-    "node_modules",
-}
-TEXT_SUFFIXES = {".md", ".toml", ".yaml", ".yml", ".json", ".py", ".sh", ".txt"}
-PERSONAL_PATTERNS = (
-    # Product surfaces may use placeholders, reserved example domains, or
-    # organization/team identities, but must not bake a real private mailbox
-    # or person-address pair into defaults, docs, tests, or release assets.
-    re.compile(
-        r"\b[A-Z][a-z]+(?:[ ._-][A-Z][A-Za-z]+)+\s*<[^>]+@(?!example\.(?:com|invalid|test)\b)[^>]+>"
-    ),
-    re.compile(
-        r"\b[a-z][a-z0-9._%+-]+@(?!example\.(?:com|invalid|test)\b)[a-z0-9.-]+\.[a-z]{2,}\b",
-        re.IGNORECASE,
-    ),
-)
-_MAC_HOME_PREFIX = "/" + "Users" + "/"
-_HOME_PROJECT_PREFIX = "~" + "/" + "projects"
-LOCAL_PATH_PATTERNS = (
-    re.compile(rf"{re.escape(_MAC_HOME_PREFIX)}[^\s`'\")\]]+"),
-    re.compile(rf"{re.escape(_HOME_PROJECT_PREFIX)}/[^\s`'\")\]]+"),
-)
-PRIVATE_INFRA_PATTERNS = (
-    re.compile(
-        r"\bhttps?://(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?::\d+)?[^\s`'\")\]]*",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bssh://git@(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(?::\d+)?[^\s`'\")\]]*",
-        re.IGNORECASE,
-    ),
-)
-ADOPTER_LITERAL_PATTERNS = (
-    re.compile(
-        r"\b(?:adopters|profiles)/(?!(?:<adopter-id>|sample-adopter|reference-adopter)\b)"
-        r"[a-z][a-z0-9_-]*(?:/|\b)",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bevidence/parity/(?!generic-shadow\.json|<adopter-id>-shadow\.json)"
-        r"[a-z][a-z0-9_-]*-shadow\.json\b",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"--adopter\s+(?!(?:<adopter-id>|generic|sample-adopter|reference-adopter)\b)"
-        r"[a-z][a-z0-9_-]*\b",
-        re.IGNORECASE,
-    ),
-)
-_EXTERNAL_REFERENCE_SLUG = (
-    r"(?!ETHOS\b|OpenSpec\b|GitHub\b|GitLab\b|Superpowers\b|Backlog\b|"
-    r"reference-adopter\b|sample-adopter\b)"
-    r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)+"
-)
-_EXTERNAL_REFERENCE_NAME = (
-    r"(?!ETHOS\b|OpenSpec\b|GitHub\b|GitLab\b|Superpowers\b|Backlog\b|MCP\b|"
-    r"reference-adopter\b|sample-adopter\b|generic\b|reusable\b|external\b|"
-    r"private\b|named\b|product\b|repository\b|reference\b|mechanism\b|"
-    r"mechanisms\b|tooling\b|provider\b|providers\b|environment\b|task\b|"
-    r"release\b|architecture\b|security\b|quality\b|format\b|docs\b|domain\b|"
-    r"local\b|hosted\b|agent\b|adopter\b|adopters\b)"
-    r"[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*"
-)
-_PRIVATE_REFERENCE_PATTERN_TEXTS = (
-    # Active product surfaces may discuss generic reference adopters, profiles,
-    # providers, and mechanism classes. They must not turn a named private
-    # repository or personal work history into product roadmap, policy, or
-    # authority. These patterns intentionally describe the *shape* of the leak
-    # instead of hardcoding any private adopter name into the product.
-    rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+reference repository\b",
-    rf"\b{_EXTERNAL_REFERENCE_SLUG}\s+"
-    rf"(?:quality|module-layout|governance|repository|mechanism|policy)\s+"
-    rf"(?:study|corpus|patterns?|comparison|matrix)\b",
-    rf"\b(?:compared with|comparison with|borrowed from|adopted from|relative to)"
-    rf"\s+`?{_EXTERNAL_REFERENCE_SLUG}`?(?:'s)?\b",
-    rf"\b(?:from|toward)\s+`{_EXTERNAL_REFERENCE_SLUG}`(?:'s)?\b",
-    rf"\bcurrent\s+{_EXTERNAL_REFERENCE_NAME}\s*(?:[,/]\s*"
-    rf"{_EXTERNAL_REFERENCE_NAME}\s*)*(?:,?\s*and\s+ETHOS|\s*/\s*ETHOS)"
-    rf"\s+mechanism comparison\b",
-    rf"\bwhich\s+{_EXTERNAL_REFERENCE_NAME}(?:\s+and\s+"
-    rf"{_EXTERNAL_REFERENCE_NAME})?\s+mechanisms?\s+were\b",
-    rf"\|\s*`?{_EXTERNAL_REFERENCE_NAME}`?\s*\|\s*`?"
-    rf"{_EXTERNAL_REFERENCE_NAME}\s+reference checkout`?\s*\|",
-    rf"\b{_EXTERNAL_REFERENCE_NAME}\s+reference checkout\b.{{0,80}}"
-    rf"\b(?:mechanism source|tooling source|reference adopter|reference product)\b",
-    rf"\|\s*Mechanism family\s*\|\s*{_EXTERNAL_REFERENCE_NAME}\s+has\s*\|",
-)
-PRIVATE_REFERENCE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE) for pattern in _PRIVATE_REFERENCE_PATTERN_TEXTS
-)
-_CURRENT_TOKEN = "cur" + "rent"
-_DEFERRED_TOKEN = "fu" + "ture"
-_CHAT_TOKEN = "cha" + "t"
-_INSTRUCTION_TOKEN = "instru" + "ction"
-_MIGRATION_TOKEN = "migra" + "tion"
-_SESSION_TOKEN = "sess" + "ion"
-PHASE_PATTERNS = (
-    re.compile(rf"\b{_CURRENT_TOKEN}/{_DEFERRED_TOKEN}\b", re.IGNORECASE),
-    re.compile(rf"\b{_DEFERRED_TOKEN}/{_CURRENT_TOKEN}\b", re.IGNORECASE),
-)
-SESSION_SURFACE_PATTERNS = (
-    re.compile(
-        rf"\b(?:{_CURRENT_TOKEN}\s+)?{_CHAT_TOKEN} {_INSTRUCTION_TOKEN}\b"
-        rf"|\b{_CURRENT_TOKEN} {_MIGRATION_TOKEN} {_INSTRUCTION_TOKEN}\b"
-        rf"|\b{_CHAT_TOKEN} {_SESSION_TOKEN}\b",
-        re.IGNORECASE,
-    ),
-)
-PACKAGE_METADATA_FILES = (
-    "package.json",
-    "distributions/npm/package.json",
-    "pyproject.toml",
-    "packages/ethos/pyproject.toml",
-    "packages/ethos-core/pyproject.toml",
-)
-DISTRIBUTION_MANIFEST_FILES = (
-    "package.json",
-    "distributions/npm/package.json",
-    "packages/ethos/pyproject.toml",
-    "packages/ethos-core/pyproject.toml",
-)
-DISTRIBUTION_ALLOWED_FILE_ENTRIES = {
-    "README.md",
-    "LICENSE",
-    "package.json",
-}
-DISTRIBUTION_ALLOWED_FILE_PREFIXES = ("bin/",)
-DISTRIBUTION_FORBIDDEN_FILE_PREFIXES = (
-    ".ethos/",
-    ".git",
-    "build/",
-    "docs/history/",
-    "evidence/",
-    "openspec/changes/archive/",
-    "tests/",
-)
-GENERIC_PLACEHOLDERS = {"", "<your-name-or-team>", "<your-approved-email>"}
-ALLOWED_IDENTITY_ROLES = {"maintainer", "reviewer", "contributor", "team", "bot", "service"}
-DISTINCT_IDENTITY_FACTS = (
-    "git_author",
-    "git_committer",
-    "work_lane_actor",
-    "reviewer",
-    "maintainer",
-    "bot",
-    "team",
-    "adopter_side_owner",
-)
+from ethos.repository.policy.boundary.catalog import ADOPTER_LITERAL_PATTERNS
+from ethos.repository.policy.boundary.catalog import ALLOWED_IDENTITY_ROLES
+from ethos.repository.policy.boundary.catalog import DISTINCT_IDENTITY_FACTS
+from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_ENTRIES
+from ethos.repository.policy.boundary.catalog import DISTRIBUTION_ALLOWED_FILE_PREFIXES
+from ethos.repository.policy.boundary.catalog import DISTRIBUTION_FORBIDDEN_FILE_PREFIXES
+from ethos.repository.policy.boundary.catalog import DISTRIBUTION_MANIFEST_FILES
+from ethos.repository.policy.boundary.catalog import GENERIC_PLACEHOLDERS
+from ethos.repository.policy.boundary.catalog import HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.boundary.catalog import LOCAL_PATH_PATTERNS
+from ethos.repository.policy.boundary.catalog import PACKAGE_METADATA_FILES
+from ethos.repository.policy.boundary.catalog import PERSONAL_PATTERNS
+from ethos.repository.policy.boundary.catalog import PHASE_PATTERNS
+from ethos.repository.policy.boundary.catalog import PRIVATE_INFRA_PATTERNS
+from ethos.repository.policy.boundary.catalog import PRIVATE_REFERENCE_PATTERNS
+from ethos.repository.policy.boundary.catalog import PRODUCT_SURFACES
+from ethos.repository.policy.boundary.catalog import RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
+from ethos.repository.policy.boundary.catalog import SESSION_SURFACE_PATTERNS
+from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
+from ethos.repository.policy.boundary.catalog import TEXT_SUFFIXES
 
 
 @dataclass(frozen=True)
@@ -245,6 +71,32 @@ def product_surface_files(root: Path) -> list[Path]:
     return sorted(set(files))
 
 
+def _is_text_release_visible_historical_file(path: Path, *, root: Path) -> bool:
+    rel = path.relative_to(root).as_posix()
+    if rel == ".ethos/state" or rel.startswith(".ethos/state/"):
+        return False
+    if any(part in SKIPPED_PRODUCT_DIR_PARTS for part in path.relative_to(root).parts):
+        return False
+    if not (path.is_file() and (path.suffix in TEXT_SUFFIXES or path.name == "LICENSE")):
+        return False
+    return any(rel.startswith(prefix) for prefix in RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES)
+
+
+def release_visible_historical_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    for prefix in RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES:
+        base = root / prefix
+        if base.is_file() and _is_text_release_visible_historical_file(base, root=root):
+            files.append(base)
+        elif base.is_dir():
+            files.extend(
+                path
+                for path in base.rglob("*")
+                if _is_text_release_visible_historical_file(path, root=root)
+            )
+    return sorted(set(files))
+
+
 def _line_findings(
     path: Path, rel: str, patterns: Iterable[tuple[str, re.Pattern[str]]]
 ) -> list[Finding]:
@@ -258,6 +110,12 @@ def _line_findings(
             if pattern.search(line):
                 findings.append(Finding(rel, lineno, kind, pattern.pattern))
     return findings
+
+
+def _path_findings(rel: str, patterns: Iterable[tuple[str, re.Pattern[str]]]) -> list[Finding]:
+    return [
+        Finding(rel, 1, kind, pattern.pattern) for kind, pattern in patterns if pattern.search(rel)
+    ]
 
 
 def _metadata_findings(root: Path) -> list[Finding]:
@@ -374,12 +232,20 @@ def product_boundary_report(root: Path) -> dict[str, object]:
     )
     patterns.extend(("generic_current_future_phase", pattern) for pattern in PHASE_PATTERNS)
     patterns.extend(("session_authority_literal", pattern) for pattern in SESSION_SURFACE_PATTERNS)
+    archival_patterns: list[tuple[str, re.Pattern[str]]] = [
+        (f"archival_{kind}", pattern) for kind, pattern in patterns
+    ]
 
     findings: list[Finding] = []
     files = product_surface_files(root)
     for path in files:
         rel = path.relative_to(root).as_posix()
         findings.extend(_line_findings(path, rel, patterns))
+    historical_files = release_visible_historical_files(root)
+    for path in historical_files:
+        rel = path.relative_to(root).as_posix()
+        findings.extend(_path_findings(rel, archival_patterns))
+        findings.extend(_line_findings(path, rel, archival_patterns))
     findings.extend(_metadata_findings(root))
     findings.extend(_distribution_manifest_findings(root))
 
@@ -391,6 +257,7 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         "state": "clean" if not findings else "blocked",
         "summary": {
             "scanned_file_count": len(files),
+            "release_visible_historical_scanned_file_count": len(historical_files),
             "finding_count": len(findings),
             "by_kind": by_kind,
         },
@@ -399,6 +266,9 @@ def product_boundary_report(root: Path) -> dict[str, object]:
         "policy": {
             "product_surfaces": list(PRODUCT_SURFACES),
             "historical_surface_prefixes": list(HISTORICAL_SURFACE_PREFIXES),
+            "release_visible_historical_surface_prefixes": list(
+                RELEASE_VISIBLE_HISTORICAL_SURFACE_PREFIXES
+            ),
             "local_state_surface_prefixes": [".ethos/state/"],
             "package_metadata_files": list(PACKAGE_METADATA_FILES),
             "distribution_manifest_files": list(DISTRIBUTION_MANIFEST_FILES),
@@ -412,9 +282,15 @@ def product_boundary_report(root: Path) -> dict[str, object]:
                 "and mechanism classes, but must not depend on named private "
                 "repositories or personal work history"
             ),
+            "release_visible_historical_boundary": (
+                "release-visible chronicles, parity evidence, archived changes, "
+                "history, and superseded decisions preserve judged provenance "
+                "without raw workstation paths, personal attribution, named "
+                "private adopters, or private project dependency literals"
+            ),
             "boundary": (
-                "historical evidence may name facts; active product surfaces, "
-                "release metadata, and distribution packages stay neutral"
+                "product surfaces, release-visible historical provenance, "
+                "release metadata, and distribution packages stay enterprise-neutral"
             ),
         },
     }

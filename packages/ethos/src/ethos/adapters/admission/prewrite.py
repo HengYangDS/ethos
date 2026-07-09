@@ -11,6 +11,9 @@ from ethos_core.contracts.branch.roles import ROLE_DETACHED
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
+_CONTROL_CHARACTER_UPPER_BOUND = 32
+_DELETE_CONTROL_CODE_POINT = 127
+
 
 def prewrite_guard(
     *,
@@ -248,6 +251,16 @@ def _editor_root_check(
 
 
 def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
+    path_text = path.as_posix()
+    if has_control_character(path_text):
+        return {
+            "path": path_text,
+            "relative_path": "",
+            "ignored": False,
+            "tracked_candidate": False,
+            "allowed": False,
+            "reason": "path_invalid_control_character",
+        }
     root_path = root.resolve()
     resolved = (path if path.is_absolute() else root_path / path).resolve()
     try:
@@ -274,6 +287,15 @@ def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
     }
 
 
+def has_control_character(text: str) -> bool:
+    """Return whether a path token contains shell/log unsafe control bytes."""
+    return any(
+        ord(character) < _CONTROL_CHARACTER_UPPER_BOUND
+        or ord(character) == _DELETE_CONTROL_CODE_POINT
+        for character in text
+    )
+
+
 def _is_ignored(root: Path, relative_path: str) -> bool:
     completed = subprocess.run(
         ["git", "check-ignore", "-q", "--", relative_path],
@@ -290,14 +312,24 @@ def _error(
     editor_check: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
+    error = ""
     if runtime_check["ok"] is not True:
-        return str(runtime_check["reason"])
-    if any(path["reason"] == "path_outside_worktree" for path in blocked_paths):
+        error = str(runtime_check["reason"])
+    else:
+        error = _blocked_path_error(blocked_paths)
+    if not error and lease_check["ok"] is not True:
+        error = str(lease_check["reason"])
+    if not error and editor_check["ok"] is not True:
+        error = str(editor_check["reason"])
+    return error
+
+
+def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
+    reasons = {str(path["reason"]) for path in blocked_paths}
+    if "path_invalid_control_character" in reasons:
+        return "prewrite_path_invalid_control_character"
+    if "path_outside_worktree" in reasons:
         return "prewrite_path_outside_worktree"
     if blocked_paths:
         return "protected_lane_prewrite_blocked"
-    if lease_check["ok"] is not True:
-        return str(lease_check["reason"])
-    if editor_check["ok"] is not True:
-        return str(editor_check["reason"])
     return ""

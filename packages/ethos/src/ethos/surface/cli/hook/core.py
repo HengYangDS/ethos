@@ -12,6 +12,7 @@ import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
+from ethos.adapters.admission.prewrite import has_control_character
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -38,7 +39,10 @@ def admit(
     report = hook_admission_report(
         root=repo,
         layer=layer,
-        paths=[path if path.is_absolute() else repo / path for path in paths],
+        paths=[
+            path if path.is_absolute() or has_control_character(path.as_posix()) else repo / path
+            for path in paths
+        ],
         editor_root=editor_root,
         expected_root=expected_root,
         require_editor_root=require_editor_root,

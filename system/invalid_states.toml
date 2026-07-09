@@ -46,6 +46,8 @@ match_prefixes = [
   "accepted_root_required",
   "editor_root_",
   "path_not_allowed_source",
+  "path_invalid_control_character",
+  "prewrite_path_invalid_control_character",
   "git_repository_missing",
   "git_user_name_mismatch",
   "git_user_email_mismatch",

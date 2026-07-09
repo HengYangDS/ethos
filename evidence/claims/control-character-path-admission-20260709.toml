@@ -1,0 +1,56 @@
+[claim]
+id = "control-character-path-admission-20260709"
+subject = "ethos:control-character-path-admission"
+change_id = "control-character-path-admission-20260709"
+state = "active"
+summary = "ETHOS admission blocks ASCII control characters in target path tokens before path resolution and preserves the malformed token in hook JSON."
+
+[evidence]
+dated = "evidence/chronicle/control-character-path-admission-20260709/2026-07-09.md"
+sha256 = "b7fb616cc122c6afbd84b2ca884e2c4c76244cd01a43549d4a69466118da2ac4"
+evidence_ids = ["evidence:control-character-path-admission-20260709"]
+binding = "control-character path-token admission evidence binding"
+verifier = "semantic"
+tests = [
+  "uv run --package ethos pytest tests/unit/lanes/test_hook_admission.py tests/unit/lanes/hook/test_path_admission.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos quality module-layout --json",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/lanes/hook/test_path_admission.py",
+  "tests/unit/lanes/test_hook_admission.py",
+]
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Prewrite and hook admission path-token validation for ASCII control characters."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709"
+fallback = "Reject malformed path tokens through explicit ethos lane prewrite when host hook admission is unavailable."
+kill_signal = "A write-capable host can present one path token as multiple repository facts through control-character output ambiguity."
+
+[promotion]
+targets = [
+  "evidence/claims/control-character-path-admission-20260709.toml",
+  "evidence/chronicle/control-character-path-admission-20260709/2026-07-09.md",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/proposal.md",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/tasks.md",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/specs/adapters/spec.md",
+  "openspec/changes/archive/2026-07-09-control-character-path-admission-20260709/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
+  "tests/unit/lanes/hook/__init__.py",
+  "tests/unit/lanes/hook/test_path_admission.py",
+]

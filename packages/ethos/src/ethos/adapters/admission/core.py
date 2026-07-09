@@ -4,6 +4,7 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
@@ -12,6 +13,8 @@ from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_COMMIT_IDENTITY_FIELD_COUNT = 4
 
 HOOK_LAYERS = {
     "context": {
@@ -208,7 +211,7 @@ def _commit_identity(root: Path, revision: str) -> dict[str, str]:
         capture_output=True,
     )
     parts = completed.stdout.rstrip("\n").split("\x00")
-    if completed.returncode != 0 or len(parts) != 4:
+    if completed.returncode != 0 or len(parts) != _COMMIT_IDENTITY_FIELD_COUNT:
         return {"author_name": "", "author_email": "", "committer_name": "", "committer_email": ""}
     return {
         "author_name": parts[0],
@@ -373,7 +376,10 @@ def _normalize_layer(layer: str) -> str:
 
 
 def _target_paths(root: Path, paths: list[Path]) -> list[Path]:
-    return [path if path.is_absolute() else root / path for path in paths]
+    return [
+        path if path.is_absolute() or has_control_character(path.as_posix()) else root / path
+        for path in paths
+    ]
 
 
 def _context_report(

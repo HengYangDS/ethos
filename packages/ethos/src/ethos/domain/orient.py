@@ -287,6 +287,8 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "claim_id": str(item.get("claim_id") or ""),
         "claim_binding": str(item.get("claim_binding") or ""),
         "closeout_disposition": str(item.get("closeout_disposition") or ""),
+        "residue_state": str(item.get("residue_state") or ""),
+        "next_action": str(item.get("next_action") or ""),
         "coordination_state": str(item.get("coordination_state") or ""),
         "current_actor_capability": str(item.get("current_actor_capability") or "observe"),
         "allowed_actions": _strings(item.get("allowed_actions")),

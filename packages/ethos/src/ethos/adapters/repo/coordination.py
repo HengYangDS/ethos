@@ -14,6 +14,12 @@ FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
 FOREIGN_WORK_LANE_WRITE_POLICY = "owner_only"
 FOREIGN_WORK_LANE_RETIRE_POLICY = "owner_handoff_or_maintainer_break_glass"
 FOREIGN_WORK_LANE_HANDOFF_REQUIRED = True
+LANDED_DIRTY_RESIDUE_STATE = "unpreserved_worktree_delta"
+CLEAN_RESIDUE_STATE = "clean_or_none"
+LANDED_DIRTY_NEXT_ACTION = (
+    "owner must preserve or intentionally discard dirty worktree delta before retirement"
+)
+CLEAN_RESIDUE_NEXT_ACTION = "observe lane state; use owner-bound lifecycle command when ready"
 
 
 def branch_path_scope(
@@ -74,6 +80,12 @@ def foreign_work_lane(
     path_scope = tuple(dict.fromkeys((*committed_scope, *dirty_paths)))
     scope_state = _combined_scope_state(committed_state, path_scope)
     owner = str(lease.get("owner") or "")
+    disposition = closeout_disposition(
+        lease_state="leased" if owner else "missing",
+        claim_binding="bound" if claim_id else "missing",
+        relation_to_accepted=relation_to_accepted,
+        dirty=bool(dirty_paths),
+    )
     return {
         "path": worktree["path"],
         "head": worktree["head"],
@@ -85,12 +97,9 @@ def foreign_work_lane(
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing",
         "relation_to_accepted": relation_to_accepted,
-        "closeout_disposition": closeout_disposition(
-            lease_state="leased" if owner else "missing",
-            claim_binding="bound" if claim_id else "missing",
-            relation_to_accepted=relation_to_accepted,
-            dirty=bool(dirty_paths),
-        ),
+        "closeout_disposition": disposition,
+        "residue_state": residue_state(disposition),
+        "next_action": lane_next_action(disposition),
         "dirty": bool(dirty_paths),
         "dirty_paths": list(dirty_paths),
         "path_scope": list(path_scope),
@@ -104,6 +113,18 @@ def foreign_work_lane(
         ),
         **foreign_work_lane_capability(),
     }
+
+
+def residue_state(disposition: str) -> str:
+    if disposition == "landed_dirty":
+        return LANDED_DIRTY_RESIDUE_STATE
+    return CLEAN_RESIDUE_STATE
+
+
+def lane_next_action(disposition: str) -> str:
+    if disposition == "landed_dirty":
+        return LANDED_DIRTY_NEXT_ACTION
+    return CLEAN_RESIDUE_NEXT_ACTION
 
 
 def foreign_work_lane_capability() -> dict[str, object]:

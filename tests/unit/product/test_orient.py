@@ -174,6 +174,66 @@ def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(
     )
 
 
+def test_orient_projects_foreign_lane_residue_next_action() -> None:
+    orientation = orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "dev",
+            "role": "accepted_root",
+            "head": "abcdef1234567890",
+            "dirty": False,
+            "changed_paths": [],
+            "foreign_work_lanes": [
+                {
+                    "branch": "work/dirty",
+                    "path": "/repo-work-dirty",
+                    "head": "abcdef1234567890",
+                    "lease_owner": "agent:test",
+                    "lease_state": "leased",
+                    "claim_id": "sample-claim",
+                    "claim_binding": "bound",
+                    "relation_to_accepted": "ancestor_of_accepted",
+                    "closeout_disposition": "landed_dirty",
+                    "residue_state": "unpreserved_worktree_delta",
+                    "dirty": True,
+                    "dirty_paths": ["README.md"],
+                    "path_scope": ["README.md"],
+                    "coordination_state": "advisory",
+                    "current_actor_capability": "observe",
+                    "allowed_actions": ["observe"],
+                    "forbidden_actions": ["write", "land", "retire"],
+                    "next_action": (
+                        "owner must preserve or intentionally discard dirty worktree delta before retirement"
+                    ),
+                }
+            ],
+            "coordination": {
+                "blocking": False,
+                "advisory_gaps": ["work_lane_closeout_residue_present"],
+                "foreign_work_lane_count": 1,
+                "unbound_work_lane_count": 0,
+                "missing_lease_count": 0,
+                "dirty_foreign_work_lane_count": 1,
+                "next_action": "review advisory Work Lane coordination signals before candidate integration",
+            },
+            "runtime_binding": {"state": "bound", "next_action": "ok", "advisory_gaps": []},
+            "landing_readiness": {
+                "state": "not_work_lane",
+                "next_action": "start",
+                "required_gaps": [],
+            },
+            "closeout_support": {"supported": False},
+        },
+        report_payload={"ok": True, "next_actions": []},
+    )
+
+    lane = orientation["coordination"]["foreign_work_lanes"][0]
+    assert lane["residue_state"] == "unpreserved_worktree_delta"
+    assert lane["next_action"] == (
+        "owner must preserve or intentionally discard dirty worktree delta before retirement"
+    )
+
+
 def test_orient_projects_advisory_signals_from_report_fixture() -> None:
     gap = (
         "openspec_protected_branch_active_change_unarchived:"

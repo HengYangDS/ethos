@@ -243,8 +243,13 @@ Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is
 `owner_only`; retirement requires the owner, an accepted handoff, or maintainer
-break-glass. This is a product read model, not a host message bus: assistant hosts, MCP, editor hosts, and CI adapters all see the same
-repository fact and must route mutation through their own owned lane.
+break-glass. A landed dirty lane is not retire-ready residue: it reports
+`closeout_disposition=landed_dirty`,
+`residue_state=unpreserved_worktree_delta`, and a `next_action` requiring the
+owner to preserve or intentionally discard the dirty worktree delta before
+retirement. This is a product read model, not a host message bus: assistant
+hosts, MCP, editor hosts, and CI adapters all see the same repository fact and
+must route mutation through their own owned lane.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.

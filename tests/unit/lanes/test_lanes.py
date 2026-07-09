@@ -109,6 +109,8 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "claim_binding": "missing",
             "relation_to_accepted": "ancestor_of_accepted",
             "closeout_disposition": "none",
+            "residue_state": "clean_or_none",
+            "next_action": "observe lane state; use owner-bound lifecycle command when ready",
             "dirty": False,
             "dirty_paths": [],
             "path_scope": [],
@@ -166,6 +168,37 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "required_gaps": ["protected_root_mutation"],
     }
     assert_no_ui_projection(status)
+
+
+def test_workspace_status_explains_landed_dirty_lane_preservation_path(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        owner="agent:test",
+        claim_id="sample-claim",
+        apply=True,
+    )
+    (worktree / "README.md").write_text("# unpreserved residue\n", encoding="utf-8")
+
+    status = workspace_status(repo)
+
+    lane = status["foreign_work_lanes"][0]
+    assert lane["closeout_disposition"] == "landed_dirty"
+    assert lane["residue_state"] == "unpreserved_worktree_delta"
+    assert lane["next_action"] == (
+        "owner must preserve or intentionally discard dirty worktree delta before retirement"
+    )
+    assert "ethos lane retire-landed" not in lane["next_action"]
+    assert status["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
 
 
 def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(

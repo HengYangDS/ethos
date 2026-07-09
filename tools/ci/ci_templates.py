@@ -248,7 +248,14 @@ def emulator_evidence(
     elif provider == "gitlab":
         tool = "gitlab-ci-local"
         paths = _provider_paths(provider)
-        command = ["gitlab-ci-local", "--file", paths["config"], "--list"]
+        command = [
+            "gitlab-ci-local",
+            "--file",
+            paths["config"],
+            "--state-dir",
+            "build/runtime/gitlab-ci-local",
+            "--list",
+        ]
         output_dir = ROOT / "build/evidence/local-ci/gitlab"
         hosted_flags = {
             "hosted_github_status_claimed": False,

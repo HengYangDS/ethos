@@ -115,6 +115,41 @@ def test_ci_template_check_reports_projection_drift_as_json() -> None:
     assert all(item["projection_matches_template"] for item in payload["projections"])
 
 
+def test_local_emulator_wrappers_do_not_require_optional_flag_environment() -> None:
+    base_env = os.environ.copy()
+    base_env.pop("ETHOS_LOCAL_EMULATOR_DRY_RUN", None)
+    base_env.pop("ETHOS_LOCAL_EMULATOR_ALLOW_UNTRACKED", None)
+
+    cases = [
+        (
+            "tools/ci/scripts/run-github-local-emulator.sh",
+            {"ETHOS_LOCAL_EMULATOR_DRY_RUN": "1"},
+            True,
+        ),
+        (
+            "tools/ci/scripts/run-gitlab-local-emulator.sh",
+            {},
+            False,
+        ),
+    ]
+    for script, extra_env, expected_dry_run in cases:
+        env = base_env | extra_env
+        result = subprocess.run(
+            ["/bin/bash", script, "doctor"],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        payload = json.loads(result.stdout)
+
+        assert payload["dry_run"] is expected_dry_run
+        assert "unbound variable" not in result.stderr
+        assert payload["hosted_github_status_claimed"] is False
+        assert payload["hosted_gitlab_status_claimed"] is False
+
+
 def test_local_emulator_wrappers_emit_non_claim_evidence_in_dry_run() -> None:
     env = os.environ.copy()
     env["ETHOS_LOCAL_EMULATOR_DRY_RUN"] = "1"
@@ -132,7 +167,7 @@ def test_local_emulator_wrappers_emit_non_claim_evidence_in_dry_run() -> None:
         ),
     ]:
         result = subprocess.run(
-            [script, "doctor"],
+            ["/bin/bash", script, "doctor"],
             cwd=ROOT,
             env=env,
             capture_output=True,
@@ -163,6 +198,34 @@ def test_local_emulator_wrappers_emit_non_claim_evidence_in_dry_run() -> None:
         assert payload["hosted_github_status_claimed"] is False
         assert payload["hosted_gitlab_status_claimed"] is False
         assert "local provider emulator evidence only" in payload["claim_boundary"]
+
+
+def test_gitlab_emulator_runtime_state_stays_under_build_runtime() -> None:
+    root_state = ROOT / ".gitlab-ci-local"
+    if root_state.exists():
+        for child in sorted(root_state.rglob("*"), reverse=True):
+            if child.is_file() or child.is_symlink():
+                child.unlink()
+            elif child.is_dir():
+                child.rmdir()
+        root_state.rmdir()
+
+    env = os.environ.copy()
+    env["ETHOS_LOCAL_EMULATOR_DRY_RUN"] = "1"
+    result = subprocess.run(
+        ["/bin/bash", "tools/ci/scripts/run-gitlab-local-emulator.sh", "doctor"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    payload = json.loads(result.stdout)
+
+    assert payload["provider"] == "gitlab"
+    assert "--state-dir" in payload["command"]
+    assert "build/runtime/gitlab-ci-local" in payload["command"]
+    assert not root_state.exists()
 
 
 def test_local_emulator_normal_run_refuses_untracked_materialization(tmp_path: Path) -> None:

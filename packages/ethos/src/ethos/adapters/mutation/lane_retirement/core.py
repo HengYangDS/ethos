@@ -18,7 +18,7 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git as default_run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
-from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
+from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_envelope
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
@@ -109,16 +109,18 @@ def retire_superseded_work_lane(
         "reason": reason,
         "retire_ready": bool(lane.get("retire_ready")) and not gaps,
         "lane": lane,
-        "mutation": {
-            "apply": request.apply,
-            "authorized": request.authorized,
-            **retire_mutation_binding(
-                branch=branch,
-                expect_head=request.expect_head,
-                holder_ref=_current_holder_ref(),
-                required_holder_ref=_lane_holder_ref(lane),
-            ),
-        },
+        "mutation": retire_mutation_envelope(
+            command="lane-retire-superseded",
+            action="lane.retire.superseded",
+            branch=branch,
+            expect_head=request.expect_head,
+            apply=request.apply,
+            confirmed=request.authorized,
+            required_gaps=gaps,
+            holder_ref=_current_holder_ref(),
+            required_holder_ref=_lane_holder_ref(lane),
+            extra_state={"absorbed_by": absorbed_by, "accepted_head": accepted_head},
+        ),
         "required_gaps": sorted(set(gaps)),
     }
     if gaps:

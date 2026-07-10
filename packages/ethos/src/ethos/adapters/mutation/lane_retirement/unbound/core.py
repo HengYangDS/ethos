@@ -73,12 +73,16 @@ def retire_unbound_work_lane_ref(
         "claim_id": str((current or {}).get("claim_id") or ""),
         "claim_binding": str((current or {}).get("claim_binding") or ""),
         "reason": reason,
-        "mutation": {
-            "apply": apply,
-            "authorized": authorized,
-            "expect_head": expect_head or "",
-            "ref": f"refs/heads/{branch}" if branch else "",
-        },
+        "mutation": lane_retirement_shared.retire_mutation_envelope(
+            command="lane-retire-unbound",
+            action="lane.retire.unbound",
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+            confirmed=authorized,
+            required_gaps=gaps,
+            extra_state={"reason": reason},
+        ),
         "required_gaps": sorted(set(gaps)),
     }
     if gaps:

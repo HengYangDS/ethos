@@ -239,7 +239,17 @@ def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_
 
     assert blocked["ok"] is False
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
-    assert blocked["mutation"] == {
+    assert {
+        key: blocked["mutation"][key]
+        for key in (
+            "invocation_holder_ref",
+            "holder_bound",
+            "invocation_source",
+            "expect_head",
+            "ref",
+            "required_holder_ref",
+        )
+    } == {
         "invocation_holder_ref": "",
         "holder_bound": "false",
         "invocation_source": "ETHOS_ACTOR",
@@ -247,6 +257,8 @@ def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_
         "ref": "refs/heads/work/landed",
         "required_holder_ref": "agent:test:case:agent-a",
     }
+    assert blocked["mutation"]["decision"]["verdict"] == "block"
+    assert blocked["mutation"]["legacy_binding_authoritative"] is False
     assert blocked["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
 
 
@@ -689,12 +701,14 @@ def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(
     assert report["ok"] is True
     assert report["state"] == "ready_to_retire_unbound"
     assert report["head"] == head
-    assert report["mutation"] == {
+    assert report["mutation"]["request"] == {
+        "command": "lane-retire-unbound",
         "apply": False,
-        "authorized": False,
+        "confirmation_present": False,
         "expect_head": head,
-        "ref": "refs/heads/work/stale-ref",
     }
+    assert report["mutation"]["ref"] == "refs/heads/work/stale-ref"
+    assert report["mutation"]["decision"]["verdict"] == "allow"
     assert git(repo, "rev-parse", "--verify", "work/stale-ref") == head
 
 

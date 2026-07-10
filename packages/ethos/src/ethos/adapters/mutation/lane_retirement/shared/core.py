@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
 
+from ethos.adapters.mutation.core import MutationRequest
+from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 
 if TYPE_CHECKING:
@@ -144,3 +146,51 @@ def retire_mutation_binding(
             }
         )
     return mutation
+
+
+def retire_mutation_envelope(
+    *,
+    command: str,
+    action: str,
+    branch: str | None,
+    expect_head: str | None,
+    apply: bool,
+    confirmed: bool,
+    required_gaps: list[str],
+    holder_ref: str = "",
+    required_holder_ref: str = "",
+    extra_state: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Build the canonical retirement request/decision while retaining migration hints."""
+    legacy_binding = retire_mutation_binding(
+        branch=branch,
+        expect_head=expect_head,
+        holder_ref=holder_ref,
+        required_holder_ref=required_holder_ref,
+    )
+    expected_state: dict[str, object] = {
+        "ref": str(legacy_binding["ref"]),
+        "head": str(legacy_binding["expect_head"]),
+        "invocation_holder_ref": holder_ref,
+        "required_holder_ref": required_holder_ref,
+        **(extra_state or {}),
+    }
+    canonical = mutation_envelope(
+        MutationRequest(
+            command=command,
+            apply=apply,
+            authorized=confirmed,
+            expect_head=expect_head,
+        ),
+        action=action,
+        resource=str(legacy_binding["ref"] or branch or "work-lane"),
+        expected_state=expected_state,
+        verdict="allow" if not required_gaps else "block",
+        required_gaps=tuple(sorted(set(required_gaps))),
+        state="ready" if not required_gaps else "blocked",
+        identity_basis="holder_ref_equality" if required_holder_ref else "not_evaluated",
+        evidence_boundary="current_git_lane_and_lease_observation",
+        enforcement_boundary="git_ref_and_worktree_transition",
+        verifier_provenance="current_runner",
+    )
+    return {**legacy_binding, **canonical, "legacy_binding_authoritative": False}

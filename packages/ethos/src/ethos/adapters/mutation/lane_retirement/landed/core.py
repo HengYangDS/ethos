@@ -73,9 +73,14 @@ def retire_landed_work_lanes(
             "state": "blocked",
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_binding(
+            "mutation": lane_retirement_shared.retire_mutation_envelope(
+                command="lane-retire-landed",
+                action="lane.retire.landed",
                 branch=branch,
                 expect_head=expect_head,
+                apply=apply,
+                confirmed=False,
+                required_gaps=gaps,
                 holder_ref=_current_holder_ref(),
                 required_holder_ref=_selected_holder_ref(selected),
             ),
@@ -88,9 +93,14 @@ def retire_landed_work_lanes(
             "state": "planned",
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_binding(
+            "mutation": lane_retirement_shared.retire_mutation_envelope(
+                command="lane-retire-landed",
+                action="lane.retire.landed",
                 branch=branch,
                 expect_head=expect_head,
+                apply=apply,
+                confirmed=False,
+                required_gaps=[],
                 holder_ref=_current_holder_ref(),
                 required_holder_ref=_selected_holder_ref(selected),
             ),
@@ -104,9 +114,14 @@ def retire_landed_work_lanes(
         return {
             "branch": branch or "",
             "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_binding(
+            "mutation": lane_retirement_shared.retire_mutation_envelope(
+                command="lane-retire-landed",
+                action="lane.retire.landed",
                 branch=branch,
                 expect_head=expect_head,
+                apply=apply,
+                confirmed=False,
+                required_gaps=list(removed.get("required_gaps", [])),
                 holder_ref=_current_holder_ref(),
                 required_holder_ref=_selected_holder_ref(selected),
             ),
@@ -122,9 +137,14 @@ def retire_landed_work_lanes(
         "branch": branch or "",
         "retired": lane,
         "lanes": lanes,
-        "mutation": lane_retirement_shared.retire_mutation_binding(
+        "mutation": lane_retirement_shared.retire_mutation_envelope(
+            command="lane-retire-landed",
+            action="lane.retire.landed",
             branch=branch,
             expect_head=expect_head,
+            apply=apply,
+            confirmed=False,
+            required_gaps=[],
             holder_ref=_current_holder_ref(),
             required_holder_ref=_selected_holder_ref(selected),
         ),

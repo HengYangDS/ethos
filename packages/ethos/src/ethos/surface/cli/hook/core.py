@@ -12,6 +12,7 @@ import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
+from ethos.adapters.admission.core import work_lane_ref_transition_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -125,6 +126,7 @@ def ref_transaction(
     old_value: str,
     new_value: str,
     *,
+    phase: str = "prepared",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -137,8 +139,32 @@ def ref_transaction(
     two-stage land->closeout path is the only reachable way to advance dev.
     """
     repo = resolve_root(root)
-    report = ref_move_admission_report(
-        root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
+    policy = load_branch_role_policy(repo)
+    branch = ref_name.removeprefix("refs/heads/")
+    report = (
+        work_lane_ref_transition_report(
+            root=repo,
+            phase=phase,
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        if policy.role_for_branch(branch) == "work_lane"
+        else {
+            "ok": True,
+            "state": "admitted",
+            "phase": phase,
+            "ref": ref_name,
+            "branch": branch,
+            "old_value": old_value,
+            "new_value": new_value,
+            "decision": {"action": "allow", "reason": "ref_move_committed"},
+            "required_gaps": [],
+        }
+        if phase == "committed"
+        else ref_move_admission_report(
+            root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
+        )
     )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""

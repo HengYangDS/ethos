@@ -500,6 +500,50 @@ def accept_lease_handoff(
     )
 
 
+def advance_lease_head(
+    db_path: Path,
+    *,
+    subject: str,
+    holder_ref: str,
+    expected_lease_id: str,
+    expected_epoch: int,
+    old_head: str,
+    new_head: str,
+) -> dict[str, Any]:
+    """Advance the lease's observed Git head through generation-bound CAS."""
+    HolderRef.parse(holder_ref)
+    initialize_state(db_path)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        row, payload = _expected_current_lease(
+            connection,
+            subject=subject,
+            holder_ref=holder_ref,
+            expected_lease_id=expected_lease_id,
+            expected_epoch=expected_epoch,
+            expected_head=old_head,
+            require_expired=False,
+        )
+        payload["expected_head"] = new_head
+        payload["head_observed_at"] = _now()
+        _update_lease_row(
+            connection,
+            lease_id=str(row[0]),
+            owner=holder_ref,
+            expires_at=str(row[3]),
+            payload=payload,
+        )
+        connection.commit()
+    return _lease_record(
+        lease_id=str(row[0]),
+        subject=subject,
+        owner=holder_ref,
+        expires_at=str(row[3]),
+        payload=payload,
+    )
+
+
 def _refresh_lease(
     db_path: Path,
     *,

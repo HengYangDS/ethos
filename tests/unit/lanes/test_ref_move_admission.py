@@ -23,6 +23,7 @@ from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
+from ethos.adapters.admission.core import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -31,6 +32,79 @@ from ethos.repository.policy.gates import gate_policy_digest
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+
+
+def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    from ethos.adapters.store.state import acquire_lease
+
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/current",
+        owner="agent:codex:thread:first",
+        payload={"expected_head": head},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="prepared",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value="b" * 40,
+    )
+    assert report["ok"] is True
+    assert report["decision"]["action"] == "allow"
+    assert report["lease"]["epoch"] == 1
+
+    stale = work_lane_ref_transition_report(
+        root=lane,
+        phase="prepared",
+        ref_name="refs/heads/work/current",
+        old_value="c" * 40,
+        new_value="b" * 40,
+    )
+    assert stale["ok"] is False
+    assert any("lease_head_stale" in gap for gap in stale["required_gaps"])
+
+
+def test_work_lane_ref_transition_committed_advances_local_lease_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = tmp_path / "repo-candidate"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    lane = tmp_path / "repo-work-current"
+    git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+    new_head = "b" * 40
+    from ethos.adapters.store.state import acquire_lease
+
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/current",
+        owner="agent:codex:thread:first",
+        payload={"expected_head": head},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
+
+    report = work_lane_ref_transition_report(
+        root=lane,
+        phase="committed",
+        ref_name="refs/heads/work/current",
+        old_value=head,
+        new_value=new_head,
+    )
+    assert report["ok"] is True
+    assert report["state"] == "lease_head_advanced"
+    assert report["lease"]["expected_head"] == new_head
 
 
 def _complete_proof_evidence(head: str, root: Path) -> dict[str, object]:
@@ -340,7 +414,7 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     dev_head = g("rev-parse", "dev").stdout.strip()
 
     # (2) non-accepted branch, no ethos binary -> ALLOWED (fail-open)
-    g("checkout", "-b", "work/x")
+    g("checkout", "-b", "work/x", env=no_binary)
     (tmp_path / "w").write_text("w", encoding="utf-8")
     g("add", ".")
     work_commit = g("commit", "-m", "work commit", env=no_binary)

@@ -32,3 +32,12 @@ def test_pre_commit_blocks_staged_python_format_drift() -> None:
         in script
     )
     assert "pre_commit_python_format_failed" in script
+
+
+def test_reference_transaction_updates_work_lane_lease_after_commit() -> None:
+    script = Path(".githooks/reference-transaction").read_text(encoding="utf-8")
+
+    assert 'phase="$1"' in script
+    assert '--phase "$phase"' in script
+    assert '"state":"lease_head_advanced"' in script
+    assert "lease repair required" in script

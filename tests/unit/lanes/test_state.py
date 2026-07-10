@@ -9,6 +9,7 @@ import pytest
 from ethos.adapters.store.state import accept_lease_handoff
 from ethos.adapters.store.state import acquire_lease
 from ethos.adapters.store.state import active_leases
+from ethos.adapters.store.state import advance_lease_head
 from ethos.adapters.store.state import append_chronicle_event
 from ethos.adapters.store.state import append_event
 from ethos.adapters.store.state import initialize_state
@@ -360,6 +361,38 @@ def test_handoff_offer_accept_changes_holder_and_increments_epoch(tmp_path: Path
     assert accepted["epoch"] == lease["epoch"] + 1
     assert accepted["lease_id"] == lease["lease_id"]
     assert accepted["payload"]["handoff_state"] == "accepted"
+
+
+def test_advance_lease_head_is_generation_bound_compare_and_swap(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    lease = acquire_lease(
+        db_path,
+        subject="work/current",
+        owner="agent:codex:thread:first",
+        payload={"expected_head": "a" * 40},
+    )
+
+    advanced = advance_lease_head(
+        db_path,
+        subject="work/current",
+        holder_ref=lease["holder_ref"],
+        expected_lease_id=lease["lease_id"],
+        expected_epoch=lease["epoch"],
+        old_head="a" * 40,
+        new_head="b" * 40,
+    )
+    assert advanced["expected_head"] == "b" * 40
+
+    with pytest.raises(ValueError, match="lease_head_stale"):
+        advance_lease_head(
+            db_path,
+            subject="work/current",
+            holder_ref=lease["holder_ref"],
+            expected_lease_id=lease["lease_id"],
+            expected_epoch=lease["epoch"],
+            old_head="a" * 40,
+            new_head="c" * 40,
+        )
 
 
 def _insert_legacy_lease(db_path: Path, *, subject: str, owner: str) -> str:

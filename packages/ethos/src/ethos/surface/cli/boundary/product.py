@@ -2,54 +2,47 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import resolve_root
-from ethos_core.result import EthosResult
+from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import constant_actions
+from ethos.surface.cli.quality.reporting import declared_report_handler
+from ethos.surface.cli.quality.reporting import module_report
+
+_MODULE = __name__
 
 
-def _emit_policy_report(
-    *,
-    command: str,
-    report: dict[str, object],
-    next_action: str,
-    json_output: bool,
-) -> None:
-    result = EthosResult(
-        command=command,
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=cast("dict[str, object]", report["summary"]),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=(next_action,),
-        data=report,
-    )
-    emit(result, json_output=json_output)
+def _product_boundary_report(root):
+    return product_boundary_report(root)
 
 
-def product_boundary(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Audit product and release-visible historical surfaces for boundary leaks."""
-    _emit_policy_report(
-        command="quality product-boundary",
-        report=product_boundary_report(resolve_root(root)),
-        next_action=(
-            "neutralize product and release-visible historical surfaces; keep "
-            "private provenance in adopter repositories or ignored local state"
-        ),
-        json_output=json_output,
-    )
+def _contributor_policy_report(root):
+    return contributor_policy_report(root)
 
 
-def contributor_policy(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Audit organization-native contributor, role, and automation identity policy."""
-    _emit_policy_report(
-        command="quality contributor-policy",
-        report=contributor_policy_report(resolve_root(root)),
-        next_action="declare role-based humans, teams, and automation identities",
-        json_output=json_output,
-    )
+PRODUCT_BOUNDARY_COMMAND = ReportCommandSpec(
+    command="quality product-boundary",
+    report=module_report(globals(), "_product_boundary_report"),
+    next_actions=constant_actions(
+        "neutralize product and release-visible historical surfaces; keep "
+        "private provenance in adopter repositories or ignored local state"
+    ),
+)
+CONTRIBUTOR_POLICY_COMMAND = ReportCommandSpec(
+    command="quality contributor-policy",
+    report=module_report(globals(), "_contributor_policy_report"),
+    next_actions=constant_actions("declare role-based humans, teams, and automation identities"),
+)
+
+product_boundary = declared_report_handler(
+    module_name=_MODULE,
+    function_name="product_boundary",
+    spec_name="PRODUCT_BOUNDARY_COMMAND",
+    spec=PRODUCT_BOUNDARY_COMMAND,
+)
+contributor_policy = declared_report_handler(
+    module_name=_MODULE,
+    function_name="contributor_policy",
+    spec_name="CONTRIBUTOR_POLICY_COMMAND",
+    spec=CONTRIBUTOR_POLICY_COMMAND,
+)

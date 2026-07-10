@@ -6,7 +6,11 @@ import pytest
 from pydantic import ValidationError
 
 import ethos.surface.cli.quality.core as quality_core
+from ethos.surface.cli.boundary import product as boundary_product
+from ethos.surface.cli.boundary import readiness as boundary_readiness
+from ethos.surface.cli.quality.cutover import core as cutover_core
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import ReportHandlerSpec
 from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import build_report_result
 from ethos.surface.cli.quality.reporting import compile_report_commands
@@ -14,6 +18,7 @@ from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
 from ethos.surface.cli.quality.reporting import count_at
 from ethos.surface.cli.quality.reporting import count_of
+from ethos.surface.cli.quality.reporting import declared_report_handler
 from ethos.surface.cli.quality.reporting import emit_report_command
 from ethos.surface.cli.quality.reporting import field_data
 from ethos.surface.cli.quality.reporting import field_summary
@@ -293,6 +298,28 @@ def test_compile_report_commands_reuses_command_registry_metadata() -> None:
     }
 
 
+def test_compile_report_commands_can_scope_to_one_lazy_module() -> None:
+    declarations = quality_core.load_command_registry_declaration().group("quality")
+
+    registry = compile_report_commands(
+        declarations=declarations,
+        specs={
+            "NO_COMPAT_COMMAND": cutover_core.NO_COMPAT_COMMAND,
+            "PRODUCT_BOUNDARY_COMMAND": boundary_product.PRODUCT_BOUNDARY_COMMAND,
+        },
+        import_path_prefix="ethos.surface.cli.quality.cutover.core:",
+    )
+
+    assert registry == {
+        "no_compat": (
+            "no-compat",
+            cutover_core.NO_COMPAT_COMMAND,
+            True,
+            True,
+        )
+    }
+
+
 def test_compile_report_commands_rejects_missing_declared_spec() -> None:
     declaration = CommandDeclaration(
         name="sample",
@@ -304,6 +331,29 @@ def test_compile_report_commands_rejects_missing_declared_spec() -> None:
 
     with pytest.raises(KeyError, match="MISSING_COMMAND"):
         compile_report_commands(declarations=(declaration,), specs={})
+
+
+def test_declared_report_handler_uses_command_declaration_metadata() -> None:
+    handler = declared_report_handler(
+        module_name="ethos.surface.cli.quality.cutover.core",
+        function_name="no_compat",
+        spec_name="NO_COMPAT_COMMAND",
+        spec=cutover_core.NO_COMPAT_COMMAND,
+    )
+
+    assert handler.__name__ == "no_compat"
+    assert handler.__module__ == "ethos.surface.cli.quality.cutover.core"
+    assert handler.__doc__ == "Check production source for compatibility residue."
+
+
+def test_declared_report_handler_rejects_spec_mismatch() -> None:
+    with pytest.raises(ValueError, match="report handler spec mismatch"):
+        declared_report_handler(
+            module_name="ethos.surface.cli.quality.cutover.core",
+            function_name="no_compat",
+            spec_name="WRONG_COMMAND",
+            spec=cutover_core.NO_COMPAT_COMMAND,
+        )
 
 
 def test_release_attestation_uses_report_spec_without_handwritten_result() -> None:
@@ -319,11 +369,66 @@ def test_release_attestation_uses_report_spec_without_handwritten_result() -> No
     assert "EthosResult(" not in body
 
 
+@pytest.mark.parametrize(
+    ("module_path", "function_name", "spec_name"),
+    [
+        (
+            "packages/ethos/src/ethos/surface/cli/quality/cutover/core.py",
+            "no_compat",
+            "NO_COMPAT_COMMAND",
+        ),
+        (
+            "packages/ethos/src/ethos/surface/cli/boundary/product.py",
+            "product_boundary",
+            "PRODUCT_BOUNDARY_COMMAND",
+        ),
+        (
+            "packages/ethos/src/ethos/surface/cli/boundary/product.py",
+            "contributor_policy",
+            "CONTRIBUTOR_POLICY_COMMAND",
+        ),
+        (
+            "packages/ethos/src/ethos/surface/cli/boundary/readiness.py",
+            "enterprise_readiness",
+            "ENTERPRISE_READINESS_COMMAND",
+        ),
+        (
+            "packages/ethos/src/ethos/surface/cli/boundary/readiness.py",
+            "governance_kernel",
+            "GOVERNANCE_KERNEL_COMMAND",
+        ),
+    ],
+)
+def test_boundary_quality_commands_use_declarative_report_handler(
+    module_path: str,
+    function_name: str,
+    spec_name: str,
+) -> None:
+    source = Path(module_path).read_text(encoding="utf-8")
+
+    assert f"{spec_name} = ReportCommandSpec(" in source
+    assert f"{function_name} = declared_report_handler(" in source
+    assert "EthosResult(" not in source
+    assert "def " + function_name not in source
+
+
 def test_report_command_spec_is_frozen_pydantic_contract() -> None:
     spec = ReportCommandSpec(command="quality immutable", report=lambda _root: {"ok": True})
 
     with pytest.raises(ValidationError, match="frozen_instance"):
         spec.command = "quality changed"  # type: ignore[misc]
+
+
+def test_report_handler_spec_is_frozen_pydantic_contract() -> None:
+    spec = ReportHandlerSpec(
+        report=ReportCommandSpec(command="quality immutable", report=lambda _root: {"ok": True}),
+        enforce=False,
+        bind_root=True,
+        doc="Immutable.",
+    )
+
+    with pytest.raises(ValidationError, match="frozen_instance"):
+        spec.doc = "Changed."  # type: ignore[misc]
 
 
 def test_report_command_spec_rejects_non_callable_report() -> None:
@@ -352,3 +457,19 @@ def test_module_report_rejects_non_callable_namespace_binding() -> None:
 
     with pytest.raises(TypeError, match="report binding is not callable: report"):
         loader(Path("/repo"))
+
+
+def test_imported_boundary_command_specs_are_declarative_contracts() -> None:
+    assert cutover_core.no_compat.__doc__ == "Check production source for compatibility residue."
+    assert boundary_product.product_boundary.__doc__ == (
+        "Audit product and release-visible historical surfaces for boundary leaks."
+    )
+    assert boundary_product.contributor_policy.__doc__ == (
+        "Audit organization-native contributor, role, and automation identity policy."
+    )
+    assert boundary_readiness.enterprise_readiness.__doc__ == (
+        "Audit enterprise-neutral readiness across product boundary, docs, identity, and release."
+    )
+    assert boundary_readiness.governance_kernel.__doc__ == (
+        "Audit the single kernel shared by product and adopted repositories."
+    )

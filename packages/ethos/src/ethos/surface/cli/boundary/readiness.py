@@ -2,65 +2,53 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from ethos.domain.readiness.enterprise import enterprise_readiness_report
 from ethos.repository.policy.governance.kernel import governance_kernel_report
-from ethos.surface.cli._base import JsonFlag
-from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import resolve_root
-from ethos_core.result import EthosResult
+from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import conditional_actions
+from ethos.surface.cli.quality.reporting import declared_report_handler
+from ethos.surface.cli.quality.reporting import module_report
+
+_MODULE = __name__
 
 
-def enterprise_readiness(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Audit enterprise-neutral readiness across product boundary, docs, identity, and release."""
-    repo = resolve_root(root)
-    report = enterprise_readiness_report(repo)
-    result = EthosResult(
-        command="quality enterprise-readiness",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(cast("dict[str, object]", report["summary"])),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=(
-            (
-                "resolve enterprise-readiness required gaps, then rerun "
-                "ethos quality enterprise-readiness --json"
-            )
-            if report["required_gaps"]
-            else "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+def _enterprise_readiness_report(root):
+    return enterprise_readiness_report(root)
+
+
+def _governance_kernel_report(root):
+    return governance_kernel_report(root)
+
+
+ENTERPRISE_READINESS_COMMAND = ReportCommandSpec(
+    command="quality enterprise-readiness",
+    report=module_report(globals(), "_enterprise_readiness_report"),
+    next_actions=conditional_actions(
+        when_blocked=(
+            "resolve enterprise-readiness required gaps, then rerun "
+            "ethos quality enterprise-readiness --json"
         ),
-        data=report,
-    )
-    emit(result, json_output=json_output)
+        when_clean="ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+    ),
+)
+GOVERNANCE_KERNEL_COMMAND = ReportCommandSpec(
+    command="quality governance-kernel",
+    report=module_report(globals(), "_governance_kernel_report"),
+    next_actions=conditional_actions(
+        when_blocked="repair governance kernel, profile/adoption scaffold, and command-plane docs",
+        when_clean="ethos quality enterprise-readiness --json",
+    ),
+)
 
-
-def governance_kernel(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Audit the single kernel shared by product and adopted repositories."""
-    repo = resolve_root(root)
-    report = governance_kernel_report(repo)
-    result = EthosResult(
-        command="quality governance-kernel",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(cast("dict[str, object]", report["summary"])),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=(
-            (
-                "repair governance kernel, profile/adoption scaffold, and command-plane docs"
-                if report["required_gaps"]
-                else "ethos quality enterprise-readiness --json"
-            ),
-        ),
-        data=report,
-    )
-    emit(result, json_output=json_output)
+enterprise_readiness = declared_report_handler(
+    module_name=_MODULE,
+    function_name="enterprise_readiness",
+    spec_name="ENTERPRISE_READINESS_COMMAND",
+    spec=ENTERPRISE_READINESS_COMMAND,
+)
+governance_kernel = declared_report_handler(
+    module_name=_MODULE,
+    function_name="governance_kernel",
+    spec_name="GOVERNANCE_KERNEL_COMMAND",
+    spec=GOVERNANCE_KERNEL_COMMAND,
+)

@@ -47,13 +47,20 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
         if command.report_handler is not None
     }
 
-    assert len(report_handlers) == 23
+    assert len(report_handlers) == 28
     assert report_handlers["asset-policy"].spec == "ASSET_POLICY_COMMAND"
     assert report_handlers["asset-policy"].enforce is False
     assert report_handlers["asset-policy"].bind_root is False
     assert report_handlers["types"].spec == "TYPES_COMMAND"
     assert report_handlers["types"].enforce is True
     assert report_handlers["types"].bind_root is True
+    assert report_handlers["no-compat"].spec == "NO_COMPAT_COMMAND"
+    assert report_handlers["no-compat"].enforce is True
+    assert report_handlers["no-compat"].bind_root is True
+    assert report_handlers["product-boundary"].spec == "PRODUCT_BOUNDARY_COMMAND"
+    assert report_handlers["contributor-policy"].spec == "CONTRIBUTOR_POLICY_COMMAND"
+    assert report_handlers["enterprise-readiness"].spec == "ENTERPRISE_READINESS_COMMAND"
+    assert report_handlers["governance-kernel"].spec == "GOVERNANCE_KERNEL_COMMAND"
     assert "docs" not in report_handlers
     assert "coupling-audit" not in report_handlers
 

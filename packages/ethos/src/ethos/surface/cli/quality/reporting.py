@@ -12,6 +12,11 @@ from typing import cast
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from ethos.surface.cli._base import JsonFlag
+from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
@@ -28,6 +33,7 @@ StateProjection = Callable[[ReportPayload, object], str]
 HeadProvider = Callable[[Path], str]
 PayloadLoader = Callable[[Path], object]
 ReportCommandRegistry = Mapping[str, tuple[str, "ReportCommandSpec", bool, bool]]
+ReportHandler = Callable[..., None]
 
 
 def module_report(
@@ -141,6 +147,19 @@ class ReportCommandSpec(BaseModel):
     blocked_state: str = "blocked"
 
 
+class ReportHandlerSpec(BaseModel):
+    """Declaration for one native CLI handler generated from a report command."""
+
+    model_config = ConfigDict(frozen=True)
+
+    report: ReportCommandSpec
+    enforce: bool
+    bind_root: bool
+    doc: str
+    name: str = ""
+    module: str = ""
+
+
 def build_report_result(spec: ReportCommandSpec, root: Path) -> EthosResult:
     """Compile a report command declaration into an ``EthosResult``."""
     report = spec.report(root)
@@ -177,10 +196,90 @@ def emit_report_command(
     emit_func(build_report_result(spec, root))
 
 
+def make_report_handler(spec: ReportHandlerSpec) -> ReportHandler:
+    """Compile a report specification into a native Cyclopts handler.
+
+    This is the reusable command-envelope compiler for simple report commands:
+    command declarations own enforce/bind-root/help metadata, while the report
+    spec owns the pure report-to-``EthosResult`` projection.
+    """
+
+    def emit_spec(target: Path, *, json_output: bool) -> None:
+        emit_report_command(
+            spec.report,
+            target,
+            emit_func=lambda result: emit(result, json_output=json_output, enforce=spec.enforce),
+        )
+
+    if spec.bind_root:
+
+        def handler(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
+            emit_spec(resolve_root(root), json_output=json_output)
+
+    else:
+
+        def handler(*, json_output: JsonFlag = False) -> None:
+            emit_spec(Path.cwd(), json_output=json_output)
+
+    handler.__doc__ = spec.doc
+    if spec.name:
+        handler.__name__ = spec.name
+        handler.__qualname__ = spec.name
+    if spec.module:
+        handler.__module__ = spec.module
+    return cast("ReportHandler", handler)
+
+
+def declared_report_handler(
+    *,
+    module_name: str,
+    function_name: str,
+    spec_name: str,
+    spec: ReportCommandSpec,
+    group: str = "quality",
+) -> ReportHandler:
+    """Compile one command handler from ``system/commands.toml`` metadata."""
+    import_path = f"{module_name}:{function_name}"
+    declaration = next(
+        (
+            command
+            for command in load_command_registry_declaration().group(group)
+            if command.import_path == import_path
+        ),
+        None,
+    )
+    if declaration is None:
+        msg = f"command declaration missing: {import_path}"
+        raise KeyError(msg)
+    if declaration.report_handler is None:
+        msg = f"report handler declaration missing: {import_path}"
+        raise KeyError(msg)
+    if declaration.report_handler.spec != spec_name:
+        msg = (
+            "report handler spec mismatch: "
+            f"{import_path} declares {declaration.report_handler.spec}, expected {spec_name}"
+        )
+        raise ValueError(msg)
+    if spec.command != f"{group} {declaration.name}":
+        msg = f"report command mismatch: {spec.command} != {group} {declaration.name}"
+        raise ValueError(msg)
+    return make_report_handler(
+        ReportHandlerSpec(
+            report=spec,
+            enforce=declaration.report_handler.enforce,
+            bind_root=declaration.report_handler.bind_root,
+            doc=declaration.help,
+            name=function_name,
+            module=module_name,
+        )
+    )
+
+
 def compile_report_commands(
     *,
     declarations: Sequence[CommandDeclaration],
     specs: Mapping[str, ReportCommandSpec],
+    import_path_prefix: str | None = None,
 ) -> ReportCommandRegistry:
     """Compile quality command declarations into native handler metadata."""
     return {
@@ -192,6 +291,7 @@ def compile_report_commands(
         )
         for command in declarations
         if command.report_handler is not None
+        and (import_path_prefix is None or command.import_path.startswith(import_path_prefix))
     }
 
 

@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from pathlib import Path
+import json
+from typing import TYPE_CHECKING
+
+import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from ethos.surface.cli.boundary import product as q_boundary
 
 
-def _capture(monkeypatch):
-    emitted = []
-
-    def capture_emit(result, *, json_output=False, enforce=True):
-        _ = (json_output, enforce)
-        emitted.append(result.to_dict())
-
-    monkeypatch.setattr(q_boundary, "emit", capture_emit)
-    monkeypatch.setattr(q_boundary, "resolve_root", lambda root: root or Path.cwd())
-    return emitted
+def _json_output(capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
+    return json.loads(capsys.readouterr().out)
 
 
-def test_quality_boundary_cli_commands_emit_policy_reports(monkeypatch, tmp_path: Path) -> None:
-    emitted = _capture(monkeypatch)
+def test_quality_boundary_cli_commands_emit_policy_reports(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     monkeypatch.setattr(
         q_boundary,
         "product_boundary_report",
@@ -40,19 +41,22 @@ def test_quality_boundary_cli_commands_emit_policy_reports(monkeypatch, tmp_path
         },
     )
 
-    q_boundary.product_boundary(root=tmp_path, json_output=True)
+    with pytest.raises(SystemExit):
+        q_boundary.product_boundary(root=tmp_path, json_output=True)
+    product_payload = _json_output(capsys)
     q_boundary.contributor_policy(root=tmp_path, json_output=True)
+    contributor_payload = _json_output(capsys)
 
-    assert emitted[0]["command"] == "quality product-boundary"
-    assert emitted[0]["ok"] is False
-    assert emitted[0]["next_actions"] == [
+    assert product_payload["command"] == "quality product-boundary"
+    assert product_payload["ok"] is False
+    assert product_payload["next_actions"] == [
         (
             "neutralize product and release-visible historical surfaces; keep "
             "private provenance in adopter repositories or ignored local state"
         )
     ]
-    assert emitted[1]["command"] == "quality contributor-policy"
-    assert emitted[1]["ok"] is True
-    assert emitted[1]["next_actions"] == [
+    assert contributor_payload["command"] == "quality contributor-policy"
+    assert contributor_payload["ok"] is True
+    assert contributor_payload["next_actions"] == [
         "declare role-based humans, teams, and automation identities"
     ]

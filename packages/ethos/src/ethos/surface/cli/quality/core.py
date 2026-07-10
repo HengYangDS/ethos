@@ -9,7 +9,7 @@ quality/repository deps load only when this group is imported (lazy path).
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
@@ -45,6 +45,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import ReportHandlerSpec
 from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import compile_report_commands
 from ethos.surface.cli.quality.reporting import conditional_actions
@@ -53,6 +54,7 @@ from ethos.surface.cli.quality.reporting import count_at
 from ethos.surface.cli.quality.reporting import count_of
 from ethos.surface.cli.quality.reporting import emit_report_command
 from ethos.surface.cli.quality.reporting import field_data
+from ethos.surface.cli.quality.reporting import make_report_handler
 from ethos.surface.cli.quality.reporting import module_report
 from ethos.surface.cli.quality.reporting import path_value
 from ethos.surface.cli.quality.reporting import payload_report
@@ -65,6 +67,9 @@ from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles
 from ethos_core.quality.proof.policy import proof_lattice
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _quality_report_namespace() -> dict[str, object]:
@@ -82,24 +87,9 @@ _QUALITY_COMMAND_HELP = {
 
 
 def _report_handler(spec: ReportCommandSpec, *, enforce: bool, bind_root: bool, doc: str):
-    def emit_spec(target: Path, *, json_output: bool) -> None:
-        emit_report_command(
-            spec,
-            target,
-            emit_func=lambda result: emit(result, json_output=json_output, enforce=enforce),
-        )
-
-    if bind_root:
-
-        def handler(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-            emit_spec(resolve_root(root), json_output=json_output)
-    else:
-
-        def handler(*, json_output: JsonFlag = False) -> None:
-            emit_spec(Path.cwd(), json_output=json_output)
-
-    handler.__doc__ = doc
-    return handler
+    return make_report_handler(
+        ReportHandlerSpec(report=spec, enforce=enforce, bind_root=bind_root, doc=doc)
+    )
 
 
 def _product_quality_profile(_root: Path) -> object:
@@ -639,6 +629,7 @@ CLAIMS_COMMAND = ReportCommandSpec(
 REPORT_COMMANDS = compile_report_commands(
     declarations=load_command_registry_declaration().group("quality"),
     specs=cast("dict[str, ReportCommandSpec]", globals()),
+    import_path_prefix="ethos.surface.cli.quality.core:",
 )
 
 globals().update(

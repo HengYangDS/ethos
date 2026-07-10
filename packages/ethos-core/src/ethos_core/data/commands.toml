@@ -346,6 +346,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.cutover.core:no_compat"
 help = "Check production source for compatibility residue."
 show = true
+report_handler = { spec = "NO_COMPAT_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "product-boundary"
@@ -353,6 +354,7 @@ group = "quality"
 import_path = "ethos.surface.cli.boundary.product:product_boundary"
 help = "Audit product and release-visible historical surfaces for boundary leaks."
 show = true
+report_handler = { spec = "PRODUCT_BOUNDARY_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "contributor-policy"
@@ -360,6 +362,7 @@ group = "quality"
 import_path = "ethos.surface.cli.boundary.product:contributor_policy"
 help = "Audit organization-native contributor, role, and automation identity policy."
 show = true
+report_handler = { spec = "CONTRIBUTOR_POLICY_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "enterprise-readiness"
@@ -367,6 +370,7 @@ group = "quality"
 import_path = "ethos.surface.cli.boundary.readiness:enterprise_readiness"
 help = "Audit enterprise-neutral readiness across product boundary, docs, identity, and release."
 show = true
+report_handler = { spec = "ENTERPRISE_READINESS_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "governance-kernel"
@@ -374,3 +378,4 @@ group = "quality"
 import_path = "ethos.surface.cli.boundary.readiness:governance_kernel"
 help = "Audit the single kernel shared by product and adopted repositories."
 show = true
+report_handler = { spec = "GOVERNANCE_KERNEL_COMMAND", enforce = true, bind_root = true }

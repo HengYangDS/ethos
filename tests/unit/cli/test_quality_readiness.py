@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from pathlib import Path
+import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import pytest
 
 from ethos.surface.cli.boundary import readiness as q_readiness
 
 
-def _capture(monkeypatch):
-    emitted = []
-
-    def capture_emit(result, *, json_output=False, enforce=True):
-        _ = (json_output, enforce)
-        emitted.append(result.to_dict())
-
-    monkeypatch.setattr(q_readiness, "emit", capture_emit)
-    monkeypatch.setattr(q_readiness, "resolve_root", lambda root: root or Path.cwd())
-    return emitted
+def _json_output(capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
+    return json.loads(capsys.readouterr().out)
 
 
-def test_quality_enterprise_readiness_reports_layer_closure(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_enterprise_readiness_reports_layer_closure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     monkeypatch.setattr(
         q_readiness,
         "enterprise_readiness_report",
@@ -31,16 +32,20 @@ def test_quality_enterprise_readiness_reports_layer_closure(monkeypatch, tmp_pat
     )
 
     q_readiness.enterprise_readiness(root=tmp_path, json_output=True)
+    payload = _json_output(capsys)
 
-    assert emitted[0]["command"] == "quality enterprise-readiness"
-    assert emitted[0]["state"] == "clean"
-    assert emitted[0]["next_actions"] == [
+    assert payload["command"] == "quality enterprise-readiness"
+    assert payload["state"] == "clean"
+    assert payload["next_actions"] == [
         "ethos prove --execute --expect-head $(git rev-parse HEAD) --json"
     ]
 
 
-def test_quality_governance_kernel_reports_single_kernel(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_governance_kernel_reports_single_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     monkeypatch.setattr(
         q_readiness,
         "governance_kernel_report",
@@ -53,7 +58,8 @@ def test_quality_governance_kernel_reports_single_kernel(monkeypatch, tmp_path: 
     )
 
     q_readiness.governance_kernel(root=tmp_path, json_output=True)
+    payload = _json_output(capsys)
 
-    assert emitted[0]["command"] == "quality governance-kernel"
-    assert emitted[0]["state"] == "clean"
-    assert emitted[0]["next_actions"] == ["ethos quality enterprise-readiness --json"]
+    assert payload["command"] == "quality governance-kernel"
+    assert payload["state"] == "clean"
+    assert payload["next_actions"] == ["ethos quality enterprise-readiness --json"]

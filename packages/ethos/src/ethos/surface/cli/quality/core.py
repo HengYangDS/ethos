@@ -635,7 +635,7 @@ CLAIMS_COMMAND = ReportCommandSpec(
 )
 
 
-_REPORT_COMMANDS = {
+REPORT_COMMANDS = {
     "asset_policy": ("asset-policy", ASSET_POLICY_COMMAND, False, False),
     "quality_types": ("types", TYPES_COMMAND, True, True),
     "docs_topology": ("docs-topology", DOCS_TOPOLOGY_COMMAND, True, True),
@@ -669,7 +669,7 @@ globals().update(
             bind_root=bind_root,
             doc=_QUALITY_COMMAND_HELP[command_name],
         )
-        for function_name, (command_name, spec, enforce, bind_root) in _REPORT_COMMANDS.items()
+        for function_name, (command_name, spec, enforce, bind_root) in REPORT_COMMANDS.items()
     }
 )
 

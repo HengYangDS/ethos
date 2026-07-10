@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+import ethos.surface.cli.quality.core as quality_core
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
 from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import build_report_result
@@ -129,13 +130,21 @@ def test_project_summary_composes_path_count_and_default_projections() -> None:
         nested_count=count_at("nested", "items"),
         nested_value=path_value("nested", "value"),
         missing_flag=path_value("nested", "missing", default=False),
+        non_mapping_fallback=path_value("not_a_mapping", "value", default="fallback"),
     )
 
-    assert summary({"items": ["a", "b"], "nested": {"items": (1,), "value": "kept"}}) == {
+    assert summary(
+        {
+            "items": ["a", "b"],
+            "nested": {"items": (1,), "value": "kept"},
+            "not_a_mapping": [],
+        }
+    ) == {
         "item_count": 2,
         "nested_count": 1,
         "nested_value": "kept",
         "missing_flag": False,
+        "non_mapping_fallback": "fallback",
     }
 
 
@@ -195,8 +204,6 @@ def test_head_bound_report_passes_current_head_to_loader() -> None:
 
 
 def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
-    import ethos.surface.cli.quality.core as quality_core
-
     expected_functions = {
         "asset_policy",
         "quality_types",
@@ -223,13 +230,13 @@ def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
         "command_examples",
     }
 
-    assert set(quality_core._REPORT_COMMANDS) == expected_functions
+    assert set(quality_core.REPORT_COMMANDS) == expected_functions
     for function_name, (
         command_name,
         spec,
         _enforce,
         _bind_root,
-    ) in quality_core._REPORT_COMMANDS.items():
+    ) in quality_core.REPORT_COMMANDS.items():
         assert getattr(quality_core, function_name).__doc__
         assert isinstance(spec, ReportCommandSpec)
         assert spec.command == f"quality {command_name}"

@@ -9,12 +9,10 @@ from ethos.repository.policy.governance.kernel import governance_kernel_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
-@quality_app.command(name="enterprise-readiness")
 def enterprise_readiness(
     *,
     root: RootOption | None = None,
@@ -42,7 +40,6 @@ def enterprise_readiness(
     emit(result, json_output=json_output)
 
 
-@quality_app.command(name="governance-kernel")
 def governance_kernel(
     *,
     root: RootOption | None = None,

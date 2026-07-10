@@ -19,6 +19,8 @@ from typing import Annotated
 from cyclopts import App
 from cyclopts import Parameter
 
+from ethos.surface.cli.quality.registry import register_declared_group
+
 if TYPE_CHECKING:
     from ethos_core.result import EthosResult
 
@@ -113,20 +115,15 @@ def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> Non
 
 
 def load_command_groups(argv: list[str]) -> None:
-    """Import only the command-group module the invocation needs (lazy startup).
+    """Load only the command-group registration needed by this invocation.
 
-    Each group registers its commands onto the shared *_app objects at import time;
-    importing a group pulls that group's heavy deps. The common root commands
-    (status/plan/prove/land/publish/report/...) live in this module and need no
-    group, so a bare `ethos status` never loads the quality/repository graph. When a
-    group sub-command is invoked (`ethos quality ...`, `ethos lane ...`), only that
-    group is imported. With no recognizable group token (e.g. `--help`), all groups
-    load so the full command surface is shown.
+    Quality commands compile to Cyclopts lazy import paths from their declaration,
+    so neither help nor registration imports handler modules. Other groups retain
+    bounded decorator registration until their declarations are migrated.
     """
     groups = {
         "fleet": "ethos.surface.cli.fleet",
         "intake": "ethos.surface.cli.intake",
-        "quality": "ethos.surface.cli.quality.core",
         "rules": "ethos.surface.cli.rules",
         "lane": "ethos.surface.cli.lane.core",
         "assistants": "ethos.surface.cli.assistants",
@@ -136,17 +133,17 @@ def load_command_groups(argv: list[str]) -> None:
         "hook": "ethos.surface.cli.hook.core",
     }
     token = next((arg for arg in argv if not arg.startswith("-")), "")
-    if token in groups:
+    if token == "quality":
+        register_declared_group(quality_app, "quality")
+        selected: list[str] = []
+    elif token in groups:
         selected = [token]
     elif token:
         # A recognized root command (status/plan/prove/land/...) needs no group.
         selected = []
     else:
         # No command token (bare `ethos` / `ethos --help`): show the full surface.
+        register_declared_group(quality_app, "quality")
         selected = list(groups)
     for name in selected:
         importlib.import_module(groups[name])
-        if name == "quality":
-            importlib.import_module("ethos.surface.cli.quality.cutover.core")
-            importlib.import_module("ethos.surface.cli.boundary.product")
-            importlib.import_module("ethos.surface.cli.boundary.readiness")

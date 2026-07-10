@@ -5,6 +5,7 @@ from pathlib import Path
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.commands import public_commands
 from ethos.repository.registry.docs.commands import command_examples_report
+from ethos_core.contracts.commands import load_command_registry_declaration
 
 
 def test_command_registry_separates_public_workflow_from_maintainer_reference() -> None:
@@ -46,6 +47,17 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     assert report["reader_view_count"] == 1
     assert report["scorecard_count"] == 1
     assert report["setup_count"] == 3
+
+
+def test_command_registry_classifications_compile_from_the_declaration() -> None:
+    declaration = load_command_registry_declaration()
+    report = command_registry_report()
+
+    assert tuple(report["public_workflow_commands"]) == declaration.sets.public_workflow
+    assert tuple(report["reader_view_commands"]) == declaration.sets.reader_view
+    assert tuple(report["scorecard_commands"]) == declaration.sets.scorecard
+    assert tuple(report["setup_commands"]) == declaration.sets.setup
+    assert tuple(report["maintainer_reference_commands"]) == (declaration.sets.maintainer_reference)
 
 
 def test_openspec_is_governance_dependency_not_second_public_command_plane() -> None:

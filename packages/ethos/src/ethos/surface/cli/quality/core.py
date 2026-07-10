@@ -42,7 +42,6 @@ from ethos.repository.release.core import release_policy_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.contracts.package.ontology import workspace_package_config_report
@@ -53,7 +52,6 @@ from ethos_core.quality.proof.policy import proof_lattice
 from ethos_core.result import EthosResult
 
 
-@quality_app.command
 def asset_policy(
     *,
     json_output: JsonFlag = False,
@@ -70,7 +68,6 @@ def asset_policy(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="types")
 def quality_types(
     *,
     root: RootOption | None = None,
@@ -90,7 +87,6 @@ def quality_types(
     emit(result, json_output=json_output)
 
 
-@quality_app.command(name="docs")
 def quality_docs(
     *,
     root: RootOption | None = None,
@@ -120,7 +116,6 @@ def quality_docs(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="docs-topology")
 def docs_topology(
     *,
     root: RootOption | None = None,
@@ -151,7 +146,6 @@ def docs_topology(
     emit(result, json_output=json_output)
 
 
-@quality_app.command
 def proof_policy(
     *,
     json_output: JsonFlag = False,
@@ -168,7 +162,6 @@ def proof_policy(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="tool-profiles")
 def tool_profiles_command(
     *,
     json_output: JsonFlag = False,
@@ -185,7 +178,6 @@ def tool_profiles_command(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="markdown-links")
 def markdown_links(
     *,
     root: RootOption | None = None,
@@ -215,7 +207,6 @@ def markdown_links(
     )
 
 
-@quality_app.command(name="shell")
 def shell_quality(
     *,
     root: RootOption | None = None,
@@ -235,7 +226,6 @@ def shell_quality(
     )
 
 
-@quality_app.command(name="toml")
 def toml_quality(
     *,
     root: RootOption | None = None,
@@ -255,7 +245,6 @@ def toml_quality(
     )
 
 
-@quality_app.command(name="yaml")
 def yaml_quality(
     *,
     root: RootOption | None = None,
@@ -275,7 +264,6 @@ def yaml_quality(
     )
 
 
-@quality_app.command(name="coverage")
 def coverage(
     *,
     root: RootOption | None = None,
@@ -305,7 +293,6 @@ def coverage(
     emit(result, json_output=json_output)
 
 
-@quality_app.command(name="docstrings")
 def docstrings(
     *,
     root: RootOption | None = None,
@@ -334,7 +321,6 @@ def docstrings(
     emit(result, json_output=json_output)
 
 
-@quality_app.command(name="code-size")
 def code_size(
     *,
     root: RootOption | None = None,
@@ -353,7 +339,6 @@ def code_size(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="module-layout")
 def module_layout(
     *,
     root: RootOption | None = None,
@@ -373,7 +358,6 @@ def module_layout(
     emit(result, json_output=json_output)
 
 
-@quality_app.command(name="npm")
 def npm_quality(
     *,
     root: RootOption | None = None,
@@ -393,7 +377,6 @@ def npm_quality(
     )
 
 
-@quality_app.command(name="generated-artifacts")
 def generated_artifacts(
     *,
     root: RootOption | None = None,
@@ -421,7 +404,6 @@ def generated_artifacts(
     emit(result, json_output=json_output)
 
 
-@quality_app.command
 def command_surface(
     *,
     root: RootOption | None = None,
@@ -440,7 +422,6 @@ def command_surface(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def format_policy(
     *,
     root: RootOption | None = None,
@@ -471,7 +452,6 @@ def format_policy(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def projection_drift(
     *,
     root: RootOption | None = None,
@@ -490,7 +470,6 @@ def projection_drift(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def standards(
     *,
     json_output: JsonFlag = False,
@@ -506,7 +485,6 @@ def standards(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="package-ontology")
 def package_ontology(
     *,
     root: RootOption | None = None,
@@ -572,7 +550,6 @@ def package_ontology(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def schemas(
     *,
     root: RootOption | None = None,
@@ -591,7 +568,6 @@ def schemas(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def gates(
     *,
     json_output: JsonFlag = False,
@@ -629,7 +605,6 @@ def gates(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="coupling-audit")
 def coupling_audit(
     *,
     root: RootOption | None = None,
@@ -658,7 +633,6 @@ def coupling_audit(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def commits(
     *,
     enforce_head: bool = False,
@@ -683,7 +657,6 @@ def commits(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def release(
     *,
     root: RootOption | None = None,
@@ -707,7 +680,6 @@ def release(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def release_policy(
     *,
     root: RootOption | None = None,
@@ -727,7 +699,6 @@ def release_policy(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def sbom(
     *,
     root: RootOption | None = None,
@@ -746,7 +717,6 @@ def sbom(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command(name="release-attestation")
 def release_attestation_command(
     *,
     evidence_digest: str = "planned",
@@ -770,7 +740,6 @@ def release_attestation_command(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def command_registry(
     *,
     root: RootOption | None = None,
@@ -790,7 +759,6 @@ def command_registry(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def evidence_freshness(
     *,
     root: RootOption | None = None,
@@ -812,7 +780,6 @@ def evidence_freshness(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def claims(
     *,
     root: RootOption | None = None,
@@ -841,7 +808,6 @@ def claims(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def docs_registry(
     *,
     root: RootOption | None = None,
@@ -861,7 +827,6 @@ def docs_registry(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def command_examples(
     *,
     root: RootOption | None = None,
@@ -880,7 +845,6 @@ def command_examples(
     emit(result, json_output=json_output, enforce=False)
 
 
-@quality_app.command
 def provenance(
     *,
     objective: str = "ethos provenance",

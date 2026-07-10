@@ -32,6 +32,22 @@ contracts, repository, assistants, and adapters packages.
 - **THEN** the public CLI imports target product packages and does not import
   retired migration-host modules
 
+### Requirement: Quality Command Registry Is Declaration-First
+ETHOS SHALL declare quality command names, handler import paths, help text, and
+visibility in `system/commands.toml`, validate that declaration through an
+immutable typed contract, and compile it through Cyclopts native lazy loading.
+
+#### Scenario: Quality command group is registered
+- **WHEN** `ethos quality` is invoked or its help is rendered
+- **THEN** the command group is compiled from the tracked declaration
+- **AND** handler modules are not imported merely to execute decorators
+- **AND** Cyclopts continues to derive command parameters from handler signatures
+
+#### Scenario: Packaged command declaration is used
+- **WHEN** ETHOS runs outside a repository checkout
+- **THEN** the packaged `ethos_core/data/commands.toml` projection supplies the
+  same validated command declaration
+
 ### Requirement: Retired Family Command Vocabulary
 ETHOS SHALL reject retired family-style command prefixes from governed docs.
 

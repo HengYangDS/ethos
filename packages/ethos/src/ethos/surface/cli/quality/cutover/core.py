@@ -8,12 +8,10 @@ from ethos.repository.policy.no_compat.core import no_compat_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
-from ethos.surface.cli._base import quality_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
-@quality_app.command(name="no-compat")
 def no_compat(
     *,
     root: RootOption | None = None,

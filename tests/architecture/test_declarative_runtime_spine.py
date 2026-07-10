@@ -95,3 +95,32 @@ def test_gate_registry_is_declaration_first() -> None:
     assert '"repository-audit": Gate(' not in runtime
     assert "PRODUCT_DEFAULT_GATE_IDS = (" not in runtime
     assert "QualityGateDescriptor(" not in quality
+
+
+def test_quality_command_registry_is_declaration_first() -> None:
+    declaration = ROOT / "system/commands.toml"
+    package_resource = ROOT / "packages/ethos-core/src/ethos_core/data/commands.toml"
+    contract = (ROOT / "packages/ethos-core/src/ethos_core/contracts/commands.py").read_text(
+        encoding="utf-8"
+    )
+    registry = (ROOT / "packages/ethos/src/ethos/surface/cli/quality/registry.py").read_text(
+        encoding="utf-8"
+    )
+    handler_paths = (
+        "packages/ethos/src/ethos/surface/cli/quality/core.py",
+        "packages/ethos/src/ethos/surface/cli/quality/cutover/core.py",
+        "packages/ethos/src/ethos/surface/cli/boundary/product.py",
+        "packages/ethos/src/ethos/surface/cli/boundary/readiness.py",
+    )
+
+    assert declaration.exists()
+    assert package_resource.exists()
+    assert package_resource.read_bytes() == declaration.read_bytes()
+    assert "CommandRegistryDeclaration" in contract
+    assert "system/commands.toml" in contract
+    assert "data/commands.toml" in contract
+    assert ".command(command.import_path" in registry
+    for relative in handler_paths:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        assert "@quality_app.command" not in source
+        assert "from ethos.surface.cli._base import quality_app" not in source

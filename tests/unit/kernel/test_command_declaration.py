@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import pytest
+from cyclopts import App
+from cyclopts.command_spec import CommandSpec
+from pydantic import ValidationError
+
+import ethos_core.contracts.commands as command_contract
+from ethos.surface.cli.quality.registry import register_declared_group
+from ethos_core.contracts.commands import CommandRegistryDeclaration
+from ethos_core.contracts.commands import load_command_registry_declaration
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_command_declaration_compiles_command_sets_and_quality_handlers() -> None:
+    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
+
+    assert declaration.sets.public_workflow == (
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    )
+    assert declaration.sets.reader_view == ("ethos orient",)
+    assert declaration.sets.scorecard == ("ethos report",)
+    assert declaration.sets.setup == ("ethos init", "ethos adopt", "ethos doctor")
+
+    quality = declaration.group("quality")
+    assert len(quality) == 40
+    assert quality[0].name == "asset-policy"
+    assert quality[-1].name == "governance-kernel"
+    assert all(command.import_path.startswith("ethos.") for command in quality)
+    assert all(command.help for command in quality)
+
+
+def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
+    app = App(name="quality")
+
+    registered = register_declared_group(app, "quality")
+
+    assert registered == 40
+    assert isinstance(app._commands["types"], CommandSpec)
+    assert app._commands["types"].import_path == ("ethos.surface.cli.quality.core:quality_types")
+    assert app._commands["no-compat"].import_path == (
+        "ethos.surface.cli.quality.cutover.core:no_compat"
+    )
+    assert app._commands["product-boundary"].import_path == (
+        "ethos.surface.cli.boundary.product:product_boundary"
+    )
+    assert app._commands["governance-kernel"].import_path == (
+        "ethos.surface.cli.boundary.readiness:governance_kernel"
+    )
+    assert register_declared_group(app, "quality") == 0
+
+
+def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> None:
+    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
+    with pytest.raises(ValidationError):
+        declaration.commands[0].name = "changed"  # type: ignore[misc]
+
+    payload = declaration.model_dump()
+    payload["commands"] = [*payload["commands"], payload["commands"][0]]
+    with pytest.raises(ValidationError, match="duplicate command name"):
+        CommandRegistryDeclaration.model_validate(payload)
+
+
+def test_command_declaration_packaged_fallback_matches_repository_owner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = ROOT / "system/commands.toml"
+    packaged = ROOT / "packages/ethos-core/src/ethos_core/data/commands.toml"
+
+    assert packaged.read_bytes() == repository.read_bytes()
+    monkeypatch.chdir(tmp_path)
+    assert load_command_registry_declaration(tmp_path / "missing.toml").id == (
+        "ethos-command-registry"
+    )
+
+
+def test_command_declaration_default_searches_package_parents_then_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with TemporaryDirectory() as directory:
+        isolated = Path(directory)
+        nested_contract = isolated / "src/ethos_core/contracts/commands.py"
+        repository = isolated / "system/commands.toml"
+        outside = isolated / "outside"
+        repository.parent.mkdir()
+        outside.mkdir()
+        repository.write_bytes((ROOT / "system/commands.toml").read_bytes())
+        monkeypatch.chdir(outside)
+        monkeypatch.setattr(command_contract, "__file__", str(nested_contract))
+
+        assert load_command_registry_declaration().id == "ethos-command-registry"
+        repository.unlink()
+        assert load_command_registry_declaration().id == "ethos-command-registry"

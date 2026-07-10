@@ -4,46 +4,20 @@ import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos_core.contracts.commands import load_command_registry_declaration
+
 if TYPE_CHECKING:
     from pathlib import Path
 
-PUBLIC_WORKFLOW_COMMANDS = (
-    "ethos status",
-    "ethos plan",
-    "ethos prove",
-    "ethos land",
-    "ethos publish",
-)
-READER_VIEW_COMMANDS = ("ethos orient",)
-SCORECARD_COMMANDS = ("ethos report",)
-SETUP_COMMANDS = (
-    "ethos init",
-    "ethos adopt",
-    "ethos doctor",
-)
-MAINTAINER_REFERENCE_COMMANDS = (
-    "ethos audit",
-    "ethos openspec",
-    "ethos campaign",
-    "ethos intake",
-    "ethos intake status",
-    "ethos intake mine",
-    "ethos quality",
-    "ethos assistants",
-    "ethos playbooks",
-    "ethos fleet",
-    "ethos fleet retirement-readiness",
-    "ethos lane",
-    "ethos hook",
-    "ethos parity",
-    "ethos explain",
-    "ethos docs",
-)
-GOVERNANCE_GATE_COMMANDS = ("openspec validate --all --strict --json",)
-LOCAL_CLOSEOUT_COMMANDS = ("ethos land --closeout --apply --authorize --expect-head <HEAD>",)
-EVIDENCE_REFRESH_COMMANDS = (
-    "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
-)
+_DECLARATION = load_command_registry_declaration()
+PUBLIC_WORKFLOW_COMMANDS = _DECLARATION.sets.public_workflow
+READER_VIEW_COMMANDS = _DECLARATION.sets.reader_view
+SCORECARD_COMMANDS = _DECLARATION.sets.scorecard
+SETUP_COMMANDS = _DECLARATION.sets.setup
+MAINTAINER_REFERENCE_COMMANDS = _DECLARATION.sets.maintainer_reference
+GOVERNANCE_GATE_COMMANDS = _DECLARATION.sets.governance_gate
+LOCAL_CLOSEOUT_COMMANDS = _DECLARATION.sets.local_closeout
+EVIDENCE_REFRESH_COMMANDS = _DECLARATION.sets.evidence_refresh
 PUBLIC_COMMANDS = (*PUBLIC_WORKFLOW_COMMANDS,)
 KNOWN_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
@@ -53,22 +27,9 @@ KNOWN_COMMANDS = (
     *MAINTAINER_REFERENCE_COMMANDS,
 )
 
-RETIRED_PUBLIC_ROOTS = (
-    "wt",
-    "proof",
-    "mission",
-    "skill-evolution",
-    "agent-surface-contract",
-)
-RETIRED_PUBLIC_COMMAND_PREFIXES = (
-    "ethos kernel",
-    "ethos governance",
-    "ethos workspace",
-    "ethos agent",
-    "ethos project",
-    "ethos node",
-)
-DEFAULT_HISTORICAL_EXEMPT_ROOTS = ("evidence", "docs/archive")
+RETIRED_PUBLIC_ROOTS = _DECLARATION.sets.retired_public_roots
+RETIRED_PUBLIC_COMMAND_PREFIXES = _DECLARATION.sets.retired_public_command_prefixes
+DEFAULT_HISTORICAL_EXEMPT_ROOTS = _DECLARATION.sets.historical_exempt_roots
 
 
 def public_commands() -> tuple[str, ...]:

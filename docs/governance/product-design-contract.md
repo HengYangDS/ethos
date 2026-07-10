@@ -170,6 +170,15 @@ distinct identity facts. Authority comes from configured roles, lane ownership,
 claims, evidence, handoff, and break-glass policy; it must not depend on a
 single built-in personal name, email address, workstation path, or domain
 repository.
+A Work Lane lease holder identifies the concrete acting instance, not merely a
+provider class: `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
+`agent:jetbrains:chat:<id>`, `human:shell:<id>`, and
+`service:gitlab-ci:pipeline:<id>` are holder references; `codex`, `claude`, or
+`ci` alone are provider labels or legacy hints. ETHOS therefore does not add a
+first-class Principal, Actor, Participant, Party, Session, or Agent registry.
+Role capability remains Authority policy; temporary write ownership remains the
+Lane Lease; accepted handoff, retirement, preservation, block, orphan audit, and
+break-glass judgments are evidence-bound Chronicle events.
 The product default is therefore an external role policy: enterprises declare
 the maintainer, team, reviewer, bot, service, and adopter-side owner identities
 they trust. Package metadata, active docs, tests, command defaults, and release
@@ -275,14 +284,16 @@ only on head-bound generated projection evidence, ETHOS may replay repository
 truth and mark the projection stale, but it must require evidence regeneration
 and head-bound proof before landing.
 Foreign Work Lanes are product-observable and observe-only by default. Status
-payloads may reveal their branch, head, lease owner, claim binding, dirty state,
+payloads may reveal their branch, head, lease holder, claim binding, dirty state,
 path scope, coordination state, and current actor capability, but another agent
 does not gain write, land, or retire authority from visibility. Write authority
-belongs to the lane owner. Retiring or absorbing a foreign lane requires the
-owner, an accepted handoff, or maintainer break-glass evidence. Collaboration
-therefore starts as a read model over Git, lease, claim, and evidence facts; a
-host-specific chat, thread, or message bus may project those facts but cannot
-become the semantic center.
+belongs to the concrete lane holder under Authority policy. Retiring or absorbing
+a foreign lane requires the holder, an accepted handoff, or maintainer
+break-glass evidence. Handoff, retire, preserve, block, orphan audit, and
+break-glass are Chronicle `lane_resolution` judgments, not another lifecycle
+store. Collaboration therefore starts as a read model over Git, lease, claim,
+and evidence facts; a host-specific chat, thread, or message bus may project
+those facts but cannot become the semantic center.
 
 ### Binding taxonomy
 

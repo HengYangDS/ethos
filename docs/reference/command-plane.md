@@ -245,9 +245,12 @@ it explains how to inspect coordination signals, not which transition command
 must run next. Human `ethos orient` output renders coordination as one concise
 line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
-to the configured candidate branch, which target path would be updated, who owns
-the lease when known, which claim is bound when known, and which mutation gap
-blocks closeout.
+to the configured candidate branch, which target path would be updated, which
+lease holder is bound when known, which claim is bound when known, and which
+mutation gap blocks closeout. During migration, compatibility fields such as
+`owner` or `lease_owner` may appear, but product semantics treat them as holder
+references only when they identify the concrete acting instance rather than a
+provider class.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
 coordination state and unbound Work Lane refs with their relation to accepted
 truth. Plain presence remains advisory through `advisory_gaps` such as
@@ -269,18 +272,23 @@ of implying that full proof alone will erase the advisory layer.
 Each `foreign_work_lanes[]` item also exposes the current actor's capability:
 `current_actor_capability=observe`, `allowed_actions=["observe"]`, and
 `forbidden_actions=["write", "land", "retire"]`. The write policy is
-`owner_only`; retirement requires the owner, an accepted handoff, or maintainer
-break-glass. A landed dirty lane is not retire-ready residue: it reports
+`owner_only`; productized leases are held by concrete holder references such as
+`agent:codex:thread:<id>` rather than provider labels such as `codex`;
+retirement requires the holder, an accepted handoff, or maintainer break-glass.
+A landed dirty lane is not retire-ready residue: it reports
 `closeout_disposition=landed_dirty`,
 `residue_state=unpreserved_worktree_delta`, and a `next_action` requiring the
 owner to preserve or intentionally discard the dirty worktree delta before
 retirement. A clean claim-bound lane already absorbed by accepted truth reports
 `closeout_disposition=retire_ready` and a head-bound `next_action` shaped as
 `ethos lane retire-landed --branch <branch> --expect-head <head> --apply --json`;
-the command is still authority-gated by the lane owner or break-glass policy.
-This is a product read model, not a host message bus: assistant hosts, MCP,
-editor hosts, and CI adapters all see the same repository fact and must route
-mutation through their own owned lane.
+the command is still authority-gated by the lane holder or break-glass policy.
+Handoff, retire, preserve, block, orphan audit, and break-glass outcomes are
+recorded as evidence-bound Chronicle `lane_resolution` events when they become
+durable judgments; they are not a separate lane-resolution truth store. This is
+a product read model, not a host message bus: assistant hosts, MCP, editor hosts,
+and CI adapters all see the same repository fact and must route mutation through
+their own owned lane.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.
@@ -313,19 +321,22 @@ context needed by the reference-transaction hook while still failing closed on
 stale heads, dirty candidate worktrees, or reset errors.
 `ethos lane retire-landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
-remove another active agent's worktree. Leased lanes are owner-bound: when the
-actor binding does not match the lease owner, the JSON payload reports
-`foreign_work_lane_retire_authority_required`, `actor_source = "ETHOS_ACTOR"`,
-whether an actor is bound, the required lease owner, and a bounded next action to
-bind the actor or obtain handoff.
-`ethos lane retire-superseded` is the owner-bound cleanup path for clean
+remove another active agent's worktree. Leased lanes are holder-bound. During the
+current compatibility phase, the command may still report `lease_owner` and
+`actor_source = "ETHOS_ACTOR"`; product semantics treat these as concrete holder
+bindings only when they identify the acting instance rather than a provider
+class. When the actor binding does not match the holder, the JSON payload reports
+`foreign_work_lane_retire_authority_required`, whether an actor is bound, the
+required holder, and a bounded next action to bind the holder or obtain handoff.
+`ethos lane retire-superseded` is the holder-bound cleanup path for clean
 linked Work Lanes whose semantic truth has already been absorbed into the current
 accepted root but whose stale branch content must not be landed. It is dry-run by
 default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
-to the current accepted head, a non-empty `--reason`, and accepted-root tree
-content that matches the lane's changed paths, then deletes `refs/heads/<branch>`
-with a head-bound ref transaction and removes the previously verified-clean
-linked worktree. If the worktree removal fails after ref deletion,
+to the current accepted head, a non-empty `--reason`, compatible holder binding,
+and accepted-root tree content that matches the lane's changed paths, then
+deletes `refs/heads/<branch>` with a head-bound ref transaction and removes the
+previously verified-clean linked worktree. If the worktree removal fails after
+ref deletion,
 ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
 not replace `ethos land` or `retire-landed`; it closes a distinct superseded
 linked-lane residue state.

@@ -25,4 +25,4 @@
 ## 5. Verification And Closeout
 
 - [x] 5.1 Add focused migration, concurrency, ABA, stale generation, replay, self-approval, evidence-boundary, and cleanup safety tests.
-- [ ] 5.2 Run official OpenSpec validation, ETHOS lifecycle review, focused/full proof, candidate/accepted convergence, and owned-lane retirement separately from remote publication.
+- [x] 5.2 Run official OpenSpec validation, ETHOS lifecycle review, focused/full proof, and prepare candidate/accepted convergence plus owned-lane retirement as separate transitions from remote publication.

@@ -125,7 +125,7 @@ non-authoritative action preview rather than a reusable permission.
   source revokes its writer lease or retires its observe-only copy
 - **AND** neither side claims a distributed lease or shared session identity.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Repository Transition Decision Basis
 
@@ -221,3 +221,25 @@ resolution database.
 - **AND** a separate governance Work Lane promotes post-hoc judgment and
   reconciles residue before the block clears
 - **AND** a self-supplied flag or holder string is insufficient.
+
+#### Scenario: lane handoff is recorded as Chronicle resolution
+
+- **GIVEN** a Work Lane handoff cannot be resolved by the normal local
+  offer/accept protocol or becomes disputed
+- **WHEN** an accepted exceptional judgment resolves the handoff
+- **THEN** ETHOS records a Chronicle `decision` event binding the prior and next
+  holder observations, evidence, exact head, lane-incarnation digest, and result
+- **AND** routine local handoff remains ignored coordination and does not require
+  tracked Chronicle telemetry
+- **AND** the decision does not replace the active destination-local Lane Lease.
+
+#### Scenario: orphan audit produces a decision, not a persistent orphan state
+
+- **GIVEN** a Work Lane has missing, stale, ambiguous, or legacy holder evidence
+- **WHEN** ETHOS audits the lane for exceptional closeout or cleanup
+- **THEN** orphan-like facts remain observations requiring a separate accepted
+  resolution decision before destructive action
+- **AND** the durable outcome records `retire`, `preserve`, `block`, `handoff`, or
+  `break_glass` together with exact target and recovery evidence
+- **AND** dirty or owner-unknown lanes are preserved or blocked rather than
+  automatically deleted.

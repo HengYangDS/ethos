@@ -37,7 +37,7 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
     assert report["evolution"]["truth_boundary"] == "evolution_ledger_claim_evidence_chronicle"
 
 
-def test_planned_transition_projection_includes_changed_paths() -> None:
+def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -> None:
     contract = load_system_contract(__import__("pathlib").Path(), "workflows")
 
     projection = planned_transition_projection(contract, changed_paths=("docs/a.md",))
@@ -46,6 +46,20 @@ def test_planned_transition_projection_includes_changed_paths() -> None:
     assert projection["changed_paths"] == ["docs/a.md"]
     assert projection["transitions"]
     assert any(node["id"] == "handoff" for node in projection["nodes"])
+    assert projection["graph"]["ok"] is True
+    assert projection["graph"]["edges"] == [
+        {"source": "status", "target": "plan", "relation": "depends_on"},
+        {"source": "plan", "target": "prove", "relation": "depends_on"},
+        {"source": "prove", "target": "land", "relation": "depends_on"},
+        {"source": "land", "target": "publish", "relation": "depends_on"},
+    ]
+    assert projection["external_requirements"] == [
+        {"node": "plan", "requires": ["openspec_carrier"]},
+        {"node": "prove", "requires": ["gate_results"]},
+        {"node": "land", "requires": ["claim_binding"]},
+        {"node": "publish", "requires": ["release_readiness"]},
+        {"node": "handoff", "requires": ["source_refs", "source_digests"]},
+    ]
 
 
 def test_workflow_contract_rejects_invalid_public_command_boundary() -> None:

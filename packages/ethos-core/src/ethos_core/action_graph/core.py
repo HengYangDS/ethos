@@ -8,12 +8,8 @@ from typing import Any
 
 from ethos_core.graph.core import GraphKernel
 from ethos_core.graph.core import GraphNode
-
-
-@dataclass(frozen=True)
-class GraphValidation:
-    ok: bool
-    gaps: tuple[str, ...] = ()
+from ethos_core.graph.core import GraphPlan
+from ethos_core.graph.core import GraphValidation
 
 
 def _stable_json(payload: dict[str, Any]) -> str:
@@ -64,18 +60,30 @@ class ActionGraph:
     validation_issues: tuple[str, ...] = ()
 
     def validate(self) -> GraphValidation:
-        validation = self._kernel().validate()
-        gaps = tuple(dict.fromkeys((*self.validation_issues, *validation.gaps)))
-        return GraphValidation(ok=not gaps, gaps=gaps)
+        plan = self.plan()
+        return GraphValidation(ok=plan.ok, gaps=plan.gaps)
+
+    def plan(self) -> GraphPlan:
+        graph_plan = self._kernel().plan()
+        gaps = tuple(dict.fromkeys((*self.validation_issues, *graph_plan.gaps)))
+        return GraphPlan(
+            ok=not gaps,
+            ordered_ids=graph_plan.ordered_ids,
+            edges=graph_plan.edges,
+            gaps=gaps,
+        )
 
     def topological_nodes(self) -> tuple[ActionNode, ...]:
-        ordered_ids = self._kernel().ordered_ids()
+        ordered_ids = self.plan().ordered_ids
         by_id = {node.id: node for node in self.nodes}
         return tuple(by_id[node_id] for node_id in ordered_ids if node_id in by_id)
 
     def _kernel(self) -> GraphKernel:
         return GraphKernel(
-            nodes=tuple(GraphNode(id=node.id, depends_on=node.depends_on) for node in self.nodes)
+            nodes=tuple(
+                GraphNode(id=node.id, depends_on=node.depends_on)
+                for node in sorted(self.nodes, key=lambda item: item.id)
+            )
         )
 
     def ordered_nodes(self) -> tuple[ActionNode, ...]:

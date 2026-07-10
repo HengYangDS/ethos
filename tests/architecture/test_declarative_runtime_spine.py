@@ -30,6 +30,19 @@ def test_shared_graph_kernel_uses_standard_graphlib() -> None:
     assert "TopologicalSorter" in source
 
 
+def test_workflow_runtime_projection_uses_shared_graph_kernel() -> None:
+    source = (ROOT / "packages/ethos-core/src/ethos_core/contracts/workflow.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "GraphKernel" in source
+    assert "GraphNode" in source
+    assert "TopologicalSorter" not in source
+    forbidden_tokens = ("visiting", "visited", "while remaining", "def visit(")
+    for token in forbidden_tokens:
+        assert token not in source
+
+
 def test_generated_artifact_topology_policy_is_declaration_first() -> None:
     declaration = ROOT / "system/policies/generated-artifact-topology.toml"
     package_resource = (

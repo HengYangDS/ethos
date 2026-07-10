@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ethos_core.graph.core import GraphKernel
+from ethos_core.graph.core import GraphNode
 from ethos_core.state.invalid import NODE_ORDER
 
 _ALLOWED_NODE_KINDS = {"control", "producer", "action", "handoff", "guardrail"}
@@ -62,11 +64,13 @@ def planned_transition_projection(
 ) -> dict[str, Any]:
     """Return deterministic transition projection data for `ethos plan`."""
     transitions = [item for item in contract.get("transition", []) if isinstance(item, dict)]
+    nodes = [item for item in contract.get("node", []) if isinstance(item, dict)]
     return {
         "kind": "workflow_runtime_plan",
         "truth_boundary": "derived_repository_projection",
         "changed_path_count": len(changed_paths),
         "changed_paths": list(changed_paths),
+        **_node_dependency_projection(nodes),
         "transitions": [
             {
                 "from": str(item.get("from", "")),
@@ -79,6 +83,44 @@ def planned_transition_projection(
         ],
         "nodes": workflow_contract_report(contract)["nodes"],
     }
+
+
+def _node_dependency_projection(nodes: list[dict[str, Any]]) -> dict[str, object]:
+    producer_by_fact = _producer_by_fact(nodes)
+    graph_nodes: list[GraphNode] = []
+    external_requirements: list[dict[str, object]] = []
+    for item in nodes:
+        node_id = str(item.get("id", ""))
+        if not node_id:
+            continue
+        dependencies: list[str] = []
+        external: list[str] = []
+        for requirement in _strings(item.get("requires")):
+            producer = producer_by_fact.get(requirement)
+            if producer and producer != node_id:
+                dependencies.append(producer)
+            elif not producer:
+                external.append(requirement)
+        graph_nodes.append(GraphNode(id=node_id, depends_on=tuple(dict.fromkeys(dependencies))))
+        if external:
+            external_requirements.append(
+                {"node": node_id, "requires": list(dict.fromkeys(external))}
+            )
+    return {
+        "graph": GraphKernel(nodes=tuple(graph_nodes)).plan().to_dict(),
+        "external_requirements": external_requirements,
+    }
+
+
+def _producer_by_fact(nodes: list[dict[str, Any]]) -> dict[str, str]:
+    producers: dict[str, str] = {}
+    for item in nodes:
+        node_id = str(item.get("id", ""))
+        if not node_id:
+            continue
+        for fact in _strings(item.get("produces")):
+            producers.setdefault(fact, node_id)
+    return producers
 
 
 def _transition_gaps(

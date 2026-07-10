@@ -2,13 +2,13 @@
   "schema_version": 1,
   "adopter": "generic",
   "target": "<repo>",
-  "generated_on": "2026-07-09",
+  "generated_on": "2026-07-10",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 120 --json",
   "freshness": {
-    "product_head": "95fe0dd355d9bebb5be8b270a80e77c99d917fa6",
-    "target_head": "95fe0dd355d9bebb5be8b270a80e77c99d917fa6",
-    "product_semantic_sha256": "b2df4fbe692e999fb14c5e29d5d4caa9577974c2135c9080e92ee62124bf147b",
-    "target_semantic_sha256": "b2df4fbe692e999fb14c5e29d5d4caa9577974c2135c9080e92ee62124bf147b",
+    "product_head": "f6e49611367e0dec7fc299e7088fb35a6f85934f",
+    "target_head": "f6e49611367e0dec7fc299e7088fb35a6f85934f",
+    "product_semantic_sha256": "5bd58c62b592c33e4eb96183f790ee3fbcded00d9c6fee08b7e3fd2a422d148a",
+    "target_semantic_sha256": "5bd58c62b592c33e4eb96183f790ee3fbcded00d9c6fee08b7e3fd2a422d148a",
     "command_sha256": "af3ad72868d959234103c7ca2feb0a1c66ebd42a9402e07f174f4c5a1efa4b87"
   },
   "shadow": {
@@ -36,9 +36,12 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "95fe0dd355d9bebb5be8b270a80e77c99d917fa6",
-    "product_head": "95fe0dd355d9bebb5be8b270a80e77c99d917fa6",
-    "changed_paths": [],
+    "target_head": "f6e49611367e0dec7fc299e7088fb35a6f85934f",
+    "product_head": "f6e49611367e0dec7fc299e7088fb35a6f85934f",
+    "changed_paths": [
+      "packages/ethos/src/ethos/adapters/gates/ty.py",
+      "tests/unit/coverage/test_cov_v3_gates_edges.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -81,7 +84,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "7e4d9753a0e0c1af1bd05db038bfafaefc8cfbd96421b37f3eadf00523b48fc4"
+        "sha256": "6a11d69a2577a932a11d61a58dd6541172f3aea12f58cc9bdfcf1a688c885ecb"
       },
       {
         "path": "evidence/claims",

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -25,7 +26,7 @@ _DIAGNOSTIC_EXCERPT_LIMIT = 12
 def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     command = f"ty check {package_src}"
     completed = subprocess.run(
-        ["ty", "check", package_src],
+        [sys.executable, "-m", "ty", "check", package_src],
         cwd=root,
         text=True,
         capture_output=True,

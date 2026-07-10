@@ -90,6 +90,41 @@ def test_ty_gate_report_flags_zero_tolerance_and_ratchet_violations(
     assert report["state"] == "blocked"
 
 
+def test_ty_gate_report_invokes_ty_through_active_python(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_policy(
+        tmp_path,
+        "\n".join(
+            [
+                "[zero_tolerance]",
+                "packages = []",
+                "",
+                "[ratchet]",
+                '"packages/rt" = 2',
+                "",
+            ]
+        ),
+    )
+    calls: list[list[str]] = []
+
+    class Completed:
+        returncode = 0
+        stdout = "All checks passed!"
+        stderr = ""
+
+    def run(args, **_kwargs):
+        calls.append(list(args))
+        return Completed()
+
+    monkeypatch.setattr(ty_mod.subprocess, "run", run)
+
+    report = ty_gate_report(tmp_path)
+
+    assert report["ok"] is True
+    assert calls == [[sys.executable, "-m", "ty", "check", "packages/rt/src"]]
+
+
 def test_ty_gate_report_exposes_command_and_diagnostic_excerpt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

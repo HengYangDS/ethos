@@ -18,7 +18,7 @@ from ethos.adapters.store.state.lease.core import normalize_lease
 from ethos.adapters.store.state.lease.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.core import renew_lease
 from ethos.adapters.store.state.lease.core import resume_lease
-from ethos.adapters.store.state.lease.core import revoke_lease
+from ethos.adapters.store.state.lease.effects import revoke_lease
 from ethos.adapters.store.state.lease.read import active_leases
 
 if TYPE_CHECKING:
@@ -514,7 +514,7 @@ def test_initialize_state_leaves_unknown_lease_schema_unmigrated(
 
 
 def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> None:
-    from ethos.adapters.store.state.lease.core import delete_lease
+    from ethos.adapters.store.state.lease.effects import delete_lease
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
@@ -547,7 +547,7 @@ def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     tmp_path: Path,
 ) -> None:
     from ethos.adapters.store.state.lease.core import acquire_lease
-    from ethos.adapters.store.state.lease.core import delete_lease
+    from ethos.adapters.store.state.lease.effects import delete_lease
 
     db_path = tmp_path / "state.sqlite"
     acquire_lease(db_path, subject="work/feature", holder_ref="agent:test:case:agent-a")
@@ -570,6 +570,7 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
     from datetime import timedelta
 
     import ethos.adapters.store.state.lease.core as state
+    import ethos.adapters.store.state.lease.read as state_read
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     lease = state.acquire_lease(
@@ -583,9 +584,9 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
             raise sqlite3.OperationalError(message)
         return real_connect(target, *args, **kwargs)
 
-    monkeypatch.setattr(state.sqlite3, "connect", flaky_connect)
+    monkeypatch.setattr(state_read.sqlite3, "connect", flaky_connect)
 
-    leases = state.active_leases(db_path)
+    leases = state_read.active_leases(db_path)
 
     assert [item["id"] for item in leases] == [lease["id"]]
     assert leases[0]["subject"] == "work/feature"
@@ -599,6 +600,7 @@ def test_active_leases_returns_empty_when_all_sqlite_reads_fail(
     tmp_path: Path,
 ) -> None:
     import ethos.adapters.store.state.lease.core as state
+    import ethos.adapters.store.state.lease.read as state_read
 
     db_path = tmp_path / "state.sqlite"
     state.acquire_lease(db_path, subject="work/feature", holder_ref="agent:test:case:agent-test")
@@ -607,6 +609,6 @@ def test_active_leases_returns_empty_when_all_sqlite_reads_fail(
         message = "sqlite unavailable"
         raise sqlite3.OperationalError(message)
 
-    monkeypatch.setattr(state.sqlite3, "connect", always_fails)
+    monkeypatch.setattr(state_read.sqlite3, "connect", always_fails)
 
-    assert state.active_leases(db_path) == []
+    assert state_read.active_leases(db_path) == []

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.core import delete_lease
+from ethos.adapters.store.state.lease.effects import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 

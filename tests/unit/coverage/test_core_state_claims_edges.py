@@ -16,6 +16,8 @@ import pytest
 import ethos.adapters.store.state.events as state_events
 import ethos.adapters.store.state.events as state_schema
 import ethos.adapters.store.state.lease.core as state
+import ethos.adapters.store.state.lease.effects as state_effects
+import ethos.adapters.store.state.lease.read as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.repo import coordination
@@ -572,7 +574,9 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert state_events.list_events(db)[0]["payload"] == {"x": 1}
     assert state_events.list_chronicle_events(db)[0]["payload"] == {"y": 2}
 
-    assert state.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
+    assert (
+        state_effects.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
+    )
     lease = state.acquire_lease(
         db,
         subject="work/x",
@@ -580,14 +584,14 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
         ttl_seconds=60,
         payload={"a": 1},
     )
-    updated = state.update_lease_payload(db, subject="work/x", payload={"claim_id": "c"})
+    updated = state_effects.update_lease_payload(db, subject="work/x", payload={"claim_id": "c"})
     assert updated["payload"]["a"] == 1
     assert updated["payload"]["claim_id"] == "c"
     assert updated["payload"]["holder_ref"] == "agent:test:case:me"
     assert updated["payload"]["normalization_state"] == "normalized"
-    assert state.active_leases(db)[0]["id"] == lease["id"]
-    assert state.delete_lease(db, subject="work/x") == 1
-    assert state.active_leases(db) == []
+    assert state_read.active_leases(db)[0]["id"] == lease["id"]
+    assert state_effects.delete_lease(db, subject="work/x") == 1
+    assert state_read.active_leases(db) == []
 
     with closing(sqlite3.connect(db)) as connection:
         connection.execute(
@@ -597,7 +601,7 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
             "insert into leases(id, subject, owner, expires_at, payload_json) values ('badjson','s','o','2999-01-01T00:00:00+00:00','[]')"
         )
         connection.commit()
-    leases = state.active_leases(db)
+    leases = state_read.active_leases(db)
     assert len(leases) == 1
     assert leases[0]["id"] == "badjson"
     assert leases[0]["subject"] == "s"
@@ -605,7 +609,7 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert leases[0]["holder_ref"] == ""
     assert leases[0]["normalization_state"] == "legacy_ambiguous"
     assert leases[0]["payload"] == {}
-    assert state.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
+    assert state_effects.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
     assert state_events.list_events(tmp_path / "missing.sqlite") == []
 
 

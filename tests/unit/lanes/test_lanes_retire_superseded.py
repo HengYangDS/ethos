@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
 import ethos.adapters.store.state.lease.core as state
+import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime
@@ -484,7 +485,7 @@ def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
     assert report["retired"]["branch"] == "work/superseded"
     assert not lane.exists()
     assert git(repo, "branch", "--list", "work/superseded") == ""
-    assert all(lease["subject"] != "work/superseded" for lease in state.active_leases(db))
+    assert all(lease["subject"] != "work/superseded" for lease in state_read.active_leases(db))
 
 
 def test_retire_superseded_work_lane_fails_closed_for_dirty_or_merged_lanes(

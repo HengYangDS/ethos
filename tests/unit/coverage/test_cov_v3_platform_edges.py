@@ -11,7 +11,7 @@ every platform:
   --git-common-dir` returns an ABSOLUTE path on linux (skipping the
   ``root / path`` join) but a RELATIVE ``.git`` on macOS. Forced here by stubbing
   ``git_stdout`` to return an absolute path.
-- adapters/store/state.py `active_leases` line 260: the expired-lease ``continue``
+- adapters/store/state/lease/projection.py `active_leases`: the expired-lease ``continue``
   arc depends on wall-clock timing. Forced here with a lease acquired at a
   negative TTL so it is already expired when listed.
 """

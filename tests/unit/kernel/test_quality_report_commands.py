@@ -6,12 +6,20 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import build_report_result
 from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
+from ethos.surface.cli.quality.reporting import count_at
+from ethos.surface.cli.quality.reporting import count_of
 from ethos.surface.cli.quality.reporting import emit_report_command
+from ethos.surface.cli.quality.reporting import field_data
 from ethos.surface.cli.quality.reporting import field_summary
+from ethos.surface.cli.quality.reporting import head_bound_report
 from ethos.surface.cli.quality.reporting import module_report
+from ethos.surface.cli.quality.reporting import path_value
+from ethos.surface.cli.quality.reporting import payload_report
+from ethos.surface.cli.quality.reporting import project_summary
 
 
 def test_report_command_spec_builds_ethos_result_from_report() -> None:
@@ -115,27 +123,129 @@ def test_emit_report_command_delegates_built_result_to_emit_function() -> None:
     assert emitted[0].summary == {"item_count": 1}
 
 
-def test_simple_quality_commands_delegate_to_report_specs() -> None:
-    source = Path("packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
-        encoding="utf-8"
+def test_project_summary_composes_path_count_and_default_projections() -> None:
+    summary = project_summary(
+        item_count=count_of("items"),
+        nested_count=count_at("nested", "items"),
+        nested_value=path_value("nested", "value"),
+        missing_flag=path_value("nested", "missing", default=False),
     )
 
-    for function_name in (
+    assert summary({"items": ["a", "b"], "nested": {"items": (1,), "value": "kept"}}) == {
+        "item_count": 2,
+        "nested_count": 1,
+        "nested_value": "kept",
+        "missing_flag": False,
+    }
+
+
+def test_payload_report_wraps_payload_for_declarative_specs() -> None:
+    loader = payload_report(lambda root: {"root": root.name, "items": ["x"]})
+
+    assert loader(Path("/repo")) == {
+        "ok": True,
+        "state": "clean",
+        "payload": {"root": "repo", "items": ["x"]},
+    }
+
+
+def test_field_data_and_advisory_state_capture_common_report_shapes() -> None:
+    data = field_data("payload")({"payload": {"kept": True}, "ignored": False})
+    state = advisory_state("advisory_gaps")
+
+    assert data == {"kept": True}
+    ok = bool(1)
+    blocked = bool(0)
+
+    assert state({"advisory_gaps": ["warn"]}, ok) == "advisory"
+    assert state({"advisory_gaps": []}, ok) == "clean"
+    assert state({"advisory_gaps": ["warn"]}, blocked) == "blocked"
+
+
+def test_report_command_spec_supports_data_projection() -> None:
+    spec = ReportCommandSpec(
+        command="quality projected",
+        report=lambda _root: {
+            "ok": True,
+            "state": "clean",
+            "summary": {"item_count": 1},
+            "payload": {"kept": True},
+            "internal": "hidden",
+        },
+        data=lambda report: report["payload"],
+    )
+
+    result = build_report_result(spec, Path("/repo"))
+
+    assert result.data == {"kept": True}
+
+
+def test_head_bound_report_passes_current_head_to_loader() -> None:
+    seen: dict[str, str] = {}
+
+    def report(root: Path, *, current_head: str = "") -> dict[str, object]:
+        seen["root"] = root.as_posix()
+        seen["head"] = current_head
+        return {"ok": True, "state": "clean"}
+
+    loader = head_bound_report(report, current_head=lambda root: f"head:{root.name}")
+
+    assert loader(Path("/repo"))["state"] == "clean"
+    assert seen == {"root": "/repo", "head": "head:repo"}
+
+
+def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
+    import ethos.surface.cli.quality.core as quality_core
+
+    expected_functions = {
+        "asset_policy",
+        "quality_types",
+        "docs_topology",
+        "proof_policy",
+        "tool_profiles_command",
+        "coverage",
+        "docstrings",
         "code_size",
         "module_layout",
         "generated_artifacts",
         "command_surface",
         "projection_drift",
         "schemas",
+        "standards",
+        "gates",
+        "release",
+        "release_policy",
+        "sbom",
         "command_registry",
+        "evidence_freshness",
+        "claims",
         "docs_registry",
         "command_examples",
-    ):
-        start = source.index(f"def {function_name}(")
-        next_function = source.find("\ndef ", start + 1)
-        body = source[start:] if next_function == -1 else source[start:next_function]
-        assert "emit_report_command(" in body
-        assert "EthosResult(" not in body
+    }
+
+    assert set(quality_core._REPORT_COMMANDS) == expected_functions
+    for function_name, (
+        command_name,
+        spec,
+        _enforce,
+        _bind_root,
+    ) in quality_core._REPORT_COMMANDS.items():
+        assert getattr(quality_core, function_name).__doc__
+        assert isinstance(spec, ReportCommandSpec)
+        assert spec.command == f"quality {command_name}"
+
+
+def test_release_attestation_uses_report_spec_without_handwritten_result() -> None:
+    source = Path("packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
+        encoding="utf-8"
+    )
+    start = source.index("def release_attestation_command(")
+    next_function = source.find("\ndef ", start + 1)
+    body = source[start:] if next_function == -1 else source[start:next_function]
+
+    assert "emit_report_command(" in body
+    assert "ReportCommandSpec(" in body
+    assert "EthosResult(" not in body
 
 
 def test_report_command_spec_is_frozen_pydantic_contract() -> None:

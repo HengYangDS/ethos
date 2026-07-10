@@ -9,6 +9,7 @@ quality/repository deps load only when this group is imported (lazy path).
 from __future__ import annotations
 
 import tomllib
+from pathlib import Path
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
@@ -16,24 +17,24 @@ import ethos.domain.prove as prove_domain
 import ethos.repository.audit as repository_audit_module
 import ethos.surface.cli.results.tool as tool_results
 from ethos.adapters.gates.signature import signature_policy_report
-from ethos.adapters.gates.ty import ty_gate_report
-from ethos.assistants.projections import projection_drift_report
-from ethos.repository.evidence.claims import claims_report
+from ethos.adapters.gates.ty import ty_gate_report  # noqa: F401
+from ethos.assistants.projections import projection_drift_report  # noqa: F401
+from ethos.repository.evidence.claims import claims_report  # noqa: F401
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
-from ethos.repository.evidence.freshness import evidence_freshness_report
-from ethos.repository.policy.artifacts import generated_artifact_topology_report
+from ethos.repository.evidence.freshness import evidence_freshness_report  # noqa: F401
+from ethos.repository.policy.artifacts import generated_artifact_topology_report  # noqa: F401
 from ethos.repository.policy.coupling.core import coupling_audit_report
-from ethos.repository.policy.coverage import coverage_quality_report
+from ethos.repository.policy.coverage import coverage_quality_report  # noqa: F401
 from ethos.repository.policy.docs.topology import docs_topology_report
-from ethos.repository.policy.docstrings.core import docstring_coverage_report
+from ethos.repository.policy.docstrings.core import docstring_coverage_report  # noqa: F401
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.layout.core import module_layout_report
-from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.commands import command_registry_report
-from ethos.repository.registry.docs.commands import command_examples_report
-from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.policy.layout.core import module_layout_report  # noqa: F401
+from ethos.repository.policy.schema import schema_validation_report  # noqa: F401
+from ethos.repository.registry.commands import command_registry_report  # noqa: F401
+from ethos.repository.registry.docs.commands import command_examples_report  # noqa: F401
+from ethos.repository.registry.docs.health import docs_health_report  # noqa: F401
 from ethos.repository.registry.docs.quality import docs_quality_report
 from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.repository.release.attestation import release_attestation
@@ -44,10 +45,18 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
+from ethos.surface.cli.quality.reporting import count_at
+from ethos.surface.cli.quality.reporting import count_of
 from ethos.surface.cli.quality.reporting import emit_report_command
+from ethos.surface.cli.quality.reporting import field_data
 from ethos.surface.cli.quality.reporting import module_report
+from ethos.surface.cli.quality.reporting import path_value
+from ethos.surface.cli.quality.reporting import payload_report
+from ethos.surface.cli.quality.reporting import project_summary
+from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.contracts.package.ontology import workspace_package_config_report
 from ethos_core.quality.docs.profile import docs_quality_profile
@@ -56,55 +65,99 @@ from ethos_core.quality.profiles import tool_profiles
 from ethos_core.quality.proof.policy import proof_lattice
 from ethos_core.result import EthosResult
 
-_DYNAMIC_REPORT_BINDINGS = {
-    "command_examples_report": command_examples_report,
-    "command_registry_report": command_registry_report,
-    "docs_health_report": docs_health_report,
-    "generated_artifact_topology_report": generated_artifact_topology_report,
-    "module_layout_report": module_layout_report,
-    "projection_drift_report": projection_drift_report,
-    "schema_validation_report": schema_validation_report,
-}
-
 
 def _quality_report_namespace() -> dict[str, object]:
     """Return live module bindings so tests and adapters can monkeypatch reports."""
     return globals()
 
 
-def asset_policy(
-    *,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report repository asset quality policy."""
-    profile = product_quality_profile()
-    result = EthosResult(
-        command="quality asset-policy",
-        ok=True,
-        state="clean",
-        summary={"asset_class_count": len(cast("list[object]", profile["asset_classes"]))},
-        data=profile,
-    )
-    emit(result, json_output=json_output, enforce=False)
+def _current_head(root: Path) -> str:
+    return git_adapter.current_head(root)
 
 
-def quality_types(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Enforce the ty type-check policy tiers (zero-tolerance + ratchet baselines)."""
-    repo = resolve_root(root)
-    report = ty_gate_report(repo)
-    result = EthosResult(
-        command="quality types",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={"package_count": len(cast("dict[str, object]", report["packages"]))},
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+_QUALITY_COMMAND_HELP = {
+    command.name: command.help for command in load_command_registry_declaration().group("quality")
+}
+
+
+def _report_handler(spec: ReportCommandSpec, *, enforce: bool, bind_root: bool, doc: str):
+    def emit_spec(target: Path, *, json_output: bool) -> None:
+        emit_report_command(
+            spec,
+            target,
+            emit_func=lambda result: emit(result, json_output=json_output, enforce=enforce),
+        )
+
+    if bind_root:
+
+        def handler(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
+            emit_spec(resolve_root(root), json_output=json_output)
+    else:
+
+        def handler(*, json_output: JsonFlag = False) -> None:
+            emit_spec(Path.cwd(), json_output=json_output)
+
+    handler.__doc__ = doc
+    return handler
+
+
+def _product_quality_profile(_root: Path) -> object:
+    return product_quality_profile()
+
+
+def _proof_lattice(_root: Path) -> object:
+    return proof_lattice()
+
+
+def _tool_profiles(_root: Path) -> object:
+    return tool_profiles()
+
+
+def _standard_adapter_registry(_root: Path) -> object:
+    return standard_adapter_registry()
+
+
+def _gate_registry_report(root: Path) -> dict[str, object]:
+    return {"gates": {gate_id: gate.to_dict() for gate_id, gate in gate_registry(root).items()}}
+
+
+def _release_file_report(root: Path) -> dict[str, object]:
+    release_files = repository_audit_module.release_files_report(root)
+    policy = release_policy_report(root)
+    return {
+        "ok": bool(release_files["ok"]),
+        "state": "ready" if release_files["ok"] else "blocked",
+        "required_gaps": release_files["missing"],
+        "release_files": release_files,
+        "host_profile": policy["host_profile"],
+    }
+
+
+def _release_attestation_report(root: Path, *, evidence_digest: str) -> dict[str, object]:
+    attestation = release_attestation(
+        root=root,
+        head=git_adapter.current_head(root),
+        evidence_digest=evidence_digest,
     )
-    emit(result, json_output=json_output)
+    return {
+        "ok": True,
+        "state": "ready",
+        "summary": {"tag": attestation["predicate"]["tag"]},
+        "attestation": attestation,
+    }
+
+
+ASSET_POLICY_COMMAND = ReportCommandSpec(
+    command="quality asset-policy",
+    report=payload_report(_product_quality_profile),
+    summary=project_summary(asset_class_count=count_at("payload", "asset_classes")),
+    data=field_data("payload"),
+)
+TYPES_COMMAND = ReportCommandSpec(
+    command="quality types",
+    report=module_report(_quality_report_namespace(), "ty_gate_report"),
+    summary=project_summary(package_count=count_of("packages")),
+)
 
 
 def quality_docs(
@@ -136,66 +189,31 @@ def quality_docs(
     emit(result, json_output=json_output, enforce=False)
 
 
-def docs_topology(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Audit the minimal semantic documentation topology contract."""
-    repo = resolve_root(root)
-    report = docs_topology_report(repo)
-    result = EthosResult(
-        command="quality docs-topology",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(cast("dict[str, object]", report["summary"])),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=(
-            (
-                "restore minimal semantic docs kernel: README, decisions, evidence, "
-                "history, and reference"
-            )
-            if report["required_gaps"]
-            else (
-                "ethos prove --execute --gate docs-topology --expect-head "
-                "$(git rev-parse HEAD) --json"
-            ),
+DOCS_TOPOLOGY_COMMAND = ReportCommandSpec(
+    command="quality docs-topology",
+    report=module_report(_quality_report_namespace(), "docs_topology_report"),
+    next_actions=conditional_actions(
+        when_blocked=(
+            "restore minimal semantic docs kernel: README, decisions, evidence, "
+            "history, and reference"
         ),
-        data=report,
-    )
-    emit(result, json_output=json_output)
-
-
-def proof_policy(
-    *,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report proof-state lattice and trust-bearing rules."""
-    lattice = proof_lattice()
-    result = EthosResult(
-        command="quality proof-policy",
-        ok=True,
-        state="clean",
-        summary={"state_count": len(cast("list[object]", lattice["states"]))},
-        data=lattice,
-    )
-    emit(result, json_output=json_output, enforce=False)
-
-
-def tool_profiles_command(
-    *,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report quality tool adapter profiles."""
-    profiles = tool_profiles()
-    result = EthosResult(
-        command="quality tool-profiles",
-        ok=True,
-        state="clean",
-        summary={"tool_adapter_count": len(cast("list[object]", profiles["tool_adapters"]))},
-        data=profiles,
-    )
-    emit(result, json_output=json_output, enforce=False)
+        when_clean=(
+            "ethos prove --execute --gate docs-topology --expect-head $(git rev-parse HEAD) --json"
+        ),
+    ),
+)
+PROOF_POLICY_COMMAND = ReportCommandSpec(
+    command="quality proof-policy",
+    report=payload_report(_proof_lattice),
+    summary=project_summary(state_count=count_at("payload", "states")),
+    data=field_data("payload"),
+)
+TOOL_PROFILES_COMMAND = ReportCommandSpec(
+    command="quality tool-profiles",
+    report=payload_report(_tool_profiles),
+    summary=project_summary(tool_adapter_count=count_at("payload", "tool_adapters")),
+    data=field_data("payload"),
+)
 
 
 def markdown_links(
@@ -284,61 +302,30 @@ def yaml_quality(
     )
 
 
-def coverage(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report Python coverage policy and latest artifact state."""
-    repo = resolve_root(root)
-    report = coverage_quality_report(repo)
-    result = EthosResult(
-        command="quality coverage",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "current_hard_floor": cast("dict[str, object]", report["policy"]).get(
-                "current_hard_floor"
-            ),
-            "latest_line_percent": cast("dict[str, object]", report["latest_artifact"]).get(
-                "line_percent"
-            ),
-            "writer_active": cast("dict[str, object]", report["latest_artifact"]).get(
-                "writer_active", False
-            ),
-        },
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output)
-
-
-def docstrings(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report public product-surface docstring coverage."""
-    repo = resolve_root(root)
-    report = docstring_coverage_report(repo)
-    result = EthosResult(
-        command="quality docstrings",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
-            "coverage_percent": report["coverage_percent"],
-            "documented_count": report["documented_count"],
-            "public_count": report["public_count"],
-            "style_issue_count": report.get("style_issue_count", 0),
-            "advisory_missing_count": cast(
-                "dict[str, object]",
-                report.get("advisory_public_definition_inventory", {"missing_count": 0}),
-            )["missing_count"],
-        },
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
-    )
-    emit(result, json_output=json_output)
+COVERAGE_COMMAND = ReportCommandSpec(
+    command="quality coverage",
+    report=module_report(_quality_report_namespace(), "coverage_quality_report"),
+    summary=project_summary(
+        current_hard_floor=path_value("policy", "current_hard_floor"),
+        latest_line_percent=path_value("latest_artifact", "line_percent"),
+        writer_active=path_value("latest_artifact", "writer_active", default=False),
+    ),
+)
+DOCSTRINGS_COMMAND = ReportCommandSpec(
+    command="quality docstrings",
+    report=module_report(_quality_report_namespace(), "docstring_coverage_report"),
+    summary=project_summary(
+        coverage_percent=path_value("coverage_percent"),
+        documented_count=path_value("documented_count"),
+        public_count=path_value("public_count"),
+        style_issue_count=path_value("style_issue_count", default=0),
+        advisory_missing_count=path_value(
+            "advisory_public_definition_inventory",
+            "missing_count",
+            default=0,
+        ),
+    ),
+)
 
 
 CODE_SIZE_COMMAND = ReportCommandSpec(
@@ -380,32 +367,6 @@ COMMAND_REGISTRY_COMMAND = ReportCommandSpec(
 )
 
 
-def code_size(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Check effective source-file size against ratchet limits."""
-    emit_report_command(
-        CODE_SIZE_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
-
-
-def module_layout(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Check semantic subpackage and import-layout discipline."""
-    emit_report_command(
-        MODULE_LAYOUT_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output),
-    )
-
-
 def npm_quality(
     *,
     root: RootOption | None = None,
@@ -422,32 +383,6 @@ def npm_quality(
         files=files,
         result_command="quality npm",
         json_output=json_output,
-    )
-
-
-def generated_artifacts(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Audit generated-artifact topology and path routing drift."""
-    emit_report_command(
-        GENERATED_ARTIFACTS_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output),
-    )
-
-
-def command_surface(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate public command surface vocabulary."""
-    emit_report_command(
-        COMMAND_SURFACE_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
 
 
@@ -498,32 +433,11 @@ COMMAND_EXAMPLES_COMMAND = ReportCommandSpec(
 )
 
 
-def projection_drift(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report projection drift readiness."""
-    emit_report_command(
-        PROJECTION_DRIFT_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
-
-
-def standards(
-    *,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report standards and framework adapter registry."""
-    registry = standard_adapter_registry()
-    result = EthosResult(
-        command="quality standards",
-        ok=True,
-        state="clean",
-        data={"adapters": registry},
-    )
-    emit(result, json_output=json_output, enforce=False)
+STANDARDS_COMMAND = ReportCommandSpec(
+    command="quality standards",
+    report=payload_report(lambda root: {"adapters": _standard_adapter_registry(root)}),
+    data=field_data("payload"),
+)
 
 
 def package_ontology(
@@ -591,54 +505,12 @@ def package_ontology(
     emit(result, json_output=json_output, enforce=False)
 
 
-def schemas(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate ETHOS JSON Schemas."""
-    emit_report_command(
-        SCHEMAS_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
-
-
-def gates(
-    *,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report executable proof gate registry."""
-    registry = gate_registry()
-    result = EthosResult(
-        command="quality gates",
-        ok=True,
-        state="ready",
-        summary={"gate_count": len(registry)},
-        data={
-            "gates": {
-                gate_id: {
-                    "kind": gate.kind,
-                    "command": list(gate.command),
-                    "policy": gate.policy,
-                    "profile": gate.profile,
-                    "toolchain": gate.toolchain,
-                    "asset_classes": list(gate.asset_classes),
-                    "dimensions": list(gate.dimensions),
-                    "execution_mode": gate.execution_mode,
-                    "evidence_class": gate.evidence_class,
-                    "trust_bearing": gate.trust_bearing,
-                    "tool_adapter": gate.tool_adapter,
-                    "writes_files": gate.writes_files,
-                    "network_policy": gate.network_policy,
-                    "version_source": gate.version_source,
-                    "depends_on": list(gate.depends_on),
-                }
-                for gate_id, gate in registry.items()
-            }
-        },
-    )
-    emit(result, json_output=json_output, enforce=False)
+GATES_COMMAND = ReportCommandSpec(
+    command="quality gates",
+    report=payload_report(_gate_registry_report, state="ready"),
+    summary=project_summary(gate_count=count_at("payload", "gates")),
+    data=field_data("payload"),
+)
 
 
 def coupling_audit(
@@ -693,64 +565,29 @@ def commits(
     emit(result, json_output=json_output, enforce=False)
 
 
-def release(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Report product release surface and host-profile readiness."""
-    repo = resolve_root(root)
-    release_files = repository_audit_module.release_files_report(repo)
-    policy = release_policy_report(repo)
-    result = EthosResult(
-        command="quality release",
-        ok=bool(release_files["ok"]),
-        state="ready" if release_files["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", release_files["missing"])),
-        next_actions=("uv build --all-packages --out-dir build/artifacts/python --clear",),
-        data={
-            "release_files": release_files,
-            "host_profile": policy["host_profile"],
-        },
-    )
-    emit(result, json_output=json_output, enforce=False)
-
-
-def release_policy(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate release version, host profile, protection, and attestation policy."""
-    repo = resolve_root(root)
-    report = release_policy_report(repo)
-    result = EthosResult(
-        command="quality release-policy",
-        ok=bool(report["ok"]),
-        state="ready" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=("ethos quality release-attestation",),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
-
-
-def sbom(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Emit an SPDX-lite SBOM projection from workspace metadata."""
-    repo = resolve_root(root)
-    projection = sbom_projection(repo)
-    result = EthosResult(
-        command="quality sbom",
-        ok=True,
-        state="ready",
-        summary={"package_count": len(projection["packages"])},
-        data={"sbom": projection},
-    )
-    emit(result, json_output=json_output, enforce=False)
+RELEASE_COMMAND = ReportCommandSpec(
+    command="quality release",
+    report=_release_file_report,
+    data=lambda report: {
+        "release_files": report["release_files"],
+        "host_profile": report["host_profile"],
+    },
+    next_actions=constant_actions(
+        "uv build --all-packages --out-dir build/artifacts/python --clear"
+    ),
+)
+RELEASE_POLICY_COMMAND = ReportCommandSpec(
+    command="quality release-policy",
+    report=module_report(_quality_report_namespace(), "release_policy_report"),
+    clean_state="ready",
+    next_actions=constant_actions("ethos quality release-attestation"),
+)
+SBOM_COMMAND = ReportCommandSpec(
+    command="quality sbom",
+    report=payload_report(lambda root: {"sbom": sbom_projection(root)}, state="ready"),
+    summary=project_summary(package_count=count_at("payload", "sbom", "packages")),
+    data=field_data("payload"),
+)
 
 
 def release_attestation_command(
@@ -760,108 +597,81 @@ def release_attestation_command(
     json_output: JsonFlag = False,
 ) -> None:
     """Emit release attestation envelope without publishing it."""
-    repo = resolve_root(root)
-    attestation = release_attestation(
-        root=repo,
-        head=git_adapter.current_head(repo),
-        evidence_digest=evidence_digest,
-    )
-    result = EthosResult(
+    spec = ReportCommandSpec(
         command="quality release-attestation",
-        ok=True,
-        state="ready",
-        summary={"tag": attestation["predicate"]["tag"]},
-        data={"attestation": attestation},
+        report=lambda repo: _release_attestation_report(repo, evidence_digest=evidence_digest),
+        data=lambda report: {"attestation": report["attestation"]},
     )
-    emit(result, json_output=json_output, enforce=False)
-
-
-def command_registry(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate public command registry."""
     emit_report_command(
-        COMMAND_REGISTRY_COMMAND,
+        spec,
         resolve_root(root),
         emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
 
 
-def evidence_freshness(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Check declared evidence roots and claim digests."""
-    repo = resolve_root(root)
-    current_head = git_adapter.current_head(repo)
-    report = evidence_freshness_report(repo, current_head=current_head)
-    result = EthosResult(
-        command="quality evidence-freshness",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        summary=cast("dict[str, object]", report["summary"]),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=("ethos prove --json",),
-        data=cast("dict[str, object]", report["data"]),
-    )
-    emit(result, json_output=json_output, enforce=False)
+EVIDENCE_FRESHNESS_COMMAND = ReportCommandSpec(
+    command="quality evidence-freshness",
+    report=module_report(
+        _quality_report_namespace(),
+        "evidence_freshness_report",
+        current_head=_current_head,
+    ),
+    data=field_data("data"),
+    next_actions=constant_actions("ethos prove --json"),
+)
+CLAIMS_COMMAND = ReportCommandSpec(
+    command="quality claims",
+    report=module_report(
+        _quality_report_namespace(),
+        "claims_report",
+        current_head=_current_head,
+    ),
+    summary=project_summary(
+        claim_count=count_of("claims"),
+        advisory_gap_count=count_of("advisory_gaps"),
+    ),
+    state=advisory_state("advisory_gaps"),
+    next_actions=constant_actions("ethos prove --json"),
+)
 
 
-def claims(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate claim evidence digests."""
-    repo = resolve_root(root)
-    current_head = git_adapter.current_head(repo)
-    report = claims_report(repo, current_head=current_head)
-    advisory_gaps = cast("list[str]", report.get("advisory_gaps", []))
-    claims = cast("dict[str, object]", report.get("claims", {}))
-    result = EthosResult(
-        command="quality claims",
-        ok=bool(report["ok"]),
-        state=(
-            "advisory" if report["ok"] and advisory_gaps else "clean" if report["ok"] else "blocked"
-        ),
-        summary={
-            "claim_count": len(claims),
-            "advisory_gap_count": len(advisory_gaps),
-        },
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=("ethos prove --json",),
-        data=report,
-    )
-    emit(result, json_output=json_output, enforce=False)
+_REPORT_COMMANDS = {
+    "asset_policy": ("asset-policy", ASSET_POLICY_COMMAND, False, False),
+    "quality_types": ("types", TYPES_COMMAND, True, True),
+    "docs_topology": ("docs-topology", DOCS_TOPOLOGY_COMMAND, True, True),
+    "proof_policy": ("proof-policy", PROOF_POLICY_COMMAND, False, False),
+    "tool_profiles_command": ("tool-profiles", TOOL_PROFILES_COMMAND, False, False),
+    "coverage": ("coverage", COVERAGE_COMMAND, True, True),
+    "docstrings": ("docstrings", DOCSTRINGS_COMMAND, True, True),
+    "code_size": ("code-size", CODE_SIZE_COMMAND, False, True),
+    "module_layout": ("module-layout", MODULE_LAYOUT_COMMAND, True, True),
+    "generated_artifacts": ("generated-artifacts", GENERATED_ARTIFACTS_COMMAND, True, True),
+    "command_surface": ("command-surface", COMMAND_SURFACE_COMMAND, False, True),
+    "projection_drift": ("projection-drift", PROJECTION_DRIFT_COMMAND, False, True),
+    "schemas": ("schemas", SCHEMAS_COMMAND, False, True),
+    "standards": ("standards", STANDARDS_COMMAND, False, False),
+    "gates": ("gates", GATES_COMMAND, False, True),
+    "release": ("release", RELEASE_COMMAND, False, True),
+    "release_policy": ("release-policy", RELEASE_POLICY_COMMAND, False, True),
+    "sbom": ("sbom", SBOM_COMMAND, False, True),
+    "command_registry": ("command-registry", COMMAND_REGISTRY_COMMAND, False, True),
+    "evidence_freshness": ("evidence-freshness", EVIDENCE_FRESHNESS_COMMAND, False, True),
+    "claims": ("claims", CLAIMS_COMMAND, False, True),
+    "docs_registry": ("docs-registry", DOCS_REGISTRY_COMMAND, False, True),
+    "command_examples": ("command-examples", COMMAND_EXAMPLES_COMMAND, False, True),
+}
 
-
-def docs_registry(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate documentation metadata registry."""
-    emit_report_command(
-        DOCS_REGISTRY_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
-
-
-def command_examples(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Validate documented command examples."""
-    emit_report_command(
-        COMMAND_EXAMPLES_COMMAND,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
+globals().update(
+    {
+        function_name: _report_handler(
+            spec,
+            enforce=enforce,
+            bind_root=bind_root,
+            doc=_QUALITY_COMMAND_HELP[command_name],
+        )
+        for function_name, (command_name, spec, enforce, bind_root) in _REPORT_COMMANDS.items()
+    }
+)
 
 
 def provenance(

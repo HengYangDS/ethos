@@ -6,6 +6,7 @@ from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -14,23 +15,95 @@ from ethos_core.result import EthosResult
 
 ReportPayload = Mapping[str, object]
 ReportLoader = Callable[[Path], ReportPayload]
+ValueProjection = Callable[[ReportPayload], object]
 SummaryProjection = Callable[[ReportPayload], Mapping[str, object]]
+DataProjection = Callable[[ReportPayload], Mapping[str, object]]
 ActionsProjection = Callable[[ReportPayload], Sequence[str]]
 EmitFunction = Callable[[EthosResult], None]
-StateProjection = Callable[[ReportPayload, bool], str]
+StateProjection = Callable[[ReportPayload, object], str]
+HeadProvider = Callable[[Path], str]
+PayloadLoader = Callable[[Path], object]
 
 
-def module_report(namespace: Mapping[str, object], name: str) -> ReportLoader:
-    """Return a report loader that resolves a module binding at call time."""
+def module_report(
+    namespace: Mapping[str, object],
+    name: str,
+    *,
+    current_head: HeadProvider | None = None,
+) -> ReportLoader:
+    """Return a late-bound report loader, optionally passing current-head fact."""
 
     def load(root: Path) -> ReportPayload:
         report = namespace[name]
         if not callable(report):
             msg = f"report binding is not callable: {name}"
             raise TypeError(msg)
-        return report(root)
+        if current_head:
+            return cast("Callable[..., ReportPayload]", report)(
+                root,
+                current_head=current_head(root),
+            )
+        return cast("ReportLoader", report)(root)
 
     return load
+
+
+def head_bound_report(
+    report: Callable[..., ReportPayload], *, current_head: HeadProvider
+) -> ReportLoader:
+    """Return a report loader that passes an explicit current-head fact."""
+    return lambda root: report(root, current_head=current_head(root))
+
+
+def payload_report(loader: PayloadLoader, *, state: str = "clean") -> ReportLoader:
+    """Wrap a payload loader as an always-clean report declaration."""
+    return lambda root: {"ok": True, "state": state, "payload": loader(root)}
+
+
+def project_summary(**fields: ValueProjection) -> SummaryProjection:
+    """Compose a summary projection from declared field projections."""
+    return lambda report: {name: projection(report) for name, projection in fields.items()}
+
+
+def path_value(*path: str, default: object = None) -> ValueProjection:
+    """Return a nested mapping value, with an optional default for missing leaves."""
+
+    def project(report: ReportPayload) -> object:
+        current: object = report
+        for part in path:
+            if not isinstance(current, Mapping):
+                return default
+            mapping = cast("Mapping[str, object]", current)
+            if part not in mapping:
+                return default
+            current = mapping[part]
+        return current
+
+    return project
+
+
+def count_at(*path: str) -> ValueProjection:
+    """Return the length of a nested sequence or mapping field."""
+    return lambda report: len(
+        cast("Sequence[object] | Mapping[str, object]", path_value(*path)(report))
+    )
+
+
+def count_of(field: str) -> ValueProjection:
+    """Return the length of a sequence or mapping field."""
+    return count_at(field)
+
+
+def field_data(field: str) -> DataProjection:
+    """Project one mapping field as command result data."""
+    return lambda report: cast("Mapping[str, object]", report[field])
+
+
+def advisory_state(field: str) -> StateProjection:
+    """Return advisory when an otherwise-clean report carries advisory gaps."""
+    return lambda report, ok: (
+        "advisory" if ok and _sequence(report.get(field)) else "clean" if ok else "blocked"
+    )
 
 
 def constant_actions(*actions: str) -> ActionsProjection:
@@ -45,7 +118,7 @@ def conditional_actions(*, when_blocked: str, when_clean: str) -> ActionsProject
 
 def field_summary(*fields: str) -> SummaryProjection:
     """Project selected report fields into an ``EthosResult`` summary."""
-    return lambda report: {field: report[field] for field in fields}
+    return project_summary(**{field: path_value(field) for field in fields})
 
 
 class ReportCommandSpec(BaseModel):
@@ -56,6 +129,7 @@ class ReportCommandSpec(BaseModel):
     command: str
     report: ReportLoader
     summary: SummaryProjection | None = None
+    data: DataProjection | None = None
     next_actions: ActionsProjection | None = None
     state: StateProjection | None = None
     clean_state: str = "clean"
@@ -76,6 +150,7 @@ def build_report_result(spec: ReportCommandSpec, root: Path) -> EthosResult:
     next_actions = tuple(
         str(action) for action in (spec.next_actions(report) if spec.next_actions else ())
     )
+    data = dict(spec.data(report) if spec.data else report)
     return EthosResult(
         command=spec.command,
         ok=ok,
@@ -83,7 +158,7 @@ def build_report_result(spec: ReportCommandSpec, root: Path) -> EthosResult:
         summary=summary,
         required_gaps=required_gaps,
         next_actions=next_actions,
-        data=dict(report),
+        data=data,
     )
 
 
@@ -98,7 +173,7 @@ def emit_report_command(
 
 
 def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
+    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else {}
 
 
 def _sequence(value: object) -> Sequence[object]:

@@ -123,6 +123,17 @@ def test_explicit_denied_roots_ignores_empty_contract_prefix(
     assert artifacts_mod._explicit_denied_roots(declaration) == ["dist"]
 
 
+def test_default_declaration_path_finds_source_tree_policy_from_module_parent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    path = topology._default_declaration_path()
+
+    assert path.name == "generated-artifact-topology.toml"
+    assert path.exists()
+
+
 def test_default_declaration_path_falls_back_when_no_source_tree_policy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

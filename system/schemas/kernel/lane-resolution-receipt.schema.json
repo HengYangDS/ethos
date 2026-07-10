@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/lane-resolution-receipt.schema.json",
+  "title": "ETHOS Lane Resolution Receipt",
+  "type": "object",
+  "required": ["receipt_id", "decision_id", "disposition", "completed", "state", "observation_digest", "reconciliation_required", "mints_authority"],
+  "properties": {
+    "receipt_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": "string", "minLength": 1},
+    "disposition": {"enum": ["block", "preserve", "retire"]},
+    "completed": {"const": true},
+    "state": {"type": "string", "minLength": 1},
+    "observation_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "reconciliation_required": {"type": "boolean"},
+    "mints_authority": {"const": false}
+  },
+  "additionalProperties": false
+}

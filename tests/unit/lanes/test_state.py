@@ -4,6 +4,8 @@ import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
 
+import pytest
+
 from ethos.adapters.store.state import active_leases
 from ethos.adapters.store.state import append_chronicle_event
 from ethos.adapters.store.state import append_event
@@ -183,6 +185,57 @@ def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> 
     assert {item["subject"] for item in leases} == {"work/current", "work/next"}
     assert first["subject"] == "work/current"
     assert second["subject"] == "work/next"
+
+
+def test_acquire_lease_rejects_duplicate_current_lane_incarnation(
+    tmp_path: Path,
+) -> None:
+    from ethos.adapters.store.state import acquire_lease
+
+    db_path = tmp_path / "state.sqlite"
+    first = acquire_lease(
+        db_path,
+        subject="work/current",
+        owner="agent:codex:thread:first",
+        payload={
+            "lane_incarnation_id": "lane-incarnation:one",
+            "expected_head": "a" * 40,
+        },
+    )
+
+    with pytest.raises(ValueError, match="lane_lease_conflict"):
+        acquire_lease(
+            db_path,
+            subject="work/current",
+            owner="agent:claude:session:second",
+            payload={
+                "lane_incarnation_id": first["payload"]["lane_incarnation_id"],
+                "expected_head": "a" * 40,
+            },
+        )
+
+
+def test_acquire_lease_normalizes_holder_generation_and_timestamps(
+    tmp_path: Path,
+) -> None:
+    from ethos.adapters.store.state import acquire_lease
+
+    lease = acquire_lease(
+        tmp_path / "state.sqlite",
+        subject="work/current",
+        owner="agent:codex:thread:first",
+        payload={"expected_head": "a" * 40, "claim_id": "claim-current"},
+    )
+
+    assert lease["lane_incarnation_id"].startswith("lane-incarnation:")
+    assert lease["lease_id"] == lease["id"]
+    assert lease["lane_ref"] == "work/current"
+    assert lease["holder_ref"] == "agent:codex:thread:first"
+    assert lease["epoch"] == 1
+    assert lease["issued_at"]
+    assert lease["renewed_at"] == lease["issued_at"]
+    assert lease["expected_head"] == "a" * 40
+    assert lease["claim_id"] == "claim-current"
 
 
 def test_acquire_lease_skips_empty_retired_resource_rows(tmp_path: Path) -> None:

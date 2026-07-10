@@ -149,6 +149,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "evolution-ledger.schema.json",
         "gate.schema.json",
         "assistant-projection.schema.json",
+        "lane-lease.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
         "authority.schema.json",

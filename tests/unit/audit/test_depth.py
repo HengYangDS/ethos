@@ -71,6 +71,7 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
         "evolution-ledger.schema.json",
         "gate.schema.json",
         "assistant-projection.schema.json",
+        "lane-lease.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
     ):

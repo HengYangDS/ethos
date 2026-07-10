@@ -10,6 +10,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos_core.contracts.coordination import HolderRef
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -241,7 +243,37 @@ def acquire_lease(
     lease_id = f"lease:{uuid.uuid4()}"
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=ttl_seconds)
-    payload_json = json.dumps(payload or {}, sort_keys=True)
+    supplied_payload = dict(payload or {})
+    current = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
+    if current:
+        raise ValueError(f"lane_lease_conflict:{subject}")
+    lane_incarnation_id = str(
+        supplied_payload.get("lane_incarnation_id") or f"lane-incarnation:{uuid.uuid4()}"
+    )
+    holder_ref = _holder_ref(owner)
+    normalized_payload = {
+        **supplied_payload,
+        "lane_incarnation_id": lane_incarnation_id,
+        "lease_id": lease_id,
+        "lane_ref": subject,
+        "holder_ref": holder_ref,
+        "epoch": int(supplied_payload.get("epoch") or 1),
+        "issued_at": str(supplied_payload.get("issued_at") or now.isoformat()),
+        "renewed_at": str(supplied_payload.get("renewed_at") or now.isoformat()),
+        "expected_head": str(supplied_payload.get("expected_head") or ""),
+        "claim_id": str(supplied_payload.get("claim_id") or ""),
+        "path_scope": _string_list(supplied_payload.get("path_scope")),
+        "coordination_scope": "git_common_directory",
+        "mints_authority": False,
+        "filesystem_fence": False,
+        "distributed_lock": False,
+    }
+    if not holder_ref:
+        normalized_payload["legacy_holder"] = owner
+        normalized_payload["normalization_state"] = "legacy_holder_unverified"
+    else:
+        normalized_payload["normalization_state"] = "normalized"
+    payload_json = json.dumps(normalized_payload, sort_keys=True)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
@@ -257,7 +289,8 @@ def acquire_lease(
         "subject": subject,
         "owner": owner,
         "expires_at": expires_at.isoformat(),
-        "payload": payload or {},
+        **_lease_contract_fields(normalized_payload),
+        "payload": normalized_payload,
     }
 
 
@@ -269,9 +302,9 @@ def update_lease_payload(
 ) -> dict[str, Any]:
     initialize_state(db_path)
     matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
-    if not matching:
+    if len(matching) != 1:
         return {}
-    lease = matching[-1]
+    lease = matching[0]
     merged_payload = dict(lease["payload"])
     merged_payload.update(payload)
     with closing(sqlite3.connect(db_path)) as connection:
@@ -334,6 +367,7 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
                 "subject": row[1],
                 "owner": row[2],
                 "expires_at": row[3],
+                **_lease_contract_fields(_json_object(row[4])),
                 "payload": _json_object(row[4]),
             }
         )
@@ -379,6 +413,35 @@ def _json_object(value: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _holder_ref(value: str) -> str:
+    try:
+        return HolderRef.parse(value).serialize()
+    except ValueError:
+        return ""
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value if str(item)]
+
+
+def _lease_contract_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "lane_incarnation_id": str(payload.get("lane_incarnation_id") or ""),
+        "lease_id": str(payload.get("lease_id") or ""),
+        "lane_ref": str(payload.get("lane_ref") or ""),
+        "holder_ref": str(payload.get("holder_ref") or ""),
+        "epoch": int(payload.get("epoch") or 0),
+        "issued_at": str(payload.get("issued_at") or ""),
+        "renewed_at": str(payload.get("renewed_at") or ""),
+        "expected_head": str(payload.get("expected_head") or ""),
+        "claim_id": str(payload.get("claim_id") or ""),
+        "path_scope": _string_list(payload.get("path_scope")),
+        "normalization_state": str(payload.get("normalization_state") or "legacy_ambiguous"),
+    }
 
 
 def _append_event_row(

@@ -111,6 +111,7 @@ REQUIRED_SCHEMAS = (
     "skill-activation.schema.json",
     "skill-registry.schema.json",
     "skill-package-manifest.schema.json",
+    "lane-lease.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
     "authority.schema.json",

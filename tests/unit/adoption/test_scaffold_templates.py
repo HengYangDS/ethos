@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import subprocess
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 from pydantic import ValidationError
@@ -98,16 +100,124 @@ def test_scaffold_templates_use_packaged_jinja_and_strict_typed_contexts() -> No
         )
 
 
-def test_scaffold_python_contains_no_embedded_multiline_payloads() -> None:
-    sources = [
-        SCAFFOLD_ROOT / "core.py",
-        SCAFFOLD_ROOT / "decisions/core.py",
-        SCAFFOLD_ROOT / "documents/pages.py",
-        SCAFFOLD_ROOT / "openspec.py",
-        SCAFFOLD_ROOT / "skills/core.py",
-    ]
+def test_project_template_preserves_python_json_string_encoding() -> None:
+    templates = importlib.import_module("ethos.repository.adoption.scaffold.templates")
+    context = templates.RepositoryTemplateContext(
+        project_name='sample<repo&"',
+        profile="generic",
+        packages=(),
+    )
 
+    assert templates.render_template("core/project.toml.j2", context) == (
+        '[meta]\nname = "sample<repo&\\""\nproduct = "ETHOS"\nversion = 1\n'
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "version": 1,
+            "artifact": [
+                {"path": "same", "template": "one.j2", "renderer": "activation"},
+                {"path": "same", "template": "two.j2"},
+            ],
+            "family": [],
+            "skill": [],
+        },
+        {
+            "version": 1,
+            "artifact": [{"path": "a", "template": "a.j2", "renderer": "activation"}],
+            "family": [
+                {
+                    "id": "same",
+                    "title": "One",
+                    "scope": "one",
+                    "profile_family": "one",
+                    "owner": "one",
+                },
+                {
+                    "id": "same",
+                    "title": "Two",
+                    "scope": "two",
+                    "profile_family": "two",
+                    "owner": "two",
+                },
+            ],
+            "skill": [],
+        },
+        {
+            "version": 1,
+            "artifact": [{"path": "a", "template": "a.j2", "renderer": "activation"}],
+            "family": [],
+            "skill": [
+                {"id": "same", "capabilities": []},
+                {"id": "same", "capabilities": []},
+            ],
+        },
+        {"version": 1, "artifact": [], "family": [], "skill": []},
+        {
+            "version": 1,
+            "artifact": [
+                {
+                    "path": "package.toml",
+                    "template": "package.j2",
+                    "renderer": "skill-package",
+                    "subject": "missing",
+                },
+                {"path": "activation.toml", "template": "a.j2", "renderer": "activation"},
+            ],
+            "family": [],
+            "skill": [],
+        },
+    ],
+)
+def test_scaffold_template_declaration_rejects_cross_record_drift(
+    payload: dict[str, object],
+) -> None:
+    templates = importlib.import_module("ethos.repository.adoption.scaffold.templates")
+
+    with pytest.raises(ValidationError):
+        templates.ScaffoldTemplateDeclaration.model_validate(payload)
+
+
+def test_scaffold_python_contains_no_embedded_multiline_payloads() -> None:
+    sources = sorted(SCAFFOLD_ROOT.rglob("*.py"))
+
+    assert sources
     for source in sources:
         text = source.read_text(encoding="utf-8")
         assert 'return """' not in text
         assert 'return f"""' not in text
+
+
+def test_scaffold_cutover_removes_payload_generator_modules() -> None:
+    removed = (
+        SCAFFOLD_ROOT / "decisions/core.py",
+        SCAFFOLD_ROOT / "documents/pages.py",
+        SCAFFOLD_ROOT / "openspec.py",
+        SCAFFOLD_ROOT / "skills/core.py",
+    )
+
+    assert all(not path.exists() for path in removed)
+
+
+def test_scaffold_templates_are_packaged_in_the_ethos_wheel(tmp_path: Path) -> None:
+    subprocess.run(
+        ["uv", "build", "--package", "ethos", "--wheel", "--out-dir", str(tmp_path)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    wheel = next(tmp_path.glob("ethos-*.whl"))
+
+    with ZipFile(wheel) as archive:
+        names = set(archive.namelist())
+
+    suffixes = {
+        "ethos/repository/adoption/scaffold/template_files/manifest.toml",
+        "ethos/repository/adoption/scaffold/template_files/core/project.toml.j2",
+        "ethos/repository/adoption/scaffold/template_files/skills/package.toml.j2",
+    }
+    assert all(any(name.endswith(suffix) for name in names) for suffix in suffixes)

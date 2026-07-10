@@ -14,7 +14,6 @@ import pytest
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.repo.runtime.core as repo_runtime
 import ethos.adapters.repo.status.core as status
-import ethos.repository.adoption.scaffold.documents.pages as scaffold_pages
 import ethos.repository.openspec.audit as openspec_audit
 import ethos_core.state.invalid as invalid_states
 from ethos_core.quality.proof import policy as proof_policy
@@ -62,12 +61,6 @@ def test_dirty_kind_conflicted_and_deleted() -> None:
     assert repo_dirty._dirty_kind("U", "U") == "conflicted"
     assert repo_dirty._dirty_kind("A", "A") == "conflicted"
     assert repo_dirty._dirty_kind("D", " ") == "deleted"
-
-
-def test_release_toml_github_profile_appends_host_block() -> None:
-    toml = scaffold_pages.release_toml("github")
-    assert "[host_profile]" in toml
-    assert 'provider = "github"' in toml
 
 
 def testactive_change_names_in_ref_returns_empty_on_git_failure(

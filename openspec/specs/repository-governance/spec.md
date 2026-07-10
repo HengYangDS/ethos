@@ -301,6 +301,21 @@ hosted CI projections.
 - **THEN** the planned and written files include V2 skill activation metadata,
   official-quality skill package content, and package manifest records
 
+#### Scenario: Scaffold artifacts compile from typed packaged templates
+
+- **WHEN** ETHOS compiles an adoption scaffold for any supported profile
+- **THEN** a validated manifest declares output paths, profile filters, render
+  modes, OpenSpec families, and skill capabilities
+- **AND** packaged Jinja2 resources own artifact text and remain present in the
+  built Python wheel
+- **AND** Pydantic v2 render contexts are frozen, reject undeclared fields, and
+  constrain profile values
+- **AND** Jinja2 runs with strict undefined-variable handling and preserves the
+  established scaffold bytes for equivalent inputs
+- **AND** Python retains only declaration loading, typed context construction,
+  bounded digest computation, and rendering orchestration rather than a second
+  embedded multiline-payload implementation
+
 ### Requirement: Fleet Inspection
 ETHOS SHALL inspect an external repository as an adopter through repository
 surfaces rather than product-core hardcoded names.

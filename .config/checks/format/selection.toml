@@ -87,6 +87,13 @@ owner = ".config/checks/architecture/projection.toml"
 execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
 truth_boundary = "generated architecture projection output"
 
+[[format]]
+extensions = [".j2"]
+carrier = "Jinja2 template"
+owner = "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py + template_files/manifest.toml"
+execution = "tools/ci/scripts/run-python-tests.sh"
+truth_boundary = "tracked scaffold declarations compiled through strict typed contexts"
+
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
 jsonl_allowed_roots = ["build/", ".ethos/state/"]

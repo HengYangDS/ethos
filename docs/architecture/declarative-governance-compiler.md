@@ -55,7 +55,7 @@ decisions, graph compilation, and projection models.
 | Policies | `system/policies/*.toml` with CEL predicates | CEL evaluator | decisions and gap records |
 | Graphs | graph/gate/workflow declarations | ETHOS GraphKernel + `graphlib` | deterministic plans |
 | Commands | `system/commands.toml` | Cyclopts registry compiler | CLI, JSON envelope, docs, smoke tests |
-| Templates | tracked Jinja2 templates | typed render context | scaffold/projection plans |
+| Templates | packaged Jinja2 resources plus a tracked manifest | frozen Pydantic v2 contexts and `StrictUndefined` compilation | scaffold/projection plans |
 | Read models | projection declarations | pure projection reducers | status, orient, report, evidence freshness |
 
 ## Functional Core Contract
@@ -83,10 +83,18 @@ system/gates.toml
 system/workflows.toml
 system/policies/*.toml
 system/projections/*.toml
-templates/adoption/**
+packages/ethos/src/ethos/repository/adoption/scaffold/template_files/**
 templates/docs/**
 templates/evidence/**
 ```
+
+The adoption scaffold is the first completed template vertical slice. Its
+manifest declares output paths, profile filters, render modes, OpenSpec
+families, and skill capabilities. Jinja2 owns artifact text; Pydantic v2 owns
+immutable render contexts and manifest validation; `importlib.resources` keeps
+the templates available from built wheels. Python compiles the declaration,
+computes bounded digests, and returns the file plan. It does not duplicate
+template payloads or retain compatibility generator modules.
 
 A declaration must name its authority, expected inputs, emitted output model,
 and proof surface. A declaration that changes lifecycle behavior must be backed

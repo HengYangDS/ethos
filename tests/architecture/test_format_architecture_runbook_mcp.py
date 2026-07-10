@@ -40,6 +40,7 @@ def test_format_selection_config_is_report_first_and_executable() -> None:
     assert config["policy"]["forbid_tracked_extensions"] == [".pickle", ".pkl", ".joblib"]
     assert any(item["extensions"] == [".c4"] for item in formats)
     assert any(item["extensions"] == [".mmd"] for item in formats)
+    assert any(item["extensions"] == [".j2"] for item in formats)
 
     payload = _run_json(["tools/ci/scripts/run-format-selection.sh"])
     assert payload["kind"] == "ethos_format_selection_audit"

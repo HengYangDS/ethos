@@ -161,7 +161,12 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         fake_git(
             {
                 ("rev-parse", "HEAD"): cp(stdout="h1\n"),
-                ("rebase", "candidate/dev"): cp(returncode=1, stderr="rebase fail"),
+                (
+                    "-c",
+                    "rebase.updateRefs=false",
+                    "rebase",
+                    "candidate/dev",
+                ): cp(returncode=1, stderr="rebase fail"),
             },
             calls=calls,
         ),
@@ -170,6 +175,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         root=tmp_path, apply=True, authorized=True, expect_head="h1"
     )
     assert failed["required_gaps"] == ["refresh_base_failed"]
+    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
     assert ("rebase", "--abort") in calls
 
     monkeypatch.setattr(
@@ -403,4 +409,5 @@ def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
     )
 
     assert failed["required_gaps"] == ["refresh_base_failed"]
+    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
     assert ("rebase", "--abort") in calls

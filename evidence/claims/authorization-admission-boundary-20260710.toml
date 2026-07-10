@@ -2,13 +2,13 @@
 id = "authorization-admission-boundary-20260710"
 subject = "ethos:authorization-admission-boundary"
 state = "active"
-summary = "ETHOS planning separates truth precedence, action-specific admission, local coordination, transition enforcement, and exceptional judgment without an internal identity registry."
+summary = "ETHOS separates truth precedence, action-specific admission, local coordination, transition enforcement, and exceptional judgment without an internal identity registry."
 
 [evidence]
 dated = "evidence/chronicle/authorization-admission-boundary-20260710/2026-07-10.md"
-sha256 = "52d02839e558f122e7608b873471eded1e92a40cc9f61a71401e1221829f6133"
+sha256 = "2902ec1d3f94571e1792b16db4c45d062a33f6c6a8b5a3ba1d84b61fa2510599"
 evidence_ids = ["evidence:authorization-admission-boundary-20260710"]
-binding = "Semantic planning-stage evidence for the OpenSpec architecture boundary; excludes runtime implementation, accepted closeout, hosted enforcement, and remote publication."
+binding = "Semantic and executed local evidence for normalized Lane coordination, exact admission decisions, protected control replacement, cross-host handoff, and exceptional resolution; excludes hosted enforcement and remote publication."
 verifier = "semantic"
 tests = [
   "npx --yes @fission-ai/openspec status --change authorization-admission-boundary-20260710 --json",
@@ -20,7 +20,7 @@ tests = [
 
 [boundary]
 owner = "ethos-repository"
-scope = "Architecture and implementation plan for authorization, admission, local Work Lane coordination, transition enforcement, and exceptional lane resolution."
+scope = "Implemented authorization, admission, local Work Lane coordination, transition enforcement, external evidence adapters, and exceptional lane resolution."
 
 [carriers]
 openspec = "openspec/changes/authorization-admission-boundary-20260710"

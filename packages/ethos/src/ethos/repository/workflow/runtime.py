@@ -12,7 +12,7 @@ from typing import cast
 
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
-from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
     """Return the derived workflow runtime read model for a repository root."""
     try:
-        contract = load_system_contract(root, "workflows")
+        contract = load_workflow_contract_declaration(root)
     except (FileNotFoundError, ValueError) as exc:
         return _missing_workflow_contract(root, changed_paths=changed_paths, exc=exc)
     contract_report = workflow_contract_report(contract)

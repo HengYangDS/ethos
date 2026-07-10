@@ -2,11 +2,63 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from ethos.repository.workflow import runtime as workflow_runtime_model
 from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.workflow import WorkflowContract
 from ethos_core.contracts.workflow import action_graph_from_workflow_contract
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
+
+
+def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
+    contract = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
+
+    assert contract.runtime.truth_boundary == "derived_repository_projection"
+    assert contract.node[0].id == "status"
+    assert contract.transition[0].source == "planned"
+    assert contract.transition[0].target == "admitted"
+    assert contract.to_report()["node_count"] >= 6
+    assert contract.to_projection(changed_paths=("docs/a.md",))["graph"]["ok"] is True
+
+    with pytest.raises(ValidationError) as frozen_error:
+        contract.runtime.truth_boundary = "mutable"
+    assert frozen_error.value.errors()[0]["type"] == "frozen_instance"
+
+    with pytest.raises(ValidationError) as extra_error:
+        WorkflowContract.model_validate({"unexpected": True})
+    assert extra_error.value.errors()[0]["type"] == "extra_forbidden"
+
+
+def test_workflow_contract_normalizes_list_fields_to_immutable_tuples() -> None:
+    declaration = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
+
+    assert isinstance(declaration.node, tuple)
+    assert isinstance(declaration.node[0].produces, tuple)
+    assert isinstance(declaration.transition[0].invalid_states, tuple)
+    assert isinstance(declaration.runtime.public_lifecycle_commands, tuple)
+    assert isinstance(declaration.guards, tuple)
+    assert "lane_prewrite_ok" in declaration.guards
+
+
+def test_workflow_contract_defaults_invalid_guard_table_to_empty_tuple() -> None:
+    declaration = WorkflowContract.model_validate({"guards": "not-a-table"})
+
+    assert declaration.guards == ()
+
+
+def test_workflow_contract_loader_returns_typed_declaration() -> None:
+    declaration = load_workflow_contract_declaration()
+
+    assert isinstance(declaration, WorkflowContract)
+    assert workflow_contract_report(declaration)["ok"] is True
+    assert planned_transition_projection(declaration)["truth_boundary"] == (
+        "derived_repository_projection"
+    )
+    assert action_graph_from_workflow_contract(declaration).validate().ok is True
 
 
 def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None:
@@ -114,8 +166,9 @@ def test_action_graph_from_workflow_contract_ignores_anonymous_selected_nodes() 
 
 
 def test_workflow_contract_rejects_invalid_public_command_boundary() -> None:
-    contract = load_system_contract(Path(), "workflows")
-    contract = dict(contract)
+    contract = WorkflowContract.model_validate(
+        load_system_contract(Path(), "workflows")
+    ).model_dump(by_alias=True)
     runtime = dict(contract["runtime"])
     runtime["public_lifecycle_commands"] = ["comet run"]
     contract["runtime"] = runtime
@@ -176,7 +229,11 @@ def test_workflow_contract_reports_invalid_transition_node_event_eval_and_evolut
                     "kind": "control",
                     "enforcement": "handoff-guarded",
                 },
-                {"id": "advisory-guardrail", "kind": "guardrail", "enforcement": "advisory"},
+                {
+                    "id": "advisory-guardrail",
+                    "kind": "guardrail",
+                    "enforcement": "advisory",
+                },
             ],
             "runtime": {
                 "truth_boundary": "derived_repository_projection",
@@ -244,10 +301,10 @@ def test_workflow_runtime_report_returns_gap_when_contract_is_unavailable(
     tmp_path,
     monkeypatch,
 ) -> None:
-    def raise_missing(_root: Path, _name: str) -> dict[str, object]:
+    def raise_missing(_root: Path) -> object:
         raise FileNotFoundError
 
-    monkeypatch.setattr(workflow_runtime_model, "load_system_contract", raise_missing)
+    monkeypatch.setattr(workflow_runtime_model, "load_workflow_contract_declaration", raise_missing)
 
     report = workflow_runtime_model.workflow_runtime_report(
         tmp_path,
@@ -282,7 +339,11 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
         "ok": True,
         "ordered_ids": ["self-contained", "consumer"],
         "edges": [
-            {"source": "self-contained", "target": "consumer", "relation": "depends_on"},
+            {
+                "source": "self-contained",
+                "target": "consumer",
+                "relation": "depends_on",
+            },
         ],
         "gaps": [],
     }

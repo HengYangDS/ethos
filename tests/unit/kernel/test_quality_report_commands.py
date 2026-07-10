@@ -9,6 +9,7 @@ import ethos.surface.cli.quality.core as quality_core
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
 from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import build_report_result
+from ethos.surface.cli.quality.reporting import compile_report_commands
 from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
 from ethos.surface.cli.quality.reporting import count_at
@@ -21,6 +22,8 @@ from ethos.surface.cli.quality.reporting import module_report
 from ethos.surface.cli.quality.reporting import path_value
 from ethos.surface.cli.quality.reporting import payload_report
 from ethos.surface.cli.quality.reporting import project_summary
+from ethos_core.contracts.commands import CommandDeclaration
+from ethos_core.contracts.commands import ReportHandlerDeclaration
 
 
 def test_report_command_spec_builds_ethos_result_from_report() -> None:
@@ -240,6 +243,67 @@ def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
         assert getattr(quality_core, function_name).__doc__
         assert isinstance(spec, ReportCommandSpec)
         assert spec.command == f"quality {command_name}"
+
+
+def test_quality_report_commands_are_compiled_from_command_declaration() -> None:
+    registry = quality_core.REPORT_COMMANDS
+
+    assert registry["asset_policy"][1] is quality_core.ASSET_POLICY_COMMAND
+    assert registry["quality_types"][1] is quality_core.TYPES_COMMAND
+    assert registry["quality_types"][2:] == (True, True)
+    assert registry["claims"][1] is quality_core.CLAIMS_COMMAND
+    assert registry["claims"][2:] == (False, True)
+
+    source = Path("packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
+        encoding="utf-8"
+    )
+    report_table = source[source.index("REPORT_COMMANDS = ") :]
+    assert "compile_report_commands(" in report_table
+    assert 'asset_policy": (' not in report_table
+    assert 'quality_types": (' not in report_table
+
+
+def test_compile_report_commands_reuses_command_registry_metadata() -> None:
+    declarations = tuple(
+        command
+        for command in quality_core.load_command_registry_declaration().group("quality")
+        if command.name in {"asset-policy", "types"}
+    )
+    registry = compile_report_commands(
+        declarations=declarations,
+        specs={
+            "ASSET_POLICY_COMMAND": quality_core.ASSET_POLICY_COMMAND,
+            "TYPES_COMMAND": quality_core.TYPES_COMMAND,
+        },
+    )
+
+    assert registry == {
+        "asset_policy": (
+            "asset-policy",
+            quality_core.ASSET_POLICY_COMMAND,
+            False,
+            False,
+        ),
+        "quality_types": (
+            "types",
+            quality_core.TYPES_COMMAND,
+            True,
+            True,
+        ),
+    }
+
+
+def test_compile_report_commands_rejects_missing_declared_spec() -> None:
+    declaration = CommandDeclaration(
+        name="sample",
+        group="quality",
+        import_path="ethos.surface.cli.quality.core:sample",
+        help="Sample.",
+        report_handler=ReportHandlerDeclaration(spec="MISSING_COMMAND"),
+    )
+
+    with pytest.raises(KeyError, match="MISSING_COMMAND"):
+        compile_report_commands(declarations=(declaration,), specs={})
 
 
 def test_release_attestation_uses_report_spec_without_handwritten_result() -> None:

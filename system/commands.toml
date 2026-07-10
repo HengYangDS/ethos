@@ -78,6 +78,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:asset_policy"
 help = "Report repository asset quality policy."
 show = true
+report_handler = { spec = "ASSET_POLICY_COMMAND", enforce = false, bind_root = false }
 
 [[commands]]
 name = "types"
@@ -85,6 +86,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:quality_types"
 help = "Enforce the ty type-check policy tiers (zero-tolerance + ratchet baselines)."
 show = true
+report_handler = { spec = "TYPES_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "docs"
@@ -99,6 +101,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:docs_topology"
 help = "Audit the minimal semantic documentation topology contract."
 show = true
+report_handler = { spec = "DOCS_TOPOLOGY_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "proof-policy"
@@ -106,6 +109,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:proof_policy"
 help = "Report proof-state lattice and trust-bearing rules."
 show = true
+report_handler = { spec = "PROOF_POLICY_COMMAND", enforce = false, bind_root = false }
 
 [[commands]]
 name = "tool-profiles"
@@ -113,6 +117,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:tool_profiles_command"
 help = "Report quality tool adapter profiles."
 show = true
+report_handler = { spec = "TOOL_PROFILES_COMMAND", enforce = false, bind_root = false }
 
 [[commands]]
 name = "markdown-links"
@@ -148,6 +153,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:coverage"
 help = "Report Python coverage policy and latest artifact state."
 show = true
+report_handler = { spec = "COVERAGE_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "docstrings"
@@ -155,6 +161,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:docstrings"
 help = "Report public product-surface docstring coverage."
 show = true
+report_handler = { spec = "DOCSTRINGS_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "code-size"
@@ -162,6 +169,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:code_size"
 help = "Check effective source-file size against ratchet limits."
 show = true
+report_handler = { spec = "CODE_SIZE_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "module-layout"
@@ -169,6 +177,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:module_layout"
 help = "Check semantic subpackage and import-layout discipline."
 show = true
+report_handler = { spec = "MODULE_LAYOUT_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "npm"
@@ -183,6 +192,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:generated_artifacts"
 help = "Audit generated-artifact topology and path routing drift."
 show = true
+report_handler = { spec = "GENERATED_ARTIFACTS_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
 name = "command-surface"
@@ -190,6 +200,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_surface"
 help = "Validate public command surface vocabulary."
 show = true
+report_handler = { spec = "COMMAND_SURFACE_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "format-policy"
@@ -204,6 +215,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:projection_drift"
 help = "Report projection drift readiness."
 show = true
+report_handler = { spec = "PROJECTION_DRIFT_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "standards"
@@ -211,6 +223,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:standards"
 help = "Report standards and framework adapter registry."
 show = true
+report_handler = { spec = "STANDARDS_COMMAND", enforce = false, bind_root = false }
 
 [[commands]]
 name = "package-ontology"
@@ -225,6 +238,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:schemas"
 help = "Validate ETHOS JSON Schemas."
 show = true
+report_handler = { spec = "SCHEMAS_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "gates"
@@ -232,6 +246,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:gates"
 help = "Report executable proof gate registry."
 show = true
+report_handler = { spec = "GATES_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "coupling-audit"
@@ -253,6 +268,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:release"
 help = "Report product release surface and host-profile readiness."
 show = true
+report_handler = { spec = "RELEASE_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "release-policy"
@@ -260,6 +276,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:release_policy"
 help = "Validate release version, host profile, protection, and attestation policy."
 show = true
+report_handler = { spec = "RELEASE_POLICY_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "sbom"
@@ -267,6 +284,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:sbom"
 help = "Emit an SPDX-lite SBOM projection from workspace metadata."
 show = true
+report_handler = { spec = "SBOM_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "release-attestation"
@@ -281,6 +299,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_registry"
 help = "Validate public command registry."
 show = true
+report_handler = { spec = "COMMAND_REGISTRY_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "evidence-freshness"
@@ -288,6 +307,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:evidence_freshness"
 help = "Check declared evidence roots and claim digests."
 show = true
+report_handler = { spec = "EVIDENCE_FRESHNESS_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "claims"
@@ -295,6 +315,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:claims"
 help = "Validate claim evidence digests."
 show = true
+report_handler = { spec = "CLAIMS_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "docs-registry"
@@ -302,6 +323,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:docs_registry"
 help = "Validate documentation metadata registry."
 show = true
+report_handler = { spec = "DOCS_REGISTRY_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "command-examples"
@@ -309,6 +331,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_examples"
 help = "Validate documented command examples."
 show = true
+report_handler = { spec = "COMMAND_EXAMPLES_COMMAND", enforce = false, bind_root = true }
 
 [[commands]]
 name = "provenance"

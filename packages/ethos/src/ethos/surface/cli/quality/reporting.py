@@ -6,12 +6,16 @@ from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.commands import CommandDeclaration
 
 ReportPayload = Mapping[str, object]
 ReportLoader = Callable[[Path], ReportPayload]
@@ -23,6 +27,7 @@ EmitFunction = Callable[[EthosResult], None]
 StateProjection = Callable[[ReportPayload, object], str]
 HeadProvider = Callable[[Path], str]
 PayloadLoader = Callable[[Path], object]
+ReportCommandRegistry = Mapping[str, tuple[str, "ReportCommandSpec", bool, bool]]
 
 
 def module_report(
@@ -170,6 +175,24 @@ def emit_report_command(
 ) -> None:
     """Emit a simple report command from its declaration."""
     emit_func(build_report_result(spec, root))
+
+
+def compile_report_commands(
+    *,
+    declarations: Sequence[CommandDeclaration],
+    specs: Mapping[str, ReportCommandSpec],
+) -> ReportCommandRegistry:
+    """Compile quality command declarations into native handler metadata."""
+    return {
+        command.import_path.rsplit(":", maxsplit=1)[1]: (
+            command.name,
+            specs[command.report_handler.spec],
+            command.report_handler.enforce,
+            command.report_handler.bind_root,
+        )
+        for command in declarations
+        if command.report_handler is not None
+    }
 
 
 def _mapping(value: object) -> Mapping[str, object]:

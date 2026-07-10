@@ -46,6 +46,7 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
 from ethos.surface.cli.quality.reporting import advisory_state
+from ethos.surface.cli.quality.reporting import compile_report_commands
 from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
 from ethos.surface.cli.quality.reporting import count_at
@@ -635,31 +636,10 @@ CLAIMS_COMMAND = ReportCommandSpec(
 )
 
 
-REPORT_COMMANDS = {
-    "asset_policy": ("asset-policy", ASSET_POLICY_COMMAND, False, False),
-    "quality_types": ("types", TYPES_COMMAND, True, True),
-    "docs_topology": ("docs-topology", DOCS_TOPOLOGY_COMMAND, True, True),
-    "proof_policy": ("proof-policy", PROOF_POLICY_COMMAND, False, False),
-    "tool_profiles_command": ("tool-profiles", TOOL_PROFILES_COMMAND, False, False),
-    "coverage": ("coverage", COVERAGE_COMMAND, True, True),
-    "docstrings": ("docstrings", DOCSTRINGS_COMMAND, True, True),
-    "code_size": ("code-size", CODE_SIZE_COMMAND, False, True),
-    "module_layout": ("module-layout", MODULE_LAYOUT_COMMAND, True, True),
-    "generated_artifacts": ("generated-artifacts", GENERATED_ARTIFACTS_COMMAND, True, True),
-    "command_surface": ("command-surface", COMMAND_SURFACE_COMMAND, False, True),
-    "projection_drift": ("projection-drift", PROJECTION_DRIFT_COMMAND, False, True),
-    "schemas": ("schemas", SCHEMAS_COMMAND, False, True),
-    "standards": ("standards", STANDARDS_COMMAND, False, False),
-    "gates": ("gates", GATES_COMMAND, False, True),
-    "release": ("release", RELEASE_COMMAND, False, True),
-    "release_policy": ("release-policy", RELEASE_POLICY_COMMAND, False, True),
-    "sbom": ("sbom", SBOM_COMMAND, False, True),
-    "command_registry": ("command-registry", COMMAND_REGISTRY_COMMAND, False, True),
-    "evidence_freshness": ("evidence-freshness", EVIDENCE_FRESHNESS_COMMAND, False, True),
-    "claims": ("claims", CLAIMS_COMMAND, False, True),
-    "docs_registry": ("docs-registry", DOCS_REGISTRY_COMMAND, False, True),
-    "command_examples": ("command-examples", COMMAND_EXAMPLES_COMMAND, False, True),
-}
+REPORT_COMMANDS = compile_report_commands(
+    declarations=load_command_registry_declaration().group("quality"),
+    specs=cast("dict[str, ReportCommandSpec]", globals()),
+)
 
 globals().update(
     {

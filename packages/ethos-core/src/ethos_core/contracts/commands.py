@@ -34,6 +34,16 @@ class CommandSets(BaseModel):
     historical_exempt_roots: tuple[str, ...]
 
 
+class ReportHandlerDeclaration(BaseModel):
+    """One immutable quality report handler compiler declaration."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    spec: str = Field(pattern=r"^[A-Z][A-Z0-9_]*_COMMAND$")
+    enforce: bool = False
+    bind_root: bool = True
+
+
 class CommandDeclaration(BaseModel):
     """One immutable native Cyclopts command declaration."""
 
@@ -44,6 +54,7 @@ class CommandDeclaration(BaseModel):
     import_path: str = Field(pattern=r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*:[A-Za-z_]\w*$")
     help: str = Field(min_length=1)
     show: bool = True
+    report_handler: ReportHandlerDeclaration | None = None
 
 
 class CommandRegistryDeclaration(BaseModel):

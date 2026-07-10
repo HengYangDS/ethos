@@ -38,6 +38,26 @@ def test_command_declaration_compiles_command_sets_and_quality_handlers() -> Non
     assert all(command.help for command in quality)
 
 
+def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
+    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
+
+    report_handlers = {
+        command.name: command.report_handler
+        for command in declaration.group("quality")
+        if command.report_handler is not None
+    }
+
+    assert len(report_handlers) == 23
+    assert report_handlers["asset-policy"].spec == "ASSET_POLICY_COMMAND"
+    assert report_handlers["asset-policy"].enforce is False
+    assert report_handlers["asset-policy"].bind_root is False
+    assert report_handlers["types"].spec == "TYPES_COMMAND"
+    assert report_handlers["types"].enforce is True
+    assert report_handlers["types"].bind_root is True
+    assert "docs" not in report_handlers
+    assert "coupling-audit" not in report_handlers
+
+
 def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
     app = App(name="quality")
 

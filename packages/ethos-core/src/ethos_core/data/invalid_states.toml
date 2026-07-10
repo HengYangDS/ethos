@@ -61,6 +61,8 @@ match_prefixes = [
   "target_package_missing",
   "distribution_adapter_missing",
   "head_subject_not_conventional",
+  "holder_ref_invalid",
+  "target_holder_ref_invalid",
 ]
 
 [[category]]
@@ -140,6 +142,7 @@ match_prefixes = [
   "superseded_lane_",
   "absorbed_by_",
   "accepted_head_unavailable",
+  "accepted_head_mismatch",
   "promotion_",
   "authorization_required",
   "protected_root_mutation",
@@ -169,6 +172,18 @@ match_prefixes = [
   "embedded_not_frozen",
   "shadow_required",
   "campaign_",
+  "confirmation_present",
+  "dirty_disposition_",
+  "handoff_",
+  "holder_quiescence_confirmation_required",
+  "irreversible_confirmation_required",
+  "lane_branch_mismatch",
+  "lane_resolution_",
+  "lease_",
+  "legacy_ambiguous",
+  "recheck_required",
+  "reconciliation_required",
+  "repair_required",
 ]
 
 [[category]]
@@ -227,6 +242,10 @@ match_prefixes = [
   "false_negative_gaps",
   "shadow_false_negative",
   "stable_paths_invalid",
+  "control_replacement_",
+  "hosted_enforcement_receipt_",
+  "identity_assertion_",
+  "incumbent_or_bootstrap_verifier_required",
 ]
 
 [[category]]
@@ -267,6 +286,8 @@ match_prefixes = [
   "attestation",
   "provenance",
   "sbom",
+  "bootstrap_",
+  "lane_resolution_chronicle_",
 ]
 
 [[category]]

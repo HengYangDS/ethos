@@ -170,7 +170,8 @@ distinct identity facts. Authority ranks repository truth sources; operational
 admission evaluates an exact request against Commitments, Git facts, bounded
 Evidence, and current state. Neither role labels nor holder strings mint reusable
 permission, and no product rule may depend on one built-in person, email,
-workstation path, or domain repository.
+workstation path, or domain repository. In particular, the product has no
+single built-in personal name that acts as an authority shortcut.
 A Work Lane lease holder identifies the concrete acting instance, not merely a
 provider class: `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
 `agent:jetbrains:chat:<id>`, `human:shell:<id>`, and

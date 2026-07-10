@@ -11,8 +11,8 @@ from typing import cast
 
 from pydantic import ValidationError
 
-from ethos_core.contracts.external_evidence import EnforcementReceipt
-from ethos_core.contracts.external_evidence import IdentityAssertion
+from ethos_core.contracts.evidence.external import EnforcementReceipt
+from ethos_core.contracts.evidence.external import IdentityAssertion
 
 if TYPE_CHECKING:
     from pathlib import Path

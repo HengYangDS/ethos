@@ -4,8 +4,8 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
-from ethos_core.contracts.external_evidence import EnforcementReceipt
-from ethos_core.contracts.external_evidence import IdentityAssertion
+from ethos_core.contracts.evidence.external import EnforcementReceipt
+from ethos_core.contracts.evidence.external import IdentityAssertion
 
 
 def test_identity_assertion_is_bounded_evidence_not_authority() -> None:

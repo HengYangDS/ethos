@@ -6,7 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.external_evidence import external_evidence_report
+from ethos.adapters.admission.evidence.external import external_evidence_report
 
 if TYPE_CHECKING:
     from pathlib import Path

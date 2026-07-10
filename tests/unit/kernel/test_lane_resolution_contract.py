@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_core.contracts.lane_resolution import LaneObservation
-from ethos_core.contracts.lane_resolution import LaneResolutionDecision
+from ethos_core.contracts.resolution.lane import LaneObservation
+from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 
 def test_lane_resolution_decision_binds_exact_observation_and_does_not_authorize_replay() -> None:

@@ -74,7 +74,18 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status())
     monkeypatch.setattr(
-        lanes, "active_leases", lambda db: [{"subject": "work/x", "owner": "me", "payload": {}}]
+        lanes,
+        "active_leases",
+        lambda db: [
+            {
+                "subject": "work/x",
+                "holder_ref": "agent:codex:thread:test",
+                "lease_id": "lease:test",
+                "epoch": 1,
+                "expected_head": "h1",
+                "payload": {},
+            }
+        ],
     )
     assert (
         lanes.bind_work_lane_claim(root=tmp_path, claim_id="c", branch="work/x", apply=False)[
@@ -205,7 +216,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         "run_git",
         fake_git({("worktree", "remove"): cp(returncode=1, stderr="remove fail")}),
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "me")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:test")
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
         branch="work/x",

@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ethos.adapters.admission.control_replacement import control_replacement_report
+from ethos.adapters.admission.control.replacement import control_replacement_report
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 
@@ -105,7 +105,7 @@ def test_external_evidence_and_declarative_policy_changes_require_incumbent_veri
     tmp_path: Path,
 ) -> None:
     for relative_path in (
-        "packages/ethos-core/src/ethos_core/contracts/external_evidence.py",
+        "packages/ethos-core/src/ethos_core/contracts/evidence/external.py",
         "system/evidence_boundaries.toml",
         "system/policies/generated-artifact-topology.toml",
         "system/workflows.toml",
@@ -166,9 +166,14 @@ def test_protected_bootstrap_verifier_mints_exact_digest_bound_receipt(tmp_path:
     receipt = tmp_path / "receipt.json"
     verifier_source = (
         Path(__file__).resolve().parents[3]
-        / "tools"
-        / "bootstrap"
-        / "control-replacement-verifier.py"
+        / "packages"
+        / "ethos"
+        / "src"
+        / "ethos"
+        / "adapters"
+        / "admission"
+        / "control"
+        / "verifier.py"
     )
     verifier = tmp_path / "protected" / "control-replacement-verifier.py"
     verifier.parent.mkdir()

@@ -251,8 +251,8 @@ line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, which
 lease holder is bound when known, which claim is bound when known, and which
-mutation gap blocks closeout. The holder contract is `holder_ref`; legacy owner
-fields are storage or migration diagnostics only and are never authoritative.
+mutation gap blocks closeout. The holder contract is `holder_ref`; predecessor
+owner fields are storage or migration diagnostics only and are never authoritative.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
 coordination state and unbound Work Lane refs with their relation to accepted
 truth. Plain presence remains advisory through `advisory_gaps` such as

@@ -1,1 +1,1 @@
-"""Evidence contract semantic package."""
+"""Evidence-bound kernel contracts."""

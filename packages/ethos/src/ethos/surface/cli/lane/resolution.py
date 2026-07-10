@@ -7,8 +7,8 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters.mutation.lane_resolution import apply_lane_resolution
-from ethos.adapters.mutation.lane_resolution import plan_lane_resolution
+from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
+from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit

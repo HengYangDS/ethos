@@ -14,7 +14,7 @@ from cyclopts import Parameter
 import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
-from ethos.adapters.admission.control_replacement import control_replacement_report
+from ethos.adapters.admission.control.replacement import control_replacement_report
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted

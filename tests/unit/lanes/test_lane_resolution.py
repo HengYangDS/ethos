@@ -4,8 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.lane_resolution import apply_lane_resolution
-from ethos.adapters.mutation.lane_resolution import plan_lane_resolution
+from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
+from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo

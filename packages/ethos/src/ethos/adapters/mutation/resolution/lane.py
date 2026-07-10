@@ -16,8 +16,8 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.store.state import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.lane_resolution import LaneObservation
-from ethos_core.contracts.lane_resolution import LaneResolutionDecision
+from ethos_core.contracts.resolution.lane import LaneObservation
+from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 
 def plan_lane_resolution(

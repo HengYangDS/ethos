@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.shadow.core as shadow_core
+from ethos.adapters.store.state import acquire_lease
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES
@@ -50,21 +48,11 @@ def _checkout_work_lane(repo: Path) -> None:
         check=True,
         capture_output=True,
     )
-    leases = repo / ".cache" / "local-state" / "worktree" / "leases.json"
-    leases.parent.mkdir(parents=True, exist_ok=True)
-    leases.write_text(
-        json.dumps(
-            {
-                "leases": [
-                    {
-                        "branch": "work/parity-evidence",
-                        "owner": "codex",
-                        "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/parity-evidence",
+        holder_ref="agent:codex:thread:parity-evidence",
+        payload={"expected_head": git_head(repo)},
     )
 
 
@@ -121,7 +109,7 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
-    monkeypatch.setenv("ETHOS_ACTOR", "codex")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
     _checkout_work_lane(target)
 
@@ -228,7 +216,7 @@ def test_parity_shadow_write_evidence_for_external_adopter_writes_target_evidenc
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
-    monkeypatch.setenv("ETHOS_ACTOR", "codex")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
     _checkout_work_lane(target)
 
@@ -296,7 +284,7 @@ def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
-    monkeypatch.setenv("ETHOS_ACTOR", "codex")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
     _set_durable_evidence_root(target, "docs/evidence")
     _checkout_work_lane(target)
@@ -347,7 +335,7 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     _checkout_work_lane(product)
-    monkeypatch.setenv("ETHOS_ACTOR", "codex")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None

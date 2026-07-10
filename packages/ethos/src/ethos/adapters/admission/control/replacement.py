@@ -27,7 +27,7 @@ _CONTROL_PREFIXES = (
     "system/workflows.toml",
     "tools/ci/scripts/",
     "packages/ethos-core/src/ethos_core/contracts/admission.py",
-    "packages/ethos-core/src/ethos_core/contracts/external_evidence.py",
+    "packages/ethos-core/src/ethos_core/contracts/evidence/external.py",
     "packages/ethos/src/ethos/adapters/admission/",
     "packages/ethos/src/ethos/adapters/mutation/",
     "packages/ethos/src/ethos/repository/policy/gates.py",

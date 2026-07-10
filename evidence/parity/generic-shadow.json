@@ -5,10 +5,10 @@
   "generated_on": "2026-07-10",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
-    "target_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
-    "product_semantic_sha256": "7ea68ce1980d3e21592124859de2de1f4d64e63073f6c447c55ddfe3d1472ca6",
-    "target_semantic_sha256": "7ea68ce1980d3e21592124859de2de1f4d64e63073f6c447c55ddfe3d1472ca6",
+    "product_head": "310c910b2fb9813c9b0a831e5836ab8a38c936f2",
+    "target_head": "310c910b2fb9813c9b0a831e5836ab8a38c936f2",
+    "product_semantic_sha256": "c4d7247d82eba9cb35bc29d81ff2d8c2921a08e819daafb69ee8e3b1f4023f52",
+    "target_semantic_sha256": "c4d7247d82eba9cb35bc29d81ff2d8c2921a08e819daafb69ee8e3b1f4023f52",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -36,14 +36,9 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
-    "product_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
-    "changed_paths": [
-      "docs/architecture/local-state.md",
-      "docs/governance/product-design-contract.md",
-      "openspec/changes/archive/2026-07-10-multi-agent-lane-lease-contract-20260710/.openspec.yaml",
-      "openspec/specs/repository-governance/spec.md"
-    ],
+    "target_head": "310c910b2fb9813c9b0a831e5836ab8a38c936f2",
+    "product_head": "310c910b2fb9813c9b0a831e5836ab8a38c936f2",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -86,7 +81,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a5d404d2b23677eb64f303ce4e465c2508b9de1023c5ddaba57e918810207b96"
+        "sha256": "43b4031b9c435f8d47e5f109f7e705614d709df33c2d4ca597091119e93af01a"
       },
       {
         "path": "evidence/claims",

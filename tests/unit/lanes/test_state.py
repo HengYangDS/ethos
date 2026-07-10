@@ -19,6 +19,7 @@ from ethos.adapters.store.state import normalize_lease
 from ethos.adapters.store.state import offer_lease_handoff
 from ethos.adapters.store.state import renew_lease
 from ethos.adapters.store.state import resume_lease
+from ethos.adapters.store.state import revoke_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -369,6 +370,28 @@ def test_handoff_offer_accept_changes_holder_and_increments_epoch(
     assert accepted["epoch"] == lease["epoch"] + 1
     assert accepted["lease_id"] == lease["lease_id"]
     assert accepted["payload"]["handoff_state"] == "accepted"
+
+
+def test_revoke_lease_is_generation_and_head_bound(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    lease = acquire_lease(
+        db_path,
+        subject="work/example",
+        holder_ref="agent:test:case:source",
+        payload={"expected_head": "a" * 40},
+    )
+
+    removed = revoke_lease(
+        db_path,
+        subject="work/example",
+        holder_ref="agent:test:case:source",
+        expected_lease_id=str(lease["lease_id"]),
+        expected_epoch=int(lease["epoch"]),
+        expected_head="a" * 40,
+    )
+
+    assert removed["revoked"] is True
+    assert active_leases(db_path) == []
 
 
 def test_advance_lease_head_is_generation_bound_compare_and_swap(

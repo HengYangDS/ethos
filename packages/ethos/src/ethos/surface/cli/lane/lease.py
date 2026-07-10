@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.adapters.mutation.lane_lifecycle.handoff import export_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff import import_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff import revoke_cross_host_source
 from ethos.adapters.mutation.lane_lifecycle.lease import accept_work_lane_handoff
 from ethos.adapters.mutation.lane_lifecycle.lease import normalize_work_lane_lease
 from ethos.adapters.mutation.lane_lifecycle.lease import offer_work_lane_handoff
@@ -178,3 +182,84 @@ def lane_handoff_accept(
         apply=apply,
     )
     _emit_lease_result("lane handoff accept", report, json_output=json_output)
+
+
+@lane_handoff_app.command(name="export")
+def lane_handoff_export(
+    *,
+    branch: Annotated[str, Parameter(name="--branch")],
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")],
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")],
+    lease_id: Annotated[str, Parameter(name="--lease-id")],
+    epoch: Annotated[int, Parameter(name="--epoch")],
+    expect_head: Annotated[str, Parameter(name="--expect-head")],
+    context_text: Annotated[str, Parameter(name="--context-text")] = "",
+    context_file: Annotated[Path | None, Parameter(name="--context-file")] = None,
+    output_root: Annotated[Path | None, Parameter(name="--output-root")] = None,
+    dirty_disposition: Annotated[str | None, Parameter(name="--dirty-disposition")] = None,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Export content-addressed Git/context state for another common directory."""
+    report = export_cross_host_handoff(
+        root=resolve_root(root),
+        branch=branch,
+        holder_ref=holder_ref,
+        target_holder_ref=target_holder_ref,
+        lease_id=lease_id,
+        epoch=epoch,
+        expect_head=expect_head,
+        context_text=context_text,
+        context_file=context_file,
+        output_root=output_root,
+        dirty_disposition=dirty_disposition,
+        apply=apply,
+    )
+    _emit_lease_result("lane handoff export", report, json_output=json_output)
+
+
+@lane_handoff_app.command(name="import")
+def lane_handoff_import(
+    *,
+    package: Annotated[Path, Parameter(name="--package")],
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")],
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Import a verified package and create destination-local coordination."""
+    report = import_cross_host_handoff(
+        root=resolve_root(root),
+        package=package,
+        target_holder_ref=target_holder_ref,
+        apply=apply,
+    )
+    _emit_lease_result("lane handoff import", report, json_output=json_output)
+
+
+@lane_handoff_app.command(name="revoke-source")
+def lane_handoff_revoke_source(
+    *,
+    package: Annotated[Path, Parameter(name="--package")],
+    acknowledgement: Annotated[Path, Parameter(name="--acknowledgement")],
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")],
+    lease_id: Annotated[str, Parameter(name="--lease-id")],
+    epoch: Annotated[int, Parameter(name="--epoch")],
+    expect_head: Annotated[str, Parameter(name="--expect-head")],
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Revoke the exact source lease after destination acknowledgement."""
+    report = revoke_cross_host_source(
+        root=resolve_root(root),
+        package=package,
+        acknowledgement=acknowledgement,
+        holder_ref=holder_ref,
+        lease_id=lease_id,
+        epoch=epoch,
+        expect_head=expect_head,
+        apply=apply,
+    )
+    _emit_lease_result("lane handoff revoke-source", report, json_output=json_output)

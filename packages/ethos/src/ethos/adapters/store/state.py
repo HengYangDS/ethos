@@ -798,6 +798,42 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         return cursor.rowcount
 
 
+def revoke_lease(
+    db_path: Path,
+    *,
+    subject: str,
+    holder_ref: str,
+    expected_lease_id: str,
+    expected_epoch: int,
+    expected_head: str,
+) -> dict[str, Any]:
+    """Delete one exact local lease generation after a completed handoff saga."""
+    HolderRef.parse(holder_ref)
+    initialize_state(db_path)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        row, payload = _expected_current_lease(
+            connection,
+            subject=subject,
+            holder_ref=holder_ref,
+            expected_lease_id=expected_lease_id,
+            expected_epoch=expected_epoch,
+            expected_head=expected_head,
+            require_expired=False,
+        )
+        connection.execute("delete from leases where id = ?", (str(row[0]),))
+        connection.commit()
+    return {
+        "revoked": True,
+        "subject": subject,
+        "lease_id": str(row[0]),
+        "holder_ref": holder_ref,
+        "epoch": int(payload.get("epoch") or 0),
+        "expected_head": str(payload.get("expected_head") or ""),
+    }
+
+
 def active_leases(db_path: Path) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []

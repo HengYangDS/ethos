@@ -1,0 +1,683 @@
+"""Content-addressed Work Lane transfer across Git common directories."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+import subprocess
+import tempfile
+import uuid
+from pathlib import Path
+from typing import Any
+from typing import cast
+
+from ethos.adapters.mutation.core import MutationRequest
+from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.store.state import acquire_lease
+from ethos.adapters.store.state import active_leases
+from ethos.adapters.store.state import revoke_lease
+from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.coordination import CrossHostHandoff
+from ethos_core.contracts.coordination import HolderRef
+
+
+def export_cross_host_handoff(
+    *,
+    root: Path,
+    branch: str,
+    holder_ref: str,
+    target_holder_ref: str,
+    lease_id: str,
+    epoch: int,
+    expect_head: str,
+    context_text: str,
+    context_file: Path | None,
+    output_root: Path | None,
+    dirty_disposition: str | None,
+    apply: bool,
+) -> dict[str, object]:
+    """Create a portable Git/context package without copying local lease state."""
+    repo = repo_root(root)
+    status = workspace_status(repo)
+    head = _git_value(repo, "rev-parse", "HEAD")
+    tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
+    lease = _current_lease(status=status, repo=repo, branch=branch)
+    context, context_gap = _handoff_context(context_text=context_text, context_file=context_file)
+    dirty_paths = changed_paths(repo)
+    disposition = dirty_disposition or ("clean" if not dirty_paths else "")
+    expected_state = {
+        "root": repo.resolve().as_posix(),
+        "branch": branch,
+        "head": expect_head,
+        "tree": tree,
+        "holder_ref": holder_ref,
+        "target_holder_ref": target_holder_ref,
+        "lease_id": lease_id,
+        "epoch": epoch,
+        "dirty_disposition": disposition,
+    }
+    gaps = _export_gaps(
+        status=status,
+        branch=branch,
+        head=head,
+        expect_head=expect_head,
+        holder_ref=holder_ref,
+        target_holder_ref=target_holder_ref,
+        lease_id=lease_id,
+        epoch=epoch,
+        lease=lease,
+        dirty_paths=dirty_paths,
+        dirty_disposition=disposition,
+        context_gap=context_gap,
+    )
+    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
+    if apply and not gaps:
+        try:
+            report.update(
+                _write_handoff_package(
+                    repo=repo,
+                    branch=branch,
+                    head=head,
+                    tree=tree,
+                    holder_ref=holder_ref,
+                    target_holder_ref=target_holder_ref,
+                    lease_id=lease_id,
+                    epoch=epoch,
+                    context=context,
+                    output_root=output_root,
+                    dirty_disposition=disposition,
+                    dirty_paths=dirty_paths,
+                )
+            )
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            report.update(ok=False, state="blocked", required_gaps=[f"handoff_export_failed:{exc}"])
+    report["mutation"] = _handoff_envelope(
+        command="lane-handoff-export",
+        action="lane.handoff.export",
+        resource=branch,
+        expected_state=expected_state,
+        report=report,
+        apply=apply,
+    )
+    return report
+
+
+def import_cross_host_handoff(
+    *,
+    root: Path,
+    package: Path,
+    target_holder_ref: str,
+    apply: bool,
+) -> dict[str, object]:
+    """Import a verified package and create destination-local coordination."""
+    destination = repo_root(root)
+    status = workspace_status(destination)
+    manifest, gaps = _verified_handoff_manifest(package=package, root=destination)
+    expected_state = {
+        "root": destination.resolve().as_posix(),
+        "package": package.resolve().as_posix(),
+        "package_id": str(manifest.get("package_id") or ""),
+        "source_lane_ref": str(manifest.get("source_lane_ref") or ""),
+        "source_head": str(manifest.get("source_head") or ""),
+        "target_holder_ref": target_holder_ref,
+    }
+    try:
+        normalized_target = HolderRef.parse(target_holder_ref).serialize()
+    except ValueError:
+        gaps.append("target_holder_ref_invalid")
+        normalized_target = target_holder_ref
+    if manifest and normalized_target != str(manifest.get("target_holder_ref") or ""):
+        gaps.append("handoff_target_holder_mismatch")
+    if status.get("role") != ROLE_ACCEPTED_ROOT:
+        gaps.append("handoff_import_requires_accepted_root")
+    if status.get("dirty"):
+        gaps.append("handoff_import_requires_clean_destination")
+    branch = str(manifest.get("source_lane_ref") or "")
+    if branch and _branch_exists(destination, branch):
+        gaps.append("handoff_destination_branch_exists")
+    gaps = list(dict.fromkeys(gaps))
+    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
+    if apply and not gaps:
+        try:
+            report.update(
+                _apply_handoff_import(
+                    destination=destination,
+                    package=package,
+                    manifest=manifest,
+                    target_holder_ref=normalized_target,
+                )
+            )
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            report.update(ok=False, state="blocked", required_gaps=[f"handoff_import_failed:{exc}"])
+    report["mutation"] = _handoff_envelope(
+        command="lane-handoff-import",
+        action="lane.handoff.import",
+        resource=branch or package.resolve().as_posix(),
+        expected_state=expected_state,
+        report=report,
+        apply=apply,
+    )
+    return report
+
+
+def revoke_cross_host_source(
+    *,
+    root: Path,
+    package: Path,
+    acknowledgement: Path,
+    holder_ref: str,
+    lease_id: str,
+    epoch: int,
+    expect_head: str,
+    apply: bool,
+) -> dict[str, object]:
+    """Revoke the exact source lease only after destination acknowledgement."""
+    repo = repo_root(root)
+    status = workspace_status(repo)
+    manifest, gaps = _verified_handoff_manifest(package=package, root=repo)
+    ack = _json_mapping(acknowledgement, gap="handoff_acknowledgement_invalid", gaps=gaps)
+    branch = str(manifest.get("source_lane_ref") or "")
+    head = _git_value(repo, "rev-parse", "HEAD")
+    source_binding = manifest.get("source_lease_binding")
+    binding = source_binding if isinstance(source_binding, dict) else {}
+    expected_state = {
+        "root": repo.resolve().as_posix(),
+        "package_id": str(manifest.get("package_id") or ""),
+        "branch": branch,
+        "head": expect_head,
+        "holder_ref": holder_ref,
+        "lease_id": lease_id,
+        "epoch": epoch,
+        "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
+    }
+    if status.get("role") != ROLE_WORK_LANE or status.get("branch") != branch:
+        gaps.append("handoff_source_lane_mismatch")
+    if head != expect_head:
+        gaps.append("expect_head_mismatch")
+    comparisons = (
+        (str(binding.get("holder_ref") or ""), holder_ref, "handoff_source_holder_mismatch"),
+        (str(binding.get("lease_id") or ""), lease_id, "handoff_source_lease_mismatch"),
+        (int(binding.get("epoch") or 0), epoch, "handoff_source_epoch_mismatch"),
+        (str(binding.get("expected_head") or ""), expect_head, "handoff_source_head_mismatch"),
+        (
+            str(ack.get("package_id") or ""),
+            str(manifest.get("package_id") or ""),
+            "handoff_acknowledgement_package_mismatch",
+        ),
+        (
+            str(ack.get("destination_head") or ""),
+            expect_head,
+            "handoff_acknowledgement_head_mismatch",
+        ),
+    )
+    gaps.extend(gap for actual, expected, gap in comparisons if actual != expected)
+    if ack.get("source_lease_transferred") is not False:
+        gaps.append("handoff_acknowledgement_lease_boundary_invalid")
+    gaps = list(dict.fromkeys(gaps))
+    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
+    if apply and not gaps:
+        try:
+            revoked = revoke_lease(
+                _state_root(status=status, repo=repo) / ".ethos" / "state" / "state.sqlite",
+                subject=branch,
+                holder_ref=holder_ref,
+                expected_lease_id=lease_id,
+                expected_epoch=epoch,
+                expected_head=expect_head,
+            )
+        except ValueError as exc:
+            report.update(ok=False, state="blocked", required_gaps=[str(exc)])
+        else:
+            report.update(
+                state="source_revoked",
+                receipt={
+                    "operation": "cross-host-source-revoke",
+                    "package_id": str(manifest["package_id"]),
+                    "acknowledgement_id": str(ack["acknowledgement_id"]),
+                    **revoked,
+                },
+            )
+    report["mutation"] = _handoff_envelope(
+        command="lane-handoff-revoke-source",
+        action="lane.handoff.revoke_source",
+        resource=branch,
+        expected_state=expected_state,
+        report=report,
+        apply=apply,
+    )
+    return report
+
+
+def _export_gaps(
+    *,
+    status: dict[str, object],
+    branch: str,
+    head: str,
+    expect_head: str,
+    holder_ref: str,
+    target_holder_ref: str,
+    lease_id: str,
+    epoch: int,
+    lease: dict[str, object],
+    dirty_paths: list[str],
+    dirty_disposition: str,
+    context_gap: str,
+) -> list[str]:
+    gaps: list[str] = [context_gap] if context_gap else []
+    gaps.extend(_holder_ref_gaps(holder_ref, target_holder_ref))
+    gaps.extend(
+        _export_binding_gaps(
+            status=status,
+            branch=branch,
+            head=head,
+            expect_head=expect_head,
+            holder_ref=holder_ref,
+            lease_id=lease_id,
+            epoch=epoch,
+            lease=lease,
+        )
+    )
+    gaps.extend(_dirty_disposition_gaps(dirty_paths, dirty_disposition))
+    return list(dict.fromkeys(gaps))
+
+
+def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
+    gaps: list[str] = []
+    for ref, gap in (
+        (holder_ref, "holder_ref_invalid"),
+        (target_holder_ref, "target_holder_ref_invalid"),
+    ):
+        try:
+            HolderRef.parse(ref)
+        except ValueError:
+            gaps.append(gap)
+    return gaps
+
+
+def _export_binding_gaps(
+    *,
+    status: dict[str, object],
+    branch: str,
+    head: str,
+    expect_head: str,
+    holder_ref: str,
+    lease_id: str,
+    epoch: int,
+    lease: dict[str, object],
+) -> list[str]:
+    gaps: list[str] = []
+    if status.get("role") != ROLE_WORK_LANE:
+        gaps.append("work_lane_required")
+    if status.get("branch") != branch:
+        gaps.append("lane_branch_mismatch")
+    if not expect_head:
+        gaps.append("expect_head_required")
+    elif expect_head != head:
+        gaps.append("expect_head_mismatch")
+    if str(lease.get("holder_ref") or "") != holder_ref:
+        gaps.append("lease_holder_mismatch")
+    if str(lease.get("lease_id") or "") != lease_id:
+        gaps.append("lease_id_stale")
+    if int(lease.get("epoch") or 0) != epoch:
+        gaps.append("lease_epoch_stale")
+    if str(lease.get("expected_head") or "") != head:
+        gaps.append("lease_head_stale")
+    return gaps
+
+
+def _dirty_disposition_gaps(dirty_paths: list[str], dirty_disposition: str) -> list[str]:
+    if dirty_paths and not dirty_disposition:
+        return ["dirty_disposition_required"]
+    if dirty_disposition not in {"clean", "committed", "preserved"}:
+        return ["dirty_disposition_invalid"]
+    if dirty_paths and dirty_disposition == "clean":
+        return ["dirty_disposition_mismatch"]
+    if not dirty_paths and dirty_disposition not in {"clean", "committed"}:
+        return ["dirty_disposition_mismatch"]
+    return []
+
+
+def _write_handoff_package(
+    *,
+    repo: Path,
+    branch: str,
+    head: str,
+    tree: str,
+    holder_ref: str,
+    target_holder_ref: str,
+    lease_id: str,
+    epoch: int,
+    context: str,
+    output_root: Path | None,
+    dirty_disposition: str,
+    dirty_paths: list[str],
+) -> dict[str, object]:
+    context_digest = hashlib.sha256(context.encode()).hexdigest()
+    base = (output_root or repo / "build" / "artifacts" / "handoff").resolve()
+    base.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="handoff-", dir=base) as temporary:
+        staging = Path(temporary)
+        bundle = staging / "repository.bundle"
+        _run(repo, "git", "bundle", "create", bundle.as_posix(), branch)
+        context_path = staging / "context.md"
+        context_path.write_text(context, encoding="utf-8")
+        artifacts = [
+            _artifact(bundle, staging, "git_bundle"),
+            _artifact(context_path, staging, "context"),
+        ]
+        if dirty_paths and dirty_disposition == "preserved":
+            artifacts.extend(_preserve_dirty_work(repo=repo, package_dir=staging))
+        package_id = _handoff_package_id(
+            branch=branch,
+            head=head,
+            tree=tree,
+            target_holder_ref=target_holder_ref,
+            context_digest=context_digest,
+            dirty_disposition=dirty_disposition,
+            artifacts=artifacts,
+        )
+        package_dir = base / package_id
+        if package_dir.exists():
+            shutil.rmtree(package_dir)
+        shutil.move(staging.as_posix(), package_dir.as_posix())
+    contract = CrossHostHandoff(
+        source_lane_ref=branch,
+        source_head=head,
+        source_tree=tree,
+        target_holder_ref=HolderRef.parse(target_holder_ref),
+        context_digest=context_digest,
+        dirty_disposition=dirty_disposition,
+        source_lease_id=lease_id,
+        source_lease_epoch=epoch,
+        source_holder_ref=HolderRef.parse(holder_ref),
+        artifacts=tuple(artifacts),
+    ).to_payload()
+    manifest = {"schema_version": 1, "package_id": package_id, **contract}
+    validation = validate_schema_instance("handoff-package.schema.json", manifest, root=repo)
+    if not validation["ok"]:
+        raise ValueError("handoff_manifest_invalid:" + ",".join(validation["required_gaps"]))
+    manifest_path = package_dir / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return {
+        "ok": True,
+        "state": "exported",
+        "package_id": package_id,
+        "package_path": package_dir.as_posix(),
+        "manifest": manifest,
+        "receipt": {
+            "operation": "cross-host-export",
+            "package_id": package_id,
+            "source_head": head,
+            "source_lease_transferred": False,
+        },
+        "required_gaps": [],
+    }
+
+
+def _verified_handoff_manifest(*, package: Path, root: Path) -> tuple[dict[str, Any], list[str]]:
+    package_dir = package.resolve()
+    manifest_path = package_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return {}, ["handoff_manifest_missing"]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}, ["handoff_manifest_invalid_json"]
+    if not isinstance(manifest, dict):
+        return {}, ["handoff_manifest_invalid"]
+    validation = validate_schema_instance("handoff-package.schema.json", manifest, root=root)
+    gaps = [f"handoff_manifest_invalid:{gap}" for gap in validation["required_gaps"]]
+    for artifact in manifest.get("artifacts", []):
+        if not isinstance(artifact, dict):
+            gaps.append("handoff_artifact_invalid")
+            continue
+        path = package_dir / str(artifact.get("path") or "")
+        if not path.is_file():
+            gaps.append(f"handoff_artifact_missing:{path.name}")
+        elif _sha256_file(path) != str(artifact.get("sha256") or ""):
+            gaps.append(f"handoff_artifact_digest_mismatch:{path.name}")
+    return cast("dict[str, Any]", manifest), gaps
+
+
+def _apply_handoff_import(
+    *,
+    destination: Path,
+    package: Path,
+    manifest: dict[str, Any],
+    target_holder_ref: str,
+) -> dict[str, object]:
+    branch = str(manifest["source_lane_ref"])
+    head = str(manifest["source_head"])
+    bundle = package.resolve() / "repository.bundle"
+    _run(destination, "git", "fetch", bundle.as_posix(), f"{branch}:{branch}")
+    worktree_path = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
+    _run(destination, "git", "worktree", "add", worktree_path.as_posix(), branch)
+    lease = acquire_lease(
+        destination / ".ethos" / "state" / "state.sqlite",
+        subject=branch,
+        holder_ref=target_holder_ref,
+        payload={
+            "path": worktree_path.as_posix(),
+            "branch": branch,
+            "expected_head": head,
+            "handoff_package_id": str(manifest["package_id"]),
+            "source_lane_ref": branch,
+            "source_head": head,
+        },
+    )
+    ack = {
+        "acknowledgement_id": f"handoff-ack:{uuid.uuid4()}",
+        "package_id": str(manifest["package_id"]),
+        "destination_lane_ref": branch,
+        "destination_head": head,
+        "destination_holder_ref": target_holder_ref,
+        "destination_lane_incarnation_id": str(lease["lane_incarnation_id"]),
+        "destination_lease_id": str(lease["lease_id"]),
+        "source_lease_transferred": False,
+    }
+    return {
+        "ok": True,
+        "state": "imported",
+        "package_id": str(manifest["package_id"]),
+        "worktree": {"branch": branch, "path": worktree_path.as_posix(), "head": head},
+        "lease": lease,
+        "acknowledgement": ack,
+        "receipt": {"operation": "cross-host-import", **ack},
+        "required_gaps": [],
+    }
+
+
+def _preserve_dirty_work(*, repo: Path, package_dir: Path) -> list[dict[str, str]]:
+    patch_path = package_dir / "tracked.patch"
+    with patch_path.open("wb") as stream:
+        completed = subprocess.run(
+            ["git", "diff", "--binary", "HEAD", "--"],
+            cwd=repo,
+            check=False,
+            stdout=stream,
+            stderr=subprocess.PIPE,
+        )
+    if completed.returncode != 0:
+        raise subprocess.SubprocessError(completed.stderr.decode(errors="replace"))
+    artifacts: list[dict[str, str]] = []
+    if patch_path.stat().st_size:
+        artifacts.append(_artifact(patch_path, package_dir, "tracked_patch"))
+    else:
+        patch_path.unlink()
+    untracked = _git_lines(repo, "ls-files", "--others", "--exclude-standard", "-z")
+    if untracked:
+        archive = package_dir / "untracked.tar"
+        _run(repo, "tar", "-cf", archive.as_posix(), "--", *untracked)
+        artifacts.append(_artifact(archive, package_dir, "untracked_archive"))
+    return artifacts
+
+
+def _handoff_package_id(
+    *,
+    branch: str,
+    head: str,
+    tree: str,
+    target_holder_ref: str,
+    context_digest: str,
+    dirty_disposition: str,
+    artifacts: list[dict[str, str]],
+) -> str:
+    identity = json.dumps(
+        {
+            "branch": branch,
+            "head": head,
+            "tree": tree,
+            "target_holder_ref": target_holder_ref,
+            "context_digest": context_digest,
+            "dirty_disposition": dirty_disposition,
+            "artifacts": artifacts,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return f"handoff:{hashlib.sha256(identity).hexdigest()}"
+
+
+def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[str, str]:
+    if context_text and context_file is not None:
+        return "", "handoff_context_ambiguous"
+    if context_file is not None:
+        try:
+            value = context_file.resolve().read_text(encoding="utf-8")
+        except OSError:
+            return "", "handoff_context_file_unreadable"
+        return value, "" if value.strip() else "handoff_context_required"
+    return context_text, "" if context_text.strip() else "handoff_context_required"
+
+
+def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dict[str, object]:
+    state_root = repo
+    worktrees = status.get("worktrees")
+    if isinstance(worktrees, list):
+        for worktree in worktrees:
+            if not isinstance(worktree, dict):
+                continue
+            if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
+                state_root = Path(str(worktree["path"]))
+                break
+    matches = [
+        lease
+        for lease in active_leases(state_root / ".ethos" / "state" / "state.sqlite")
+        if lease.get("subject") == branch
+    ]
+    return cast("dict[str, object]", matches[0]) if len(matches) == 1 else {}
+
+
+def _state_root(*, status: dict[str, object], repo: Path) -> Path:
+    worktrees = status.get("worktrees")
+    if isinstance(worktrees, list):
+        for worktree in worktrees:
+            if (
+                isinstance(worktree, dict)
+                and worktree.get("role") == ROLE_ACCEPTED_ROOT
+                and worktree.get("path")
+            ):
+                return Path(str(worktree["path"]))
+    return repo
+
+
+def _json_mapping(path: Path, *, gap: str, gaps: list[str]) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.resolve().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        gaps.append(gap)
+        return {}
+    if not isinstance(payload, dict):
+        gaps.append(gap)
+        return {}
+    return cast("dict[str, Any]", payload)
+
+
+def _handoff_report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, object]:
+    return {
+        "ok": not gaps,
+        "state": "planned" if not apply and not gaps else "blocked" if gaps else "applying",
+        "branch": branch,
+        "package_id": "",
+        "package_path": "",
+        "manifest": {},
+        "lease": {},
+        "acknowledgement": {},
+        "receipt": {},
+        "required_gaps": gaps,
+    }
+
+
+def _handoff_envelope(
+    *,
+    command: str,
+    action: str,
+    resource: str,
+    expected_state: dict[str, object],
+    report: dict[str, object],
+    apply: bool,
+) -> dict[str, object]:
+    gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
+    return mutation_envelope(
+        MutationRequest(command=command, apply=apply, authorized=False, expect_head=None),
+        action=action,
+        resource=resource,
+        expected_state=expected_state,
+        verdict=cast("Any", "allow" if report["ok"] else "block"),
+        required_gaps=gaps,
+        why=(str(report["state"]),) if report["ok"] else (),
+        state=str(report["state"]),
+        identity_basis="holder_ref_equality",
+        evidence_boundary="content_addressed_git_and_context",
+        enforcement_boundary="local_package_and_git_ref_transition",
+        verifier_provenance="current_worktree_runner",
+    )
+
+
+def _artifact(path: Path, package_dir: Path, kind: str) -> dict[str, str]:
+    return {
+        "path": path.relative_to(package_dir).as_posix(),
+        "sha256": _sha256_file(path),
+        "kind": kind,
+    }
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _branch_exists(root: Path, branch: str) -> bool:
+    return (
+        run_git(
+            root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False
+        ).returncode
+        == 0
+    )
+
+
+def _git_value(root: Path, *args: str) -> str:
+    return run_git(root, *args).stdout.strip()
+
+
+def _git_lines(root: Path, *args: str) -> list[str]:
+    value = run_git(root, *args).stdout
+    return [item for item in value.split("\0") if item]
+
+
+def _run(root: Path, *args: str) -> None:
+    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=True)
+    if completed.returncode != 0:
+        raise subprocess.SubprocessError(completed.stderr.strip() or completed.stdout.strip())

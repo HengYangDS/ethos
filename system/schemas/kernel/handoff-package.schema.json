@@ -4,43 +4,60 @@
   "title": "ETHOS Handoff Package",
   "type": "object",
   "required": [
-    "id",
-    "target_actor",
-    "intended_use",
-    "source_refs",
-    "source_digests",
-    "freshness",
+    "schema_version",
+    "package_id",
+    "source_lane_ref",
+    "source_head",
+    "source_tree",
+    "target_holder_ref",
+    "context_digest",
+    "dirty_disposition",
+    "source_lease_binding",
+    "artifacts",
+    "transfers_source_lease",
+    "destination_creates_local_incarnation",
     "truth_boundary"
   ],
   "properties": {
-    "id": {"type": "string", "minLength": 1},
-    "target_actor": {"type": "string", "minLength": 1},
-    "intended_use": {"type": "string", "minLength": 1},
-    "source_refs": {
-      "type": "array",
-      "minItems": 1,
-      "items": {"type": "string", "minLength": 1}
+    "schema_version": {"const": 1},
+    "package_id": {"type": "string", "pattern": "^handoff:[a-f0-9]{64}$"},
+    "source_lane_ref": {"type": "string", "minLength": 1},
+    "source_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "source_tree": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "target_holder_ref": {"type": "string", "pattern": "^[^:]+:[^:]+:[^:]+:[^:]+$"},
+    "context_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "dirty_disposition": {"enum": ["clean", "committed", "preserved"]},
+    "source_lease_binding": {
+      "type": "object",
+      "required": ["lease_id", "epoch", "holder_ref", "expected_head"],
+      "properties": {
+        "lease_id": {"type": "string", "minLength": 1},
+        "epoch": {"type": "integer", "minimum": 1},
+        "holder_ref": {"type": "string", "minLength": 1},
+        "expected_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"}
+      },
+      "additionalProperties": false
     },
-    "source_digests": {
+    "artifacts": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["path", "sha256"],
+        "required": ["path", "sha256", "kind"],
         "properties": {
           "path": {
             "type": "string",
             "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
           },
-          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "kind": {"enum": ["git_bundle", "context", "tracked_patch", "untracked_archive"]}
         },
         "additionalProperties": false
       }
     },
-    "proof_refs": {"type": "array", "items": {"type": "string"}},
-    "evidence_refs": {"type": "array", "items": {"type": "string"}},
-    "freshness": {"enum": ["fresh", "stale", "unverified"]},
-    "truth_boundary": {"const": "context_until_promoted"}
+    "transfers_source_lease": {"const": false},
+    "destination_creates_local_incarnation": {"const": true},
+    "truth_boundary": {"const": "content_addressed_context_until_promoted"}
   },
   "additionalProperties": false
 }

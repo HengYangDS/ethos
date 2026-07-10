@@ -105,6 +105,10 @@ class CrossHostHandoff(BaseModel):
     target_holder_ref: HolderRef
     context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     dirty_disposition: str = Field(pattern=r"^(clean|committed|preserved)$")
+    source_lease_id: str = Field(min_length=1)
+    source_lease_epoch: int = Field(ge=1)
+    source_holder_ref: HolderRef
+    artifacts: tuple[dict[str, str], ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
         """Project transferable Git/context facts without the source lease."""
@@ -115,6 +119,14 @@ class CrossHostHandoff(BaseModel):
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_disposition": self.dirty_disposition,
+            "source_lease_binding": {
+                "lease_id": self.source_lease_id,
+                "epoch": self.source_lease_epoch,
+                "holder_ref": self.source_holder_ref.serialize(),
+                "expected_head": self.source_head,
+            },
+            "artifacts": [dict(artifact) for artifact in self.artifacts],
             "transfers_source_lease": False,
             "destination_creates_local_incarnation": True,
+            "truth_boundary": "content_addressed_context_until_promoted",
         }

@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-10",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "1b9e33e75ec44edabdfc11ec3fe86fc1122bff5c",
-    "target_head": "1b9e33e75ec44edabdfc11ec3fe86fc1122bff5c",
-    "product_semantic_sha256": "bc042ec686fd73da0a089479486d0f5de698f9128c1c225ddb2b799e3e5655d4",
-    "target_semantic_sha256": "bc042ec686fd73da0a089479486d0f5de698f9128c1c225ddb2b799e3e5655d4",
-    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
+    "product_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
+    "target_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
+    "product_semantic_sha256": "7ea68ce1980d3e21592124859de2de1f4d64e63073f6c447c55ddfe3d1472ca6",
+    "target_semantic_sha256": "7ea68ce1980d3e21592124859de2de1f4d64e63073f6c447c55ddfe3d1472ca6",
+    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
     "ok": true,
@@ -36,9 +36,14 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "1b9e33e75ec44edabdfc11ec3fe86fc1122bff5c",
-    "product_head": "1b9e33e75ec44edabdfc11ec3fe86fc1122bff5c",
-    "changed_paths": [],
+    "target_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
+    "product_head": "027e789c9a53691dac51aa2fcb997801afc2b691",
+    "changed_paths": [
+      "docs/architecture/local-state.md",
+      "docs/governance/product-design-contract.md",
+      "openspec/changes/archive/2026-07-10-multi-agent-lane-lease-contract-20260710/.openspec.yaml",
+      "openspec/specs/repository-governance/spec.md"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -51,15 +56,15 @@
       "ethos publish --json"
     ],
     "external_commands": [
-      "<repo>/.venv/bin/python3 -m ethos.cli status --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli plan --changed --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli prove --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli report --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli quality command-surface --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli assistants doctor --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli playbooks route --changed --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli land --root <repo> --json",
-      "<repo>/.venv/bin/python3 -m ethos.cli publish --root <repo> --json"
+      "<repo>/.venv/bin/python -m ethos.cli status --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli prove --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli report --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "<repo>/.venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli land --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli publish --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -76,12 +81,12 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "803a4dcafbaa7d3b84483617182a9b86688bbbeb072d964d41cd723e285d82d0"
+        "sha256": "16677268ae6f48049673a01c137121a90e03f4f7fbb470901a5d8cb7352ef55c"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "ebddb7fb6991cab48b47d8eca5bb44040bba5254705c693918cfdadc987d0d1f"
+        "sha256": "a5d404d2b23677eb64f303ce4e465c2508b9de1023c5ddaba57e918810207b96"
       },
       {
         "path": "evidence/claims",
@@ -91,7 +96,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "bd7f7bf7f4866dda12b9526abde48cd3b4a0464a1288b2541fb3c58990f2d0be"
+        "sha256": "3746ffa05d90dfaa8ea60f4ea0a86bc6c82b038fa9c9957af8bce4a58d76177b"
       },
       {
         "path": "rules",

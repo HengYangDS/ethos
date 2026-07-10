@@ -1119,4 +1119,3 @@ Chronicle events rather than as a separate lane-resolution truth store.
   `retire`, `preserve`, `block`, `handoff`, or `break_glass`
 - **AND** dirty or owner-unknown lanes are preserved or blocked rather than
   automatically deleted
-

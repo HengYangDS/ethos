@@ -174,7 +174,7 @@ A Work Lane lease holder identifies the concrete acting instance, not merely a
 provider class: `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
 `agent:jetbrains:chat:<id>`, `human:shell:<id>`, and
 `service:gitlab-ci:pipeline:<id>` are holder references; `codex`, `claude`, or
-`ci` alone are provider labels or legacy hints. ETHOS therefore does not add a
+`ci` alone are provider labels or compatibility hints. ETHOS therefore does not add a
 first-class Principal, Actor, Participant, Party, Session, or Agent registry.
 Role capability remains Authority policy; temporary write ownership remains the
 Lane Lease; accepted handoff, retirement, preservation, block, orphan audit, and

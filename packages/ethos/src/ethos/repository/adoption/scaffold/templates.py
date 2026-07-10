@@ -150,7 +150,7 @@ def declaration() -> ScaffoldTemplateDeclaration:
 @lru_cache(maxsize=1)
 def environment() -> Environment:
     """Return the strict packaged-template environment."""
-    template_environment = Environment(
+    template_environment = Environment(  # nosec B701 - non-HTML artifact compiler
         loader=PackageLoader(__package__, "template_files"),
         undefined=StrictUndefined,
         autoescape=False,

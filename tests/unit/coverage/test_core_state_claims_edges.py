@@ -133,6 +133,56 @@ def test_mutation_proof_record_merges_same_head_gate_runs(tmp_path: Path) -> Non
     assert json.loads(path.read_text(encoding="utf-8"))["evidence_digest"] == evidence["digest"]
 
 
+def test_mutation_proof_merge_handles_legacy_index_and_invalid_runs() -> None:
+    existing = {
+        "id": "old",
+        "head": "h1",
+        "durability": "local",
+        "runs": [
+            {"id": "legacy-gate", "verdict": "passed", "state": "proven", "trust_bearing": True},
+            "not-a-run",
+            {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        ],
+    }
+    incoming = {
+        "id": "new",
+        "head": "h1",
+        "durability": "local",
+        "runs": [
+            {
+                "id": "legacy-gate",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+                "refreshed": True,
+            },
+            {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        ],
+    }
+
+    merged = mutation_proof._merge_same_head_evidence(existing, incoming)
+
+    assert merged["id"] == "new"
+    assert merged["head"] == "h1"
+    assert merged["durability"] == "local"
+    assert merged["runs"] == [
+        {
+            "id": "legacy-gate",
+            "verdict": "passed",
+            "state": "proven",
+            "trust_bearing": True,
+            "refreshed": True,
+        },
+        {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        {"verdict": "passed", "state": "proven", "trust_bearing": True},
+    ]
+    assert merged["digest"] == mutation_proof._evidence_digest(merged)
+    assert (
+        mutation_proof._merge_same_head_evidence({"runs": "bad"}, incoming)["runs"]
+        == incoming["runs"]
+    )
+
+
 def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> None:
     source = tmp_path / "source"
     target = tmp_path / "target"
@@ -163,6 +213,33 @@ def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> 
     assert carried["source_verified"] is True
     assert carried["target_verified"] is True
     assert mutation_proof.executed_proof_record(target, "h1") is not None
+
+
+def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    full = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "required",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+    mutation_proof.record_executed_proof(tmp_path, full)
+    monkeypatch.setattr(mutation_proof, "_promotion_required_gate_ids", lambda root: ("required",))
+    monkeypatch.setattr(
+        mutation_proof,
+        "adopter_code_correctness_gap",
+        lambda root: "adopter_code_correctness_missing",
+    )
+
+    assert mutation_proof.promotion_completeness_gaps(tmp_path, "h1") == [
+        "adopter_code_correctness_missing"
+    ]
 
 
 def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

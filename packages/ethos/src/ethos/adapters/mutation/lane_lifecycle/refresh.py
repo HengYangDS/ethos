@@ -407,7 +407,14 @@ def refresh_work_lane_base(
                 "required_gaps": [],
             }
         )
-    completed = active_runtime.run_git(root, "rebase", policy.candidate_branch, check=False)
+    completed = active_runtime.run_git(
+        root,
+        "-c",
+        "rebase.updateRefs=false",
+        "rebase",
+        policy.candidate_branch,
+        check=False,
+    )
     projection_resolution = resolve_projection_rebase(root, completed, runtime=active_runtime)
     if completed.returncode != 0 and projection_resolution["ok"]:
         refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()

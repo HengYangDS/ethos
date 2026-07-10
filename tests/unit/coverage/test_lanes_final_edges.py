@@ -305,6 +305,51 @@ def test_projection_rebase_skips_empty_projection_patch(monkeypatch, tmp_path: P
     assert ("rebase", "--skip") in calls
 
 
+def test_refresh_work_lane_base_disables_update_refs_during_rebase(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(
+        lanes,
+        "workspace_status",
+        lambda root: status(
+            role=ROLE_WORK_LANE,
+            candidate={
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "/tmp/candidate",
+                "head": "c1",
+            },
+        ),
+    )
+    monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
+    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        lanes,
+        "run_git",
+        fake_git(
+            {
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev"): cp(returncode=0),
+            },
+            calls=calls,
+        ),
+    )
+
+    report = lanes.refresh_work_lane_base(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="h1",
+    )
+
+    assert report["state"] == "base_refreshed"
+    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
+    assert ("rebase", "candidate/dev") not in calls
+
+
 def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
     monkeypatch,
     tmp_path: Path,
@@ -333,7 +378,12 @@ def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
         fake_git(
             {
                 ("rev-parse", "HEAD"): cp(stdout="h1\n"),
-                ("rebase", "candidate/dev"): cp(returncode=1, stderr="projection conflict"),
+                (
+                    "-c",
+                    "rebase.updateRefs=false",
+                    "rebase",
+                    "candidate/dev",
+                ): cp(returncode=1, stderr="projection conflict"),
                 ("diff",): cp(stdout="evidence/parity/generic-shadow.json\n"),
                 ("checkout",): cp(returncode=0),
                 ("add",): cp(returncode=0),

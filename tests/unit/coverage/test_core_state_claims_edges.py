@@ -540,6 +540,12 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert state._safe_table("events") == "events"
     with pytest.raises(ValueError):
         state._safe_table("bad")
+    with closing(sqlite3.connect(db)) as connection, pytest.raises(ValueError):
+        state._table_columns(connection, "events")
+    assert "chronicle_events" in state._insert_event_sql("chronicle_events")
+    assert "insert into events" in state._insert_event_sql("events")
+    assert "from chronicle_events" in state._select_event_sql("chronicle_events")
+    assert "from events" in state._select_event_sql("events")
     state.append_event(db, event_type="e", subject="s", payload={"x": 1})
     state.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
     assert state.list_events(db)[0]["payload"] == {"x": 1}

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import subprocess
+import tokenize
 import tomllib
 from pathlib import Path
 
@@ -200,3 +202,31 @@ def test_python_sast_gate_discovers_every_tracked_python_source() -> None:
     assert "no tracked Python files found for Bandit" in script
     assert "${python_security_paths[@]}" in script
     assert "-r packages" not in script
+
+
+def test_python_sast_gate_has_no_local_suppression_surface() -> None:
+    """Bandit should govern Python without local suppressions or skipped rules."""
+    tracked = [
+        line.strip()
+        for line in subprocess.check_output(["git", "ls-files", "*.py"], cwd=ROOT, text=True)
+        .strip()
+        .splitlines()
+        if line.strip()
+    ]
+    bandit_config = (ROOT / ".config/checks/bandit/bandit.yaml").read_text(encoding="utf-8")
+    nosec_offenders = [
+        path
+        for path in tracked
+        if _python_comments_contain((ROOT / path).read_text(encoding="utf-8"), "nosec")
+    ]
+
+    assert nosec_offenders == []
+    assert "skips:\n  []" in bandit_config
+    assert "B404" not in bandit_config
+    assert "B603" not in bandit_config
+    assert "B608" not in bandit_config
+
+
+def _python_comments_contain(source: str, needle: str) -> bool:
+    tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+    return any(token.type == tokenize.COMMENT and needle in token.string for token in tokens)

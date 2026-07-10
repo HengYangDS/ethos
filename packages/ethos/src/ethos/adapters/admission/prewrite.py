@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.admission import DecisionBasis
 from ethos_core.contracts.admission import MutationSubject
@@ -180,7 +181,7 @@ def _work_lane_lease_check(
             "holder_ref": "",
             "invocation_holder_ref": actor,
             "lease_id": str(lease.get("lease_id") or ""),
-            "epoch": int(lease.get("epoch") or 0),
+            "epoch": integer_value(lease.get("epoch")),
             "expected_head": str(lease.get("expected_head") or ""),
             "reason": f"work_lane_missing_lease:{branch}",
         }
@@ -199,7 +200,7 @@ def _work_lane_lease_check(
             "holder_ref": holder_ref,
             "invocation_holder_ref": actor,
             "lease_id": str(lease.get("lease_id") or ""),
-            "epoch": int(lease.get("epoch") or 0),
+            "epoch": integer_value(lease.get("epoch")),
             "expected_head": str(lease.get("expected_head") or ""),
             "current_head": current_head,
             "reason": reason,
@@ -211,7 +212,7 @@ def _work_lane_lease_check(
         "holder_ref": holder_ref,
         "invocation_holder_ref": actor,
         "lease_id": str(lease.get("lease_id") or ""),
-        "epoch": int(lease.get("epoch") or 0),
+        "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
         "current_head": current_head,
         "reason": "matched",
@@ -231,7 +232,7 @@ def _lease_binding_reason(
         return f"lane_lease_legacy_ambiguous:{branch}"
     if actor != str(lease.get("holder_ref") or ""):
         return f"lease_holder_mismatch:{branch}"
-    if not str(lease.get("lease_id") or "") or int(lease.get("epoch") or 0) < 1:
+    if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:
         return f"lease_generation_missing:{branch}"
     if str(lease.get("expected_head") or "") != current_head:
         return f"lease_head_stale:{branch}"
@@ -268,7 +269,7 @@ def _prewrite_decision(
         "paths": list(paths),
         "holder_ref": str(lease_check.get("holder_ref") or ""),
         "lease_id": str(lease_check.get("lease_id") or ""),
-        "epoch": int(lease_check.get("epoch") or 0),
+        "epoch": integer_value(lease_check.get("epoch")),
         "head": str(lease_check.get("expected_head") or ""),
     }
     return AdmissionDecision(

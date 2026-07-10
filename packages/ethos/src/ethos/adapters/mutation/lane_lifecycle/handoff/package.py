@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -17,6 +18,9 @@ from ethos.adapters.store.state.lease.core import acquire_lease
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.coordination import CrossHostHandoff
 from ethos_core.contracts.coordination import HolderRef
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def write_handoff_package(
@@ -32,7 +36,7 @@ def write_handoff_package(
     context: str,
     output_root: Path | None,
     dirty_disposition: str,
-    dirty_paths: list[str],
+    dirty_paths: Sequence[str],
 ) -> dict[str, object]:
     context_digest = hashlib.sha256(context.encode()).hexdigest()
     base = (output_root or repo / "build" / "artifacts" / "handoff").resolve()
@@ -77,7 +81,9 @@ def write_handoff_package(
     manifest = {"schema_version": 1, "package_id": package_id, **contract}
     validation = validate_schema_instance("handoff-package.schema.json", manifest, root=repo)
     if not validation["ok"]:
-        raise ValueError("handoff_manifest_invalid:" + ",".join(validation["required_gaps"]))
+        raise ValueError(
+            "handoff_manifest_invalid:" + ",".join(_string_list(validation.get("required_gaps")))
+        )
     manifest_path = package_dir / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -110,7 +116,9 @@ def verified_handoff_manifest(*, package: Path, root: Path) -> tuple[dict[str, A
     if not isinstance(manifest, dict):
         return {}, ["handoff_manifest_invalid"]
     validation = validate_schema_instance("handoff-package.schema.json", manifest, root=root)
-    gaps = [f"handoff_manifest_invalid:{gap}" for gap in validation["required_gaps"]]
+    gaps = [
+        f"handoff_manifest_invalid:{gap}" for gap in _string_list(validation.get("required_gaps"))
+    ]
     for artifact in manifest.get("artifacts", []):
         if not isinstance(artifact, dict):
             gaps.append("handoff_artifact_invalid")
@@ -121,6 +129,12 @@ def verified_handoff_manifest(*, package: Path, root: Path) -> tuple[dict[str, A
         elif _sha256_file(path) != str(artifact.get("sha256") or ""):
             gaps.append(f"handoff_artifact_digest_mismatch:{path.name}")
     return cast("dict[str, Any]", manifest), gaps
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value]
 
 
 def apply_handoff_import(

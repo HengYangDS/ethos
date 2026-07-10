@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import subprocess
 from typing import TYPE_CHECKING
+from typing import cast
 
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.state.invalid import invalid_state_projection
@@ -147,7 +149,7 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
         "lane_incarnation_id": str(lease.get("lane_incarnation_id") or ""),
         "lease_id": str(lease.get("lease_id") or ""),
         "holder_ref": str(lease.get("holder_ref") or ""),
-        "epoch": int(lease.get("epoch") or 0),
+        "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
         "expires_at": str(lease.get("expires_at") or ""),
         "normalization_state": str(lease.get("normalization_state") or "legacy_ambiguous"),
@@ -318,7 +320,8 @@ def coordination_next_action(
 
 def _migration_recommendation(lane: dict[str, object]) -> dict[str, object]:
     branch = str(lane.get("branch") or "")
-    lease = lane.get("lease") if isinstance(lane.get("lease"), dict) else {}
+    lease_value = lane.get("lease")
+    lease = cast("dict[str, object]", lease_value) if isinstance(lease_value, dict) else {}
     holder_ref = str(lease.get("holder_ref") or "")
     return {
         "kind": "overlap_resolution",

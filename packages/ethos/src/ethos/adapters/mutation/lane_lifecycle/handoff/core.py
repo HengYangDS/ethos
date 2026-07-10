@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -17,9 +18,13 @@ from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def export_cross_host_handoff(
@@ -46,7 +51,7 @@ def export_cross_host_handoff(
     context, context_gap = _handoff_context(context_text=context_text, context_file=context_file)
     dirty_paths = changed_paths(repo)
     disposition = dirty_disposition or ("clean" if not dirty_paths else "")
-    expected_state = {
+    expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "branch": branch,
         "head": expect_head,
@@ -114,7 +119,7 @@ def import_cross_host_handoff(
     destination = repo_root(root)
     status = workspace_status(destination)
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=destination)
-    expected_state = {
+    expected_state: dict[str, object] = {
         "root": destination.resolve().as_posix(),
         "package": package.resolve().as_posix(),
         "package_id": str(manifest.get("package_id") or ""),
@@ -181,7 +186,7 @@ def revoke_cross_host_source(
     head = _git_value(repo, "rev-parse", "HEAD")
     source_binding = manifest.get("source_lease_binding")
     binding = source_binding if isinstance(source_binding, dict) else {}
-    expected_state = {
+    expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "package_id": str(manifest.get("package_id") or ""),
         "branch": branch,
@@ -198,7 +203,7 @@ def revoke_cross_host_source(
     comparisons = (
         (str(binding.get("holder_ref") or ""), holder_ref, "handoff_source_holder_mismatch"),
         (str(binding.get("lease_id") or ""), lease_id, "handoff_source_lease_mismatch"),
-        (int(binding.get("epoch") or 0), epoch, "handoff_source_epoch_mismatch"),
+        (integer_value(binding.get("epoch")), epoch, "handoff_source_epoch_mismatch"),
         (str(binding.get("expected_head") or ""), expect_head, "handoff_source_head_mismatch"),
         (
             str(ack.get("package_id") or ""),
@@ -260,7 +265,7 @@ def _export_gaps(
     lease_id: str,
     epoch: int,
     lease: dict[str, object],
-    dirty_paths: list[str],
+    dirty_paths: Sequence[str],
     dirty_disposition: str,
     context_gap: str,
 ) -> list[str]:
@@ -319,14 +324,14 @@ def _export_binding_gaps(
         gaps.append("lease_holder_mismatch")
     if str(lease.get("lease_id") or "") != lease_id:
         gaps.append("lease_id_stale")
-    if int(lease.get("epoch") or 0) != epoch:
+    if integer_value(lease.get("epoch")) != epoch:
         gaps.append("lease_epoch_stale")
     if str(lease.get("expected_head") or "") != head:
         gaps.append("lease_head_stale")
     return gaps
 
 
-def _dirty_disposition_gaps(dirty_paths: list[str], dirty_disposition: str) -> list[str]:
+def _dirty_disposition_gaps(dirty_paths: Sequence[str], dirty_disposition: str) -> list[str]:
     if dirty_paths and not dirty_disposition:
         return ["dirty_disposition_required"]
     if dirty_disposition not in {"clean", "committed", "preserved"}:
@@ -357,8 +362,9 @@ def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dic
         for worktree in worktrees:
             if not isinstance(worktree, dict):
                 continue
-            if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
-                state_root = Path(str(worktree["path"]))
+            worktree_payload = cast("dict[str, object]", worktree)
+            if worktree_payload.get("role") == ROLE_ACCEPTED_ROOT and worktree_payload.get("path"):
+                state_root = Path(str(worktree_payload["path"]))
                 break
     matches = [
         lease
@@ -372,12 +378,11 @@ def _state_root(*, status: dict[str, object], repo: Path) -> Path:
     worktrees = status.get("worktrees")
     if isinstance(worktrees, list):
         for worktree in worktrees:
-            if (
-                isinstance(worktree, dict)
-                and worktree.get("role") == ROLE_ACCEPTED_ROOT
-                and worktree.get("path")
-            ):
-                return Path(str(worktree["path"]))
+            if not isinstance(worktree, dict):
+                continue
+            worktree_payload = cast("dict[str, object]", worktree)
+            if worktree_payload.get("role") == ROLE_ACCEPTED_ROOT and worktree_payload.get("path"):
+                return Path(str(worktree_payload["path"]))
     return repo
 
 

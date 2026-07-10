@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.core import advance_lease_head
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
@@ -401,7 +402,7 @@ def work_lane_ref_transition_report(
             subject=branch,
             holder_ref=actor,
             expected_lease_id=str(lease.get("lease_id") or lease.get("id") or ""),
-            expected_epoch=int(lease.get("epoch") or 0),
+            expected_epoch=integer_value(lease.get("epoch")),
             old_head=old_value,
             new_head=new_value,
         )
@@ -433,7 +434,7 @@ def _work_lane_lease_transition_gaps(
     holder = str(lease.get("holder_ref") or "")
     if not holder or holder != actor:
         gaps.append(f"lease_holder_mismatch:{branch}")
-    if not str(lease.get("lease_id") or "") or int(lease.get("epoch") or 0) < 1:
+    if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:
         gaps.append(f"lease_generation_missing:{branch}")
     expected_head = str(lease.get("expected_head") or "")
     if expected_head != old_value:
@@ -541,7 +542,7 @@ def _post_write_report(
     expected_paths: list[Path],
 ) -> dict[str, object]:
     status = workspace_status(repo)
-    changed_paths = [str(path) for path in status["changed_paths"]]
+    changed_paths = _string_list(status.get("changed_paths"))
     base["role"] = status["role"]
     base["branch"] = status["branch"]
     base["changed_paths"] = changed_paths
@@ -563,6 +564,12 @@ def _relative(root: Path, path: Path) -> str:
         return resolved.resolve().relative_to(root).as_posix()
     except ValueError:
         return resolved.as_posix()
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value]
 
 
 def _fallback_report(base: dict[str, object]) -> dict[str, object]:

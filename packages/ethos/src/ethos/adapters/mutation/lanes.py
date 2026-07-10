@@ -273,7 +273,7 @@ def _lane_refresh_runtime() -> lanes_refresh.LaneRefreshRuntime:
         default_candidate_path=default_candidate_path,
         load_branch_role_policy=load_branch_role_policy,
         workspace_status=workspace_status,
-        changed_paths=changed_paths,
+        changed_paths=lambda root: list(changed_paths(root)),
         is_ancestor=is_ancestor,
         run_git=run_git,
     )

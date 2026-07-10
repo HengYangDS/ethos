@@ -86,13 +86,27 @@ def string_list(value: object) -> list[str]:
     return [str(item) for item in value if str(item)]
 
 
+def integer_value(value: object) -> int:
+    """Normalize a lease integer field without trusting an untyped payload."""
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0
+
+
 def lease_contract_fields(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "lane_incarnation_id": str(payload.get("lane_incarnation_id") or ""),
         "lease_id": str(payload.get("lease_id") or ""),
         "lane_ref": str(payload.get("lane_ref") or ""),
         "holder_ref": str(payload.get("holder_ref") or ""),
-        "epoch": int(payload.get("epoch") or 0),
+        "epoch": integer_value(payload.get("epoch")),
         "issued_at": str(payload.get("issued_at") or ""),
         "renewed_at": str(payload.get("renewed_at") or ""),
         "expected_head": str(payload.get("expected_head") or ""),

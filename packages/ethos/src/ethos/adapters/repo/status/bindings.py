@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -376,7 +377,7 @@ def closeout_support(
         "operation": "land_to_candidate" if is_work_lane else "",
         "holder_ref": str(lease.get("holder_ref") or "") if is_work_lane else "",
         "lease_id": str(lease.get("lease_id") or "") if is_work_lane else "",
-        "lease_epoch": int(lease.get("epoch") or 0) if is_work_lane else 0,
+        "lease_epoch": integer_value(lease.get("epoch")) if is_work_lane else 0,
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing" if is_work_lane else "unbound",
         "required_gaps": gaps,

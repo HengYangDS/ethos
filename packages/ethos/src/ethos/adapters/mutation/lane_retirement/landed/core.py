@@ -121,7 +121,7 @@ def retire_landed_work_lanes(
                 expect_head=expect_head,
                 apply=apply,
                 confirmed=False,
-                required_gaps=list(removed.get("required_gaps", [])),
+                required_gaps=_string_list(removed.get("required_gaps")),
                 holder_ref=_current_holder_ref(),
                 required_holder_ref=_selected_holder_ref(selected),
             ),
@@ -165,6 +165,12 @@ def has_changed_paths(root: Path, *, runtime: LandedRetirementRuntime | None = N
     if completed.returncode != 0:
         return True
     return bool(completed.stdout.strip())
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value]
 
 
 def _landed_actor_gaps(selected: list[dict[str, object]]) -> list[str]:

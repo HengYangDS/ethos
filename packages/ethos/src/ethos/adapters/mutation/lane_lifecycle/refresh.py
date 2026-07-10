@@ -38,7 +38,7 @@ def _workspace_status_adapter(root: Path) -> dict[str, object]:
 
 
 def _changed_paths_adapter(root: Path) -> list[str]:
-    return changed_paths(root)
+    return list(changed_paths(root))
 
 
 def _is_ancestor_adapter(root: Path, ancestor: str, descendant: str) -> bool:

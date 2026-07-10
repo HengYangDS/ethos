@@ -20,6 +20,7 @@ from ethos.adapters.store.state.lease.core import normalize_lease
 from ethos.adapters.store.state.lease.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.core import renew_lease
 from ethos.adapters.store.state.lease.core import resume_lease
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef
@@ -440,8 +441,9 @@ def _state_root(status: dict[str, object], default_root: Path) -> Path:
         for worktree in worktrees:
             if not isinstance(worktree, dict):
                 continue
-            if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
-                return Path(str(worktree["path"]))
+            worktree_payload = cast("dict[str, object]", worktree)
+            if worktree_payload.get("role") == ROLE_ACCEPTED_ROOT and worktree_payload.get("path"):
+                return Path(str(worktree_payload["path"]))
     return default_root
 
 
@@ -454,7 +456,7 @@ def _lease_operation_receipt(
         "branch": branch,
         "applied": applied,
         "lease_id": str(effect.get("lease_id") or ""),
-        "epoch": int(effect.get("epoch") or 0),
+        "epoch": integer_value(effect.get("epoch")),
         "expected_head": str(effect.get("expected_head") or ""),
         "mints_authority": False,
         "transferable": False,

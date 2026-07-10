@@ -7,7 +7,10 @@ from pydantic import ValidationError
 
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
 from ethos.surface.cli.quality.reporting import build_report_result
+from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
+from ethos.surface.cli.quality.reporting import emit_report_command
+from ethos.surface.cli.quality.reporting import field_summary
 from ethos.surface.cli.quality.reporting import module_report
 
 
@@ -53,6 +56,63 @@ def test_report_command_spec_supports_summary_projection_and_next_actions() -> N
     assert result.summary == {"count": 3}
     assert result.required_gaps == ("sample_gap",)
     assert result.next_actions == ("fix sample_gap",)
+
+
+def test_report_command_spec_supports_field_summary_projection() -> None:
+    spec = ReportCommandSpec(
+        command="quality fields",
+        report=lambda _root: {
+            "ok": True,
+            "state": "clean",
+            "item_count": 4,
+            "warning_count": 0,
+        },
+        summary=field_summary("item_count", "warning_count"),
+    )
+
+    result = build_report_result(spec, Path("/repo"))
+
+    assert result.summary == {"item_count": 4, "warning_count": 0}
+
+
+def test_report_command_spec_supports_conditional_next_actions() -> None:
+    blocked = ReportCommandSpec(
+        command="quality conditional",
+        report=lambda _root: {"ok": False, "required_gaps": ["sample_gap"]},
+        next_actions=conditional_actions(
+            when_blocked="fix sample_gap",
+            when_clean="keep monitoring",
+        ),
+    )
+    clean = ReportCommandSpec(
+        command="quality conditional",
+        report=lambda _root: {"ok": True, "required_gaps": []},
+        next_actions=conditional_actions(
+            when_blocked="fix sample_gap",
+            when_clean="keep monitoring",
+        ),
+    )
+
+    assert build_report_result(blocked, Path("/repo")).next_actions == ("fix sample_gap",)
+    assert build_report_result(clean, Path("/repo")).next_actions == ("keep monitoring",)
+
+
+def test_emit_report_command_delegates_built_result_to_emit_function() -> None:
+    emitted = []
+    spec = ReportCommandSpec(
+        command="quality emitted",
+        report=lambda _root: {
+            "ok": True,
+            "state": "clean",
+            "summary": {"item_count": 1},
+        },
+    )
+
+    emit_report_command(spec, Path("/repo"), emit_func=emitted.append)
+
+    assert len(emitted) == 1
+    assert emitted[0].command == "quality emitted"
+    assert emitted[0].summary == {"item_count": 1}
 
 
 def test_simple_quality_commands_delegate_to_report_specs() -> None:
@@ -104,3 +164,10 @@ def test_module_report_resolves_latest_namespace_binding() -> None:
 
     assert loader(Path("/repo"))["state"] == "second"
     assert calls == ["second"]
+
+
+def test_module_report_rejects_non_callable_namespace_binding() -> None:
+    loader = module_report({"report": "not-callable"}, "report")
+
+    with pytest.raises(TypeError, match="report binding is not callable: report"):
+        loader(Path("/repo"))

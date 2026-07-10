@@ -295,6 +295,14 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             "required_gaps": [],
         },
     )
+    # The proof carry now runs BEFORE the ref move at both tails; stub it to succeed so
+    # these white-box ordering tests exercise the git edges rather than proof presence.
+    monkeypatch.setattr(
+        mutation_core,
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
+    monkeypatch.setattr(mutation_core, "discard_executed_proof", lambda root, head: True)
     monkeypatch.setattr(
         mutation_core,
         "_git",
@@ -327,7 +335,9 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         )["state"]
         == "candidate_validated"
     )
-    assert merge_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
+    # The candidate merge no longer carries a ref-move escape env — it earns admission
+    # through the armed hook after the proof is pre-carried.
+    assert merge_envs == [None]
 
     monkeypatch.setattr(
         mutation_core,
@@ -427,6 +437,11 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
         ),
     )
     monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(
+        mutation_core,
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
     reset_attempts = {"count": 0}
 
     def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
@@ -475,6 +490,11 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
         ),
     )
     monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(
+        mutation_core,
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
         _ = check

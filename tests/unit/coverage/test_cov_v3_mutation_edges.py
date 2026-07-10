@@ -11,7 +11,11 @@ import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
+from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.policy.gates import promotion_required_gate_ids
+from tests.support.contract_helpers import conformant_proof_run
 
 if TYPE_CHECKING:
     import pytest
@@ -185,7 +189,9 @@ def test_refresh_candidate_from_accepted_reset_failure(
     assert result["ok"] is False
     assert "candidate_refresh_from_accepted_failed" in result["required_gaps"]
     assert result["stderr"] == "reset boom"
-    assert reset_envs == [{"ETHOS_ALLOW_REF_MOVE": "1"}]
+    # The candidate refresh reset no longer carries a ref-move escape env — the target is
+    # accepted-contained, so the armed hook admits the rewind without one.
+    assert reset_envs == [None]
 
 
 def test_refresh_work_lane_base_protected_root(tmp_path: Path) -> None:
@@ -203,3 +209,71 @@ def test_unbound_work_lane_ref_skips_non_matching_entries() -> None:
     # Non-dict and non-matching ref rows are skipped, looping on (branch 294->293).
     status = {"coordination": {"unbound_work_lane_refs": ["junk", {"branch": "work/other"}]}}
     assert unbound_retirement._unbound_work_lane_ref(status, "work/target") is None
+
+
+# --- slice 2c: proof-carry-before-ref-move reorder + discard hygiene ---------
+
+
+def test_land_blocks_when_proof_carry_to_candidate_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # core.py: the proof is carried to the candidate BEFORE the merge; a failed carry blocks
+    # the land with the carry's gaps and never reaches the ref move.
+    monkeypatch.setattr(
+        core,
+        "candidate_base_report",
+        lambda root: {"ok": True, "path": str(tmp_path / "candidate"), "required_gaps": []},  # noqa: ARG005
+    )
+    monkeypatch.setattr(
+        core,
+        "_git",
+        lambda *_a, **_k: subprocess.CompletedProcess([], 0, "h1\n", ""),
+    )
+    monkeypatch.setattr(
+        core,
+        "carry_executed_proof_record",
+        lambda **_k: {"ok": False, "required_gaps": ["proof_not_proven"]},
+    )
+    ready = core.MutationEvaluation(ok=True, state="land_ready")
+    result = core.apply_land_to_candidate(
+        root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready
+    )
+    assert result["ok"] is False
+    assert result["required_gaps"] == ["proof_not_proven"]
+
+
+def test_advance_accepted_ref_blocks_when_proof_carry_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # core.py: the closeout carries the proof to the accepted root BEFORE the CAS; a failed
+    # carry blocks with the carry's gaps and never moves the ref. Driven through the public
+    # apply_candidate_to_accepted so no private helper is touched.
+    repo = _init_repo(tmp_path / "r")
+    candidate = tmp_path / "cand"
+    _run_git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), "dev")
+    (candidate / "c.txt").write_text("c\n", encoding="utf-8")
+    _run_git(candidate, "add", ".")
+    _run_git(candidate, "commit", "-m", "candidate change")
+    accepted_head = _head(repo)
+    monkeypatch.setattr(
+        core,
+        "carry_executed_proof_record",
+        lambda **_k: {"ok": False, "required_gaps": ["proof_not_proven"]},
+    )
+    monkeypatch.setattr(core, "_candidate_gaps_for_proof", lambda *_a, **_k: [])
+    result = core.apply_candidate_to_accepted(root=repo, authorized=True, expect_head=accepted_head)
+    assert result["ok"] is False
+    assert result["required_gaps"] == ["proof_not_proven"]
+
+
+def test_discard_executed_proof_idempotent(tmp_path: Path) -> None:
+    # proof.py: discard reclaims a pre-placed proof record; True when one existed, False when
+    # absent (idempotent).
+    _init_repo(tmp_path)
+    head = "b" * 40
+    runs = tuple(conformant_proof_run(g, tmp_path) for g in promotion_required_gate_ids(tmp_path))
+    mutation_proof.record_executed_proof(
+        tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+    )
+    assert mutation_proof.discard_executed_proof(tmp_path, head) is True
+    assert mutation_proof.discard_executed_proof(tmp_path, head) is False

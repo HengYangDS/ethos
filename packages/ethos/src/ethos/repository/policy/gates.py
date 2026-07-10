@@ -3,14 +3,18 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import cast
 
 from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.gates import DECLARATION_PATH
 from ethos_core.contracts.gates import GateDescriptor
+from ethos_core.contracts.gates import GateRegistryDeclaration
 from ethos_core.contracts.gates import load_gate_registry_declaration
 
 
@@ -251,14 +255,88 @@ def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
     return command
 
 
-def _gate_policy_source_digest(gate: Gate, root: Path) -> str:
-    """Digest of a script-type gate's on-disk source, or '' for in-process gates.
+def _committed_blob(root: Path, tree_ref: str, path: str) -> bytes | None:
+    """Return `path`'s bytes from the committed tree `tree_ref`, or None if absent.
+
+    `git cat-file blob <tree_ref>:<path>` reads the object store, so the result is a pure
+    function of the commit — independent of the working tree the caller happens to be in.
+    A missing blob, a non-file object, or any git error maps to None (the caller then
+    falls back to a working-tree read or an empty contribution).
+    """
+    completed = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "blob", f"{tree_ref}:{path}"],
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    stdout = completed.stdout
+    # capture_output without text= yields bytes for real git; be robust if a caller/test
+    # configured text mode (str) so the digest hashes bytes uniformly either way.
+    return stdout.encode("utf-8") if isinstance(stdout, str) else stdout
+
+
+def _committed_registry_and_floor(
+    root: Path, tree_ref: str
+) -> tuple[dict[str, Gate], tuple[str, ...]] | None:
+    """Compile the gate registry and product floor from `tree_ref`'s `system/gates.toml`.
+
+    The registry declaration is import-cached from cwd at module load, so a promoted
+    commit that changed `system/gates.toml` (a gate's command/classification, or the
+    proof floor) is invisible to the live `gate_registry()`. For committed-tree digests
+    the declaration itself must come from the promoted tree. Returns None (caller falls
+    back to the live registry) when the blob is absent or does not parse — the ADOPTER
+    floor is not resolved here (it needs the profile), so committed mode only overrides
+    the product floor; an adopter root passes tree_ref=None.
+    """
+    blob = _committed_blob(root, tree_ref, DECLARATION_PATH.as_posix())
+    if blob is None:
+        return None
+    try:
+        declaration = GateRegistryDeclaration.model_validate(tomllib.loads(blob.decode("utf-8")))
+    except (tomllib.TOMLDecodeError, ValueError, UnicodeDecodeError):
+        return None
+    descriptors = declaration.registry("runtime", python_executable=sys.executable)
+    registry = {
+        gate_id: Gate.model_validate(descriptor.model_dump())
+        for gate_id, descriptor in descriptors.items()
+    }
+    return registry, declaration.proof_sets.product_default
+
+
+def _policy_registry_and_required(
+    root: Path, tree_ref: str | None
+) -> tuple[dict[str, Gate], tuple[str, ...]]:
+    """Resolve the (registry, required-floor) pair the policy digest ranges over.
+
+    Working-tree mode (tree_ref=None) uses the live registry and this root's floor
+    (product or adopter). Committed mode resolves BOTH from `tree_ref`'s tracked
+    declaration for a PRODUCT root, so the digest describes the promoted tree; an adopter
+    root (whose floor depends on the working-tree profile) or an unresolvable declaration
+    falls back to the live registry + this root's floor.
+    """
+    if tree_ref is not None and _is_product_root(root):
+        committed = _committed_registry_and_floor(root, tree_ref)
+        if committed is not None:
+            return committed
+    return gate_registry(root), promotion_required_gate_ids(root)
+
+
+def _gate_policy_source_digest(gate: Gate, root: Path, tree_ref: str | None = None) -> str:
+    """Digest of a script-type gate's source, or '' for in-process gates.
 
     B12: a gate whose command is a repo-relative script (same path, tampered content)
-    must change the policy digest. Hash the file bytes under `root`. In-process gates
-    (python -m ethos.cli ...) and the `ethos` entrypoint carry no repo-owned script, so
-    they contribute ''. `root` must be the tree the proof was recorded against; the
-    caller (gate_policy_digest) owns that consistency.
+    must change the policy digest. In-process gates (python -m ethos.cli ...) and the
+    `ethos` entrypoint carry no repo-owned script, so they contribute ''.
+
+    When ``tree_ref`` is given the script bytes are read from that COMMITTED git tree
+    (``git cat-file blob <tree_ref>:<path>``), not the working tree. This is load-bearing
+    for the reference-transaction hook: it fires while the accepted worktree still holds
+    the OLD tree (the sync `reset` runs after the ref move), yet the digest must describe
+    the tree being PROMOTED. Reading committed bytes keyed on the promoted head makes the
+    digest a pure function of that immutable tree, so a proof stamped for head H and the
+    hook validating a move to H compute the SAME digest regardless of which worktree runs.
+    Falls back to the working tree when no tree_ref is given or the blob is unresolvable.
     """
     canonical = canonical_gate_command(gate.command)
     if not canonical:
@@ -266,13 +344,17 @@ def _gate_policy_source_digest(gate: Gate, root: Path) -> str:
     head = canonical[0]
     if head in ("python", "ethos") or "/" not in head:
         return ""
+    if tree_ref is not None:
+        blob = _committed_blob(root, tree_ref, head)
+        if blob is not None:
+            return hashlib.sha256(blob).hexdigest()
     script = root / head
     if not script.is_file():
         return ""
     return hashlib.sha256(script.read_bytes()).hexdigest()
 
 
-def gate_policy_fields(gate: Gate, root: Path) -> dict[str, object]:
+def gate_policy_fields(gate: Gate, root: Path, *, tree_ref: str | None = None) -> dict[str, object]:
     """The cross-environment-stable policy identity of a single gate."""
     return {
         "gate_id": gate.id,
@@ -281,13 +363,13 @@ def gate_policy_fields(gate: Gate, root: Path) -> dict[str, object]:
         "evidence_class": gate.evidence_class,
         "execution_mode": gate.execution_mode,
         "tool_adapter": gate.tool_adapter,
-        "policy_source_digest": _gate_policy_source_digest(gate, root),
+        "policy_source_digest": _gate_policy_source_digest(gate, root, tree_ref),
         "profile_binding": gate.profile,
         "layer": gate.kind,
     }
 
 
-def gate_policy_digest(root: Path) -> str:
+def gate_policy_digest(root: Path, *, tree_ref: str | None = None) -> str:
     """A stable digest of the required gate set's policy identity for `root`.
 
     Binds a proof/marker to WHAT the required gates ARE (canonical command, trust
@@ -296,18 +378,26 @@ def gate_policy_digest(root: Path) -> str:
     content is tampered, this digest changes and an old proof is stale (B11/B12); a mere
     interpreter-path change does not (B10). Covers the registry-resolvable required ids
     in floor order, including typed repository-native adopter descriptors.
+
+    ``tree_ref`` selects COMMITTED-tree resolution (the registry declaration, required
+    floor, and gate scripts are all read from that git tree) so the digest describes the
+    tree being promoted rather than whichever worktree happens to invoke it. Without it,
+    the working tree is read (the prove/stamp path, where the clean lane HEAD equals the
+    working tree). See `_gate_policy_source_digest` for why the hook needs committed reads.
     """
-    registry = gate_registry(root)
+    registry, required = _policy_registry_and_required(root, tree_ref)
     fields = [
-        gate_policy_fields(registry[gate_id], root)
-        for gate_id in promotion_required_gate_ids(root)
+        gate_policy_fields(registry[gate_id], root, tree_ref=tree_ref)
+        for gate_id in required
         if gate_id in registry
     ]
     canonical = json.dumps({"gates": fields}, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def gate_policy_conformance_gaps(runs: object, root: Path) -> list[str]:
+def gate_policy_conformance_gaps(
+    runs: object, root: Path, *, tree_ref: str | None = None
+) -> list[str]:
     """Gaps where an executed run does not conform to its gate's policy identity.
 
     Defeats a same-UID forged proof that covers the required action_ids with runs that
@@ -315,7 +405,8 @@ def gate_policy_conformance_gaps(runs: object, root: Path) -> list[str]:
     `trust_bearing`/`evidence_class`. For each required gate present in the registry,
     the matching run's CANONICAL command must equal the gate's canonical command
     (canonical-to-canonical, so a legitimate interpreter difference is not flagged) and
-    its trust_bearing/evidence_class must match the gate definition.
+    its trust_bearing/evidence_class must match the gate definition. ``tree_ref`` resolves
+    the registry and required floor from that committed tree (see `gate_policy_digest`).
     """
     if not isinstance(runs, list):
         return []
@@ -323,9 +414,9 @@ def gate_policy_conformance_gaps(runs: object, root: Path) -> list[str]:
     for run in runs:
         if isinstance(run, dict):
             by_action.setdefault(str(run.get("action_id", "")), run)
-    registry = gate_registry(root)
+    registry, required = _policy_registry_and_required(root, tree_ref)
     gaps: list[str] = []
-    for gate_id in promotion_required_gate_ids(root):
+    for gate_id in required:
         gate = registry.get(gate_id)
         if gate is None:
             continue

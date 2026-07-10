@@ -13,15 +13,19 @@ audit's B10/B11/B12 behavior and the two forgery defenses (findings A/B):
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import _proof_path
 from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.policy import gates as policy_gates
 from ethos.repository.policy.gates import Gate
+from ethos.repository.policy.gates import _committed_blob
+from ethos.repository.policy.gates import _committed_registry_and_floor
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
@@ -29,9 +33,6 @@ from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.gates import promotion_required_gate_ids
 from tests.support.contract_helpers import conformant_proof_run
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _conformant_runs(root: Path) -> list[dict[str, object]]:
@@ -195,3 +196,97 @@ def test_gate_policy_gaps_flags_stale_digest(tmp_path: Path) -> None:
     path.write_text(json.dumps(record), encoding="utf-8")
 
     assert "proof_policy_digest_stale" in gate_policy_gaps(tmp_path, head)
+
+
+def _product_like_repo_with_scripts(tmp_path: Path) -> Path:
+    """A git repo that looks like the product root (anchor files) and carries the real gate
+    declaration plus gate scripts, so committed-tree policy resolution activates."""
+    src = Path(__file__).resolve().parents[3]
+    repo = tmp_path / "prod"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q", "-b", "dev"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "t"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@e.x"], check=True)
+    (repo / "packages" / "ethos").mkdir(parents=True)
+    (repo / "packages" / "ethos" / "README.md").write_text("x\n", encoding="utf-8")
+    (repo / "system" / "schemas" / "kernel").mkdir(parents=True)
+    shutil.copy(src / "system" / "gates.toml", repo / "system" / "gates.toml")
+    (repo / "tools" / "ci" / "scripts").mkdir(parents=True)
+    for script in (src / "tools" / "ci" / "scripts").glob("*.sh"):
+        shutil.copy(script, repo / "tools" / "ci" / "scripts" / script.name)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "v1"], check=True)
+    return repo
+
+
+def _rev(repo: Path, ref: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", ref], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def test_committed_tree_digest_is_pure_function_of_head(tmp_path: Path) -> None:
+    # The committed-tree digest depends ONLY on the tree at tree_ref, never on the working
+    # tree. A script change between commits moves the digest (B12), and the digest for a
+    # given head is identical no matter what the working tree currently holds — the property
+    # that lets the reference-transaction hook validate a proof while the accepted worktree
+    # still holds the pre-move tree.
+    repo = _product_like_repo_with_scripts(tmp_path)
+    v1 = _rev(repo, "HEAD")
+    script = repo / "tools" / "ci" / "scripts" / "run-python-lint.sh"
+    script.write_text(script.read_text(encoding="utf-8") + "\n# tamper\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "v2"], check=True)
+    v2 = _rev(repo, "HEAD")
+
+    digest_v1 = gate_policy_digest(repo, tree_ref=v1)
+    digest_v2 = gate_policy_digest(repo, tree_ref=v2)
+    # A gate-script change moves the committed digest (B12 over committed bytes).
+    assert digest_v1 != digest_v2
+    # The working tree currently equals v2; committed(v2) matches it, and committed(v1) does
+    # not — so the digest is keyed on the tree, not on the caller's checkout.
+    assert gate_policy_digest(repo) == digest_v2
+    # Re-resolving each head is stable regardless of the working-tree state.
+    assert gate_policy_digest(repo, tree_ref=v1) == digest_v1
+
+
+def test_committed_tree_digest_falls_back_when_ref_unresolvable(tmp_path: Path) -> None:
+    # A non-product root, or an unresolvable tree_ref, falls back to working-tree reads so
+    # the stamp path (clean lane HEAD == working tree) and fake test SHAs behave identically
+    # on both sides.
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    working = gate_policy_digest(tmp_path)
+    assert gate_policy_digest(tmp_path, tree_ref="deadbeef" * 5) == working
+
+
+def test_committed_registry_none_when_declaration_blob_absent(tmp_path: Path) -> None:
+    # gates.py: _committed_registry_and_floor returns None when the declaration blob is not
+    # in the committed tree, so the caller keeps the live registry + this root's floor.
+    repo = _product_like_repo_with_scripts(tmp_path)
+    (repo / "system" / "gates.toml").unlink()
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "drop gates.toml"], check=True)
+    assert _committed_registry_and_floor(repo, _rev(repo, "HEAD")) is None
+
+
+def test_committed_registry_none_when_declaration_unparseable(tmp_path: Path) -> None:
+    # gates.py: a committed declaration that is present but not valid TOML/schema yields
+    # None (fall back), never a crash.
+    repo = _product_like_repo_with_scripts(tmp_path)
+    (repo / "system" / "gates.toml").write_text("this is not = valid = toml =", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "corrupt gates.toml"], check=True)
+    assert _committed_registry_and_floor(repo, _rev(repo, "HEAD")) is None
+
+
+def test_committed_blob_encodes_str_stdout(tmp_path: Path) -> None:
+    # gates.py: _committed_blob returns bytes even if a caller ran git in text mode.
+    def _text_run(*_a: object, **_k: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout="hello", stderr="")
+
+    original = policy_gates.subprocess.run
+    policy_gates.subprocess.run = _text_run  # type: ignore[assignment]
+    try:
+        assert _committed_blob(tmp_path, "HEAD", "x") == b"hello"
+    finally:
+        policy_gates.subprocess.run = original  # type: ignore[assignment]

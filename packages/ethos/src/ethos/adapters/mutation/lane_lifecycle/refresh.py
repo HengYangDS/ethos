@@ -304,13 +304,16 @@ def refresh_candidate_from_accepted(
                 "required_gaps": [],
             }
         )
+    # Rewind candidate/dev onto the accepted head. This target is already contained in the
+    # accepted branch, so the reference-transaction hook's candidate admission admits it
+    # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
+    # that the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
     completed = active_runtime.run_git(
         Path(candidate_path),
         "reset",
         "--hard",
         current_head,
         check=False,
-        env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
     if completed.returncode != 0:
         return _candidate_report(

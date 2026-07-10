@@ -18,6 +18,23 @@ if TYPE_CHECKING:
 _COMMIT_IDENTITY_FIELD_COUNT = 4
 
 
+def commit_contained_in(root: Path, commit: str, branch: str) -> bool:
+    """Return whether `commit` is already contained in `branch`.
+
+    A candidate move to a commit the accepted branch already contains is a
+    refresh-from-accepted rewind (or a no-op): it re-points candidate at already-accepted,
+    already-proven truth and promotes nothing, so the candidate proof precondition does not
+    apply. Missing branch or any git error → False (fall back to requiring proof — safe).
+    """
+    contained = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", commit, branch],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    return contained.returncode == 0
+
+
 def _git_config(root: Path, key: str) -> str:
     completed = subprocess.run(
         ["git", "config", "--get", key],

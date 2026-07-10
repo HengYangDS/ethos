@@ -165,7 +165,13 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
         "state": "proven",
         "evidence": sealed_evidence,
         "evidence_digest": sealed_evidence.get("digest", ""),
-        "gate_policy_digest": gate_policy_digest(root),
+        # Stamp the policy digest against head's COMMITTED tree so it is a pure function of
+        # the proven commit, matching what the reference-transaction hook recomputes when
+        # it validates a move to this head from a worktree still holding a different tree.
+        # A clean prove lane's HEAD equals its working tree, so this does not change the
+        # value on the stamp path; it removes the check-time worktree dependency. An
+        # unresolvable head (fake test SHA) falls back to the working tree on both sides.
+        "gate_policy_digest": gate_policy_digest(root, tree_ref=head),
     }
     path.write_text(_stable_json(record), encoding="utf-8")
     return path
@@ -250,11 +256,17 @@ def gate_policy_gaps(root: Path, head: str) -> list[str]:
     gaps: list[str] = []
     gaps.extend(adopter_gate_descriptor_gaps(root))
     stored_digest = str(record.get("gate_policy_digest", ""))
-    if stored_digest != gate_policy_digest(root):
+    # Resolve the LIVE digest against head's COMMITTED tree, not the working tree. The
+    # reference-transaction hook validates an accepted-branch move while the accepted
+    # worktree still holds the OLD tree (its sync reset runs after the ref move), so a
+    # working-tree read would compare the proof's NEW-tree digest against the OLD tree and
+    # spuriously flag proof_policy_digest_stale on every gate-policy-changing closeout.
+    # Keying on the promoted head makes stamp-time and check-time read the same tree.
+    if stored_digest != gate_policy_digest(root, tree_ref=head):
         gaps.append("proof_policy_digest_stale")
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None
-    gaps.extend(gate_policy_conformance_gaps(runs, root))
+    gaps.extend(gate_policy_conformance_gaps(runs, root, tree_ref=head))
     return gaps
 
 
@@ -363,3 +375,18 @@ def carry_executed_proof_record(
         "target_path": target_path.as_posix(),
         "required_gaps": [],
     }
+
+
+def discard_executed_proof(root: Path, head: str) -> bool:
+    """Delete the HEAD-keyed executed-proof record at root, returning whether one existed.
+
+    Used to reclaim a proof pre-placed for a promotion that did not complete (e.g. the
+    accepted CAS lost a concurrent race after the proof was carried). The record is inert
+    once orphaned — a later ref move to the same head still needs a fresh one-shot
+    closeout-intent marker — so this is hygiene, not a safety requirement. Idempotent.
+    """
+    path = _proof_path(root, head)
+    if not path.exists():
+        return False
+    path.unlink(missing_ok=True)
+    return True

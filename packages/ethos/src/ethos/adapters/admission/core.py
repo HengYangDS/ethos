@@ -8,6 +8,7 @@ from typing import cast
 
 from ethos.adapters.admission.closeout_intent.core import MarkerExpectation
 from ethos.adapters.admission.closeout_intent.core import consume_closeout_intent
+from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
@@ -316,14 +317,26 @@ def ref_move_admission_report(
             new_value=new_value,
             expect=MarkerExpectation(
                 evidence_digest=_proof_evidence_digest(repo, new_value),
-                gate_policy_digest=gate_policy_digest(repo),
+                # Committed-tree digest of the PROMOTED head, matching how official closeout
+                # stamps the marker and how proof_gaps recomputes the proof's digest. The
+                # hook fires while this worktree still holds the pre-move tree, so a
+                # working-tree digest here would spuriously mismatch a marker bound to the
+                # tree actually being promoted.
+                gate_policy_digest=gate_policy_digest(repo, tree_ref=new_value),
             ),
         )
         if intent["gap"]:
             gaps.append(str(intent["gap"]))
         reason = "accepted_ref_move_bypasses_candidate_train"
     elif branch == policy.candidate_branch:
-        gaps.extend(proof_gaps(repo, new_value))
+        # A candidate move to a commit the ACCEPTED branch already contains promotes no
+        # new work — it is either a no-op or a refresh-from-accepted rewind (candidate reset
+        # back onto accepted truth). That target is already-accepted and needs no fresh
+        # proof in the candidate worktree; requiring one would self-block `ethos lane
+        # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
+        # advances (new work not yet on accepted) still require proof.
+        if not commit_contained_in(repo, new_value, policy.accepted_branch):
+            gaps.extend(proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base

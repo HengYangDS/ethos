@@ -378,9 +378,10 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     """The accepted-branch ref-move gate fails CLOSED: with no reachable ethos binary a
     direct commit onto the accepted branch is BLOCKED (the hole that let a direct commit
     bypass candidate while the CLI lagged its own command). Non-accepted branches fail
-    OPEN so an unavailable binary does not brick ordinary work-lane commits; the
-    sanctioned closeout escape (ETHOS_ALLOW_REF_MOVE=1) still advances the accepted
-    branch."""
+    OPEN so an unavailable binary does not brick ordinary work-lane commits. There is NO
+    env escape: the former ETHOS_ALLOW_REF_MOVE=1 short-circuit was itself a hole (any
+    process could set it) and was removed, so setting it no longer advances the accepted
+    branch — sanctioned closeout must earn an admitted verdict through the reducer."""
     hook_src = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
     if not hook_src.exists():
         pytest.skip("reference-transaction hook script not present")
@@ -420,11 +421,12 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     work_commit = g("commit", "-m", "work commit", env=no_binary)
     assert work_commit.returncode == 0
 
-    # (3) sanctioned closeout escape -> accepted branch advances
+    # (3) the removed env escape no longer works: a raw ff-merge to the accepted branch is
+    # STILL blocked even with ETHOS_ALLOW_REF_MOVE=1 set, and dev does not move.
     g("checkout", "dev")
-    closeout = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
-    assert closeout.returncode == 0
-    assert g("rev-parse", "dev").stdout.strip() != dev_head
+    escape = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
+    assert escape.returncode != 0
+    assert g("rev-parse", "dev").stdout.strip() == dev_head
 
 
 # ── H2: the push plane enforces the SAME candidate-train topology as the ref-move plane ──

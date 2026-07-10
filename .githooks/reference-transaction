@@ -8,6 +8,12 @@
 # move (git merge --ff-only work/x dev, git branch -f, git reset, direct git commit on
 # the accepted checkout) unreachable.
 #
+# There is NO escape hatch: official `ethos land --closeout` earns admission through this
+# same reducer (it carries the executed proof to the target root and writes a one-shot
+# closeout-intent marker BEFORE its ref move, so the accepted advance verifies as a
+# legitimate admit). An earlier ETHOS_ALLOW_REF_MOVE=1 env bypass short-circuited this
+# hook and was itself a hole — any process could set it — so it was removed.
+#
 # Posture is asymmetric by ref:
 #   * The ACCEPTED branch fails CLOSED — it advances ONLY on an explicit ETHOS admit
 #     (state=admitted). A missing/old/erroring `ethos` binary, empty output, or a block
@@ -41,10 +47,6 @@ while read -r old_value new_value ref_name; do
         *) continue ;;
     esac
     branch="${ref_name#refs/heads/}"
-    case "$branch" in
-        work/*) ;;
-        *) [ "${ETHOS_ALLOW_REF_MOVE:-}" = "1" ] && continue ;;
-    esac
     verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
         "$ethos_python" -m ethos.cli hook ref-transaction \
         "$ref_name" "$old_value" "$new_value" --phase "$phase" \

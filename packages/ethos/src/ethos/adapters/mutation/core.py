@@ -15,6 +15,7 @@ from ethos.adapters.mutation.decision import MutationEvaluation
 from ethos.adapters.mutation.decision import MutationRequest
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof import carry_executed_proof_record
+from ethos.adapters.mutation.proof import discard_executed_proof
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
@@ -203,15 +204,34 @@ def apply_land_to_candidate(
     if not base_report["ok"]:
         return base_report
     candidate_path = Path(str(base_report["path"]))
+    # Carry the work-lane proof into the CANDIDATE worktree BEFORE the fast-forward merge.
+    # The merge advances candidate/dev through the armed reference-transaction hook (bypass
+    # removed), and the hook's candidate-branch admission runs proof_gaps against the
+    # candidate worktree's own proof state. Without the proof pre-placed the sanctioned land
+    # would self-block on proof_not_proven; the record is head-keyed and re-verified, so
+    # pre-placing admits nothing the checks would not.
+    proof_carry = carry_executed_proof_record(
+        source_root=root, target_root=candidate_path, head=current_head
+    )
+    if not proof_carry["ok"]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.candidate_branch,
+            "head": current_head,
+            "path": candidate_path.as_posix(),
+            "required_gaps": list(cast("list[str]", proof_carry.get("required_gaps", []))),
+            "proof_carry": proof_carry,
+        }
     completed = _git(
         candidate_path,
         "merge",
         "--ff-only",
         current_head,
         check=False,
-        env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
     if completed.returncode != 0:
+        discard_executed_proof(candidate_path, current_head)
         return {
             "ok": False,
             "state": "blocked",
@@ -222,9 +242,6 @@ def apply_land_to_candidate(
             "remediation": remediation.remediation_for_gaps(["candidate_update_failed"]),
             "stderr": completed.stderr.strip(),
         }
-    proof_carry = carry_executed_proof_record(
-        source_root=root, target_root=candidate_path, head=current_head
-    )
     return {
         "ok": True,
         "state": "candidate_validated",
@@ -352,7 +369,11 @@ def _promote_candidate_to_accepted(
         root=root,
         transition=transition,
         evidence_digest=_candidate_evidence_digest(candidate_path, candidate_head),
-        gate_policy_digest=gate_policy_digest(root),
+        # Bind the marker's policy digest to the PROMOTED head's committed tree, matching
+        # the proof's stamp and the hook's check (both key on candidate_head). Reading the
+        # working tree here would bind the OLD accepted tree and mismatch on any closeout
+        # that changes a gate policy — the same skew Component 1 fixes for the proof.
+        gate_policy_digest=gate_policy_digest(root, tree_ref=candidate_head),
     )
     try:
         return _advance_accepted_ref(
@@ -387,9 +408,36 @@ def _advance_accepted_ref(
     candidate_path: Path,
     current_head: str,
 ) -> dict[str, object]:
-    accepted_branch = policy.accepted_branch
-    candidate_branch = policy.candidate_branch
     candidate_head = transition.candidate_head
+
+    def blocked(gaps: list[str], **extra: object) -> dict[str, object]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": policy.accepted_branch,
+            "source_branch": policy.candidate_branch,
+            "head": current_head,
+            "previous_head": current_head,
+            "required_gaps": gaps,
+            **extra,
+        }
+
+    # Carry the executed proof into the ACCEPTED root BEFORE the CAS. The CAS now routes
+    # through the armed reference-transaction hook (the ETHOS_ALLOW_REF_MOVE bypass is
+    # gone), and the hook re-runs proof_gaps against the accepted root — which reads proof
+    # state from THIS worktree's `.ethos/state/proof/`, not the candidate's. If the proof
+    # were still carried after the CAS (as it was under the bypass), the hook would find no
+    # proof at candidate_head and abort the sanctioned closeout with proof_not_proven. The
+    # record is head-keyed and re-verified on read, so pre-placing it cannot admit anything
+    # the checks would not: a raw ref move to the same head still fails on the missing
+    # one-shot closeout-intent marker.
+    proof_carry = carry_executed_proof_record(
+        source_root=candidate_path, target_root=root, head=candidate_head
+    )
+    if not proof_carry["ok"]:
+        return blocked(
+            list(cast("list[str]", proof_carry.get("required_gaps", []))), proof_carry=proof_carry
+        )
     completed = _git(
         root,
         "update-ref",
@@ -397,20 +445,17 @@ def _advance_accepted_ref(
         transition.new_value,
         transition.old_value,
         check=False,
-        env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
     if completed.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": accepted_branch,
-            "source_branch": candidate_branch,
-            "head": current_head,
-            "previous_head": current_head,
-            "required_gaps": ["accepted_advanced_concurrently"],
-            "remediation": remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
-            "stderr": completed.stderr.strip(),
-        }
+        # The CAS lost (a concurrent advance moved the accepted ref). Reclaim the proof we
+        # pre-placed for a head that never became accepted so it does not linger as orphan
+        # local state; it is inert either way (a later move to it still needs a marker).
+        discard_executed_proof(root, candidate_head)
+        return blocked(
+            ["accepted_advanced_concurrently"],
+            remediation=remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
+            stderr=completed.stderr.strip(),
+        )
     # CAS won: sync the accepted worktree/index to the ref it now points at. Closeout
     # admission already required the accepted root to be clean, and the ref now points
     # at candidate_head; `reset --keep candidate_head` can become a no-op after the ref
@@ -420,40 +465,25 @@ def _advance_accepted_ref(
     # blocked) and it makes the promoted truth visible in the accepted checkout.
     synced, sync_attempts = _sync_accepted_worktree(root, candidate_head)
     if synced.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": accepted_branch,
-            "source_branch": candidate_branch,
-            "head": current_head,
-            "candidate_head": candidate_head,
-            "previous_head": current_head,
-            "required_gaps": ["accepted_worktree_sync_failed"],
-            "stderr": synced.stderr.strip(),
-            "sync_attempts": sync_attempts,
-        }
+        return blocked(
+            ["accepted_worktree_sync_failed"],
+            candidate_head=candidate_head,
+            stderr=synced.stderr.strip(),
+            sync_attempts=sync_attempts,
+        )
     post_status = _git(root, "status", "--short", check=False)
     if post_status.returncode != 0 or post_status.stdout.strip():
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": accepted_branch,
-            "source_branch": candidate_branch,
-            "head": current_head,
-            "candidate_head": candidate_head,
-            "previous_head": current_head,
-            "required_gaps": ["accepted_worktree_dirty_after_sync"],
-            "stderr": post_status.stderr.strip(),
-            "status": post_status.stdout.strip(),
-        }
-    proof_carry = carry_executed_proof_record(
-        source_root=candidate_path, target_root=root, head=candidate_head
-    )
+        return blocked(
+            ["accepted_worktree_dirty_after_sync"],
+            candidate_head=candidate_head,
+            stderr=post_status.stderr.strip(),
+            status=post_status.stdout.strip(),
+        )
     return {
         "ok": True,
         "state": "accepted_validated",
-        "branch": accepted_branch,
-        "source_branch": candidate_branch,
+        "branch": policy.accepted_branch,
+        "source_branch": policy.candidate_branch,
         "head": candidate_head,
         "previous_head": current_head,
         "proof_carry": proof_carry,
@@ -533,14 +563,20 @@ def _sync_accepted_worktree(
 
 
 def _reset_accepted_worktree(root: Path, candidate_head: str) -> subprocess.CompletedProcess[str]:
-    """Hard-reset the accepted checkout with accepted-ref movement allowed."""
+    """Hard-reset the accepted checkout to the ref the CAS already advanced.
+
+    Runs AFTER the accepted CAS has won, so `refs/heads/<accepted>` is already at
+    candidate_head: this reset moves the WORKTREE/index, not the ref (old == new ==
+    candidate_head). The reference-transaction hook admits an old==new move unconditionally
+    (ref_move_admission_report short-circuits equal values), so this needs no ref-move
+    escape — the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
+    """
     return _git(
         root,
         "reset",
         "--hard",
         candidate_head,
         check=False,
-        env={"ETHOS_ALLOW_REF_MOVE": "1"},
     )
 
 

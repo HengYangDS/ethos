@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
-FOREIGN_WORK_LANE_WRITE_POLICY = "owner_only"
-FOREIGN_WORK_LANE_RETIRE_POLICY = "owner_handoff_or_maintainer_break_glass"
 FOREIGN_WORK_LANE_HANDOFF_REQUIRED = True
 LANDED_DIRTY_RESIDUE_STATE = "unpreserved_worktree_delta"
 CLEAN_RESIDUE_STATE = "clean_or_none"
@@ -121,8 +119,6 @@ def foreign_work_lane(
             blocked_actions=FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS,
             why=("foreign_lane_requires_handoff_or_accepted_decision",),
         ),
-        "write_policy": FOREIGN_WORK_LANE_WRITE_POLICY,
-        "retire_policy": FOREIGN_WORK_LANE_RETIRE_POLICY,
         "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
     }
 
@@ -139,7 +135,7 @@ def lane_next_action(disposition: str, *, branch: str = "", head: str = "") -> s
     if disposition == "retire_ready" and branch and head:
         return (
             "retire clean absorbed Work Lane with "
-            f"ethos lane retire-landed --branch {branch} "
+            f"ethos lane retire landed --branch {branch} "
             f"--expect-head {head} --apply --json"
         )
     return CLEAN_RESIDUE_NEXT_ACTION

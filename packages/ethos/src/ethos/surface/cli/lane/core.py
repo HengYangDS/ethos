@@ -1,5 +1,4 @@
-"""Lane command group — Work Lane lifecycle: status, start, candidate, land,
-refresh-base, bind-claim, retire-landed, retire-superseded, retire-unbound."""
+"""Lane command group — Work Lane lifecycle and bounded retirement."""
 
 from __future__ import annotations
 
@@ -27,13 +26,14 @@ from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_app
+from ethos.surface.cli._base import lane_retire_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
 @dataclass(frozen=True)
 class _RetireSupersededOptions:
-    """CLI options for `ethos lane retire-superseded`."""
+    """CLI options for `ethos lane retire superseded`."""
 
     branch: Annotated[str, Parameter(name="--branch")]
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
@@ -312,7 +312,7 @@ def lane_bind_claim(
     emit(result, json_output=json_output)
 
 
-@lane_app.command(name="retire-unbound")
+@lane_retire_app.command(name="unbound")
 def lane_retire_unbound(
     *,
     branch: Annotated[str, Parameter(name="--branch")],
@@ -334,7 +334,7 @@ def lane_retire_unbound(
         authorized=authorize,
     )
     result = EthosResult(
-        command="lane retire-unbound",
+        command="lane retire unbound",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
@@ -349,7 +349,7 @@ def lane_retire_unbound(
     emit(result, json_output=json_output, enforce=apply)
 
 
-@lane_app.command(name="retire-superseded")
+@lane_retire_app.command(name="superseded")
 def lane_retire_superseded(
     options: Annotated[
         _RetireSupersededOptions,
@@ -373,7 +373,7 @@ def lane_retire_superseded(
         ),
     )
     result = EthosResult(
-        command="lane retire-superseded",
+        command="lane retire superseded",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
@@ -389,7 +389,7 @@ def lane_retire_superseded(
     emit(result, json_output=json_output, enforce=options.apply)
 
 
-@lane_app.command(name="retire-landed")
+@lane_retire_app.command(name="landed")
 def lane_retire_landed(
     *,
     branch: str | None = None,
@@ -408,7 +408,7 @@ def lane_retire_landed(
     )
     summary = _retire_landed_summary(report, branch=branch)
     result = EthosResult(
-        command="lane retire-landed",
+        command="lane retire landed",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary=summary,

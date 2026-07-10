@@ -87,7 +87,8 @@ def test_summary_preserves_retired_selected_after_apply(monkeypatch, tmp_path: P
 
     payload = run_ethos(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "work/landed",
         "--expect-head",
@@ -99,7 +100,7 @@ def test_summary_preserves_retired_selected_after_apply(monkeypatch, tmp_path: P
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-landed"
+    assert payload["command"] == "lane retire landed"
     assert payload["ok"] is True
     assert payload["state"] == "retired"
     assert payload["summary"] == {

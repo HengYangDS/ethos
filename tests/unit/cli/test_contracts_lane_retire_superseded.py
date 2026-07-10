@@ -100,7 +100,8 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
 
     payload = run_ethos(
         "lane",
-        "retire-superseded",
+        "retire",
+        "superseded",
         "--branch",
         "work/superseded",
         "--expect-head",
@@ -117,7 +118,7 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-superseded"
+    assert payload["command"] == "lane retire superseded"
     assert payload["ok"] is True
     assert payload["state"] == "retired_superseded"
     assert payload["summary"] == {
@@ -170,7 +171,8 @@ def test_lane_retire_superseded_blocks_unabsorbed_linked_lane(
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-superseded",
+        "retire",
+        "superseded",
         "--branch",
         "work/superseded",
         "--expect-head",
@@ -187,7 +189,7 @@ def test_lane_retire_superseded_blocks_unabsorbed_linked_lane(
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-superseded"
+    assert payload["command"] == "lane retire superseded"
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
     assert worktree.exists()
@@ -233,7 +235,8 @@ def test_lane_retire_superseded_blocks_without_current_absorption_head(
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-superseded",
+        "retire",
+        "superseded",
         "--branch",
         "work/superseded",
         "--expect-head",
@@ -250,7 +253,7 @@ def test_lane_retire_superseded_blocks_without_current_absorption_head(
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-superseded"
+    assert payload["command"] == "lane retire superseded"
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["absorbed_by_not_current_accepted_head"]
     assert worktree.exists()

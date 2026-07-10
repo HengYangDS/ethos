@@ -739,177 +739,221 @@ complete governance.
 
 ### Requirement: Agent Invocation Admission Boundary
 
-ETHOS SHALL describe mutation-capable agent invocation as an explicit admission
-envelope over owner, target root, editor root, target paths, evidence class, and
-promotion route.
+ETHOS SHALL evaluate mutation-capable invocation as an action-specific request
+over applicable Commitments, current repository facts, and bounded Evidence.
+Authority SHALL rank truth sources rather than act as an identity or permission
+engine. Intent and confirmation flags, holder labels, identity assertions, and
+prior decisions SHALL NOT become reusable authorization by themselves.
 
-#### Scenario: Invocation boundary preserves repository proof
+#### Scenario: mutation decision is exact-request bound
 
-- **WHEN** host readiness or assistant context is available
-- **THEN** ETHOS may compose it as optional host evidence
-- **AND** repository mutation and closeout still require Work Lane admission,
-  claim binding, OpenSpec carrier readiness, and repository proof evidence.
+- **WHEN** ETHOS evaluates a mutation request
+- **THEN** it returns `allow`, `block`, or `defer` with `why`, `next`, and
+  `required_gaps`
+- **AND** the decision binds action, resource, expected mutable state, policy
+  refs, evidence refs, and decision basis
+- **AND** `allow` applies only to that request and mints no role, capability,
+  session, token, or reusable authorization.
 
-### Requirement: Topic-scoped Evidence Closeout
+#### Scenario: confirmation and user instruction do not bypass policy
 
-ETHOS SHALL prefer topic-scoped closeout evidence bundles for long-running proof
-so transcripts remain reviewable and do not become unstructured truth.
+- **WHEN** a caller supplies `--apply`, legacy `--authorize`, another destructive
+  confirmation, or an unverified session instruction
+- **THEN** ETHOS treats it as execution intent or active-session reasoning input
+- **AND** it is not caller authentication or durable repository policy
+- **AND** any resulting waiver, exception, or policy change still becomes a
+  bounded Commitment/Change and passes applicable mutation and transition
+  controls.
 
-#### Scenario: Closeout evidence is reviewable
+#### Scenario: external identity remains bounded Evidence
 
-- **WHEN** a closeout proof package is summarized
-- **THEN** evidence records identify topic, lane, proof class, commands, return
-  codes, retained artifacts, HEAD binding, and proof boundaries.
+- **WHEN** a Commitment requires organization or workload identity
+- **THEN** an adapter verifies the minimum issuer-qualified identity reference,
+  audience, method, validity, optional delegation, and attestation digest
+- **AND** admission separately checks whether that attestation is sufficient for
+  the exact action
+- **AND** credentials, bearer tokens, unnecessary personal attributes, and a
+  Principal, Agent, Session, Team, Party, or account registry remain outside
+  repository truth.
 
-### Requirement: Unbound Work Lane Ref Visibility
+#### Scenario: governance controls cannot approve themselves
 
-ETHOS SHALL expose configured Work Lane branch refs in workspace status even
-when no linked Git worktree exists for the branch.
-
-#### Scenario: Unbound Work Lane ref is visible but not active
-
-- **GIVEN** a configured Work Lane branch ref exists
-- **AND** no linked Git worktree exists for that branch
-- **WHEN** `ethos status --json` runs
-- **THEN** `branch_bindings` includes the branch with `role=work_lane` and
-  `worktree_binding=unbound`
-- **AND** `foreign_work_lanes` does not include that branch
-- **AND** coordination reports an advisory unbound Work Lane ref signal without
-  treating the ref as a blocking closeout gap
-- **AND** the advisory signal classifies into the invalid-state taxonomy instead
-  of `unclassified_invalid_state`.
+- **GIVEN** a Change modifies authorization policy, identity trust, proof floors,
+  admission code, owner scripts, schemas, or enforcement adapters
+- **WHEN** ETHOS evaluates promotion
+- **THEN** accepted incumbent controls run from incumbent or protected external
+  provenance and candidate controls separately prove candidate conformance
+- **AND** the decision binds both heads, control digests, and runner provenance
+- **AND** unavailable incumbent provenance defers rather than trusts candidate
+  controls
+- **AND** first policy adoption requires a bootstrap approver/verifier configured
+  outside the candidate tree and a bootstrap Chronicle decision.
 
 ### Requirement: Work Lane Coordination Read Model
 
-ETHOS SHALL distinguish blocking Work Lane coordination gaps from advisory
-coordination signals in status command guidance, and SHALL expose Work Lane
-coordination small signals in focused reader summaries without granting foreign
-lane authority. In productized multi-human and multi-agent operation, Work Lane
-lease ownership SHALL identify the concrete acting holder rather than only a
-provider class.
+ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Git
+common directory. The lease SHALL identify a concrete holder and generation but
+SHALL NOT be an identity assertion, capability grant, filesystem fence,
+cross-host lock, or repository truth. Reader output SHALL be a
+non-authoritative action preview rather than a reusable permission.
 
-#### Scenario: Foreign Work Lanes are observable but not owned by the current actor
+#### Scenario: foreign lane preview remains observe-only
 
-- **GIVEN** a repository has a linked foreign `work/*` worktree
-- **WHEN** `ethos status --json` reports that lane in `data.foreign_work_lanes`
-- **THEN** the lane item exposes `current_actor_capability=observe`
-- **AND** `allowed_actions` contains only `observe`
-- **AND** `forbidden_actions` includes `write`, `land`, and `retire`
-- **AND** write authority remains owner-only
-- **AND** retirement requires the owner, accepted handoff, or maintainer
-  break-glass evidence
-- **AND** a provider label such as `codex` is not sufficient by itself to prove
-  that the current actor owns another Codex thread's Work Lane
+- **WHEN** status or orientation reports a linked foreign Work Lane
+- **THEN** its action preview lists `observe` as the only candidate action and
+  blocks `write`, `land`, and `retire`
+- **AND** it states `mints_authority=false` and `recheck_required=true`
+- **AND** actual mutation re-evaluates the exact current request
+- **AND** legacy actor-capability fields cannot be replayed as authority and are
+  retired after client migration.
 
-#### Scenario: lane lease holder identifies a concrete acting instance
+#### Scenario: normalized lease has one concrete current holder
 
-- **GIVEN** a Work Lane lease is created or renewed in a multi-agent repository
-- **WHEN** ETHOS records or reports the lease holder
-- **THEN** the holder is represented by a provider-neutral concrete reference
-  such as `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
-  `agent:jetbrains:chat:<id>`, `human:shell:<id>`, or
-  `service:gitlab-ci:pipeline:<id>`
-- **AND** a bare provider or actor class such as `codex`, `claude`, `cursor`, or
-  `ci` is treated as a legacy hint rather than sufficient ownership authority
-- **AND** compatibility fields such as `lease_owner` may be exposed during
-  migration only when they do not override the concrete holder reference
+- **WHEN** a lane lease is created, renewed, resumed, or handed off
+- **THEN** it binds a random local lane-incarnation ID, lease ID, structured
+  holder reference, epoch, issuance, renewal, expiry, and optional claim/scope
+- **AND** one lane incarnation has at most one current writer holder
+- **AND** renewal preserves holder, lease ID, and epoch while handoff changes
+  holder and increments epoch
+- **AND** the prior holder resumes an expired lease only with the old generation,
+  unchanged expected head, and no contrary accepted judgment
+- **AND** expiry, provider labels, missing state, or ambiguity never authorize
+  another holder or cleanup.
 
-#### Scenario: authority policy owns role capability
+#### Scenario: lease generation detects but does not claim hard fencing
 
-- **GIVEN** a lease holder requests write, land, retire, handoff, or break-glass
-  authority
-- **WHEN** ETHOS evaluates the request
-- **THEN** the Lane Lease identifies the temporary holder
-- **AND** Authority policy determines the holder's roles and capabilities
-- **AND** claim, scope, evidence, and current Git state determine whether the
-  requested action is admissible
-- **AND** ETHOS does not require a first-class Principal, Actor, Participant,
-  Party, Session, or Agent registry to make the decision
+- **WHEN** an invocation's expected holder, lease ID, epoch, or head is stale
+- **THEN** normal ETHOS mutation paths reject or flag it
+- **AND** handoff requires offer, acceptance, and holder quiescence
+- **AND** ETHOS does not claim to stop an already-running or bypassing same-user
+  filesystem process
+- **AND** uncertainty or residue blocks integration until inspected.
 
-### Requirement: Unbound Work Lane Ref Retirement
+#### Scenario: lease and Git lifecycle is crash-consistent
 
-ETHOS SHALL govern local unbound Work Lane ref cleanup through explicit,
-head-bound command semantics rather than raw Git branch deletion.
+- **WHEN** a lane operation spanning Git, filesystem, and SQLite partially fails
+- **THEN** ETHOS reports the exact repair-required state and verifies
+  postconditions on idempotent retry
+- **AND** normal authoring remains blocked until required Git and sole-lease
+  postconditions hold
+- **AND** ETHOS does not claim cross-store atomicity or silently choose among
+  duplicate legacy leases.
 
-#### Scenario: unbound Work Lane ref retirement is head-bound
+#### Scenario: legacy adoption and cleanup resist replay
 
-- **GIVEN** `ethos status --json` exposes an unbound Work Lane ref in
-  `data.coordination.unbound_work_lane_refs`
-- **WHEN** `ethos lane retire-unbound --branch <branch> --expect-head <head>
-  --reason <why> --authorize --apply --json` runs
-- **THEN** ETHOS deletes `refs/heads/<branch>` only if the branch is still an
-  unbound configured Work Lane ref and its current head equals `<head>`
-- **AND** the command emits the retired ref, reason, expected head, authorization
-  state, relation to accepted truth, and required gaps
+- **GIVEN** a legacy or recreated lane lacks trusted normalized state
+- **WHEN** it is adopted or exceptionally cleaned
+- **THEN** a provable current holder may normalize only that same holder/head
+- **AND** other cases require an accepted maintainer decision pre-binding the
+  exact target observation and a new local lane-incarnation ID
+- **AND** cleanup binds that incarnation digest so a same-named branch or another
+  clone cannot replay the decision
+- **AND** missing legacy incarnation evidence blocks destructive cleanup rather
+  than creating a global repository or Agent registry.
 
-#### Scenario: unbound Work Lane ref retirement fails closed
+#### Scenario: cross-host handoff creates destination-local coordination
 
-- **WHEN** the target branch is missing, not a Work Lane, linked to a worktree,
-  has a mismatched expected head, lacks a reason, or apply lacks authorization
-- **THEN** ETHOS refuses deletion and reports deterministic required gaps
-- **AND** the branch ref remains present
+- **WHEN** work moves to another clone or Git common directory
+- **THEN** transfer binds content-addressed Git state and a digest-bound context
+  or recovery carrier, not the source SQLite lease
+- **AND** dirty tracked/untracked work is committed or explicitly preserved, not
+  stashed or left in chat
+- **AND** the destination creates a new local lane and acknowledges it before the
+  source revokes its writer lease or retires its observe-only copy
+- **AND** neither side claims a distributed lease or shared session identity.
 
-### Requirement: Landed Work Lane Retirement
+### Requirement: Repository Transition Decision Basis
 
-ETHOS SHALL govern local landed Work Lane cleanup through explicit,
-head-bound command semantics rather than raw Git worktree or branch deletion.
+ETHOS SHALL report enforcement boundary, identity basis, mutable-state bindings,
+evidence boundary, verifier provenance, and time basis as orthogonal decision
+facts rather than a scalar trust score. Strong claims SHALL be limited to the
+truth horizon and enforcement coverage actually proved.
 
-#### Scenario: landed Work Lane retirement is head-bound
+#### Scenario: local guards do not masquerade as hosted enforcement
 
-- **GIVEN** `ethos status --json` exposes a linked Work Lane whose branch is
-  already merged into the accepted root
-- **WHEN** `ethos lane retire-landed --branch <branch> --expect-head <head>
-  --apply --json` runs
-- **THEN** ETHOS removes the linked worktree and deletes `refs/heads/<branch>`
-  only if the Work Lane is clean, merged, explicitly selected, and its current
-  head equals `<head>`
-- **AND** the command emits the selected branch, expected head, ref, retired
-  lane, and required gaps
+- **WHEN** prewrite, local hooks, and current lease checks admit local work
+- **THEN** the decision reports local-process enforcement and its exact state,
+  identity, evidence, verifier, and time bases
+- **AND** it does not claim hosted verification, adversarial isolation, or that a
+  same-user bypass was impossible.
 
-#### Scenario: landed Work Lane retirement fails closed
+#### Scenario: prevention claim requires complete mediation
 
-- **WHEN** the selected Work Lane is missing, dirty, unmerged, lacks an
-  expected head, or has a mismatched expected head
-- **THEN** ETHOS refuses cleanup and reports deterministic required gaps
-- **AND** the Work Lane branch ref remains present
+- **WHEN** ETHOS claims that a truth-horizon ref transition could not bypass
+  admission
+- **THEN** an enforcement receipt proves that the boundary mediated every
+  relevant transition at that horizon
+- **AND** a hook, CI file, or provider template alone proves configuration intent
+  rather than live enforcement
+- **AND** unknown or bypassable coverage makes no prevention claim.
 
-#### Scenario: landed Work Lane retirement actor authority is visible
+#### Scenario: local accepted and remote publication remain distinct
 
-- **GIVEN** a linked Work Lane has an active lease owner
-- **WHEN** `ethos lane retire-landed --branch <branch> --expect-head <head>
-  --apply --json` runs without an actor binding matching the lease owner
-- **THEN** ETHOS refuses cleanup with `foreign_work_lane_retire_authority_required`
-- **AND** the command payload exposes the actor source, current actor binding
-  state, required lease owner, selected ref, and expected head
-- **AND** the command emits a bounded next action to bind the actor or obtain
-  owner handoff
-- **AND** the Work Lane worktree and branch ref remain present
+- **WHEN** independent clones integrate or publish concurrent work
+- **THEN** local candidate/accepted transitions bind state within their own Git
+  common directory
+- **AND** the remote old/new ref update is the shared cross-host publication
+  horizon
+- **AND** stale conflicts fail by expected-state comparison
+- **AND** local readiness is not reported as remote publication or hosted proof.
 
-### Requirement: Superseded Linked Work Lane Retirement
+#### Scenario: decision dimensions do not substitute for one another
 
-ETHOS SHALL govern cleanup of clean linked Work Lanes whose semantic truth has
-already been absorbed into accepted root without requiring their stale branch
-content to be landed.
+- **WHEN** an action requires identity, state, freshness, verifier, or evidence
+  obligations
+- **THEN** every required dimension is independently satisfied
+- **AND** strong identity does not repair stale proof, HEAD-bound proof does not
+  identify a caller, and local time does not upgrade hosted evidence
+- **AND** malformed or unverifiable time fails closed where freshness is required.
 
-#### Scenario: superseded linked Work Lane retirement is head, actor, reason, and absorption bound
+### Requirement: Work Lane Lifecycle Resolution
 
-- **GIVEN** a linked clean `work/*` Work Lane is not merged into accepted root
-- **WHEN** `ethos lane retire-superseded --branch <branch> --expect-head <head>
-  --absorbed-by <accepted-head> --reason <why> --authorize --apply --json` runs
-- **THEN** ETHOS removes the linked worktree and deletes `refs/heads/<branch>`
-  only if `<head>` still matches the branch, `<accepted-head>` equals the current
-  accepted root, accepted-root tree content matches the lane's changed paths,
-  the lane lease owner matches `ETHOS_ACTOR`, and a reason is supplied
-- **AND** the command emits the retired lane, reason, absorption head, mutation
-  binding, and required gaps
+ETHOS SHALL keep routine mechanically determined lane lifecycle local and SHALL
+record only exceptional interpretive judgments as evidence-bound Chronicle
+`decision` events. Chronicle SHALL NOT become lease telemetry or a separate lane
+resolution database.
 
-#### Scenario: superseded linked Work Lane retirement fails closed
+#### Scenario: routine lifecycle remains local
 
-- **WHEN** the lane is missing, unlinked, dirty, already merged, actor mismatched,
-  head mismatched, absorption head stale or missing, reason missing, or apply
-  lacks authorization
-- **THEN** ETHOS refuses cleanup and reports deterministic required gaps
-- **AND** the Work Lane worktree and branch ref remain present
+- **WHEN** a lease is acquired, renewed, resumed, locally handed off, expires, or
+  the same holder retires a clean mechanically proven landed lane
+- **THEN** ETHOS uses ignored local coordination and postcondition receipts
+- **AND** no tracked Chronicle decision is required.
+
+#### Scenario: exceptional cleanup consumes prior accepted judgment
+
+- **WHEN** orphan recovery, foreign retirement, non-mechanical supersession,
+  disputed handoff, preserve, block, or irreversible deletion is requested
+- **THEN** a separate owned governance Work Lane has already promoted a
+  Chronicle decision binding policy, evidence, exact head, lane-incarnation
+  digest, disposition, recovery plan, and target-observation digest
+- **AND** cleanup recomputes the mutable target facts before its first
+  destructive step
+- **AND** any mismatch blocks cleanup and requires a new decision
+- **AND** the decision authorizes an effect while postconditions alone prove what
+  was actually removed.
+
+#### Scenario: dirty or unknown work is preserved by default
+
+- **WHEN** lane ownership, lease state, tracked/untracked contents, or recovery
+  status is dirty, missing, ambiguous, or unknown
+- **THEN** ETHOS preserves or blocks the lane instead of automatically deleting
+  it
+- **AND** irreversible deletion requires an accepted decision proving the exact
+  target and why preservation is impossible or no longer required.
+
+#### Scenario: break-glass reconciles after emergency action
+
+- **GIVEN** a predeclared break-glass Commitment binds verified maintainer
+  identity, exact target/head, reason, blast radius, expiry, preservation
+  default, and postcondition plan
+- **WHEN** an emergency command independently verifies those facts and acts
+  before a new Chronicle decision can be promoted
+- **THEN** it emits a digest-bound receipt and blocks later integration and
+  publication
+- **AND** a separate governance Work Lane promotes post-hoc judgment and
+  reconciles residue before the block clears
+- **AND** a self-supplied flag or holder string is insufficient.
 
 ### Requirement: Evolution Ledger Single Source Of Truth
 

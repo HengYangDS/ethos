@@ -27,6 +27,8 @@ class LaneObservation(BaseModel):
     foreign: bool
     orphan: bool
     ambiguous: bool
+    tracked_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    untracked_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     def digest(self) -> str:
         body = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
@@ -42,6 +44,9 @@ class LaneResolutionDecision(BaseModel):
     disposition: LaneDisposition
     observation: LaneObservation
     evidence_refs: tuple[str, ...] = Field(min_length=1)
+    chronicle_ref: str = Field(min_length=1)
+    chronicle_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    recovery_plan: str = Field(min_length=1)
     reason: str = Field(min_length=1)
     break_glass: bool = False
 
@@ -53,6 +58,9 @@ class LaneResolutionDecision(BaseModel):
             "observation": self.observation.model_dump(mode="json"),
             "observation_digest": self.observation.digest(),
             "evidence_refs": list(self.evidence_refs),
+            "chronicle_ref": self.chronicle_ref,
+            "chronicle_digest": self.chronicle_digest,
+            "recovery_plan": self.recovery_plan,
             "reason": self.reason,
             "break_glass": self.break_glass,
             "recompute_before_effect": True,

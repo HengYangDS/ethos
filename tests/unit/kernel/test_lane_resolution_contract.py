@@ -15,12 +15,17 @@ def test_lane_resolution_decision_binds_exact_observation_and_does_not_authorize
         foreign=True,
         orphan=True,
         ambiguous=False,
+        tracked_digest="b" * 64,
+        untracked_digest="c" * 64,
     )
     decision = LaneResolutionDecision(
         decision_id="lane-decision:one",
         disposition="preserve",
         observation=observation,
         evidence_refs=("evidence:operator-review",),
+        chronicle_ref="evidence/chronicle/lane-resolution/decision.md",
+        chronicle_digest="d" * 64,
+        recovery_plan="Preserve the exact observed work before effect.",
         reason="Preserve before any retirement judgment.",
     )
 

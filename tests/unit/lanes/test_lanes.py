@@ -184,8 +184,6 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
                 "mints_authority": False,
                 "recheck_required": True,
             },
-            "write_policy": "owner_only",
-            "retire_policy": "owner_handoff_or_maintainer_break_glass",
             "handoff_required": True,
         }
     ]
@@ -264,7 +262,7 @@ def test_workspace_status_explains_landed_dirty_lane_preservation_path(
     assert lane["next_action"] == (
         "owner must preserve or intentionally discard dirty worktree delta before retirement"
     )
-    assert "ethos lane retire-landed" not in lane["next_action"]
+    assert "ethos lane retire landed" not in lane["next_action"]
     assert status["coordination_gaps"] == [
         "foreign_work_lane_present",
         "work_lane_closeout_residue_present",
@@ -295,7 +293,7 @@ def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(
     assert lane["closeout_disposition"] == "retire_ready"
     assert lane["next_action"] == (
         "retire clean absorbed Work Lane with "
-        "ethos lane retire-landed --branch work/feature "
+        "ethos lane retire landed --branch work/feature "
         f"--expect-head {lane['head']} --apply --json"
     )
     assert status["coordination_gaps"] == [

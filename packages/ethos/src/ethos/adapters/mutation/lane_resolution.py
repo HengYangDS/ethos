@@ -27,6 +27,8 @@ def plan_lane_resolution(
     disposition: str,
     reason: str,
     evidence_refs: tuple[str, ...],
+    chronicle_ref: str,
+    recovery_plan: str,
     decision_path: Path,
     break_glass: bool,
     apply: bool,
@@ -39,6 +41,12 @@ def plan_lane_resolution(
         gaps.append("lane_resolution_reason_required")
     if not evidence_refs:
         gaps.append("lane_resolution_evidence_required")
+    chronicle_path, chronicle_digest, chronicle_gaps = _accepted_chronicle(
+        root, chronicle_ref=chronicle_ref, disposition=disposition
+    )
+    gaps.extend(chronicle_gaps)
+    if not recovery_plan.strip():
+        gaps.append("lane_resolution_recovery_plan_required")
     if disposition == "retire" and not break_glass:
         gaps.append("retire_exception_requires_break_glass")
     if not _local_artifact_path(root, decision_path):
@@ -50,6 +58,9 @@ def plan_lane_resolution(
             disposition=cast("Any", disposition),
             observation=observation,
             evidence_refs=evidence_refs,
+            chronicle_ref=chronicle_path,
+            chronicle_digest=chronicle_digest,
+            recovery_plan=recovery_plan,
             reason=reason,
             break_glass=break_glass,
         ).to_payload()
@@ -155,6 +166,10 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
     path = Path(worktree["worktree"])
     head = _git(root, "rev-parse", f"refs/heads/{branch}")
     dirty = bool(_git(path, "status", "--porcelain", check=False))
+    tracked_digest = hashlib.sha256(
+        _git(path, "diff", "--binary", "HEAD", "--", check=False).encode()
+    ).hexdigest()
+    untracked_digest = _untracked_digest(path)
     leases = [lease for lease in _leases(root) if lease.get("subject") == branch]
     ambiguous = len(leases) > 1
     lease = leases[0] if len(leases) == 1 else {}
@@ -174,6 +189,8 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
             foreign=not bool(holder_ref),
             orphan=not bool(leases),
             ambiguous=ambiguous,
+            tracked_digest=tracked_digest,
+            untracked_digest=untracked_digest,
         ),
         gaps,
     )
@@ -211,6 +228,9 @@ def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]
             disposition=payload.get("disposition"),
             observation=observation,
             evidence_refs=tuple(payload.get("evidence_refs", [])),
+            chronicle_ref=payload.get("chronicle_ref"),
+            chronicle_digest=payload.get("chronicle_digest"),
+            recovery_plan=payload.get("recovery_plan"),
             reason=payload.get("reason"),
             break_glass=bool(payload.get("break_glass")),
         )
@@ -234,6 +254,43 @@ def _local_artifact_path(root: Path, path: Path) -> bool:
     except ValueError:
         return True
     return relative.parts[:2] in {("build", "artifacts"), ("build", "evidence")}
+
+
+def _untracked_digest(path: Path) -> str:
+    inventory = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=path,
+        check=False,
+        capture_output=True,
+    )
+    if inventory.returncode != 0:
+        return hashlib.sha256(b"unavailable").hexdigest()
+    digest = hashlib.sha256()
+    for raw in sorted(item for item in inventory.stdout.split(b"\0") if item):
+        relative = raw.decode(errors="surrogateescape")
+        digest.update(raw)
+        digest.update(b"\0")
+        file_path = path / relative
+        digest.update(file_path.read_bytes() if file_path.is_file() else b"")
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _accepted_chronicle(
+    root: Path, *, chronicle_ref: str, disposition: str
+) -> tuple[str, str, list[str]]:
+    if not chronicle_ref.strip():
+        return "", "", ["lane_resolution_chronicle_required"]
+    path = (root / chronicle_ref).resolve()
+    try:
+        relative = path.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return "", "", ["lane_resolution_chronicle_outside_repository"]
+    if not relative.startswith("evidence/chronicle/") or not path.is_file():
+        return relative, "", ["lane_resolution_chronicle_missing"]
+    if f"lane_resolution/{disposition}" not in path.read_text(encoding="utf-8"):
+        return relative, "", ["lane_resolution_chronicle_disposition_mismatch"]
+    return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
 
 
 def _preserve(
@@ -393,6 +450,8 @@ def _empty_observation(root: Path, branch: str) -> LaneObservation:
         foreign=True,
         orphan=True,
         ambiguous=True,
+        tracked_digest=hashlib.sha256(b"").hexdigest(),
+        untracked_digest=hashlib.sha256(b"").hexdigest(),
     )
 
 

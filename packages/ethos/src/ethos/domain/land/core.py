@@ -160,7 +160,7 @@ def closeout_next_actions(
     if ok and state == "current":
         return ("ethos publish",)
     if ok:
-        return ("ethos lane retire-landed --branch <work-branch> --expect-head <work-lane-head>",)
+        return ("ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>",)
     if "candidate_diverged_from_accepted" in gaps:
         return (
             "ethos lane candidate --refresh-from-accepted "

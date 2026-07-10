@@ -6,14 +6,19 @@ ETHOS SHALL connect repository lifecycle semantics to provider-specific Git,
 SQLite, process, package-manager, hosted CI, and protocol runtimes without
 treating any provider as product truth.
 ## Requirements
-### Requirement: Authorized Mutation
-ETHOS SHALL block apply-mode land and publish unless authorization and expected
-HEAD binding are explicit.
+### Requirement: Exact-request Mutation Admission
+ETHOS SHALL block apply-mode land and publish unless execution confirmation,
+expected HEAD binding, applicable Commitments, current facts, and required
+Evidence admit the exact request. Confirmation SHALL NOT authenticate a caller
+or create reusable authorization.
 
 #### Scenario: Apply mode is requested
 - **WHEN** `ethos land --apply` or `ethos publish --apply` runs
-- **THEN** ETHOS requires explicit authorization and expected HEAD before any
+- **THEN** ETHOS requires explicit confirmation and expected HEAD before any
   mutation can proceed
+- **AND** the decision binds action, resource, expected state, policy refs,
+  evidence refs, and decision basis
+- **AND** it mints no role, token, session, or reusable permission.
 
 ### Requirement: Work Lane Topology
 ETHOS SHALL classify linked worktrees by lane role and surface foreign Work
@@ -37,9 +42,9 @@ Lanes without entering their file trees.
   worktree metadata
 - **AND** ETHOS reports `foreign_work_lane_present` as a coordination signal
 - **AND** ETHOS does not read, modify, close, or clean the foreign lane
-- **AND** ETHOS reports the current actor capability as observe-only, with
-  foreign lane write, land, and retire actions forbidden unless a later owner,
-  handoff, or maintainer break-glass path admits them
+- **AND** ETHOS reports a non-authoritative action preview with observe as the
+  only candidate action and write, land, and retire blocked
+- **AND** actual mutation re-evaluates its exact current request.
 
 ### Requirement: Prewrite Admission
 ETHOS SHALL gate tracked writes through the current Work Lane role and editor
@@ -65,7 +70,7 @@ ETHOS SHALL acquire local lease records when creating Work Lanes through the
 public lane command plane.
 
 #### Scenario: Work Lane start is applied
-- **WHEN** `ethos lane start <name> --apply --owner <owner>` runs from a clean
+- **WHEN** `ethos lane start <name> --apply --holder-ref <holder-ref>` runs from a clean
   accepted root and succeeds
 - **THEN** ETHOS creates a `work/<name>` linked worktree
 - **AND** ETHOS records an active lease in ignored local state under
@@ -74,7 +79,7 @@ public lane command plane.
   state because it has no ETHOS lease or claim boundary
 
 #### Scenario: Work Lane start is requested from a non-accepted or dirty root
-- **WHEN** `ethos lane start <name> --apply --owner <owner>` runs from an
+- **WHEN** `ethos lane start <name> --apply --holder-ref <holder-ref>` runs from an
   existing `work/*` lane or a dirty accepted root
 - **THEN** ETHOS blocks the request with
   `lane_start_requires_clean_accepted_root`
@@ -98,6 +103,44 @@ ETHOS SHALL keep local runtime state separate from durable evidence.
 - **WHEN** ETHOS creates proof evidence
 - **THEN** the evidence is HEAD-bound, digest-addressed, and separate from
   ignored local runtime state
+
+### Requirement: Bounded External Evidence Adapters
+
+ETHOS SHALL verify external identity assertions, hosted-enforcement receipts,
+and control-replacement verifier receipts only when the applicable Commitment
+requires them. Adapters SHALL store no credentials and SHALL NOT mint authority.
+
+#### Scenario: control replacement uses protected bootstrap evidence
+
+- **WHEN** a candidate changes admission, proof floors, schemas, hooks,
+  identity trust, enforcement adapters, or declarative controls
+- **THEN** closeout requires a receipt outside the candidate tree binding both
+  heads, both control digests, verifier digest, candidate proof, and bootstrap
+  Chronicle decision
+- **AND** missing or unverifiable provenance returns `defer`.
+
+#### Scenario: hosted prevention requires exact receipt
+
+- **WHEN** ETHOS claims hosted prevention for a ref transition
+- **THEN** a provider receipt binds the exact action, resource, old value, new
+  value, observation, coverage, and receipt digest
+- **AND** local hooks or provider configuration alone do not prove prevention.
+
+### Requirement: Cross-host Handoff Adapter
+
+ETHOS SHALL transfer content-addressed Git and context artifacts, never the
+source SQLite lease. Preserved tracked and non-ignored untracked work SHALL be
+restored before the destination lease is acknowledged, and partial imports
+SHALL roll back branch and worktree residue.
+
+#### Scenario: preserved handoff is imported safely
+
+- **WHEN** a verified preserved handoff package is imported into a clean
+  accepted-root clone
+- **THEN** ETHOS creates a destination-local branch, worktree, lane incarnation,
+  and lease
+- **AND** restores tracked and non-ignored untracked content before acknowledgement
+- **AND** rolls back branch and worktree state if restoration or lease creation fails.
 
 ### Requirement: Internal ETHOS Gate Fast Path
 ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.

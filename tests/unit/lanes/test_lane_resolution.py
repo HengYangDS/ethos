@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.adapters.mutation.lane_resolution import apply_lane_resolution
 from ethos.adapters.mutation.lane_resolution import plan_lane_resolution
@@ -10,15 +10,31 @@ from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def _orphan_lane(tmp_path: Path) -> tuple[Path, Path]:
     repo = init_repo(tmp_path / "repo")
     lane = tmp_path / "repo-work-orphan"
     git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
     return repo, lane
+
+
+def _chronicle(repo: Path, disposition: str) -> str:
+    relative = Path("evidence") / "chronicle" / "lane-resolution-test" / f"{disposition}.md"
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"decision: lane_resolution/{disposition}\n", encoding="utf-8")
+    git(repo, "add", relative.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        f"record {disposition} decision",
+    )
+    return relative.as_posix()
 
 
 def test_exceptional_resolution_recomputes_observation_before_effect(tmp_path: Path) -> None:
@@ -30,6 +46,8 @@ def test_exceptional_resolution_recomputes_observation_before_effect(tmp_path: P
         disposition="block",
         reason="Unknown owner; block mutation.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -48,6 +66,55 @@ def test_exceptional_resolution_recomputes_observation_before_effect(tmp_path: P
     assert "lane_resolution_observation_stale" in applied["required_gaps"]
 
 
+def test_exceptional_resolution_observation_binds_untracked_content(tmp_path: Path) -> None:
+    repo, lane = _orphan_lane(tmp_path)
+    untracked = lane / "notes.txt"
+    untracked.write_text("first\n", encoding="utf-8")
+    decision_path = tmp_path / "decision.json"
+    plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="block",
+        reason="Unknown owner; block mutation.",
+        evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
+        decision_path=decision_path,
+        break_glass=False,
+        apply=True,
+    )
+    untracked.write_text("second\n", encoding="utf-8")
+
+    applied = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert applied["ok"] is False
+    assert "lane_resolution_observation_stale" in applied["required_gaps"]
+
+
+def test_exceptional_resolution_requires_accepted_chronicle_binding(tmp_path: Path) -> None:
+    repo, _ = _orphan_lane(tmp_path)
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="block",
+        reason="Unknown owner; block mutation.",
+        evidence_refs=("evidence:review",),
+        chronicle_ref="evidence/chronicle/missing/decision.md",
+        recovery_plan="Preserve or block exact observed state before effect.",
+        decision_path=tmp_path / "decision.json",
+        break_glass=False,
+        apply=True,
+    )
+
+    assert planned["ok"] is False
+    assert "lane_resolution_chronicle_missing" in planned["required_gaps"]
+
+
 def test_preserve_resolution_writes_recovery_package_and_completion_receipt(tmp_path: Path) -> None:
     repo, lane = _orphan_lane(tmp_path)
     (lane / "README.md").write_text("# dirty preserved\n", encoding="utf-8")
@@ -58,6 +125,8 @@ def test_preserve_resolution_writes_recovery_package_and_completion_receipt(tmp_
         disposition="preserve",
         reason="Preserve owner-unknown work.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "preserve"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -88,6 +157,8 @@ def test_preserve_resolution_includes_non_ignored_untracked_files(tmp_path: Path
         disposition="preserve",
         reason="Preserve all recoverable work.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "preserve"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -124,6 +195,8 @@ def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
         disposition="block",
         reason="Keep ambiguous state intact.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -158,6 +231,8 @@ def test_resolution_rejects_tampered_schema_constants(tmp_path: Path) -> None:
         disposition="block",
         reason="Keep ambiguous state intact.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -187,6 +262,8 @@ def test_resolution_decide_does_not_write_tracked_chronicle_path(tmp_path: Path)
         disposition="block",
         reason="Keep ambiguous state intact.",
         evidence_refs=("evidence:review",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=False,
         apply=True,
@@ -208,6 +285,8 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
         disposition="retire",
         reason="Reviewed obsolete lane.",
         evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=_chronicle(repo, "retire"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=True,
         apply=True,
@@ -248,6 +327,8 @@ def test_break_glass_requires_reconciliation_receipt(tmp_path: Path) -> None:
         disposition="block",
         reason="Emergency containment.",
         evidence_refs=("evidence:incident",),
+        chronicle_ref=_chronicle(repo, "block"),
+        recovery_plan="Preserve or block exact observed state before effect.",
         decision_path=decision_path,
         break_glass=True,
         apply=True,

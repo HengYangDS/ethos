@@ -151,18 +151,32 @@ tracked paths through prewrite admission.
 - **AND** the caller must route the change through an owned Work Lane and
   `ethos lane prewrite`
 
-### Requirement: Work Lane writes are lease and actor bound
+### Requirement: Work Lane writes are exact lease-generation bound
 
-Tracked Work Lane writes SHALL require an active Work Lane lease and a runtime
-actor that matches the lease owner.
+Tracked Work Lane writes SHALL require an active Work Lane lease and an
+invocation holder reference matching the exact holder, lease ID, epoch, and
+expected HEAD.
 
-#### Scenario: actor does not own the Work Lane lease
+#### Scenario: invocation binding is stale or foreign
 
-- **WHEN** `ethos lane prewrite` runs for a Work Lane whose lease owner differs
-  from `ETHOS_ACTOR`
-- **THEN** the report blocks the write with a Work Lane actor mismatch gap
+- **WHEN** `ethos lane prewrite` runs with a different holder, lease ID, epoch,
+  or HEAD than the current lease
+- **THEN** the report blocks the write with the corresponding exact-binding gap
 - **AND** visibility of the Work Lane does not authorize write, land, retire, or
   cleanup
+
+### Requirement: Semantic Lane Lifecycle Groups
+
+ETHOS SHALL group lease, handoff, exceptional resolution, and retirement under
+semantic nested command families.
+
+#### Scenario: retirement commands are grouped
+
+- **WHEN** maintainers inspect the Lane command plane
+- **THEN** bounded retirement commands are `ethos lane retire landed`,
+  `ethos lane retire superseded`, and `ethos lane retire unbound`
+- **AND** lease lifecycle is under `ethos lane lease`, handoff under
+  `ethos lane handoff`, and exceptional judgment under `ethos lane resolution`.
 
 ### Requirement: Candidate ref movement is proof-bound
 

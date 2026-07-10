@@ -196,13 +196,17 @@ Work Lane admission:
 ethos lane status
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <git-head>
-ethos lane start <name> --path <worktree-path> --owner <owner> --claim-id <claim> --apply
+ethos lane start <name> --path <worktree-path> --holder-ref <holder-ref> --claim-id <claim> --apply
 ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <paths> --editor-root <worktree-path> --require-editor-root
-ethos lane retire-landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
-ethos lane retire-superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
-ethos lane retire-unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
+ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --apply
+ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --context-file <path> --apply
+ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
+ethos lane resolution apply --decision-path <build-artifact> --apply
+ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
+ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
+ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
 ```
 
 When `--root` is omitted, CLI commands resolve the current Git worktree root
@@ -247,10 +251,8 @@ line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, which
 lease holder is bound when known, which claim is bound when known, and which
-mutation gap blocks closeout. During migration, compatibility fields such as
-`owner` or `lease_owner` may appear, but product semantics treat them as holder
-references only when they identify the concrete acting instance rather than a
-provider class.
+mutation gap blocks closeout. The holder contract is `holder_ref`; legacy owner
+fields are storage or migration diagnostics only and are never authoritative.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
 coordination state and unbound Work Lane refs with their relation to accepted
 truth. Plain presence remains advisory through `advisory_gaps` such as
@@ -269,19 +271,19 @@ taxonomy, and never grant cleanup authority. If the scorecard has no blocking
 `ok=true` while reporting `state=advisory`; in that state, top-level
 `next_actions` mirror the bounded advisory inspection or repair actions instead
 of implying that full proof alone will erase the advisory layer.
-Each `foreign_work_lanes[]` item also exposes the current actor's capability:
-`current_actor_capability=observe`, `allowed_actions=["observe"]`, and
-`forbidden_actions=["write", "land", "retire"]`. The write policy is
-`owner_only`; productized leases are held by concrete holder references such as
-`agent:codex:thread:<id>` rather than provider labels such as `codex`;
-retirement requires the holder, an accepted handoff, or maintainer break-glass.
+Each `foreign_work_lanes[]` item exposes a non-authoritative `action_preview`:
+the only candidate action is `observe`, blocked actions include `write`, `land`,
+and `retire`, and the preview states `mints_authority=false` and
+`recheck_required=true`. Productized leases use concrete holder references such
+as `agent:codex:thread:<id>` rather than provider labels such as `codex`; actual
+mutation is independently re-admitted.
 A landed dirty lane is not retire-ready residue: it reports
 `closeout_disposition=landed_dirty`,
 `residue_state=unpreserved_worktree_delta`, and a `next_action` requiring the
 owner to preserve or intentionally discard the dirty worktree delta before
 retirement. A clean claim-bound lane already absorbed by accepted truth reports
 `closeout_disposition=retire_ready` and a head-bound `next_action` shaped as
-`ethos lane retire-landed --branch <branch> --expect-head <head> --apply --json`;
+`ethos lane retire landed --branch <branch> --expect-head <head> --apply --json`;
 the command is still authority-gated by the lane holder or break-glass policy.
 Handoff, retire, preserve, block, orphan audit, and break-glass outcomes are
 recorded as evidence-bound Chronicle `lane_resolution` events when they become
@@ -319,16 +321,13 @@ closeout reports `candidate_diverged_from_accepted`. The apply path is a
 sanctioned ETHOS candidate ref move: it carries the scoped official ref-move
 context needed by the reference-transaction hook while still failing closed on
 stale heads, dirty candidate worktrees, or reset errors.
-`ethos lane retire-landed` lists landed Work Lanes without mutation by default.
+`ethos lane retire landed` lists landed Work Lanes without mutation by default.
 Apply mode requires an explicit Work Lane branch so cleanup cannot accidentally
-remove another active agent's worktree. Leased lanes are holder-bound. During the
-current compatibility phase, the command may still report `lease_owner` and
-`actor_source = "ETHOS_ACTOR"`; product semantics treat these as concrete holder
-bindings only when they identify the acting instance rather than a provider
-class. When the actor binding does not match the holder, the JSON payload reports
+remove another active agent's worktree. Leased lanes are exact holder, lease,
+generation, and HEAD bound. When the invocation holder does not match, the JSON reports
 `foreign_work_lane_retire_authority_required`, whether an actor is bound, the
 required holder, and a bounded next action to bind the holder or obtain handoff.
-`ethos lane retire-superseded` is the holder-bound cleanup path for clean
+`ethos lane retire superseded` is the holder-bound cleanup path for clean
 linked Work Lanes whose semantic truth has already been absorbed into the current
 accepted root but whose stale branch content must not be landed. It is dry-run by
 default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
@@ -338,21 +337,21 @@ deletes `refs/heads/<branch>` with a head-bound ref transaction and removes the
 previously verified-clean linked worktree. If the worktree removal fails after
 ref deletion,
 ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
-not replace `ethos land` or `retire-landed`; it closes a distinct superseded
+not replace `ethos land` or `ethos lane retire landed`; it closes a distinct superseded
 linked-lane residue state.
-`ethos lane retire-unbound` is the maintainer cleanup path for local unbound
+`ethos lane retire unbound` is the maintainer cleanup path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
 It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
 and a non-empty `--reason`, then deletes `refs/heads/<branch>` with a
 head-bound Git ref transaction. It does not replace `ethos land` or
-`retire-landed`, and it does not remove linked worktrees.
+`ethos lane retire landed`, and it does not remove linked worktrees.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
 through `ethos lane refresh-base`, land only through `ethos land`, retire
-landed lanes through `ethos lane retire-landed`, retire absorbed linked-lane
-residue through `ethos lane retire-superseded`, and retire unbound residue refs
-through `ethos lane retire-unbound`. Raw Git
+landed lanes through `ethos lane retire landed`, retire absorbed linked-lane
+residue through `ethos lane retire superseded`, and retire unbound residue refs
+through `ethos lane retire unbound`. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;

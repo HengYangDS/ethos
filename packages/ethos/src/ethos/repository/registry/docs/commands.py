@@ -103,9 +103,9 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane refresh-base",
     "ethos lane bind-claim",
     "ethos lane hydrate",
-    "ethos lane retire-landed",
-    "ethos lane retire-superseded",
-    "ethos lane retire-unbound",
+    "ethos lane retire landed",
+    "ethos lane retire superseded",
+    "ethos lane retire unbound",
     "ethos parity",
     "ethos parity ledger",
     "ethos parity gaps",
@@ -217,7 +217,11 @@ def known_ethos_command(command: str) -> bool:
     if command_tokens[:1] != ["ethos"]:
         return False
     if len(command_tokens) >= 3 and command_tokens[1] in GROUPED_COMMANDS:
-        return " ".join(command_tokens[:3]) in KNOWN_ETHOS_COMMANDS
+        candidates = tuple(
+            " ".join(command_tokens[:length])
+            for length in range(min(len(command_tokens), 4), 1, -1)
+        )
+        return any(candidate in KNOWN_ETHOS_COMMANDS for candidate in candidates)
     key = ethos_command_key(command)
     return bool(key) and (
         key in KNOWN_ETHOS_COMMANDS or key in known_commands() or key in public_commands()

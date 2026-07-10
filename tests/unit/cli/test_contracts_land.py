@@ -712,7 +712,8 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     retire_payload = run_ethos(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "lane/configured",
         "--expect-head",

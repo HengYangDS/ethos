@@ -51,7 +51,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     assert payload["state"] == "accepted_validated"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == [
-        "ethos lane retire-landed --branch <work-branch> --expect-head <work-lane-head>"
+        "ethos lane retire landed --branch <work-branch> --expect-head <work-lane-head>"
     ]
     accepted_update = payload["data"]["accepted_update"]
     assert accepted_update["ok"] is True

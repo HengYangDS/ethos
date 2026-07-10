@@ -432,8 +432,6 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
         "mints_authority": False,
         "recheck_required": True,
     }
-    assert lane["write_policy"] == "owner_only"
-    assert lane["retire_policy"] == "owner_handoff_or_maintainer_break_glass"
     assert lane["handoff_required"] is True
 
 
@@ -614,7 +612,8 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "work/active",
         "--root",
@@ -651,7 +650,8 @@ def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "work/foreign",
         "--root",
@@ -660,7 +660,7 @@ def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-landed"
+    assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
@@ -683,7 +683,8 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--apply",
         "--root",
         repo.as_posix(),
@@ -691,7 +692,7 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-landed"
+    assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["retire_branch_required"]
     assert worktree.exists()
@@ -720,7 +721,8 @@ def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     payload = run_ethos_blocked(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "work/landed",
         "--apply",
@@ -730,7 +732,7 @@ def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: 
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-landed"
+    assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["expect_head_required"]
     assert worktree.exists()
@@ -760,7 +762,8 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     payload = run_ethos(
         "lane",
-        "retire-landed",
+        "retire",
+        "landed",
         "--branch",
         "work/landed",
         "--expect-head",
@@ -772,7 +775,7 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-landed"
+    assert payload["command"] == "lane retire landed"
     assert payload["ok"] is True
     assert payload["state"] == "retired"
     assert payload["data"]["mutation"]["expect_head"] == worktree_head
@@ -795,7 +798,8 @@ def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
 
     payload = run_ethos(
         "lane",
-        "retire-unbound",
+        "retire",
+        "unbound",
         "--branch",
         "work/stale-ref",
         "--expect-head",
@@ -810,7 +814,7 @@ def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-unbound"
+    assert payload["command"] == "lane retire unbound"
     assert payload["ok"] is True
     assert payload["state"] == "retired_unbound"
     assert payload["data"]["retired_ref"] == "refs/heads/work/stale-ref"
@@ -840,7 +844,8 @@ def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> Non
 
     payload = run_ethos_blocked(
         "lane",
-        "retire-unbound",
+        "retire",
+        "unbound",
         "--branch",
         "work/stale-ref",
         "--expect-head",
@@ -854,6 +859,6 @@ def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> Non
         cwd=repo,
     )
 
-    assert payload["command"] == "lane retire-unbound"
+    assert payload["command"] == "lane retire unbound"
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["authorization_required"]

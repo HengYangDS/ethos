@@ -431,8 +431,6 @@
         "path_scope",
         "scope_state",
         "coordination_state",
-        "write_policy",
-        "retire_policy",
         "handoff_required",
         "lease",
         "action_preview"
@@ -505,12 +503,6 @@
             "overlap",
             "unknown"
           ]
-        },
-        "write_policy": {
-          "const": "owner_only"
-        },
-        "retire_policy": {
-          "const": "owner_handoff_or_maintainer_break_glass"
         },
         "handoff_required": {
           "type": "boolean"

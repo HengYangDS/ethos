@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.store.state import active_leases
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lane_resolution import LaneObservation
 from ethos_core.contracts.lane_resolution import LaneResolutionDecision
 
@@ -40,6 +41,8 @@ def plan_lane_resolution(
         gaps.append("lane_resolution_evidence_required")
     if disposition == "retire" and not break_glass:
         gaps.append("retire_exception_requires_break_glass")
+    if not _local_artifact_path(root, decision_path):
+        gaps.append("lane_resolution_decision_path_not_local_artifact")
     report = _report(branch=branch, apply=apply, gaps=gaps)
     if apply and not gaps:
         decision = LaneResolutionDecision(
@@ -50,6 +53,16 @@ def plan_lane_resolution(
             reason=reason,
             break_glass=break_glass,
         ).to_payload()
+        validation = validate_schema_instance(
+            "lane-resolution-decision.schema.json", decision, root=root
+        )
+        if not validation["ok"]:
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=["lane_resolution_decision_invalid"],
+            )
+            return report
         decision_path.resolve().parent.mkdir(parents=True, exist_ok=True)
         decision_path.resolve().write_text(
             json.dumps(decision, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -79,7 +92,7 @@ def apply_lane_resolution(
     apply: bool,
 ) -> dict[str, object]:
     """Recompute the decision observation, then apply the bounded disposition."""
-    decision, gaps = _read_decision(decision_path)
+    decision, gaps = _read_decision(decision_path, root=root)
     branch = str(decision.get("observation", {}).get("lane_ref") or "")
     observation, observation_gaps = _observe_lane(root, branch)
     gaps.extend(observation_gaps)
@@ -105,6 +118,16 @@ def apply_lane_resolution(
             observation=observation,
             state=str(report["state"]),
         )
+        validation = validate_schema_instance(
+            "lane-resolution-receipt.schema.json", receipt, root=root
+        )
+        if not validation["ok"]:
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=["lane_resolution_receipt_invalid"],
+            )
+            return report
         report["receipt"] = receipt
         report["chronicle_event"] = _chronicle_completion(decision, receipt)
     report["mutation"] = _envelope(
@@ -179,7 +202,7 @@ def _leases(root: Path) -> list[dict[str, Any]]:
     return active_leases(control_root / ".ethos" / "state" / "state.sqlite")
 
 
-def _read_decision(path: Path) -> tuple[dict[str, Any], list[str]]:
+def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
     try:
         payload = json.loads(path.resolve().read_text(encoding="utf-8"))
         observation = LaneObservation.model_validate(payload.get("observation"))
@@ -193,9 +216,24 @@ def _read_decision(path: Path) -> tuple[dict[str, Any], list[str]]:
         )
     except (OSError, json.JSONDecodeError, ValidationError, TypeError):
         return {}, ["lane_resolution_decision_invalid"]
+    validation = validate_schema_instance(
+        "lane-resolution-decision.schema.json", payload, root=root
+    )
+    if not validation["ok"]:
+        return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
     if observation.digest() != payload.get("observation_digest"):
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_digest_invalid"]
     return cast("dict[str, Any]", payload), []
+
+
+def _local_artifact_path(root: Path, path: Path) -> bool:
+    resolved = path.resolve()
+    repository = root.resolve()
+    try:
+        relative = resolved.relative_to(repository)
+    except ValueError:
+        return True
+    return relative.parts[:2] in {("build", "artifacts"), ("build", "evidence")}
 
 
 def _preserve(
@@ -214,6 +252,20 @@ def _preserve(
         capture_output=True,
     )
     patch.write_bytes(completed.stdout)
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=observation.path,
+        check=False,
+        capture_output=True,
+    )
+    if untracked.returncode != 0:
+        raise ValueError("lane_resolution_untracked_inventory_failed")
+    untracked_paths = [
+        path.decode(errors="surrogateescape") for path in untracked.stdout.split(b"\0") if path
+    ]
+    archive = package / "untracked.tar"
+    if untracked_paths:
+        _run(Path(observation.path), "tar", "-cf", archive.as_posix(), "--", *untracked_paths)
     manifest = {
         "decision_id": decision["decision_id"],
         "lane_ref": observation.lane_ref,
@@ -221,6 +273,7 @@ def _preserve(
         "observation_digest": observation.digest(),
         "bundle_sha256": _sha256(bundle),
         "patch_sha256": _sha256(patch),
+        "untracked_archive_sha256": _sha256(archive) if archive.is_file() else "",
         "source_lease_transferred": False,
     }
     (package / "manifest.json").write_text(

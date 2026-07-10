@@ -99,3 +99,40 @@ def test_external_bootstrap_receipt_must_be_outside_candidate_and_exactly_bound(
     assert report["verdict"] == "allow"
     assert report["verifier_provenance"] == "protected_external_bootstrap"
     assert report["required_gaps"] == []
+
+
+def test_external_evidence_and_declarative_policy_changes_require_incumbent_verifier(
+    tmp_path: Path,
+) -> None:
+    for relative_path in (
+        "packages/ethos-core/src/ethos_core/contracts/external_evidence.py",
+        "system/evidence_boundaries.toml",
+        "system/policies/generated-artifact-topology.toml",
+        "system/workflows.toml",
+    ):
+        repo = init_git_repo(tmp_path / relative_path.replace("/", "-"))
+        candidate = repo.with_name(f"{repo.name}-candidate-dev")
+        git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+        path = candidate / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("candidate control\n", encoding="utf-8")
+        git(candidate, "add", ".")
+        git(
+            candidate,
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=t@example.com",
+            "commit",
+            "-m",
+            "control",
+        )
+
+        report = control_replacement_report(
+            accepted_root=repo,
+            candidate_root=candidate,
+            accepted_head=git(repo, "rev-parse", "HEAD"),
+            candidate_head=git(candidate, "rev-parse", "HEAD"),
+        )
+
+        assert report["required"] is True, relative_path

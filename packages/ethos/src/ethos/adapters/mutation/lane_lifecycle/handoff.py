@@ -337,7 +337,7 @@ def _dirty_disposition_gaps(dirty_paths: list[str], dirty_disposition: str) -> l
         return ["dirty_disposition_required"]
     if dirty_disposition not in {"clean", "committed", "preserved"}:
         return ["dirty_disposition_invalid"]
-    if dirty_paths and dirty_disposition == "clean":
+    if dirty_paths and dirty_disposition in {"clean", "committed"}:
         return ["dirty_disposition_mismatch"]
     if not dirty_paths and dirty_disposition not in {"clean", "committed"}:
         return ["dirty_disposition_mismatch"]
@@ -458,22 +458,44 @@ def _apply_handoff_import(
     branch = str(manifest["source_lane_ref"])
     head = str(manifest["source_head"])
     bundle = package.resolve() / "repository.bundle"
-    _run(destination, "git", "fetch", bundle.as_posix(), f"{branch}:{branch}")
     worktree_path = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
-    _run(destination, "git", "worktree", "add", worktree_path.as_posix(), branch)
-    lease = acquire_lease(
-        destination / ".ethos" / "state" / "state.sqlite",
-        subject=branch,
-        holder_ref=target_holder_ref,
-        payload={
-            "path": worktree_path.as_posix(),
-            "branch": branch,
-            "expected_head": head,
-            "handoff_package_id": str(manifest["package_id"]),
-            "source_lane_ref": branch,
-            "source_head": head,
-        },
-    )
+    branch_created = False
+    worktree_created = False
+    try:
+        _run(destination, "git", "fetch", bundle.as_posix(), f"{branch}:{branch}")
+        branch_created = True
+        _run(destination, "git", "worktree", "add", worktree_path.as_posix(), branch)
+        worktree_created = True
+        lease = acquire_lease(
+            destination / ".ethos" / "state" / "state.sqlite",
+            subject=branch,
+            holder_ref=target_holder_ref,
+            payload={
+                "path": worktree_path.as_posix(),
+                "branch": branch,
+                "expected_head": head,
+                "handoff_package_id": str(manifest["package_id"]),
+                "source_lane_ref": branch,
+                "source_head": head,
+            },
+        )
+        _restore_preserved_work(package=package, manifest=manifest, worktree=worktree_path)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        if worktree_created:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", worktree_path.as_posix()],
+                cwd=destination,
+                check=False,
+                capture_output=True,
+            )
+        if branch_created:
+            subprocess.run(
+                ["git", "update-ref", "-d", f"refs/heads/{branch}", head],
+                cwd=destination,
+                check=False,
+                capture_output=True,
+            )
+        raise
     ack = {
         "acknowledgement_id": f"handoff-ack:{uuid.uuid4()}",
         "package_id": str(manifest["package_id"]),
@@ -494,6 +516,22 @@ def _apply_handoff_import(
         "receipt": {"operation": "cross-host-import", **ack},
         "required_gaps": [],
     }
+
+
+def _restore_preserved_work(*, package: Path, manifest: dict[str, Any], worktree: Path) -> None:
+    if manifest.get("dirty_disposition") != "preserved":
+        return
+    artifacts = {
+        str(artifact.get("kind") or ""): package.resolve() / str(artifact.get("path") or "")
+        for artifact in manifest.get("artifacts", [])
+        if isinstance(artifact, dict)
+    }
+    patch = artifacts.get("tracked_patch")
+    if patch is not None:
+        _run(worktree, "git", "apply", "--binary", patch.as_posix())
+    archive = artifacts.get("untracked_archive")
+    if archive is not None:
+        _run(worktree, "tar", "-xf", archive.as_posix())
 
 
 def _preserve_dirty_work(*, repo: Path, package_dir: Path) -> list[dict[str, str]]:

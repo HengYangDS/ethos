@@ -11,6 +11,9 @@ from ethos.adapters.admission.closeout_intent.core import clear_closeout_intent
 from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_intents
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
+from ethos.adapters.mutation.decision import MutationEvaluation
+from ethos.adapters.mutation.decision import MutationRequest
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
@@ -22,6 +25,8 @@ from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+
+__all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 
 
 def proof_gaps(root: Path, current_head: str) -> list[str]:
@@ -91,11 +96,6 @@ def _closeout_candidate_gaps(
     if require_proof:
         gaps.extend(_candidate_gaps_for_proof(candidate_path, candidate_head))
     return gaps
-
-
-from ethos.adapters.mutation.decision import MutationEvaluation as MutationEvaluation
-from ethos.adapters.mutation.decision import MutationRequest as MutationRequest
-from ethos.adapters.mutation.decision import mutation_envelope as mutation_envelope
 
 
 def evaluate_mutation(

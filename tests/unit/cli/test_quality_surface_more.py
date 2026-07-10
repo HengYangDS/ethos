@@ -3,9 +3,32 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import ethos.surface.cli.quality.core as q
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
+
+
+def _json_payloads(capsys: pytest.CaptureFixture[str]) -> list[dict[str, object]]:
+    decoder = json.JSONDecoder()
+    output = capsys.readouterr().out
+    payloads: list[dict[str, object]] = []
+    index = 0
+    while index < len(output):
+        while index < len(output) and output[index].isspace():
+            index += 1
+        if index >= len(output):
+            break
+        payload, index = decoder.raw_decode(output, index)
+        payloads.append(payload)
+    return payloads
+
+
+def _json_payload(capsys: pytest.CaptureFixture[str]) -> dict[str, object]:
+    payloads = _json_payloads(capsys)
+    assert len(payloads) == 1
+    return payloads[0]
 
 
 def _capture(monkeypatch):
@@ -56,7 +79,9 @@ def test_quality_tool_surfaces_delegate_to_configured_adapter(monkeypatch, tmp_p
     ]
 
 
-def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
+def test_quality_code_size_and_npm_project_reports(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(
         q.prove_domain,
@@ -81,20 +106,24 @@ def test_quality_code_size_and_npm_project_reports(monkeypatch, tmp_path: Path):
     (tmp_path / "package.json").write_text("{}", encoding="utf-8")
 
     q.code_size(root=tmp_path, json_output=True)
-    q.module_layout(root=tmp_path, json_output=True)
+    with pytest.raises(SystemExit):
+        q.module_layout(root=tmp_path, json_output=True)
     q.npm_quality(root=tmp_path, json_output=True)
 
-    assert emitted[0]["command"] == "quality code-size"
-    assert emitted[0]["state"] == "blocked"
-    assert emitted[0]["required_gaps"] == ["too_big"]
-    assert emitted[1]["command"] == "quality module-layout"
-    assert emitted[1]["state"] == "blocked"
-    assert emitted[1]["summary"] == {"suffix_module_count": 1}
-    assert emitted[2]["command"] == "quality npm"
-    assert emitted[2]["data"]["files"] == ["package.json"]
+    payloads = _json_payloads(capsys)
+    assert payloads[0]["command"] == "quality code-size"
+    assert payloads[0]["state"] == "blocked"
+    assert payloads[0]["required_gaps"] == ["too_big"]
+    assert payloads[1]["command"] == "quality module-layout"
+    assert payloads[1]["state"] == "blocked"
+    assert payloads[1]["summary"] == {"suffix_module_count": 1}
+    assert emitted[-1]["command"] == "quality npm"
+    assert emitted[-1]["data"]["files"] == ["package.json"]
 
 
-def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_path: Path):
+def test_quality_release_commit_sbom_and_attestation_surfaces(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(
         q,
@@ -133,22 +162,25 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(monkeypatch, tmp_p
     q.sbom(root=tmp_path, json_output=True)
     q.release_attestation_command(evidence_digest="sha256:x", root=tmp_path, json_output=True)
 
+    payloads = _json_payloads(capsys)
     assert emitted[0]["required_gaps"] == [
         "head_subject_not_conventional",
         "head_signature_not_good",
     ]
-    assert emitted[1]["command"] == "quality release"
-    assert emitted[1]["next_actions"] == [
+    assert payloads[0]["command"] == "quality release"
+    assert payloads[0]["next_actions"] == [
         "uv build --all-packages --out-dir build/artifacts/python --clear"
     ]
-    assert emitted[2]["command"] == "quality release-policy"
-    assert emitted[2]["next_actions"] == ["ethos quality release-attestation"]
-    assert emitted[3]["summary"] == {"package_count": 1}
-    assert emitted[4]["summary"] == {"tag": "v1"}
+    assert payloads[1]["command"] == "quality release-policy"
+    assert payloads[1]["next_actions"] == ["ethos quality release-attestation"]
+    assert payloads[2]["summary"] == {"package_count": 1}
+    assert emitted[1]["summary"] == {"tag": "v1"}
 
 
-def test_quality_coverage_reports_policy_and_latest_artifact(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_coverage_reports_policy_and_latest_artifact(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    _capture(monkeypatch)
     report = {
         "ok": True,
         "state": "clean",
@@ -160,18 +192,21 @@ def test_quality_coverage_reports_policy_and_latest_artifact(monkeypatch, tmp_pa
 
     q.coverage(root=tmp_path, json_output=True)
 
-    assert emitted[0]["command"] == "quality coverage"
-    assert emitted[0]["ok"] is True
-    assert emitted[0]["summary"] == {
+    payload = _json_payload(capsys)
+    assert payload["command"] == "quality coverage"
+    assert payload["ok"] is True
+    assert payload["summary"] == {
         "current_hard_floor": 95.0,
         "latest_line_percent": 96.0,
         "writer_active": False,
     }
-    assert emitted[0]["data"] == report
+    assert payload["data"] == report
 
 
-def test_quality_coverage_surfaces_active_writer(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_coverage_surfaces_active_writer(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    _capture(monkeypatch)
     report = {
         "ok": True,
         "state": "in_progress",
@@ -186,17 +221,20 @@ def test_quality_coverage_surfaces_active_writer(monkeypatch, tmp_path: Path):
 
     q.coverage(root=tmp_path, json_output=True)
 
-    assert emitted[0]["state"] == "in_progress"
-    assert emitted[0]["summary"] == {
+    payload = _json_payload(capsys)
+    assert payload["state"] == "in_progress"
+    assert payload["summary"] == {
         "current_hard_floor": 95.0,
         "latest_line_percent": None,
         "writer_active": True,
     }
-    assert emitted[0]["required_gaps"] == []
+    assert payload["required_gaps"] == []
 
 
-def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_docstrings_reports_policy_coverage(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    _capture(monkeypatch)
     report = {
         "ok": False,
         "state": "blocked",
@@ -216,24 +254,28 @@ def test_quality_docstrings_reports_policy_coverage(monkeypatch, tmp_path: Path)
     }
     monkeypatch.setattr(q, "docstring_coverage_report", lambda _repo: report)
 
-    q.docstrings(root=tmp_path, json_output=True)
+    with pytest.raises(SystemExit):
+        q.docstrings(root=tmp_path, json_output=True)
 
-    assert emitted[0]["command"] == "quality docstrings"
-    assert emitted[0]["ok"] is False
-    assert emitted[0]["state"] == "blocked"
-    assert emitted[0]["summary"] == {
+    payload = _json_payload(capsys)
+    assert payload["command"] == "quality docstrings"
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["summary"] == {
         "coverage_percent": 50.0,
         "documented_count": 1,
         "public_count": 2,
         "style_issue_count": 0,
         "advisory_missing_count": 0,
     }
-    assert emitted[0]["required_gaps"] == ["docstring_coverage_below_minimum:50.00<95.00"]
-    assert emitted[0]["data"]["missing"][0]["qualified_name"] == "mod.public"
+    assert payload["required_gaps"] == ["docstring_coverage_below_minimum:50.00<95.00"]
+    assert payload["data"]["missing"][0]["qualified_name"] == "mod.public"
 
 
-def test_quality_claims_surfaces_advisory_summary_without_blocking(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_claims_surfaces_advisory_summary_without_blocking(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    _capture(monkeypatch)
     monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "head-123")
 
     def fake_claims_report(repo, *, current_head=""):
@@ -249,18 +291,21 @@ def test_quality_claims_surfaces_advisory_summary_without_blocking(monkeypatch, 
 
     q.claims(root=tmp_path, json_output=True)
 
-    assert emitted[0]["ok"] is True
-    assert emitted[0]["state"] == "advisory"
-    assert emitted[0]["required_gaps"] == []
-    assert emitted[0]["summary"] == {
+    payload = _json_payload(capsys)
+    assert payload["ok"] is True
+    assert payload["state"] == "advisory"
+    assert payload["required_gaps"] == []
+    assert payload["summary"] == {
         "claim_count": 1,
         "advisory_gap_count": 1,
     }
-    assert emitted[0]["data"]["advisory_gaps"] == ["sample:evidence.head_unbound"]
+    assert payload["data"]["advisory_gaps"] == ["sample:evidence.head_unbound"]
 
 
-def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_path: Path):
-    emitted = _capture(monkeypatch)
+def test_quality_claim_surfaces_bind_reports_to_current_head(
+    monkeypatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    _capture(monkeypatch)
     seen: dict[str, str] = {}
     monkeypatch.setattr(q.git_adapter, "current_head", lambda _repo: "head-123")
 
@@ -285,15 +330,16 @@ def test_quality_claim_surfaces_bind_reports_to_current_head(monkeypatch, tmp_pa
     q.claims(root=tmp_path, json_output=True)
     q.evidence_freshness(root=tmp_path, json_output=True)
 
-    assert emitted[0]["state"] == "clean"
-    assert emitted[0]["summary"] == {"claim_count": 0, "advisory_gap_count": 0}
+    payloads = _json_payloads(capsys)
+    assert payloads[0]["state"] == "clean"
+    assert payloads[0]["summary"] == {"claim_count": 0, "advisory_gap_count": 0}
     assert seen == {
         "claims_repo": tmp_path.as_posix(),
         "claims_head": "head-123",
         "freshness_repo": tmp_path.as_posix(),
         "freshness_head": "head-123",
     }
-    assert [item["command"] for item in emitted] == [
+    assert [item["command"] for item in payloads] == [
         "quality claims",
         "quality evidence-freshness",
     ]
@@ -347,7 +393,9 @@ def test_quality_commits_enforce_head_keeps_subject_and_signature_gaps_independe
     assert emitted[1]["required_gaps"] == ["head_signature_not_good"]
 
 
-def test_quality_commits_enforce_head_adds_signature_and_subject_gaps(monkeypatch) -> None:
+def test_quality_commits_enforce_head_adds_signature_and_subject_gaps(
+    monkeypatch,
+) -> None:
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(
         q,

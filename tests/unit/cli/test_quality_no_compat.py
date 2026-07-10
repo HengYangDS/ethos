@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -68,37 +70,28 @@ def test_quality_no_compat_command_reports_blocked_custom_root(tmp_path: Path) -
     ]
 
 
-def test_quality_no_compat_function_emits_policy_report(monkeypatch, tmp_path: Path) -> None:
+def test_quality_no_compat_function_emits_policy_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     from ethos.surface.cli.quality.cutover import core
 
     sample = tmp_path / "packages/ethos/src/ethos/sample/core.py"
     sample.parent.mkdir(parents=True)
     sample.write_text("def legacy_wrapper():\n    return 1\n", encoding="utf-8")
-    emitted = []
 
-    def fake_resolve_root(_root: Path) -> Path:
-        return tmp_path
+    with pytest.raises(SystemExit):
+        core.no_compat(root=tmp_path, json_output=True)
 
-    def fake_emit(result: object, *, json_output: bool = False) -> None:
-        assert json_output is True
-        emitted.append(result)
-
-    monkeypatch.setattr(core, "resolve_root", fake_resolve_root)
-    monkeypatch.setattr(core, "emit", fake_emit)
-
-    core.no_compat(root=tmp_path, json_output=True)
-
-    assert len(emitted) == 1
-    result = emitted[0]
-    assert result.command == "quality no-compat"
-    assert result.ok is False
-    assert result.state == "blocked"
-    assert result.summary == {
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "quality no-compat"
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["summary"] == {
         "finding_count": 1,
         "scanned_path_count": 1,
         "source_roots": ["packages/ethos/src", "packages/ethos-core/src"],
     }
-    assert result.required_gaps == (
+    assert payload["required_gaps"] == [
         "no_compat_residue:forbidden_identifier:"
-        "packages/ethos/src/ethos/sample/core.py:1:legacy_wrapper",
-    )
+        "packages/ethos/src/ethos/sample/core.py:1:legacy_wrapper"
+    ]

@@ -1,0 +1,102 @@
+"""Lane Lease read model and payload projection."""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from contextlib import closing
+from datetime import UTC
+from datetime import datetime
+from typing import TYPE_CHECKING
+from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def active_leases(db_path: Path) -> list[dict[str, Any]]:
+    if not db_path.exists():
+        return []
+    now = datetime.now(UTC)
+    try:
+        rows = lease_rows(db_path)
+    except sqlite3.Error:
+        return []
+    leases: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            expires_at = datetime.fromisoformat(row[3])
+        except (TypeError, ValueError):
+            continue
+        if expires_at <= now:
+            continue
+        leases.append(
+            {
+                "id": row[0],
+                "subject": row[1],
+                "expires_at": row[3],
+                **lease_contract_fields(json_object(row[4])),
+                "payload": json_object(row[4]),
+            }
+        )
+    return leases
+
+
+def lease_rows(db_path: Path) -> list[sqlite3.Row | tuple[Any, ...]]:
+    try:
+        with closing(sqlite3.connect(db_path)) as connection:
+            return _selectlease_rows(connection)
+    except sqlite3.Error:
+        uri = f"{db_path.resolve().as_uri()}?mode=ro&immutable=1"
+        with closing(sqlite3.connect(uri, uri=True)) as connection:
+            return _selectlease_rows(connection)
+
+
+def _selectlease_rows(
+    connection: sqlite3.Connection,
+) -> list[sqlite3.Row | tuple[Any, ...]]:
+    columns = table_columns(connection, "leases")
+    if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
+        return []
+    return connection.execute(
+        """
+        select id, subject, owner, expires_at, payload_json
+        from leases
+        order by subject, id
+        """,
+    ).fetchall()
+
+
+def table_columns(connection: sqlite3.Connection, table: str) -> set[str]:
+    rows = connection.execute(f"pragma table_info({table})").fetchall()  # nosec B608 - table is an internal constant
+    return {str(row[1]) for row in rows}
+
+
+def json_object(value: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def string_list(value: object) -> list[str]:
+    if not isinstance(value, list | tuple):
+        return []
+    return [str(item) for item in value if str(item)]
+
+
+def lease_contract_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "lane_incarnation_id": str(payload.get("lane_incarnation_id") or ""),
+        "lease_id": str(payload.get("lease_id") or ""),
+        "lane_ref": str(payload.get("lane_ref") or ""),
+        "holder_ref": str(payload.get("holder_ref") or ""),
+        "epoch": int(payload.get("epoch") or 0),
+        "issued_at": str(payload.get("issued_at") or ""),
+        "renewed_at": str(payload.get("renewed_at") or ""),
+        "expected_head": str(payload.get("expected_head") or ""),
+        "claim_id": str(payload.get("claim_id") or ""),
+        "path_scope": string_list(payload.get("path_scope")),
+        "normalization_state": str(payload.get("normalization_state") or "legacy_ambiguous"),
+    }

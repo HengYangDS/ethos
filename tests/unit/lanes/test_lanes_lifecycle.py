@@ -8,7 +8,7 @@ from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease import active_leases
+from ethos.adapters.store.state.lease.read import active_leases
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git

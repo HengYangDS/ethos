@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.shadow.core as shadow_core
-from ethos.adapters.store.state.lease import acquire_lease
+from ethos.adapters.store.state.lease.core import acquire_lease
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES

@@ -6,7 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
-from ethos.adapters.store.state.lease import active_leases
+from ethos.adapters.store.state.lease.read import active_leases
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE

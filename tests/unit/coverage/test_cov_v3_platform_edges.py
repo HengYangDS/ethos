@@ -21,8 +21,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo import git
-from ethos.adapters.store.state.lease import acquire_lease
-from ethos.adapters.store.state.lease import active_leases
+from ethos.adapters.store.state.lease.core import acquire_lease
+from ethos.adapters.store.state.lease.read import active_leases
 
 if TYPE_CHECKING:
     from pathlib import Path

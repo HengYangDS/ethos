@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import ethos.adapters.store.state.lease as state
+import ethos.adapters.store.state.lease.core as state
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query
@@ -184,4 +184,4 @@ def test_verify_candidate_digest_mismatch_falls_through_to_return(
 
 def test_json_object_returns_empty_on_invalid_json() -> None:
     # Non-JSON payload raises JSONDecodeError -> state.py:281-282 returns {}.
-    assert state._json_object("{not valid json") == {}
+    assert state.json_object("{not valid json") == {}

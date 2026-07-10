@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
-import ethos.adapters.store.state.lease as state
+import ethos.adapters.store.state.lease.core as state
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime

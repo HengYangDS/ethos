@@ -159,6 +159,7 @@ def test_doctor_reports_fixed_root_host_wrapper(
     fixed.chmod(0o755)
     original_path = __import__("os").environ.get("PATH", "")
     monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
+    monkeypatch.delenv("ETHOS_ROOT", raising=False)
 
     inspection_cli.doctor(root=repo, init_state=False, json_output=True)
 

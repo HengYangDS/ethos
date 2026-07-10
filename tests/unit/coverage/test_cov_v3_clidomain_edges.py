@@ -13,7 +13,7 @@ import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.surface.cli.hook.core as hook
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.proof as proof_cli
-from ethos.adapters.mutation.core import MutationDecision
+from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.domain import orient
 from ethos.domain import status
 
@@ -204,7 +204,7 @@ def test_doctor_accepts_explicit_ethos_root_for_host_wrapper(
 
 def test_closeout_audit_root_returns_repo_when_decision_blocked(tmp_path: Path) -> None:
     # decision.ok is False -> early return of the passed repo at line 122.
-    result = land_core.closeout_audit_root(tmp_path, MutationDecision(ok=False, state="blocked"))
+    result = land_core.closeout_audit_root(tmp_path, MutationEvaluation(ok=False, state="blocked"))
     assert result == tmp_path
 
 
@@ -216,7 +216,7 @@ def test_closeout_audit_root_resolves_candidate_when_admitted(
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
     repo = _init_git_repo(tmp_path)
 
-    result = land_core.closeout_audit_root(repo, MutationDecision(ok=True, state="accepted"))
+    result = land_core.closeout_audit_root(repo, MutationEvaluation(ok=True, state="accepted"))
 
     assert result == repo
 

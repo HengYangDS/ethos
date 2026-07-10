@@ -288,6 +288,25 @@ def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None
         "required_gaps": [],
         "next_action": "",
     }
+    mutation = payload["data"]["mutation"]
+    assert mutation["request"] == {
+        "command": "land",
+        "apply": False,
+        "confirmation_present": False,
+        "expect_head": None,
+    }
+    assert mutation["decision"]["verdict"] == "allow"
+    assert mutation["decision"]["subject"]["action"] == "candidate.integrate"
+    expected_state = mutation["decision"]["subject"]["expected_state"]
+    assert expected_state["source_head"] == work_head
+    assert expected_state["source_ref"] == "refs/heads/work/feature"
+    assert expected_state["target_ref"] == "refs/heads/candidate/dev"
+    assert expected_state["holder_ref"] == "agent:test:case:agent-test"
+    assert expected_state["lease_id"].startswith("lease:")
+    assert expected_state["lease_epoch"] == 1
+    assert mutation["decision"]["required_gaps"] == []
+    assert mutation["decision"]["mints_authority"] is False
+    assert "authorized" not in mutation
 
 
 def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
@@ -369,6 +388,13 @@ def test_land_apply_requires_authorization_and_expected_head(tmp_path: Path) -> 
     assert payload["state"] == "blocked"
     assert "authorization_required" in payload["required_gaps"]
     assert "expect_head_required" in payload["required_gaps"]
+    mutation = payload["data"]["mutation"]
+    assert mutation["request"]["confirmation_present"] is False
+    assert mutation["decision"]["verdict"] == "block"
+    assert mutation["decision"]["required_gaps"] == payload["required_gaps"]
+    assert "decision" not in {
+        key: value for key, value in mutation.items() if isinstance(value, str)
+    }
 
 
 def test_cli_runner_rejects_implicit_apply_against_repository_checkout() -> None:
@@ -410,6 +436,68 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert payload["ok"] is True
     assert payload["state"] == "local_publish_ready"
     assert payload["required_gaps"] == []
+    mutation = payload["data"]["mutation"]
+    assert mutation["request"] == {
+        "command": "publish",
+        "apply": False,
+        "confirmation_present": False,
+        "expect_head": None,
+    }
+    assert mutation["decision"]["verdict"] == "defer"
+    assert mutation["decision"]["subject"]["action"] == "remote.publish"
+    assert mutation["decision"]["required_gaps"] == []
+    assert mutation["decision"]["next"]
+    expected_state = mutation["decision"]["subject"]["expected_state"]
+    assert expected_state["source_ref"] == "refs/heads/dev"
+    assert expected_state["source_head"] == head
+    assert expected_state["target_ref"] == "refs/heads/dev"
+    assert expected_state["remote"] == "origin"
+    assert expected_state["remote_availability_state"] in {
+        "unconfigured",
+        "unavailable",
+    }
+    assert mutation["decision"]["decision_basis"]["identity_basis"] == "not_evaluated"
+
+
+def test_publish_apply_defers_when_remote_transition_is_not_performed(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / "repo-work-feature"
+    run_ethos(
+        "lane",
+        "start",
+        "feature",
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--holder-ref",
+        "agent:test:case:agent-test",
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    head = git(worktree, "rev-parse", "HEAD")
+    seed_executed_proof(worktree, head)
+
+    payload = run_ethos_blocked(
+        "publish",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=worktree,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "publication_deferred"
+    assert payload["required_gaps"] == []
+    assert payload["summary"]["local_readiness"] is True
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
 
 
 def test_publish_tolerates_git_pre_push_remote_arguments(tmp_path: Path) -> None:

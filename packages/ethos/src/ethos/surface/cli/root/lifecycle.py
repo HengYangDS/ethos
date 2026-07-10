@@ -13,13 +13,14 @@ from cyclopts import Parameter
 import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
-from ethos.adapters.mutation.core import MutationDecision
+from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import candidate_base_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
+from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
@@ -42,7 +43,8 @@ if TYPE_CHECKING:
 class _CloseoutPayload:
     repo: Path
     mutation: MutationRequest
-    decision: MutationDecision
+    decision: MutationEvaluation
+    current_head: str
     audit_root: Path
     audit: dict[str, Any]
     lifecycle: dict[str, Any]
@@ -100,6 +102,12 @@ def _int_value(value: object, *, default: int = 0) -> int:
 
 
 def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
+    mutation_next_actions = land_core.closeout_next_actions(
+        ok=payload.ok,
+        gaps=payload.gaps,
+        current_head=git.current_head(payload.repo),
+        state=payload.decision.state,
+    )
     return EthosResult(
         command="land",
         ok=payload.ok,
@@ -113,12 +121,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             else str(payload.update.get("state") or payload.mutation.command)
         ),
         required_gaps=payload.gaps,
-        next_actions=land_core.closeout_next_actions(
-            ok=payload.ok,
-            gaps=payload.gaps,
-            current_head=git.current_head(payload.repo),
-            state=payload.decision.state,
-        ),
+        next_actions=mutation_next_actions,
         governance_context=context_for_root(payload.audit_root),
         data={
             "repository_audit": payload.audit,
@@ -129,14 +132,19 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                 audit_root=payload.audit_root,
                 required_gaps=payload.gaps,
             ),
-            "mutation": {
-                "apply": payload.mutation.apply,
-                "authorized": payload.mutation.authorized,
-                "expect_head": payload.mutation.expect_head,
-                "current_head": git.current_head(payload.repo),
-                "decision": payload.decision.state,
-                "closeout": True,
-            },
+            "mutation": mutation_envelope(
+                payload.mutation,
+                action="accepted.advance",
+                resource=f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}",
+                expected_state=_closeout_expected_state(payload),
+                verdict="allow" if payload.ok else "block",
+                required_gaps=payload.gaps,
+                why=("candidate_already_current",)
+                if payload.ok and payload.decision.state == "current"
+                else (),
+                next_actions=mutation_next_actions,
+                state=payload.decision.state,
+            ),
         },
     )
 
@@ -150,6 +158,65 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
     actions = [str(action) for action in publication_actions]
     actions.append("ethos report")
     return tuple(dict.fromkeys(actions))
+
+
+def _land_expected_state(
+    *,
+    repo: Path,
+    current_head: str,
+    status_payload: Mapping[str, object],
+    closeout_support: Mapping[str, object],
+) -> dict[str, object]:
+    policy = load_branch_role_policy(repo)
+    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    return {
+        "root": repo.resolve().as_posix(),
+        "source_ref": f"refs/heads/{status_payload.get('branch', '')}",
+        "source_head": current_head,
+        "target_ref": f"refs/heads/{policy.candidate_branch}",
+        "target_head": str(candidate.get("head") or ""),
+        "holder_ref": str(closeout_support.get("holder_ref") or ""),
+        "lease_id": str(closeout_support.get("lease_id") or ""),
+        "lease_epoch": _int_value(closeout_support.get("lease_epoch")),
+    }
+
+
+def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
+    policy = load_branch_role_policy(payload.repo)
+    status_payload = workspace_status(payload.repo)
+    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    return {
+        "root": payload.repo.resolve().as_posix(),
+        "accepted_ref": f"refs/heads/{policy.accepted_branch}",
+        "accepted_head": payload.current_head,
+        "candidate_ref": f"refs/heads/{policy.candidate_branch}",
+        "candidate_head": str(candidate.get("head") or ""),
+    }
+
+
+def _publish_expected_state(
+    *,
+    repo: Path,
+    branch: str,
+    current_head: str,
+    publication: Mapping[str, object],
+    remote_sync: Mapping[str, object],
+    remote_availability: Mapping[str, object],
+) -> dict[str, object]:
+    submit_branch = str(publication.get("submit_branch") or "")
+    target_branch = submit_branch or branch
+    remote = str(remote_availability.get("remote") or "origin")
+    return {
+        "root": repo.resolve().as_posix(),
+        "source_ref": f"refs/heads/{branch}",
+        "source_head": current_head,
+        "remote": remote,
+        "target_ref": f"refs/heads/{target_branch}",
+        "observed_remote_ref": str(remote_sync.get("remote_ref") or ""),
+        "observed_remote_head": str(remote_sync.get("remote_head") or ""),
+        "remote_availability_state": str(remote_availability.get("state") or "not_probed"),
+        "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
+    }
 
 
 def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
@@ -209,6 +276,7 @@ def land(
                 update=update,
                 gaps=gaps,
                 ok=ok,
+                current_head=current_head,
             )
         )
         emit(result, json_output=json_output, enforce=apply)
@@ -258,16 +326,17 @@ def land(
         if gaps
         else str(update.get("state") or decision.state)
     )
+    mutation_next_actions = land_core.land_next_actions(
+        ok=ok,
+        gaps=gaps,
+        current_head=current_head,
+    )
     result = EthosResult(
         command="land",
         ok=ok,
         state=state,
         required_gaps=gaps,
-        next_actions=land_core.land_next_actions(
-            ok=ok,
-            gaps=gaps,
-            current_head=current_head,
-        ),
+        next_actions=mutation_next_actions,
         governance_context=governance,
         data={
             "repository_audit": audit,
@@ -275,13 +344,21 @@ def land(
             "candidate_update": update,
             "closeout_support": closeout_support,
             "proof_readiness": proof_readiness,
-            "mutation": {
-                "apply": apply,
-                "authorized": authorize,
-                "expect_head": expect_head,
-                "current_head": current_head,
-                "decision": decision.state,
-            },
+            "mutation": mutation_envelope(
+                request,
+                action="candidate.integrate",
+                resource=f"refs/heads/{load_branch_role_policy(repo).candidate_branch}",
+                expected_state=_land_expected_state(
+                    repo=repo,
+                    current_head=current_head,
+                    status_payload=status_payload,
+                    closeout_support=closeout_support,
+                ),
+                verdict="allow" if ok else "block",
+                required_gaps=gaps,
+                next_actions=mutation_next_actions,
+                state=state,
+            ),
         },
     )
     emit(result, json_output=json_output, enforce=apply)
@@ -352,19 +429,32 @@ def publish(
         "submit_branch": str(publication.get("submit_branch") or ""),
         "next_publication_action": _first_string(publication.get("next_actions")),
     }
+    publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
+    publication_verdict = "block" if gaps else "defer" if remote_state == "deferred" else "allow"
+    transition_ok = ok and (not options.apply or publication_verdict == "allow")
+    publish_expected_state = _publish_expected_state(
+        repo=repo,
+        branch=str(branch),
+        current_head=current_head,
+        publication=publication,
+        remote_sync=remote_sync,
+        remote_availability=remote_availability,
+    )
     result = EthosResult(
         command="publish",
-        ok=ok,
+        ok=transition_ok,
         state=(
             "local_publish_ready"
             if ok and not options.apply
+            else "publication_deferred"
+            if ok and publication_verdict == "defer"
             else "blocked"
             if gaps
             else decision.state
         ),
         summary=publish_summary,
         required_gaps=gaps,
-        next_actions=_publish_next_actions(ok=ok, publication=publication),
+        next_actions=publish_next_actions,
         governance_context=governance,
         data={
             "repository_audit": audit,
@@ -377,13 +467,24 @@ def publish(
             "remote_sync": remote_sync,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
-            "mutation": {
-                "apply": options.apply,
-                "authorized": options.authorize,
-                "expect_head": options.expect_head,
-                "current_head": current_head,
-                "decision": decision.state,
-            },
+            "mutation": mutation_envelope(
+                MutationRequest(
+                    command="publish",
+                    apply=options.apply,
+                    authorized=options.authorize,
+                    expect_head=options.expect_head,
+                ),
+                action="remote.publish",
+                resource=str(publish_expected_state["target_ref"]),
+                expected_state=publish_expected_state,
+                verdict=publication_verdict,
+                required_gaps=gaps,
+                why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
+                next_actions=publish_next_actions,
+                state=remote_state,
+                evidence_boundary="local_readiness_and_remote_availability",
+                enforcement_boundary="remote_ref_transition",
+            ),
         },
     )
     emit(result, json_output=json_output, enforce=options.apply)

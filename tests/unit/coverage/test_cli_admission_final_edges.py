@@ -400,7 +400,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "evaluate_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="land_ready"),
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="land_ready"),
     )
     monkeypatch.setattr(
         lifecycle_cli.land_core,

@@ -94,7 +94,7 @@ def test_evaluate_closeout_mutation_accepted_root_dirty(tmp_path: Path) -> None:
 def test_apply_land_to_candidate_returns_blocked_decision(tmp_path: Path) -> None:
     # A not-ok admitted decision returns the blocked payload early (line 247).
     repo = _init_repo(tmp_path / "repo")
-    blocked = core.MutationDecision(ok=False, state="blocked", gaps=("authorization_required",))
+    blocked = core.MutationEvaluation(ok=False, state="blocked", gaps=("authorization_required",))
     result = core.apply_land_to_candidate(
         root=repo, authorized=False, expect_head=None, admitted_decision=blocked
     )

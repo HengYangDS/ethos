@@ -182,7 +182,7 @@ def test_land_closeout_dry_run_reports_expect_head_mismatch(
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["expect_head_mismatch"]
-    assert payload["data"]["mutation"]["decision"] == "blocked"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
     assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["expect_head_mismatch"]
 
 
@@ -209,7 +209,7 @@ def test_land_closeout_dry_run_reports_accepted_root_required(
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == ["accepted_root_required"]
-    assert payload["data"]["mutation"]["decision"] == "blocked"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "block"
     assert payload["data"]["closeout_bootstrap"]["required_gaps"] == ["accepted_root_required"]
 
 
@@ -228,8 +228,21 @@ def test_land_closeout_dry_run_reports_current_when_candidate_matches_accepted(
     assert payload["state"] == "accepted_current"
     assert payload["required_gaps"] == []
     assert payload["next_actions"] == ["ethos publish"]
-    assert payload["data"]["mutation"]["decision"] == "current"
-    assert payload["data"]["mutation"]["current_head"] == accepted_head
+    mutation = payload["data"]["mutation"]
+    assert mutation["request"] == {
+        "command": "closeout",
+        "apply": False,
+        "confirmation_present": False,
+        "expect_head": None,
+    }
+    assert mutation["decision"]["verdict"] == "allow"
+    assert mutation["decision"]["subject"]["action"] == "accepted.advance"
+    expected_state = mutation["decision"]["subject"]["expected_state"]
+    assert expected_state["accepted_ref"] == "refs/heads/dev"
+    assert expected_state["accepted_head"] == accepted_head
+    assert expected_state["candidate_ref"] == "refs/heads/candidate/dev"
+    assert expected_state["candidate_head"] == accepted_head
+    assert mutation["decision"]["why"] == ["candidate_already_current"]
     assert payload["data"]["closeout_bootstrap"]["state"] == "current"
     assert payload["data"]["closeout_bootstrap"]["next_action"] == "ethos publish"
 

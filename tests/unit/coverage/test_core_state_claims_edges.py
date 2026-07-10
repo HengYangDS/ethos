@@ -264,7 +264,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )
     assert decision.gaps == ("trust_gap",)
 
-    ready_decision = mutation_core.MutationDecision(ok=True, state="land_ready")
+    ready_decision = mutation_core.MutationEvaluation(ok=True, state="land_ready")
     monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
     monkeypatch.setattr(
         mutation_core,
@@ -332,7 +332,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
     monkeypatch.setattr(
         mutation_core,
@@ -411,7 +411,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
     monkeypatch.setattr(
         mutation_core,
@@ -459,7 +459,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
     monkeypatch.setattr(
         mutation_core,

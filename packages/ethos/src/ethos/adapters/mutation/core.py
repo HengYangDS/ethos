@@ -4,6 +4,7 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
@@ -18,11 +19,16 @@ from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
+from ethos_core.contracts.admission import AdmissionDecision
+from ethos_core.contracts.admission import DecisionBasis
+from ethos_core.contracts.admission import MutationSubject
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+
+MutationVerdict = Literal["allow", "block", "defer"]
 
 
 def proof_gaps(root: Path, current_head: str) -> list[str]:
@@ -101,12 +107,64 @@ class MutationRequest:
     authorized: bool
     expect_head: str | None
 
+    def to_payload(self) -> dict[str, object]:
+        """Project intent and confirmation without calling either authorization."""
+        return {
+            "command": self.command,
+            "apply": self.apply,
+            "confirmation_present": self.authorized,
+            "expect_head": self.expect_head,
+        }
+
 
 @dataclass(frozen=True)
-class MutationDecision:
+class MutationEvaluation:
+    """Internal reducer result; the public contract is ``AdmissionDecision``."""
+
     ok: bool
     state: str
     gaps: tuple[str, ...] = ()
+
+
+def mutation_envelope(
+    request: MutationRequest,
+    *,
+    action: str,
+    resource: str,
+    expected_state: dict[str, object],
+    verdict: MutationVerdict,
+    required_gaps: tuple[str, ...] = (),
+    why: tuple[str, ...] = (),
+    next_actions: tuple[str, ...] = (),
+    state: str = "",
+    identity_basis: str = "not_evaluated",
+    evidence_boundary: str = "current_local_observation",
+    enforcement_boundary: str = "local_process_guard",
+    verifier_provenance: str = "current_runner",
+) -> dict[str, object]:
+    """Build the canonical exact-request mutation envelope."""
+    decision = AdmissionDecision(
+        verdict=verdict,
+        subject=MutationSubject(
+            action=action,
+            resource=resource,
+            expected_state=expected_state,
+        ),
+        policy_refs=(f"commitment:{request.command}-admission",),
+        evidence_refs=(f"evidence:{evidence_boundary}",),
+        basis=DecisionBasis(
+            enforcement_boundary=enforcement_boundary,
+            identity_basis=identity_basis,
+            state_bindings=tuple(expected_state),
+            evidence_boundary=evidence_boundary,
+            verifier_provenance=verifier_provenance,
+            time_basis="evaluation_time",
+        ),
+        why=why or ((state or "request_admitted",) if verdict == "allow" else required_gaps),
+        next=next_actions,
+        required_gaps=required_gaps,
+    )
+    return {"request": request.to_payload(), "decision": decision.to_payload()}
 
 
 def evaluate_mutation(
@@ -114,9 +172,9 @@ def evaluate_mutation(
     *,
     root: Path,
     current_head: str,
-) -> MutationDecision:
+) -> MutationEvaluation:
     if not request.apply and request.command != "land":
-        return MutationDecision(ok=True, state="dry_run")
+        return MutationEvaluation(ok=True, state="dry_run")
     gaps: list[str] = []
     if request.apply and not request.authorized:
         gaps.append("authorization_required")
@@ -136,10 +194,10 @@ def evaluate_mutation(
     if request.apply:
         gaps.extend(proof_gaps(root, current_head))
     if gaps:
-        return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
+        return MutationEvaluation(ok=False, state="blocked", gaps=tuple(gaps))
     if not request.apply:
-        return MutationDecision(ok=True, state="dry_run")
-    return MutationDecision(ok=True, state=f"{request.command}_ready")
+        return MutationEvaluation(ok=True, state="dry_run")
+    return MutationEvaluation(ok=True, state=f"{request.command}_ready")
 
 
 def evaluate_closeout_mutation(
@@ -147,7 +205,7 @@ def evaluate_closeout_mutation(
     *,
     root: Path,
     current_head: str,
-) -> MutationDecision:
+) -> MutationEvaluation:
     gaps: list[str] = []
     if request.apply and not request.authorized:
         gaps.append("authorization_required")
@@ -174,12 +232,12 @@ def evaluate_closeout_mutation(
         )
     )
     if gaps:
-        return MutationDecision(ok=False, state="blocked", gaps=tuple(gaps))
+        return MutationEvaluation(ok=False, state="blocked", gaps=tuple(gaps))
     if candidate_head == current_head:
-        return MutationDecision(ok=True, state="current")
+        return MutationEvaluation(ok=True, state="current")
     if not request.apply:
-        return MutationDecision(ok=True, state="dry_run")
-    return MutationDecision(ok=True, state=f"{request.command}_ready")
+        return MutationEvaluation(ok=True, state="dry_run")
+    return MutationEvaluation(ok=True, state=f"{request.command}_ready")
 
 
 def apply_land_to_candidate(
@@ -187,7 +245,7 @@ def apply_land_to_candidate(
     root: Path,
     authorized: bool,
     expect_head: str | None,
-    admitted_decision: MutationDecision | None = None,
+    admitted_decision: MutationEvaluation | None = None,
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = _git(root, "rev-parse", "HEAD").stdout.strip()

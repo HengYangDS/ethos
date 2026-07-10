@@ -6,10 +6,10 @@ They do not model users, teams, permissions, or durable repository truth.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 from typing import Self
 
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -44,7 +44,7 @@ class HolderRef(BaseModel):
 
     def serialize(self) -> str:
         """Return the stable equality serialization."""
-        return ":".join((self.kind, self.namespace, self.instance_kind, self.opaque_id))
+        return f"{self.kind}:{self.namespace}:{self.instance_kind}:{self.opaque_id}"
 
 
 class LaneLease(BaseModel):
@@ -57,9 +57,9 @@ class LaneLease(BaseModel):
     lane_ref: str = Field(min_length=1)
     holder_ref: HolderRef
     epoch: int = Field(ge=1)
-    issued_at: datetime
-    renewed_at: datetime
-    expires_at: datetime
+    issued_at: AwareDatetime
+    renewed_at: AwareDatetime
+    expires_at: AwareDatetime
     expected_head: str = ""
     claim_id: str = ""
     path_scope: tuple[str, ...] = ()
@@ -91,4 +91,30 @@ class LaneLease(BaseModel):
             "mints_authority": False,
             "filesystem_fence": False,
             "distributed_lock": False,
+        }
+
+
+class CrossHostHandoff(BaseModel):
+    """Content-addressed transfer contract between Git common directories."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    source_lane_ref: str = Field(min_length=1)
+    source_head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    source_tree: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    target_holder_ref: HolderRef
+    context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    dirty_disposition: str = Field(pattern=r"^(clean|committed|preserved)$")
+
+    def to_payload(self) -> dict[str, Any]:
+        """Project transferable Git/context facts without the source lease."""
+        return {
+            "source_lane_ref": self.source_lane_ref,
+            "source_head": self.source_head,
+            "source_tree": self.source_tree,
+            "target_holder_ref": self.target_holder_ref.serialize(),
+            "context_digest": self.context_digest,
+            "dirty_disposition": self.dirty_disposition,
+            "transfers_source_lease": False,
+            "destination_creates_local_incarnation": True,
         }

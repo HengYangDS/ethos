@@ -40,7 +40,15 @@ transition command:
 
 ```bash
 ethos report
+ethos report --json
+ethos report --json --compact
 ```
+
+Use `--json --compact` when an agent, CI summary, or constrained context window
+needs the same top-level verdict, summary, required gaps, and next actions
+without the heavyweight audit bodies carried by full JSON. Compact report output
+keeps machine-stable counts and score data; it does not mint a separate truth
+source or bypass `ethos prove` / `ethos land`.
 
 This is the command grammar. `status`, `plan`, `prove`, `land`, and `publish`
 

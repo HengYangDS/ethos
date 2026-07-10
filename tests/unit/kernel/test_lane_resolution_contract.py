@@ -10,7 +10,7 @@ def test_lane_resolution_decision_binds_exact_observation_and_does_not_authorize
         head="a" * 40,
         lane_incarnation_id="lane-incarnation:one",
         holder_ref="",
-        path="/tmp/work-orphan",
+        path="/var/empty/work-orphan",
         dirty=False,
         foreign=True,
         orphan=True,

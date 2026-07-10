@@ -172,27 +172,99 @@ def orient(
         sys.stdout.write(f"{line}\n")
 
 
+def _count_sequence(value: object) -> int:
+    if isinstance(value, list | tuple):
+        return len(value)
+    return 0
+
+
+def _compact_invalid_states(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {"category_count": 0, "gap_count": 0}
+    return {
+        "category_count": int(value.get("category_count") or 0),
+        "gap_count": int(value.get("gap_count") or 0),
+    }
+
+
+def _compact_gap_layers(value: object) -> dict[str, dict[str, object]]:
+    if not isinstance(value, dict):
+        return {}
+    compact_layers: dict[str, dict[str, object]] = {}
+    for name, raw_layer in value.items():
+        if not isinstance(raw_layer, dict):
+            continue
+        compact_layers[str(name)] = {
+            "blocking": bool(raw_layer.get("blocking")),
+            "ok": bool(raw_layer.get("ok")),
+            "required_count": _count_sequence(raw_layer.get("required_gaps")),
+            "advisory_count": _count_sequence(raw_layer.get("advisory_gaps")),
+            "gap_count": int(raw_layer.get("gap_count") or 0),
+            "invalid_states": _compact_invalid_states(raw_layer.get("invalid_states")),
+        }
+    return compact_layers
+
+
+def _compact_report_data(data: dict[str, Any]) -> dict[str, object]:
+    advisory_signals = cast("dict[str, object]", data.get("advisory_signals") or {})
+    parity = cast("dict[str, object]", data.get("parity") or {})
+    parity_gaps = cast("dict[str, object]", parity.get("gaps") or {})
+    adopter_gaps = cast("dict[str, object]", parity.get("adopter_gaps") or {})
+    return {
+        "compact": True,
+        "governance_context": data["governance_context"],
+        "scores": data.get("scores", {}),
+        "score_model": data.get("score_model", {}),
+        "first_hour": data.get("first_hour", {}),
+        "gap_layers": _compact_gap_layers(data.get("gap_layers")),
+        "invalid_states": _compact_invalid_states(data.get("invalid_states")),
+        "advisory_signals": {
+            "blocking": bool(advisory_signals.get("blocking")),
+            "gap_count": int(advisory_signals.get("gap_count") or 0),
+            "next_action_count": _count_sequence(advisory_signals.get("next_actions")),
+        },
+        "parity": {
+            "scope": parity.get("scope", {}),
+            "generic_gap_count": _count_sequence(parity_gaps.get("required_gaps")),
+            "adopter_gap_count": _count_sequence(adopter_gaps.get("required_gaps")),
+            "pending_package_count": _count_sequence(parity_gaps.get("pending_packages")),
+        },
+    }
+
+
+def _compact_report_payload(payload: dict[str, object]) -> dict[str, object]:
+    data = cast("dict[str, Any]", payload["data"])
+    return {
+        **payload,
+        "summary": {**cast("dict[str, object]", payload["summary"]), "compact": True},
+        "data": _compact_report_data(data),
+    }
+
+
 @app.command
 def report(
     *,
     root: RootOption | None = None,
     product_root: Annotated[Path | None, Parameter(name="--product-root")] = None,
     json_output: JsonFlag = False,
+    compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
     """Emit a concise scorecard."""
     payload = scorecard_report(
         resolve_root(root),
         product_root=resolve_root(product_root) if product_root is not None else None,
     )
+    if compact:
+        payload = _compact_report_payload(payload)
     result = EthosResult(
         command="report",
         ok=bool(payload["ok"]),
         state=str(payload.get("state") or ("ready" if payload["ok"] else "gapped")),
-        summary=payload["summary"],
-        required_gaps=tuple(payload["required_gaps"]),
-        next_actions=tuple(payload["next_actions"]),
+        summary=cast("dict[str, Any]", payload["summary"]),
+        required_gaps=tuple(cast("tuple[str, ...] | list[str]", payload["required_gaps"])),
+        next_actions=tuple(cast("tuple[str, ...] | list[str]", payload["next_actions"])),
         governance_context=cast("dict[str, Any]", payload["data"])["governance_context"],
-        data=payload["data"],
+        data=cast("dict[str, Any]", payload["data"]),
     )
     emit(result, json_output=json_output, enforce=False)
 

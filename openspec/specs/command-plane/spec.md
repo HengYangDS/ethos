@@ -23,6 +23,13 @@ ETHOS SHALL keep the normal user workflow under five transition commands:
 - **AND** it does not add a new public lifecycle command
 - **AND** it references the same transition commands, guards, and evidence boundaries as the ETHOS command plane
 
+#### Scenario: Compact scorecard preserves verdict semantics
+- **WHEN** `ethos report --json --compact` runs
+- **THEN** it preserves the top-level scorecard verdict, summary, required gaps, and next actions from `ethos report --json`
+- **AND** it omits heavyweight audit bodies from `data`
+- **AND** it keeps score, gap-layer, advisory, and parity information as token-friendly counts or compact objects
+- **AND** it remains a scorecard projection rather than a transition command or separate truth source
+
 ### Requirement: CLI Surface Delegation
 The CLI SHALL compose output and UX while delegating semantics to core,
 contracts, repository, assistants, and adapters packages.

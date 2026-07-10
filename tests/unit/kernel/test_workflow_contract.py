@@ -187,3 +187,31 @@ def test_workflow_runtime_container_helpers_reject_non_container_values() -> Non
     assert workflow_runtime_model._dict("not-a-dict") == {}
     assert workflow_runtime_model._dict_items("not-a-list") == []
     assert workflow_runtime_model._strings("not-a-list") == []
+
+
+def test_planned_transition_projection_skips_anonymous_nodes_and_self_requirements() -> None:
+    projection = planned_transition_projection(
+        {
+            "node": [
+                {"produces": ["anonymous_fact"]},
+                {
+                    "id": "self-contained",
+                    "requires": ["self_fact"],
+                    "produces": ["self_fact"],
+                },
+                {"id": "consumer", "requires": ["self_fact", "external_fact"]},
+            ]
+        }
+    )
+
+    assert projection["graph"] == {
+        "ok": True,
+        "ordered_ids": ["self-contained", "consumer"],
+        "edges": [
+            {"source": "self-contained", "target": "consumer", "relation": "depends_on"},
+        ],
+        "gaps": [],
+    }
+    assert projection["external_requirements"] == [
+        {"node": "consumer", "requires": ["external_fact"]},
+    ]

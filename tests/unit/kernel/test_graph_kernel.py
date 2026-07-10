@@ -117,3 +117,14 @@ def test_graph_kernel_plan_keeps_invalid_graph_stable_without_recursing() -> Non
         {"source": "status", "target": "prove", "relation": "depends_on"},
         {"source": "audit", "target": "prove", "relation": "depends_on"},
     ]
+
+
+def test_graph_kernel_edges_method_returns_declared_plan_edges() -> None:
+    kernel = GraphKernel(
+        nodes=(
+            GraphNode(id="plan", depends_on=("status",)),
+            GraphNode(id="status"),
+        )
+    )
+
+    assert kernel.edges() == (GraphEdge(source="status", target="plan", relation="depends_on"),)

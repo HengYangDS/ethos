@@ -68,7 +68,10 @@ def _selectlease_rows(
 
 
 def table_columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    rows = connection.execute(f"pragma table_info({table})").fetchall()  # nosec B608 - table is an internal constant
+    if table != "leases":
+        msg = f"unknown state table: {table!r}"
+        raise ValueError(msg)
+    rows = connection.execute("pragma table_info(leases)").fetchall()
     return {str(row[1]) for row in rows}
 
 

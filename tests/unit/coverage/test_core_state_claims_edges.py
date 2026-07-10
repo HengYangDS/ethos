@@ -17,6 +17,7 @@ import ethos.adapters.store.state.events as state_events
 import ethos.adapters.store.state.events as state_schema
 import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.adapters.store.state.lease.lifecycle.effects as state_effects
+import ethos.adapters.store.state.lease.projection as state_projection
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
@@ -569,6 +570,10 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert state_events.safe_table("events") == "events"
     with pytest.raises(ValueError):
         state_events.safe_table("bad")
+    assert "insert into events" in state_events.insert_event_sql("events")
+    assert "from chronicle_events" in state_events.select_event_sql("chronicle_events")
+    with closing(sqlite3.connect(db)) as connection, pytest.raises(ValueError):
+        state_projection.table_columns(connection, "events")
     state_events.append_event(db, event_type="e", subject="s", payload={"x": 1})
     state_events.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
     assert state_events.list_events(db)[0]["payload"] == {"x": 1}

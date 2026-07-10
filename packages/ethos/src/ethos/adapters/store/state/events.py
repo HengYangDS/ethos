@@ -164,6 +164,28 @@ def initialize_state(db_path: Path) -> None:
 
 
 _EVENT_TABLES = frozenset({"chronicle_events", "events"})
+_INSERT_EVENT_SQL = {
+    "chronicle_events": """
+    insert into chronicle_events(created_at, event_type, subject, payload_json)
+    values (?, ?, ?, ?)
+    """,
+    "events": """
+    insert into events(created_at, event_type, subject, payload_json)
+    values (?, ?, ?, ?)
+    """,
+}
+_SELECT_EVENT_SQL = {
+    "chronicle_events": """
+    select id, created_at, event_type, subject, payload_json
+    from chronicle_events
+    order by id
+    """,
+    "events": """
+    select id, created_at, event_type, subject, payload_json
+    from events
+    order by id
+    """,
+}
 
 
 def safe_table(table: str) -> str:
@@ -171,6 +193,14 @@ def safe_table(table: str) -> str:
         msg = f"unknown event table: {table!r}"
         raise ValueError(msg)
     return table
+
+
+def insert_event_sql(table: str) -> str:
+    return _INSERT_EVENT_SQL[safe_table(table)]
+
+
+def select_event_sql(table: str) -> str:
+    return _SELECT_EVENT_SQL[safe_table(table)]
 
 
 def append_chronicle_event(
@@ -218,10 +248,7 @@ def _append_event_row(
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
-            f"""
-            insert into {safe_table(table)}(created_at, event_type, subject, payload_json)
-            values (?, ?, ?, ?)
-            """,  # nosec B608 - table via _safe_table allowlist; values parameterized
+            insert_event_sql(table),
             (now(), event_type, subject, json.dumps(payload, sort_keys=True)),
         )
         connection.commit()
@@ -239,13 +266,7 @@ def _list_event_rows(db_path: Path, *, table: str) -> list[dict[str, Any]]:
     if not db_path.exists():
         return []
     with closing(sqlite3.connect(db_path)) as connection:
-        rows = connection.execute(
-            f"""
-            select id, created_at, event_type, subject, payload_json
-            from {safe_table(table)}
-            order by id
-            """  # nosec B608 - table via _safe_table allowlist; no external input
-        ).fetchall()
+        rows = connection.execute(select_event_sql(table)).fetchall()
     return [
         {
             "id": row[0],

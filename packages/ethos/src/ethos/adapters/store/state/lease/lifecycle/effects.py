@@ -62,7 +62,7 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         if "subject" not in columns:
             return 0
         cursor = connection.execute(
-            "delete from leases where subject = ?",  # nosec B608 - fixed query, param bound
+            "delete from leases where subject = ?",
             (subject,),
         )
         connection.commit()

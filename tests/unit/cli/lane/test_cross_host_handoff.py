@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ethos.adapters.mutation.lane_lifecycle.handoff import core as handoff
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.store.state.lease.read import active_leases
+from ethos.adapters.store.state.lease.projection import active_leases
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import add_candidate_worktree

@@ -14,9 +14,9 @@ from typing import Any
 
 from ethos.adapters.store.state.events import initialize_state
 from ethos.adapters.store.state.events import now
-from ethos.adapters.store.state.lease.read import json_object
-from ethos.adapters.store.state.lease.read import lease_contract_fields
-from ethos.adapters.store.state.lease.read import string_list
+from ethos.adapters.store.state.lease.projection import json_object
+from ethos.adapters.store.state.lease.projection import lease_contract_fields
+from ethos.adapters.store.state.lease.projection import string_list
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:

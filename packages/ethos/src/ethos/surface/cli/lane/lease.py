@@ -7,9 +7,9 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from ethos.adapters.mutation.lane_lifecycle.handoff import export_cross_host_handoff
-from ethos.adapters.mutation.lane_lifecycle.handoff import import_cross_host_handoff
-from ethos.adapters.mutation.lane_lifecycle.handoff import revoke_cross_host_source
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import export_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import import_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import revoke_cross_host_source
 from ethos.adapters.mutation.lane_lifecycle.lease import accept_work_lane_handoff
 from ethos.adapters.mutation.lane_lifecycle.lease import normalize_work_lane_lease
 from ethos.adapters.mutation.lane_lifecycle.lease import offer_work_lane_handoff

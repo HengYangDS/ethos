@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.lane_lifecycle import handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff import core as handoff
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.store.state import active_leases
 from tests.support.ethos_cli_runner import run_ethos
@@ -417,7 +417,7 @@ def test_cross_host_import_rolls_back_git_state_when_lease_creation_fails(
     def fail_acquire(*args, **kwargs):
         raise ValueError("simulated_lease_failure")
 
-    monkeypatch.setattr(handoff, "acquire_lease", fail_acquire)
+    monkeypatch.setattr(handoff.handoff_package, "acquire_lease", fail_acquire)
 
     payload = handoff.import_cross_host_handoff(
         root=destination,

@@ -58,6 +58,18 @@ registries.
 - **AND** Python compiles the declaration to runtime and quality projections but
   does not restate gate records or proof floors as hand-written registries
 
+#### Scenario: Adopter-native gates extend the typed runtime registry
+
+- **GIVEN** an adopted repository declares native code-correctness gate ids
+- **WHEN** proof planning compiles the repository gate registry
+- **THEN** each native id must have a complete descriptor under the profile
+  proof table, including an executable command
+- **AND** validated descriptors extend the runtime registry and participate in
+  action-graph validation, policy digest, and proof-run conformance checks
+- **AND** an id-only, invalid, duplicate, or product-conflicting descriptor emits
+  an `adopter_gate_descriptor_*` required gap instead of raising an exception,
+  guessing a command, overriding a product gate, or silently skipping the gate
+
 ### Requirement: Proof Policy Lattice
 
 ETHOS SHALL distinguish planned, readiness, executed, proven, blocked,

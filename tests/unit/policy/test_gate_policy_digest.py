@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 def _conformant_runs(root: Path) -> list[dict[str, object]]:
-    registry = gate_registry()
+    registry = gate_registry(root)
     runs: list[dict[str, object]] = []
     for gate_id in promotion_required_gate_ids(root):
         gate = registry.get(gate_id)
@@ -147,6 +147,30 @@ def test_conformance_skips_required_gate_absent_from_registry(tmp_path: Path) ->
     assert "acme-tests" not in gate_registry()
     # No runs at all: every gate is either absent-from-registry (547) or run-absent (550).
     assert gate_policy_conformance_gaps([], tmp_path) == []
+
+
+def test_adopter_gate_descriptor_participates_in_policy_conformance(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos/profile.toml").write_text(
+        """profile_id = "acme"
+[proof]
+code_correctness_gates = ["acme-tests"]
+[[proof.gates]]
+id = "acme-tests"
+kind = "quality"
+command = ["uv", "run", "pytest"]
+evidence_class = "proof"
+trust_bearing = true
+""",
+        encoding="utf-8",
+    )
+    runs = _conformant_runs(tmp_path)
+    adopter_run = next(run for run in runs if run["action_id"] == "acme-tests")
+    adopter_run["command"] = ["/bin/true"]
+
+    assert gate_policy_conformance_gaps(runs, tmp_path) == [
+        "proof_gate_not_policy_conformant:acme-tests"
+    ]
 
 
 def test_gate_policy_gaps_absent_record_is_empty(tmp_path: Path) -> None:

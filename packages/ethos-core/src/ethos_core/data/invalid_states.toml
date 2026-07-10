@@ -208,6 +208,8 @@ match_prefixes = [
   "proof_policy_digest_stale",
   "proof_gate_not_policy_conformant",
   "adopter_profile_missing_code_correctness_gates",
+  "adopter_gate_descriptor_",
+  "adopter_gate_descriptors_",
   "push_to_protected_role_not_proven",
   "protected_ref_move_not_proven",
   "expect_head_mismatch",

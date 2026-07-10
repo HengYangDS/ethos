@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git
@@ -24,6 +25,9 @@ from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate
 from ethos_core.result import EthosResult
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 KNOWN_PROOF_SCOPES = frozenset(
     {
         "repository",
@@ -41,6 +45,7 @@ def missing_gate_dependency_next_actions(
     selected_gate_ids: tuple[str, ...],
     validation_gaps: tuple[str, ...],
     current_head: str,
+    root: Path | None = None,
 ) -> tuple[str, ...]:
     """Return a concrete proof rerun command when selected gates omit dependencies."""
     if not selected_gate_ids:
@@ -54,7 +59,7 @@ def missing_gate_dependency_next_actions(
     if not missing_dependencies:
         return ()
 
-    registry = gate_registry()
+    registry = gate_registry(root)
     ordered_gate_ids: list[str] = []
     seen: set[str] = set()
 
@@ -133,7 +138,7 @@ def prove(
     )
     graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
-    gates_by_id = gate_registry()
+    gates_by_id = gate_registry(repo)
     runner = (
         LocalSubprocessRunner(inprocess_handler=run_inprocess_cli_gate)
         if execute
@@ -205,6 +210,7 @@ def prove(
         selected_gate_ids=gate,
         validation_gaps=graph_validation.gaps,
         current_head=current_head,
+        root=repo,
     )
     next_actions = dependency_next_actions or (
         ("ethos land",)

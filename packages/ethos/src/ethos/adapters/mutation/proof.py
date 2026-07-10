@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 from ethos.repository.policy.gates import adopter_code_correctness_gap
+from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
@@ -217,6 +218,7 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     adopter_gap = adopter_code_correctness_gap(root)
     if adopter_gap:
         gaps.append(adopter_gap)
+    gaps.extend(adopter_gate_descriptor_gaps(root))
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None
     required = _promotion_required_gate_ids(root)
@@ -246,6 +248,7 @@ def gate_policy_gaps(root: Path, head: str) -> list[str]:
     if record is None:
         return []
     gaps: list[str] = []
+    gaps.extend(adopter_gate_descriptor_gaps(root))
     stored_digest = str(record.get("gate_policy_digest", ""))
     if stored_digest != gate_policy_digest(root):
         gaps.append("proof_policy_digest_stale")

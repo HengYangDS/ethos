@@ -183,6 +183,22 @@ native tool: Pixi, Make, npm, Cargo, Go, pytest, shell, or a project CLI.
 A command contract must not require a universal `packages/`, `tools/`, `scripts/`,
 or Python layout. Those are adopter implementation choices.
 
+Repository-native proof gates use the same typed descriptor vocabulary as the
+product gate registry. The `[proof] code_correctness_gates` list names the gates
+required for promotion; each non-product id must also have one `[[proof.gates]]`
+descriptor with at least `id`, `kind`, and a list-form executable `command`.
+Optional descriptor fields such as `depends_on`, `evidence_class`,
+`trust_bearing`, and `network_policy` retain the product gate semantics. ETHOS
+compiles these descriptors as an adopter overlay: they participate in action
+graph validation, policy digests, and proof-run conformance without becoming
+product-owned gates or a second command plane.
+
+An id without a descriptor is not executable truth. ETHOS reports an
+`adopter_gate_descriptor_missing:<id>` gap rather than guessing a command,
+accepting an unverified proof-run id, or raising an implementation exception.
+Invalid, duplicate, profile-mismatched, or product-conflicting descriptors fail
+closed through the corresponding `adopter_gate_descriptor_*` gap.
+
 ## Validation
 
 A repository profile validator must fail closed when:

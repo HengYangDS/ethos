@@ -73,6 +73,21 @@ def test_prove_missing_gate_dependency_reports_concrete_rerun(tmp_path: Path) ->
     ]
 
 
+def test_adopter_id_only_gate_declaration_fails_closed_without_traceback(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir(exist_ok=True)
+    (repo / ".ethos/profile.toml").write_text(
+        'profile_id = "acme"\n[proof]\ncode_correctness_gates = ["acme-tests"]\n',
+        encoding="utf-8",
+    )
+
+    payload = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
+
+    assert payload["state"] == "gapped"
+    assert "adopter_gate_descriptor_missing:acme-tests" in payload["required_gaps"]
+    assert "acme-tests" not in [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+
+
 def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
@@ -429,7 +444,11 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypat
         evidence_class="diagnostic",
         trust_bearing=False,
     )
-    monkeypatch.setattr(proof_cli, "gate_registry", lambda: {"diagnostic-only": diagnostic_gate})
+    monkeypatch.setattr(
+        proof_cli,
+        "gate_registry",
+        lambda root=None: {"diagnostic-only": diagnostic_gate},  # noqa: ARG005
+    )
     monkeypatch.setattr(
         proof_cli,
         "gate_graph",

@@ -61,10 +61,12 @@ class ActionNode:
 @dataclass(frozen=True)
 class ActionGraph:
     nodes: tuple[ActionNode, ...]
+    validation_issues: tuple[str, ...] = ()
 
     def validate(self) -> GraphValidation:
         validation = self._kernel().validate()
-        return GraphValidation(ok=validation.ok, gaps=validation.gaps)
+        gaps = tuple(dict.fromkeys((*self.validation_issues, *validation.gaps)))
+        return GraphValidation(ok=not gaps, gaps=gaps)
 
     def topological_nodes(self) -> tuple[ActionNode, ...]:
         ordered_ids = self._kernel().ordered_ids()
@@ -91,4 +93,7 @@ class ActionGraph:
 
     def digest(self) -> str:
         nodes = [node.normalized() for node in self.ordered_nodes()]
-        return hashlib.sha256(_stable_json({"nodes": nodes}).encode("utf-8")).hexdigest()
+        payload: dict[str, Any] = {"nodes": nodes}
+        if self.validation_issues:
+            payload["validation_issues"] = list(self.validation_issues)
+        return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()

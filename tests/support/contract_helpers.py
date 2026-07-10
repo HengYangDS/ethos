@@ -98,7 +98,7 @@ def conformant_proof_run(gate_id: str, root: Path) -> object:
     from ethos.repository.policy.gates import canonical_gate_command
     from ethos.repository.policy.gates import gate_registry
 
-    gate = gate_registry().get(gate_id)
+    gate = gate_registry(root).get(gate_id)
     if gate is None:
         command: tuple[str, ...] = ("pytest",)
         trust_bearing = True

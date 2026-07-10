@@ -49,13 +49,84 @@ DEFAULT_GATE_IDS = PRODUCT_DEFAULT_GATE_IDS
 ADOPTER_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.adopter_default
 
 
-def gate_registry() -> dict[str, Gate]:
-    """Compile the runtime gate registry from its tracked declaration."""
+def _product_gate_registry() -> dict[str, Gate]:
+    """Compile the product-owned runtime gate registry."""
     descriptors = _GATE_DECLARATION.registry("runtime", python_executable=sys.executable)
     return {
         gate_id: Gate.model_validate(descriptor.model_dump())
         for gate_id, descriptor in descriptors.items()
     }
+
+
+def _adopter_gate_overlay(
+    root: Path | None,
+    product_registry: dict[str, Gate],
+) -> tuple[dict[str, Gate], tuple[str, ...]]:
+    """Compile repository-native gate descriptors from an adopter profile."""
+    if not _adopter_profile_active(root):
+        return {}, ()
+    profile = load_repository_profile(cast("Path", root))
+    proof_table = profile.tables.get("proof", {})
+    raw_gates = proof_table.get("gates", []) if isinstance(proof_table, dict) else []
+    if not isinstance(raw_gates, list):
+        return {}, ("adopter_gate_descriptors_invalid",)
+
+    overlay: dict[str, Gate] = {}
+    gaps: list[str] = []
+    for index, raw_gate in enumerate(raw_gates):
+        gate, gap = _adopter_gate(raw_gate, index=index)
+        if gap:
+            gaps.append(gap)
+            continue
+        assert gate is not None
+        if gate.id in product_registry:
+            gaps.append(f"adopter_gate_descriptor_conflict:{gate.id}")
+            continue
+        if gate.id in overlay:
+            gaps.append(f"adopter_gate_descriptor_duplicate:{gate.id}")
+            continue
+        overlay[gate.id] = gate
+
+    gaps.extend(
+        f"adopter_gate_descriptor_missing:{gate_id}"
+        for gate_id in _adopter_native_code_correctness_gates(profile)
+        if gate_id not in product_registry and gate_id not in overlay
+    )
+    return overlay, tuple(dict.fromkeys(gaps))
+
+
+def _adopter_gate(raw_gate: object, *, index: int) -> tuple[Gate | None, str]:
+    """Validate one repository-native gate descriptor from profile data."""
+    if not isinstance(raw_gate, dict):
+        return None, f"adopter_gate_descriptor_invalid:{index}"
+    payload = dict(raw_gate)
+    payload.setdefault("profile", "adopter")
+    payload.setdefault("toolchain", "repository-native")
+    payload.setdefault("execution_mode", "subprocess")
+    payload.setdefault("tool_adapter", "repository-native")
+    try:
+        descriptor = GateDescriptor.model_validate(payload)
+        gate = Gate.model_validate(descriptor.model_dump())
+    except ValueError:
+        identifier = str(payload.get("id") or index)
+        return None, f"adopter_gate_descriptor_invalid:{identifier}"
+    if gate.profile != "adopter":
+        return None, f"adopter_gate_descriptor_profile_invalid:{gate.id}"
+    return gate, ""
+
+
+def gate_registry(root: Path | None = None) -> dict[str, Gate]:
+    """Compile product gates plus a typed repository-native adopter overlay."""
+    registry = _product_gate_registry()
+    overlay, _ = _adopter_gate_overlay(root, registry)
+    return {**registry, **overlay}
+
+
+def adopter_gate_descriptor_gaps(root: Path | None) -> tuple[str, ...]:
+    """Return fail-closed gaps for incomplete or invalid adopter gate descriptors."""
+    registry = _product_gate_registry()
+    _, gaps = _adopter_gate_overlay(root, registry)
+    return gaps
 
 
 def _is_product_root(root: Path) -> bool:
@@ -224,10 +295,9 @@ def gate_policy_digest(root: Path) -> str:
     bytes. If a gate's canonical command or classification changes, or a script gate's
     content is tampered, this digest changes and an old proof is stale (B11/B12); a mere
     interpreter-path change does not (B10). Covers the registry-resolvable required ids
-    in floor order; an adopter's declared native gates that are not in the product
-    registry are governed by the completeness floor, not this digest.
+    in floor order, including typed repository-native adopter descriptors.
     """
-    registry = gate_registry()
+    registry = gate_registry(root)
     fields = [
         gate_policy_fields(registry[gate_id], root)
         for gate_id in promotion_required_gate_ids(root)
@@ -253,7 +323,7 @@ def gate_policy_conformance_gaps(runs: object, root: Path) -> list[str]:
     for run in runs:
         if isinstance(run, dict):
             by_action.setdefault(str(run.get("action_id", "")), run)
-    registry = gate_registry()
+    registry = gate_registry(root)
     gaps: list[str] = []
     for gate_id in promotion_required_gate_ids(root):
         gate = registry.get(gate_id)
@@ -284,10 +354,19 @@ def gate_graph(
     full: bool = False,
     root: Path | None = None,
 ) -> ActionGraph:
-    registry = gate_registry()
+    registry = gate_registry(root)
     selected = gate_ids or default_gate_ids(full=full, root=root)
-    nodes = []
+    declaration_gaps = list(adopter_gate_descriptor_gaps(root))
+    nodes: list[ActionNode] = []
     for gate_id in selected:
-        gate = registry[gate_id]
+        gate = registry.get(gate_id)
+        if gate is None:
+            expected_gap = f"adopter_gate_descriptor_missing:{gate_id}"
+            if expected_gap not in declaration_gaps:
+                declaration_gaps.append(f"unknown_gate:{gate_id}")
+            continue
         nodes.append(gate.to_node())
-    return ActionGraph(nodes=tuple(nodes))
+    return ActionGraph(
+        nodes=tuple(nodes),
+        validation_issues=tuple(dict.fromkeys(declaration_gaps)),
+    )

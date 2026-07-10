@@ -58,8 +58,18 @@ def status_for(
         "worktrees": worktrees
         if worktrees is not None
         else [
-            {"role": ROLE_ACCEPTED_ROOT, "path": "/repo", "branch": "dev", "head": "h0"},
-            {"role": ROLE_WORK_LANE, "path": "/repo-w", "branch": "work/x", "head": "h1"},
+            {
+                "role": ROLE_ACCEPTED_ROOT,
+                "path": "/repo",
+                "branch": "dev",
+                "head": "h0",
+            },
+            {
+                "role": ROLE_WORK_LANE,
+                "path": "/repo-w",
+                "branch": "work/x",
+                "head": "h1",
+            },
         ],
     }
 
@@ -69,25 +79,44 @@ def test_start_work_lane_blocks_and_success(
 ) -> None:
     monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
-    assert lanes.start_work_lane(root=tmp_path, name="My Lane", path=tmp_path / "w", owner="")[
+    assert lanes.start_work_lane(root=tmp_path, name="My Lane", path=tmp_path / "w", holder_ref="")[
         "required_gaps"
-    ] == ["missing_owner"]
-    planned = lanes.start_work_lane(root=tmp_path, name="My Lane", path=tmp_path / "w", owner="me")
+    ] == ["holder_ref_invalid"]
+    planned = lanes.start_work_lane(
+        root=tmp_path,
+        name="My Lane",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+    )
     assert planned["state"] == "planned"
 
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_WORK_LANE))
     blocked = lanes.start_work_lane(
-        root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
+        root=tmp_path,
+        name="x",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+        apply=True,
     )
     assert blocked["required_gaps"] == ["lane_start_requires_clean_accepted_root"]
 
     for candidate, gap in [
         (
-            {"exists": False, "worktree_exists": False, "worktree_path": "", "head": ""},
+            {
+                "exists": False,
+                "worktree_exists": False,
+                "worktree_path": "",
+                "head": "",
+            },
             "candidate_branch_missing",
         ),
         (
-            {"exists": True, "worktree_exists": False, "worktree_path": "", "head": "c1"},
+            {
+                "exists": True,
+                "worktree_exists": False,
+                "worktree_path": "",
+                "head": "c1",
+            },
             "candidate_worktree_missing",
         ),
     ]:
@@ -97,25 +126,43 @@ def test_start_work_lane_blocks_and_success(
             lambda root, candidate=candidate: status_for(candidate=candidate),
         )
         assert lanes.start_work_lane(
-            root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
+            root=tmp_path,
+            name="x",
+            path=tmp_path / "w",
+            holder_ref="agent:test:case:me",
+            apply=True,
         )["required_gaps"] == [gap]
 
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for())
     monkeypatch.setattr(lanes, "changed_paths", lambda path: ["dirty.md"])
     assert lanes.start_work_lane(
-        root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
+        root=tmp_path,
+        name="x",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+        apply=True,
     )["required_gaps"] == ["candidate_worktree_dirty"]
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     monkeypatch.setattr(lanes, "_branch_exists", lambda root, branch: True)
     assert lanes.start_work_lane(
-        root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
+        root=tmp_path,
+        name="x",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+        apply=True,
     )["required_gaps"] == ["branch_already_exists"]
     monkeypatch.setattr(lanes, "_branch_exists", lambda root, branch: False)
     monkeypatch.setattr(
-        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stderr="nope", returncode=1)
+        lanes,
+        "run_git",
+        lambda root, *args, check=True, **kwargs: cp(stderr="nope", returncode=1),
     )
     assert lanes.start_work_lane(
-        root=tmp_path, name="x", path=tmp_path / "w", owner="me", apply=True
+        root=tmp_path,
+        name="x",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+        apply=True,
     )["required_gaps"] == ["worktree_add_failed"]
 
     def fake_git(
@@ -131,10 +178,18 @@ def test_start_work_lane_blocks_and_success(
     monkeypatch.setattr(
         lanes,
         "acquire_lease",
-        lambda *args, **kwargs: {"subject": kwargs["subject"], "owner": kwargs["owner"]},
+        lambda *args, **kwargs: {
+            "subject": kwargs["subject"],
+            "holder_ref": kwargs["holder_ref"],
+        },
     )
     started = lanes.start_work_lane(
-        root=tmp_path, name="x", path=tmp_path / "w", owner="me", claim_id="c", apply=True
+        root=tmp_path,
+        name="x",
+        path=tmp_path / "w",
+        holder_ref="agent:test:case:me",
+        claim_id="c",
+        apply=True,
     )
     assert started["state"] == "started"
     assert started["worktree"]["head"] == "newhead"
@@ -160,7 +215,12 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         lanes,
         "workspace_status",
         lambda root: status_for(
-            candidate={"exists": False, "worktree_exists": False, "worktree_path": "", "head": ""}
+            candidate={
+                "exists": False,
+                "worktree_exists": False,
+                "worktree_path": "",
+                "head": "",
+            }
         ),
     )
     target = tmp_path / "candidate"
@@ -190,10 +250,15 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for())
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     monkeypatch.setattr(
-        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0)
+        lanes,
+        "run_git",
+        lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
     )
     blocked = lanes.refresh_candidate_from_accepted(root=tmp_path, apply=True, authorized=False)
-    assert set(blocked["required_gaps"]) == {"authorization_required", "expect_head_required"}
+    assert set(blocked["required_gaps"]) == {
+        "authorization_required",
+        "expect_head_required",
+    }
     assert (
         lanes.refresh_candidate_from_accepted(root=tmp_path, apply=False)["state"]
         == "ready_to_refresh_from_accepted"
@@ -204,7 +269,12 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     assert refreshed["state"] == "refreshed_from_accepted"
 
     worktrees = [
-        {"role": ROLE_WORK_LANE, "path": str(tmp_path / "w"), "branch": "work/x", "head": "h2"},
+        {
+            "role": ROLE_WORK_LANE,
+            "path": str(tmp_path / "w"),
+            "branch": "work/x",
+            "head": "h2",
+        },
     ]
     (tmp_path / "w").mkdir()
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(worktrees=worktrees))
@@ -234,10 +304,10 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
     state.acquire_lease(
         tmp_path / ".ethos" / "state" / "state.sqlite",
         subject="work/x",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     monkeypatch.setattr(lanes, "delete_lease", lambda *args, **kwargs: {"ok": True})
     assert (
         lanes.retire_landed_work_lanes(
@@ -308,19 +378,38 @@ def test_shadow_process_json_backend_and_semantic_edges(
             ("plan", "--changed"),
             {
                 "ok": True,
-                "data": {"required_gates": [{"id": "g"}], "matched_rules": [{"id": "r"}]},
+                "data": {
+                    "required_gates": [{"id": "g"}],
+                    "matched_rules": [{"id": "r"}],
+                },
                 "required_gaps": [],
             },
             "required_gate_ids",
         ),
-        (("prove",), {"ok": True, "state": "ready", "required_gaps": []}, "proof_ready"),
+        (
+            ("prove",),
+            {"ok": True, "state": "ready", "required_gaps": []},
+            "proof_ready",
+        ),
         (
             ("quality", "command-surface"),
-            {"ok": True, "summary": {"retired_violation_count": 2}, "required_gaps": []},
+            {
+                "ok": True,
+                "summary": {"retired_violation_count": 2},
+                "required_gaps": [],
+            },
             "retired_violation_count",
         ),
-        (("assistants", "doctor"), {"ok": True, "required_gaps": []}, "assistant_ready"),
-        (("playbooks", "route", "--changed"), {"ok": True, "required_gaps": []}, "route_ready"),
+        (
+            ("assistants", "doctor"),
+            {"ok": True, "required_gaps": []},
+            "assistant_ready",
+        ),
+        (
+            ("playbooks", "route", "--changed"),
+            {"ok": True, "required_gaps": []},
+            "route_ready",
+        ),
         (
             ("land",),
             {"ok": True, "data": {"remote_push": "deferred"}, "required_gaps": []},
@@ -406,7 +495,11 @@ def test_parity_evidence_validation_edges(tmp_path: Path) -> None:
         current_target_head="t1",
         timeout_seconds=30,
     )
-    payload["freshness"] = {"product_head": "p1", "target_head": "t1", "command_sha256": "bad"}
+    payload["freshness"] = {
+        "product_head": "p1",
+        "target_head": "t1",
+        "command_sha256": "bad",
+    }
     path.write_text(json.dumps(payload), encoding="utf-8")
     assert (
         "parity_evidence_invalid:generic:command_sha256"
@@ -475,7 +568,9 @@ def test_retrieval_index_search_verify_and_purge_edges(
     missing_candidate = dict(stale_candidate, path="docs/missing.md", head="h1")
     monkeypatch.setattr(retrieval_query, "tracked_source_paths", lambda root: {"docs/missing.md"})
     monkeypatch.setattr(
-        retrieval_query, "allowed_sources", lambda root: [tmp_path / "docs" / "missing.md"]
+        retrieval_query,
+        "allowed_sources",
+        lambda root: [tmp_path / "docs" / "missing.md"],
     )
     assert (
         retrieval_query.verify_candidate(tmp_path, missing_candidate)["verification"]["reason"]

@@ -48,7 +48,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/current",
-        owner="agent:codex:thread:first",
+        holder_ref="agent:codex:thread:first",
         payload={"expected_head": head},
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
@@ -90,7 +90,7 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/current",
-        owner="agent:codex:thread:first",
+        holder_ref="agent:codex:thread:first",
         payload={"expected_head": head},
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")

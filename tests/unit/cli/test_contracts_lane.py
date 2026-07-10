@@ -94,10 +94,14 @@ def test_lane_prewrite_command_requires_editor_root_for_work_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "lane",
@@ -124,10 +128,14 @@ def test_lane_prewrite_defaults_to_cwd_git_root_for_worktree_subdirectories(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     nested = worktree / "packages" / "ethos"
     nested.mkdir(parents=True)
 
@@ -269,8 +277,8 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--owner",
-        "agent:test",
+        "--holder-ref",
+        "agent:test:case:agent-test",
         "--apply",
         "--json",
         cwd=repo,
@@ -310,8 +318,8 @@ def test_lane_start_accepts_claim_binding(tmp_path: Path) -> None:
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--owner",
-        "agent:test",
+        "--holder-ref",
+        "agent:test:case:agent-test",
         "--claim-id",
         "sample-trust",
         "--apply",
@@ -347,8 +355,8 @@ def test_lane_bind_claim_applies_to_existing_work_lane(tmp_path: Path) -> None:
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--owner",
-        "agent:test",
+        "--holder-ref",
+        "agent:test:case:agent-test",
         "--apply",
         "--json",
         cwd=repo,
@@ -396,8 +404,8 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--owner",
-        "agent:test",
+        "--holder-ref",
+        "agent:test:case:agent-test",
         "--apply",
         "--json",
         cwd=repo,
@@ -412,12 +420,18 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
     assert lane["path"] == worktree.as_posix()
     assert lane["head"] == git(worktree, "rev-parse", "HEAD")
     assert lane["branch"] == "work/feature"
-    assert lane["lease_owner"] == "agent:test"
+    assert lane["lease"]["holder_ref"] == "agent:test:case:agent-test"
+    assert lane["lease"]["lease_id"].startswith("lease:")
+    assert lane["lease"]["epoch"] == 1
     assert lane["path_scope"] == []
     assert lane["coordination_state"] == "advisory"
-    assert lane["current_actor_capability"] == "observe"
-    assert lane["allowed_actions"] == ["observe"]
-    assert lane["forbidden_actions"] == ["write", "land", "retire"]
+    assert lane["action_preview"] == {
+        "candidate_actions": ["observe"],
+        "blocked_actions": ["write", "land", "retire"],
+        "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+        "mints_authority": False,
+        "recheck_required": True,
+    }
     assert lane["write_policy"] == "owner_only"
     assert lane["retire_policy"] == "owner_handoff_or_maintainer_break_glass"
     assert lane["handoff_required"] is True
@@ -453,7 +467,7 @@ def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> No
         "work_lane_missing_lease:work/raw",
     ]
     assert root_payload["data"]["foreign_work_lanes"][0]["lease_state"] == "missing"
-    assert root_payload["data"]["foreign_work_lanes"][0]["lease_owner"] == ""
+    assert root_payload["data"]["foreign_work_lanes"][0]["lease"]["holder_ref"] == ""
     assert raw_payload["ok"] is True
     assert raw_payload["required_gaps"] == ["work_lane_missing_lease:work/raw"]
     assert raw_payload["data"]["closeout_support"]["supported"] is False
@@ -593,10 +607,10 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/active",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "lane",
@@ -700,10 +714,10 @@ def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: 
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     payload = run_ethos_blocked(
         "lane",
         "retire-landed",
@@ -740,10 +754,10 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     payload = run_ethos(
         "lane",
         "retire-landed",

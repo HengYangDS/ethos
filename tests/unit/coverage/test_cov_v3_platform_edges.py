@@ -62,7 +62,12 @@ def test_active_leases_skips_already_expired(tmp_path: Path) -> None:
     # A lease acquired with a negative TTL is already expired, so active_leases hits
     # the `expires_at <= now: continue` arc (line 260) and omits it.
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
-    acquire_lease(db_path, subject="work/expired", owner="owner", ttl_seconds=-10)
+    acquire_lease(
+        db_path,
+        subject="work/expired",
+        holder_ref="agent:test:case:owner",
+        ttl_seconds=-10,
+    )
 
     assert active_leases(db_path) == []
 
@@ -70,7 +75,12 @@ def test_active_leases_skips_already_expired(tmp_path: Path) -> None:
 def test_active_leases_returns_live_lease(tmp_path: Path) -> None:
     # A live lease is returned, proving the skip above is selective, not blanket.
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
-    acquire_lease(db_path, subject="work/live", owner="owner", ttl_seconds=3600)
+    acquire_lease(
+        db_path,
+        subject="work/live",
+        holder_ref="agent:test:case:owner",
+        ttl_seconds=3600,
+    )
 
     leases = active_leases(db_path)
 

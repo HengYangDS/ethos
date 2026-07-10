@@ -137,7 +137,9 @@ def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None
     assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
 
 
-def test_retire_landed_work_lane_reads_json_projection_lease(monkeypatch, tmp_path: Path) -> None:
+def test_retire_landed_work_lane_rejects_legacy_json_owner_projection(
+    monkeypatch, tmp_path: Path
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
@@ -164,15 +166,16 @@ def test_retire_landed_work_lane_reads_json_projection_lease(monkeypatch, tmp_pa
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
     report = retire_landed_work_lanes(root=repo, branch="work/landed")
 
-    assert report["ok"] is True
-    assert report["state"] == "planned"
-    assert report["required_gaps"] == []
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     selected = next(lane for lane in report["lanes"] if lane["branch"] == "work/landed")
-    assert selected["lease_owner"] == "agent-json"
-    assert selected["lease_state"] == "leased"
+    assert selected["lease"]["holder_ref"] == ""
+    assert selected["lease"]["normalization_state"] == "legacy_ambiguous"
+    assert selected["lease_state"] == "missing"
 
 
-def test_retire_landed_work_lane_apply_removes_json_projection_lease(
+def test_retire_landed_work_lane_apply_preserves_unverified_json_projection(
     monkeypatch, tmp_path: Path
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -207,12 +210,13 @@ def test_retire_landed_work_lane_apply_removes_json_projection_lease(
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
     report = retire_landed_work_lanes(root=repo, branch="work/landed", expect_head=head, apply=True)
 
-    assert report["ok"] is True
-    assert report["state"] == "retired"
-    assert not landed.exists()
-    assert git(repo, "branch", "--list", "work/landed") == ""
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
+    assert landed.exists()
+    assert git(repo, "branch", "--list", "work/landed") != ""
     leases = json.loads(lease_path.read_text(encoding="utf-8"))["leases"]
-    assert [lease["branch"] for lease in leases] == ["work/other"]
+    assert [lease["branch"] for lease in leases] == ["work/landed", "work/other"]
 
 
 def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_path: Path) -> None:
@@ -223,7 +227,7 @@ def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
@@ -236,14 +240,14 @@ def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_
     assert blocked["ok"] is False
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert blocked["mutation"] == {
-        "actor": "",
-        "actor_bound": "false",
-        "actor_source": "ETHOS_ACTOR",
+        "invocation_holder_ref": "",
+        "holder_bound": "false",
+        "invocation_source": "ETHOS_ACTOR",
         "expect_head": landed_head,
         "ref": "refs/heads/work/landed",
-        "required_actor": "agent-a",
+        "required_holder_ref": "agent:test:case:agent-a",
     }
-    assert blocked["next_action"] == "set ETHOS_ACTOR to the lane lease owner or obtain handoff"
+    assert blocked["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
 
 
 def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
@@ -254,9 +258,14 @@ def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
     landed = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
     db = repo / ".ethos" / "state" / "state.sqlite"
-    state.acquire_lease(db, subject="work/landed", owner="agent-a", ttl_seconds=3600)
+    state.acquire_lease(
+        db,
+        subject="work/landed",
+        holder_ref="agent:test:case:agent-a",
+        ttl_seconds=3600,
+    )
 
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-b")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
     blocked = retire_landed_work_lanes(root=repo, branch="work/landed")
 
     assert blocked["ok"] is False
@@ -264,7 +273,7 @@ def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
 
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     allowed = retire_landed_work_lanes(root=repo, branch="work/landed")
 
     assert allowed["ok"] is True
@@ -294,10 +303,10 @@ def test_retire_landed_work_lane_apply_requires_expected_head(monkeypatch, tmp_p
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     report = retire_landed_work_lanes(root=repo, branch="work/landed", apply=True)
 
     assert report["ok"] is False
@@ -317,10 +326,10 @@ def test_retire_landed_work_lane_apply_rejects_mismatched_expected_head(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     report = retire_landed_work_lanes(
         root=repo,
         branch="work/landed",
@@ -346,10 +355,10 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/landed",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     report = retire_landed_work_lanes(
         root=repo,
         branch="work/landed",
@@ -496,8 +505,20 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
-    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+    start_work_lane(
+        root=repo,
+        name="first",
+        path=first,
+        holder_ref="agent:test:case:agent-first",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="second",
+        path=second,
+        holder_ref="agent:test:case:agent-second",
+        apply=True,
+    )
 
     (first / "README.md").write_text("# first\n", encoding="utf-8")
     git(first, "add", "README.md")
@@ -531,7 +552,7 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
         {
             "kind": "overlap_resolution",
             "overlapping_branch": "work/first",
-            "owner": "agent:first",
+            "holder_ref": "agent:test:case:agent-first",
             "recommendation": "preserve_legitimate_lane_and_replay_or_move_verified_head",
             "next_actions": [
                 "do not land a temporary overlapping lane directly",
@@ -590,7 +611,9 @@ def test_dirty_provenance_reports_missing_cwd_as_unavailable(tmp_path: Path) -> 
     assert "missing-worktree" in str(report["error"])
 
 
-def test_has_changed_paths_fails_closed_when_worktree_path_disappears(tmp_path: Path) -> None:
+def test_has_changed_paths_fails_closed_when_worktree_path_disappears(
+    tmp_path: Path,
+) -> None:
     missing = tmp_path / "missing-candidate"
 
     assert has_changed_paths(missing) is True
@@ -648,7 +671,9 @@ def test_foreign_unknown_scope_is_advisory_when_current_scope_is_bounded() -> No
     assert "coordination_gap:foreign_scope_unknown:work/unknown" in advisory
 
 
-def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(tmp_path: Path) -> None:
+def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
@@ -673,7 +698,9 @@ def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(tmp_path: 
     assert git(repo, "rev-parse", "--verify", "work/stale-ref") == head
 
 
-def test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref(tmp_path: Path) -> None:
+def test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
@@ -806,7 +833,9 @@ def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_pa
     assert report["stderr"] == "locked ref"
 
 
-def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(tmp_path: Path) -> None:
+def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "topic", "dev")

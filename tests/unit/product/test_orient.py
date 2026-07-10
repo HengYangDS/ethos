@@ -99,9 +99,19 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["coordination_blocking"] == coordination["blocking"]
 
 
-def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path: Path) -> None:
+def test_orient_makes_foreign_lane_observe_only_capability_discoverable(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    git(repo, "worktree", "add", "-b", "candidate/dev", (tmp_path / "candidate").as_posix(), "dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "candidate").as_posix(),
+        "dev",
+    )
     worktree = tmp_path / "feature"
     run_ethos(
         "lane",
@@ -111,8 +121,8 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
         repo.as_posix(),
         "--path",
         worktree.as_posix(),
-        "--owner",
-        "agent:test",
+        "--holder-ref",
+        "agent:test:case:agent-test",
         "--apply",
         "--json",
         cwd=repo,
@@ -126,13 +136,17 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(tmp_path
     assert payload["summary"]["dirty_foreign_work_lane_count"] == 0
     lane = coordination["foreign_work_lanes"][0]
     assert lane["branch"] == "work/feature"
-    assert lane["lease_owner"] == "agent:test"
+    assert lane["lease"]["holder_ref"] == "agent:test:case:agent-test"
     assert lane["lease_state"] == "leased"
     assert lane["claim_binding"] == "missing"
     assert lane["dirty"] is False
-    assert lane["current_actor_capability"] == "observe"
-    assert lane["allowed_actions"] == ["observe"]
-    assert lane["forbidden_actions"] == ["write", "land", "retire"]
+    assert lane["action_preview"] == {
+        "candidate_actions": ["observe"],
+        "blocked_actions": ["write", "land", "retire"],
+        "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+        "mints_authority": False,
+        "recheck_required": True,
+    }
     assert payload["data"]["orientation"]["agent_hints"]["foreign_lanes_observe_only"] is True
 
 
@@ -140,7 +154,15 @@ def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    git(repo, "worktree", "add", "-b", "candidate/dev", (tmp_path / "candidate").as_posix(), "dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "candidate").as_posix(),
+        "dev",
+    )
     git(repo, "branch", "work/stale-ref", "dev")
 
     payload = run_ethos("orient", "--root", repo.as_posix(), "--json", cwd=repo)
@@ -163,7 +185,7 @@ def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(
             ),
         }
     ]
-    assert orientation["capability"]["current_actor_capability"] == "observe"
+    assert orientation["capability"]["candidate_action"] == "observe"
     assert orientation["capability"]["can_mutate_tracked_files"] is False
     assert "unbound ref(s) visible" in orientation["human_summary"]
     assert status["summary"]["unbound_work_lane_count"] == 1
@@ -188,7 +210,11 @@ def test_orient_projects_foreign_lane_residue_next_action() -> None:
                     "branch": "work/dirty",
                     "path": "/repo-work-dirty",
                     "head": "abcdef1234567890",
-                    "lease_owner": "agent:test",
+                    "lease": {
+                        "holder_ref": "agent:test:case:agent-test",
+                        "lease_id": "lease:test",
+                        "epoch": 1,
+                    },
                     "lease_state": "leased",
                     "claim_id": "sample-claim",
                     "claim_binding": "bound",
@@ -199,9 +225,13 @@ def test_orient_projects_foreign_lane_residue_next_action() -> None:
                     "dirty_paths": ["README.md"],
                     "path_scope": ["README.md"],
                     "coordination_state": "advisory",
-                    "current_actor_capability": "observe",
-                    "allowed_actions": ["observe"],
-                    "forbidden_actions": ["write", "land", "retire"],
+                    "action_preview": {
+                        "candidate_actions": ["observe"],
+                        "blocked_actions": ["write", "land", "retire"],
+                        "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+                        "mints_authority": False,
+                        "recheck_required": True,
+                    },
                     "next_action": (
                         "owner must preserve or intentionally discard dirty worktree delta before retirement"
                     ),
@@ -226,7 +256,11 @@ def test_orient_projects_foreign_lane_residue_next_action() -> None:
                 ],
                 "next_action": "review advisory Work Lane coordination signals before candidate integration",
             },
-            "runtime_binding": {"state": "bound", "next_action": "ok", "advisory_gaps": []},
+            "runtime_binding": {
+                "state": "bound",
+                "next_action": "ok",
+                "advisory_gaps": [],
+            },
             "landing_readiness": {
                 "state": "not_work_lane",
                 "next_action": "start",
@@ -418,7 +452,7 @@ def _orientation_line_packet(**overrides: object) -> dict[str, object]:
             "changed_path_count": 0,
         },
         "capability": {
-            "current_actor_capability": "write_lane",
+            "candidate_action": "write_lane",
             "reason": "owned Work Lane; run prewrite before tracked mutation",
         },
         "readiness": {
@@ -456,7 +490,7 @@ def test_human_orientation_lines_renders_status_only_runtime_landing_and_no_coor
                 "changed_path_count": 0,
             },
             capability={
-                "current_actor_capability": "observe",
+                "candidate_action": "observe",
                 "reason": "checkout role is not admitted for mutation",
             },
             readiness={"max_score": 0},
@@ -485,7 +519,12 @@ def test_human_orientation_lines_marks_blocking_coordination_without_next_action
 
     lines = human_orientation_lines(
         _orientation_line_packet(
-            where={"role": "work_lane", "branch": "work/demo", "head": "", "changed_path_count": 2},
+            where={
+                "role": "work_lane",
+                "branch": "work/demo",
+                "head": "",
+                "changed_path_count": 2,
+            },
             readiness={
                 "max_score": 16,
                 "score": 12,

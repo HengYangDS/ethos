@@ -124,7 +124,7 @@ def _lane_status_next_actions(status_payload: dict[str, object]) -> tuple[str, .
     coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
     if coordination.get("advisory_gaps"):
         return ("ethos orient --json", "ethos lane status --json")
-    return ("ethos lane start <name> --path <path> --owner <owner> --apply --json",)
+    return ("ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",)
 
 
 @lane_app.command
@@ -208,7 +208,7 @@ def start(
     name: str,
     *,
     path: Annotated[Path | None, Parameter(name="--path")] = None,
-    owner: str,
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")],
     claim_id: Annotated[str | None, Parameter(name="--claim-id")] = None,
     apply: bool = False,
     root: RootOption | None = None,
@@ -220,7 +220,7 @@ def start(
         root=repo,
         name=name,
         path=path,
-        owner=owner,
+        holder_ref=holder_ref,
         claim_id=claim_id,
         apply=apply,
     )

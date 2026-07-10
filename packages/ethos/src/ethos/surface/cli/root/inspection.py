@@ -150,7 +150,7 @@ def orient(
         state="oriented",
         summary={
             "role": where["role"],
-            "capability": capability["current_actor_capability"],
+            "candidate_action": capability["candidate_action"],
             "foreign_work_lane_count": coordination["foreign_work_lane_count"],
             "unbound_work_lane_count": coordination["unbound_work_lane_count"],
             "missing_lease_count": coordination.get("missing_lease_count", 0),

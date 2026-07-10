@@ -419,7 +419,6 @@
         "branch",
         "role",
         "worktree_binding",
-        "lease_owner",
         "lease_state",
         "claim_id",
         "claim_binding",
@@ -432,12 +431,11 @@
         "path_scope",
         "scope_state",
         "coordination_state",
-        "current_actor_capability",
-        "allowed_actions",
-        "forbidden_actions",
         "write_policy",
         "retire_policy",
-        "handoff_required"
+        "handoff_required",
+        "lease",
+        "action_preview"
       ],
       "properties": {
         "path": {
@@ -454,9 +452,6 @@
         },
         "worktree_binding": {
           "$ref": "#/$defs/worktreeBinding"
-        },
-        "lease_owner": {
-          "type": "string"
         },
         "lease_state": {
           "enum": [
@@ -511,27 +506,6 @@
             "unknown"
           ]
         },
-        "current_actor_capability": {
-          "const": "observe"
-        },
-        "allowed_actions": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "observe"
-            ]
-          }
-        },
-        "forbidden_actions": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "write",
-              "land",
-              "retire"
-            ]
-          }
-        },
         "write_policy": {
           "const": "owner_only"
         },
@@ -559,6 +533,12 @@
         },
         "next_action": {
           "type": "string"
+        },
+        "lease": {
+          "$ref": "#/$defs/leaseSummary"
+        },
+        "action_preview": {
+          "$ref": "#/$defs/actionPreview"
         }
       },
       "additionalProperties": false
@@ -571,10 +551,12 @@
         "target_branch",
         "target_path",
         "operation",
-        "owner",
         "claim_id",
         "claim_binding",
-        "required_gaps"
+        "required_gaps",
+        "holder_ref",
+        "lease_id",
+        "lease_epoch"
       ],
       "properties": {
         "supported": {
@@ -595,9 +577,6 @@
             ""
           ]
         },
-        "owner": {
-          "type": "string"
-        },
         "claim_id": {
           "type": "string"
         },
@@ -613,6 +592,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "holder_ref": {
+          "type": "string"
+        },
+        "lease_id": {
+          "type": "string"
+        },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false
@@ -826,18 +815,15 @@
       "required": [
         "kind",
         "overlapping_branch",
-        "owner",
         "recommendation",
-        "next_actions"
+        "next_actions",
+        "holder_ref"
       ],
       "properties": {
         "kind": {
           "const": "overlap_resolution"
         },
         "overlapping_branch": {
-          "type": "string"
-        },
-        "owner": {
           "type": "string"
         },
         "recommendation": {
@@ -848,6 +834,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "holder_ref": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -916,6 +905,84 @@
         },
         "dirty": {
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "leaseSummary": {
+      "type": "object",
+      "required": [
+        "lane_incarnation_id",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "expected_head",
+        "expires_at",
+        "normalization_state",
+        "mints_authority"
+      ],
+      "properties": {
+        "lane_incarnation_id": {
+          "type": "string"
+        },
+        "lease_id": {
+          "type": "string"
+        },
+        "holder_ref": {
+          "type": "string"
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_head": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "normalization_state": {
+          "type": "string"
+        },
+        "mints_authority": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "actionPreview": {
+      "type": "object",
+      "required": [
+        "candidate_actions",
+        "blocked_actions",
+        "why",
+        "mints_authority",
+        "recheck_required"
+      ],
+      "properties": {
+        "candidate_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "why": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mints_authority": {
+          "const": false
+        },
+        "recheck_required": {
+          "const": true
         }
       },
       "additionalProperties": false

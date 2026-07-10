@@ -23,6 +23,7 @@ from ethos.adapters.store.state import update_lease_payload
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
@@ -33,7 +34,7 @@ def start_work_lane(
     root: Path,
     name: str,
     path: Path | None = None,
-    owner: str,
+    holder_ref: str,
     claim_id: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
@@ -45,12 +46,14 @@ def start_work_lane(
     # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
     # still pin an explicit path.
     target = (path or default_candidate_path(repo, branch)).resolve()
-    if not owner.strip():
+    try:
+        normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
+    except ValueError:
         return {
             "ok": False,
             "state": "blocked",
             "branch": branch,
-            "required_gaps": ["missing_owner"],
+            "required_gaps": ["holder_ref_invalid"],
         }
     if not apply:
         return {
@@ -127,11 +130,12 @@ def start_work_lane(
     lease = acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject=branch,
-        owner=owner,
+        holder_ref=normalized_holder_ref,
         payload={
             "path": target.as_posix(),
             "branch": branch,
             "claim_id": claim_id or "",
+            "expected_head": str(candidate["head"]),
         },
     )
     return {
@@ -142,7 +146,7 @@ def start_work_lane(
         "base_head": str(candidate["head"]),
         "path": target.as_posix(),
         "worktree": _started_worktree(branch=branch, path=target),
-        "owner": owner,
+        "holder_ref": normalized_holder_ref,
         "claim_id": claim_id or "",
         "lease": lease,
         "required_gaps": [],
@@ -176,17 +180,17 @@ def bind_work_lane_claim(
             "state": "blocked",
             "branch": target_branch,
             "claim_id": claim_id,
-            "owner": str(lease.get("owner") or "") if lease else "",
+            "holder_ref": str(lease.get("holder_ref") or "") if lease else "",
             "required_gaps": sorted(set(gaps)),
         }
-    owner = str(cast("dict[str, object]", lease)["owner"])
+    holder_ref = str(cast("dict[str, object]", lease)["holder_ref"])
     if not apply:
         return {
             "ok": True,
             "state": "planned",
             "branch": target_branch,
             "claim_id": claim_id,
-            "owner": owner,
+            "holder_ref": holder_ref,
             "required_gaps": [],
         }
     updated = update_lease_payload(
@@ -199,7 +203,7 @@ def bind_work_lane_claim(
         "state": "bound" if updated else "blocked",
         "branch": target_branch,
         "claim_id": claim_id.strip() if updated else "",
-        "owner": str(updated.get("owner") or owner),
+        "holder_ref": str(updated.get("holder_ref") or holder_ref),
         "lease": updated,
         "required_gaps": [] if updated else [f"work_lane_missing_lease:{target_branch}"],
     }

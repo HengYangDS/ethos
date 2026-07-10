@@ -24,10 +24,14 @@ def test_lane_prewrite_accepts_multiple_keyword_paths(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos(
         "lane",
@@ -60,10 +64,14 @@ def test_lane_prewrite_blocks_whitespace_joined_path_token(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "lane",

@@ -235,10 +235,18 @@ def acquire_lease(
     db_path: Path,
     *,
     subject: str,
-    owner: str,
+    holder_ref: str,
     ttl_seconds: int = 86_400,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Create one normalized local lease for a concrete execution instance.
+
+    The physical ``leases.owner`` column remains only as a storage-compatibility
+    carrier for legacy rows. New callers must provide a four-segment
+    ``holder_ref``; accepting an unstructured owner here would manufacture new
+    ambiguous state that readers are intentionally required to reject.
+    """
+    normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
     initialize_state(db_path)
     lease_id = f"lease:{uuid.uuid4()}"
     now = datetime.now(UTC)
@@ -247,13 +255,12 @@ def acquire_lease(
     lane_incarnation_id = str(
         supplied_payload.get("lane_incarnation_id") or f"lane-incarnation:{uuid.uuid4()}"
     )
-    holder_ref = _holder_ref(owner)
     normalized_payload = {
         **supplied_payload,
         "lane_incarnation_id": lane_incarnation_id,
         "lease_id": lease_id,
         "lane_ref": subject,
-        "holder_ref": holder_ref,
+        "holder_ref": normalized_holder_ref,
         "epoch": int(supplied_payload.get("epoch") or 1),
         "issued_at": str(supplied_payload.get("issued_at") or now.isoformat()),
         "renewed_at": str(supplied_payload.get("renewed_at") or now.isoformat()),
@@ -265,11 +272,7 @@ def acquire_lease(
         "filesystem_fence": False,
         "distributed_lock": False,
     }
-    if not holder_ref:
-        normalized_payload["legacy_holder"] = owner
-        normalized_payload["normalization_state"] = "legacy_holder_unverified"
-    else:
-        normalized_payload["normalization_state"] = "normalized"
+    normalized_payload["normalization_state"] = "normalized"
     payload_json = json.dumps(normalized_payload, sort_keys=True)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
@@ -281,13 +284,18 @@ def acquire_lease(
             insert into leases(id, subject, owner, expires_at, payload_json)
             values (?, ?, ?, ?, ?)
             """,
-            (lease_id, subject, owner, expires_at.isoformat(), payload_json),
+            (
+                lease_id,
+                subject,
+                normalized_holder_ref,
+                expires_at.isoformat(),
+                payload_json,
+            ),
         )
         connection.commit()
     return {
         "id": lease_id,
         "subject": subject,
-        "owner": owner,
         "expires_at": expires_at.isoformat(),
         **_lease_contract_fields(normalized_payload),
         "payload": normalized_payload,
@@ -699,7 +707,6 @@ def _lease_record(
     return {
         "id": lease_id,
         "subject": subject,
-        "owner": owner,
         "expires_at": expires_at,
         **_lease_contract_fields(payload),
         "payload": payload,
@@ -811,7 +818,6 @@ def active_leases(db_path: Path) -> list[dict[str, Any]]:
             {
                 "id": row[0],
                 "subject": row[1],
-                "owner": row[2],
                 "expires_at": row[3],
                 **_lease_contract_fields(_json_object(row[4])),
                 "payload": _json_object(row[4]),
@@ -859,13 +865,6 @@ def _json_object(value: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
-
-
-def _holder_ref(value: str) -> str:
-    try:
-        return HolderRef.parse(value).serialize()
-    except ValueError:
-        return ""
 
 
 def _string_list(value: object) -> list[str]:

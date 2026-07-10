@@ -6,6 +6,9 @@ from pathlib import Path
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
+from ethos_core.contracts.admission import AdmissionDecision
+from ethos_core.contracts.admission import DecisionBasis
+from ethos_core.contracts.admission import MutationSubject
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos_core.contracts.branch.roles import ROLE_DETACHED
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -59,6 +62,14 @@ def prewrite_guard(
         editor_check=editor_check,
         blocked_paths=blocked_paths,
     )
+    decision = _prewrite_decision(
+        root=root,
+        branch=effective["branch"],
+        role=role,
+        checked_paths=checked_paths,
+        lease_check=lease_check,
+        error=error,
+    )
     return {
         "ok": error == "",
         "error": error,
@@ -72,6 +83,8 @@ def prewrite_guard(
         "editor_root": editor_check,
         "paths": checked_paths,
         "blocked_paths": blocked_paths,
+        "request_binding": decision.subject.model_dump(mode="json"),
+        "decision": decision.to_payload(),
         "required_gaps": [error] if error else [],
     }
 
@@ -149,45 +162,144 @@ def _work_lane_lease_check(
             "ok": True,
             "required": False,
             "branch": branch,
-            "owner": "",
-            "actor": os.environ.get("ETHOS_ACTOR", "").strip(),
+            "holder_ref": "",
+            "invocation_holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
+            "lease_id": "",
+            "epoch": 0,
+            "expected_head": "",
             "reason": "not_required",
         }
-    owner = _work_lane_lease_owner(root=root, status=status, branch=branch)
+    lease = _work_lane_lease(root=root, status=status, branch=branch)
+    holder_ref = str(lease.get("holder_ref") or "")
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    if not owner:
+    if not holder_ref:
         return {
             "ok": False,
             "required": True,
             "branch": branch,
-            "owner": "",
-            "actor": actor,
+            "holder_ref": "",
+            "invocation_holder_ref": actor,
+            "lease_id": str(lease.get("lease_id") or ""),
+            "epoch": int(lease.get("epoch") or 0),
+            "expected_head": str(lease.get("expected_head") or ""),
             "reason": f"work_lane_missing_lease:{branch}",
         }
-    if actor != owner:
+    current_head = _current_head(root)
+    reason = _lease_binding_reason(
+        branch=branch,
+        lease=lease,
+        actor=actor,
+        current_head=current_head,
+    )
+    if reason:
         return {
             "ok": False,
             "required": True,
             "branch": branch,
-            "owner": owner,
-            "actor": actor,
-            "reason": f"work_lane_actor_mismatch:{branch}",
+            "holder_ref": holder_ref,
+            "invocation_holder_ref": actor,
+            "lease_id": str(lease.get("lease_id") or ""),
+            "epoch": int(lease.get("epoch") or 0),
+            "expected_head": str(lease.get("expected_head") or ""),
+            "current_head": current_head,
+            "reason": reason,
         }
     return {
         "ok": True,
         "required": True,
         "branch": branch,
-        "owner": owner,
-        "actor": actor,
+        "holder_ref": holder_ref,
+        "invocation_holder_ref": actor,
+        "lease_id": str(lease.get("lease_id") or ""),
+        "epoch": int(lease.get("epoch") or 0),
+        "expected_head": str(lease.get("expected_head") or ""),
+        "current_head": current_head,
         "reason": "matched",
     }
 
 
-def _work_lane_lease_owner(*, root: Path, status: dict[str, object], branch: str) -> str:
+def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
     current_path = Path(str(status.get("root") or root)).resolve()
     leases = leases_by_branch(cast_worktrees(status.get("worktrees")), current_path=current_path)
-    lease = leases.get(branch, {})
-    return str(lease.get("owner") or "").strip()
+    return leases.get(branch, {})
+
+
+def _lease_binding_reason(
+    *, branch: str, lease: dict[str, object], actor: str, current_head: str
+) -> str:
+    if str(lease.get("normalization_state") or "") != "normalized":
+        return f"lane_lease_legacy_ambiguous:{branch}"
+    if actor != str(lease.get("holder_ref") or ""):
+        return f"lease_holder_mismatch:{branch}"
+    if not str(lease.get("lease_id") or "") or int(lease.get("epoch") or 0) < 1:
+        return f"lease_generation_missing:{branch}"
+    if str(lease.get("expected_head") or "") != current_head:
+        return f"lease_head_stale:{branch}"
+    return ""
+
+
+def _current_head(root: Path) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _prewrite_decision(
+    *,
+    root: Path,
+    branch: str,
+    role: str,
+    checked_paths: list[dict[str, object]],
+    lease_check: dict[str, object],
+    error: str,
+) -> AdmissionDecision:
+    paths = tuple(
+        str(item.get("relative_path") or item.get("path") or "") for item in checked_paths
+    )
+    expected_state = {
+        "root": root.resolve().as_posix(),
+        "role": role,
+        "branch": branch,
+        "paths": list(paths),
+        "holder_ref": str(lease_check.get("holder_ref") or ""),
+        "lease_id": str(lease_check.get("lease_id") or ""),
+        "epoch": int(lease_check.get("epoch") or 0),
+        "head": str(lease_check.get("expected_head") or ""),
+    }
+    return AdmissionDecision(
+        verdict="block" if error else "allow",
+        subject=MutationSubject(
+            action="lane.prewrite",
+            resource=f"{branch}:{','.join(paths)}",
+            expected_state=expected_state,
+        ),
+        policy_refs=("commitment:tracked-write-admission",),
+        evidence_refs=("evidence:current-worktree-and-lease-observation",),
+        basis=DecisionBasis(
+            enforcement_boundary="local_process_guard",
+            identity_basis="holder_ref_equality" if lease_check.get("required") else "not_required",
+            state_bindings=(
+                "root",
+                "role",
+                "branch",
+                "paths",
+                "lease_id",
+                "epoch",
+                "head",
+            ),
+            evidence_boundary="current_local_observation",
+            verifier_provenance="current_worktree_runner",
+            time_basis="evaluation_time",
+        ),
+        why=((error,) if error else ("request_matches_current_local_state",)),
+        next=(("repair_required_gap",) if error else ()),
+        required_gaps=((error,) if error else ()),
+    )
 
 
 def cast_worktrees(value: object) -> list[dict[str, str]]:

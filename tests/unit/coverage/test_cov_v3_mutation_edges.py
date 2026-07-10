@@ -118,7 +118,7 @@ def test_bind_work_lane_claim_reports_lane_not_found(tmp_path: Path) -> None:
 def test_active_lease_skips_non_matching_subject(tmp_path: Path) -> None:
     # A lease whose subject differs is skipped, looping on (branch 325->324) to None.
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
-    acquire_lease(db_path, subject="work/other", owner="owner")
+    acquire_lease(db_path, subject="work/other", holder_ref="agent:test:case:owner")
     assert lanes._active_lease(db_path, "work/target") is None
 
 

@@ -24,10 +24,14 @@ def test_hook_admit_accepts_multiple_keyword_paths(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos(
         "hook",
@@ -61,10 +65,14 @@ def test_hook_admit_blocks_control_character_path_token_before_root_join(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "hook",

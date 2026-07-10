@@ -73,15 +73,15 @@ def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
     assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)
 
 
-def test_prewrite_block_next_actions_cover_ownerless_actor_mismatch() -> None:
+def test_prewrite_block_next_actions_cover_holderless_mismatch() -> None:
     assert admission._prewrite_block_next_actions(
         {
             "work_lane_lease": {
-                "reason": "work_lane_actor_mismatch:work/x",
-                "owner": "",
+                "reason": "lease_holder_mismatch:work/x",
+                "holder_ref": "",
             }
         }
-    ) == ["set ETHOS_ACTOR to the lane lease owner or obtain handoff"]
+    ) == ["set ETHOS_ACTOR to the current holder_ref or obtain handoff"]
 
 
 def test_admission_prewrite_and_hook_success_edges(
@@ -103,7 +103,7 @@ def test_admission_prewrite_and_hook_success_edges(
         root=tmp_path, paths=[tmp_path / "README.md"], editor_root=tmp_path
     )
     assert blocked["error"] == "protected_lane_prewrite_blocked"
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     monkeypatch.setattr(
         admission_prewrite,
         "workspace_status",
@@ -124,8 +124,17 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         admission_prewrite,
         "leases_by_branch",
-        lambda worktrees, current_path: {"work/x": {"owner": "agent-a"}},
+        lambda worktrees, current_path: {
+            "work/x": {
+                "holder_ref": "agent:test:case:agent-a",
+                "lease_id": "lease:test",
+                "epoch": 1,
+                "expected_head": "a" * 40,
+                "normalization_state": "normalized",
+            }
+        },
     )
+    monkeypatch.setattr(admission_prewrite, "_current_head", lambda root: "a" * 40)
     missing_editor = admission_prewrite.prewrite_guard(
         root=tmp_path, paths=[tmp_path / "README.md"]
     )

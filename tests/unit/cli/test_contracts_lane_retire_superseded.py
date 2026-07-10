@@ -93,10 +93,10 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos(
         "lane",
@@ -163,10 +163,10 @@ def test_lane_retire_superseded_blocks_unabsorbed_linked_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "lane",
@@ -226,10 +226,10 @@ def test_lane_retire_superseded_blocks_without_current_absorption_head(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "lane",

@@ -177,7 +177,7 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
             f"where: {where.get('role')} on {where.get('branch')}{head_text} "
             f"({where.get('changed_path_count')} changed paths)"
         ),
-        f"can: {capability.get('current_actor_capability')} — {capability.get('reason')}",
+        f"can: {capability.get('candidate_action')} — {capability.get('reason')}",
     ]
     max_score = int(readiness.get("max_score") or 0)
     if max_score:
@@ -304,7 +304,7 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "branch": str(item.get("branch") or ""),
         "path": str(item.get("path") or ""),
         "head": str(item.get("head") or ""),
-        "lease_owner": str(item.get("lease_owner") or ""),
+        "lease": _dict(item.get("lease")),
         "lease_state": str(item.get("lease_state") or ""),
         "claim_id": str(item.get("claim_id") or ""),
         "claim_binding": str(item.get("claim_binding") or ""),
@@ -312,9 +312,7 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "residue_state": str(item.get("residue_state") or ""),
         "next_action": str(item.get("next_action") or ""),
         "coordination_state": str(item.get("coordination_state") or ""),
-        "current_actor_capability": str(item.get("current_actor_capability") or "observe"),
-        "allowed_actions": _strings(item.get("allowed_actions")),
-        "forbidden_actions": _strings(item.get("forbidden_actions")),
+        "action_preview": _dict(item.get("action_preview")),
         "path_scope": _strings(item.get("path_scope")),
         "dirty": bool(item.get("dirty")),
     }
@@ -333,28 +331,28 @@ def _unbound_lane_ref_summary(item: Mapping[str, Any]) -> dict[str, Any]:
 
 def _capability(*, role: str, dirty: bool, closeout: Mapping[str, Any]) -> dict[str, Any]:
     capability = {
-        "current_actor_capability": "unknown",
+        "candidate_action": "unknown",
         "can_mutate_tracked_files": False,
         "can_land": False,
         "reason": "checkout role is not admitted for mutation",
     }
     if dirty:
         capability = {
-            "current_actor_capability": "repair_or_commit_current_changes",
+            "candidate_action": "repair_or_commit_current_changes",
             "can_mutate_tracked_files": role == "work_lane",
             "can_land": False,
             "reason": "checkout is dirty; inspect dirty provenance before new work",
         }
     elif role == "work_lane":
         capability = {
-            "current_actor_capability": "write_lane",
+            "candidate_action": "write_lane",
             "can_mutate_tracked_files": True,
             "can_land": bool(closeout.get("supported")),
             "reason": "owned Work Lane; run prewrite before tracked mutation",
         }
     elif role in {"accepted_root", "candidate", "release_root"}:
         capability = {
-            "current_actor_capability": "observe",
+            "candidate_action": "observe",
             "can_mutate_tracked_files": False,
             "can_land": False,
             "reason": f"{role} is protected for normal edits",
@@ -382,7 +380,10 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
     elif role == "work_lane":
         actions = ["ethos lane bind-claim --claim-id <claim> --apply --json"]
     elif role == "accepted_root":
-        actions = ["ethos lane start <name> --path <path> --owner <owner> --apply --json"]
+        actions = [
+            "ethos lane start <name> --path <path> "
+            "--holder-ref <kind:namespace:instance-kind:id> --apply --json"
+        ]
     elif role == "candidate":
         actions = ["ethos land --closeout --json"]
     elif isinstance(report_payload, dict):
@@ -396,7 +397,7 @@ def _human_summary(context: Mapping[str, Any]) -> str:
     capability = _dict(context["capability"])
     next_actions = _strings(context.get("next_actions"))
     state = "dirty" if dirty else "gapped" if gaps else "ready"
-    actor = capability.get("current_actor_capability")
+    actor = capability.get("candidate_action")
     foreign_count = int(context["foreign_count"])
     unbound_count = int(context["unbound_count"])
     missing_lease_count = int(context.get("missing_lease_count") or 0)

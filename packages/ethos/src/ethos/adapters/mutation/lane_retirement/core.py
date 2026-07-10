@@ -19,6 +19,7 @@ from ethos.adapters.mutation.lane_lifecycle.core import run_git as default_run_g
 from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_binding
+from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state import delete_lease
@@ -114,8 +115,8 @@ def retire_superseded_work_lane(
             **retire_mutation_binding(
                 branch=branch,
                 expect_head=request.expect_head,
-                actor=_current_actor(),
-                required_actor=str(lane.get("lease_owner") or ""),
+                holder_ref=_current_holder_ref(),
+                required_holder_ref=_lane_holder_ref(lane),
             ),
         },
         "required_gaps": sorted(set(gaps)),
@@ -318,18 +319,23 @@ def _superseded_expected_head_gaps(
     return []
 
 
-def _current_actor() -> str:
+def _current_holder_ref() -> str:
     return os.environ.get("ETHOS_ACTOR", "").strip()
 
 
 def _landed_actor_gaps(selected: list[dict[str, object]]) -> list[str]:
     if not selected:
         return []
-    lease_owner = str(selected[0].get("lease_owner") or "")
-    actor = _current_actor()
-    if not lease_owner or actor != lease_owner:
+    required_holder_ref = _lane_holder_ref(selected[0])
+    invocation_holder_ref = _current_holder_ref()
+    if not required_holder_ref or invocation_holder_ref != required_holder_ref:
         return ["foreign_work_lane_retire_authority_required"]
     return []
+
+
+def _lane_holder_ref(lane: dict[str, object]) -> str:
+    lease = lane.get("lease")
+    return str(lease.get("holder_ref") or "") if isinstance(lease, dict) else ""
 
 
 def _branch_exists(
@@ -400,7 +406,7 @@ def _superseded_retirement_lane(
     branch = str(lane["branch"])
     path = Path(str(lane["path"]))
     lease = (leases or {}).get(branch, {})
-    lease_owner = str(lease.get("owner") or "")
+    holder_ref = str(lease.get("holder_ref") or "")
     if active_runtime.is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_already_merged_use_retire_landed")
     if _has_changed_paths(path, runtime=active_runtime):
@@ -409,8 +415,8 @@ def _superseded_retirement_lane(
         "branch": branch,
         "path": path.as_posix(),
         "head": str(lane["head"]),
-        "lease_owner": lease_owner,
-        "lease_state": "leased" if lease_owner else "missing",
+        "lease": lease_summary(lease),
+        "lease_state": "leased" if holder_ref else "missing",
         "retire_ready": not gaps,
         "required_gaps": gaps,
     }

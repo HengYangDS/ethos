@@ -99,7 +99,7 @@ def test_start_work_lane_uses_configured_candidate_and_work_role_policy(
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -119,7 +119,7 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -133,7 +133,7 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
     assert report["ok"] is True
     assert report["state"] == "bound"
     assert report["branch"] == "work/feature"
-    assert report["owner"] == "agent:test"
+    assert report["holder_ref"] == "agent:test:case:agent-test"
     assert report["claim_id"] == "sample-trust"
     assert status["closeout_support"] == {
         "supported": True,
@@ -141,7 +141,9 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
-        "owner": "agent:test",
+        "holder_ref": "agent:test:case:agent-test",
+        "lease_id": status["closeout_support"]["lease_id"],
+        "lease_epoch": 1,
         "claim_id": "sample-trust",
         "claim_binding": "bound",
         "required_gaps": [],
@@ -169,8 +171,14 @@ def test_prewrite_allows_owned_work_lane_with_matching_editor_root(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    start_work_lane(root=repo, name="owned", path=worktree, owner="agent:test", apply=True)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
+    start_work_lane(
+        root=repo,
+        name="owned",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
 
     report = prewrite_guard(
         root=worktree,
@@ -223,8 +231,14 @@ def test_prewrite_rejects_work_lane_without_editor_root_binding(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    start_work_lane(root=repo, name="owned", path=worktree, owner="agent:test", apply=True)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
+    start_work_lane(
+        root=repo,
+        name="owned",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
 
     report = prewrite_guard(
         root=worktree,
@@ -284,7 +298,7 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -300,8 +314,8 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
     assert worktree.exists()
     assert git(worktree, "branch", "--show-current") == "work/feature"
     leases = active_leases(repo / ".ethos" / "state" / "state.sqlite")
-    assert [(lease["subject"], lease["owner"]) for lease in leases] == [
-        ("work/feature", "agent:test")
+    assert [(lease["subject"], lease["holder_ref"]) for lease in leases] == [
+        ("work/feature", "agent:test:case:agent-test")
     ]
 
 
@@ -313,7 +327,7 @@ def test_start_work_lane_defaults_path_to_sibling_candidate_home(tmp_path: Path)
     report = start_work_lane(
         root=repo,
         name="feature",
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -331,7 +345,7 @@ def test_start_work_lane_apply_requires_candidate_branch(tmp_path: Path) -> None
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -350,7 +364,7 @@ def test_start_work_lane_apply_requires_candidate_worktree(tmp_path: Path) -> No
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -370,7 +384,7 @@ def test_start_work_lane_apply_rejects_dirty_candidate_worktree(tmp_path: Path) 
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -402,7 +416,7 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -553,7 +567,7 @@ def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path) -> N
         root=current_worktree,
         name="nested",
         path=new_worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -573,7 +587,7 @@ def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> No
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 

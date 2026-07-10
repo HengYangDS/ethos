@@ -37,7 +37,13 @@ def test_workspace_status_reports_stage_gates_for_owned_work_lane(tmp_path: Path
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
 
     status = workspace_status(worktree)
 
@@ -58,7 +64,13 @@ def test_workspace_status_stage_gates_keep_authoring_open_when_lane_is_dirty(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
 
     status = workspace_status(worktree)
@@ -78,8 +90,20 @@ def test_workspace_status_stage_gates_keep_authoring_open_with_foreign_lane(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     current = tmp_path / "repo-work-current"
     foreign = tmp_path / "repo-work-foreign"
-    start_work_lane(root=repo, name="current", path=current, owner="agent:current", apply=True)
-    start_work_lane(root=repo, name="foreign", path=foreign, owner="agent:foreign", apply=True)
+    start_work_lane(
+        root=repo,
+        name="current",
+        path=current,
+        holder_ref="agent:test:case:agent-current",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="foreign",
+        path=foreign,
+        holder_ref="agent:test:case:agent-foreign",
+        apply=True,
+    )
 
     status = workspace_status(current)
 
@@ -131,7 +155,16 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "path": foreign.as_posix(),
             "role": "work_lane",
             "worktree_binding": "linked",
-            "lease_owner": "",
+            "lease": {
+                "lane_incarnation_id": "",
+                "lease_id": "",
+                "holder_ref": "",
+                "epoch": 0,
+                "expected_head": "",
+                "expires_at": "",
+                "normalization_state": "legacy_ambiguous",
+                "mints_authority": False,
+            },
             "lease_state": "missing",
             "claim_id": "",
             "claim_binding": "missing",
@@ -144,9 +177,13 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "path_scope": [],
             "scope_state": "empty",
             "coordination_state": "advisory",
-            "current_actor_capability": "observe",
-            "allowed_actions": ["observe"],
-            "forbidden_actions": ["write", "land", "retire"],
+            "action_preview": {
+                "candidate_actions": ["observe"],
+                "blocked_actions": ["write", "land", "retire"],
+                "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+                "mints_authority": False,
+                "recheck_required": True,
+            },
             "write_policy": "owner_only",
             "retire_policy": "owner_handoff_or_maintainer_break_glass",
             "handoff_required": True,
@@ -193,7 +230,9 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "target_branch": "candidate/dev",
         "target_path": (tmp_path / "repo-candidate-dev").as_posix(),
         "operation": "",
-        "owner": "",
+        "holder_ref": "",
+        "lease_id": "",
+        "lease_epoch": 0,
         "claim_id": "",
         "claim_binding": "unbound",
         "required_gaps": ["protected_root_mutation"],
@@ -211,7 +250,7 @@ def test_workspace_status_explains_landed_dirty_lane_preservation_path(
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         claim_id="sample-claim",
         apply=True,
     )
@@ -242,7 +281,7 @@ def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         claim_id="sample-claim",
         apply=True,
     )
@@ -351,7 +390,13 @@ def test_workspace_status_does_not_call_fresh_empty_leased_lane_retire_ready(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
 
     status = workspace_status(repo)
 
@@ -515,7 +560,7 @@ def test_workspace_status_reports_current_work_lanecloseout_support(tmp_path: Pa
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -527,7 +572,9 @@ def test_workspace_status_reports_current_work_lanecloseout_support(tmp_path: Pa
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
-        "owner": "agent:test",
+        "holder_ref": "agent:test:case:agent-test",
+        "lease_id": status["closeout_support"]["lease_id"],
+        "lease_epoch": 1,
         "claim_id": "",
         "claim_binding": "missing",
         "required_gaps": [],
@@ -543,7 +590,7 @@ def test_workspace_status_projects_work_lane_claim_binding(tmp_path: Path) -> No
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         claim_id="sample-trust",
         apply=True,
     )
@@ -556,7 +603,9 @@ def test_workspace_status_projects_work_lane_claim_binding(tmp_path: Path) -> No
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
-        "owner": "agent:test",
+        "holder_ref": "agent:test:case:agent-test",
+        "lease_id": status["closeout_support"]["lease_id"],
+        "lease_epoch": 1,
         "claim_id": "sample-trust",
         "claim_binding": "bound",
         "required_gaps": [],
@@ -570,8 +619,20 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
-    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+    start_work_lane(
+        root=repo,
+        name="first",
+        path=first,
+        holder_ref="agent:test:case:agent-first",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="second",
+        path=second,
+        holder_ref="agent:test:case:agent-second",
+        apply=True,
+    )
 
     (first / "README.md").write_text("# first\n", encoding="utf-8")
     git(first, "add", "README.md")
@@ -604,7 +665,13 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     assert status["foreign_work_lanes"][0]["path_scope"] == ["README.md"]
     assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
     assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
-    assert status["foreign_work_lanes"][0]["current_actor_capability"] == "observe"
+    assert status["foreign_work_lanes"][0]["action_preview"] == {
+        "candidate_actions": ["observe"],
+        "blocked_actions": ["write", "land", "retire"],
+        "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+        "mints_authority": False,
+        "recheck_required": True,
+    }
     # scope_overlap is same-file-only (git's ff-only land backstops a genuine conflict),
     # so it is advisory, not blocking: concurrent lanes sharing a directory no longer
     # serialize.
@@ -624,8 +691,20 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_over
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
-    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+    start_work_lane(
+        root=repo,
+        name="first",
+        path=first,
+        holder_ref="agent:test:case:agent-first",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="second",
+        path=second,
+        holder_ref="agent:test:case:agent-second",
+        apply=True,
+    )
 
     (first / "packages").mkdir()
     (first / "packages" / "core.py").write_text("# dirty foreign\n", encoding="utf-8")
@@ -754,7 +833,13 @@ def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_pa
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
 
     status = workspace_status(worktree)
 
@@ -775,7 +860,13 @@ def test_workspace_status_reports_stale_landing_readiness_before_land(tmp_path: 
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
     git(candidate, "add", "CANDIDATE.md")
     git(

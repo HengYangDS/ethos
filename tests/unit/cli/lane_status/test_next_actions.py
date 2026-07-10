@@ -64,9 +64,14 @@ def test_lane_status_next_action_does_not_suggest_prewrite_from_accepted_root(
     payload = run_ethos("lane", "status", "--root", repo.as_posix(), "--json", cwd=repo)
 
     assert payload["data"]["role"] == "accepted_root"
-    assert payload["data"]["foreign_work_lanes"][0]["current_actor_capability"] == "observe"
+    assert payload["data"]["foreign_work_lanes"][0]["action_preview"]["candidate_actions"] == [
+        "observe"
+    ]
     assert "ethos lane prewrite <path>" not in payload["next_actions"]
-    assert payload["next_actions"] == ["ethos orient --json", "ethos lane status --json"]
+    assert payload["next_actions"] == [
+        "ethos orient --json",
+        "ethos lane status --json",
+    ]
 
 
 def test_lane_status_next_action_keeps_prewrite_for_current_work_lane(
@@ -87,7 +92,7 @@ def test_lane_status_next_action_keeps_prewrite_for_current_work_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/owned",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
@@ -115,7 +120,7 @@ def test_lane_status_next_action_suggests_lane_start_for_clean_root() -> None:
     }
 
     assert _lane_status_next_actions(payload) == (
-        "ethos lane start <name> --path <path> --owner <owner> --apply --json",
+        "ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",
     )
 
 

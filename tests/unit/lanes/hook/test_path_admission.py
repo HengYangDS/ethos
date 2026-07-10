@@ -37,10 +37,10 @@ def test_pre_tool_hook_rejects_control_character_path_tokens(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         payload={"path": worktree.as_posix(), "branch": "work/feature"},
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     report = hook_admission_report(
         root=worktree,
@@ -78,10 +78,10 @@ def test_hook_admit_cli_preserves_control_character_path_token(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         payload={"path": worktree.as_posix(), "branch": "work/feature"},
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(
         "hook",
@@ -115,10 +115,10 @@ def test_pre_tool_hook_rejects_whitespace_joined_path_token(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         payload={"path": worktree.as_posix(), "branch": "work/feature"},
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     report = hook_admission_report(
         root=worktree,

@@ -3,13 +3,13 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.state.invalid import invalid_state_projection
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-FOREIGN_WORK_LANE_ALLOWED_ACTIONS = ("observe",)
 FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS = ("write", "land", "retire")
 FOREIGN_WORK_LANE_WRITE_POLICY = "owner_only"
 FOREIGN_WORK_LANE_RETIRE_POLICY = "owner_handoff_or_maintainer_break_glass"
@@ -79,9 +79,9 @@ def foreign_work_lane(
     )
     path_scope = tuple(dict.fromkeys((*committed_scope, *dirty_paths)))
     scope_state = _combined_scope_state(committed_state, path_scope)
-    owner = str(lease.get("owner") or "")
+    holder_ref = str(lease.get("holder_ref") or "")
     disposition = closeout_disposition(
-        lease_state="leased" if owner else "missing",
+        lease_state="leased" if holder_ref else "missing",
         claim_binding="bound" if claim_id else "missing",
         relation_to_accepted=relation_to_accepted,
         dirty=bool(dirty_paths),
@@ -92,8 +92,8 @@ def foreign_work_lane(
         "branch": branch,
         "role": worktree["role"],
         "worktree_binding": worktree["worktree_binding"],
-        "lease_owner": owner,
-        "lease_state": "leased" if owner else "missing",
+        "lease": lease_summary(lease),
+        "lease_state": "leased" if holder_ref else "missing",
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing",
         "relation_to_accepted": relation_to_accepted,
@@ -115,7 +115,15 @@ def foreign_work_lane(
             foreign_path_scope=path_scope,
             foreign_scope_state=scope_state,
         ),
-        **foreign_work_lane_capability(),
+        "action_preview": AdmissionDecision.action_preview(
+            action="observe",
+            resource=branch,
+            blocked_actions=FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS,
+            why=("foreign_lane_requires_handoff_or_accepted_decision",),
+        ),
+        "write_policy": FOREIGN_WORK_LANE_WRITE_POLICY,
+        "retire_policy": FOREIGN_WORK_LANE_RETIRE_POLICY,
+        "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
     }
 
 
@@ -137,14 +145,17 @@ def lane_next_action(disposition: str, *, branch: str = "", head: str = "") -> s
     return CLEAN_RESIDUE_NEXT_ACTION
 
 
-def foreign_work_lane_capability() -> dict[str, object]:
+def lease_summary(lease: dict[str, object]) -> dict[str, object]:
+    """Project non-secret local coordination fields without minting authority."""
     return {
-        "current_actor_capability": "observe",
-        "allowed_actions": list(FOREIGN_WORK_LANE_ALLOWED_ACTIONS),
-        "forbidden_actions": list(FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS),
-        "write_policy": FOREIGN_WORK_LANE_WRITE_POLICY,
-        "retire_policy": FOREIGN_WORK_LANE_RETIRE_POLICY,
-        "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
+        "lane_incarnation_id": str(lease.get("lane_incarnation_id") or ""),
+        "lease_id": str(lease.get("lease_id") or ""),
+        "holder_ref": str(lease.get("holder_ref") or ""),
+        "epoch": int(lease.get("epoch") or 0),
+        "expected_head": str(lease.get("expected_head") or ""),
+        "expires_at": str(lease.get("expires_at") or ""),
+        "normalization_state": str(lease.get("normalization_state") or "legacy_ambiguous"),
+        "mints_authority": False,
     }
 
 
@@ -311,11 +322,12 @@ def coordination_next_action(
 
 def _migration_recommendation(lane: dict[str, object]) -> dict[str, object]:
     branch = str(lane.get("branch") or "")
-    owner = str(lane.get("lease_owner") or "")
+    lease = lane.get("lease") if isinstance(lane.get("lease"), dict) else {}
+    holder_ref = str(lease.get("holder_ref") or "")
     return {
         "kind": "overlap_resolution",
         "overlapping_branch": branch,
-        "owner": owner,
+        "holder_ref": holder_ref,
         "recommendation": "preserve_legitimate_lane_and_replay_or_move_verified_head",
         "next_actions": [
             "do not land a temporary overlapping lane directly",

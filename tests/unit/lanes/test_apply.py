@@ -74,7 +74,13 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
 
 
 def add_owned_work_lane(repo: Path, name: str, path: Path) -> Path:
-    report = start_work_lane(root=repo, name=name, path=path, owner="agent:test", apply=True)
+    report = start_work_lane(
+        root=repo,
+        name=name,
+        path=path,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     assert report["ok"] is True
     return path
 

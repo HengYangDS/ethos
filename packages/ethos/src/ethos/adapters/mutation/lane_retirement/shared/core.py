@@ -115,32 +115,32 @@ def delete_json_projection_lease(repo: Path, *, subject: str) -> int:
 
 
 def retire_authority_guidance(gaps: list[str]) -> dict[str, str]:
-    """Return next-action guidance for owner-bound Work Lane retirement gaps."""
+    """Return next-action guidance for holder-bound Work Lane retirement gaps."""
     if "foreign_work_lane_retire_authority_required" not in gaps:
         return {}
-    return {"next_action": "set ETHOS_ACTOR to the lane lease owner or obtain handoff"}
+    return {"next_action": "set ETHOS_ACTOR to the current holder_ref or obtain handoff"}
 
 
 def retire_mutation_binding(
     *,
     branch: str | None,
     expect_head: str | None,
-    actor: str = "",
-    required_actor: str = "",
+    holder_ref: str = "",
+    required_holder_ref: str = "",
 ) -> dict[str, str]:
     """Build the common mutation binding envelope for lane retirement commands."""
-    actor = actor.strip()
+    holder_ref = holder_ref.strip()
     mutation = {
-        "actor": actor,
+        "invocation_holder_ref": holder_ref,
         "expect_head": (expect_head or "").strip(),
         "ref": f"refs/heads/{branch}" if branch else "",
     }
-    if required_actor:
+    if required_holder_ref:
         mutation.update(
             {
-                "actor_bound": str(bool(actor)).lower(),
-                "actor_source": "ETHOS_ACTOR",
-                "required_actor": required_actor,
+                "holder_bound": str(bool(holder_ref)).lower(),
+                "invocation_source": "ETHOS_ACTOR",
+                "required_holder_ref": required_holder_ref,
             }
         )
     return mutation

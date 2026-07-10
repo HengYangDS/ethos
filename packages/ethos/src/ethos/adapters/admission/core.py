@@ -575,19 +575,19 @@ def _fallback_report(base: dict[str, object]) -> dict[str, object]:
 def _prewrite_block_next_actions(admission: dict[str, object]) -> list[str]:
     lease = admission.get("work_lane_lease")
     if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
-        "work_lane_actor_mismatch:"
+        "lease_holder_mismatch:"
     ):
-        owner = str(lease.get("owner") or "").strip()
-        if owner:
+        holder_ref = str(lease.get("holder_ref") or "").strip()
+        if holder_ref:
             return [
-                f"set ETHOS_ACTOR={owner} and rerun the blocked command, or obtain lane handoff",
+                f"set ETHOS_ACTOR={holder_ref} and rerun the blocked command, or obtain handoff",
                 "ethos lane prewrite <path>",
             ]
-        return ["set ETHOS_ACTOR to the lane lease owner or obtain handoff"]
+        return ["set ETHOS_ACTOR to the current holder_ref or obtain handoff"]
     if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
         "work_lane_missing_lease:"
     ):
-        return ["ethos lane start <name> --owner <owner> --apply --json"]
+        return ["ethos lane start <name> --holder-ref <holder-ref> --apply --json"]
     return ["ethos lane prewrite <path>"]
 
 

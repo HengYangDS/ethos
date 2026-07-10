@@ -164,10 +164,14 @@ def test_pre_tool_hook_blocks_work_lane_actor_mismatch(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-b")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
 
     report = hook_admission_report(
         root=worktree,
@@ -181,18 +185,20 @@ def test_pre_tool_hook_blocks_work_lane_actor_mismatch(
     assert report["state"] == "blocked"
     assert report["decision"] == {
         "action": "block",
-        "reason": "work_lane_actor_mismatch:work/feature",
+        "reason": "lease_holder_mismatch:work/feature",
     }
-    assert report["admission"]["work_lane_lease"] == {
-        "ok": False,
-        "required": True,
-        "branch": "work/feature",
-        "owner": "agent-a",
-        "actor": "agent-b",
-        "reason": "work_lane_actor_mismatch:work/feature",
-    }
+    lease_check = report["admission"]["work_lane_lease"]
+    assert lease_check["ok"] is False
+    assert lease_check["required"] is True
+    assert lease_check["branch"] == "work/feature"
+    assert lease_check["holder_ref"] == "agent:test:case:agent-a"
+    assert lease_check["invocation_holder_ref"] == "agent:test:case:agent-b"
+    assert lease_check["lease_id"].startswith("lease:")
+    assert lease_check["epoch"] == 1
+    assert lease_check["expected_head"] == git(worktree, "rev-parse", "HEAD")
+    assert lease_check["reason"] == "lease_holder_mismatch:work/feature"
     assert report["next_actions"] == [
-        "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+        "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff",
         "ethos lane prewrite <path>",
     ]
 
@@ -207,10 +213,14 @@ def test_pre_tool_hook_admits_leased_work_lane_for_matching_actor(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     report = hook_admission_report(
         root=worktree,
@@ -228,14 +238,16 @@ def test_pre_tool_hook_admits_leased_work_lane_for_matching_actor(
         "reason": "prewrite_admitted",
     }
     assert report["admission"]["ok"] is True
-    assert report["admission"]["work_lane_lease"] == {
-        "ok": True,
-        "required": True,
-        "branch": "work/feature",
-        "owner": "agent-a",
-        "actor": "agent-a",
-        "reason": "matched",
-    }
+    lease_check = report["admission"]["work_lane_lease"]
+    assert lease_check["ok"] is True
+    assert lease_check["required"] is True
+    assert lease_check["branch"] == "work/feature"
+    assert lease_check["holder_ref"] == "agent:test:case:agent-a"
+    assert lease_check["invocation_holder_ref"] == "agent:test:case:agent-a"
+    assert lease_check["lease_id"].startswith("lease:")
+    assert lease_check["epoch"] == 1
+    assert lease_check["expected_head"] == git(worktree, "rev-parse", "HEAD")
+    assert lease_check["reason"] == "matched"
 
 
 def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
@@ -248,10 +260,14 @@ def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/feature",
-        owner="agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent-a")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     git(worktree, "checkout", "--detach")
     git_dir = Path(git(worktree, "rev-parse", "--absolute-git-dir"))
     rebase_dir = git_dir / "rebase-merge"

@@ -153,7 +153,7 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
@@ -171,7 +171,7 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
         shared=RetirementRuntime(run_git=fail_worktree_remove),
     )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -240,10 +240,10 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -288,11 +288,11 @@ def test_retire_superseded_work_lane_blocks_unabsorbed_lane_delta(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -335,7 +335,7 @@ def test_retire_superseded_work_lane_fails_closed_when_merge_base_unavailable(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
@@ -354,7 +354,7 @@ def test_retire_superseded_work_lane_fails_closed_when_merge_base_unavailable(
         shared=RetirementRuntime(run_git=fail_merge_base),
     )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -398,7 +398,7 @@ def test_retire_superseded_work_lane_fails_closed_when_delta_diff_unavailable(
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
 
@@ -417,7 +417,7 @@ def test_retire_superseded_work_lane_fails_closed_when_delta_diff_unavailable(
         shared=RetirementRuntime(run_git=fail_diff),
     )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -459,9 +459,14 @@ def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
     head = git(lane, "rev-parse", "HEAD")
     accepted = absorb_obsolete_delta_in_accepted(repo)
     db = repo / ".ethos" / "state" / "state.sqlite"
-    state.acquire_lease(db, subject="work/superseded", owner="agent-a", ttl_seconds=3600)
+    state.acquire_lease(
+        db,
+        subject="work/superseded",
+        holder_ref="agent:test:case:agent-a",
+        ttl_seconds=3600,
+    )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -496,10 +501,17 @@ def test_retire_superseded_work_lane_fails_closed_for_dirty_or_merged_lanes(
     dirty_head = git(dirty, "rev-parse", "HEAD")
     merged_head = git(merged, "rev-parse", "HEAD")
     db = repo / ".ethos" / "state" / "state.sqlite"
-    state.acquire_lease(db, subject="work/dirty", owner="agent-a", ttl_seconds=3600)
-    state.acquire_lease(db, subject="work/merged", owner="agent-a", ttl_seconds=3600)
+    state.acquire_lease(
+        db, subject="work/dirty", holder_ref="agent:test:case:agent-a", ttl_seconds=3600
+    )
+    state.acquire_lease(
+        db,
+        subject="work/merged",
+        holder_ref="agent:test:case:agent-a",
+        ttl_seconds=3600,
+    )
 
-    with _actor_env("agent-a"):
+    with _actor_env("agent:test:case:agent-a"):
         dirty_report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -553,10 +565,10 @@ def test_retire_superseded_work_lane_requires_owner_head_reason_absorption_and_a
     state.acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/superseded",
-        owner="agent-a",
+        holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
-    with _actor_env("agent-b"):
+    with _actor_env("agent:test:case:agent-b"):
         report = lane_retirement_core.retire_superseded_work_lane(
             root=repo,
             request=SupersededLaneRetirementRequest(
@@ -574,7 +586,7 @@ def test_retire_superseded_work_lane_requires_owner_head_reason_absorption_and_a
         "foreign_work_lane_retire_authority_required",
         "retire_reason_required",
     ]
-    assert report["next_action"] == "set ETHOS_ACTOR to the lane lease owner or obtain handoff"
+    assert report["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
     assert lane.exists()
 
 

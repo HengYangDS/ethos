@@ -53,7 +53,12 @@ def status_for(
             "head": "c1",
         },
         "worktrees": [
-            {"role": ROLE_ACCEPTED_ROOT, "path": "/repo", "branch": "dev", "head": "h0"},
+            {
+                "role": ROLE_ACCEPTED_ROOT,
+                "path": "/repo",
+                "branch": "dev",
+                "head": "h0",
+            },
             {"role": ROLE_WORK_LANE, "path": "/repo-w", "branch": branch, "head": "h1"},
         ],
     }
@@ -61,7 +66,9 @@ def status_for(
 
 def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
-        core, "workspace_status", lambda root: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True)
+        core,
+        "workspace_status",
+        lambda root: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True),
     )
     monkeypatch.setattr(core, "executed_proof_record", lambda root, head: None)
     decision = core.evaluate_mutation(
@@ -80,11 +87,21 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     monkeypatch.setattr(core, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n"))
     for candidate, gap in [
         (
-            {"exists": False, "worktree_exists": False, "worktree_path": "", "head": ""},
+            {
+                "exists": False,
+                "worktree_exists": False,
+                "worktree_path": "",
+                "head": "",
+            },
             "candidate_branch_missing",
         ),
         (
-            {"exists": True, "worktree_exists": False, "worktree_path": "", "head": "c1"},
+            {
+                "exists": True,
+                "worktree_exists": False,
+                "worktree_path": "",
+                "head": "c1",
+            },
             "candidate_worktree_missing",
         ),
     ]:
@@ -117,8 +134,15 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
     assert lanes._status_work_lane(status, "work/x")["branch"] == "work/x"
     assert lanes._status_work_lane({"worktrees": ["bad"]}, "work/x") is None
     assert lanes._state_root(status, tmp_path) == Path("/repo")
-    monkeypatch.setattr(lanes, "active_leases", lambda db: [{"subject": "work/x", "owner": "me"}])
-    assert lanes._active_lease(tmp_path / "state.sqlite", "work/x")["owner"] == "me"
+    monkeypatch.setattr(
+        lanes,
+        "active_leases",
+        lambda db: [{"subject": "work/x", "holder_ref": "agent:test:case:me"}],
+    )
+    assert (
+        lanes._active_lease(tmp_path / "state.sqlite", "work/x")["holder_ref"]
+        == "agent:test:case:me"
+    )
 
     monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status)
@@ -128,12 +152,17 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
         "work_lane_missing_lease:work/x",
     ]
     monkeypatch.setattr(
-        lanes, "active_leases", lambda db: [{"subject": "work/x", "owner": "me", "payload": {}}]
+        lanes,
+        "active_leases",
+        lambda db: [{"subject": "work/x", "holder_ref": "agent:test:case:me", "payload": {}}],
     )
     monkeypatch.setattr(
         lanes,
         "update_lease_payload",
-        lambda db, subject, payload: {"owner": "me", "payload": payload},
+        lambda db, subject, payload: {
+            "holder_ref": "agent:test:case:me",
+            "payload": payload,
+        },
     )
     assert (
         lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim-1", apply=True)["state"]
@@ -160,7 +189,11 @@ def valid_shadow_evidence(tmp_path: Path, adopter: str = "generic") -> dict[str,
     return parity.build_tracked_parity_evidence(
         adopter=adopter,
         target=tmp_path,
-        shadow={"ok": True, "required_gaps": [], "accepted_summary": {"total_count": 1}},
+        shadow={
+            "ok": True,
+            "required_gaps": [],
+            "accepted_summary": {"total_count": 1},
+        },
         current_product_head="p1",
         current_target_head="t1",
         timeout_seconds=30,

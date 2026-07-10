@@ -352,7 +352,7 @@ def closeout_support(
         gaps.append("protected_root_mutation")
     elif dirty:
         gaps.append("work_lane_dirty")
-    elif not lease_by_branch.get(branch, {}).get("owner"):
+    elif not lease_by_branch.get(branch, {}).get("holder_ref"):
         gaps.append(f"work_lane_missing_lease:{branch}")
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
@@ -374,7 +374,9 @@ def closeout_support(
         "target_branch": str(candidate["branch"]),
         "target_path": str(candidate["worktree_path"]),
         "operation": "land_to_candidate" if is_work_lane else "",
-        "owner": str(lease.get("owner") or "") if is_work_lane else "",
+        "holder_ref": str(lease.get("holder_ref") or "") if is_work_lane else "",
+        "lease_id": str(lease.get("lease_id") or "") if is_work_lane else "",
+        "lease_epoch": int(lease.get("epoch") or 0) if is_work_lane else 0,
         "claim_id": claim_id,
         "claim_binding": "bound" if claim_id else "missing" if is_work_lane else "unbound",
         "required_gaps": gaps,

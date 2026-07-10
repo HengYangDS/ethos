@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -155,17 +156,47 @@ def test_governance_kernel_gate_uses_local_command_plane_without_dev_env_sync() 
     assert "uv run --all-packages --group dev" not in script
 
 
-def test_python_lint_gate_names_all_governed_python_roots() -> None:
-    """Packages, tools, and tests share one Python lint/format law."""
+def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
+    """Every tracked Python file is governed by one lint/format law."""
     script = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
 
-    assert 'python_quality_roots=("packages" "tools" "tests")' in script
+    assert "git ls-files" in script
+    assert "*.py" in script
+    assert "*.pyi" in script
+    assert "python_quality_paths" in script
+    assert "no tracked Python files found for Ruff" in script
+    assert "packages/tools/tests are required" in script
+    assert "not sufficient" in script
     assert (
-        'ruff check --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" "${python_quality_roots[@]}"'
+        'ruff check --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" "${python_quality_paths[@]}"'
         in script
     )
     assert (
-        'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${python_quality_roots[@]}"'
+        'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${python_quality_paths[@]}"'
         in script
     )
-    assert '"packages" "tools" "tests"' in script
+
+
+def test_python_lint_gate_has_no_tracked_python_side_lanes() -> None:
+    tracked = {
+        line.strip()
+        for line in subprocess.check_output(
+            ["git", "ls-files", "*.py", "*.pyi"], cwd=ROOT, text=True
+        ).splitlines()
+        if line.strip()
+    }
+    script = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
+
+    assert tracked
+    assert 'mapfile -t python_quality_paths < <(git ls-files "*.py" "*.pyi")' in script
+    assert any(path.startswith(".agents/") for path in tracked)
+
+
+def test_python_sast_gate_discovers_every_tracked_python_source() -> None:
+    """Every tracked Python file is governed by one SAST law."""
+    script = (ROOT / "tools/ci/scripts/run-bandit.sh").read_text(encoding="utf-8")
+
+    assert 'mapfile -t python_security_paths < <(git ls-files "*.py")' in script
+    assert "no tracked Python files found for Bandit" in script
+    assert "${python_security_paths[@]}" in script
+    assert "-r packages" not in script

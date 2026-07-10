@@ -148,7 +148,7 @@ def test_capability_semantics_and_helpers(tmp_path: Path) -> None:
     package = tmp_path / "pkg"
     package.mkdir()
     assert cap.contained_package_path(package, "SKILL.md") is True
-    assert cap.contained_package_path(package, "/tmp/outside") is False
+    assert cap.contained_package_path(package, "/workspace/outside") is False
     assert cap.contained_package_path(package, "../outside") is False
     assert sp._frontmatter_ok("---\nname: x\ndescription: y\n---\n") is True
     assert sp._section_body("## A\nbody\n## B\nnext", "A") == "body"

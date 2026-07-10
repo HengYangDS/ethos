@@ -19,7 +19,7 @@ def test_status_work_lane_skips_non_dict_and_finds_match() -> None:
     status = {
         "worktrees": [
             "junk",
-            {"branch": "work/x", "role": ROLE_WORK_LANE, "path": "/tmp/x"},
+            {"branch": "work/x", "role": ROLE_WORK_LANE, "path": "/workspace/x"},
         ]
     }
     lane = lanes._status_work_lane(status, "work/x")
@@ -37,10 +37,10 @@ def test_state_root_returns_accepted_root_path(tmp_path: Path) -> None:
     status = {
         "worktrees": [
             "junk",
-            {"role": ROLE_ACCEPTED_ROOT, "path": "/tmp/accepted"},
+            {"role": ROLE_ACCEPTED_ROOT, "path": "/workspace/accepted"},
         ]
     }
-    assert lanes._state_root(status, tmp_path) == Path("/tmp/accepted")
+    assert lanes._state_root(status, tmp_path) == Path("/workspace/accepted")
 
 
 def test_state_root_falls_back_when_no_accepted_root(tmp_path: Path) -> None:

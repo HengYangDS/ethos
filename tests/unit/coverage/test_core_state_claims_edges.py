@@ -54,7 +54,7 @@ def status_for(
         or {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c1",
         },
         "closeout_support": {"required_gaps": closeout_gaps or []},
@@ -312,7 +312,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/c",
+                "worktree_path": "/workspace/c",
                 "head": "c2",
             },
         ),
@@ -391,7 +391,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/c",
+                "worktree_path": "/workspace/c",
                 "head": "c2",
             },
         ),
@@ -439,7 +439,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/c",
+                "worktree_path": "/workspace/c",
                 "head": "c2",
             },
         ),

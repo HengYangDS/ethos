@@ -162,7 +162,7 @@ def test_result_payload_accepts_governed_repository_context() -> None:
             "profile": "generic",
             "authority": {"id": "repository-authority"},
             "subject": {
-                "id": "/tmp/repo",
+                "id": "/workspace/repo",
                 "kind": "repository",
                 "name": "repo",
                 "owner": "ethos",

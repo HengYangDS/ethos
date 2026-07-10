@@ -100,6 +100,16 @@ def test_scaffold_templates_use_packaged_jinja_and_strict_typed_contexts() -> No
         )
 
 
+def test_scaffold_template_environment_uses_explicit_autoescape_policy() -> None:
+    templates = importlib.import_module("ethos.repository.adoption.scaffold.templates")
+
+    env = templates.environment()
+
+    assert callable(env.autoescape)
+    assert env.autoescape("sample.html") is True
+    assert env.autoescape("core/project.toml.j2") is False
+
+
 def test_project_template_preserves_python_json_string_encoding() -> None:
     templates = importlib.import_module("ethos.repository.adoption.scaffold.templates")
     context = templates.RepositoryTemplateContext(

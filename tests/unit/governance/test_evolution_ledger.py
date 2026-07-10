@@ -175,7 +175,7 @@ owner = "ethos-maintainers"
 claim = "Proof refs must resolve."
 challenge = "Unresolved refs make evolution unreviewable."
 transition = "shape -> canonize"
-proof_refs = ["/tmp/proof.md", "https://example.test/proof.json", "pytest"]
+proof_refs = ["/workspace/proof.md", "https://example.test/proof.json", "pytest"]
 review_refs = ["docs/decision.md"]
 decision_refs = ["docs/decision.md"]
 retirement_conditions = ["all refs resolve"]
@@ -187,7 +187,7 @@ retirement_conditions = ["all refs resolve"]
 
     assert report["ok"] is False
     assert report["required_gaps"] == [
-        "hypothesis_proof_ref_unresolved:bad-proof-refs:/tmp/proof.md",
+        "hypothesis_proof_ref_unresolved:bad-proof-refs:/workspace/proof.md",
         "hypothesis_proof_ref_unresolved:bad-proof-refs:https://example.test/proof.json",
         "hypothesis_proof_ref_unresolved:bad-proof-refs:pytest",
     ]
@@ -715,7 +715,7 @@ def test_selection_ref_gaps_reject_absolute_and_url_path_refs(tmp_path: Path) ->
                     "falsifiers": ["falsifier"],
                     "commitment_effect": "create_commitment",
                     "practice_changes": ["known-change"],
-                    "commitment_targets": ["/tmp/contract.md"],
+                    "commitment_targets": ["/workspace/contract.md"],
                     "evidence_refs": ["https://example.test/evidence.md"],
                     "decision_refs": [""],
                 }
@@ -728,7 +728,7 @@ def test_selection_ref_gaps_reject_absolute_and_url_path_refs(tmp_path: Path) ->
     )
 
     assert {
-        "practice_claim_commitment_ref_missing:external-refs:/tmp/contract.md",
+        "practice_claim_commitment_ref_missing:external-refs:/workspace/contract.md",
         "practice_claim_evidence_ref_missing:external-refs:https://example.test/evidence.md",
         "practice_claim_decision_ref_missing:external-refs:",
     } <= set(gaps)

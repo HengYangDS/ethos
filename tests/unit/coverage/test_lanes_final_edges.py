@@ -53,7 +53,7 @@ def status(
         or {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c0",
         },
         "worktrees": [
@@ -116,7 +116,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/candidate",
+                "worktree_path": "/workspace/candidate",
                 "head": "h1",
             }
         ),
@@ -147,7 +147,7 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/candidate",
+                "worktree_path": "/workspace/candidate",
                 "head": "c1",
             },
         ),
@@ -324,7 +324,7 @@ def test_refresh_work_lane_base_disables_update_refs_during_rebase(
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/candidate",
+                "worktree_path": "/workspace/candidate",
                 "head": "c1",
             },
         ),
@@ -369,7 +369,7 @@ def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
             candidate={
                 "exists": True,
                 "worktree_exists": True,
-                "worktree_path": "/tmp/candidate",
+                "worktree_path": "/workspace/candidate",
                 "head": "c1",
             },
         ),

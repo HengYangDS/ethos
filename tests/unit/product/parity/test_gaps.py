@@ -51,13 +51,13 @@ def test_shadow_evidence_command_includes_product_root_only_for_external_target(
     assert _shadow_evidence_command(
         adopter="sample-adopter",
         root=product,
-        target="/tmp/adopter",
+        target="/workspace/adopter",
         timeout_seconds=17,
         include_product_root=True,
     ) == (
         "uv run --package ethos ethos parity shadow --adopter sample-adopter "
         f"--root {product.resolve().as_posix()} "
-        "--target /tmp/adopter --execute --timeout-seconds 17 --json"
+        "--target /workspace/adopter --execute --timeout-seconds 17 --json"
     )
     assert _shadow_evidence_command(
         adopter="generic",

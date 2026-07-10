@@ -12,6 +12,7 @@ from typing import Literal
 from jinja2 import Environment
 from jinja2 import PackageLoader
 from jinja2 import StrictUndefined
+from jinja2 import select_autoescape
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -150,10 +151,10 @@ def declaration() -> ScaffoldTemplateDeclaration:
 @lru_cache(maxsize=1)
 def environment() -> Environment:
     """Return the strict packaged-template environment."""
-    template_environment = Environment(  # nosec B701 - non-HTML artifact compiler
+    template_environment = Environment(
         loader=PackageLoader(__package__, "template_files"),
         undefined=StrictUndefined,
-        autoescape=False,
+        autoescape=select_autoescape(default_for_string=False),
         keep_trailing_newline=True,
     )
     template_environment.filters["json"] = json.dumps

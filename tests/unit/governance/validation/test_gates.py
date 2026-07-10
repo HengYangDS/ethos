@@ -54,6 +54,9 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["no-compat"].execution_mode == "adapter"
     assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
     assert registry["product-boundary"].execution_mode == "adapter"
+    assert registry["python-security"].command == ("tools/ci/scripts/run-bandit.sh",)
+    assert "-r" not in registry["python-security"].command
+    assert "packages" not in registry["python-security"].command
     assert registry["python-types"].execution_mode == "inprocess"
 
 

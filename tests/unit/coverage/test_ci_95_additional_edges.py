@@ -52,7 +52,7 @@ def status_for(
         or {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c1",
         },
         "worktrees": worktrees

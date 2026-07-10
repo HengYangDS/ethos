@@ -50,7 +50,7 @@ def test_apply_gaps_expect_head_mismatch() -> None:
 def test_candidate_worktree_gaps_branch_missing() -> None:
     # A candidate whose branch does not exist (line 126).
     candidate = {"exists": False, "worktree_exists": False}
-    assert lanes_refresh._candidate_worktree_gaps(candidate, "/tmp/x") == [
+    assert lanes_refresh._candidate_worktree_gaps(candidate, "/workspace/x") == [
         "candidate_branch_missing"
     ]
 
@@ -58,7 +58,7 @@ def test_candidate_worktree_gaps_branch_missing() -> None:
 def test_candidate_worktree_gaps_worktree_missing() -> None:
     # A candidate branch present but no worktree (line 128).
     candidate = {"exists": True, "worktree_exists": False}
-    assert lanes_refresh._candidate_worktree_gaps(candidate, "/tmp/x") == [
+    assert lanes_refresh._candidate_worktree_gaps(candidate, "/workspace/x") == [
         "candidate_worktree_missing"
     ]
 
@@ -93,7 +93,7 @@ def test_candidate_report_includes_stderr_when_present() -> None:
         "branch": "candidate/dev",
         "head": "h",
         "previous_head": "p",
-        "path": "/tmp/x",
+        "path": "/workspace/x",
         "required_gaps": ["x"],
     }
     report = lanes_refresh._candidate_report(context, stderr="boom")

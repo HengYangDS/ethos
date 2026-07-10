@@ -71,12 +71,12 @@ def git_head(path: Path) -> str:
 def complete_parity_evidence(adopter: str) -> dict[str, object]:
     command = (
         f"uv run --package ethos ethos parity shadow --adopter {adopter} "
-        f"--target /tmp/{adopter} --execute --timeout-seconds 30 --json"
+        f"--target /workspace/{adopter} --execute --timeout-seconds 30 --json"
     )
     return {
         "schema_version": 1,
         "adopter": adopter,
-        "target": f"/tmp/{adopter}",
+        "target": f"/workspace/{adopter}",
         "generated_on": "2026-07-01",
         "command": command,
         "freshness": {

@@ -30,7 +30,7 @@ def test_tracked_parity_evidence_reports_absent_adopter_and_non_object_payload(
 def test_parity_validation_boundary_gaps() -> None:
     payload = complete_parity_evidence("generic")
     payload["command"] = (
-        "ethos parity shadow --adopter other --target /tmp/generic --execute --json"
+        "ethos parity shadow --adopter other --target /workspace/generic --execute --json"
     )
     payload["shadow"] = "not-shadow"
     payload["verified_capabilities"] = ["not-a-capability"]
@@ -61,7 +61,7 @@ def test_parity_validation_boundary_gaps() -> None:
         command_matches_identity(
             "ethos parity shadow --adopter generic --execute --json",
             adopter="generic",
-            target="/tmp/generic",
+            target="/workspace/generic",
         )
         is False
     )

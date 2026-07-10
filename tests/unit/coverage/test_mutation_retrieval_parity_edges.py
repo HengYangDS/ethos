@@ -49,7 +49,7 @@ def status_for(
         or {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c1",
         },
         "worktrees": [
@@ -97,7 +97,7 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     monkeypatch.setattr(
         core,
         "workspace_status",
-        lambda root: status_for(dirty=(root.as_posix() == "/tmp/candidate")),
+        lambda root: status_for(dirty=(root.as_posix() == "/workspace/candidate")),
     )
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == [
         "candidate_worktree_dirty"
@@ -110,8 +110,8 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
 def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path: Path) -> None:
     assert slug("  A b@@c ") == "a-b-c"
     assert slug("@@") == "work"
-    assert default_candidate_path(Path("/tmp/repo"), "candidate/dev") == Path(
-        "/tmp/repo-candidate-dev"
+    assert default_candidate_path(Path("/workspace/repo"), "candidate/dev") == Path(
+        "/workspace/repo-candidate-dev"
     )
     status = status_for(branch="work/x")
     assert lanes._status_work_lane(status, "work/x")["branch"] == "work/x"

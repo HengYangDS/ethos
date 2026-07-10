@@ -47,7 +47,7 @@ def test_report_collects_review_and_deny_gaps_across_iterations(
     ):
         (tmp_path / name).write_text("x", encoding="utf-8")
 
-    def _fake_policy(rel: str) -> dict[str, object]:
+    def _fake_policy(rel: str, declaration: object) -> dict[str, object]:
         if rel.endswith("allow.txt"):
             return {"decision": "allow"}
         if rel.endswith("review_gap.txt"):
@@ -60,11 +60,11 @@ def test_report_collects_review_and_deny_gaps_across_iterations(
             return {"decision": "deny", "required_gap": ""}
         return {"decision": "ignore"}
 
-    monkeypatch.setattr(artifacts_mod, "path_policy_for", _fake_policy)
+    monkeypatch.setattr(artifacts_mod, "path_policy_from_declaration", _fake_policy)
     monkeypatch.setattr(
         artifacts_mod,
         "_candidate_paths",
-        lambda root: [
+        lambda root, declaration: [
             tmp_path / "allow.txt",
             tmp_path / "review_gap.txt",
             tmp_path / "review_none.txt",
@@ -85,13 +85,56 @@ def test_report_collects_review_and_deny_gaps_across_iterations(
 def test_explicit_denied_roots_ignores_empty_contract_prefix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        artifacts_mod,
-        "generated_artifact_contract",
-        lambda: {
-            "denied_root_cache_prefixes": [{"prefix": ""}],
-            "denied_legacy_generated_prefixes": [{"prefix": "dist"}],
-        },
+    declaration = topology.GeneratedArtifactTopologyDeclaration.model_validate(
+        {
+            "id": "generated-artifact-topology-test",
+            "declarative_boundary": "declarative",
+            "product_adopter_boundary": "adopter",
+            "product_adopter_required_gap_prefix": "adopter_gap",
+            "cache_flat_boundary": "cache",
+            "cache_flat_required_gap_prefix": "cache_gap",
+            "cache_flat_root_prefix": ".cache",
+            "cache_allowed_prefixes": [".cache/local-state"],
+            "runtime_flat_boundary": "runtime",
+            "runtime_flat_required_gap_prefix": "runtime_gap",
+            "runtime_flat_root_prefix": "build/runtime",
+            "runtime_allowed_prefixes": ["build/runtime/tool-cache"],
+            "generated_denial_boundary": "generated",
+            "repo_root_generated_boundary": "root",
+            "repo_root_generated_required_gap_prefix": "root_gap",
+            "ignore_boundary": "ignore",
+            "source_schema_suffix": ".schema.json",
+            "generated_suffixes": [".json"],
+            "generated_filenames": ["report.json"],
+            "generated_filename_prefixes": [".coverage."],
+            "source_metadata_filenames": ["package.json"],
+            "product_adopter_root_prefixes": ["adopters"],
+            "declarative_prefix": [],
+            "allowed_prefix": [],
+            "review_prefix": [],
+            "denied_prefix": [],
+            "denied_root_cache_prefix": [{"prefix": ""}],
+            "denied_legacy_generated_prefix": [{"prefix": "dist"}],
+            "denied_generated_prefix": [],
+            "lifecycle_class": [],
+        }
     )
 
-    assert artifacts_mod._explicit_denied_roots() == ["dist"]
+    assert artifacts_mod._explicit_denied_roots(declaration) == ["dist"]
+
+
+def test_default_declaration_path_falls_back_when_no_source_tree_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(topology.Path, "exists", lambda self: False)
+
+    assert topology._default_declaration_path() == topology.DECLARATION_PATH
+
+
+def test_declaration_text_falls_back_to_packaged_resource(tmp_path: Path) -> None:
+    missing = tmp_path / "missing-generated-artifact-topology.toml"
+
+    text = topology._declaration_text(missing)
+
+    assert 'id = "generated-artifact-topology"' in text

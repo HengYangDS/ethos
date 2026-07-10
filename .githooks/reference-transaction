@@ -28,11 +28,12 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 accepted="$(git config --get ethos.acceptedBranch 2>/dev/null)"
 [ -n "$accepted" ] || accepted="dev"
 
-if command -v ethos >/dev/null 2>&1; then
-    runner="ethos"
+if [ -x "$repo_root/.venv/bin/python" ]; then
+    ethos_python="$repo_root/.venv/bin/python"
 else
-    runner="python -m ethos.cli"
+    ethos_python="${PYTHON:-python}"
 fi
+ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
 
 while read -r old_value new_value ref_name; do
     case "$ref_name" in
@@ -44,8 +45,10 @@ while read -r old_value new_value ref_name; do
         work/*) ;;
         *) [ "${ETHOS_ALLOW_REF_MOVE:-}" = "1" ] && continue ;;
     esac
-    verdict="$($runner hook ref-transaction "$ref_name" "$old_value" "$new_value" \
-        --phase "$phase" --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+    verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+        "$ethos_python" -m ethos.cli hook ref-transaction \
+        "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+        --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
 
     if [ "$phase" = "committed" ]; then
         case "$verdict" in

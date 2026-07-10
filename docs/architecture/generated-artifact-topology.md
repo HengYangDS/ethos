@@ -23,6 +23,15 @@ Generated artifact placement is product governance, not housekeeping. ETHOS
 routes each repository-relative path through one contract before it treats a
 file as source, local state, generated output, or curated evidence.
 
+The product topology is now declaration-first. The source of the path families,
+required gap prefixes, lifecycle classes, generated filename rules, and product
+adopter root exclusions is
+`system/policies/generated-artifact-topology.toml`; the packaged mirror at
+`packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml`
+keeps installed wheels on the same contract. Python loads that declaration into
+strict frozen contract models and evaluates paths as a pure projection. It is
+not a second hand-written topology table.
+
 | Path family | Boundary | Generated output allowed? | Tracked? |
 | --- | --- | --- | --- |
 | `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
@@ -116,7 +125,8 @@ ethos quality generated-artifacts --json
 
 The audit reports the path router contract, lifecycle classes, entrypoint
 routing, blocked generated drift, tracked files in generated-output homes, and
-review-required paths. It is also a proof gate:
+review-required paths. Its JSON contract includes `source_refs` so reviewers can
+see which declaration supplied the topology. It is also a proof gate:
 
 ```bash
 ethos prove --execute --gate generated-artifacts --expect-head <git-head> --json

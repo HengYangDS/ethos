@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
@@ -9,10 +9,9 @@ from ethos_core.contracts.artifacts.topology import generated_artifact_contract
 from ethos_core.contracts.artifacts.topology import is_denied_root_cache_path
 from ethos_core.contracts.artifacts.topology import is_retired_config_script_path
 from ethos_core.contracts.artifacts.topology import is_runner_script_path
+from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_for
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 
 
 def _git(root: Path, *args: str) -> None:
@@ -24,6 +23,43 @@ def _init_repo(root: Path) -> None:
     _git(root, "init", "-b", "dev")
     _git(root, "config", "user.name", "Test User")
     _git(root, "config", "user.email", "test@example.com")
+
+
+def test_generated_artifact_topology_declaration_drives_contract_and_policy() -> None:
+    declaration = load_generated_artifact_topology_declaration(
+        Path("system/policies/generated-artifact-topology.toml")
+    )
+    contract = generated_artifact_contract()
+
+    assert declaration.id == "generated-artifact-topology"
+    assert "system/policies/generated-artifact-topology.toml" in contract["source_refs"]
+    assert {item["prefix"] for item in contract["allowed_prefixes"]} == {
+        item["prefix"] for item in declaration.to_contract()["allowed_prefixes"]
+    }
+
+    samples = (
+        ".config/ethos/policy.toml",
+        ".config/ethos/report.json",
+        ".config/ci/scripts/run-python-tests.sh",
+        ".cache/tool/state.json",
+        ".cache/local-state/worktree/leases.json",
+        ".import_linter_cache/cache.sqlite",
+        "adopters/acme/report.json",
+        "build/ethos/proof/report.json",
+        "build/runtime/gitlab-ci-local/state.json",
+        "build/runtime/tool-cache/pytest/cache.json",
+        "build/runtime/random-cache/state.json",
+        "dist/ethos.whl",
+        "docs/evidence/2026-07-07-generated-artifacts.md",
+        "docs/reference/report.json",
+        "package-lock.json",
+        "packages/sample/report.json",
+        "packages/sample/schemas/contract.schema.json",
+        "coverage.xml",
+        "tools/ci/scripts/run-python-tests.sh",
+    )
+    for sample in samples:
+        assert path_policy_from_declaration(sample, declaration) == path_policy_for(sample)
 
 
 def test_contract_is_generic_and_declares_artifact_homes() -> None:

@@ -6,8 +6,10 @@ import subprocess
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
-from ethos_core.contracts.artifacts.topology import path_policy_for
+from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -62,6 +64,9 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
 
 def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     """Report generated artifact placement drift without mutating the repository."""
+    declaration = load_generated_artifact_topology_declaration(
+        root / "system/policies/generated-artifact-topology.toml"
+    )
     allowed_paths: list[str] = []
     denied_paths: list[str] = []
     review_paths: list[str] = []
@@ -69,13 +74,13 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     review_gaps: list[str] = []
     path_blockers: list[str] = []
 
-    for path in _candidate_paths(root):
+    for path in _candidate_paths(root, declaration):
         rel = path.relative_to(root).as_posix()
         if _is_ignored_local_test_residue(root, rel):
             ignored_local_paths.append(rel)
             continue
 
-        policy = path_policy_for(rel)
+        policy = path_policy_from_declaration(rel, declaration)
         decision = str(policy["decision"])
         if decision == "allow":
             allowed_paths.append(rel)
@@ -103,7 +108,7 @@ def generated_artifact_topology_report(root: Path) -> dict[str, Any]:
     return {
         "ok": not required_gaps,
         "state": "clean" if not required_gaps else "blocked",
-        "contract": generated_artifact_contract(),
+        "contract": generated_artifact_contract(declaration),
         "summary": {
             "allowed_path_count": len(allowed_paths),
             "denied_path_count": len(denied_paths),
@@ -409,9 +414,9 @@ def _entrypoint_finding(
     }
 
 
-def _candidate_paths(root: Path) -> list[Path]:
+def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclaration) -> list[Path]:
     candidates: dict[str, Path] = {}
-    for rel in _explicit_denied_roots():
+    for rel in _explicit_denied_roots(declaration):
         path = root / rel
         if path.exists():
             candidates[rel] = path
@@ -422,7 +427,7 @@ def _candidate_paths(root: Path) -> list[Path]:
             continue
         if any(part in _PRUNE_DIRS for part in path.relative_to(root).parts):
             continue
-        policy = path_policy_for(path.relative_to(root))
+        policy = path_policy_from_declaration(path.relative_to(root), declaration)
         if (path.is_file() and policy["decision"] != "ignore") or (
             path.is_dir()
             and policy["decision"] == "deny"
@@ -432,8 +437,8 @@ def _candidate_paths(root: Path) -> list[Path]:
     return [candidates[key] for key in sorted(candidates)]
 
 
-def _explicit_denied_roots() -> list[str]:
-    contract = generated_artifact_contract()
+def _explicit_denied_roots(declaration: GeneratedArtifactTopologyDeclaration) -> list[str]:
+    contract = generated_artifact_contract(declaration)
     roots: list[str] = []
     for group in ("denied_root_cache_prefixes", "denied_legacy_generated_prefixes"):
         for item in contract[group]:

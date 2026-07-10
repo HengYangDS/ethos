@@ -356,6 +356,41 @@ def test_declared_report_handler_rejects_spec_mismatch() -> None:
         )
 
 
+def test_declared_report_handler_rejects_missing_command_declaration() -> None:
+    with pytest.raises(KeyError, match="command declaration missing"):
+        declared_report_handler(
+            module_name="ethos.surface.cli.quality.cutover.core",
+            function_name="missing_command",
+            spec_name="NO_COMPAT_COMMAND",
+            spec=cutover_core.NO_COMPAT_COMMAND,
+        )
+
+
+def test_declared_report_handler_rejects_command_without_report_handler() -> None:
+    with pytest.raises(KeyError, match="report handler declaration missing"):
+        declared_report_handler(
+            module_name="ethos.surface.cli.quality.core",
+            function_name="markdown_links",
+            spec_name="NO_COMPAT_COMMAND",
+            spec=cutover_core.NO_COMPAT_COMMAND,
+        )
+
+
+def test_declared_report_handler_rejects_command_name_mismatch() -> None:
+    mismatched_spec = ReportCommandSpec(
+        command="quality wrong-name",
+        report=lambda _root: {"ok": True},
+    )
+
+    with pytest.raises(ValueError, match="report command mismatch"):
+        declared_report_handler(
+            module_name="ethos.surface.cli.quality.cutover.core",
+            function_name="no_compat",
+            spec_name="NO_COMPAT_COMMAND",
+            spec=mismatched_spec,
+        )
+
+
 def test_release_attestation_uses_report_spec_without_handwritten_result() -> None:
     source = Path("packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
         encoding="utf-8"

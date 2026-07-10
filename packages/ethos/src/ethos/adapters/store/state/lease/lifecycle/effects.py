@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.events import initialize_state
-from ethos.adapters.store.state.lease.core import expected_current_lease
+from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import table_columns
 from ethos_core.contracts.coordination import HolderRef

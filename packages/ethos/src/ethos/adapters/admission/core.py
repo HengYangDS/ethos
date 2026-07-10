@@ -16,7 +16,7 @@ from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.core import advance_lease_head
+from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES

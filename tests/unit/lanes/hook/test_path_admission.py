@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import ethos.adapters.store.state.lease.core as state
+import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace

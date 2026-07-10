@@ -14,7 +14,7 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.store.state.lease.core import acquire_lease
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.coordination import CrossHostHandoff
 from ethos_core.contracts.coordination import HolderRef

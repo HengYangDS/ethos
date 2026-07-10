@@ -15,8 +15,8 @@ import pytest
 
 import ethos.adapters.store.state.events as state_events
 import ethos.adapters.store.state.events as state_schema
-import ethos.adapters.store.state.lease.core as state
-import ethos.adapters.store.state.lease.effects as state_effects
+import ethos.adapters.store.state.lease.lifecycle.core as state
+import ethos.adapters.store.state.lease.lifecycle.effects as state_effects
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof

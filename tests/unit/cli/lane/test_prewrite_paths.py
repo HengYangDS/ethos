@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import ethos.adapters.store.state.lease.core as state
+import ethos.adapters.store.state.lease.lifecycle.core as state
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import git

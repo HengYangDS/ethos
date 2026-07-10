@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo import git
-from ethos.adapters.store.state.lease.core import acquire_lease
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.projection import active_leases
 
 if TYPE_CHECKING:

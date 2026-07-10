@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.store.state.lease.core as state
+import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.admission import identity as admission_identity
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report

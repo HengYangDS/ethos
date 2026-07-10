@@ -9,12 +9,15 @@ leaf, so the contract-name list is owned here.
 from __future__ import annotations
 
 import tomllib
+from importlib import resources
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 # The machine governance kernel's declarative contracts under system/.
+RESOURCE_BACKED_SYSTEM_CONTRACTS = {"workflows": "data/workflows.toml"}
+
 SYSTEM_CONTRACTS = (
     "authority",
     "formats",
@@ -28,8 +31,20 @@ SYSTEM_CONTRACTS = (
 
 
 def load_system_contract(root: Path, name: str) -> dict[str, object]:
-    """Load system/<name>.toml as a dict. Raises FileNotFoundError when absent."""
+    """Load system/<name>.toml, falling back to product resources when declared.
+
+    Most system contracts are root-owned and must fail closed when missing. Workflow
+    runtime projection is product-owned: adopter repositories may not carry
+    ``system/workflows.toml``, but the product runner still needs the declared public
+    lifecycle graph to compile plan projections.
+    """
     path = root / "system" / f"{name}.toml"
+    if path.exists():
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    resource = RESOURCE_BACKED_SYSTEM_CONTRACTS.get(name)
+    if resource:
+        text = resources.files("ethos_core").joinpath(resource).read_text(encoding="utf-8")
+        return tomllib.loads(text)
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 

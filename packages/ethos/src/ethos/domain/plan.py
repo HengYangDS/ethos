@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import fnmatch
 import tomllib
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -23,15 +24,15 @@ from ethos.domain.status import status_worktree_gaps
 from ethos.domain.status import string_list
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.registry.commands import command_registry_report
-from ethos_core.action_graph.core import ActionGraph
-from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleFactSnapshot
 from ethos_core.contracts.rules import stable_digest
+from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from ethos_core.action_graph.core import ActionGraph
 
 
 def path_matches(path: str, pattern: str) -> bool:
@@ -140,35 +141,12 @@ def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) 
 
 
 def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
-    """Build the deterministic status→prove→audit action graph for changed paths."""
-    inputs = tuple(sorted(paths)) or ("pyproject.toml",)
-    nodes = (
-        ActionNode(
-            id="status",
-            kind="inspection",
-            command=("ethos", "status", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
-        ActionNode(
-            id="prove",
-            kind="proof",
-            command=("ethos", "prove", "--json"),
-            inputs=inputs,
-            outputs=("evidence/latest-proof.json",),
-            policy="required",
-        ),
-        ActionNode(
-            id="repository-audit",
-            kind="governance",
-            command=("ethos", "audit", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
+    """Build the plan action graph from the declared workflow runtime contract."""
+    return action_graph_from_workflow_contract(
+        load_system_contract(Path(), "workflows"),
+        changed_paths=paths,
+        node_ids=("status", "plan", "prove"),
     )
-    return ActionGraph(nodes=nodes)
 
 
 def rule_fact(

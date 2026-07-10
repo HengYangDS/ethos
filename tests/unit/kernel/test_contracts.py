@@ -364,3 +364,17 @@ def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
         "chronicle_missing",
         "substrate_untrusted",
     }
+
+
+def test_load_system_contract_uses_product_resource_for_workflows_when_root_lacks_contract(
+    tmp_path,
+):
+    contract = load_system_contract(tmp_path, "workflows")
+
+    assert contract["runtime"]["truth_boundary"] == "derived_repository_projection"
+    assert contract["node"]
+
+
+def test_load_system_contract_keeps_non_resource_contracts_fail_closed(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_system_contract(tmp_path, "authority")

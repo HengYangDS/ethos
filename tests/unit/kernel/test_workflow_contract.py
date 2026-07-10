@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from ethos.repository.workflow import runtime as workflow_runtime_model
 from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
 
 
 def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None:
-    contract = load_system_contract(__import__("pathlib").Path(), "workflows")
+    contract = load_system_contract(Path(), "workflows")
 
     report = workflow_contract_report(contract)
 
@@ -38,7 +41,7 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
 
 
 def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -> None:
-    contract = load_system_contract(__import__("pathlib").Path(), "workflows")
+    contract = load_system_contract(Path(), "workflows")
 
     projection = planned_transition_projection(contract, changed_paths=("docs/a.md",))
 
@@ -62,8 +65,56 @@ def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -
     ]
 
 
+def test_action_graph_from_workflow_contract_compiles_requested_declared_nodes() -> None:
+    contract = load_system_contract(Path(), "workflows")
+
+    graph = action_graph_from_workflow_contract(
+        contract,
+        changed_paths=("b.py", "a.py"),
+        node_ids=("status", "plan", "prove"),
+    )
+
+    assert graph.validate().ok is True
+    assert [node.id for node in graph.nodes] == ["status", "plan", "prove"]
+    assert graph.nodes[0].inputs == ("a.py", "b.py")
+    assert graph.nodes[1].command == ("ethos", "plan", "--json")
+    assert graph.nodes[1].outputs == ("action_graph", "workflow_runtime_read_model")
+    assert graph.nodes[2].depends_on == ("plan",)
+    assert graph.nodes[2].metadata["requires"] == ["action_graph", "gate_results"]
+
+
+def test_action_graph_from_workflow_contract_reports_missing_requested_nodes() -> None:
+    graph = action_graph_from_workflow_contract(
+        {"node": [{"id": "status", "kind": "control", "command": "ethos status --json"}]},
+        node_ids=("status", "missing"),
+    )
+
+    assert graph.validate().ok is False
+    assert graph.validate().gaps == ("workflow_plan_node_missing:missing",)
+
+
+def test_action_graph_from_workflow_contract_ignores_anonymous_selected_nodes() -> None:
+    graph = action_graph_from_workflow_contract(
+        {
+            "node": [
+                {"kind": "control", "command": "ethos anonymous --json"},
+                {
+                    "id": "status",
+                    "kind": "control",
+                    "command": "ethos status --json",
+                    "produces": ["workspace_status"],
+                },
+            ]
+        },
+        node_ids=("", "status"),
+    )
+
+    assert graph.validate().ok is True
+    assert [node.id for node in graph.nodes] == ["status"]
+
+
 def test_workflow_contract_rejects_invalid_public_command_boundary() -> None:
-    contract = load_system_contract(__import__("pathlib").Path(), "workflows")
+    contract = load_system_contract(Path(), "workflows")
     contract = dict(contract)
     runtime = dict(contract["runtime"])
     runtime["public_lifecycle_commands"] = ["comet run"]
@@ -187,6 +238,29 @@ def test_workflow_runtime_container_helpers_reject_non_container_values() -> Non
     assert workflow_runtime_model._dict("not-a-dict") == {}
     assert workflow_runtime_model._dict_items("not-a-list") == []
     assert workflow_runtime_model._strings("not-a-list") == []
+
+
+def test_workflow_runtime_report_returns_gap_when_contract_is_unavailable(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    def raise_missing(_root: Path, _name: str) -> dict[str, object]:
+        raise FileNotFoundError
+
+    monkeypatch.setattr(workflow_runtime_model, "load_system_contract", raise_missing)
+
+    report = workflow_runtime_model.workflow_runtime_report(
+        tmp_path,
+        changed_paths=("docs/a.md",),
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["workflow_contract_unavailable:FileNotFoundError"]
+    assert report["contract"]["required_gaps"] == [
+        "workflow_contract_unavailable:FileNotFoundError"
+    ]
+    assert report["plan"]["changed_paths"] == ["docs/a.md"]
+    assert report["evolution_bridge"]["runtime_owns_evolution"] is False
 
 
 def test_planned_transition_projection_skips_anonymous_nodes_and_self_requirements() -> None:

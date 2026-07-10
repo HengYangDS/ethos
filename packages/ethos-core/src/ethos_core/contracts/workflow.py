@@ -6,8 +6,11 @@ workflow engine and do not store lifecycle truth.
 
 from __future__ import annotations
 
+import shlex
 from typing import Any
 
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.graph.core import GraphKernel
 from ethos_core.graph.core import GraphNode
 from ethos_core.state.invalid import NODE_ORDER
@@ -22,6 +25,90 @@ _EXPECTED_TRANSITION_COMMANDS = (
     "ethos land",
     "ethos publish",
 )
+
+
+def action_graph_from_workflow_contract(
+    contract: dict[str, Any],
+    *,
+    changed_paths: tuple[str, ...] = (),
+    node_ids: tuple[str, ...] = ("status", "plan", "prove"),
+) -> ActionGraph:
+    """Compile a workflow ``[[node]]`` declaration subset into an ActionGraph.
+
+    The plan-stage action graph is a projection over ``system/workflows.toml``. It is
+    intentionally not a separate hard-coded runtime: command, node kind, and fact
+    dependencies come from the workflow DSL, while this compiler only adapts declared
+    workflow facts into the existing ActionGraph contract.
+    """
+    inputs = tuple(sorted(changed_paths)) or ("pyproject.toml",)
+    declared_nodes = [item for item in contract.get("node", []) if isinstance(item, dict)]
+    requested = set(node_ids)
+    selected = [item for item in declared_nodes if str(item.get("id", "")) in requested]
+    producer_by_fact = _producer_by_fact(declared_nodes)
+    graph_nodes = _graph_nodes_from_workflow_nodes(selected, producer_by_fact)
+    ordered_ids = GraphKernel(nodes=tuple(graph_nodes)).ordered_ids()
+    by_id = {str(item.get("id", "")): item for item in selected}
+    nodes = tuple(
+        _action_node_from_workflow_node(
+            by_id[node_id],
+            inputs=inputs,
+            producer_by_fact=producer_by_fact,
+        )
+        for node_id in ordered_ids
+        if node_id in by_id
+    )
+    missing = tuple(
+        f"workflow_plan_node_missing:{node_id}" for node_id in node_ids if node_id not in by_id
+    )
+    return ActionGraph(nodes=nodes, validation_issues=missing)
+
+
+def _graph_nodes_from_workflow_nodes(
+    nodes: list[dict[str, Any]],
+    producer_by_fact: dict[str, str],
+) -> list[GraphNode]:
+    graph_nodes: list[GraphNode] = []
+    for item in nodes:
+        node_id = str(item.get("id", ""))
+        if not node_id:
+            continue
+        dependencies = [
+            producer
+            for requirement in _strings(item.get("requires"))
+            if (producer := producer_by_fact.get(requirement)) and producer != node_id
+        ]
+        graph_nodes.append(GraphNode(id=node_id, depends_on=tuple(dict.fromkeys(dependencies))))
+    return graph_nodes
+
+
+def _action_node_from_workflow_node(
+    node: dict[str, Any],
+    *,
+    inputs: tuple[str, ...],
+    producer_by_fact: dict[str, str],
+) -> ActionNode:
+    node_id = str(node.get("id", ""))
+    return ActionNode(
+        id=node_id,
+        kind=str(node.get("kind", "")),
+        command=tuple(shlex.split(str(node.get("command", "")))),
+        inputs=inputs,
+        outputs=tuple(_strings(node.get("produces"))),
+        policy="required",
+        depends_on=tuple(
+            dict.fromkeys(
+                producer
+                for requirement in _strings(node.get("requires"))
+                if (producer := producer_by_fact.get(requirement)) and producer != node_id
+            )
+        ),
+        metadata={
+            "enforcement": str(node.get("enforcement", "")),
+            "requires": _strings(node.get("requires")),
+            "produces": _strings(node.get("produces")),
+            "source": "system/workflows.toml",
+        },
+    )
 
 
 def workflow_contract_report(contract: dict[str, Any]) -> dict[str, Any]:

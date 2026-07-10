@@ -1,0 +1,191 @@
+# system/workflows.toml
+# Declarative lifecycle graph and guards. The implementation is a generic
+# reducer and guard evaluator over declared facts — NOT a private state machine.
+#
+# State is DERIVED (principle 5): OpenSpec change + Git facts + evidence
+# manifests + this file + ethos.toml profile = derived state and allowed transitions.
+
+schema = "system/schemas/contracts/workflows.schema.json"
+
+[lifecycle]
+states = [
+  "planned",
+  "admitted",
+  "authored",
+  "proven",
+  "landed",
+  "closed",
+  "retired",
+]
+initial = "planned"
+
+[[transition]]
+from = "planned"
+to = "admitted"
+guard = "lane_prewrite_ok"
+invalid_state = "change_unbounded"
+required_facts = ["target_root", "branch_role", "editor_root", "target_paths"]
+# Admission can fail through ambiguous subject, unbounded change, or untrusted
+# substrate. All entries are top-level invalid-state categories.
+invalid_states = [
+  "subject_ambiguous",
+  "change_unbounded",
+  "substrate_untrusted",
+]
+
+[[transition]]
+from = "admitted"
+to = "authored"
+guard = "tracked_write_in_owned_work_lane"
+invalid_state = "change_unbounded"
+# A tracked write must land in an owned, bounded Change carrier (work lane), never a
+# protected root.
+invalid_states = ["change_unbounded"]
+
+[[transition]]
+from = "authored"
+to = "proven"
+guard = "proof_evidence_bound_and_passing"
+invalid_state = "evidence_missing_or_stale"
+required_facts = ["evidence_digest", "gate_results"]
+# The Evidence must be executed and HEAD-bound.
+invalid_states = ["evidence_missing_or_stale"]
+
+[[transition]]
+from = "proven"
+to = "landed"
+guard = "land_to_candidate_ok"
+invalid_state = "change_unbounded"
+# Landing binds a Claim to the proven Change within a legal candidate train.
+invalid_states = ["change_unbounded", "claim_unbound_or_overreaching"]
+
+[[transition]]
+from = "landed"
+to = "closed"
+guard = "accepted_root_closeout_audited"
+invalid_state = "chronicle_missing"
+# Closeout records the judged outcome (archive/attestation) in the Chronicle.
+invalid_states = ["chronicle_missing"]
+
+[[transition]]
+from = "closed"
+to = "retired"
+guard = "work_lane_retired_after_merge"
+invalid_state = "chronicle_missing"
+# Retiring a fully-landed lane closes the Change carrier.
+invalid_states = ["change_unbounded", "chronicle_missing"]
+
+# Each transition declares the primary invalid-state category plus the full set of
+# top-level invalid-state categories it may block when its guard fails.
+# This links the five-state lifecycle to the nine-category failure taxonomy without
+# creating a second lifecycle or a new ontology.
+#
+# Guards are named; the generic evaluator resolves them against declared facts.
+[guards]
+lane_prewrite_ok = "ethos lane prewrite returns ok=true"
+tracked_write_in_owned_work_lane = "branch_role == work_lane AND editor_root bound"
+proof_evidence_bound_and_passing = "evidence HEAD+command+digest match AND gate exit codes pass"
+land_to_candidate_ok = "no required_gaps AND candidate base not stale"
+accepted_root_closeout_audited = "audited fast-forward through ethos land --closeout"
+work_lane_retired_after_merge = "lane content fully contained in accepted root"
+
+# Workflow runtime projection metadata. This is a derived read model over
+# repository truth, not a private lifecycle database.
+[runtime]
+truth_boundary = "derived_repository_projection"
+run_state_locality = "ignored_or_evidence_bound"
+run_state_schema = "system/schemas/kernel/workflow-run.schema.json"
+event_stream_locality = "generated_until_chronicle_promotion"
+handoff_package_schema = "system/schemas/kernel/handoff-package.schema.json"
+public_lifecycle_commands = [
+  "ethos status",
+  "ethos plan",
+  "ethos prove",
+  "ethos land",
+  "ethos publish",
+]
+evolution_bridge = true
+
+[[node]]
+id = "status"
+kind = "control"
+command = "ethos status --json"
+enforcement = "guarded"
+produces = ["workspace_status"]
+
+[[node]]
+id = "plan"
+kind = "producer"
+command = "ethos plan --json"
+enforcement = "guarded"
+requires = ["workspace_status", "openspec_carrier"]
+produces = ["action_graph", "workflow_runtime_read_model"]
+
+[[node]]
+id = "prove"
+kind = "guardrail"
+command = "ethos prove --json"
+enforcement = "guarded"
+requires = ["action_graph", "gate_results"]
+produces = ["proof_evidence"]
+
+[[node]]
+id = "land"
+kind = "action"
+command = "ethos land --json"
+enforcement = "guarded"
+requires = ["proof_evidence", "claim_binding"]
+produces = ["candidate_update"]
+
+[[node]]
+id = "publish"
+kind = "action"
+command = "ethos publish --json"
+enforcement = "evidence-only"
+requires = ["candidate_update", "release_readiness"]
+produces = ["publication_readiness"]
+
+[[node]]
+id = "handoff"
+kind = "handoff"
+command = "ethos assistants context-bundle --json"
+enforcement = "handoff-guarded"
+requires = ["source_refs", "source_digests"]
+produces = ["handoff_package"]
+
+[[event]]
+id = "transition-evaluated"
+kind = "state_change"
+locality = "generated_until_chronicle_promotion"
+chronicle_promotion = "claim_and_evidence_bound"
+
+[[event]]
+id = "handoff-created"
+kind = "evidence"
+locality = "generated_until_chronicle_promotion"
+chronicle_promotion = "fresh_digest_and_review_bound"
+
+[eval]
+metric_names = [
+  "pass_at_k",
+  "pass_power_k",
+  "weighted_score",
+  "instability_gap",
+]
+bounds = "closed_unit_interval"
+truth_boundary = "skill_metadata_only"
+
+[evolution]
+learning_path = [
+  "research",
+  "hypothesis",
+  "experiment",
+  "evaluation",
+  "canonization",
+  "retirement",
+]
+selection_policy = "evidence_weighted_candidate_comparison"
+commitment_effect_policy = "practice_claim_declares_create_compose_refine_replace_remove_or_reject_commitment_effect"
+practice_claim_policy = "practice_claim_is_evolution_carrier_for_governed_commitment_effect"
+practice_change_policy = "relation_to_incumbent_determines_introduce_compose_refine_supersede_retire_or_reject"
+truth_boundary = "evolution_ledger_claim_evidence_chronicle"

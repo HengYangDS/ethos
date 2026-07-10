@@ -114,13 +114,16 @@ def test_contract_profile_matches_skips_non_table_contract_entries(tmp_path, mon
     assert plan.contract_profile_matches(tmp_path, ("packages/cache/__init__.py",)) == []
 
 
-def test_graph_for_paths_defaults_and_sorts_inputs():
+def test_graph_for_paths_compiles_declared_workflow_nodes_and_sorts_inputs():
     graph = plan.graph_for_paths(("b.py", "a.py"))
     default_graph = plan.graph_for_paths(())
 
-    assert graph.nodes[0].id == "status"
+    assert [node.id for node in graph.nodes] == ["status", "plan", "prove"]
     assert graph.nodes[0].inputs == ("a.py", "b.py")
-    assert graph.nodes[1].command == ("ethos", "prove", "--json")
+    assert graph.nodes[1].command == ("ethos", "plan", "--json")
+    assert graph.nodes[1].outputs == ("action_graph", "workflow_runtime_read_model")
+    assert graph.nodes[2].depends_on == ("plan",)
+    assert graph.nodes[2].metadata["source"] == "system/workflows.toml"
     assert default_graph.nodes[0].inputs == ("pyproject.toml",)
 
 

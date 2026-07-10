@@ -43,6 +43,11 @@ from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.quality.reporting import ReportCommandSpec
+from ethos.surface.cli.quality.reporting import conditional_actions
+from ethos.surface.cli.quality.reporting import constant_actions
+from ethos.surface.cli.quality.reporting import emit_report_command
+from ethos.surface.cli.quality.reporting import module_report
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.contracts.package.ontology import workspace_package_config_report
 from ethos_core.quality.docs.profile import docs_quality_profile
@@ -50,6 +55,21 @@ from ethos_core.quality.profiles import product_quality_profile
 from ethos_core.quality.profiles import tool_profiles
 from ethos_core.quality.proof.policy import proof_lattice
 from ethos_core.result import EthosResult
+
+_DYNAMIC_REPORT_BINDINGS = {
+    "command_examples_report": command_examples_report,
+    "command_registry_report": command_registry_report,
+    "docs_health_report": docs_health_report,
+    "generated_artifact_topology_report": generated_artifact_topology_report,
+    "module_layout_report": module_layout_report,
+    "projection_drift_report": projection_drift_report,
+    "schema_validation_report": schema_validation_report,
+}
+
+
+def _quality_report_namespace() -> dict[str, object]:
+    """Return live module bindings so tests and adapters can monkeypatch reports."""
+    return globals()
 
 
 def asset_policy(
@@ -321,22 +341,56 @@ def docstrings(
     emit(result, json_output=json_output)
 
 
+CODE_SIZE_COMMAND = ReportCommandSpec(
+    command="quality code-size",
+    report=module_report(vars(prove_domain), "code_size_report"),
+)
+
+MODULE_LAYOUT_COMMAND = ReportCommandSpec(
+    command="quality module-layout",
+    report=module_report(_quality_report_namespace(), "module_layout_report"),
+)
+
+GENERATED_ARTIFACTS_COMMAND = ReportCommandSpec(
+    command="quality generated-artifacts",
+    report=module_report(_quality_report_namespace(), "generated_artifact_topology_report"),
+    next_actions=conditional_actions(
+        when_blocked=(
+            "move generated outputs under build/ethos or build/evidence; "
+            "promote curated summaries into docs/evidence"
+        ),
+        when_clean="ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+    ),
+)
+
+COMMAND_SURFACE_COMMAND = ReportCommandSpec(
+    command="quality command-surface",
+    report=module_report(_quality_report_namespace(), "command_registry_report"),
+)
+
+SCHEMAS_COMMAND = ReportCommandSpec(
+    command="quality schemas",
+    report=module_report(_quality_report_namespace(), "schema_validation_report"),
+)
+
+COMMAND_REGISTRY_COMMAND = ReportCommandSpec(
+    command="quality command-registry",
+    report=module_report(_quality_report_namespace(), "command_registry_report"),
+    next_actions=constant_actions("ethos repository audit"),
+)
+
+
 def code_size(
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Check effective source-file size against ratchet limits."""
-    repo = resolve_root(root)
-    report = prove_domain.code_size_report(repo)
-    result = EthosResult(
-        command="quality code-size",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        CODE_SIZE_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def module_layout(
@@ -345,17 +399,11 @@ def module_layout(
     json_output: JsonFlag = False,
 ) -> None:
     """Check semantic subpackage and import-layout discipline."""
-    repo = resolve_root(root)
-    report = module_layout_report(repo)
-    result = EthosResult(
-        command="quality module-layout",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=cast("dict[str, object]", report["summary"]),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        MODULE_LAYOUT_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output),
     )
-    emit(result, json_output=json_output)
 
 
 def npm_quality(
@@ -383,25 +431,11 @@ def generated_artifacts(
     json_output: JsonFlag = False,
 ) -> None:
     """Audit generated-artifact topology and path routing drift."""
-    repo = resolve_root(root)
-    report = generated_artifact_topology_report(repo)
-    result = EthosResult(
-        command="quality generated-artifacts",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary=dict(cast("dict[str, object]", report["summary"])),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=(
-            (
-                "move generated outputs under build/ethos or build/evidence; "
-                "promote curated summaries into docs/evidence"
-            )
-            if report["required_gaps"]
-            else "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
-        ),
-        data=report,
+    emit_report_command(
+        GENERATED_ARTIFACTS_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output),
     )
-    emit(result, json_output=json_output)
 
 
 def command_surface(
@@ -410,16 +444,11 @@ def command_surface(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command surface vocabulary."""
-    repo = resolve_root(root)
-    report = command_registry_report(repo)
-    result = EthosResult(
-        command="quality command-surface",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        COMMAND_SURFACE_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def format_policy(
@@ -452,22 +481,34 @@ def format_policy(
     emit(result, json_output=json_output, enforce=False)
 
 
+PROJECTION_DRIFT_COMMAND = ReportCommandSpec(
+    command="quality projection-drift",
+    report=module_report(_quality_report_namespace(), "projection_drift_report"),
+)
+
+DOCS_REGISTRY_COMMAND = ReportCommandSpec(
+    command="quality docs-registry",
+    report=module_report(_quality_report_namespace(), "docs_health_report"),
+    next_actions=constant_actions("ethos docs"),
+)
+
+COMMAND_EXAMPLES_COMMAND = ReportCommandSpec(
+    command="quality command-examples",
+    report=module_report(_quality_report_namespace(), "command_examples_report"),
+)
+
+
 def projection_drift(
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Report projection drift readiness."""
-    repo = resolve_root(root)
-    report = projection_drift_report(repo)
-    result = EthosResult(
-        command="quality projection-drift",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        PROJECTION_DRIFT_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def standards(
@@ -556,16 +597,11 @@ def schemas(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate ETHOS JSON Schemas."""
-    repo = resolve_root(root)
-    report = schema_validation_report(repo)
-    result = EthosResult(
-        command="quality schemas",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        SCHEMAS_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def gates(
@@ -746,17 +782,11 @@ def command_registry(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate public command registry."""
-    repo = resolve_root(root)
-    report = command_registry_report(repo)
-    result = EthosResult(
-        command="quality command-registry",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=("ethos repository audit",),
-        data=report,
+    emit_report_command(
+        COMMAND_REGISTRY_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def evidence_freshness(
@@ -814,17 +844,11 @@ def docs_registry(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate documentation metadata registry."""
-    repo = resolve_root(root)
-    report = docs_health_report(repo)
-    result = EthosResult(
-        command="quality docs-registry",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        next_actions=("ethos docs",),
-        data=report,
+    emit_report_command(
+        DOCS_REGISTRY_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def command_examples(
@@ -833,16 +857,11 @@ def command_examples(
     json_output: JsonFlag = False,
 ) -> None:
     """Validate documented command examples."""
-    repo = resolve_root(root)
-    report = command_examples_report(repo)
-    result = EthosResult(
-        command="quality command-examples",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "blocked",
-        required_gaps=tuple(cast("list[str]", report["required_gaps"])),
-        data=report,
+    emit_report_command(
+        COMMAND_EXAMPLES_COMMAND,
+        resolve_root(root),
+        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
     )
-    emit(result, json_output=json_output, enforce=False)
 
 
 def provenance(

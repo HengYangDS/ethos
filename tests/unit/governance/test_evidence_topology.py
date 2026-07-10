@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    import pytest
 
 from ethos.repository.evidence.topology import evidence_topology_report
+from ethos_core.contracts.evidence import layout as layout_contract
+from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
 from tests.support.ethos_cli_runner import run_ethos
 
 
@@ -23,14 +26,9 @@ def test_evidence_topology_accepts_kernel_layout(tmp_path: Path) -> None:
 
     assert report["ok"] is True
     assert report["required_gaps"] == []
-    assert report["layout"] == {
-        "root": "evidence",
-        "allowed_root_files": ["README.md"],
-        "allowed_root_dirs": ["claims", "chronicle", "parity"],
-        "claims_root": "evidence/claims",
-        "chronicle_root": "evidence/chronicle",
-        "parity_root": "evidence/parity",
-    }
+    declaration = load_evidence_layout_declaration()
+
+    assert report["layout"] == declaration.layout_payload("evidence")
     assert report["counts"]["claim_files"] == 1
     assert report["counts"]["chronicle_records"] == 1
 
@@ -252,14 +250,9 @@ durable_evidence = "records/evidence"
 
     assert report["ok"] is False
     assert "evidence_root_dir_not_allowed:delivery" in report["required_gaps"]
-    assert report["layout"] == {
-        "root": "records/evidence",
-        "allowed_root_files": ["README.md"],
-        "allowed_root_dirs": ["claims", "chronicle", "parity"],
-        "claims_root": "records/evidence/claims",
-        "chronicle_root": "records/evidence/chronicle",
-        "parity_root": "records/evidence/parity",
-    }
+    declaration = load_evidence_layout_declaration()
+
+    assert report["layout"] == declaration.layout_payload("records/evidence")
 
 
 def test_evidence_topology_reports_missing_profile_docs_evidence_root(
@@ -380,3 +373,47 @@ retirement_conditions = ["curated docs evidence accepted"]
     assert payload["required_gaps"] == []
     assert payload["data"]["topology"]["layout"]["mode"] == "curated_profile_evidence"
     assert payload["data"]["topology"]["counts"]["curated_artifacts"] == 1
+
+
+def test_evidence_layout_declaration_loads_source_refs_and_packaged_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    declaration = load_evidence_layout_declaration()
+
+    assert declaration.id == "evidence-layout"
+    assert declaration.source_refs == ("system/policies/evidence-layout.toml",)
+    assert declaration.layout_payload("evidence")["allowed_root_dirs"] == [
+        "claims",
+        "chronicle",
+        "parity",
+    ]
+
+    missing = tmp_path / "missing-evidence-layout.toml"
+    fallback = load_evidence_layout_declaration(missing)
+
+    assert fallback.id == "evidence-layout"
+
+    monkeypatch.setattr(
+        layout_contract,
+        "DECLARATION_PATH",
+        layout_contract.Path("missing/default-evidence-layout.toml"),
+    )
+    default_fallback = load_evidence_layout_declaration()
+
+    assert default_fallback.id == "evidence-layout"
+
+
+def test_evidence_layout_declaration_default_path_falls_back_to_packaged_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cover installed-wheel fallback when no source declaration is discoverable."""
+    missing_declaration = Path("missing/system/policies/evidence-layout.toml")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(layout_contract, "DECLARATION_PATH", missing_declaration)
+
+    declaration = load_evidence_layout_declaration()
+
+    assert declaration.id == "evidence-layout"
+    assert declaration.source_refs == ("system/policies/evidence-layout.toml",)

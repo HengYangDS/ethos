@@ -45,6 +45,14 @@ not a second hand-written topology table.
 | `docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/reference/`, `docs/start/`, `docs/plans/`, `docs/research/`, `docs/history/`, `docs/decisions/` | Semantic docs truth and product documentation extensions; state is front matter, not generated output. | No | Yes, after review |
 | `packages/`, `src/`, `tests/`, `rules/`, `system/` | Source, tests, rules, schemas, and contracts. | No | Yes, after review |
 
+Evidence root topology is also declaration-first. The kernel `evidence/`
+subroots, profile-curated `docs/evidence` mode, allowed root entrypoints, glob
+patterns, and gap prefixes live in `system/policies/evidence-layout.toml`, with
+an installed mirror at `packages/ethos-core/src/ethos_core/data/evidence_layout.toml`.
+`ethos.repository.evidence.topology` scans filesystem facts and projects the
+read model from that declaration instead of owning a second hand-written layout
+table.
+
 Profile-mapped durable evidence roots preserve the same logical evidence
 boundary without forcing every repository to copy the product repository's
 physical `evidence/` kernel layout. When a governed repository declares

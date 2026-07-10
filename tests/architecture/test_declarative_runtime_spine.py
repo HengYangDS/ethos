@@ -48,3 +48,26 @@ def test_generated_artifact_topology_policy_is_declaration_first() -> None:
     assert "_ALLOWED_PREFIXES" not in source
     assert "_DENIED_ROOT_CACHE_PREFIXES" not in source
     assert "build/runtime/tool-cache/" not in source
+
+
+def test_evidence_layout_policy_is_declaration_first() -> None:
+    declaration = ROOT / "system/policies/evidence-layout.toml"
+    package_resource = ROOT / "packages/ethos-core/src/ethos_core/data/evidence_layout.toml"
+    source = (ROOT / "packages/ethos-core/src/ethos_core/contracts/evidence/layout.py").read_text(
+        encoding="utf-8"
+    )
+    runtime = (ROOT / "packages/ethos/src/ethos/repository/evidence/topology.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert declaration.exists()
+    assert package_resource.exists()
+    assert package_resource.read_text(encoding="utf-8") == declaration.read_text(encoding="utf-8")
+    assert "EvidenceLayoutDeclaration" in source
+    assert "system/policies/evidence-layout.toml" in source
+    assert "data/evidence_layout.toml" in source
+    assert "_ALLOWED_ROOT_DIRS" not in runtime
+    assert "_CURATED_PROFILE_ALLOWED_ROOT_FILES" not in runtime
+    assert 'allowed_root_dirs = ["claims", "chronicle", "parity"]' in declaration.read_text(
+        encoding="utf-8"
+    )

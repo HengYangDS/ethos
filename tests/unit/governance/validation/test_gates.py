@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
+from ethos.repository.policy.gates import PRODUCT_FULL_GATE_IDS
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
+from ethos_core.contracts.gates import load_gate_registry_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -20,7 +23,12 @@ def test_gate_registry_has_real_default_gates() -> None:
         "schemas",
         "playbooks-v2",
     } <= set(registry)
-    assert registry["repository-audit"].command[-4:] == ("audit", "--mode", "shape", "--json")
+    assert registry["repository-audit"].command[-4:] == (
+        "audit",
+        "--mode",
+        "shape",
+        "--json",
+    )
     assert registry["playbooks-v2"].command[-3:] == (
         "--mode",
         "v2-strict",
@@ -47,6 +55,17 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
     assert registry["product-boundary"].execution_mode == "adapter"
     assert registry["python-types"].execution_mode == "inprocess"
+
+
+def test_gate_registry_and_proof_floors_compile_from_the_declaration() -> None:
+    declaration = load_gate_registry_declaration()
+    declared = declaration.registry("runtime")
+    runtime = gate_registry()
+
+    assert tuple(runtime) == tuple(declared)
+    assert declaration.proof_sets.product_default == PRODUCT_DEFAULT_GATE_IDS
+    assert declaration.proof_sets.product_full == PRODUCT_FULL_GATE_IDS
+    assert all(gate.command for gate in runtime.values())
 
 
 def test_gate_registry_classifies_product_toolchain_profile() -> None:
@@ -136,7 +155,9 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     assert nodes["shell-lint"].to_dict()["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
 
 
-def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(tmp_path: Path) -> None:
+def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(
+    tmp_path: Path,
+) -> None:
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True)
     profile.write_text(
@@ -186,7 +207,12 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
-    assert nodes["python-types"].to_dict()["command"] == ["ethos", "quality", "types", "--json"]
+    assert nodes["python-types"].to_dict()["command"] == [
+        "ethos",
+        "quality",
+        "types",
+        "--json",
+    ]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
     assert nodes["no-compat"].to_dict()["command"] == ["tools/ci/scripts/run-no-compat.sh"]
     assert nodes["product-boundary"].to_dict()["command"] == [

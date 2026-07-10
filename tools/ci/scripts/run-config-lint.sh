@@ -78,7 +78,8 @@ if ((${#json_existing[@]})); then
   json_files=("${json_existing[@]}")
 fi
 
-python - "${toml_files[@]}" <<'PY'
+if ((${#toml_files[@]})); then
+  python - "${toml_files[@]}" <<'PY'
 from __future__ import annotations
 
 import sys
@@ -106,8 +107,10 @@ for raw in sys.argv[1:]:
         failed = True
 raise SystemExit(1 if failed else 0)
 PY
+fi
 
-python - "${json_files[@]}" <<'PY'
+if ((${#json_files[@]})); then
+  python - "${json_files[@]}" <<'PY'
 from __future__ import annotations
 
 import json
@@ -128,6 +131,7 @@ for raw in sys.argv[1:]:
         failed = True
 raise SystemExit(1 if failed else 0)
 PY
+fi
 
 if ((${#toml_files[@]})); then
   # taplo publishes no linux-aarch64 wheel, so `uv run --with taplo` builds a broken

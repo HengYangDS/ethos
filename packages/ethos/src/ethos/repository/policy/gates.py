@@ -4,36 +4,23 @@ import hashlib
 import json
 import re
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
 from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
-from ethos_core.quality.gates import quality_gate_registry
+from ethos_core.contracts.gates import GateDescriptor
+from ethos_core.contracts.gates import load_gate_registry_declaration
 
 
-@dataclass(frozen=True)
-class Gate:
-    id: str
-    kind: str
-    command: tuple[str, ...]
-    policy: str = "required"
-    profile: str = "product"
-    toolchain: str = "ethos"
-    depends_on: tuple[str, ...] = ()
-    asset_classes: tuple[str, ...] = ()
-    dimensions: tuple[str, ...] = ()
-    execution_mode: str = "inprocess"
-    evidence_class: str = "contract"
-    trust_bearing: bool = False
-    tool_adapter: str = "ethos"
-    writes_files: bool = False
-    network_policy: str = "offline"
-    version_source: str = "product"
+class Gate(GateDescriptor):
+    """Runtime gate projection with ActionGraph compilation behavior."""
+
+    command: tuple[str, ...] = ()
 
     def to_node(self) -> ActionNode:
+        """Compile this immutable gate descriptor to an action node."""
         return ActionNode(
             id=self.id,
             kind=self.kind,
@@ -55,307 +42,20 @@ class Gate:
         )
 
 
-def gate_registry() -> dict[str, Gate]:
-    python = sys.executable
-    registry = {
-        "repository-audit": Gate(
-            id="repository-audit",
-            kind="governance",
-            command=(python, "-m", "ethos.cli", "audit", "--mode", "shape", "--json"),
-            asset_classes=("evidence",),
-            dimensions=("governance", "determinism"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-repository-audit",
-        ),
-        "claims": Gate(
-            id="claims",
-            kind="governance",
-            command=(python, "-m", "ethos.cli", "quality", "claims", "--json"),
-            asset_classes=("evidence",),
-            dimensions=("digest", "freshness", "provenance"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-claims",
-        ),
-        "evidence-freshness": Gate(
-            id="evidence-freshness",
-            kind="governance",
-            command=("ethos", "quality", "evidence-freshness", "--json"),
-            depends_on=("claims",),
-            asset_classes=("evidence",),
-            dimensions=("digest", "freshness", "chronicle", "evolution"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-evidence-freshness",
-        ),
-        "docs-registry": Gate(
-            id="docs-registry",
-            kind="docs",
-            command=(python, "-m", "ethos.cli", "quality", "docs-registry", "--json"),
-            asset_classes=("markdown-docs",),
-            dimensions=("front-matter", "command-examples", "links"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-docs-registry",
-        ),
-        "docs-topology": Gate(
-            id="docs-topology",
-            kind="docs",
-            command=(python, "-m", "ethos.cli", "quality", "docs-topology", "--json"),
-            asset_classes=("markdown-docs", "decision-records", "evidence"),
-            dimensions=("information-architecture", "decisions", "adopter-isomorphism"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-docs-topology",
-        ),
-        "generated-artifacts": Gate(
-            id="generated-artifacts",
-            kind="governance",
-            command=(python, "-m", "ethos.cli", "quality", "generated-artifacts", "--json"),
-            asset_classes=("generated-artifacts", "evidence", "local-state"),
-            dimensions=("path-topology", "drift", "rollback"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-generated-artifacts",
-        ),
-        "product-boundary": Gate(
-            id="product-boundary",
-            kind="governance",
-            command=("tools/ci/scripts/run-product-boundary.sh",),
-            asset_classes=("markdown-docs", "config", "tests", "release-artifacts"),
-            dimensions=(
-                "product-boundary",
-                "identity",
-                "adopter-neutrality",
-                "distribution-boundary",
-            ),
-            execution_mode="adapter",
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-product-boundary",
-            version_source="product",
-        ),
-        "schemas": Gate(
-            id="schemas",
-            kind="schema",
-            command=(python, "-m", "ethos.cli", "quality", "schemas", "--json"),
-            asset_classes=("json-contracts",),
-            dimensions=("schema", "stable-ordering"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="jsonschema",
-        ),
-        "playbooks-v2": Gate(
-            id="playbooks-v2",
-            kind="governance",
-            command=(
-                python,
-                "-m",
-                "ethos.cli",
-                "playbooks",
-                "check",
-                "--mode",
-                "v2-strict",
-                "--json",
-            ),
-            asset_classes=("playbooks", "assistant-projections"),
-            dimensions=("projection", "activation", "schema"),
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-playbooks",
-        ),
-        "openspec": Gate(
-            id="openspec",
-            kind="governance",
-            command=("openspec", "validate", "--all", "--strict", "--json"),
-            depends_on=("schemas",),
-            asset_classes=("markdown-docs", "json-contracts"),
-            dimensions=("specification", "schema"),
-            execution_mode="adapter",
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="openspec",
-            version_source="host-toolchain",
-        ),
-        "unit-architecture": Gate(
-            id="unit-architecture",
-            kind="test",
-            profile="product-toolchain",
-            toolchain="uv-python",
-            command=("tools/ci/scripts/run-python-tests.sh",),
-            asset_classes=("python-code",),
-            dimensions=("test", "coverage"),
-            execution_mode="adapter",
-            evidence_class="proof",
-            trust_bearing=True,
-            tool_adapter="pytest",
-            version_source="locked-toolchain",
-        ),
-        "ruff": Gate(
-            id="ruff",
-            kind="lint",
-            profile="product-toolchain",
-            toolchain="uv-python",
-            command=("tools/ci/scripts/run-python-lint.sh",),
-            asset_classes=("python-code",),
-            dimensions=("lint", "format", "ratchet"),
-            execution_mode="adapter",
-            evidence_class="diagnostic",
-            trust_bearing=False,
-            tool_adapter="ruff",
-            version_source="locked-toolchain",
-        ),
-        "docstrings": Gate(
-            id="docstrings",
-            kind="docs",
-            profile="product-toolchain",
-            toolchain="uv-python",
-            command=("tools/ci/scripts/run-docstring-coverage.sh",),
-            asset_classes=("python-code",),
-            dimensions=("documentation", "intent"),
-            execution_mode="inprocess",
-            evidence_class="diagnostic",
-            trust_bearing=True,
-            tool_adapter="ethos-docstrings-google",
-            version_source="product",
-        ),
-        "module-layout": Gate(
-            id="module-layout",
-            kind="architecture",
-            profile="product-toolchain",
-            toolchain="uv-python",
-            command=("tools/ci/scripts/run-module-layout.sh",),
-            asset_classes=("python-code",),
-            dimensions=("module-layout", "semantic-subpackages", "import-discipline"),
-            execution_mode="adapter",
-            evidence_class="diagnostic",
-            trust_bearing=True,
-            tool_adapter="ethos-module-layout",
-            version_source="product",
-        ),
-        "no-compat": Gate(
-            id="no-compat",
-            kind="architecture",
-            command=("tools/ci/scripts/run-no-compat.sh",),
-            asset_classes=("python-code", "markdown-docs", "governance"),
-            dimensions=("compatibility-residue", "semantic-cutover", "product-boundary"),
-            execution_mode="adapter",
-            evidence_class="contract",
-            trust_bearing=True,
-            tool_adapter="ethos-no-compat",
-            version_source="product",
-        ),
-        "build": Gate(
-            id="build",
-            kind="package",
-            profile="product-toolchain",
-            toolchain="uv-python",
-            command=("uv", "build", "--all-packages"),
-            depends_on=("unit-architecture", "ruff"),
-            asset_classes=("release-artifacts",),
-            dimensions=("reproducibility", "attestation"),
-            execution_mode="adapter",
-            evidence_class="proof",
-            trust_bearing=True,
-            tool_adapter="uv-build",
-            writes_files=True,
-            version_source="locked-toolchain",
-        ),
-    }
-    for gate in quality_gate_registry().values():
-        if gate.id not in registry:
-            registry[gate.id] = Gate(
-                id=gate.id,
-                kind=gate.kind,
-                command=gate.command,
-                policy=gate.policy,
-                profile=gate.profile,
-                toolchain=gate.toolchain,
-                depends_on=gate.depends_on,
-                asset_classes=gate.asset_classes,
-                dimensions=gate.dimensions,
-                execution_mode=gate.execution_mode,
-                evidence_class=gate.evidence_class,
-                trust_bearing=gate.trust_bearing,
-                tool_adapter=gate.tool_adapter,
-                writes_files=gate.writes_files,
-                network_policy=gate.network_policy,
-                version_source=gate.version_source,
-            )
-    return registry
-
-
-PRODUCT_DEFAULT_GATE_IDS = (
-    "repository-audit",
-    "claims",
-    "evidence-freshness",
-    "docs-registry",
-    "docs-topology",
-    "schemas",
-    "playbooks-v2",
-    "generated-artifacts",
-    "product-boundary",
-    "unit-architecture",
-    "ruff",
-    "python-types",
-    "docstrings",
-    "module-layout",
-    "no-compat",
-    "python-size",
-    "toml-config",
-    "yaml-config",
-    "shell-lint",
-    "format-policy",
-)
-
-PRODUCT_FULL_GATE_IDS = (
-    "repository-audit",
-    "claims",
-    "evidence-freshness",
-    "docs-registry",
-    "docs-topology",
-    "schemas",
-    "playbooks-v2",
-    "generated-artifacts",
-    "product-boundary",
-    "openspec",
-    "unit-architecture",
-    "ruff",
-    "python-types",
-    "docstrings",
-    "module-layout",
-    "no-compat",
-    "build",
-    "markdown-links",
-    "shell-lint",
-    "toml-config",
-    "yaml-config",
-    "markdown-structure",
-    "format-policy",
-    "asset-determinism",
-    "schema-contracts",
-    "proof-policy",
-    "python-size",
-    "npm-pack",
-)
-
+_GATE_DECLARATION = load_gate_registry_declaration()
+PRODUCT_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.product_default
+PRODUCT_FULL_GATE_IDS = _GATE_DECLARATION.proof_sets.product_full
 DEFAULT_GATE_IDS = PRODUCT_DEFAULT_GATE_IDS
+ADOPTER_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.adopter_default
 
 
-ADOPTER_DEFAULT_GATE_IDS = (
-    "repository-audit",
-    "claims",
-    "evidence-freshness",
-    "docs-topology",
-    "schemas",
-    "playbooks-v2",
-    "generated-artifacts",
-    "format-policy",
-    "asset-determinism",
-    "schema-contracts",
-    "proof-policy",
-)
+def gate_registry() -> dict[str, Gate]:
+    """Compile the runtime gate registry from its tracked declaration."""
+    descriptors = _GATE_DECLARATION.registry("runtime", python_executable=sys.executable)
+    return {
+        gate_id: Gate.model_validate(descriptor.model_dump())
+        for gate_id, descriptor in descriptors.items()
+    }
 
 
 def _is_product_root(root: Path) -> bool:

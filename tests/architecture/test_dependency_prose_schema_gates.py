@@ -112,3 +112,41 @@ def test_non_pip_vulnerability_scanners_remain_planned() -> None:
     for concern in ["osv_vuln", "image_package_scan", "signing"]:
         block = _tool_block(concern)
         assert "planned = true" in block
+
+
+def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".config/checks/taplo").mkdir(parents=True)
+    (repo / "tools/ci/scripts").mkdir(parents=True)
+    (repo / ".config/checks/taplo/taplo.toml").write_text(
+        (ROOT / ".config/checks/taplo/taplo.toml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo / "payload.toml").write_text("ok = true\n", encoding="utf-8")
+    runner = repo / "tools/ci/scripts/run-config-lint.sh"
+    runner.write_text(
+        (ROOT / "tools/ci/scripts/run-config-lint.sh").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runner.chmod(0o755)
+    install_taplo = repo / "tools/ci/scripts/install-taplo.sh"
+    install_taplo.write_text(
+        "#!/usr/bin/env bash\nset -euo pipefail\ntaplo --version\n", encoding="utf-8"
+    )
+    install_taplo.chmod(0o755)
+
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+
+    completed = subprocess.run(
+        ["/bin/bash", "tools/ci/scripts/run-config-lint.sh", "payload.toml"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr

@@ -37,13 +37,26 @@ frozen ignored-rule debt visible and non-increasing.
 
 ETHOS SHALL describe quality gates with asset classes, dimensions, execution
 mode, evidence class, trust-bearing classification, tool adapter, file-write
-policy, network policy, and version source.
+policy, network policy, and version source. Gate descriptors, ordered runtime
+and quality views, and product/adopter proof floors SHALL compile from one
+strict, immutable, declaration-first registry rather than parallel Python
+registries.
 
 #### Scenario: Gate descriptors are reported
 
 - **WHEN** `ethos quality gates --json` runs
 - **THEN** every gate includes the quality descriptor fields required by the
   gate schema
+
+#### Scenario: Gate registry has one declaration owner
+
+- **WHEN** runtime proof planning or quality-gate reporting loads the gate registry
+- **THEN** `system/gates.toml` is the repository declaration owner
+- **AND** the packaged `ethos_core/data/gates.toml` fallback is byte-identical
+- **AND** frozen Pydantic v2 contracts reject unknown fields, empty commands,
+  duplicate gate ids per view, unavailable dependencies, and unknown proof-set ids
+- **AND** Python compiles the declaration to runtime and quality projections but
+  does not restate gate records or proof floors as hand-written registries
 
 ### Requirement: Proof Policy Lattice
 

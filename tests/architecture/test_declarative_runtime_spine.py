@@ -71,3 +71,27 @@ def test_evidence_layout_policy_is_declaration_first() -> None:
     assert 'allowed_root_dirs = ["claims", "chronicle", "parity"]' in declaration.read_text(
         encoding="utf-8"
     )
+
+
+def test_gate_registry_is_declaration_first() -> None:
+    declaration = ROOT / "system/gates.toml"
+    package_resource = ROOT / "packages/ethos-core/src/ethos_core/data/gates.toml"
+    contract = (ROOT / "packages/ethos-core/src/ethos_core/contracts/gates.py").read_text(
+        encoding="utf-8"
+    )
+    runtime = (ROOT / "packages/ethos/src/ethos/repository/policy/gates.py").read_text(
+        encoding="utf-8"
+    )
+    quality = (ROOT / "packages/ethos-core/src/ethos_core/quality/gates.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert declaration.exists()
+    assert package_resource.exists()
+    assert package_resource.read_text(encoding="utf-8") == declaration.read_text(encoding="utf-8")
+    assert "GateRegistryDeclaration" in contract
+    assert "system/gates.toml" in contract
+    assert "data/gates.toml" in contract
+    assert '"repository-audit": Gate(' not in runtime
+    assert "PRODUCT_DEFAULT_GATE_IDS = (" not in runtime
+    assert "QualityGateDescriptor(" not in quality

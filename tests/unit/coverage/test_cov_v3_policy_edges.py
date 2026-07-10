@@ -74,7 +74,9 @@ def test_gate_profile_gaps_flag_profile_and_toolchain_mismatch(
     assert "gate_toolchain_mismatch:unit-architecture:mismatch" in gaps
 
 
-def test_branch_role_metadata_recovers_from_invalid_workspace_toml(tmp_path: Path) -> None:
+def test_branch_role_metadata_recovers_from_invalid_workspace_toml(
+    tmp_path: Path,
+) -> None:
     # A workspace.toml that exists but is not valid TOML triggers the
     # TOMLDecodeError handler that resets payload to {} (coupling.py 425-426).
     (tmp_path / ".ethos").mkdir()
@@ -157,19 +159,10 @@ def test_explicit_exports_skips_non_constant_element() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_gate_registry_does_not_overwrite_existing_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # A quality gate whose id already exists in the base registry makes the guard at
-    # gates.py 192 False so it loops back to 191 without overwriting (192->191).
-    monkeypatch.setattr(
-        gates_mod,
-        "quality_gate_registry",
-        lambda: {"ruff": Gate(id="ruff", kind="lint", command=("overwritten",))},
-    )
-
+def test_gate_registry_compiler_emits_unique_ids() -> None:
     registry = gates_mod.gate_registry()
 
+    assert len(registry) == len(set(registry))
     assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
 
 
@@ -296,7 +289,9 @@ def test_rules_toml_text_gate_missing_one_key() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_load_profile_skips_non_string_root_and_non_list_evidence(tmp_path: Path) -> None:
+def test_load_profile_skips_non_string_root_and_non_list_evidence(
+    tmp_path: Path,
+) -> None:
     # An empty-string root value fails the guard at profile.py 80 (80->79) so the
     # default root is preserved; a non-list evidence value fails 85 (85->84) so the
     # evidence key is not collected.

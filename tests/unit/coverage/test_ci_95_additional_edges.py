@@ -421,7 +421,7 @@ def test_shadow_process_json_backend_and_semantic_edges(
             "remote_push",
         ),
     ]:
-        assert expected_key in shadow_semantics._semantic_projection(command, payload)
+        assert expected_key in shadow_semantics._semantic_projection(command, payload)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     external = {
         "ok": False,
@@ -450,7 +450,7 @@ def test_shadow_process_json_backend_and_semantic_edges(
         "summary": {"changed_requested": True, "changed_path_count": 0},
         "required_gaps": [],
     }
-    filtered, removed = shadow_semantics._without_changed_route_noop_gaps(
+    filtered, removed = shadow_semantics._without_changed_route_noop_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         route_external, route_embedded, ["skill_missing_id"]
     )
     assert filtered == [] and removed == ["skill_missing_id"]

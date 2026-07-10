@@ -250,7 +250,7 @@ def _current_head(root: Path) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def _prewrite_decision(
+def _prewrite_decision(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,

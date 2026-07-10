@@ -58,7 +58,7 @@ HOOK_LAYERS = {
 }
 
 
-def hook_admission_report(
+def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     layer: str,
@@ -504,7 +504,7 @@ def _prewrite_report(
     return blocked
 
 
-def _pre_run_report(
+def _pre_run_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     base: dict[str, object],
     *,
     repo: Path,

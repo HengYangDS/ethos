@@ -32,7 +32,7 @@ class UnboundRetirementRuntime:
     )
 
 
-def retire_unbound_work_lane_ref(
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,

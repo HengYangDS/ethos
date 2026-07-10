@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-def write_handoff_package(
+def write_handoff_package(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     repo: Path,
     branch: str,
@@ -248,7 +248,7 @@ def _preserve_dirty_work(*, repo: Path, package_dir: Path) -> list[dict[str, str
     return artifacts
 
 
-def _handoff_package_id(
+def _handoff_package_id(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     branch: str,
     head: str,

@@ -60,7 +60,7 @@ def coordination_state(
     return "disjoint"
 
 
-def foreign_work_lane(
+def foreign_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     worktree: dict[str, str],
     *,
     current_role: str,
@@ -294,7 +294,7 @@ def _unknown_unbound_ref() -> dict[str, object]:
     }
 
 
-def coordination_next_action(
+def coordination_next_action(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     required_gaps: list[str],
     overlap_count: int,

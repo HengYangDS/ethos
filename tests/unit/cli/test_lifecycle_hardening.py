@@ -3,7 +3,10 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 
@@ -57,10 +60,6 @@ def adopt_and_commit(repo: Path) -> None:
 
 
 def seed_executed_proof(repo: Path, head: str) -> None:
-    from ethos.adapters.mutation.proof import record_executed_proof
-    from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
-
     run = ProofRun(
         action_id="python-tests",
         command=("pytest",),

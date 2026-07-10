@@ -194,7 +194,7 @@ def _unbound_work_lane_binding(
     }
 
 
-def _configured_branch_binding(
+def _configured_branch_binding(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     root: Path,
     *,
     branch: str,
@@ -338,7 +338,7 @@ def lease_claim_id(lease: dict[str, object]) -> str:
     return str(payload.get("claim_id") or "")
 
 
-def closeout_support(
+def closeout_support(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     branch: str,
     role: str,

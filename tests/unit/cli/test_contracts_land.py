@@ -57,7 +57,7 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates import-time state for this test
 
     repo = init_git_repo(tmp_path / "repo")
     git(
@@ -85,7 +85,7 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
         cwd=repo,
     )
 
-    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:
+    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
     def fake_openspec_lifecycle(root: Path) -> dict[str, object]:
@@ -564,7 +564,7 @@ def test_publish_dry_run_blocks_release_root_active_openspec_residue(
     }
 
 
-def test_configured_branch_roles_drive_local_lifecycle_commands(
+def test_configured_branch_roles_drive_local_lifecycle_commands(  # noqa: PLR0915, RUF100 - coverage matrix exercises one cohesive command path
     monkeypatch, tmp_path: Path
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")

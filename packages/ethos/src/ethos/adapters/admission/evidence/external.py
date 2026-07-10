@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def external_evidence_report(
+def external_evidence_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     identity_path: Path | None,
@@ -74,7 +74,7 @@ def _identity_report(path: Path | None, *, required: bool) -> tuple[dict[str, ob
     return assertion.to_payload(), []
 
 
-def _enforcement_report(
+def _enforcement_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     path: Path | None,
     *,
     required: bool,

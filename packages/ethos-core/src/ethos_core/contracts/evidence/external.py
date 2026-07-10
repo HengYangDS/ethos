@@ -26,7 +26,7 @@ class IdentityAssertion(BaseModel):
     @model_validator(mode="after")
     def validate_interval(self) -> IdentityAssertion:
         if self.valid_until <= self.valid_from:
-            raise ValueError("valid_until must be later than valid_from")
+            raise ValueError("valid_until must be later than valid_from")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
         return self
 
     def to_payload(self) -> dict[str, object]:

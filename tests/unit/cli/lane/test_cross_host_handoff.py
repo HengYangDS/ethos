@@ -414,8 +414,8 @@ def test_cross_host_import_rolls_back_git_state_when_lease_creation_fails(
     destination = init_repo(tmp_path / "destination")
     expected_worktree = destination.with_name("destination-work-feature")
 
-    def fail_acquire(*args, **kwargs):
-        raise ValueError("simulated_lease_failure")
+    def fail_acquire(*args, **kwargs):  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+        raise ValueError("simulated_lease_failure")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
 
     monkeypatch.setattr(handoff.handoff_package, "acquire_lease", fail_acquire)
 

@@ -33,11 +33,11 @@ def _lease_payload() -> dict[str, object]:
 
 
 def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
-    assert handoff._holder_ref_gaps("bad", "also-bad") == [
+    assert handoff._holder_ref_gaps("bad", "also-bad") == [  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "holder_ref_invalid",
         "target_holder_ref_invalid",
     ]
-    gaps = handoff._export_binding_gaps(
+    gaps = handoff._export_binding_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         status={"role": "accepted_root", "branch": "work/other"},
         branch="work/example",
         head="a" * 40,
@@ -56,7 +56,7 @@ def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
         "lease_epoch_stale",
         "lease_head_stale",
     ]
-    assert handoff._export_binding_gaps(
+    assert handoff._export_binding_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         status={"role": "work_lane", "branch": "work/example"},
         branch="work/example",
         head="a",
@@ -66,25 +66,25 @@ def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
         epoch=1,
         lease={**_lease_payload(), "expected_head": "a"},
     ) == ["expect_head_mismatch"]
-    assert handoff._dirty_disposition_gaps(("README.md",), "") == ["dirty_disposition_required"]
-    assert handoff._dirty_disposition_gaps((), "preserved") == ["dirty_disposition_mismatch"]
-    assert handoff._dirty_disposition_gaps(("README.md",), "clean") == [
+    assert handoff._dirty_disposition_gaps(("README.md",), "") == ["dirty_disposition_required"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert handoff._dirty_disposition_gaps((), "preserved") == ["dirty_disposition_mismatch"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert handoff._dirty_disposition_gaps(("README.md",), "clean") == [  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "dirty_disposition_mismatch"
     ]
-    assert handoff._dirty_disposition_gaps((), "invalid") == ["dirty_disposition_invalid"]
+    assert handoff._dirty_disposition_gaps((), "invalid") == ["dirty_disposition_invalid"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     context = tmp_path / "context.md"
     context.write_text("context\n", encoding="utf-8")
-    assert handoff._handoff_context(context_text="also", context_file=context)[1] == (
+    assert handoff._handoff_context(context_text="also", context_file=context)[1] == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "handoff_context_ambiguous"
     )
-    assert handoff._handoff_context(context_text="", context_file=context) == ("context\n", "")
+    assert handoff._handoff_context(context_text="", context_file=context) == ("context\n", "")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     context.write_text("", encoding="utf-8")
-    assert handoff._handoff_context(context_text="", context_file=context)[1] == (
+    assert handoff._handoff_context(context_text="", context_file=context)[1] == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "handoff_context_required"
     )
     assert (
-        handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md")[1]
+        handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md")[1]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         == "handoff_context_file_unreadable"
     )
 
@@ -108,31 +108,31 @@ def test_handoff_state_and_json_helpers(tmp_path: Path, monkeypatch) -> None:
         ],
     )
     assert (
-        handoff._current_lease(status=status, repo=tmp_path, branch="work/example")["lease_id"]
+        handoff._current_lease(status=status, repo=tmp_path, branch="work/example")["lease_id"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         == "one"
     )
-    assert handoff._state_root(status=status, repo=tmp_path) == accepted
-    assert handoff._state_root(status={"worktrees": ["bad"]}, repo=tmp_path) == tmp_path
+    assert handoff._state_root(status=status, repo=tmp_path) == accepted  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert handoff._state_root(status={"worktrees": ["bad"]}, repo=tmp_path) == tmp_path  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert (
-        handoff._current_lease(status={"worktrees": "bad"}, repo=tmp_path, branch="work/example")[
+        handoff._current_lease(status={"worktrees": "bad"}, repo=tmp_path, branch="work/example")[  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
             "lease_id"
         ]
         == "one"
     )
     assert (
-        handoff._current_lease(status={"worktrees": []}, repo=tmp_path, branch="work/example")[
+        handoff._current_lease(status={"worktrees": []}, repo=tmp_path, branch="work/example")[  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
             "lease_id"
         ]
         == "one"
     )
-    assert handoff._state_root(status={"worktrees": "bad"}, repo=tmp_path) == tmp_path
+    assert handoff._state_root(status={"worktrees": "bad"}, repo=tmp_path) == tmp_path  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     gaps: list[str] = []
-    missing = handoff._json_mapping(tmp_path / "missing.json", gap="invalid", gaps=gaps)
+    missing = handoff._json_mapping(tmp_path / "missing.json", gap="invalid", gaps=gaps)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert missing == {} and gaps == ["invalid"]
     array = tmp_path / "array.json"
     array.write_text("[]", encoding="utf-8")
-    assert handoff._json_mapping(array, gap="invalid", gaps=gaps) == {}
+    assert handoff._json_mapping(array, gap="invalid", gaps=gaps) == {}  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert gaps == ["invalid", "invalid"]
 
 
@@ -363,7 +363,7 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         "handoff_artifact_missing:missing.txt",
         "handoff_artifact_digest_mismatch:wrong.txt",
     ]
-    assert handoff_package._string_list("bad") == []
+    assert handoff_package._string_list("bad") == []  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     monkeypatch.setattr(
         handoff_package.subprocess,
@@ -371,14 +371,14 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stderr=b"diff failed"),
     )
     with pytest.raises(subprocess.SubprocessError, match="diff failed"):
-        handoff_package._preserve_dirty_work(repo=tmp_path, package_dir=tmp_path)
+        handoff_package._preserve_dirty_work(repo=tmp_path, package_dir=tmp_path)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     monkeypatch.setattr(
         handoff_package.subprocess,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stderr="run failed"),
     )
     with pytest.raises(subprocess.SubprocessError, match="run failed"):
-        handoff_package._run(tmp_path, "false")
+        handoff_package._run(tmp_path, "false")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 @pytest.mark.parametrize("fail_at", [1, 2])
@@ -391,7 +391,7 @@ def test_handoff_import_rolls_back_partial_creation(
         nonlocal calls
         calls += 1
         if calls == fail_at:
-            raise subprocess.SubprocessError("failed")
+            raise subprocess.SubprocessError("failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
 
     monkeypatch.setattr(handoff_package, "_run", fail_run)
     monkeypatch.setattr(

@@ -382,7 +382,7 @@ def _normalize_worktree(
     }
 
 
-def _foreign_work_lanes(
+def _foreign_work_lanes(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     worktrees: list[dict[str, str]],
     *,
     current_path: Path,

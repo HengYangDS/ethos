@@ -81,7 +81,7 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
 
 
 def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates import-time state for this test
 
     local_head = "a" * 40
     remote_head = "b" * 40

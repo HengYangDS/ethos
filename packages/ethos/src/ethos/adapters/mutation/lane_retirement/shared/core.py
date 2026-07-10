@@ -148,7 +148,7 @@ def retire_mutation_binding(
     return mutation
 
 
-def retire_mutation_envelope(
+def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     command: str,
     action: str,

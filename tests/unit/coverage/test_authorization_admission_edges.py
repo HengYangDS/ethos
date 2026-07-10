@@ -59,8 +59,8 @@ def _enforcement_payload(now: datetime) -> dict[str, object]:
 
 
 def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -> None:
-    parser = verifier._parser()
-    assert {action.dest for action in parser._actions} >= {
+    parser = verifier._parser()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert {action.dest for action in parser._actions} >= {  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "accepted_root",
         "candidate_root",
         "accepted_head",
@@ -69,25 +69,25 @@ def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -
         "bootstrap_chronicle",
         "write_receipt",
     }
-    assert verifier._is_control_path("system/gates.toml") is True
-    assert verifier._is_control_path("README.md") is False
+    assert verifier._is_control_path("system/gates.toml") is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert verifier._is_control_path("README.md") is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     payload = _write_json(tmp_path / "payload.json", {"ok": True})
-    assert verifier._json(payload) == {"ok": True}
-    assert verifier._sha256(payload) == hashlib.sha256(payload.read_bytes()).hexdigest()
+    assert verifier._json(payload) == {"ok": True}  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert verifier._sha256(payload) == hashlib.sha256(payload.read_bytes()).hexdigest()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     with pytest.raises(SystemExit, match=r"invalid_json_mapping:array\.json"):
-        verifier._json(_write_json(tmp_path / "array.json", []))
+        verifier._json(_write_json(tmp_path / "array.json", []))  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     with pytest.raises(SystemExit, match="required"):
-        verifier._require(False, "required")
-    verifier._require(True, "unused")
+        verifier._require(False, "required")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    verifier._require(True, "unused")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     monkeypatch.setattr(
         verifier.subprocess,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, stdout=" value \n"),
     )
-    assert verifier._git(tmp_path, "rev-parse", "HEAD") == "value"
-    assert verifier._run(tmp_path, "git", "status").returncode == 0
+    assert verifier._git(tmp_path, "rev-parse", "HEAD") == "value"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert verifier._run(tmp_path, "git", "status").returncode == 0  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_verifier_control_digest_and_decision_matrix(tmp_path: Path, monkeypatch) -> None:
@@ -98,7 +98,7 @@ def test_verifier_control_digest_and_decision_matrix(tmp_path: Path, monkeypatch
         )
     )
     monkeypatch.setattr(verifier.subprocess, "run", lambda *args, **kwargs: next(responses))
-    digest = verifier._control_digest(tmp_path, "a" * 40, ["system/gates.toml", "missing"])
+    digest = verifier._control_digest(tmp_path, "a" * 40, ["system/gates.toml", "missing"])  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert len(digest) == 64
 
     valid = {
@@ -114,7 +114,7 @@ def test_verifier_control_digest_and_decision_matrix(tmp_path: Path, monkeypatch
         "mints_authority": False,
         "reusable_authorization": False,
     }
-    verifier._validate_bootstrap_decision(
+    verifier._validate_bootstrap_decision(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         valid,
         accepted_head="a",
         candidate_head="b",
@@ -137,7 +137,7 @@ def test_verifier_control_digest_and_decision_matrix(tmp_path: Path, monkeypatch
     for key, value, gap in checks:
         invalid = {**valid, key: value}
         with pytest.raises(SystemExit, match=gap):
-            verifier._validate_bootstrap_decision(
+            verifier._validate_bootstrap_decision(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
                 invalid,
                 accepted_head="a",
                 candidate_head="b",
@@ -300,7 +300,7 @@ def test_replacement_receipt_validation_reports_all_binding_failures(
     monkeypatch.setattr(
         replacement, "validate_schema_instance", lambda *args, **kwargs: {"ok": True}
     )
-    gaps = replacement._receipt_gaps(
+    gaps = replacement._receipt_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         receipt,
         accepted_head="a",
         candidate_head="b",
@@ -321,7 +321,7 @@ def test_replacement_receipt_validation_reports_all_binding_failures(
     monkeypatch.setattr(
         replacement, "validate_schema_instance", lambda *args, **kwargs: {"ok": False}
     )
-    assert replacement._receipt_gaps(
+    assert replacement._receipt_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         receipt,
         accepted_head="a",
         candidate_head="b",
@@ -334,20 +334,20 @@ def test_replacement_external_receipt_path_and_file_edges(tmp_path: Path) -> Non
     candidate.mkdir()
     inside = candidate / "receipt.json"
     inside.write_text("{}", encoding="utf-8")
-    assert replacement._external_receipt(
+    assert replacement._external_receipt(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         path=inside,
         accepted_head="a",
         candidate_head="b",
         candidate_root=candidate,
     )[1] == ["bootstrap_verifier_inside_candidate_tree"]
-    assert replacement._external_receipt(
+    assert replacement._external_receipt(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         path=tmp_path / "missing.json",
         accepted_head="a",
         candidate_head="b",
         candidate_root=candidate,
     )[1] == ["control_replacement_receipt_invalid"]
     array = _write_json(tmp_path / "array.json", [])
-    assert replacement._external_receipt(
+    assert replacement._external_receipt(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         path=array,
         accepted_head="a",
         candidate_head="b",
@@ -357,7 +357,7 @@ def test_replacement_external_receipt_path_and_file_edges(tmp_path: Path) -> Non
     original = replacement.subprocess.run
     replacement.subprocess.run = lambda *args, **kwargs: completed
     try:
-        assert replacement._changed_paths(candidate, "a", "b") == ()
+        assert replacement._changed_paths(candidate, "a", "b") == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     finally:
         replacement.subprocess.run = original
 
@@ -386,7 +386,7 @@ def test_replacement_receipt_rejects_inside_or_missing_evidence(
     monkeypatch.setattr(
         replacement, "validate_schema_instance", lambda *args, **kwargs: {"ok": True}
     )
-    gaps = replacement._receipt_gaps(
+    gaps = replacement._receipt_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         receipt,
         accepted_head="a",
         candidate_head="b",
@@ -410,7 +410,7 @@ def test_external_identity_invalid_payloads(
     tmp_path: Path, payload: object, expected_gap: str
 ) -> None:
     path = _write_json(tmp_path / "identity.json", payload)
-    assert external._identity_report(path, required=True) == ({}, [expected_gap])
+    assert external._identity_report(path, required=True) == ({}, [expected_gap])  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_external_identity_future_and_read_failures(tmp_path: Path) -> None:
@@ -418,19 +418,19 @@ def test_external_identity_future_and_read_failures(tmp_path: Path) -> None:
     future = _identity_payload(now)
     future["valid_from"] = (now + timedelta(minutes=1)).isoformat()
     future["valid_until"] = (now + timedelta(minutes=2)).isoformat()
-    assert external._identity_report(_write_json(tmp_path / "future.json", future), required=True)[
+    assert external._identity_report(_write_json(tmp_path / "future.json", future), required=True)[  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         1
     ] == ["identity_assertion_not_yet_valid"]
-    assert external._read_mapping(tmp_path / "missing.json", "invalid") == ({}, "invalid")
+    assert external._read_mapping(tmp_path / "missing.json", "invalid") == ({}, "invalid")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     malformed = tmp_path / "malformed.json"
     malformed.write_text("{", encoding="utf-8")
-    assert external._read_mapping(malformed, "invalid") == ({}, "invalid")
+    assert external._read_mapping(malformed, "invalid") == ({}, "invalid")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_external_enforcement_invalid_and_binding_edges(tmp_path: Path) -> None:
     now = datetime.now(UTC)
     invalid = _write_json(tmp_path / "invalid.json", {"bad": True})
-    assert external._enforcement_report(
+    assert external._enforcement_report(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         invalid,
         required=True,
         expected_action="accepted.advance",
@@ -438,7 +438,7 @@ def test_external_enforcement_invalid_and_binding_edges(tmp_path: Path) -> None:
         expected_old="a" * 40,
         expected_new="b" * 40,
     )[1] == ["hosted_enforcement_receipt_invalid"]
-    assert external._enforcement_report(
+    assert external._enforcement_report(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         tmp_path / "missing.json",
         required=True,
         expected_action="accepted.advance",
@@ -448,7 +448,7 @@ def test_external_enforcement_invalid_and_binding_edges(tmp_path: Path) -> None:
     )[1] == ["hosted_enforcement_receipt_invalid"]
     mismatch = _enforcement_payload(now)
     mismatch["new_value"] = "c" * 40
-    assert external._enforcement_report(
+    assert external._enforcement_report(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         _write_json(tmp_path / "mismatch.json", mismatch),
         required=True,
         expected_action="accepted.advance",

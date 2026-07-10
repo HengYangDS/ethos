@@ -26,18 +26,18 @@ POLICY = SimpleNamespace(
 
 def test_claims_trust_envelope_and_report_edges(tmp_path: Path) -> None:
     assert claims.claims_report(tmp_path)["required_gaps"] == ["claims_missing"]
-    assert claims._promotion_kind("docs/a.md") == "docs"
-    assert claims._promotion_kind("schemas/a.json") == "schema"
-    assert claims._promotion_kind("openspec/x") == "openspec"
-    assert claims._promotion_kind("tests/a.py") == "tests"
-    assert claims._promotion_targets(
+    assert claims._promotion_kind("docs/a.md") == "docs"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._promotion_kind("schemas/a.json") == "schema"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._promotion_kind("openspec/x") == "openspec"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._promotion_kind("tests/a.py") == "tests"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._promotion_targets(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         {"targets": ["docs/a.md", {"path": "src/a.py"}, {"path": "", "kind": "source"}]}
     ) == [
         {"kind": "docs", "path": "docs/a.md"},
         {"kind": "source", "path": "src/a.py"},
     ]
-    assert claims._has_repository_overclaim("published and verified", "digest") is True
-    assert claims._has_repository_overclaim("published and verified", "semantic") is False
+    assert claims._has_repository_overclaim("published and verified", "digest") is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._has_repository_overclaim("published and verified", "semantic") is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     evidence = tmp_path / "evidence" / "proof.md"
     evidence.parent.mkdir(parents=True)
@@ -122,7 +122,7 @@ def test_land_publication_and_parity_head_edges(
     # commits_equivalent_over_paths: the boundary (last relevant-path commit) plus every
     # commit up to head. Mock that helper's git calls: rev-list -1 <head> -- <paths>
     # returns the boundary "b0"; rev-list b0..h1 returns the intervening commits.
-    def _stub_git_stdout(root: object, *args: str) -> str:
+    def _stub_git_stdout(root: object, *args: str) -> str:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
         if args[:2] == ("rev-list", "-1"):
             return "b0"  # boundary commit for the relevant pathspec
         if len(args) == 2 and args[0] == "rev-list" and args[1] == "b0..h1":

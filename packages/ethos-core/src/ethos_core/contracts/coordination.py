@@ -31,10 +31,10 @@ class HolderRef(BaseModel):
     def parse(cls, value: str) -> Self:
         """Parse ``kind:namespace:instance-kind:opaque-id`` without role semantics."""
         if value != value.strip():
-            raise ValueError("holder_ref must not contain surrounding whitespace")
+            raise ValueError("holder_ref must not contain surrounding whitespace")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
         parts = value.split(":")
-        if len(parts) != 4 or any(not part for part in parts):
-            raise ValueError("holder_ref must have four non-empty segments")
+        if len(parts) != 4 or any(not part for part in parts):  # noqa: PLR2004, RUF100 - fixed wire-format arity is a protocol invariant
+            raise ValueError("holder_ref must have four non-empty segments")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
         return cls(
             kind=parts[0],
             namespace=parts[1],
@@ -68,9 +68,9 @@ class LaneLease(BaseModel):
     def validate_times(self) -> LaneLease:
         """Keep renewal and expiry ordered without claiming clock authority."""
         if self.renewed_at < self.issued_at:
-            raise ValueError("renewed_at must not precede issued_at")
+            raise ValueError("renewed_at must not precede issued_at")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
         if self.expires_at < self.renewed_at:
-            raise ValueError("expires_at must not precede renewed_at")
+            raise ValueError("expires_at must not precede renewed_at")  # noqa: EM101, RUF100, TRY003 - machine-readable gap token is the exception contract
         return self
 
     def to_payload(self) -> dict[str, Any]:

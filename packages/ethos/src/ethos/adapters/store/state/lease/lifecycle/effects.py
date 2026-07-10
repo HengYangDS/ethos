@@ -69,7 +69,7 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         return cursor.rowcount
 
 
-def revoke_lease(
+def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,

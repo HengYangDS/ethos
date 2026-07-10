@@ -65,16 +65,16 @@ def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
         ],
     }
 
-    assert admission_cli._hook_admit_next_actions(report) == (
+    assert admission_cli._hook_admit_next_actions(report) == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
         "ethos lane prewrite <path>",
     )
-    assert admission_cli._hook_admit_next_actions({"ok": True}) == ()
-    assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)
+    assert admission_cli._hook_admit_next_actions({"ok": True}) == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_prewrite_block_next_actions_cover_holderless_mismatch() -> None:
-    assert admission._prewrite_block_next_actions(
+    assert admission._prewrite_block_next_actions(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
         {
             "work_lane_lease": {
                 "reason": "lease_holder_mismatch:work/x",
@@ -195,7 +195,7 @@ def test_admission_prewrite_and_hook_success_edges(
     )
     assert post["state"] == "admitted"
     assert admission.hook_admission_report(root=tmp_path, layer="git")["state"] == "fallback"
-    assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")
+    assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     assert admission_shell.git_stash_policy("git stash") == {
         "forbidden": True,
@@ -264,19 +264,19 @@ def test_admission_prewrite_and_hook_success_edges(
         "tracked_mutation_risk": True,
         "reason": "protected_role_unknown_command_requires_paths",
     }
-    assert admission_shell._is_protected_read_command([]) is True
-    assert admission_shell._git_command_is_read_only(["git"]) is False
-    assert admission_shell._git_command_is_read_only(["git", "stash", "show"]) is True
-    assert admission_shell._git_branch_is_read_only(["--"]) is False
-    assert admission_shell._git_branch_is_read_only(["--set-upstream-to=origin/dev"]) is False
-    assert admission_shell._git_branch_is_read_only(["--list", "-vv"]) is True
-    assert admission_shell._git_branch_is_read_only(["--format", "%(refname)"]) is True
-    assert admission_shell._git_branch_is_read_only(["--unknown"]) is True
-    assert admission_shell._git_branch_is_read_only(["dev"]) is False
-    assert admission_shell._git_worktree_is_read_only([]) is True
-    assert admission_shell._git_worktree_is_read_only(["remove"]) is False
-    assert admission_shell._first_non_option(["--json"]) is None
-    assert admission_shell._first_non_option(["--json", "status"]) == "status"
+    assert admission_shell._is_protected_read_command([]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_command_is_read_only(["git"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_command_is_read_only(["git", "stash", "show"]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["--"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["--set-upstream-to=origin/dev"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["--list", "-vv"]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["--format", "%(refname)"]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["--unknown"]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_branch_is_read_only(["dev"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_worktree_is_read_only([]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._git_worktree_is_read_only(["remove"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._first_non_option(["--json"]) is None  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert admission_shell._first_non_option(["--json", "status"]) == "status"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     policy = SimpleNamespace(
         accepted_branch="dev",
@@ -332,12 +332,12 @@ def test_admission_prewrite_and_hook_success_edges(
 
 
 def test_lifecycle_json_helpers_tolerate_malformed_payloads() -> None:
-    assert lifecycle_cli._gap_tuple({"required_gaps": "not-a-list"}) == ()
-    assert lifecycle_cli._first_string(()) == ""
-    assert lifecycle_cli._int_value(3) == 3
-    assert lifecycle_cli._int_value("4") == 4
-    assert lifecycle_cli._int_value("bad", default=7) == 7
-    assert lifecycle_cli._int_value(object()) == 0
+    assert lifecycle_cli._gap_tuple({"required_gaps": "not-a-list"}) == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert lifecycle_cli._first_string(()) == ""  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert lifecycle_cli._int_value(3) == 3  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert lifecycle_cli._int_value("4") == 4  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert lifecycle_cli._int_value("bad", default=7) == 7  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert lifecycle_cli._int_value(object()) == 0  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_cli_wrappers_emit_expected_results(
@@ -547,7 +547,7 @@ def test_audit_coupling_config_and_misc_edges(
         "run",
         lambda *args, **kwargs: cp(stdout="other\n", returncode=0),
     )
-    gaps = repository_audit._write_admission_armed_gaps(tmp_path)
+    gaps = repository_audit._write_admission_armed_gaps(tmp_path)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert "write_admission_not_armed:pre-push_script_missing" in gaps
     assert "write_admission_not_armed:reference-transaction_script_missing" in gaps
     assert "write_admission_not_armed:core.hooksPath" in gaps
@@ -631,14 +631,14 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert missing_result.exit_code == 1
     assert "FileNotFoundError" in missing_result.stderr
 
-    assert _gate_runner._current_cwd() == tmp_path
+    assert _gate_runner._current_cwd() == tmp_path  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     missing_root = tmp_path / "missing-root"
     missing_root.mkdir()
     missing_previous = tmp_path / "missing-previous"
     missing_previous.mkdir()
     missing_root.rmdir()
     missing_previous.rmdir()
-    _gate_runner._restore_cwd(missing_previous, missing_root)
+    _gate_runner._restore_cwd(missing_previous, missing_root)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert Path.cwd() == Path("/")
     monkeypatch.chdir(tmp_path)
 
@@ -652,7 +652,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         raise UnavailableCwdError
 
     monkeypatch.setattr(_gate_runner.os, "chdir", always_unavailable)
-    _gate_runner._restore_cwd(None, missing_root)
+    _gate_runner._restore_cwd(None, missing_root)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert attempted == [missing_root, Path("/")]
 
     monkeypatch.setattr(docs_commands, "known_commands", lambda: {"ethos custom"})

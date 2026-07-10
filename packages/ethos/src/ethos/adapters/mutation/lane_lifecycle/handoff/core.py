@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-def export_cross_host_handoff(
+def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -166,7 +166,7 @@ def import_cross_host_handoff(
     return report
 
 
-def revoke_cross_host_source(
+def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     package: Path,
@@ -254,7 +254,7 @@ def revoke_cross_host_source(
     return report
 
 
-def _export_gaps(
+def _export_gaps(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     status: dict[str, object],
     branch: str,
@@ -300,7 +300,7 @@ def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
     return gaps
 
 
-def _export_binding_gaps(
+def _export_binding_gaps(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     status: dict[str, object],
     branch: str,
@@ -413,7 +413,7 @@ def _handoff_report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, o
     }
 
 
-def _handoff_envelope(
+def _handoff_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     command: str,
     action: str,

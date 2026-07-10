@@ -70,7 +70,7 @@ def acquire_lease(
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
         if _subject_rows(connection, subject):
-            raise ValueError(f"lane_lease_conflict:{subject}")
+            raise ValueError(f"lane_lease_conflict:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
         connection.execute(
             """
             insert into leases(id, subject, owner, expires_at, payload_json)
@@ -138,7 +138,7 @@ def normalize_lease(
     )
 
 
-def renew_lease(
+def renew_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -161,7 +161,7 @@ def renew_lease(
     )
 
 
-def resume_lease(
+def resume_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -174,7 +174,7 @@ def resume_lease(
 ) -> dict[str, Any]:
     """Resume an expired lease only for its prior holder and unchanged generation."""
     if contrary_decision:
-        raise ValueError(f"lease_resume_blocked_by_decision:{subject}")
+        raise ValueError(f"lease_resume_blocked_by_decision:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return _refresh_lease(
         db_path,
         subject=subject,
@@ -187,7 +187,7 @@ def resume_lease(
     )
 
 
-def offer_lease_handoff(
+def offer_lease_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -241,7 +241,7 @@ def offer_lease_handoff(
     }
 
 
-def accept_lease_handoff(
+def accept_lease_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -256,7 +256,7 @@ def accept_lease_handoff(
     """Accept an offered handoff and atomically replace holder plus generation."""
     HolderRef.parse(target_holder_ref)
     if not holder_quiesced:
-        raise ValueError(f"lease_handoff_holder_not_quiesced:{subject}")
+        raise ValueError(f"lease_handoff_holder_not_quiesced:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=ttl_seconds)
     with closing(sqlite3.connect(db_path)) as connection:
@@ -300,7 +300,7 @@ def accept_lease_handoff(
     )
 
 
-def advance_lease_head(
+def advance_lease_head(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -344,7 +344,7 @@ def advance_lease_head(
     )
 
 
-def _refresh_lease(
+def _refresh_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
     subject: str,
@@ -389,7 +389,7 @@ def _refresh_lease(
     )
 
 
-def expected_current_lease(
+def expected_current_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     connection: sqlite3.Connection,
     *,
     subject: str,
@@ -408,13 +408,13 @@ def expected_current_lease(
     _expect_equal("head", expected_head, str(payload.get("expected_head") or ""))
     expired = _is_expired(str(row[3]))
     if require_expired and not expired:
-        raise ValueError(f"lease_not_expired:{subject}")
+        raise ValueError(f"lease_not_expired:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     if not require_expired and expired:
-        raise ValueError(f"lease_expired:{subject}")
+        raise ValueError(f"lease_expired:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return row, payload
 
 
-def _normalized_lease_payload(
+def _normalized_lease_payload(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     payload: dict[str, Any],
     subject: str,
@@ -464,9 +464,9 @@ def _sole_subject_row(
 ) -> sqlite3.Row | tuple[Any, ...]:
     rows = _subject_rows(connection, subject)
     if not rows:
-        raise ValueError(f"work_lane_missing_lease:{subject}")
+        raise ValueError(f"work_lane_missing_lease:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     if len(rows) != 1:
-        raise ValueError(f"lane_lease_ambiguous:{subject}")
+        raise ValueError(f"lane_lease_ambiguous:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return rows[0]
 
 
@@ -515,18 +515,18 @@ def _expect_equal(kind: str, expected: str, actual: str) -> None:
         "handoff_offer": "lease_handoff_offer_stale",
         "handoff_target": "lease_handoff_target_mismatch",
     }.get(kind, f"lease_{kind}_mismatch")
-    raise ValueError(f"{gap}:{expected}!={actual}")
+    raise ValueError(f"{gap}:{expected}!={actual}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
 
 
 def _expect_epoch(payload: dict[str, Any], expected_epoch: int) -> None:
     actual = int(payload.get("epoch") or 0)
     if actual != expected_epoch:
-        raise ValueError(f"lease_epoch_stale:{expected_epoch}!={actual}")
+        raise ValueError(f"lease_epoch_stale:{expected_epoch}!={actual}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
 
 
 def _expect_normalized(payload: dict[str, Any], subject: str) -> None:
     if payload.get("normalization_state") != "normalized":
-        raise ValueError(f"lane_lease_legacy_ambiguous:{subject}")
+        raise ValueError(f"lane_lease_legacy_ambiguous:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
 
 
 def _is_expired(value: str) -> bool:

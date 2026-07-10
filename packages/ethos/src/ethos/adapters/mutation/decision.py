@@ -38,7 +38,7 @@ class MutationEvaluation:
     gaps: tuple[str, ...] = ()
 
 
-def mutation_envelope(
+def mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     request: MutationRequest,
     *,
     action: str,

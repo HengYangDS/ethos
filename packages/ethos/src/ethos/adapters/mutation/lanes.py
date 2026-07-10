@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 
 
-def start_work_lane(
+def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     name: str,
@@ -414,7 +414,7 @@ def retire_superseded_work_lane(
     )
 
 
-def retire_unbound_work_lane_ref(
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,

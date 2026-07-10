@@ -26,7 +26,7 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef
 
 
-def normalize_work_lane_lease(
+def normalize_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -48,7 +48,7 @@ def normalize_work_lane_lease(
     )
 
 
-def renew_work_lane_lease(
+def renew_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -73,7 +73,7 @@ def renew_work_lane_lease(
     )
 
 
-def resume_work_lane_lease(
+def resume_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -101,7 +101,7 @@ def resume_work_lane_lease(
     )
 
 
-def offer_work_lane_handoff(
+def offer_work_lane_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -126,7 +126,7 @@ def offer_work_lane_handoff(
     )
 
 
-def accept_work_lane_handoff(
+def accept_work_lane_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -159,7 +159,7 @@ def accept_work_lane_handoff(
     )
 
 
-def _lease_lifecycle_operation(
+def _lease_lifecycle_operation(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     operation: str,
@@ -242,7 +242,7 @@ def _lease_lifecycle_operation(
     return result
 
 
-def _lease_expected_state(
+def _lease_expected_state(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     repo: Path,
     branch: str,
@@ -272,7 +272,7 @@ def _lease_expected_state(
     return expected_state, ()
 
 
-def _lease_request_gaps(
+def _lease_request_gaps(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     operation: str,
     status: dict[str, object],
@@ -320,7 +320,7 @@ def _initial_lease_result(
     }
 
 
-def _apply_lease_effect(
+def _apply_lease_effect(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     result: dict[str, object],
     db_path: Path,
@@ -367,7 +367,7 @@ def _apply_lease_effect(
     )
 
 
-def _apply_lease_lifecycle_operation(
+def _apply_lease_lifecycle_operation(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     db_path: Path,
     operation: str,
@@ -431,7 +431,7 @@ def _apply_lease_lifecycle_operation(
             holder_quiesced=holder_quiesced,
             ttl_seconds=ttl_seconds,
         )
-    raise ValueError(f"lease_operation_unknown:{operation}")
+    raise ValueError(f"lease_operation_unknown:{operation}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
 
 
 def _state_root(status: dict[str, object], default_root: Path) -> Path:

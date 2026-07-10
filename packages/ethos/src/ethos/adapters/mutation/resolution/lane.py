@@ -20,7 +20,7 @@ from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 
-def plan_lane_resolution(
+def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -316,7 +316,7 @@ def _preserve(
         capture_output=True,
     )
     if untracked.returncode != 0:
-        raise ValueError("lane_resolution_untracked_inventory_failed")
+        raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
     untracked_paths = [
         path.decode(errors="surrogateescape") for path in untracked.stdout.split(b"\0") if path
     ]
@@ -349,7 +349,7 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
         text=True,
     )
     if delete.returncode != 0:
-        raise ValueError("lane_resolution_branch_delete_failed")
+        raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
     remove = subprocess.run(
         ["git", "worktree", "remove", "--force", observation.path],
         cwd=root,
@@ -361,7 +361,7 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
         subprocess.run(
             ["git", "update-ref", ref, observation.head, "0" * 40], cwd=root, check=False
         )
-        raise ValueError("lane_resolution_worktree_remove_failed")
+        raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
 
 
 def _completion_receipt(
@@ -415,7 +415,7 @@ def _report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, object]:
     }
 
 
-def _envelope(
+def _envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     command: str,
     action: str,

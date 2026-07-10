@@ -210,7 +210,7 @@ def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, cwd=root, check=True, capture_output=True, text=True)
 
 
-def _require(condition: bool, message: str) -> None:
+def _require(condition: bool, message: str) -> None:  # noqa: FBT001
     if not condition:
         raise SystemExit(message)
 

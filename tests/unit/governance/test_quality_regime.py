@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import os
 import re
+import stat
+import subprocess
+import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -101,6 +106,89 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     assert ".ruff_cache" not in runner
     assert 'cache-dir = "build/runtime/tool-cache/ruff"' in ruff_config
     assert "[tool.ruff" not in pyproject_text
+
+
+def test_ruff_ratchet_has_no_zero_debt_ignore_residue() -> None:
+    ratchet = tomllib.loads(
+        (ROOT / ".config/checks/ruff/ratchet.toml").read_text(encoding="utf-8")
+    )["ignored_rule_baseline"]
+    ruff_config = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
+
+    zero_baselines = sorted(rule for rule, count in ratchet.items() if count == 0)
+
+    assert zero_baselines == []
+    assert '"FBT001"' not in ruff_config
+    assert "FBT001 = 0" not in (ROOT / ".config/checks/ruff/ratchet.toml").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_ruff_ratchet_uses_tracked_python_file_set() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").read_text(encoding="utf-8")
+
+    assert 'git ls-files "*.py" "*.pyi"' in runner
+    assert '"${python_quality_paths[@]}"' in runner
+    assert '"."' not in runner
+
+
+def test_ruff_ratchet_rejects_stale_baseline(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".config/checks/ruff").mkdir(parents=True)
+    (repo / "tools/ci/scripts").mkdir(parents=True)
+    (repo / ".config/checks/ruff/ratchet.toml").write_text(
+        "[ignored_rule_baseline]\nARG001 = 2\n",
+        encoding="utf-8",
+    )
+    (repo / ".config/checks/ruff/ruff.toml").write_text("", encoding="utf-8")
+    (repo / "example.py").write_text("print('tracked')\n", encoding="utf-8")
+
+    runner = repo / "tools/ci/scripts/run-ruff-ratchet.sh"
+    runner.write_text(
+        (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
+
+    bin_dir = repo / "bin"
+    bin_dir.mkdir()
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "shift  # run\n"
+        'if [ "$1" = "--group" ]; then shift 2; fi\n'
+        'if [ "$1" = "python" ]; then shift; exec "$PYTHON_BIN" "$@"; fi\n'
+        'exec "$@"\n',
+        encoding="utf-8",
+    )
+    uv.chmod(uv.stat().st_mode | stat.S_IXUSR)
+    ruff = bin_dir / "ruff"
+    ruff.write_text(
+        "#!/usr/bin/env bash\nprintf '1 ARG001\\n'\n",
+        encoding="utf-8",
+    )
+    ruff.chmod(ruff.stat().st_mode | stat.S_IXUSR)
+
+    subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "example.py"], cwd=repo, check=True)
+    env = os.environ | {
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "PYTHON_BIN": sys.executable,
+    }
+
+    completed = subprocess.run(
+        [str(runner)],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    assert "ruff ratchet baseline stale: ARG001 1<2" in completed.stderr
+    assert "shrink .config/checks/ruff/ratchet.toml" in completed.stderr
 
 
 def test_ruff_ratchet_uses_semantic_cache_home() -> None:

@@ -4,6 +4,7 @@
 
 ETHOS SHALL define quality, determinism, documentation quality, proof policy,
 and asset-governance semantics as a first-class product capability.
+
 ## Requirements
 ### Requirement: Quality Asset Model
 
@@ -25,11 +26,18 @@ frozen ignored-rule debt visible and non-increasing.
 
 - **WHEN** hosted CI or `ethos prove --execute --json` runs the Python lint gate
 - **THEN** ETHOS invokes `tools/ci/scripts/run-python-lint.sh`
-- **AND** that owner script runs Ruff check and Ruff format with explicit `.config/checks/ruff/ruff.toml`, plus the
-  Ruff ignored-rule ratchet script
+- **AND** that owner script runs Ruff check and Ruff format with explicit
+  `.config/checks/ruff/ruff.toml`, plus the Ruff ignored-rule ratchet script
 - **AND** Ruff runtime cache lives under ignored `build/runtime/tool-cache/ruff`, not root `.ruff_cache/`
-- **AND** each baseline in `.config/checks/ruff/ratchet.toml` is treated as a
-  maximum, not a target
+- **AND** the Ruff ratchet uses the same tracked Python file set as Ruff check and
+  Ruff format, so packages, tools, tests, agent scripts, and CI adapters obey one
+  repository-wide Python law
+- **AND** each baseline in `.config/checks/ruff/ratchet.toml` must equal the
+  current finding count for that ignored rule, not a slack maximum
+- **AND** the gate fails both when findings exceed a baseline and when findings
+  fall below a stale baseline, forcing debt reductions to be recorded
+- **AND** a rule whose finding count reaches zero is removed from the ignored-rule
+  ratchet and returns to the hard Ruff rule set
 - **AND** a rule baseline may be lowered when findings are removed, but may not
   increase without an explicit quality debt decision
 

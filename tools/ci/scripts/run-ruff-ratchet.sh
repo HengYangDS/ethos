@@ -2,7 +2,8 @@
 # Enforce the Ruff ignored-rule ratchet.
 #
 # Ruff's main config blocks the current hard rule set. This script measures the
-# explicitly frozen debt and fails when any ignored rule grows past its baseline.
+# explicitly frozen debt and fails when ignored-rule findings either exceed a
+# baseline or fall below a stale baseline that has not been shrunk.
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -11,7 +12,13 @@ ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 mkdir -p "${ruff_cache_dir}"
 export RUFF_CACHE_DIR="${ruff_cache_dir}"
 
-uv run --group dev python - <<'PY'
+mapfile -t python_quality_paths < <(git ls-files "*.py" "*.pyi")
+if [[ "${#python_quality_paths[@]}" -eq 0 ]]; then
+  echo "no tracked Python files found for Ruff ratchet" >&2
+  exit 1
+fi
+
+uv run --group dev python - "${python_quality_paths[@]}" <<'PY'
 from __future__ import annotations
 
 import re
@@ -20,6 +27,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+python_quality_paths = sys.argv[1:]
 policy = tomllib.loads(Path(".config/checks/ruff/ratchet.toml").read_text(encoding="utf-8"))
 baselines = {str(key): int(value) for key, value in policy["ignored_rule_baseline"].items()}
 select = ",".join(sorted(baselines))
@@ -29,7 +37,7 @@ completed = subprocess.run(
         "check",
         "--config",
         ".config/checks/ruff/ruff.toml",
-        ".",
+        *python_quality_paths,
         "--select",
         select,
         "--exit-zero",
@@ -54,6 +62,13 @@ for rule in sorted(baselines):
     print(f"{rule}: {count}/{baseline}")
     if count > baseline:
         print(f"ruff ratchet exceeded: {rule} {count}>{baseline}", file=sys.stderr)
+        failed = True
+    elif count < baseline:
+        print(
+            f"ruff ratchet baseline stale: {rule} {count}<{baseline}; "
+            "shrink .config/checks/ruff/ratchet.toml to the current count",
+            file=sys.stderr,
+        )
         failed = True
 if failed:
     print(completed.stdout, file=sys.stderr)

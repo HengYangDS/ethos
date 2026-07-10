@@ -79,12 +79,9 @@ ignore = [
   "BLE001",  # blind-except: temporary defensive adapter debt; reduce case-by-case
   "ARG001",  # unused-function-argument: cyclopts/adapter signatures need the arg
   "ARG002",  # unused-method-argument: same (protocol conformance)
-  "FBT001",  # bool positional arg: the CLI flag idiom (emit(result, json_output),
-  # called 78x); FBT002/FBT003 stay armed for the worse cases
-  "DTZ011", # date.today(): a calendar date (not a timestamp) needs no tz
-  "SLF001", # private-member-access: all 410 are in tests reaching product internals;
-  # product itself is SLF001-clean. A shrinking whole-repo ratchet (baseline 410) makes
-  # the debt visible and bans product regressions, replacing the old blanket tests/** ignore.
+  "DTZ011",  # date.today(): a calendar date (not a timestamp) needs no tz
+  "SLF001",  # private-member-access remains visible whole-repo ratchet debt;
+  # product code should stay SLF001-clean while tests dissolve private reach-throughs.
   "PLR0402", # "from package import submodule" conflicts with ETHOS concrete-submodule
   # import discipline; module-layout owns that gate.
 ]

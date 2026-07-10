@@ -7,18 +7,20 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.admission import core as admission_core
+from ethos.adapters.admission import identity as admission_identity
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
-from ethos.adapters.admission.core import push_identity_policy_report
+from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.mutation.core import proof_gaps
+from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store import state
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
+from tests.support.contract_helpers import conformant_proof_run
 
 
 def git(root: Path, *args: str) -> str:
@@ -623,16 +625,16 @@ def test_push_identity_helpers_tolerate_git_failures(
             return subprocess.CompletedProcess(args, 1, "", "fatal")
         raise AssertionError(args)
 
-    assert admission_core._pushed_commit_range(tmp_path, pushed_head="", remote_head="") == []
+    assert admission_identity._pushed_commit_range(tmp_path, pushed_head="", remote_head="") == []
 
-    monkeypatch.setattr(admission_core.subprocess, "run", fake_range_run)
-    assert admission_core._pushed_commit_range(tmp_path, pushed_head="h1", remote_head="") == []
+    monkeypatch.setattr(admission_identity.subprocess, "run", fake_range_run)
+    assert admission_identity._pushed_commit_range(tmp_path, pushed_head="h1", remote_head="") == []
 
     def fake_identity_run(args, **kwargs):
         return subprocess.CompletedProcess(args, 0, "malformed", "")
 
-    monkeypatch.setattr(admission_core.subprocess, "run", fake_identity_run)
-    assert admission_core._commit_identity(tmp_path, "h1") == {
+    monkeypatch.setattr(admission_identity.subprocess, "run", fake_identity_run)
+    assert admission_identity._commit_identity(tmp_path, "h1") == {
         "author_name": "",
         "author_email": "",
         "committer_name": "",
@@ -641,31 +643,16 @@ def test_push_identity_helpers_tolerate_git_failures(
 
 
 def _trust_bearing_evidence(head: str, root: Path | None = None) -> dict[str, object]:
-    """Seed a COMPLETE executed-proof evidence body.
+    """Seed a COMPLETE, POLICY-CONFORMANT executed-proof evidence body.
 
-    Post-completeness-binding, a promotion proof must cover the required land floor
-    (not a single run). Generate one passing trust-bearing run per required gate id
-    for `root` (defaults to the product floor when root is None), so the seeded proof
-    is promotion-worthy — the shape a real `ethos prove --execute` produces.
+    A promotion proof must cover the required land floor AND each run must conform to its
+    gate's live policy identity (canonical command / trust_bearing / evidence_class).
+    Generate one conformant run per required gate id for `root` (product floor when root
+    is None) — the shape a real `ethos prove --execute` produces.
     """
-    from ethos.adapters.mutation.proof import _promotion_required_gate_ids
-
-    required = _promotion_required_gate_ids(root if root is not None else Path())
-    runs = tuple(
-        ProofRun(
-            action_id=gate_id,
-            command=("pytest",),
-            exit_code=0,
-            stdout="",
-            stderr="",
-            state="proven",
-            evidence_class="test",
-            verdict="passed",
-            trust_bearing=True,
-            diagnostics=(),
-        )
-        for gate_id in required
-    )
+    resolved = root if root is not None else Path()
+    required = _promotion_required_gate_ids(resolved)
+    runs = tuple(conformant_proof_run(gate_id, resolved) for gate_id in required)
     return EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
 
 

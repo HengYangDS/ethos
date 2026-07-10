@@ -25,6 +25,8 @@ from typing import Any
 
 from ethos.repository.policy.gates import adopter_code_correctness_gap
 from ethos.repository.policy.gates import default_gate_ids
+from ethos.repository.policy.gates import gate_policy_conformance_gaps
+from ethos.repository.policy.gates import gate_policy_digest
 
 _DEFAULT_PROOF_DIR = Path(".ethos") / "state" / "proof"
 _TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
@@ -157,11 +159,12 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
         else {**evidence, "digest": _evidence_digest(evidence)}
     )
     record = {
-        "schema_version": 2,
+        "schema_version": 3,
         "head": head,
         "state": "proven",
         "evidence": sealed_evidence,
         "evidence_digest": sealed_evidence.get("digest", ""),
+        "gate_policy_digest": gate_policy_digest(root),
     }
     path.write_text(_stable_json(record), encoding="utf-8")
     return path
@@ -225,6 +228,30 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
         )
         missing = sorted(g for g in required if g not in present)
         gaps.append(f"proof_incomplete:{','.join(missing)}")
+    return gaps
+
+
+def gate_policy_gaps(root: Path, head: str) -> list[str]:
+    """Gaps where a proof's bound policy identity no longer matches the live policy.
+
+    Two dimensions, both defeating a same-UID forgery that satisfies completeness:
+      * proof_policy_digest_stale: the record's stored gate_policy_digest differs from
+        the digest recomputed for the live required gate set (a gate's canonical command
+        or classification changed, or a script gate's content was tampered — B11/B12).
+      * proof_gate_not_policy_conformant:<id>: a covering run did not actually run the
+        gate's canonical command, or mislabeled trust_bearing/evidence_class (finding B).
+    Absence of a record is the caller's proof_not_proven concern (returns []).
+    """
+    record = executed_proof_record(root, head)
+    if record is None:
+        return []
+    gaps: list[str] = []
+    stored_digest = str(record.get("gate_policy_digest", ""))
+    if stored_digest != gate_policy_digest(root):
+        gaps.append("proof_policy_digest_stale")
+    evidence = record.get("evidence")
+    runs = evidence.get("runs") if isinstance(evidence, dict) else None
+    gaps.extend(gate_policy_conformance_gaps(runs, root))
     return gaps
 
 

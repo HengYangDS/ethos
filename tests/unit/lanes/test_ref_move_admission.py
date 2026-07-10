@@ -24,34 +24,26 @@ from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
+from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.evidence.core import ProofRun
+from ethos.repository.policy.gates import gate_policy_digest
+from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
 
 def _complete_proof_evidence(head: str, root: Path) -> dict[str, object]:
-    """A COMPLETE executed-proof body: one passing trust-bearing run per required gate.
+    """A COMPLETE, POLICY-CONFORMANT executed-proof body: one passing run per required
+    gate, carrying that gate's canonical command / trust_bearing / evidence_class.
 
-    Post-completeness-binding, a promotion proof must cover the required land floor, so
-    the accepted-ref boundary tests seed the full floor to reach the boundary check
-    itself — a single-run proof would now stop earlier at proof_incomplete.
+    Post-completeness + policy-conformance binding, a promotion proof must cover the
+    required land floor AND each run must conform to its gate's live policy identity, so
+    the boundary tests reach the boundary check itself rather than a placeholder-command
+    conformance gap.
     """
     runs = tuple(
-        ProofRun(
-            action_id=gate_id,
-            command=("pytest",),
-            exit_code=0,
-            stdout="",
-            stderr="",
-            state="proven",
-            evidence_class="test",
-            verdict="passed",
-            trust_bearing=True,
-            diagnostics=(),
-        )
-        for gate_id in _promotion_required_gate_ids(root)
+        conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
     )
     return EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
 
@@ -188,7 +180,11 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
 
 
 def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> None:
-    """Write the closeout-intent marker official closeout would write for this move."""
+    """Write the closeout-intent marker official closeout would write for this move,
+    carrying the proof's real evidence_digest and the live gate_policy_digest so
+    admission's digest checks pass."""
+    record = executed_proof_record(repo, new_value)
+    evidence_digest = str(record.get("evidence_digest", "")) if isinstance(record, dict) else ""
     write_closeout_intent(
         root=repo,
         transition=CloseoutTransition(
@@ -197,7 +193,8 @@ def _write_matching_intent(repo: Path, *, old_value: str, new_value: str) -> Non
             new_value=new_value,
             candidate_head=new_value,
         ),
-        evidence_digest="digest",
+        evidence_digest=evidence_digest,
+        gate_policy_digest=gate_policy_digest(repo),
     )
 
 

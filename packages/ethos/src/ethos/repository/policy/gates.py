@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import cast
 
 from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.quality.gates import quality_gate_registry
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -443,6 +443,139 @@ def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[s
     # types) alongside governance self-checks. "proven" must mean the ETHOS product
     # code actually passes; adopter roots get the profile floor above instead.
     return PRODUCT_DEFAULT_GATE_IDS
+
+
+def promotion_required_gate_ids(root: Path | None = None) -> tuple[str, ...]:
+    """The gate ids a promotion proof must fully cover for this root (the LAND floor).
+
+    Public alias of `default_gate_ids(full=False, root=root)` — the single definition
+    the completeness check, the policy digest, and the executable graph all resolve, so
+    they never drift.
+    """
+    return default_gate_ids(full=False, root=root)
+
+
+_PYTHON_INTERPRETER_RE = re.compile(r"^python(3(\.\d+)?)?$")
+
+
+def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
+    """Collapse the host python-interpreter path in a gate command to the literal
+    `"python"`, leaving every other token verbatim.
+
+    A gate's command embeds `sys.executable` at registry-build time (gate_registry does
+    `python = sys.executable`), so the SAME gate records a different absolute interpreter
+    path on every host/venv. The policy identity must be stable across environments
+    (B10): only the interpreter BASENAME family is normalized, unconditionally — never
+    gated on equality to the live sys.executable, since the recording interpreter differs
+    from the validating interpreter in exactly the cross-environment case B10 exercises.
+    Repo-relative script tokens (tools/ci/scripts/*.sh) are kept verbatim so a command
+    change (B11) or a script-content change (B12, via policy_source_digest) still moves
+    the digest.
+    """
+    if not command:
+        return command
+    head, *rest = command
+    if _PYTHON_INTERPRETER_RE.match(Path(head).name):
+        return ("python", *rest)
+    return command
+
+
+def _gate_policy_source_digest(gate: Gate, root: Path) -> str:
+    """Digest of a script-type gate's on-disk source, or '' for in-process gates.
+
+    B12: a gate whose command is a repo-relative script (same path, tampered content)
+    must change the policy digest. Hash the file bytes under `root`. In-process gates
+    (python -m ethos.cli ...) and the `ethos` entrypoint carry no repo-owned script, so
+    they contribute ''. `root` must be the tree the proof was recorded against; the
+    caller (gate_policy_digest) owns that consistency.
+    """
+    canonical = canonical_gate_command(gate.command)
+    if not canonical:
+        return ""
+    head = canonical[0]
+    if head in ("python", "ethos") or "/" not in head:
+        return ""
+    script = root / head
+    if not script.is_file():
+        return ""
+    return hashlib.sha256(script.read_bytes()).hexdigest()
+
+
+def gate_policy_fields(gate: Gate, root: Path) -> dict[str, object]:
+    """The cross-environment-stable policy identity of a single gate."""
+    return {
+        "gate_id": gate.id,
+        "canonical_command": list(canonical_gate_command(gate.command)),
+        "trust_bearing": gate.trust_bearing,
+        "evidence_class": gate.evidence_class,
+        "execution_mode": gate.execution_mode,
+        "tool_adapter": gate.tool_adapter,
+        "policy_source_digest": _gate_policy_source_digest(gate, root),
+        "profile_binding": gate.profile,
+        "layer": gate.kind,
+    }
+
+
+def gate_policy_digest(root: Path) -> str:
+    """A stable digest of the required gate set's policy identity for `root`.
+
+    Binds a proof/marker to WHAT the required gates ARE (canonical command, trust
+    classification, evidence class, script content, …), not just to the proof's own
+    bytes. If a gate's canonical command or classification changes, or a script gate's
+    content is tampered, this digest changes and an old proof is stale (B11/B12); a mere
+    interpreter-path change does not (B10). Covers the registry-resolvable required ids
+    in floor order; an adopter's declared native gates that are not in the product
+    registry are governed by the completeness floor, not this digest.
+    """
+    registry = gate_registry()
+    fields = [
+        gate_policy_fields(registry[gate_id], root)
+        for gate_id in promotion_required_gate_ids(root)
+        if gate_id in registry
+    ]
+    canonical = json.dumps({"gates": fields}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def gate_policy_conformance_gaps(runs: object, root: Path) -> list[str]:
+    """Gaps where an executed run does not conform to its gate's policy identity.
+
+    Defeats a same-UID forged proof that covers the required action_ids with runs that
+    never ran the real gate: a `command=('/bin/true',)` run, or a run mislabeled
+    `trust_bearing`/`evidence_class`. For each required gate present in the registry,
+    the matching run's CANONICAL command must equal the gate's canonical command
+    (canonical-to-canonical, so a legitimate interpreter difference is not flagged) and
+    its trust_bearing/evidence_class must match the gate definition.
+    """
+    if not isinstance(runs, list):
+        return []
+    by_action: dict[str, dict[str, object]] = {}
+    for run in runs:
+        if isinstance(run, dict):
+            by_action.setdefault(str(run.get("action_id", "")), run)
+    registry = gate_registry()
+    gaps: list[str] = []
+    for gate_id in promotion_required_gate_ids(root):
+        gate = registry.get(gate_id)
+        if gate is None:
+            continue
+        run = by_action.get(gate_id)
+        if run is None:
+            continue  # absence is the completeness check's concern, not conformance
+        run_command = run.get("command")
+        command = (
+            tuple(str(token) for token in run_command)
+            if isinstance(run_command, (list, tuple))
+            else ()
+        )
+        conforms = (
+            canonical_gate_command(command) == canonical_gate_command(gate.command)
+            and run.get("trust_bearing") == gate.trust_bearing
+            and run.get("evidence_class") == gate.evidence_class
+        )
+        if not conforms:
+            gaps.append(f"proof_gate_not_policy_conformant:{gate_id}")
+    return gaps
 
 
 def gate_graph(

@@ -75,24 +75,50 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     """
     from ethos.adapters.mutation.proof import record_executed_proof
     from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
 
-    # Seed a COMPLETE promotion proof (one passing trust-bearing run per required
-    # gate id for `repo`): post-completeness-binding, land/publish require the proof
-    # to cover the required land floor, not just contain one trust-bearing run.
+    # Seed a COMPLETE, POLICY-CONFORMANT promotion proof (one passing run per required
+    # gate id, carrying that gate's canonical command / trust_bearing / evidence_class):
+    # land/publish require the proof to cover the required floor AND each run to conform
+    # to its gate's live policy identity, so a placeholder command no longer suffices.
     runs = tuple(
-        ProofRun(
-            action_id=gate_id,
-            command=("pytest",),
-            exit_code=0,
-            stdout="",
-            stderr="",
-            state="proven",
-            evidence_class="test",
-            verdict="passed",
-            trust_bearing=True,
-            diagnostics=(),
-        )
-        for gate_id in _promotion_required_gate_ids(repo)
+        conformant_proof_run(gate_id, repo) for gate_id in _promotion_required_gate_ids(repo)
     )
     record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict())
+
+
+def conformant_proof_run(gate_id: str, root: Path) -> object:
+    """Build a ProofRun that conforms to `gate_id`'s live policy identity.
+
+    Mirrors what `ethos prove --execute` records: the gate's canonical command and its
+    declared trust_bearing / evidence_class, so the run passes gate_policy_conformance.
+    Gate ids absent from the product registry (e.g. an adopter's declared native gates)
+    fall back to a trust-bearing test run — conformance only checks registry gates.
+    """
+    from ethos.repository.evidence.core import ProofRun
+    from ethos.repository.policy.gates import canonical_gate_command
+    from ethos.repository.policy.gates import gate_registry
+
+    gate = gate_registry().get(gate_id)
+    if gate is None:
+        command: tuple[str, ...] = ("pytest",)
+        trust_bearing = True
+        evidence_class = "test"
+    else:
+        command = canonical_gate_command(gate.command)
+        trust_bearing = gate.trust_bearing
+        evidence_class = gate.evidence_class
+    # ProofRun enforces trust_bearing <=> state == "proven"; a non-trust-bearing gate's
+    # passing run is "executed", not "proven".
+    state = "proven" if trust_bearing else "executed"
+    return ProofRun(
+        action_id=gate_id,
+        command=command,
+        exit_code=0,
+        stdout="",
+        stderr="",
+        state=state,
+        evidence_class=evidence_class,
+        verdict="passed",
+        trust_bearing=trust_bearing,
+        diagnostics=(),
+    )

@@ -27,6 +27,7 @@ import ethos.repository.evidence.parity.validation as parity_validation
 import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
+import ethos.repository.policy.gates as policy_gates
 import ethos.repository.registry.docs.commands as docs_commands
 import ethos.surface.cli._base as cli_base
 import ethos.surface.cli.hook.core as admission_cli
@@ -299,7 +300,9 @@ def test_admission_prewrite_and_hook_success_edges(
     )
     # A sanctioned accepted-ref advance also carries a matching closeout-intent marker
     # (official closeout writes one before its CAS); without it the move blocks as a raw
-    # ref move. Write the marker the transition would carry so this stays an admit case.
+    # ref move. The marker must carry the digests admission expects: no proof is seeded
+    # here so the expected evidence_digest is "" (skipped), and the gate_policy_digest
+    # must equal the live one.
     closeout_intent.write_closeout_intent(
         root=tmp_path,
         transition=closeout_intent.CloseoutTransition(
@@ -308,7 +311,8 @@ def test_admission_prewrite_and_hook_success_edges(
             new_value="new",
             candidate_head="new",
         ),
-        evidence_digest="d",
+        evidence_digest="",
+        gate_policy_digest=policy_gates.gate_policy_digest(tmp_path),
     )
     assert (
         admission.ref_move_admission_report(

@@ -226,3 +226,38 @@ def _expire(repo: Path, nonce: str) -> None:
     stored = json.loads(path.read_text(encoding="utf-8"))
     stored["expires_at"] = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
     path.write_text(json.dumps(stored), encoding="utf-8")
+
+
+def test_consume_rejects_evidence_digest_mismatch(tmp_path: Path) -> None:
+    """A marker whose bound evidence_digest != the expected one is refused (finding A)."""
+    _write(tmp_path, old="o", new="n")  # marker carries evidence_digest="digest"
+    result = closeout_intent.consume_closeout_intent(
+        root=tmp_path,
+        ref_name="refs/heads/dev",
+        old_value="o",
+        new_value="n",
+        expect=closeout_intent.MarkerExpectation(evidence_digest="a-different-digest"),
+    )
+    assert result == {"present": True, "gap": "closeout_intent_evidence_digest_mismatch"}
+
+
+def test_consume_rejects_gate_policy_digest_mismatch(tmp_path: Path) -> None:
+    """A marker whose bound gate_policy_digest != the expected one is refused (finding A)."""
+    closeout_intent.write_closeout_intent(
+        root=tmp_path,
+        transition=closeout_intent.CloseoutTransition(
+            ref_name="refs/heads/dev", old_value="o", new_value="n", candidate_head="n"
+        ),
+        evidence_digest="ed",
+        gate_policy_digest="pd",
+    )
+    result = closeout_intent.consume_closeout_intent(
+        root=tmp_path,
+        ref_name="refs/heads/dev",
+        old_value="o",
+        new_value="n",
+        expect=closeout_intent.MarkerExpectation(
+            evidence_digest="ed", gate_policy_digest="a-different-policy-digest"
+        ),
+    )
+    assert result == {"present": True, "gap": "closeout_intent_policy_digest_mismatch"}

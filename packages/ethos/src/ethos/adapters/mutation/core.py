@@ -4,7 +4,6 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
@@ -12,21 +11,18 @@ from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import clear_closeout_intent
 from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_intents
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
+from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.repository.openspec.audit import active_change_names
-from ethos.repository.openspec.audit import active_change_violations_for_role
-from ethos.repository.openspec.audit import completed_unarchived_changes
+from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
-
-if TYPE_CHECKING:
-    from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def proof_gaps(root: Path, current_head: str) -> list[str]:
@@ -44,7 +40,14 @@ def proof_gaps(root: Path, current_head: str) -> list[str]:
     # not merely be one passing trust-bearing run. A focused `prove --gate X` is a
     # valid record but not promotion-worthy — this closes "proven != required gates
     # passed" at the promotion gate (land/closeout/push consume proof_gaps).
-    return promotion_completeness_gaps(root, current_head)
+    # Policy identity: the proof must be bound to the LIVE required-gate policy (canonical
+    # commands, classifications, script content) and each covering run must have actually
+    # run its gate — defeats a same-UID forgery that satisfies completeness with mislabeled
+    # or /bin/true runs, or a proof recorded against a since-changed gate policy.
+    return [
+        *promotion_completeness_gaps(root, current_head),
+        *gate_policy_gaps(root, current_head),
+    ]
 
 
 def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:
@@ -67,31 +70,6 @@ def _candidate_gaps_for_proof(candidate_path: Path, candidate_head: str) -> list
     return proof_gaps(candidate_path, candidate_head)
 
 
-def _openspec_carrier_gaps(root: Path, role: str) -> list[str]:
-    """Blocking gaps when OpenSpec carriers are illegal for a transition role.
-
-    Work Lanes may carry active in-progress OpenSpec changes, but completed active
-    changes must be archived before landing. Candidate and accepted-root checkouts
-    may not retain any active carrier: after promotion the current truth belongs in
-    source, canonical specs, claims, evidence, and chronicle.
-    """
-    openspec_root = root / "openspec"
-    completed_gaps = completed_unarchived_changes(openspec_root)
-    completed_names = {gap.rsplit(":", 1)[-1] for gap in completed_gaps}
-    active_gaps = [
-        gap
-        for gap in active_change_violations_for_role(openspec_root, role)
-        if gap.split(":", 2)[1] not in completed_names
-    ]
-    if role == ROLE_WORK_LANE:
-        active_gaps.extend(
-            f"openspec_active_change_unarchived:{name}:{role}"
-            for name in active_change_names(openspec_root)
-            if name not in completed_names
-        )
-    return [*active_gaps, *completed_gaps]
-
-
 def _closeout_candidate_gaps(
     root: Path,
     candidate: dict[str, object],
@@ -110,7 +88,7 @@ def _closeout_candidate_gaps(
     candidate_head = str(candidate.get("head") or "")
     if not _is_ancestor(root, current_head, candidate_head):
         return ["candidate_diverged_from_accepted"]
-    gaps = _openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
+    gaps = openspec_carrier_gaps(candidate_path, ROLE_CANDIDATE)
     if require_proof:
         gaps.extend(_candidate_gaps_for_proof(candidate_path, candidate_head))
     return gaps
@@ -152,7 +130,7 @@ def evaluate_mutation(
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
     else:
-        gaps.extend(_openspec_carrier_gaps(root, ROLE_WORK_LANE))
+        gaps.extend(openspec_carrier_gaps(root, ROLE_WORK_LANE))
         closeout = cast("dict[str, object]", status.get("closeout_support", {}))
         gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
     if request.apply:
@@ -184,7 +162,7 @@ def evaluate_closeout_mutation(
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
     else:
-        gaps.extend(_openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT))
+        gaps.extend(openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT))
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
     gaps.extend(
@@ -385,6 +363,7 @@ def _promote_candidate_to_accepted(
         root=root,
         transition=transition,
         evidence_digest=_candidate_evidence_digest(candidate_path, candidate_head),
+        gate_policy_digest=gate_policy_digest(root),
     )
     try:
         return _advance_accepted_ref(

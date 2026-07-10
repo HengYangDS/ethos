@@ -24,25 +24,13 @@ def seed_proof(root: Path, head: str) -> None:
     body — proof cannot be faked, in tests or production.
     """
     from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
+    from tests.support.contract_helpers import conformant_proof_run
 
-    # Seed a COMPLETE promotion proof: one passing trust-bearing run per required
-    # gate id for `root`, so it covers the land floor (post-completeness-binding a
-    # single-run proof is a valid record but not promotion-worthy).
+    # Seed a COMPLETE, POLICY-CONFORMANT promotion proof: one conformant run per required
+    # gate id for `root` (its canonical command / trust_bearing / evidence_class), so it
+    # covers the land floor AND passes gate-policy conformance.
     runs = tuple(
-        ProofRun(
-            action_id=gate_id,
-            command=("pytest",),
-            exit_code=0,
-            stdout="",
-            stderr="",
-            state="proven",
-            evidence_class="test",
-            verdict="passed",
-            trust_bearing=True,
-            diagnostics=(),
-        )
-        for gate_id in _promotion_required_gate_ids(root)
+        conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
     )
     evidence = EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     record_executed_proof(root, evidence)

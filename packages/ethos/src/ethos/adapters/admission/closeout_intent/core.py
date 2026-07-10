@@ -55,6 +55,19 @@ class CloseoutTransition:
     candidate_head: str
 
 
+@dataclass(frozen=True)
+class MarkerExpectation:
+    """The proof/policy digests a matched marker must carry to authorize the move.
+
+    Empty strings skip that comparison (a caller with no digest to bind). Bundled so
+    consume_closeout_intent stays a small, cohesive signature rather than a bag of
+    optional digest parameters.
+    """
+
+    evidence_digest: str = ""
+    gate_policy_digest: str = ""
+
+
 def _git_path(root: Path, relative: str) -> Path:
     """Resolve a path inside the git dir via `git rev-parse --git-path`.
 
@@ -88,6 +101,7 @@ def write_closeout_intent(
     root: Path,
     transition: CloseoutTransition,
     evidence_digest: str,
+    gate_policy_digest: str = "",
 ) -> dict[str, Any]:
     """Write a one-shot closeout-intent marker and return it.
 
@@ -95,7 +109,8 @@ def write_closeout_intent(
     BEFORE the CAS, in a single capture with the values the CAS will use. The marker is
     keyed by an unguessable nonce and carries the exact transition it authorizes so the
     hook can match old/new/candidate_head and reject a marker written for a different
-    move.
+    move. It also carries the proof's evidence_digest and the live gate_policy_digest so
+    admission can reject a marker whose bound proof/policy does not match this transition.
     """
     nonce = uuid.uuid4().hex
     created = datetime.now(UTC)
@@ -106,6 +121,7 @@ def write_closeout_intent(
         "new_value": transition.new_value,
         "candidate_head": transition.candidate_head,
         "evidence_digest": evidence_digest,
+        "gate_policy_digest": gate_policy_digest,
         "nonce": nonce,
         "created_at": created.isoformat(),
         "expires_at": (created + _MARKER_TTL).isoformat(),
@@ -179,21 +195,25 @@ def consume_closeout_intent(
     ref_name: str,
     old_value: str,
     new_value: str,
+    expect: MarkerExpectation | None = None,
 ) -> dict[str, Any]:
     """Find and consume the closeout-intent marker matching this exact ref move.
 
-    Returns {"present": bool, "gap": str}. A present, matching, unexpired marker is
-    DELETED (one-shot) and reported present with no gap. Absence, field mismatch, or
-    expiry each map to a distinct gap so the caller (ref_move_admission_report) can
-    explain precisely why a raw ref move was refused:
+    Returns {"present": bool, "gap": str}. A present, matching, unexpired marker whose
+    bound digests match the expected ones is DELETED (one-shot) and reported present with
+    no gap. Absence, field mismatch, expiry, or a digest mismatch each map to a distinct
+    gap so the caller (ref_move_admission_report) can explain precisely why a raw ref move
+    was refused:
 
-      * no matching marker            -> accepted_ref_move_no_closeout_intent  (B1)
-      * marker's old/new differ       -> closeout_intent_mismatch              (B4)
-      * marker expired                -> closeout_intent_stale                 (B5)
+      * no matching marker              -> accepted_ref_move_no_closeout_intent    (B1)
+      * marker's old/new differ         -> closeout_intent_mismatch                (B4)
+      * marker expired                  -> closeout_intent_stale                   (B5)
+      * evidence_digest disagrees       -> closeout_intent_evidence_digest_mismatch
+      * gate_policy_digest disagrees    -> closeout_intent_policy_digest_mismatch
 
-    Reuse (B6) falls out of the one-shot delete: a second move with the same nonce
-    finds no marker and reports no_closeout_intent. Consuming does NOT admit — the
-    caller still re-runs FF / == candidate_head / proof completeness.
+    An empty expected_* skips that comparison (back-compat / caller has no digest to
+    bind). Reuse (B6) falls out of the one-shot delete. Consuming does NOT admit — the
+    caller still re-runs FF / == candidate_head / proof completeness / policy digest.
     """
     moment = datetime.now(UTC)
     marker_dir = _marker_dir(root)
@@ -214,9 +234,20 @@ def consume_closeout_intent(
         if _is_expired(marker, now=moment):
             path.unlink(missing_ok=True)
             return {"present": True, "gap": "closeout_intent_stale"}
+        digest_gap = _digest_mismatch_gap(marker, expect or MarkerExpectation())
         path.unlink(missing_ok=True)  # one-shot: consume on the matching read
-        return {"present": True, "gap": ""}
+        return {"present": True, "gap": digest_gap}
 
     if mismatch_seen:
         return {"present": True, "gap": "closeout_intent_mismatch"}
     return {"present": False, "gap": "accepted_ref_move_no_closeout_intent"}
+
+
+def _digest_mismatch_gap(marker: dict[str, Any], expect: MarkerExpectation) -> str:
+    """Return the digest-mismatch gap for a matched marker, or '' if the bound digests
+    agree (or no expectation was supplied)."""
+    if expect.evidence_digest and marker.get("evidence_digest") != expect.evidence_digest:
+        return "closeout_intent_evidence_digest_mismatch"
+    if expect.gate_policy_digest and marker.get("gate_policy_digest") != expect.gate_policy_digest:
+        return "closeout_intent_policy_digest_mismatch"
+    return ""

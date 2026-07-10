@@ -33,6 +33,10 @@ assistants_app = App(name="assistants", help="Assistant and protocol projections
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.", show=False)
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.", show=False)
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
+lane_lease_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
+lane_handoff_app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
+lane_app.command(lane_lease_app)
+lane_app.command(lane_handoff_app)
 hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
 parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
 rules_app = App(name="rules", help="Rules Product Kernel operations.", show=False)
@@ -147,3 +151,5 @@ def load_command_groups(argv: list[str]) -> None:
         selected = list(groups)
     for name in selected:
         importlib.import_module(groups[name])
+        if name == "lane":
+            importlib.import_module("ethos.surface.cli.lane.lease")

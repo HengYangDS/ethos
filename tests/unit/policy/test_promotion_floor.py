@@ -231,6 +231,29 @@ gates = "not-a-list"
     assert adopter_gate_descriptor_gaps(tmp_path) == ("adopter_gate_descriptors_invalid",)
 
 
+def test_adopter_gate_descriptor_entry_must_be_a_table(tmp_path: Path) -> None:
+    _write_profile(
+        tmp_path,
+        """profile_id = "acme"
+[proof]
+code_correctness_gates = ["acme-tests"]
+gates = ["not-a-table"]
+""",
+    )
+
+    assert adopter_gate_descriptor_gaps(tmp_path) == (
+        "adopter_gate_descriptor_invalid:0",
+        "adopter_gate_descriptor_missing:acme-tests",
+    )
+
+
+def test_explicit_unknown_gate_becomes_graph_validation_gap() -> None:
+    graph = gate_graph(("not-registered",))
+
+    assert graph.nodes == ()
+    assert graph.validate().gaps == ("unknown_gate:not-registered",)
+
+
 def test_adopter_declaration_ignores_non_list_and_empty_entries(tmp_path: Path) -> None:
     """A malformed `code_correctness_gates` (not a list) is treated as no declaration."""
     _write_profile(

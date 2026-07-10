@@ -767,61 +767,11 @@ when no linked Git worktree exists for the branch.
 ### Requirement: Work Lane Coordination Read Model
 
 ETHOS SHALL distinguish blocking Work Lane coordination gaps from advisory
-coordination signals in status command guidance, and SHALL expose unbound Work
-Lane refs as inspectable residue objects rather than count-only signals.
-
-#### Scenario: Advisory unbound refs expose subjects and relation
-
-- **GIVEN** a repository has an unbound `work/*` branch ref
-- **WHEN** `ethos status --json` reports `data.coordination`
-- **THEN** `unbound_work_lane_refs` includes the branch, head, claim binding,
-  relation to accepted truth, and next action
-- **AND** `unbound_work_lane_count` equals the number of emitted residue objects
-- **AND** the signal remains advisory unless another gate reports a required gap
-
-#### Scenario: Status summary exposes coordination small signals
-
-- **WHEN** `ethos status --json` reports `data.coordination`
-- **THEN** `summary.foreign_work_lane_count` equals
-  `data.coordination.foreign_work_lane_count`
-- **AND** `summary.unbound_work_lane_count` equals
-  `data.coordination.unbound_work_lane_count`
-- **AND** `summary.coordination_blocking` equals `data.coordination.blocking`
-- **AND** those summary fields remain derived visibility signals and do not grant
-  write, land, retire, or cleanup authority over another Work Lane or ref
-
-#### Scenario: Lane status summary exposes coordination small signals
-
-- **WHEN** `ethos lane status --json` reports `data.coordination`
-- **THEN** `summary.foreign_work_lane_count` equals
-  `data.coordination.foreign_work_lane_count`
-- **AND** `summary.unbound_work_lane_count` equals
-  `data.coordination.unbound_work_lane_count`
-- **AND** `summary.missing_lease_count` equals
-  `data.coordination.missing_lease_count`
-- **AND** `summary.coordination_advisory_count` equals the number of
-  `data.coordination.advisory_gaps`
-- **AND** `summary.coordination_blocking` equals `data.coordination.blocking`
-- **AND** `summary.coordination_next_action` equals
-  `data.coordination.next_action`
-- **AND** those summary fields remain derived visibility signals and do not grant
-  write, land, retire, or cleanup authority over another Work Lane or ref
-
-#### Scenario: Orientation projects unbound refs without authority
-
-- **GIVEN** a repository has an unbound `work/*` branch ref
-- **WHEN** `ethos orient --json` runs
-- **THEN** `data.orientation.coordination.unbound_work_lane_refs` projects the
-  branch, head, claim binding, relation to accepted truth, and next action from
-  status
-- **AND** `data.orientation.coordination.next_action` projects
-  `status.data.coordination.next_action` as coordination guidance
-- **AND** `summary.unbound_work_lane_count` equals
-  `data.orientation.coordination.unbound_work_lane_count`
-- **AND** human `ethos orient` output renders coordination guidance as at most
-  one concise coordination line
-- **AND** the orientation view does not grant write, land, retire, or cleanup
-  authority over that ref
+coordination signals in status command guidance, and SHALL expose Work Lane
+coordination small signals in focused reader summaries without granting foreign
+lane authority. In productized multi-human and multi-agent operation, Work Lane
+lease ownership SHALL identify the concrete acting holder rather than only a
+provider class.
 
 #### Scenario: Foreign Work Lanes are observable but not owned by the current actor
 
@@ -833,63 +783,33 @@ Lane refs as inspectable residue objects rather than count-only signals.
 - **AND** write authority remains owner-only
 - **AND** retirement requires the owner, accepted handoff, or maintainer
   break-glass evidence
+- **AND** a provider label such as `codex` is not sufficient by itself to prove
+  that the current actor owns another Codex thread's Work Lane
 
-#### Scenario: Foreign Work Lanes expose closeout disposition without authority
+#### Scenario: lane lease holder identifies a concrete acting instance
 
-- **GIVEN** a repository has a linked foreign `work/*` worktree
-- **WHEN** `ethos status --json` reports that lane in `data.foreign_work_lanes`
-- **THEN** the lane item exposes `relation_to_accepted` and
-  `closeout_disposition` derived from Git relation, dirty state, lease, and
-  claim binding
-- **AND** closeout residue appears as a coarse advisory coordination signal
-  rather than one branch-level gap per disposition
-- **AND** missing leases remain distinct from retire-ready closeout disposition
-- **AND** a clean claim-bound lane absorbed by accepted truth reports a
-  head-bound `next_action` for `ethos lane retire-landed --branch <branch>
-  --expect-head <head> --apply --json`
-- **AND** `ethos report --json` routes that advisory signal to read-only
-  inspection commands
-- **AND** the disposition does not grant write, land, retire, or cleanup
-  authority over that Work Lane
+- **GIVEN** a Work Lane lease is created or renewed in a multi-agent repository
+- **WHEN** ETHOS records or reports the lease holder
+- **THEN** the holder is represented by a provider-neutral concrete reference
+  such as `agent:codex:thread:<id>`, `agent:claude:chat:<id>`,
+  `agent:jetbrains:chat:<id>`, `human:shell:<id>`, or
+  `service:gitlab-ci:pipeline:<id>`
+- **AND** a bare provider or actor class such as `codex`, `claude`, `cursor`, or
+  `ci` is treated as a legacy hint rather than sufficient ownership authority
+- **AND** compatibility fields such as `lease_owner` may be exposed during
+  migration only when they do not override the concrete holder reference
 
-#### Scenario: Foreign Work Lane missing physical path is fail-soft and observe-only
+#### Scenario: authority policy owns role capability
 
-- **GIVEN** Git worktree metadata advertises a foreign `work/*` Work Lane path
-- **AND** that physical path no longer exists
-- **WHEN** `ethos status --json` or accepted-root closeout readiness reads Work
-  Lane coordination state
-- **THEN** ETHOS reports the foreign lane with `worktree_binding=missing`
-- **AND** the reader does not crash while inspecting dirty paths
-- **AND** `dirty=false` and `dirty_paths=[]` because no dirty filesystem state is
-  observable at that path
-- **AND** coordination remains advisory for accepted-root readers
-- **AND** the payload grants no write, land, retire, or cleanup authority over
-  the foreign lane
-
-#### Scenario: Candidate Worktree missing physical path is fail-soft
-
-- **GIVEN** Git worktree metadata advertises the configured candidate worktree path
-- **AND** that physical path no longer exists
-- **WHEN** `ethos status --json` reads workspace status
-- **THEN** ETHOS reports the candidate with `worktree_binding=missing`
-- **AND** `worktree_exists=false`
-- **AND** readiness reports `candidate_worktree_missing` instead of crashing while
-  checking candidate dirty state
-- **AND** if the candidate path disappears during dirty inspection, ETHOS treats
-  the candidate state as unsafe to close out rather than crashing
-
-#### Scenario: Candidate absent or unbound binding remains schema-valid
-
-- **GIVEN** an adopted repository has not yet created the configured candidate
-  branch
-- **WHEN** `ethos status --json` reads workspace status
-- **THEN** ETHOS reports the candidate with `worktree_binding=absent`
-- **AND** the workspace-status schema accepts that candidate read-model state
-- **AND** actual worktree list entries remain limited to physical bindings
-  `current`, `linked`, or `missing`
-- **AND** if the candidate branch exists without a candidate worktree, ETHOS
-  reports the candidate with `worktree_binding=unbound` without using `unbound`
-  for actual worktree entries
+- **GIVEN** a lease holder requests write, land, retire, handoff, or break-glass
+  authority
+- **WHEN** ETHOS evaluates the request
+- **THEN** the Lane Lease identifies the temporary holder
+- **AND** Authority policy determines the holder's roles and capabilities
+- **AND** claim, scope, evidence, and current Git state determine whether the
+  requested action is admissible
+- **AND** ETHOS does not require a first-class Principal, Actor, Participant,
+  Party, Session, or Agent registry to make the decision
 
 ### Requirement: Unbound Work Lane Ref Retirement
 
@@ -1172,3 +1092,31 @@ capability profile, claim binding, evidence, and archive lifecycle checks.
 - **AND** ETHOS SHALL validate repo-local capability profiles, proposal facets,
   claim carriers, evidence refs, and archive closeout without replacing official
   OpenSpec syntax or semantics.
+
+### Requirement: Work Lane Lifecycle Resolution
+
+ETHOS SHALL record durable Work Lane lifecycle judgments as evidence-bound
+Chronicle events rather than as a separate lane-resolution truth store.
+
+#### Scenario: lane handoff is recorded as Chronicle resolution
+
+- **GIVEN** a Work Lane is transferred from one concrete holder to another
+- **WHEN** the handoff is accepted
+- **THEN** ETHOS records a `lane_resolution` Chronicle event for that lane
+- **AND** the event includes the resolution kind, previous holder, next holder,
+  decision authority, evidence references, and decision result
+- **AND** the Chronicle event does not replace the active Lane Lease state used
+  for current write admission
+
+#### Scenario: orphan audit produces a decision, not a persistent orphan state
+
+- **GIVEN** a Work Lane has a missing, stale, ambiguous, or legacy provider-only
+  holder
+- **WHEN** ETHOS audits the lane for closeout or cleanup
+- **THEN** ETHOS treats orphan-like facts as evidence requiring a resolution
+  decision
+- **AND** the durable outcome is a Chronicle `lane_resolution` with kind such as
+  `retire`, `preserve`, `block`, `handoff`, or `break_glass`
+- **AND** dirty or owner-unknown lanes are preserved or blocked rather than
+  automatically deleted
+

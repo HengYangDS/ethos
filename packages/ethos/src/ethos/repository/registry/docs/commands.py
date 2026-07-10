@@ -228,11 +228,7 @@ def known_ethos_command(command: str) -> bool:
     if command_tokens[:1] != ["ethos"]:
         return False
     if len(command_tokens) >= 3 and command_tokens[1] in GROUPED_COMMANDS:
-        depth = (
-            4
-            if command_tokens[1] == "lane" and command_tokens[2] in NESTED_LANE_GROUPS
-            else 3
-        )
+        depth = 4 if command_tokens[1] == "lane" and command_tokens[2] in NESTED_LANE_GROUPS else 3
         candidate = " ".join(command_tokens[: min(len(command_tokens), depth)])
         return candidate in KNOWN_ETHOS_COMMANDS
     key = ethos_command_key(command)

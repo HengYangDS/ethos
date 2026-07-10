@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store import state
+import ethos.adapters.store.state.lease as state
 from ethos.surface.cli.lane.core import _lane_status_next_actions
 from ethos.surface.cli.lane.core import _lane_status_summary
 

@@ -13,16 +13,13 @@ from types import SimpleNamespace
 
 import pytest
 
-import ethos.domain.land.core as land_core
-import ethos.domain.land.parity.core as land_parity
-import ethos.domain.land.publication as land_publication
+import ethos.adapters.store.state.events as state_events
+import ethos.adapters.store.state.events as state_schema
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import git
-from ethos.adapters.store import state
-from ethos.repository.evidence import claims
-from ethos.repository.registry import authority
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
@@ -566,20 +563,14 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
 
 def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     db = tmp_path / ".ethos" / "state" / "state.sqlite"
-    state.initialize_state(db)
-    assert state._safe_table("events") == "events"
+    state_schema.initialize_state(db)
+    assert state_events.safe_table("events") == "events"
     with pytest.raises(ValueError):
-        state._safe_table("bad")
-    with closing(sqlite3.connect(db)) as connection, pytest.raises(ValueError):
-        state._table_columns(connection, "events")
-    assert "chronicle_events" in state._insert_event_sql("chronicle_events")
-    assert "insert into events" in state._insert_event_sql("events")
-    assert "from chronicle_events" in state._select_event_sql("chronicle_events")
-    assert "from events" in state._select_event_sql("events")
-    state.append_event(db, event_type="e", subject="s", payload={"x": 1})
-    state.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
-    assert state.list_events(db)[0]["payload"] == {"x": 1}
-    assert state.list_chronicle_events(db)[0]["payload"] == {"y": 2}
+        state_events.safe_table("bad")
+    state_events.append_event(db, event_type="e", subject="s", payload={"x": 1})
+    state_events.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
+    assert state_events.list_events(db)[0]["payload"] == {"x": 1}
+    assert state_events.list_chronicle_events(db)[0]["payload"] == {"y": 2}
 
     assert state.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
     lease = state.acquire_lease(
@@ -615,7 +606,7 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert leases[0]["normalization_state"] == "legacy_ambiguous"
     assert leases[0]["payload"] == {}
     assert state.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
-    assert state.list_events(tmp_path / "missing.sqlite") == []
+    assert state_events.list_events(tmp_path / "missing.sqlite") == []
 
 
 def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -761,5 +752,3 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert coordination.workspace_required_gaps(
         ["work_lane_missing_lease:work/x", "other"], candidate={"exists": False}
     ) == ["work_lane_missing_lease:work/x", "candidate_branch_missing"]
-
-

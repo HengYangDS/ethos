@@ -11,7 +11,7 @@ import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
-from ethos.adapters.store.state import acquire_lease
+from ethos.adapters.store.state.lease import acquire_lease
 
 if TYPE_CHECKING:
     import pytest

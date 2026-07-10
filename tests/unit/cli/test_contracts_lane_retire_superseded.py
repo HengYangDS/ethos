@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store import state
+import ethos.adapters.store.state.lease as state
 
 if TYPE_CHECKING:
     from pathlib import Path

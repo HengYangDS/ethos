@@ -5,11 +5,9 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
-import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 import ethos.adapters.repo.status.core as repo_status
-from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
-from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths
@@ -17,7 +15,6 @@ from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import worktree_binding
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store import state
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -681,5 +678,3 @@ def test_foreign_unknown_scope_is_advisory_when_current_scope_is_bounded() -> No
 
     assert required == []
     assert "coordination_gap:foreign_scope_unknown:work/unknown" in advisory
-
-

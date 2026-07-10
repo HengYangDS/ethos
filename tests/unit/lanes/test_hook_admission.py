@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.admission import identity as admission_identity
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
@@ -17,7 +18,6 @@ from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
-from ethos.adapters.store import state
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import conformant_proof_run

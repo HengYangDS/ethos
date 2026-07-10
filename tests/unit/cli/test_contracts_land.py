@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.domain.land.publication import local_ci_owner_scripts
-from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -15,6 +13,9 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.ethos_cli_runner import write_role_policy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
@@ -841,5 +842,3 @@ def test_publish_reports_stale_local_ci_fallback_evidence_when_manifest_head_dif
     assert payload["summary"]["next_publication_action"] == (
         "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
     )
-
-

@@ -6,20 +6,20 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.store.state import accept_lease_handoff
-from ethos.adapters.store.state import acquire_lease
-from ethos.adapters.store.state import active_leases
-from ethos.adapters.store.state import advance_lease_head
-from ethos.adapters.store.state import append_chronicle_event
-from ethos.adapters.store.state import append_event
-from ethos.adapters.store.state import initialize_state
-from ethos.adapters.store.state import list_chronicle_events
-from ethos.adapters.store.state import list_events
-from ethos.adapters.store.state import normalize_lease
-from ethos.adapters.store.state import offer_lease_handoff
-from ethos.adapters.store.state import renew_lease
-from ethos.adapters.store.state import resume_lease
-from ethos.adapters.store.state import revoke_lease
+from ethos.adapters.store.state.events import append_chronicle_event
+from ethos.adapters.store.state.events import append_event
+from ethos.adapters.store.state.events import initialize_state
+from ethos.adapters.store.state.events import list_chronicle_events
+from ethos.adapters.store.state.events import list_events
+from ethos.adapters.store.state.lease import accept_lease_handoff
+from ethos.adapters.store.state.lease import acquire_lease
+from ethos.adapters.store.state.lease import active_leases
+from ethos.adapters.store.state.lease import advance_lease_head
+from ethos.adapters.store.state.lease import normalize_lease
+from ethos.adapters.store.state.lease import offer_lease_handoff
+from ethos.adapters.store.state.lease import renew_lease
+from ethos.adapters.store.state.lease import resume_lease
+from ethos.adapters.store.state.lease import revoke_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -131,7 +131,7 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
 
 
 def test_acquire_lease_migrates_retired_resource_column_schema(tmp_path: Path) -> None:
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
@@ -182,7 +182,7 @@ def test_acquire_lease_migrates_retired_resource_column_schema(tmp_path: Path) -
 
 
 def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> None:
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     db_path = tmp_path / "state.sqlite"
     first = acquire_lease(db_path, subject="work/current", holder_ref="agent:test:case:agent-a")
@@ -198,7 +198,7 @@ def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> 
 def test_acquire_lease_rejects_duplicate_current_lane_incarnation(
     tmp_path: Path,
 ) -> None:
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     db_path = tmp_path / "state.sqlite"
     first = acquire_lease(
@@ -226,7 +226,7 @@ def test_acquire_lease_rejects_duplicate_current_lane_incarnation(
 def test_acquire_lease_normalizes_holder_generation_and_timestamps(
     tmp_path: Path,
 ) -> None:
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     lease = acquire_lease(
         tmp_path / "state.sqlite",
@@ -444,7 +444,7 @@ def _insert_legacy_lease(db_path: Path, *, subject: str, owner: str) -> str:
 
 
 def test_acquire_lease_skips_empty_retired_resource_rows(tmp_path: Path) -> None:
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
@@ -514,7 +514,7 @@ def test_initialize_state_leaves_unknown_lease_schema_unmigrated(
 
 
 def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> None:
-    from ethos.adapters.store.state import delete_lease
+    from ethos.adapters.store.state.lease import delete_lease
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
@@ -546,8 +546,8 @@ def test_delete_lease_ignores_retired_resource_column_schema(tmp_path: Path) -> 
 def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     tmp_path: Path,
 ) -> None:
-    from ethos.adapters.store.state import acquire_lease
-    from ethos.adapters.store.state import delete_lease
+    from ethos.adapters.store.state.lease import acquire_lease
+    from ethos.adapters.store.state.lease import delete_lease
 
     db_path = tmp_path / "state.sqlite"
     acquire_lease(db_path, subject="work/feature", holder_ref="agent:test:case:agent-a")
@@ -569,7 +569,7 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
     from datetime import datetime
     from datetime import timedelta
 
-    from ethos.adapters.store import state
+    import ethos.adapters.store.state.lease as state
 
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     lease = state.acquire_lease(
@@ -598,7 +598,7 @@ def test_active_leases_returns_empty_when_all_sqlite_reads_fail(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from ethos.adapters.store import state
+    import ethos.adapters.store.state.lease as state
 
     db_path = tmp_path / "state.sqlite"
     state.acquire_lease(db_path, subject="work/feature", holder_ref="agent:test:case:agent-test")

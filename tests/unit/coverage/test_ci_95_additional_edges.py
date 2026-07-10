@@ -15,9 +15,9 @@ import pytest
 
 import ethos.adapters.shadow.execution as shadow_execution
 import ethos.adapters.shadow.semantics as shadow_semantics
+import ethos.adapters.store.state.lease as state
 import ethos.repository.evidence.parity.core as parity
 from ethos.adapters.mutation import lanes
-from ethos.adapters.store import state
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query

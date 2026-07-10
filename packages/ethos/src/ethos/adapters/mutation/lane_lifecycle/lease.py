@@ -15,11 +15,11 @@ from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state import accept_lease_handoff
-from ethos.adapters.store.state import normalize_lease
-from ethos.adapters.store.state import offer_lease_handoff
-from ethos.adapters.store.state import renew_lease
-from ethos.adapters.store.state import resume_lease
+from ethos.adapters.store.state.lease import accept_lease_handoff
+from ethos.adapters.store.state.lease import normalize_lease
+from ethos.adapters.store.state.lease import offer_lease_handoff
+from ethos.adapters.store.state.lease import renew_lease
+from ethos.adapters.store.state.lease import resume_lease
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef

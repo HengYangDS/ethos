@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace
-from ethos.adapters.store import state
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo

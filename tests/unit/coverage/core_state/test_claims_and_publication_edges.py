@@ -1,30 +1,21 @@
-# ruff: noqa: ARG005, TC003, FBT003, PT011, PT018
+# ruff: noqa: ARG005, TC003, PT018
 # Monkeypatch-heavy coverage edge tests intentionally preserve callable signatures
 # matching patched runtime functions; unused parameters document those contracts.
 
 from __future__ import annotations
 
-import json
-import sqlite3
-import subprocess
-from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
-
-import pytest
+from typing import TYPE_CHECKING
 
 import ethos.domain.land.core as land_core
 import ethos.domain.land.parity.core as land_parity
 import ethos.domain.land.publication as land_publication
-from ethos.adapters.mutation import core as mutation_core
-from ethos.adapters.mutation import proof as mutation_proof
-from ethos.adapters.repo import coordination
-from ethos.adapters.repo import git
-from ethos.adapters.store import state
 from ethos.repository.evidence import claims
 from ethos.repository.registry import authority
-from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+
+if TYPE_CHECKING:
+    import pytest
 
 POLICY = SimpleNamespace(
     accepted_branch="dev",

@@ -16,10 +16,10 @@ from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_lifecycle.core import slug
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state import acquire_lease
-from ethos.adapters.store.state import active_leases
-from ethos.adapters.store.state import delete_lease
-from ethos.adapters.store.state import update_lease_payload
+from ethos.adapters.store.state.lease import acquire_lease
+from ethos.adapters.store.state.lease import active_leases
+from ethos.adapters.store.state.lease import delete_lease
+from ethos.adapters.store.state.lease import update_lease_payload
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy

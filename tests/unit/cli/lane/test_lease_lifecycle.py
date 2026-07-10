@@ -8,8 +8,8 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.store.state import acquire_lease
-from ethos.adapters.store.state import active_leases
+from ethos.adapters.store.state.lease import acquire_lease
+from ethos.adapters.store.state.lease import active_leases
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import add_candidate_worktree

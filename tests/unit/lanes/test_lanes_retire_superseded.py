@@ -6,10 +6,10 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime
-from ethos.adapters.store import state
 from tests.unit.lanes.test_lanes_retire import add_candidate_worktree
 from tests.unit.lanes.test_lanes_retire import git
 from tests.unit.lanes.test_lanes_retire import init_repo

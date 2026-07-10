@@ -43,7 +43,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
@@ -85,7 +85,7 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
     new_head = "b" * 40
-    from ethos.adapters.store.state import acquire_lease
+    from ethos.adapters.store.state.lease import acquire_lease
 
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",

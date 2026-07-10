@@ -15,7 +15,7 @@ from cyclopts import Parameter
 
 import ethos.domain.orient as orient_domain
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state import initialize_state
+from ethos.adapters.store.state.events import initialize_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.domain.report import scorecard_report

@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store import state
+import ethos.adapters.store.state.lease as state
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
 from ethos.adapters.store.retrieval import query as retrieval_query

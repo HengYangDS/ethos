@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
-
-import pytest
 
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos_core.contracts.branch.roles import load_branch_role_policy
@@ -12,8 +9,6 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.ethos_cli_runner import write_role_policy
 
 

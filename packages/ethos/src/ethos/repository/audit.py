@@ -103,6 +103,7 @@ REQUIRED_SCHEMAS = (
     "evidence-set.schema.json",
     "provenance.schema.json",
     "chronicle.schema.json",
+    "control-replacement-verifier-receipt.schema.json",
     "evolution.schema.json",
     "docs-registry.schema.json",
     "evolution-ledger.schema.json",

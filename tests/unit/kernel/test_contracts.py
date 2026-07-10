@@ -144,6 +144,7 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "evidence-set.schema.json",
         "provenance.schema.json",
         "chronicle.schema.json",
+        "control-replacement-verifier-receipt.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
         "evolution-ledger.schema.json",

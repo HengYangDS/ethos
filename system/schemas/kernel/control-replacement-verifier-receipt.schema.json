@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/control-replacement-verifier-receipt.schema.json",
+  "title": "ETHOS Control Replacement Verifier Receipt",
+  "type": "object",
+  "required": [
+    "schema_version", "kind", "provenance", "accepted_head", "candidate_head",
+    "control_paths", "accepted_control_digest", "candidate_control_digest",
+    "verifier_path", "verifier_sha256", "candidate_proof_path",
+    "candidate_proof_digest", "bootstrap_decision_path",
+    "bootstrap_decision_digest", "issued_at", "verdict", "mints_authority"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "control-replacement-verifier"},
+    "provenance": {"enum": ["incumbent_runner", "protected_external_bootstrap"]},
+    "accepted_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "candidate_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "control_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "accepted_control_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "candidate_control_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "verifier_path": {"type": "string", "minLength": 1},
+    "verifier_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "candidate_proof_path": {"type": "string", "minLength": 1},
+    "candidate_proof_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "bootstrap_decision_path": {"type": "string", "minLength": 1},
+    "bootstrap_decision_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "verdict": {"const": "allow"},
+    "mints_authority": {"const": false}
+  },
+  "additionalProperties": false
+}

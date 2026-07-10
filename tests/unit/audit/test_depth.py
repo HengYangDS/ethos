@@ -66,6 +66,7 @@ def write_minimal_repository_audit_repo(tmp_path: Path) -> None:
         "evidence-set.schema.json",
         "provenance.schema.json",
         "chronicle.schema.json",
+        "control-replacement-verifier-receipt.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
         "evolution-ledger.schema.json",

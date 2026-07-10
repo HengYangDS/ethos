@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
 from typing import cast
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
+from ethos.repository.policy.schema import validate_schema_instance
 
 _CONTROL_PREFIXES = (
     ".githooks/",
@@ -123,11 +122,25 @@ def _external_receipt(
         return {}, ["control_replacement_receipt_invalid"]
     receipt = cast("dict[str, Any]", payload)
     return receipt, _receipt_gaps(
-        receipt, accepted_head=accepted_head, candidate_head=candidate_head
+        receipt,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+        candidate_root=candidate_root,
     )
 
 
-def _receipt_gaps(receipt: dict[str, Any], *, accepted_head: str, candidate_head: str) -> list[str]:
+def _receipt_gaps(
+    receipt: dict[str, Any],
+    *,
+    accepted_head: str,
+    candidate_head: str,
+    candidate_root: Path,
+) -> list[str]:
+    validation = validate_schema_instance(
+        "control-replacement-verifier-receipt.schema.json", receipt, root=candidate_root
+    )
+    if not validation["ok"]:
+        return ["control_replacement_receipt_invalid"]
     checks = (
         (
             receipt.get("kind") == "control-replacement-verifier",
@@ -148,4 +161,34 @@ def _receipt_gaps(receipt: dict[str, Any], *, accepted_head: str, candidate_head
         (receipt.get("verdict") == "allow", "control_replacement_verdict_not_allow"),
         (receipt.get("mints_authority") is False, "control_replacement_receipt_authority_invalid"),
     )
-    return [gap for ok, gap in checks if not ok]
+    gaps = [gap for ok, gap in checks if not ok]
+    candidate = candidate_root.resolve()
+    for path_key, digest_key, inside_gap, missing_gap, digest_gap in (
+        (
+            "verifier_path",
+            "verifier_sha256",
+            "bootstrap_verifier_inside_candidate_tree",
+            "control_replacement_verifier_missing",
+            "control_replacement_verifier_digest_mismatch",
+        ),
+        (
+            "bootstrap_decision_path",
+            "bootstrap_decision_digest",
+            "bootstrap_decision_inside_candidate_tree",
+            "bootstrap_decision_missing",
+            "bootstrap_decision_digest_mismatch",
+        ),
+    ):
+        path = Path(str(receipt.get(path_key) or "")).resolve()
+        if path == candidate or candidate in path.parents:
+            gaps.append(inside_gap)
+        elif not path.is_file():
+            gaps.append(missing_gap)
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != receipt.get(digest_key):
+            gaps.append(digest_gap)
+    proof = Path(str(receipt.get("candidate_proof_path") or "")).resolve()
+    if not proof.is_file():
+        gaps.append("control_replacement_candidate_proof_missing")
+    elif hashlib.sha256(proof.read_bytes()).hexdigest() != receipt.get("candidate_proof_digest"):
+        gaps.append("control_replacement_candidate_proof_digest_mismatch")
+    return list(dict.fromkeys(gaps))

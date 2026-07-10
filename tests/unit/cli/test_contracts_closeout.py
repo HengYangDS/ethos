@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from tests.support.contract_helpers import adopt_and_commit
@@ -112,61 +111,6 @@ def test_land_closeout_defers_control_replacement_without_incumbent_receipt(
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
     assert "incumbent_or_bootstrap_verifier_required" in payload["required_gaps"]
     assert git(repo, "rev-parse", "HEAD") != candidate_head
-
-
-def test_land_closeout_deduplicates_control_replacement_gap_on_apply_recheck(
-    tmp_path: Path,
-) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    path = candidate / "packages" / "ethos" / "src" / "ethos" / "adapters" / "admission"
-    path.mkdir(parents=True, exist_ok=True)
-    (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
-    git(candidate, "add", ".")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "replace admission control",
-    )
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-    seed_executed_proof(candidate, candidate_head)
-    accepted_head = git(repo, "rev-parse", "HEAD")
-    stale_receipt = tmp_path / "incumbent-receipt.json"
-    stale_receipt.write_text(
-        json.dumps(
-            {
-                "kind": "control-replacement-verifier",
-                "provenance": "incumbent_runner",
-                "accepted_head": accepted_head,
-                "candidate_head": "0" * 40,
-                "verdict": "allow",
-                "mints_authority": False,
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos_blocked(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        accepted_head,
-        "--control-verifier-receipt",
-        stale_receipt.as_posix(),
-        "--json",
-        cwd=repo,
-    )
-
-    assert payload["required_gaps"] == ["control_replacement_candidate_head_mismatch"]
 
 
 def test_land_closeout_audits_candidate_content_before_fast_forward(

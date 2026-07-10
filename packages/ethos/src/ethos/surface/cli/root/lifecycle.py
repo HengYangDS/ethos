@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
@@ -13,6 +14,7 @@ from cyclopts import Parameter
 import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
+from ethos.adapters.admission.control_replacement import control_replacement_report
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
@@ -36,7 +38,6 @@ from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class _CloseoutPayload:
     update: dict[str, object]
     gaps: tuple[str, ...]
     ok: bool
+    control_replacement: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -116,6 +118,8 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             if payload.ok and payload.decision.state == "current"
             else "ready_to_closeout"
             if payload.ok and not payload.mutation.apply
+            else "deferred"
+            if payload.control_replacement.get("verdict") == "defer"
             else "blocked"
             if payload.gaps
             else str(payload.update.get("state") or payload.mutation.command)
@@ -127,6 +131,7 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
             "repository_audit": payload.audit,
             "openspec_lifecycle": payload.lifecycle,
             "accepted_update": payload.update,
+            "control_replacement": payload.control_replacement,
             "closeout_bootstrap": land_core.closeout_bootstrap_package(
                 repo=payload.repo,
                 audit_root=payload.audit_root,
@@ -137,7 +142,13 @@ def _closeout_result(payload: _CloseoutPayload) -> EthosResult:
                 action="accepted.advance",
                 resource=f"refs/heads/{load_branch_role_policy(payload.repo).accepted_branch}",
                 expected_state=_closeout_expected_state(payload),
-                verdict="allow" if payload.ok else "block",
+                verdict=(
+                    "allow"
+                    if payload.ok
+                    else "defer"
+                    if payload.control_replacement.get("verdict") == "defer"
+                    else "block"
+                ),
                 required_gaps=payload.gaps,
                 why=("candidate_already_current",)
                 if payload.ok and payload.decision.state == "current"
@@ -233,6 +244,9 @@ def land(
     authorize: bool = False,
     expect_head: str | None = None,
     closeout: bool = False,
+    control_verifier_receipt: Annotated[
+        Path | None, Parameter(name="--control-verifier-receipt")
+    ] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -254,9 +268,33 @@ def land(
         audit_root = land_core.closeout_audit_root(repo, decision)
         audit = land_core.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
-        gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle)
-        ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"])
+        status_payload = workspace_status(repo)
+        candidate = _mapping_payload(status_payload.get("candidate", {}))
+        control_replacement = control_replacement_report(
+            accepted_root=repo,
+            candidate_root=audit_root,
+            accepted_head=current_head,
+            candidate_head=str(candidate.get("head") or current_head),
+            external_receipt=control_verifier_receipt,
+        )
+        control_gaps = _gap_tuple(control_replacement)
+        gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle) + control_gaps
+        ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
         update: dict[str, object] = {}
+        if ok and apply:
+            fresh_status = workspace_status(repo)
+            fresh_candidate = _mapping_payload(fresh_status.get("candidate", {}))
+            control_replacement = control_replacement_report(
+                accepted_root=repo,
+                candidate_root=audit_root,
+                accepted_head=current_head,
+                candidate_head=str(fresh_candidate.get("head") or current_head),
+                external_receipt=control_verifier_receipt,
+            )
+            fresh_control_gaps = _gap_tuple(control_replacement)
+            if fresh_control_gaps:
+                gaps = gaps + fresh_control_gaps
+                ok = False
         if ok and apply:
             update = apply_candidate_to_accepted(
                 root=repo,
@@ -277,6 +315,7 @@ def land(
                 gaps=gaps,
                 ok=ok,
                 current_head=current_head,
+                control_replacement=control_replacement,
             )
         )
         emit(result, json_output=json_output, enforce=apply)

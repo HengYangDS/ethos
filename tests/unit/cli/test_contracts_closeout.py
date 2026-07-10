@@ -69,6 +69,50 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     assert git(repo, "rev-parse", "HEAD") == candidate_head
 
 
+def test_land_closeout_defers_control_replacement_without_incumbent_receipt(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    path = candidate / "packages" / "ethos" / "src" / "ethos" / "adapters" / "admission"
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
+    git(candidate, "add", ".")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "replace admission control",
+    )
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    seed_executed_proof(candidate, candidate_head)
+
+    payload = run_ethos_blocked(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        git(repo, "rev-parse", "HEAD"),
+        "--json",
+        cwd=repo,
+    )
+
+    control = payload["data"]["control_replacement"]
+    assert control["required"] is True
+    assert control["verdict"] == "defer"
+    assert payload["state"] == "deferred"
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+    assert "incumbent_or_bootstrap_verifier_required" in payload["required_gaps"]
+    assert git(repo, "rev-parse", "HEAD") != candidate_head
+
+
 def test_land_closeout_audits_candidate_content_before_fast_forward(
     tmp_path: Path,
     monkeypatch,

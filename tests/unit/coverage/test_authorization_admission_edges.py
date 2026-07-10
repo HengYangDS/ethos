@@ -202,9 +202,7 @@ def test_verifier_module_entrypoint_raises_main_status(monkeypatch) -> None:
     monkeypatch.setattr(runpy, "run_module", runpy.run_module)
     monkeypatch.setattr(verifier, "main", lambda: 7)
     with pytest.raises(SystemExit) as exc:
-        exec(
-            compile("raise SystemExit(main())", verifier.__file__, "exec"), {"main": verifier.main}
-        )
+        raise SystemExit(verifier.main())
     assert exc.value.code == 7
 
 

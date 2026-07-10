@@ -9,11 +9,13 @@ import ethos.surface.cli.quality.core as quality_core
 from ethos.surface.cli.boundary import product as boundary_product
 from ethos.surface.cli.boundary import readiness as boundary_readiness
 from ethos.surface.cli.quality.cutover import core as cutover_core
+from ethos.surface.cli.quality.reporting import CompiledReportCommand
 from ethos.surface.cli.quality.reporting import ReportCommandSpec
 from ethos.surface.cli.quality.reporting import ReportHandlerSpec
 from ethos.surface.cli.quality.reporting import advisory_state
 from ethos.surface.cli.quality.reporting import build_report_result
 from ethos.surface.cli.quality.reporting import compile_report_commands
+from ethos.surface.cli.quality.reporting import compile_report_handlers
 from ethos.surface.cli.quality.reporting import conditional_actions
 from ethos.surface.cli.quality.reporting import constant_actions
 from ethos.surface.cli.quality.reporting import count_at
@@ -23,6 +25,7 @@ from ethos.surface.cli.quality.reporting import emit_report_command
 from ethos.surface.cli.quality.reporting import field_data
 from ethos.surface.cli.quality.reporting import field_summary
 from ethos.surface.cli.quality.reporting import head_bound_report
+from ethos.surface.cli.quality.reporting import make_report_handler
 from ethos.surface.cli.quality.reporting import module_report
 from ethos.surface.cli.quality.reporting import path_value
 from ethos.surface.cli.quality.reporting import payload_report
@@ -239,33 +242,78 @@ def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
     }
 
     assert set(quality_core.REPORT_COMMANDS) == expected_functions
-    for function_name, (
-        command_name,
-        spec,
-        _enforce,
-        _bind_root,
-    ) in quality_core.REPORT_COMMANDS.items():
+    for function_name, command in quality_core.REPORT_COMMANDS.items():
         assert getattr(quality_core, function_name).__doc__
-        assert isinstance(spec, ReportCommandSpec)
-        assert spec.command == f"quality {command_name}"
+        assert isinstance(command, CompiledReportCommand)
+        assert isinstance(command.handler.report, ReportCommandSpec)
+        assert command.handler.report.command == f"quality {command.command_name}"
 
 
 def test_quality_report_commands_are_compiled_from_command_declaration() -> None:
     registry = quality_core.REPORT_COMMANDS
 
-    assert registry["asset_policy"][1] is quality_core.ASSET_POLICY_COMMAND
-    assert registry["quality_types"][1] is quality_core.TYPES_COMMAND
-    assert registry["quality_types"][2:] == (True, True)
-    assert registry["claims"][1] is quality_core.CLAIMS_COMMAND
-    assert registry["claims"][2:] == (False, True)
+    assert registry["asset_policy"].handler.report is quality_core.ASSET_POLICY_COMMAND
+    assert registry["quality_types"].handler.report is quality_core.TYPES_COMMAND
+    assert registry["quality_types"].handler.enforce is True
+    assert registry["quality_types"].handler.bind_root is True
+    assert registry["claims"].handler.report is quality_core.CLAIMS_COMMAND
+    assert registry["claims"].handler.enforce is False
+    assert registry["claims"].handler.bind_root is True
 
     source = Path("packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
         encoding="utf-8"
     )
     report_table = source[source.index("REPORT_COMMANDS = ") :]
-    assert "compile_report_commands(" in report_table
+    assert "compile_report_handlers(" in report_table
     assert 'asset_policy": (' not in report_table
     assert 'quality_types": (' not in report_table
+
+
+def test_compile_report_handlers_returns_declarative_handler_plans() -> None:
+    declarations = tuple(
+        command
+        for command in quality_core.load_command_registry_declaration().group("quality")
+        if command.name in {"asset-policy", "types"}
+    )
+
+    handlers = compile_report_handlers(
+        declarations=declarations,
+        specs={
+            "ASSET_POLICY_COMMAND": quality_core.ASSET_POLICY_COMMAND,
+            "TYPES_COMMAND": quality_core.TYPES_COMMAND,
+        },
+    )
+
+    assert set(handlers) == {"asset_policy", "quality_types"}
+    assert isinstance(handlers["asset_policy"], CompiledReportCommand)
+    assert handlers["asset_policy"].command_name == "asset-policy"
+    assert handlers["asset_policy"].handler.doc == "Report repository asset quality policy."
+    assert handlers["asset_policy"].handler.enforce is False
+    assert handlers["asset_policy"].handler.bind_root is False
+    assert handlers["asset_policy"].make_handler().__name__ == "asset_policy"
+    assert handlers["quality_types"].handler.enforce is True
+    assert handlers["quality_types"].handler.bind_root is True
+
+
+def test_compile_report_handlers_rejects_command_name_mismatch() -> None:
+    declaration = CommandDeclaration(
+        name="sample",
+        group="quality",
+        import_path="ethos.surface.cli.quality.core:sample",
+        help="Sample.",
+        report_handler=ReportHandlerDeclaration(spec="SAMPLE_COMMAND"),
+    )
+
+    with pytest.raises(ValueError, match="report command mismatch"):
+        compile_report_handlers(
+            declarations=(declaration,),
+            specs={
+                "SAMPLE_COMMAND": ReportCommandSpec(
+                    command="quality wrong",
+                    report=lambda _root: {"ok": True},
+                )
+            },
+        )
 
 
 def test_compile_report_commands_reuses_command_registry_metadata() -> None:
@@ -464,6 +512,33 @@ def test_report_handler_spec_is_frozen_pydantic_contract() -> None:
 
     with pytest.raises(ValidationError, match="frozen_instance"):
         spec.doc = "Changed."  # type: ignore[misc]
+
+
+def test_make_report_handler_keeps_optional_metadata_absent() -> None:
+    handler = make_report_handler(
+        ReportHandlerSpec(
+            report=ReportCommandSpec(command="quality unnamed", report=lambda _root: {"ok": True}),
+            enforce=False,
+            bind_root=False,
+            doc="Unnamed.",
+        )
+    )
+
+    assert handler.__doc__ == "Unnamed."
+    assert handler.__name__ == "handler"
+    assert handler.__module__ == "ethos.surface.cli.quality.reporting"
+
+
+def test_compile_report_handlers_filters_commands_without_report_handlers() -> None:
+    declaration = CommandDeclaration(
+        name="manual",
+        group="quality",
+        import_path="ethos.surface.cli.quality.core:manual",
+        help="Manual command.",
+        report_handler=None,
+    )
+
+    assert compile_report_handlers(declarations=(declaration,), specs={}) == {}
 
 
 def test_report_command_spec_rejects_non_callable_report() -> None:

@@ -21,6 +21,7 @@ from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from ethos_core.contracts.commands import CommandDeclaration
+    from ethos_core.contracts.commands import ReportHandlerDeclaration
 
 ReportPayload = Mapping[str, object]
 ReportLoader = Callable[[Path], ReportPayload]
@@ -33,6 +34,7 @@ StateProjection = Callable[[ReportPayload, object], str]
 HeadProvider = Callable[[Path], str]
 PayloadLoader = Callable[[Path], object]
 ReportCommandRegistry = Mapping[str, tuple[str, "ReportCommandSpec", bool, bool]]
+ReportHandlerRegistry = Mapping[str, "CompiledReportCommand"]
 ReportHandler = Callable[..., None]
 
 
@@ -160,6 +162,20 @@ class ReportHandlerSpec(BaseModel):
     module: str = ""
 
 
+class CompiledReportCommand(BaseModel):
+    """Frozen handler plan compiled from one command declaration and report spec."""
+
+    model_config = ConfigDict(frozen=True)
+
+    function_name: str
+    command_name: str
+    handler: ReportHandlerSpec
+
+    def make_handler(self) -> ReportHandler:
+        """Compile the declared handler plan into a native Cyclopts callable."""
+        return make_report_handler(self.handler)
+
+
 def build_report_result(spec: ReportCommandSpec, root: Path) -> EthosResult:
     """Compile a report command declaration into an ``EthosResult``."""
     report = spec.report(root)
@@ -239,7 +255,108 @@ def declared_report_handler(
     group: str = "quality",
 ) -> ReportHandler:
     """Compile one command handler from ``system/commands.toml`` metadata."""
+    return declared_report_handler_plan(
+        module_name=module_name,
+        function_name=function_name,
+        spec_name=spec_name,
+        spec=spec,
+        group=group,
+    ).make_handler()
+
+
+def declared_report_handler_plan(
+    *,
+    module_name: str,
+    function_name: str,
+    spec_name: str,
+    spec: ReportCommandSpec,
+    group: str = "quality",
+) -> CompiledReportCommand:
+    """Compile one command declaration into a frozen report handler plan."""
     import_path = f"{module_name}:{function_name}"
+    declaration = _declared_command(import_path=import_path, group=group)
+    if declaration.report_handler is None:
+        msg = f"report handler declaration missing: {import_path}"
+        raise KeyError(msg)
+    if declaration.report_handler.spec != spec_name:
+        msg = (
+            "report handler spec mismatch: "
+            f"{import_path} declares {declaration.report_handler.spec}, expected {spec_name}"
+        )
+        raise ValueError(msg)
+    return _compiled_report_command(
+        declaration=declaration,
+        spec=spec,
+        function_name=function_name,
+        module_name=module_name,
+    )
+
+
+def compile_report_handlers(
+    *,
+    declarations: Sequence[CommandDeclaration],
+    specs: Mapping[str, ReportCommandSpec],
+    import_path_prefix: str | None = None,
+) -> ReportHandlerRegistry:
+    """Compile report command declarations into frozen native handler plans."""
+    return {
+        _function_name(command): _compiled_report_command(
+            declaration=command,
+            spec=specs[_report_spec_name(command)],
+            function_name=_function_name(command),
+            module_name=_module_name(command),
+        )
+        for command in _report_handler_declarations(declarations, import_path_prefix)
+    }
+
+
+def compile_report_commands(
+    *,
+    declarations: Sequence[CommandDeclaration],
+    specs: Mapping[str, ReportCommandSpec],
+    import_path_prefix: str | None = None,
+) -> ReportCommandRegistry:
+    """Compile quality command declarations into native handler metadata."""
+    return {
+        function_name: (
+            command.command_name,
+            command.handler.report,
+            command.handler.enforce,
+            command.handler.bind_root,
+        )
+        for function_name, command in compile_report_handlers(
+            declarations=declarations,
+            specs=specs,
+            import_path_prefix=import_path_prefix,
+        ).items()
+    }
+
+
+def _report_handler_declarations(
+    declarations: Sequence[CommandDeclaration],
+    import_path_prefix: str | None,
+) -> tuple[CommandDeclaration, ...]:
+    return tuple(
+        command
+        for command in declarations
+        if command.report_handler is not None
+        and (import_path_prefix is None or command.import_path.startswith(import_path_prefix))
+    )
+
+
+def _function_name(command: CommandDeclaration) -> str:
+    return command.import_path.rsplit(":", maxsplit=1)[1]
+
+
+def _module_name(command: CommandDeclaration) -> str:
+    return command.import_path.rsplit(":", maxsplit=1)[0]
+
+
+def _report_spec_name(command: CommandDeclaration) -> str:
+    return cast("ReportHandlerDeclaration", command.report_handler).spec
+
+
+def _declared_command(*, import_path: str, group: str) -> CommandDeclaration:
     declaration = next(
         (
             command
@@ -251,48 +368,32 @@ def declared_report_handler(
     if declaration is None:
         msg = f"command declaration missing: {import_path}"
         raise KeyError(msg)
-    if declaration.report_handler is None:
-        msg = f"report handler declaration missing: {import_path}"
-        raise KeyError(msg)
-    if declaration.report_handler.spec != spec_name:
-        msg = (
-            "report handler spec mismatch: "
-            f"{import_path} declares {declaration.report_handler.spec}, expected {spec_name}"
-        )
+    return declaration
+
+
+def _compiled_report_command(
+    *,
+    declaration: CommandDeclaration,
+    spec: ReportCommandSpec,
+    function_name: str,
+    module_name: str,
+) -> CompiledReportCommand:
+    report_handler = cast("ReportHandlerDeclaration", declaration.report_handler)
+    if spec.command != f"{declaration.group} {declaration.name}":
+        msg = f"report command mismatch: {spec.command} != {declaration.group} {declaration.name}"
         raise ValueError(msg)
-    if spec.command != f"{group} {declaration.name}":
-        msg = f"report command mismatch: {spec.command} != {group} {declaration.name}"
-        raise ValueError(msg)
-    return make_report_handler(
-        ReportHandlerSpec(
+    return CompiledReportCommand(
+        function_name=function_name,
+        command_name=declaration.name,
+        handler=ReportHandlerSpec(
             report=spec,
-            enforce=declaration.report_handler.enforce,
-            bind_root=declaration.report_handler.bind_root,
+            enforce=report_handler.enforce,
+            bind_root=report_handler.bind_root,
             doc=declaration.help,
             name=function_name,
             module=module_name,
-        )
+        ),
     )
-
-
-def compile_report_commands(
-    *,
-    declarations: Sequence[CommandDeclaration],
-    specs: Mapping[str, ReportCommandSpec],
-    import_path_prefix: str | None = None,
-) -> ReportCommandRegistry:
-    """Compile quality command declarations into native handler metadata."""
-    return {
-        command.import_path.rsplit(":", maxsplit=1)[1]: (
-            command.name,
-            specs[command.report_handler.spec],
-            command.report_handler.enforce,
-            command.report_handler.bind_root,
-        )
-        for command in declarations
-        if command.report_handler is not None
-        and (import_path_prefix is None or command.import_path.startswith(import_path_prefix))
-    }
 
 
 def _mapping(value: object) -> Mapping[str, object]:

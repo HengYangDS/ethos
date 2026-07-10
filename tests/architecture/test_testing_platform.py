@@ -153,3 +153,19 @@ def test_governance_kernel_gate_uses_local_command_plane_without_dev_env_sync() 
     assert "ETHOS_PYTHON" in script
     assert "PYTHONPATH" in script
     assert "uv run --all-packages --group dev" not in script
+
+
+def test_python_lint_gate_names_all_governed_python_roots() -> None:
+    """Packages, tools, and tests share one Python lint/format law."""
+    script = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
+
+    assert 'python_quality_roots=("packages" "tools" "tests")' in script
+    assert (
+        'ruff check --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" "${python_quality_roots[@]}"'
+        in script
+    )
+    assert (
+        'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${python_quality_roots[@]}"'
+        in script
+    )
+    assert '"packages" "tools" "tests"' in script

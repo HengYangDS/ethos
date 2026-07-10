@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import json
 import shutil
 import subprocess
@@ -10,6 +9,8 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from cyclopts import App
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/ci/hosted-observation.toml"
@@ -129,25 +130,32 @@ def _observe(provider: str, *, execute: bool) -> dict[str, Any]:
     return record
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Capture hosted provider observation envelopes.")
-    parser.add_argument("--execute", action="store_true", help="Run provider CLIs when available.")
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args(argv)
+cli_app = App(
+    name="ethos-hosted-observation",
+    help="Capture hosted provider observation envelopes.",
+)
 
+
+@cli_app.default
+def capture_observation(
+    *,
+    execute: bool = False,
+    output: Path | None = None,
+) -> int:
+    """Capture provider observations without converting them into proof claims."""
     config = _load_config()
     providers = [str(provider) for provider in config.get("providers", [])]
-    observations = [_observe(provider, execute=args.execute) for provider in providers]
+    observations = [_observe(provider, execute=execute) for provider in providers]
     payload: dict[str, Any] = {
         "schema_version": 1,
         "kind": "ethos_hosted_provider_observation",
         "ok": True,
-        "state": "observed" if args.execute else "dry_run",
+        "state": "observed" if execute else "dry_run",
         "head": _git_head(),
         "remote_url": _git_remote_url(),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
-        "execute": args.execute,
+        "execute": execute,
         "evidence_class": config.get("boundary", {}).get(
             "evidence_class", "hosted_provider_observation"
         ),
@@ -158,10 +166,21 @@ def main(argv: list[str] | None = None) -> int:
         "remote_publication_claimed": False,
         "observations": observations,
     }
-    output = ROOT / str(args.output or config["output"])
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path = ROOT / str(output or config["output"])
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the Cyclopts-backed hosted-observation command surface."""
+    try:
+        cli_app(argv)
+    except SystemExit as exc:
+        if isinstance(exc.code, int):
+            return exc.code
+        raise
     return 0
 
 

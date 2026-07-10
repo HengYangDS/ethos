@@ -4,6 +4,7 @@ import json
 import os
 import stat
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -98,7 +99,7 @@ def test_hosted_provider_observation_execute_mode_records_provider_facts(
 
     subprocess.run(
         [
-            "python",
+            sys.executable,
             "tools/ci/hosted_observation.py",
             "--execute",
             "--output",

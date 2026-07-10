@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import shutil
@@ -10,7 +9,12 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 from typing import Any
+from typing import Literal
+
+from cyclopts import App
+from cyclopts import Parameter
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/ci/templates.toml"
@@ -342,32 +346,45 @@ def emulator_evidence(
     return 0 if payload["ok"] else int(run["returncode"] or 1)
 
 
+cli_app = App(name="ethos-ci", help="ETHOS CI projection and local emulator helpers.")
+
+
+@cli_app.command(name="check-templates")
+def check_templates_command(
+    *, json_output: Annotated[bool, Parameter(name="--json")] = False
+) -> int:
+    """Check hosted CI template projections against their generated surfaces."""
+    return check_templates(json_output=json_output)
+
+
+@cli_app.command(name="emulator-evidence")
+def emulator_evidence_command(
+    provider: Literal["github", "gitlab"],
+    *,
+    mode: str = "list",
+    dry_run: bool = False,
+    allow_untracked: bool = False,
+    output: Path | None = None,
+) -> int:
+    """Write local provider-emulator evidence without claiming hosted CI status."""
+    return emulator_evidence(
+        provider,
+        mode=mode,
+        dry_run=dry_run,
+        allow_untracked=allow_untracked,
+        output=output,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="ETHOS CI projection and local emulator helpers.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    check = subparsers.add_parser("check-templates")
-    check.add_argument("--json", action="store_true")
-
-    emulator = subparsers.add_parser("emulator-evidence")
-    emulator.add_argument("provider", choices=("github", "gitlab"))
-    emulator.add_argument("--mode", default="list")
-    emulator.add_argument("--dry-run", action="store_true")
-    emulator.add_argument("--allow-untracked", action="store_true")
-    emulator.add_argument("--output", type=Path)
-
-    args = parser.parse_args(argv)
-    if args.command == "check-templates":
-        return check_templates(json_output=args.json)
-    if args.command == "emulator-evidence":
-        return emulator_evidence(
-            args.provider,
-            mode=args.mode,
-            dry_run=args.dry_run,
-            allow_untracked=args.allow_untracked,
-            output=args.output,
-        )
-    raise AssertionError(args.command)
+    """Run the Cyclopts-backed CI helper command surface."""
+    try:
+        cli_app(argv)
+    except SystemExit as exc:
+        if isinstance(exc.code, int):
+            return exc.code
+        raise
+    return 0
 
 
 if __name__ == "__main__":

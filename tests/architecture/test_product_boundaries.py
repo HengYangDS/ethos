@@ -342,6 +342,19 @@ def test_cli_uses_cyclopts_not_argparse() -> None:
     assert "argparse" not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
 
 
+def test_tool_command_surfaces_use_cyclopts_not_argparse() -> None:
+    """Keep repository tool CLIs under the same command framework as product CLIs."""
+    tool_cli_paths = [
+        ROOT / "tools/ci/ci_templates.py",
+        ROOT / "tools/ci/hosted_observation.py",
+    ]
+
+    for path in tool_cli_paths:
+        modules = imported_modules(path)
+        assert "cyclopts" in modules, path
+        assert "argparse" not in modules, path
+
+
 def test_package_roots_do_not_reexport_module_surfaces() -> None:
     for path in (ROOT / "packages").glob("*/src/*/__init__.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

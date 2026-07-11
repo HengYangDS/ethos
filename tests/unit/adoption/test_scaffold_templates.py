@@ -28,9 +28,9 @@ def _files_digest(files: dict[str, str]) -> str:
 @pytest.mark.parametrize(
     ("profile", "expected_count", "expected_digest"),
     [
-        ("generic", 65, "3c7d9eec0a6b417c016a93bd0b55afc238d83c5a0230d43e2bbba619d2757305"),
-        ("github", 66, "799103f823eddc6e6f04169a181928bc59abe5d51118a69aac37c508dbe8c8cf"),
-        ("gitlab", 66, "a3665fcdd9c2f2531611a2a9f1847483ece3ebe27f8e2ba9d3cac0e066ed2626"),
+        ("generic", 66, "45319a36e1fc47df7c87996dfdcd06486cea5d4152acef3cb67326d63d9ec90b"),
+        ("github", 67, "65d2f3cbdee891ce6f9d83aa01686920911737876eafc8b35bf0b232c80952db"),
+        ("gitlab", 67, "9435cdfd7a3969ab474ee6d1285dde08b29af073318a07982322b23380bec168"),
     ],
 )
 def test_scaffold_template_migration_preserves_default_file_bytes(
@@ -56,7 +56,7 @@ def test_monorepo_template_preserves_sorted_package_projection(tmp_path: Path) -
     files = default_files(root, "monorepo")
 
     assert (
-        _files_digest(files) == "091914df049991c2194790a95e27c40ba603347cb90edc7b9f7f0bf0ec468572"
+        _files_digest(files) == "fa80c42bfd079b3673a0a2c0aa7d596c3e70c3286572e1ac35aa9e080bd0e777"
     )
     assert files[".ethos/workspace.toml"].index('name = "alpha"') < files[
         ".ethos/workspace.toml"

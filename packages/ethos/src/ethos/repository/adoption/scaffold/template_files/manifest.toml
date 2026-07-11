@@ -16,6 +16,11 @@ template = "core/project.toml.j2"
 required = true
 
 [[artifact]]
+path = ".ethos/profile.toml"
+template = "core/profile.toml.j2"
+required = true
+
+[[artifact]]
 path = ".ethos/workspace.toml"
 template = "core/workspace.toml.j2"
 required = true

@@ -12,7 +12,6 @@ from pydantic import ConfigDict
 from ethos_core._resources import declaration_text
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
-_CANONICAL_DECLARATION_PATH = DECLARATION_PATH
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
 
 
@@ -105,7 +104,9 @@ def _default_declaration_path() -> Path:
 
 def _declaration_text(path: Path) -> str:
     return declaration_text(
-        path, resource=_DECLARATION_RESOURCE, canonical=_CANONICAL_DECLARATION_PATH
+        path,
+        resource=_DECLARATION_RESOURCE,
+        canonical=Path("system/policies/evidence-layout.toml"),
     )
 
 

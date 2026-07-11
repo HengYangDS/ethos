@@ -108,6 +108,23 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_provider_python_producers_are_runtime_bound() -> None:
+    runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
+    provider_paths = [
+        ".github/workflows/ci.yml",
+        ".gitlab-ci.yml",
+        "tools/ci/scripts/run-github-local-emulator.sh",
+        "tools/ci/scripts/run-gitlab-local-emulator.sh",
+    ]
+
+    for relative_path in provider_paths:
+        lines = (ROOT / relative_path).read_text(encoding="utf-8").splitlines()
+        uv_producers = [line.strip() for line in lines if "uv run" in line or "uv build" in line]
+
+        assert uv_producers, relative_path
+        assert all(runtime in line for line in uv_producers), relative_path
+
+
 def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
     adopter_gitlab_template = (

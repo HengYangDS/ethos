@@ -34,7 +34,7 @@ jobs:
       - name: Python lint
         run: tools/ci/scripts/run-python-lint.sh
       - name: Type policy
-        run: uv run --all-packages --group dev ethos quality types --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
       - name: Import boundaries
         run: tools/ci/scripts/run-import-linter.sh
       - name: Dependency hygiene
@@ -100,17 +100,17 @@ jobs:
       - name: Configure governed checkout
         run: tools/ci/scripts/configure-git-checkout.sh
       - name: Arm write admission
-        run: uv run --package ethos ethos hook install --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
       - name: Unit and architecture tests
         run: tools/ci/scripts/run-python-tests.sh
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
       - name: ETHOS audit
-        run: uv run --package ethos ethos audit --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
       - name: ETHOS report
-        run: uv run --package ethos ethos report --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
       - name: HEAD-bound proof
-        run: uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 
   package:
     name: package artifacts
@@ -124,7 +124,7 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
-        run: uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
+        run: tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

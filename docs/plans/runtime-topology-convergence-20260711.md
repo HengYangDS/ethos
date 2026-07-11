@@ -29,8 +29,10 @@ operator removes them deliberately.
 ## Constraints
 
 - No normal tracked mutation outside this owned Work Lane.
-- No mutation, deletion, or retirement of foreign Work Lanes or root `.venv`
-  directories.
+- No mutation, deletion, or retirement of foreign Work Lane worktrees or root
+  `.venv` directories. The current user-authorized integration decision permits
+  this owned lane to update the four named provider projections as source files;
+  it does not transfer, retire, or rewrite the overlapping foreign lane.
 - Keep checkout environment, dependency cache, evidence, artifacts, and leases
   as distinct lifecycle classes.
 - Preserve `ETHOS_PYTHON`, `PYTHON`, and CI `UV_CACHE_DIR` as bounded overrides;
@@ -44,6 +46,7 @@ operator removes them deliberately.
 | --- | --- |
 | `tools/ci/scripts/with-python-runtime.sh` | New sole runtime-binding adapter. |
 | `tools/ci/scripts/run-*.sh`, `.githooks/*` | Consumers of the adapter; no root env fallback. |
+| `.config/ci/templates/hosted/*`, `.github/workflows/ci.yml`, `.gitlab-ci.yml` | Provider templates and checked projections; all Python/uv producers invoke the adapter. |
 | `system/policies/generated-artifact-topology.toml` + packaged mirror | Runtime lifecycle and entrypoint policy. |
 | `packages/ethos/src/ethos/repository/policy/artifacts.py` | Executable-path audit. |
 | `.config/checks/local-state/audit.toml`, `tools/ci/local_state_audit.py` | Migration-residue observation. |
@@ -105,15 +108,15 @@ operator removes them deliberately.
   host/CI content cache and to state migration/rollback behavior.
 - [ ] Update adopter `.gitignore` and CI templates to model runtime state without
   treating root `.venv` as a normal launcher target.
-- [ ] Do not edit foreign-owned hosted/emulator templates or canonical command
-  reference; instead record necessary integration handoff paths in Chronicle
-  evidence if their owners have not landed compatible updates.
-- [ ] Current integration dependency: the topology audit deliberately remains
-  blocking for `.github/workflows/ci.yml`, `.gitlab-ci.yml`,
-  `tools/ci/scripts/run-github-local-emulator.sh`, and
-  `tools/ci/scripts/run-gitlab-local-emulator.sh`. These provider projections
-  belong to another owned lane; this lane MUST neither weaken the audit nor
-  mutate, land, or retire that owner’s work.
+- [ ] Under the current user-authorized integration decision, route the named
+  provider templates, checked projections, and local emulator wrappers through
+  the bootstrap in this owned lane. Preserve template-to-projection byte parity;
+  do not mutate or retire the overlapping foreign Work Lane.
+- [ ] Keep topology audit blocking for `.github/workflows/ci.yml`,
+  `.gitlab-ci.yml`, `tools/ci/scripts/run-github-local-emulator.sh`, and
+  `tools/ci/scripts/run-gitlab-local-emulator.sh` until all four invoke the
+  bootstrap. Record the resulting overlap and later resolution in evidence; do
+  not weaken the audit.
 - [ ] Add or update scoped doc and scaffold tests.
 
 ## 5. Proof and closeout

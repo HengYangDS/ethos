@@ -1,0 +1,46 @@
+[claim]
+id = "refresh-base-postcondition-20260712"
+subject = "ethos:work-lane-refresh-postcondition"
+state = "active"
+summary = "ETHOS refresh-base blocks a reported replay success unless the captured candidate head is an ancestor of the refreshed Work Lane head."
+
+[evidence]
+dated = "evidence/chronicle/refresh-base-postcondition-20260712/2026-07-12.md"
+sha256 = "45dfc216bb7f71f04367b3c3dd462ee4f67fa11780d116207838db3837b5711e"
+evidence_ids = ["evidence:refresh-base-postcondition-20260712"]
+binding = "Focused lifecycle, projection, quality, and OpenSpec evidence for the ancestry-bound refresh transition."
+verifier = "semantic"
+tests = [
+  "tests/unit/lanes/test_lanes_lifecycle.py",
+  "tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "ethos openspec --change refresh-base-postcondition-20260712 --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+packages = ["ethos"]
+tests = [
+  "tests/unit/lanes/test_lanes_lifecycle.py",
+  "tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
+]
+
+[boundary]
+owner = "ethos-lifecycle"
+scope = "Work Lane base refresh truthfulness: replay success requires captured-candidate ancestry in the resulting Work Lane head."
+
+[carriers]
+openspec = "openspec/changes/refresh-base-postcondition-20260712"
+fallback = "Keep the Work Lane transition blocked when replay cannot establish captured-candidate ancestry; repair the replay environment and rerun refresh-base."
+kill_signal = "A zero-exit replay can report success while the captured candidate head is absent from the resulting Work Lane history."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py" },
+  { kind = "tests", path = "tests/unit/lanes/test_lanes_lifecycle.py" },
+  { kind = "tests", path = "tests/unit/cli/test_contracts_lane_refresh_base_projection.py" },
+  { kind = "evidence", path = "evidence/chronicle/refresh-base-postcondition-20260712/2026-07-12.md" },
+  { kind = "evidence", path = "evidence/claims/refresh-base-postcondition-20260712.toml" },
+]

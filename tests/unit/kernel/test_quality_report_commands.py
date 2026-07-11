@@ -222,6 +222,7 @@ def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
         "proof_policy",
         "tool_profiles_command",
         "coverage",
+        "performance",
         "docstrings",
         "code_size",
         "module_layout",
@@ -256,6 +257,9 @@ def test_quality_report_commands_are_compiled_from_command_declaration() -> None
     assert registry["quality_types"].handler.report is quality_core.TYPES_COMMAND
     assert registry["quality_types"].handler.enforce is True
     assert registry["quality_types"].handler.bind_root is True
+    assert registry["performance"].handler.report is quality_core.PERFORMANCE_COMMAND
+    assert registry["performance"].handler.enforce is True
+    assert registry["performance"].handler.bind_root is True
     assert registry["claims"].handler.report is quality_core.CLAIMS_COMMAND
     assert registry["claims"].handler.enforce is False
     assert registry["claims"].handler.bind_root is True

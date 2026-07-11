@@ -6,4 +6,4 @@
   irreversible ref/worktree transition.
 - [x] 3. Cover break-glass, confirmation, preservation, and retirement paths.
 - [x] 4. Document the command boundary and safeguards.
-- [ ] 5. Run focused and head-bound proof, then archive the OpenSpec delta.
+- [x] 5. Run focused and head-bound proof, then archive the OpenSpec delta.

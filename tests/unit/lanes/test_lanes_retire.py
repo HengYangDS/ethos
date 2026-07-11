@@ -5,6 +5,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
+import ethos.adapters.repo.dirty.core as dirty_core
 import ethos.adapters.repo.status.core as repo_status
 import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.mutation.lanes import retire_landed_work_lanes
@@ -544,6 +545,16 @@ def test_dirty_provenance_does_not_misclassify_ordinary_untracked_files(
         "paths": [],
         "truncated": False,
     }
+
+
+def test_temporary_probe_classification_ignores_unreadable_file(tmp_path: Path) -> None:
+    assert (
+        dirty_core._is_temporary_test_probe(
+            tmp_path,
+            {"kind": "untracked", "path": "tests/unit/test_missing_probe.py"},
+        )
+        is False
+    )
 
 
 def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(

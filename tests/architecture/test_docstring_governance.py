@@ -27,10 +27,8 @@ def test_docstring_gate_exposes_broader_nonblocking_inventory() -> None:
     source = (ROOT / "packages/ethos/src/ethos/repository/policy/docstrings/core.py").read_text(
         encoding="utf-8"
     )
-    quality = (ROOT / "packages/ethos/src/ethos/surface/cli/quality/core.py").read_text(
-        encoding="utf-8"
-    )
+    commands = (ROOT / "system/commands.toml").read_text(encoding="utf-8")
 
     assert "advisory_public_definition_inventory" in source
     assert '"blocking": False' in source
-    assert "advisory_missing_count" in quality
+    assert "advisory_missing_count" in commands

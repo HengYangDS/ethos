@@ -18,7 +18,7 @@
 
 ## 3. Declarative Runtime Compression
 
-- [ ] 3.1 Implement the typed declaration/projection compiler and delete the
+- [x] 3.1 Implement the typed declaration/projection compiler and delete the
   first duplicated envelope/read-model builders.
 - [ ] 3.2 Complete CEL topology/policy parity, cutover, and old-chain deletion.
 - [ ] 3.3 Converge policy/read models, lifecycle reducers, and command registry

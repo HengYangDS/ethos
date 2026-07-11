@@ -47,24 +47,41 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
         if command.report_handler is not None
     }
 
-    assert report_handlers["asset-policy"].spec == "ASSET_POLICY_COMMAND"
+    assert report_handlers["asset-policy"].provider == (
+        "ethos.surface.cli.quality.core:_product_quality_profile"
+    )
     assert report_handlers["asset-policy"].enforce is False
     assert report_handlers["asset-policy"].bind_root is False
-    assert report_handlers["types"].spec == "TYPES_COMMAND"
+    assert report_handlers["types"].provider == "ethos.adapters.gates.ty:ty_gate_report"
     assert report_handlers["types"].enforce is True
     assert report_handlers["types"].bind_root is True
-    assert report_handlers["source-budget"].spec == "SOURCE_BUDGET_COMMAND"
+    assert report_handlers["source-budget"].provider == "ethos.domain.prove:source_budget_report"
     assert report_handlers["source-budget"].enforce is True
     assert report_handlers["source-budget"].bind_root is True
-    assert report_handlers["no-compat"].spec == "NO_COMPAT_COMMAND"
+    assert (
+        report_handlers["no-compat"].provider
+        == "ethos.repository.policy.no_compat.core:no_compat_report"
+    )
     assert report_handlers["no-compat"].enforce is True
     assert report_handlers["no-compat"].bind_root is True
-    assert report_handlers["product-boundary"].spec == "PRODUCT_BOUNDARY_COMMAND"
-    assert report_handlers["contributor-policy"].spec == "CONTRIBUTOR_POLICY_COMMAND"
-    assert report_handlers["enterprise-readiness"].spec == "ENTERPRISE_READINESS_COMMAND"
-    assert report_handlers["governance-kernel"].spec == "GOVERNANCE_KERNEL_COMMAND"
+    assert report_handlers["product-boundary"].provider.endswith(":product_boundary_report")
+    assert report_handlers["contributor-policy"].provider.endswith(":contributor_policy_report")
+    assert report_handlers["enterprise-readiness"].provider.endswith(":enterprise_readiness_report")
+    assert report_handlers["governance-kernel"].provider.endswith(":governance_kernel_report")
     assert "docs" not in report_handlers
     assert "coupling-audit" not in report_handlers
+
+
+def test_report_handlers_are_provider_and_projection_declarations() -> None:
+    handlers = [
+        command.report_handler
+        for command in load_command_registry_declaration(ROOT / "system/commands.toml").group(
+            "quality"
+        )
+        if command.report_handler is not None
+    ]
+
+    assert all(handler.provider for handler in handlers)
 
 
 def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:

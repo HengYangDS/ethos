@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.repository.policy.boundary.product as product_policy
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -21,7 +23,7 @@ def test_quality_boundary_cli_commands_emit_policy_reports(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(
-        q_boundary,
+        product_policy,
         "product_boundary_report",
         lambda _root: {
             "ok": False,
@@ -31,7 +33,7 @@ def test_quality_boundary_cli_commands_emit_policy_reports(
         },
     )
     monkeypatch.setattr(
-        q_boundary,
+        product_policy,
         "contributor_policy_report",
         lambda _root: {
             "ok": True,

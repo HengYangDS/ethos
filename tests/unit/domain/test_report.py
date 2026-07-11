@@ -140,7 +140,9 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
     monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
-        report_domain, "workflow_runtime_report", lambda _repo: {"ok": True, "required_gaps": []}
+        report_domain,
+        "workflow_runtime_report",
+        lambda _repo: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
@@ -183,6 +185,9 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
             "ok": False,
             "required_gaps": ["code_size_exceeded:tests/unit/product/test_flat.py:999>800"],
         },
+    )
+    monkeypatch.setattr(
+        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
     )
     monkeypatch.setattr(
         reporting_scoring,
@@ -278,7 +283,9 @@ def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_p
     monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
-        report_domain, "workflow_runtime_report", lambda _repo: {"ok": True, "required_gaps": []}
+        report_domain,
+        "workflow_runtime_report",
+        lambda _repo: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(report_domain, "signature_policy_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
@@ -363,6 +370,9 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
 def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
+        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         reporting_scoring,
         "coverage_quality_report",
         lambda _repo: {"required_gaps": []},
@@ -401,6 +411,9 @@ def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
 ) -> None:
     monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
     monkeypatch.setattr(
+        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         reporting_scoring,
         "coverage_quality_report",
         lambda _repo: {"required_gaps": ["coverage_artifact_missing:coverage.xml"]},
@@ -434,6 +447,7 @@ def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
     assert floor["ok"] is False
     assert floor["gate_ids"] == [
         "python-size",
+        "source-budget",
         "coverage",
         "types",
         "docstrings",
@@ -761,7 +775,9 @@ def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Pa
     )
     monkeypatch.setattr(report_domain, "command_registry_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(
-        report_domain, "projection_contract", lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY}
+        report_domain,
+        "projection_contract",
+        lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY},
     )
     monkeypatch.setattr(report_domain, "schema_validation_report", lambda _repo: {"ok": True})
     monkeypatch.setattr(report_domain, "evolution_report", lambda _repo: {"ok": True})
@@ -812,7 +828,10 @@ def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Pa
     monkeypatch.setattr(
         report_domain,
         "workflow_runtime_report",
-        lambda _repo: {"ok": False, "required_gaps": ["workflow_runtime_public_commands_invalid"]},
+        lambda _repo: {
+            "ok": False,
+            "required_gaps": ["workflow_runtime_public_commands_invalid"],
+        },
     )
 
     payload = report_domain.scorecard_report(tmp_path)

@@ -16,6 +16,10 @@ the resulting system more declarative, typed, functional, and verifiable. This
 is not a Python-only refactor and it is not a plan to conceal procedure in
 configuration or generated files.
 
+See also: [Terminal Governance Product Design](terminal-governance-product-design.md),
+[Declarative Runtime Spine Modernization](declarative-runtime-spine-modernization.md),
+and [Declarative Governance Compiler](../architecture/declarative-governance-compiler.md).
+
 ## Fixed Outcome
 
 ETHOS keeps one repository-governance kernel and one public command plane:

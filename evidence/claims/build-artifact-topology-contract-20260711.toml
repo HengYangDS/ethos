@@ -1,0 +1,45 @@
+[claim]
+id = "build-artifact-topology-contract-20260711"
+subject = "ethos:build-artifact-topology"
+state = "active"
+change_id = "build-artifact-topology-contract-20260711"
+summary = "ETHOS package-build producers route disposable distributions only to the semantic artifact home."
+
+[evidence]
+dated = "evidence/chronicle/build-artifact-topology-contract-20260711/2026-07-11.md"
+sha256 = "1bda36688fe234805decece4e8beb15d935fe70cd454ba6f20d01eea2532b085"
+evidence_ids = ["evidence:build-artifact-topology-contract-20260711"]
+binding = "The gate declaration, packaged registry projection, contributor command, OpenSpec carrier, and topology audit bind package artifact routing."
+verifier = "semantic"
+tests = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv build --all-packages --out-dir build/artifacts/python --clear",
+  "uv run --package ethos ethos quality generated-artifacts --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos prove --full --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality"
+scope = "Product package-build output routing and generated-artifact topology."
+
+[carriers]
+openspec = "openspec/changes/build-artifact-topology-contract-20260711"
+fallback = "Route every package build through build/artifacts/<kind>; do not preserve or recreate the retired root dist/ producer path."
+kill_signal = "A product package-build gate or contributor command writes to repository-root dist/ or uses a cleanup-only exception after the fact."
+
+[promotion]
+targets = [
+  "system/gates.toml",
+  "packages/ethos-core/src/ethos_core/data/gates.toml",
+  "CONTRIBUTING.md",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/architecture/test_generated_artifact_topology_docs.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/build-artifact-topology-contract-20260711",
+  "evidence/chronicle/build-artifact-topology-contract-20260711/2026-07-11.md",
+  "evidence/claims/build-artifact-topology-contract-20260711.toml",
+]

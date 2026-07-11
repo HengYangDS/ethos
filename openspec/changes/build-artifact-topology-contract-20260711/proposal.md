@@ -20,9 +20,19 @@ None.
 
 ### Modified Capabilities
 
-- `repository-governance`: generated-evidence governance now requires the
-  product build gate and contributor path to use the semantic package-artifact
-  home.
+- `repository-governance`: subject=package-build-artifact-routing; reuse=extend;
+  change=modify; facet:lifecycle=validation; facet:surface=package;
+  facet:authority=source
+
+Generated-evidence governance now requires the
+product build gate and contributor path to use the semantic package-artifact
+home.
+
+## Out Of Scope
+
+- Hosted CI execution, remote publication, and release delivery.
+- New artifact lifecycle classes, build runners, exceptions, or compatibility
+  routes for the retired repository-root dist/ home.
 
 ## Impact
 

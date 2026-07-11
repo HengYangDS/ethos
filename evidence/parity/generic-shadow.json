@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-11",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "4795723f2e2262932bec2b76e6e3cc57d85eb38f",
-    "target_head": "4795723f2e2262932bec2b76e6e3cc57d85eb38f",
-    "product_semantic_sha256": "4ef28034500a4230234d10d5d501c87ba5e5e114849812a9a2670f91053aa567",
-    "target_semantic_sha256": "4ef28034500a4230234d10d5d501c87ba5e5e114849812a9a2670f91053aa567",
-    "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
+    "product_head": "d568eba4083cbe56dc53739c20870039a8a46ede",
+    "target_head": "d568eba4083cbe56dc53739c20870039a8a46ede",
+    "product_semantic_sha256": "2a4a1a43a67e3e187a4a5a1f5714f9c554db46a47964bc3146ac338f418fa2f8",
+    "target_semantic_sha256": "2a4a1a43a67e3e187a4a5a1f5714f9c554db46a47964bc3146ac338f418fa2f8",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,8 +35,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "4795723f2e2262932bec2b76e6e3cc57d85eb38f",
-    "product_head": "4795723f2e2262932bec2b76e6e3cc57d85eb38f",
+    "target_head": "d568eba4083cbe56dc53739c20870039a8a46ede",
+    "product_head": "d568eba4083cbe56dc53739c20870039a8a46ede",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -77,7 +77,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "9969a68fec0ad483088bc0c49f43a55d1a9b4591e90b8fdeba16369014ea8fab"
+        "sha256": "77bb3b5671cda88450e5d61822b905fe1d8e58ead08f223a76c0e6472484d16f"
       },
       {
         "path": "evidence/claims",
@@ -87,7 +87,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "4690163cb1f2298de5d4ee5cdd85a76c8d00d82c074a87402656a3a42982e597"
+        "sha256": "c7bb31f8ab528f6ae0ecabde05f3e4dbcb9b766f142609982da8b930993c5760"
       },
       {
         "path": "rules",

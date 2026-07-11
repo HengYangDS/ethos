@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import ethos.domain.readiness.enterprise as enterprise_readiness
+import ethos.repository.policy.governance.kernel as governance_kernel_policy
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -21,7 +24,7 @@ def test_quality_enterprise_readiness_reports_layer_closure(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(
-        q_readiness,
+        enterprise_readiness,
         "enterprise_readiness_report",
         lambda _repo: {
             "ok": True,
@@ -47,7 +50,7 @@ def test_quality_governance_kernel_reports_single_kernel(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(
-        q_readiness,
+        governance_kernel_policy,
         "governance_kernel_report",
         lambda _repo: {
             "ok": True,

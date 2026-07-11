@@ -5,6 +5,7 @@ from __future__ import annotations
 import tomllib
 from importlib import resources
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -34,12 +35,44 @@ class CommandSets(BaseModel):
     historical_exempt_roots: tuple[str, ...]
 
 
+class ReportSummaryField(BaseModel):
+    """One immutable, pure field projection in a report command summary."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(min_length=1)
+    path: tuple[str, ...] = ()
+    reducer: Literal["value", "count"] = "value"
+    default: str | int | float | bool | None = None
+
+
+class ReportDataField(BaseModel):
+    """One immutable named field selected into a report result data payload."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(min_length=1)
+    path: tuple[str, ...] = ()
+
+
 class ReportHandlerDeclaration(BaseModel):
     """One immutable quality report handler compiler declaration."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    spec: str = Field(pattern=r"^[A-Z][A-Z0-9_]*_COMMAND$")
+    provider: str = Field(default="", pattern=r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*:[A-Za-z_]\w*$")
+    provider_mode: Literal["report", "payload"] = "report"
+    bind_current_head: bool = False
+    summary: tuple[ReportSummaryField, ...] = ()
+    data_path: tuple[str, ...] | None = None
+    data_fields: tuple[ReportDataField, ...] = ()
+    state_mode: Literal["report", "advisory_gaps"] = "report"
+    advisory_gaps_path: tuple[str, ...] = ("advisory_gaps",)
+    clean_state: str = "clean"
+    blocked_state: str = "blocked"
+    next_actions: tuple[str, ...] = ()
+    when_blocked: str = ""
+    when_clean: str = ""
     enforce: bool = False
     bind_root: bool = True
 

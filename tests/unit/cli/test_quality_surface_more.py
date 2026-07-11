@@ -5,6 +5,13 @@ from pathlib import Path
 
 import pytest
 
+import ethos.domain.prove as prove_domain
+import ethos.repository.evidence.claims as evidence_claims
+import ethos.repository.evidence.freshness as evidence_freshness
+import ethos.repository.policy.coverage as coverage_policy
+import ethos.repository.policy.docstrings.core as docstrings_policy
+import ethos.repository.policy.layout.core as layout_policy
+import ethos.repository.release.core as release_core
 import ethos.surface.cli.quality.core as q
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -84,12 +91,12 @@ def test_quality_code_size_and_npm_project_reports(
 ):
     emitted = _capture(monkeypatch)
     monkeypatch.setattr(
-        q.prove_domain,
+        prove_domain,
         "code_size_report",
         lambda _repo: {"ok": False, "required_gaps": ["too_big"]},
     )
     monkeypatch.setattr(
-        q,
+        layout_policy,
         "module_layout_report",
         lambda _repo: {
             "ok": False,
@@ -140,7 +147,7 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(
         lambda _repo: {"ok": False, "missing": ["LICENSE"]},
     )
     monkeypatch.setattr(
-        q,
+        release_core,
         "release_policy_report",
         lambda _repo: {
             "ok": False,
@@ -188,7 +195,7 @@ def test_quality_coverage_reports_policy_and_latest_artifact(
         "latest_artifact": {"line_percent": 96.0},
         "required_gaps": [],
     }
-    monkeypatch.setattr(q, "coverage_quality_report", lambda _repo: report)
+    monkeypatch.setattr(coverage_policy, "coverage_quality_report", lambda _repo: report)
 
     q.coverage(root=tmp_path, json_output=True)
 
@@ -217,7 +224,7 @@ def test_quality_coverage_surfaces_active_writer(
             "coverage_artifact_writer_active:build/evidence/quality/tests/coverage/.write.lock"
         ],
     }
-    monkeypatch.setattr(q, "coverage_quality_report", lambda _repo: report)
+    monkeypatch.setattr(coverage_policy, "coverage_quality_report", lambda _repo: report)
 
     q.coverage(root=tmp_path, json_output=True)
 
@@ -252,7 +259,7 @@ def test_quality_docstrings_reports_policy_coverage(
         ],
         "required_gaps": ["docstring_coverage_below_minimum:50.00<95.00"],
     }
-    monkeypatch.setattr(q, "docstring_coverage_report", lambda _repo: report)
+    monkeypatch.setattr(docstrings_policy, "docstring_coverage_report", lambda _repo: report)
 
     with pytest.raises(SystemExit):
         q.docstrings(root=tmp_path, json_output=True)
@@ -287,7 +294,7 @@ def test_quality_claims_surfaces_advisory_summary_without_blocking(
             "claims_root": "evidence/claims",
         }
 
-    monkeypatch.setattr(q, "claims_report", fake_claims_report)
+    monkeypatch.setattr(evidence_claims, "claims_report", fake_claims_report)
 
     q.claims(root=tmp_path, json_output=True)
 
@@ -324,8 +331,8 @@ def test_quality_claim_surfaces_bind_reports_to_current_head(
             "data": {"claims": {}},
         }
 
-    monkeypatch.setattr(q, "claims_report", fake_claims_report)
-    monkeypatch.setattr(q, "evidence_freshness_report", fake_freshness_report)
+    monkeypatch.setattr(evidence_claims, "claims_report", fake_claims_report)
+    monkeypatch.setattr(evidence_freshness, "evidence_freshness_report", fake_freshness_report)
 
     q.claims(root=tmp_path, json_output=True)
     q.evidence_freshness(root=tmp_path, json_output=True)

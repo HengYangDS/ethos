@@ -93,8 +93,9 @@ expiry = "T5"
 allowance = 1200
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_product = 600
-python_tests = 400
+python_product = 400
+python_tests = 350
+python_tools = 250
 toml = 200
 
 [gates.local-state-audit]

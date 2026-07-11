@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -17,10 +18,19 @@ from cyclopts import App
 from cyclopts import Parameter
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / ".config/checks/ci/templates.toml"
+CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
+CONFIG_PATH = ROOT / CONFIG_RELATIVE_PATH
 
 
 UNTRACKED_PREVIEW_LIMIT = 12
+EMULATOR_REQUIRED_FIELDS = (
+    "emulator_tool",
+    "emulator_event",
+    "emulator_job",
+    "emulator_image",
+    "emulator_supported_inputs",
+    "emulator_hosted_only_reason",
+)
 
 
 def _git_output(*args: str) -> str:
@@ -41,6 +51,120 @@ def _git_lines(*args: str) -> list[str]:
 
 def _git_head() -> str:
     return _git_output("rev-parse", "HEAD")
+
+
+def _git_bytes(
+    root: Path, *args: str, input_bytes: bytes | None = None
+) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        input=input_bytes,
+        capture_output=True,
+        check=False,
+    )
+
+
+def _require_git_bytes(
+    root: Path,
+    *args: str,
+    input_bytes: bytes | None = None,
+) -> bytes:
+    result = _git_bytes(root, *args, input_bytes=input_bytes)
+    if result.returncode == 0:
+        return result.stdout
+    detail = result.stderr.decode("utf-8", errors="replace").strip()
+    command = "git " + " ".join(args)
+    message = f"GitLab source materialization failed: {command}: {detail}"
+    raise RuntimeError(message)
+
+
+def _remove_path(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _copy_untracked_files(source_root: Path, snapshot_root: Path) -> int:
+    output = _require_git_bytes(source_root, "ls-files", "--others", "--exclude-standard", "-z")
+    copied = 0
+    for encoded_path in output.split(b"\0"):
+        if not encoded_path:
+            continue
+        relative = Path(encoded_path.decode("utf-8"))
+        if relative.is_absolute() or ".." in relative.parts:
+            message = f"GitLab source materialization refused unsafe untracked path: {relative}"
+            raise RuntimeError(message)
+        source = source_root / relative
+        destination = snapshot_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        _remove_path(destination)
+        if source.is_symlink():
+            destination.symlink_to(source.readlink())
+        elif source.is_file():
+            shutil.copy2(source, destination)
+        else:
+            message = f"GitLab source materialization could not copy untracked path: {relative}"
+            raise RuntimeError(message)
+        copied += 1
+    return copied
+
+
+def materialize_gitlab_source(
+    *,
+    source_root: Path,
+    state_dir: Path,
+    expected_head: str,
+    include_untracked: bool,
+) -> dict[str, Any]:
+    """Create a standalone Git snapshot so Docker never sees a linked `.git` file."""
+    state_dir.mkdir(parents=True, exist_ok=True)
+    source_dir = state_dir / "source"
+    staging_dir = state_dir / "source.staging"
+    _remove_path(staging_dir)
+    try:
+        _require_git_bytes(
+            source_root,
+            "clone",
+            "--no-local",
+            "--no-checkout",
+            str(source_root),
+            str(staging_dir),
+        )
+        _require_git_bytes(staging_dir, "checkout", "--detach", expected_head)
+        tracked_diff = _require_git_bytes(source_root, "diff", "--binary", expected_head)
+        if tracked_diff:
+            _require_git_bytes(
+                staging_dir,
+                "apply",
+                "--binary",
+                "--whitespace=nowarn",
+                "-",
+                input_bytes=tracked_diff,
+            )
+        untracked_count = (
+            _copy_untracked_files(source_root, staging_dir) if include_untracked else 0
+        )
+        _remove_path(source_dir)
+        staging_dir.replace(source_dir)
+    except Exception:
+        _remove_path(staging_dir)
+        raise
+
+    source_head = _require_git_bytes(source_dir, "rev-parse", "HEAD").decode().strip()
+    return {
+        "kind": "independent_git_checkout",
+        "source_dir": str(source_dir),
+        "source_head": source_head,
+        "source_head_matches_expected": source_head == expected_head,
+        "git_directory_is_real": (source_dir / ".git").is_dir(),
+        "uses_external_object_alternates": (
+            source_dir / ".git" / "objects" / "info" / "alternates"
+        ).is_file(),
+        "tracked_diff_bytes": len(tracked_diff),
+        "untracked_files_copied": untracked_count,
+    }
 
 
 def _git_dirty() -> bool:
@@ -84,6 +208,25 @@ def _projection_entries() -> list[dict[str, Any]]:
     return entries
 
 
+def _provider_entry(provider: str) -> dict[str, Any]:
+    entries = [entry for entry in _projection_entries() if entry.get("provider") == provider]
+    if len(entries) != 1:
+        message = f"expected exactly one CI projection for provider: {provider}"
+        raise SystemExit(message)
+    return entries[0]
+
+
+def _emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
+    missing = [field for field in EMULATOR_REQUIRED_FIELDS if field not in entry]
+    if missing:
+        provider = entry.get("provider", "unknown")
+        message = f"CI emulator declaration missing for {provider}: {', '.join(missing)}"
+        raise SystemExit(message)
+    return {field: entry[field] for field in EMULATOR_REQUIRED_FIELDS} | {
+        "emulator_state_dir": entry.get("emulator_state_dir", ""),
+    }
+
+
 def check_templates(*, json_output: bool) -> int:
     failures: list[dict[str, str]] = []
     projections: list[dict[str, Any]] = []
@@ -91,13 +234,16 @@ def check_templates(*, json_output: bool) -> int:
         provider = str(entry["provider"])
         template = ROOT / str(entry["template"])
         projection = ROOT / str(entry["projection"])
-        emulator = ROOT / str(entry["local_emulator"])
+        try:
+            emulation = _emulator_declaration(entry)
+        except SystemExit as exc:
+            failures.append({"provider": provider, "reason": str(exc)})
+            continue
         missing = [
             rel
             for rel, path in [
                 (str(entry["template"]), template),
                 (str(entry["projection"]), projection),
-                (str(entry["local_emulator"]), emulator),
             ]
             if not path.is_file()
         ]
@@ -137,7 +283,7 @@ def check_templates(*, json_output: bool) -> int:
                 "provider": provider,
                 "template": str(template.relative_to(ROOT)),
                 "projection": str(projection.relative_to(ROOT)),
-                "local_emulator": str(emulator.relative_to(ROOT)),
+                "emulation": emulation,
                 "template_sha256": _sha256(template),
                 "projection_sha256": _sha256(projection),
                 "projection_matches_template": match,
@@ -173,6 +319,7 @@ def _run_command(
     *,
     dry_run: bool,
     tool_required: bool = True,
+    env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if dry_run:
         return {"returncode": None, "ok": True, "stdout": "", "stderr": ""}
@@ -185,7 +332,7 @@ def _run_command(
             "stdout": "",
             "stderr": "tool not found",
         }
-    result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False, env=env)
     return {
         "returncode": result.returncode,
         "ok": result.returncode == 0,
@@ -194,18 +341,79 @@ def _run_command(
     }
 
 
-def _provider_paths(provider: str) -> dict[str, str]:
-    if provider == "github":
-        return {
-            "config": ".config/ci/emulators/act.yml",
-            "projected_file": ".github/workflows/ci.yml",
-            "template_file": ".config/ci/templates/hosted/github-actions.yml",
-        }
+def _tool_version(tool: str) -> str:
+    if shutil.which(tool) is None:
+        return ""
+    result = subprocess.run(
+        [tool, "--version"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    return next((line for line in (result.stdout or result.stderr).splitlines() if line), "")
+
+
+def _docker_context_endpoint() -> str:
+    if shutil.which("docker") is None:
+        return ""
+    result = subprocess.run(
+        ["docker", "context", "inspect"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return ""
+    try:
+        contexts = json.loads(result.stdout)
+        endpoint = contexts[0]["Endpoints"]["docker"]["Host"]
+    except (IndexError, KeyError, TypeError, json.JSONDecodeError):
+        return ""
+    return str(endpoint)
+
+
+def _emulator_environment(tool: str) -> dict[str, str] | None:
+    if tool != "act" or os.environ.get("DOCKER_HOST"):
+        return None
+    endpoint = _docker_context_endpoint()
+    return os.environ | {"DOCKER_HOST": endpoint} if endpoint else None
+
+
+def _provider_paths(entry: dict[str, Any]) -> dict[str, str]:
     return {
-        "config": ".config/ci/emulators/gitlab.yml",
-        "projected_file": ".gitlab-ci.yml",
-        "template_file": ".config/ci/templates/hosted/gitlab-ci.yml",
+        "config": CONFIG_RELATIVE_PATH,
+        "projected_file": str(entry["projection"]),
+        "template_file": str(entry["template"]),
     }
+
+
+def _emulator_command(
+    provider: str, paths: dict[str, str], emulation: dict[str, Any], mode: str
+) -> list[str]:
+    tool = str(emulation["emulator_tool"])
+    if provider == "github":
+        command = [
+            tool,
+            str(emulation["emulator_event"]),
+            "-W",
+            paths["projected_file"],
+        ]
+        return (
+            [*command, "-j", str(emulation["emulator_job"])]
+            if mode == "run"
+            else [
+                *command,
+                "--list",
+            ]
+        )
+    command = [tool]
+    state_dir = str(emulation["emulator_state_dir"])
+    if mode == "run":
+        source_dir = str(Path(state_dir) / "source")
+        command.extend(["--cwd", source_dir, "--file", paths["projected_file"]])
+        return [*command, "--state-dir", "../state", str(emulation["emulator_job"])]
+    command.extend(["--file", paths["projected_file"]])
+    if state_dir:
+        command.extend(["--state-dir", state_dir])
+    return [*command, "--list"]
 
 
 def _file_facts(paths: dict[str, str]) -> dict[str, dict[str, Any]]:
@@ -257,41 +465,47 @@ def emulator_evidence(
     allow_untracked: bool,
     output: Path | None,
 ) -> int:
-    if provider == "github":
-        tool = "act"
-        paths = _provider_paths(provider)
-        command = ["act", "-W", paths["config"], "workflow_dispatch", "--list"]
-        output_dir = ROOT / "build/evidence/local-ci/github"
-        hosted_flags = {
-            "hosted_github_status_claimed": False,
-            "hosted_gitlab_status_claimed": False,
-        }
-        evidence_class = "local_github_emulator"
-    elif provider == "gitlab":
-        tool = "gitlab-ci-local"
-        paths = _provider_paths(provider)
-        command = [
-            "gitlab-ci-local",
-            "--file",
-            paths["config"],
-            "--state-dir",
-            "build/runtime/work/gitlab-ci-local",
-            "--list",
-        ]
-        output_dir = ROOT / "build/evidence/local-ci/gitlab"
-        hosted_flags = {
-            "hosted_github_status_claimed": False,
-            "hosted_gitlab_status_claimed": False,
-        }
-        evidence_class = "local_gitlab_emulator"
-    else:
-        message = f"unknown provider: {provider}"
-        raise SystemExit(message)
+    entry = _provider_entry(provider)
+    paths = _provider_paths(entry)
+    emulation = _emulator_declaration(entry)
+    tool = str(emulation["emulator_tool"])
+    command = _emulator_command(provider, paths, emulation, mode)
+    output_dir = ROOT / "build/evidence/local-ci" / provider
+    hosted_flags = {
+        "hosted_github_status_claimed": False,
+        "hosted_gitlab_status_claimed": False,
+    }
+    evidence_class = f"local_{provider}_emulator"
 
     output_path = output or output_dir / f"{mode}.json"
     started_at = datetime.now(UTC)
     git_start = _git_summary()
     issue = _materialization_issue(mode, dry_run=dry_run, allow_untracked=allow_untracked)
+    executable = shutil.which(tool)
+    materialization: dict[str, Any] = {
+        "mode_allows_untracked": _mode_allows_untracked(mode, dry_run=dry_run),
+        "normal_run_refuses_untracked_by_default": True,
+        "untracked_allowed": allow_untracked,
+        "untracked_policy": "refuse_before_emulator_run",
+        "issue": issue,
+    }
+    if (
+        not issue
+        and executable is not None
+        and provider == "gitlab"
+        and mode == "run"
+        and not dry_run
+    ):
+        try:
+            materialization |= materialize_gitlab_source(
+                source_root=ROOT,
+                state_dir=ROOT / str(emulation["emulator_state_dir"]),
+                expected_head=str(git_start["head"]),
+                include_untracked=allow_untracked,
+            )
+        except RuntimeError as exc:
+            issue = str(exc)
+            materialization["issue"] = issue
     run = (
         {"returncode": 1, "ok": False, "stdout": "", "stderr": issue}
         if issue
@@ -299,11 +513,11 @@ def emulator_evidence(
             command,
             dry_run=dry_run,
             tool_required=_emulator_tool_required(mode, dry_run=dry_run),
+            env=_emulator_environment(tool),
         )
     )
     finished_at = datetime.now(UTC)
     git_end = _git_summary()
-    executable = shutil.which(tool)
     head_stable = git_start["head"] == git_end["head"]
     payload: dict[str, Any] = {
         "schema_version": 1,
@@ -326,18 +540,24 @@ def emulator_evidence(
         "tool_available": executable is not None,
         "tool_path": executable or "",
         **paths,
+        "emulation": emulation,
+        "execution": {
+            "mode": "selected_job_execution" if mode == "run" and not dry_run else "observation",
+            "formal_workflow": paths["projected_file"],
+            "selected_job": str(emulation["emulator_job"]),
+        },
+        "execution_environment": {
+            "declared_image": str(emulation["emulator_image"]),
+            "image_digest": "",
+            "image_digest_status": "not_observed",
+            "tool_version": _tool_version(tool),
+        },
         "files": _file_facts(paths),
         "command": command,
         "returncode": run["returncode"],
         "stdout": str(run["stdout"])[-4000:],
         "stderr": str(run["stderr"])[-4000:],
-        "materialization": {
-            "mode_allows_untracked": _mode_allows_untracked(mode, dry_run=dry_run),
-            "normal_run_refuses_untracked_by_default": True,
-            "untracked_allowed": allow_untracked,
-            "untracked_policy": "refuse_before_emulator_run",
-            "issue": issue,
-        },
+        "materialization": materialization,
         "claim_boundary": "local provider emulator evidence only; not hosted provider status",
         **hosted_flags,
     }
@@ -361,7 +581,7 @@ def check_templates_command(
 def emulator_evidence_command(
     provider: Literal["github", "gitlab"],
     *,
-    mode: str = "list",
+    mode: str = "run",
     dry_run: bool = False,
     allow_untracked: bool = False,
     output: Path | None = None,

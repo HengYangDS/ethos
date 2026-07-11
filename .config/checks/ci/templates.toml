@@ -6,7 +6,12 @@ summary = "Hosted forge CI files are projections over tracked provider templates
 provider = "github"
 template = ".config/ci/templates/hosted/github-actions.yml"
 projection = ".github/workflows/ci.yml"
-local_emulator = ".config/ci/emulators/act.yml"
+emulator_tool = "act"
+emulator_event = "workflow_dispatch"
+emulator_job = "quality"
+emulator_image = "catthehacker/ubuntu:act-latest"
+emulator_supported_inputs = []
+emulator_hosted_only_reason = ""
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-python-lint.sh",
@@ -41,7 +46,13 @@ required_owner_scripts = [
 provider = "gitlab"
 template = ".config/ci/templates/hosted/gitlab-ci.yml"
 projection = ".gitlab-ci.yml"
-local_emulator = ".config/ci/emulators/gitlab.yml"
+emulator_tool = "gitlab-ci-local"
+emulator_event = "pipeline"
+emulator_job = "ethos:lint"
+emulator_image = "python:3.12"
+emulator_state_dir = "build/runtime/work/gitlab-ci-local"
+emulator_supported_inputs = []
+emulator_hosted_only_reason = ""
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-python-lint.sh",

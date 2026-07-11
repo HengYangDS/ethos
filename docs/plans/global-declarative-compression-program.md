@@ -76,6 +76,14 @@ active debt may not exceed 5% of the baseline (5,267 effective lines). A baselin
 cannot be reset, a debt cannot be silently extended, and splitting a file or
 moving logic to a declaration does not satisfy this program.
 
+The active `program-foundation` record is capped at 1,200 lines: 400 product
+Python, 350 test Python, 250 tool Python, and 200 TOML. The tool allowance is
+only for T2's formal-provider execution adapter: independent Git-worktree
+materialization, Docker-context binding, and provider evidence. T3--T8 must
+settle it by compiling that adapter into the shared declaration/projection spine
+and deleting its redundant test and runner branches. The aggregate record remains
+capped at 1,200; no category allowance is an independent expansion right.
+
 ## Final Technical Choices
 
 | Concern | Chosen mechanism | Boundary |

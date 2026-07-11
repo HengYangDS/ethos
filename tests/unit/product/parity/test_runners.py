@@ -10,10 +10,18 @@ import ethos.adapters.shadow.core as shadow_core
 import ethos.adapters.shadow.execution as shadow_execution
 from ethos.adapters.shadow.execution import run_embedded
 from ethos.adapters.shadow.execution import run_external
+from ethos.repository.evidence.parity.validation import SHADOW_COMMAND_ARGS
 from tests.support.ethos_cli_runner import run_ethos
 
 if TYPE_CHECKING:
     import pytest
+
+
+def test_local_shadow_commands_exclude_remote_publication_probe() -> None:
+    """Publication remains public, but local parity must not execute its remote probe."""
+    assert ("land",) in SHADOW_COMMAND_ARGS
+    assert ("quality", "command-surface") in SHADOW_COMMAND_ARGS
+    assert ("publish",) not in SHADOW_COMMAND_ARGS
 
 
 def test_parity_shadow_defaults_to_read_only_plan(tmp_path: Path) -> None:

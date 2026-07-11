@@ -244,7 +244,11 @@ def _next_actions(
 
 def _reduce(value: object, reducer: str) -> object:
     if reducer == "count":
-        return len(cast("Sequence[object] | Mapping[str, object]", value))
+        return (
+            len(value)
+            if isinstance(value, Sequence | Mapping) and not isinstance(value, str)
+            else 0
+        )
     return value
 
 

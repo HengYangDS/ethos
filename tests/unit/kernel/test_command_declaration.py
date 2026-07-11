@@ -105,6 +105,11 @@ def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
     )
     assert register_declared_group(app, "quality") == 0
 
+    root = App(name="ethos")
+    assert register_declared_group(root, "root") == 4
+    assert isinstance(root._commands["doctor"], CommandSpec)
+    assert root._commands["doctor"].import_path == ("ethos.surface.cli.root.inspection:doctor")
+
 
 def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> None:
     declaration = load_command_registry_declaration(ROOT / "system/commands.toml")

@@ -112,7 +112,7 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report"
     "orientation",
     "coordination",
     "blocking",
-  ] },
+  ], default = false },
   { name = "governance_gap_count", path = [
     "orientation",
     "readiness",
@@ -194,7 +194,7 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report"
     "status",
     "coordination",
     "blocking",
-  ] },
+  ], default = false },
 ], diagnostics_path = [
   "diagnostics",
 ], data_path = [
@@ -219,6 +219,13 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_scorecard_read
 ], next_actions_path = [
   "next_actions",
 ], enforce = false, bind_root = true }
+
+[[commands]]
+name = "doctor"
+group = "root"
+import_path = "ethos.surface.cli.root.inspection:doctor"
+help = "Inspect local host readiness."
+show = false
 
 [[commands]]
 name = "asset-policy"

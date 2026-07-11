@@ -22,7 +22,6 @@ from ethos.domain.report import scorecard_report
 from ethos.repository.context import context_for_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
@@ -117,7 +116,6 @@ def _scorecard_reader_report(
     return scorecard_report(repo, product_root=product_root)
 
 
-@app.command
 def status(
     *,
     root: RootOption | None = None,
@@ -139,7 +137,6 @@ def status(
         sys.stdout.write(f"{line}\n")
 
 
-@app.command
 def orient(
     *,
     root: RootOption | None = None,
@@ -230,7 +227,6 @@ def _compact_report_payload(payload: dict[str, object]) -> dict[str, object]:
     }
 
 
-@app.command
 def report(
     *,
     root: RootOption | None = None,
@@ -258,7 +254,6 @@ def report(
     emit(result, json_output=json_output, enforce=handler.enforce)
 
 
-@app.command(show=False)
 def doctor(
     *,
     root: RootOption | None = None,

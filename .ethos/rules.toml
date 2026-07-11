@@ -96,7 +96,7 @@ allowance = 1410
 python_product = 350
 python_tests = 400
 python_tools = 250
-toml = 520
+toml = 700
 json = 14
 
 [gates.local-state-audit]

@@ -79,6 +79,7 @@ def build_declarative_report_result(
         ok=ok,
         state=_state(handler, report, is_ok=ok),
         summary=_summary(handler.summary, report),
+        diagnostics=_diagnostics(handler, report),
         required_gaps=gaps,
         next_actions=_next_actions(handler, report, gaps),
         governance_context=_governance_context(handler, report),
@@ -126,6 +127,7 @@ def declared_report_result(
     function_name: str,
     target: Path,
     group: str = "quality",
+    provider_kwargs: Mapping[str, object] | None = None,
 ) -> tuple[ReportHandlerDeclaration, ReportPayload, EthosResult]:
     """Project one declared reader command while preserving its supplied facts."""
     declaration = _declared_command(
@@ -134,7 +136,7 @@ def declared_report_result(
         group=group,
     )
     handler = _report_handler(declaration)
-    report = _load_provider_report(handler, target)
+    report = _load_provider_report(handler, target, provider_kwargs=provider_kwargs)
     result = build_declarative_report_result(
         command=_command_name(declaration),
         handler=handler,
@@ -146,12 +148,15 @@ def declared_report_result(
 def _load_provider_report(
     handler: ReportHandlerDeclaration,
     root: Path,
+    *,
+    provider_kwargs: Mapping[str, object] | None = None,
 ) -> ReportPayload:
     provider = _provider(handler.provider)
+    kwargs = dict(provider_kwargs or {})
     value = (
-        provider(root, current_head=git_adapter.current_head(root))
+        provider(root, current_head=git_adapter.current_head(root), **kwargs)
         if handler.bind_current_head
-        else provider(root)
+        else provider(root, **kwargs)
     )
     if handler.provider_mode == "payload":
         return {"ok": True, "state": handler.clean_state, "payload": value}
@@ -193,6 +198,17 @@ def _summary(fields: tuple[ReportSummaryField, ...], report: ReportPayload) -> d
         field.name: _reduce(_value_at(report, field.path, field.default), field.reducer)
         for field in fields
     }
+
+
+def _diagnostics(
+    handler: ReportHandlerDeclaration,
+    report: ReportPayload,
+) -> tuple[dict[str, object], ...]:
+    if handler.diagnostics_path is None:
+        return ()
+    return tuple(
+        dict(_mapping(item)) for item in _sequence(_value_at(report, handler.diagnostics_path))
+    )
 
 
 def _data(handler: ReportHandlerDeclaration, report: ReportPayload) -> dict[str, object]:

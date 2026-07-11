@@ -64,6 +64,7 @@ class ReportHandlerDeclaration(BaseModel):
     provider_mode: Literal["report", "payload"] = "report"
     bind_current_head: bool = False
     summary: tuple[ReportSummaryField, ...] = ()
+    diagnostics_path: tuple[str, ...] | None = None
     data_path: tuple[str, ...] | None = None
     data_fields: tuple[ReportDataField, ...] = ()
     governance_context_path: tuple[str, ...] | None = None

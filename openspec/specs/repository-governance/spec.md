@@ -1426,7 +1426,10 @@ execution. The bootstrap MUST bind `UV_PROJECT_ENVIRONMENT` to
 that checkout's source tree. The bootstrap SHALL expose an explicit cache
 boundary: an explicitly supplied CI or operator cache location takes precedence;
 otherwise uv download state uses a host-scoped content-addressed cache outside
-the repository checkout.
+the repository checkout. A nested bootstrap that enters a different worktree
+while an outer uv invocation holds the selected cache lock MUST use a bounded
+child namespace beneath that selected cache root; it MUST retain the child
+worktree's source environment and MUST NOT wait on the outer lock.
 
 #### Scenario: two Work Lanes initialize independently
 
@@ -1445,6 +1448,17 @@ the repository checkout.
 - **THEN** the bootstrap invokes `uv run --group dev python` with the original
   Python arguments and lets uv materialize only that checkout's environment
 - **AND** it does not resolve `<worktree>/.venv/bin/python`
+
+#### Scenario: a nested hook bootstrap avoids parent cache-lock reentry
+
+- **GIVEN** an outer uv command holds the selected cache lock for one worktree
+- **WHEN** a Git hook in a different worktree requests its missing default
+  semantic interpreter through the bootstrap
+- **THEN** the hook materializes only the child worktree's
+  `build/runtime/venv`
+- **AND** its uv invocation uses a bounded namespace beneath the selected host
+  or CI cache root
+- **AND** it does not wait on or share the outer uv cache lock
 
 ### Requirement: Explicit execution overrides remain bounded
 

@@ -153,6 +153,7 @@ def test_source_bound_uv_runner_uses_checkout_environment_and_host_cache(
     environment.pop("UV_PROJECT_ENVIRONMENT", None)
     environment.pop("UV_CACHE_DIR", None)
     environment.pop("ETHOS_UV_CACHE_DIR", None)
+    environment.pop("ETHOS_RUNTIME_ROOT", None)
 
     completed = subprocess.run(
         [runner.as_posix(), "status", "--json"],
@@ -619,6 +620,7 @@ def test_semantic_runtime_bootstrap_materializes_missing_checkout_python(
     environment.pop("UV_PROJECT_ENVIRONMENT", None)
     environment.pop("UV_CACHE_DIR", None)
     environment.pop("ETHOS_UV_CACHE_DIR", None)
+    environment.pop("ETHOS_RUNTIME_ROOT", None)
     resolved_repo = repo.resolve()
     checkout_python = resolved_repo / "build" / "runtime" / "venv" / "bin" / "python"
 
@@ -645,6 +647,44 @@ def test_semantic_runtime_bootstrap_materializes_missing_checkout_python(
         "run --group dev python -m ethos.cli status --json",
     ]
     assert not checkout_python.exists()
+
+
+def test_semantic_runtime_bootstrap_namespaces_nested_cache_under_selected_root(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    fake_uv = tmp_path / "bin" / "uv"
+    fake_uv.parent.mkdir()
+    fake_uv.write_text(
+        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
+    environment = dict(os.environ)
+    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
+    cache_root = tmp_path / "host-cache" / "ethos" / "uv"
+    outer_root = tmp_path / "outer"
+    environment["UV_PROJECT_ENVIRONMENT"] = (outer_root / "build" / "runtime" / "venv").as_posix()
+    environment["UV_CACHE_DIR"] = cache_root.as_posix()
+    environment["ETHOS_RUNTIME_ROOT"] = outer_root.as_posix()
+    environment.pop("ETHOS_UV_CACHE_DIR", None)
+    checkout_python = repo.resolve() / "build" / "runtime" / "venv" / "bin" / "python"
+
+    completed = subprocess.run(
+        [bootstrap.as_posix(), "--", checkout_python.as_posix(), "-m", "ethos.cli"],
+        cwd=repo,
+        env=environment,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    environment_home, nested_cache, command = completed.stdout.splitlines()
+    assert environment_home == f"{repo.resolve()}/build/runtime/venv"
+    assert Path(nested_cache).parent == cache_root / "nested-bootstrap"
+    assert command == "run --group dev python -m ethos.cli"
 
 
 def test_generated_artifact_entrypoint_audit_blocks_root_venv_and_bare_uv_run(

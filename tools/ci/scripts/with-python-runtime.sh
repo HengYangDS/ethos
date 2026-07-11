@@ -17,6 +17,7 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
+inherited_runtime_root="${ETHOS_RUNTIME_ROOT:-}"
 
 # The project environment is deliberately not overrideable: a per-checkout
 # environment is the boundary that prevents a Work Lane from running another
@@ -34,6 +35,7 @@ else
 fi
 
 mkdir -p "${UV_CACHE_DIR}"
+export ETHOS_RUNTIME_ROOT="${repo_root}"
 
 # Hooks resolve the checkout interpreter directly so their ordinary fast path
 # neither shells through uv nor touches a root `.venv`.  On a fresh checkout
@@ -43,7 +45,17 @@ mkdir -p "${UV_CACHE_DIR}"
 # match this path and therefore retain their caller-owned semantics.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"
 if [[ "$1" == "${semantic_python}" && ! -x "${semantic_python}" ]]; then
-  exec uv run --group dev python "${@:2}"
+  bootstrap_cache_dir="${UV_CACHE_DIR}"
+  if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then
+    # An outer uv invocation holds its cache lock for the full command. A hook
+    # in a different checkout must still materialize that checkout's source
+    # environment, so give only this recursive bootstrap a deterministic child
+    # namespace beneath the already selected host or CI cache root.
+    nested_cache_key="$(printf '%s' "${repo_root}" | cksum | awk '{print $1}')"
+    bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"
+    mkdir -p "${bootstrap_cache_dir}"
+  fi
+  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --group dev python "${@:2}"
 fi
 
 exec "$@"

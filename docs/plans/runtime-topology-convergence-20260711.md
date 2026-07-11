@@ -23,8 +23,11 @@ One shell bootstrap owns Python runtime environment binding:
 is explicitly supplied by CI or defaults to host-local storage outside the
 checkout. Owner scripts, local hooks, and declared runner payloads consume that
 adapter; topology policy proves they cannot regress to root `.venv` or bare uv
-execution. Existing root environments remain ignored migration residue until an
-operator removes them deliberately.
+execution. If a hook must bootstrap a different worktree while an outer uv
+command holds the selected cache lock, only that nested bootstrap uses a bounded
+child namespace beneath the selected host or CI cache root; the source
+environment remains worktree-bound. Existing root environments remain ignored
+migration residue until an operator removes them deliberately.
 
 ## Constraints
 

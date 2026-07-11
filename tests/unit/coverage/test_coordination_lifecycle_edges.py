@@ -21,6 +21,9 @@ import ethos.adapters.mutation.lane_lifecycle.lease as lease_ops
 import ethos.adapters.mutation.lane_retirement.landed.core as landed
 import ethos.adapters.store.state.lease.lifecycle.core as lease_state
 import ethos.adapters.store.state.lease.projection as lease_projection
+from ethos_core.contracts.mutation import LeaseFacts
+from ethos_core.contracts.mutation import lease_transition
+from ethos_core.contracts.mutation import reduce_lease_request
 
 
 def _lease_payload() -> dict[str, object]:
@@ -509,20 +512,22 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
         offer_id="",
     )
     assert state["epoch"] == 0 and gaps == ("holder_ref_invalid",)
-    request_gaps = lease_ops._lease_request_gaps(
-        operation="handoff_accept",
-        status={"role": "accepted_root"},
-        current_branch="work/other",
-        current_head="a",
-        branch="work/example",
-        expect_head="",
-        lease_id="",
-        epoch=None,
-        ttl_seconds=0,
-        offer_id="",
-        initial=(),
-    )
-    assert request_gaps == [
+    request_gaps = reduce_lease_request(
+        lease_transition("handoff_accept"),
+        LeaseFacts(
+            role="accepted_root",
+            current_branch="work/other",
+            current_head="a",
+            branch="work/example",
+            expect_head="",
+            lease_id="",
+            epoch=None,
+            ttl_seconds=0,
+            offer_id="",
+            apply=False,
+        ),
+    ).gaps
+    assert request_gaps == (
         "work_lane_required",
         "lane_branch_mismatch",
         "expect_head_required",
@@ -530,25 +535,42 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
         "lease_epoch_required",
         "lease_ttl_invalid",
         "handoff_offer_id_required",
-    ]
+    )
     assert (
-        lease_ops._initial_lease_result(
-            branch="work/example", apply=False, operation="renew", gaps=[]
-        )["state"]
+        reduce_lease_request(
+            lease_transition("renew"),
+            LeaseFacts(
+                role="work_lane",
+                current_branch="work/example",
+                current_head="a",
+                branch="work/example",
+                expect_head="a",
+                lease_id="lease",
+                epoch=1,
+                ttl_seconds=1,
+                offer_id="",
+                apply=False,
+            ),
+        ).state
         == "planned"
     )
-    assert "expect_head_mismatch" in lease_ops._lease_request_gaps(
-        operation="renew",
-        status={"role": "work_lane"},
-        current_branch="work/example",
-        current_head="a",
-        branch="work/example",
-        expect_head="b",
-        lease_id="lease",
-        epoch=1,
-        ttl_seconds=1,
-        offer_id="",
-        initial=(),
+    assert (
+        "expect_head_mismatch"
+        in reduce_lease_request(
+            lease_transition("renew"),
+            LeaseFacts(
+                role="work_lane",
+                current_branch="work/example",
+                current_head="a",
+                branch="work/example",
+                expect_head="b",
+                lease_id="lease",
+                epoch=1,
+                ttl_seconds=1,
+                offer_id="",
+                apply=False,
+            ),
+        ).gaps
     )
 
     monkeypatch.setattr(

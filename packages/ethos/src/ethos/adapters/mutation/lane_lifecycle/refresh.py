@@ -419,27 +419,8 @@ def refresh_work_lane_base(
         check=False,
     )
     projection_resolution = resolve_projection_rebase(root, completed, runtime=active_runtime)
-    if completed.returncode != 0 and projection_resolution["ok"]:
-        refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
-        return _work_base_report(
-            {
-                "ok": True,
-                "state": "base_refreshed_projection_stale",
-                "branch": branch,
-                "previous_head": current_head,
-                "head": refreshed_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": [],
-                "projection_refresh_required": True,
-                "projection_refresh_gaps": projection_resolution["gaps"],
-                "stale_projection_paths": projection_resolution["paths"],
-                "next_actions": projection_resolution["next_actions"]
-                + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
-            }
-        )
-    if completed.returncode != 0:
+    projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
+    if completed.returncode != 0 and not projection_recovered:
         active_runtime.run_git(root, "rebase", "--abort", check=False)
         return _work_base_report(
             {
@@ -455,16 +436,45 @@ def refresh_work_lane_base(
             stderr=completed.stderr.strip(),
         )
     refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
-    return _work_base_report(
-        {
-            "ok": True,
-            "state": "base_refreshed",
-            "branch": branch,
-            "previous_head": current_head,
-            "head": refreshed_head,
-            "candidate_branch": policy.candidate_branch,
-            "candidate_head": candidate_head,
-            "candidate_path": candidate_path,
-            "required_gaps": [],
-        }
-    )
+    if not active_runtime.is_ancestor(root, candidate_head, refreshed_head):
+        return _work_base_report(
+            {
+                "ok": False,
+                "state": "blocked",
+                "branch": branch,
+                "previous_head": current_head,
+                "head": refreshed_head,
+                "candidate_branch": policy.candidate_branch,
+                "candidate_head": candidate_head,
+                "candidate_path": candidate_path,
+                "required_gaps": ["refresh_base_postcondition_failed"],
+                "next_actions": [
+                    "inspect current Git ancestry and runner, signing, or hook diagnostics",
+                    "repair the replay environment and rerun ethos lane refresh-base",
+                ],
+            },
+            stderr="candidate head is not an ancestor of refreshed work-lane head",
+        )
+    report = {
+        "ok": True,
+        "state": "base_refreshed",
+        "branch": branch,
+        "previous_head": current_head,
+        "head": refreshed_head,
+        "candidate_branch": policy.candidate_branch,
+        "candidate_head": candidate_head,
+        "candidate_path": candidate_path,
+        "required_gaps": [],
+    }
+    if projection_recovered:
+        report.update(
+            {
+                "state": "base_refreshed_projection_stale",
+                "projection_refresh_required": True,
+                "projection_refresh_gaps": projection_resolution["gaps"],
+                "stale_projection_paths": projection_resolution["paths"],
+                "next_actions": projection_resolution["next_actions"]
+                + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
+            }
+        )
+    return _work_base_report(report)

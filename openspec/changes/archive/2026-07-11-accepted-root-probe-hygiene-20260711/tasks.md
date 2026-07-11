@@ -21,5 +21,5 @@
 - [x] 3.3 Bind the owned claim, land to candidate, perform governed local
   accepted-root closeout, archive the OpenSpec carrier, and retire this owned
   lane.
-- [ ] 3.4 Record remote publication separately as deferred; do not push while
+- [x] 3.4 Record remote publication separately as deferred; do not push while
   the remote is unavailable.

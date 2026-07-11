@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
-LaneDisposition = Literal["block", "preserve", "retire"]
+LaneDisposition = Literal["block", "preserve", "retire", "preserve-retire"]
 
 
 class LaneObservation(BaseModel):

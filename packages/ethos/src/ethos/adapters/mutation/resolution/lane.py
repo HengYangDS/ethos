@@ -35,7 +35,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
 ) -> dict[str, object]:
     """Create the first-phase exceptional judgment; no lane effect occurs."""
     observation, gaps = _observe_lane(root, branch)
-    if disposition not in {"block", "preserve", "retire"}:
+    if disposition not in {"block", "preserve", "retire", "preserve-retire"}:
         gaps.append("lane_resolution_disposition_invalid")
     if not reason.strip():
         gaps.append("lane_resolution_reason_required")
@@ -47,7 +47,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
     gaps.extend(chronicle_gaps)
     if not recovery_plan.strip():
         gaps.append("lane_resolution_recovery_plan_required")
-    if disposition == "retire" and not break_glass:
+    if disposition in {"retire", "preserve-retire"} and not break_glass:
         gaps.append("retire_exception_requires_break_glass")
     if not _local_artifact_path(root, decision_path):
         gaps.append("lane_resolution_decision_path_not_local_artifact")
@@ -110,7 +110,7 @@ def apply_lane_resolution(
     if decision and observation.digest() != str(decision.get("observation_digest") or ""):
         gaps.append("lane_resolution_observation_stale")
     disposition = str(decision.get("disposition") or "")
-    if disposition == "retire" and not confirm_irreversible:
+    if disposition in {"retire", "preserve-retire"} and not confirm_irreversible:
         gaps.append("irreversible_confirmation_required")
     if disposition == "retire" and observation.dirty:
         gaps.append("dirty_lane_retirement_blocked")
@@ -119,6 +119,11 @@ def apply_lane_resolution(
         if disposition == "preserve":
             package = _preserve(root=root, observation=observation, decision=decision)
             report.update(state="preserved", preservation_package=package)
+        elif disposition == "preserve-retire":
+            package = _preserve(root=root, observation=observation, decision=decision)
+            _verify_preservation_package(root=root, package=package)
+            _retire(root=root, observation=observation)
+            report.update(state="preserved_and_retired", preservation_package=package)
         elif disposition == "retire":
             _retire(root=root, observation=observation)
             report.update(state="retired")
@@ -362,6 +367,30 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
             ["git", "update-ref", ref, observation.head, "0" * 40], cwd=root, check=False
         )
         raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
+
+
+def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> None:
+    """Fail closed unless the preservation package is complete and digest-bound."""
+    relative = Path(str(package.get("path") or ""))
+    destination = (root / relative).resolve()
+    try:
+        destination.relative_to(root.resolve())
+    except ValueError as exc:
+        raise ValueError("lane_resolution_preservation_package_outside_root") from exc
+    manifest = package.get("manifest")
+    if not isinstance(manifest, dict):
+        raise ValueError("lane_resolution_preservation_manifest_invalid")
+    checks = (
+        (destination / "repository.bundle", "bundle_sha256"),
+        (destination / "tracked.patch", "patch_sha256"),
+    )
+    for path, key in checks:
+        if not path.is_file() or _sha256(path) != str(manifest.get(key) or ""):
+            raise ValueError("lane_resolution_preservation_package_invalid")
+    archive_digest = str(manifest.get("untracked_archive_sha256") or "")
+    archive = destination / "untracked.tar"
+    if archive_digest and (not archive.is_file() or _sha256(archive) != archive_digest):
+        raise ValueError("lane_resolution_preservation_package_invalid")
 
 
 def _completion_receipt(

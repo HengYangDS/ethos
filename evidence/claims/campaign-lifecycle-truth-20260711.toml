@@ -27,7 +27,7 @@ owner = "repository-governance"
 scope = "Campaign lifecycle validation, terminal OpenSpec productization reconciliation, and canonical campaign discovery."
 
 [carriers]
-openspec = "openspec/changes/campaign-lifecycle-truth-20260711"
+openspec = "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711"
 fallback = "Retain the declared planned successor until an actual OpenSpec carrier and admitted Work Lane begin execution."
 kill_signal = "A campaign reader projects an archived or terminal lane as active, accepts contradictory carrier homes, or fabricates an execution lane for a planned successor."
 
@@ -38,7 +38,7 @@ targets = [
   "tests/unit/coverage/test_cov_v2_adoption_shadow_edges.py",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "docs/governance/evolution-campaign.md",
-  "openspec/changes/campaign-lifecycle-truth-20260711",
+  "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711",
   "evidence/chronicle/campaign-lifecycle-truth-20260711/2026-07-11.md",
   "evidence/claims/campaign-lifecycle-truth-20260711.toml",
 ]

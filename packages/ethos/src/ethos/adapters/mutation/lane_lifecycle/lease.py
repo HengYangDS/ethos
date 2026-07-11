@@ -23,9 +23,9 @@ from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.coordination import HolderRef
-from ethos_core.contracts.mutation import LeaseFacts
-from ethos_core.contracts.mutation import lease_transition
-from ethos_core.contracts.mutation import reduce_lease_request
+from ethos_core.contracts.lifecycle.core import LeaseFacts
+from ethos_core.contracts.lifecycle.core import lease_transition
+from ethos_core.contracts.lifecycle.core import reduce_lease_request
 
 
 def normalize_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

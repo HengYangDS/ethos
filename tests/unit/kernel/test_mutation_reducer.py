@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
-from ethos_core.contracts.mutation import HANDOFF_EXPORT
-from ethos_core.contracts.mutation import WORK_LANE_MUTATION
-from ethos_core.contracts.mutation import LeaseFacts
-from ethos_core.contracts.mutation import MutationFacts
-from ethos_core.contracts.mutation import MutationRequest
-from ethos_core.contracts.mutation import lease_transition
-from ethos_core.contracts.mutation import reduce_guards
-from ethos_core.contracts.mutation import reduce_lease_request
-from ethos_core.contracts.mutation import reduce_mutation
+from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
+from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
+from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos_core.contracts.lifecycle.core import LeaseFacts
+from ethos_core.contracts.lifecycle.core import MutationFacts
+from ethos_core.contracts.lifecycle.core import MutationRequest
+from ethos_core.contracts.lifecycle.core import lease_transition
+from ethos_core.contracts.lifecycle.core import reduce_guards
+from ethos_core.contracts.lifecycle.core import reduce_lease_request
+from ethos_core.contracts.lifecycle.core import reduce_mutation
 
 
 def test_work_lane_reducer_short_circuits_non_land_dry_runs() -> None:

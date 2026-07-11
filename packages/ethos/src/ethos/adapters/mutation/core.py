@@ -26,10 +26,10 @@ from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
-from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
-from ethos_core.contracts.mutation import WORK_LANE_MUTATION
-from ethos_core.contracts.mutation import MutationFacts
-from ethos_core.contracts.mutation import reduce_mutation
+from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
+from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos_core.contracts.lifecycle.core import MutationFacts
+from ethos_core.contracts.lifecycle.core import reduce_mutation
 
 __all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 

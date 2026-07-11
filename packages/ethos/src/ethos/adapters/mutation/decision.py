@@ -7,8 +7,8 @@ from typing import Literal
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.admission import DecisionBasis
 from ethos_core.contracts.admission import MutationSubject
-from ethos_core.contracts.mutation import MutationEvaluation
-from ethos_core.contracts.mutation import MutationRequest
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
+from ethos_core.contracts.lifecycle.core import MutationRequest
 
 MutationVerdict = Literal["allow", "block", "defer"]
 

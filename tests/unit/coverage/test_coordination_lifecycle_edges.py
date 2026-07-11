@@ -21,9 +21,9 @@ import ethos.adapters.mutation.lane_lifecycle.lease as lease_ops
 import ethos.adapters.mutation.lane_retirement.landed.core as landed
 import ethos.adapters.store.state.lease.lifecycle.core as lease_state
 import ethos.adapters.store.state.lease.projection as lease_projection
-from ethos_core.contracts.mutation import LeaseFacts
-from ethos_core.contracts.mutation import lease_transition
-from ethos_core.contracts.mutation import reduce_lease_request
+from ethos_core.contracts.lifecycle.core import LeaseFacts
+from ethos_core.contracts.lifecycle.core import lease_transition
+from ethos_core.contracts.lifecycle.core import reduce_lease_request
 
 BRANCH = "work/example"
 HEAD = "a" * 40

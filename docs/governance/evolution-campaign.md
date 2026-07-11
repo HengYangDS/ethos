@@ -108,8 +108,12 @@ lane.
 
 `ethos campaign status --json` exposes those manifests as the canonical campaign
 read model. Planned future steps may name their intended OpenSpec changes before
-the carriers exist. Active, landed, closed, or retired steps must have an active
-or archived OpenSpec carrier so the campaign cannot hide ownerless work.
+the carriers exist. An active, in-progress, or landed step must resolve to its
+active carrier under `openspec/changes/`; a closed or retired step must resolve
+to its archived carrier and terminal closeout record. A campaign may await its
+next planned step with no active lane; the reader exposes that successor rather
+than inventing an active lane. Any state/carrier disagreement is a required
+campaign gap, not an advisory display detail.
 
 `ethos campaign closeout --json` exposes the local campaign closeout package. It
 is a read-only aggregation of Work Lane closeout support, publication readiness,

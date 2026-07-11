@@ -5,6 +5,12 @@
 # call this script instead of duplicating pytest/coverage policy inline.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
@@ -32,16 +38,7 @@ if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
     exit 2
   fi
 fi
-ethos_python="${ETHOS_PYTHON:-${PYTHON:-}}"
-if [[ -z "${ethos_python}" && -x "${repo_root}/.venv/bin/python" ]]; then
-  ethos_python="${repo_root}/.venv/bin/python"
-fi
-if [[ -z "${ethos_python}" && -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
-  ethos_python="${VIRTUAL_ENV}/bin/python"
-fi
-if [[ -z "${ethos_python}" ]]; then
-  ethos_python="python3"
-fi
+ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 coverage_lock_acquired="false"

@@ -8,6 +8,12 @@
 # .import_linter_cache / .import-linter-cache would be generated-artifact drift.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cache_dir="${IMPORT_LINTER_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/import-linter}"
 mkdir -p "${cache_dir}"

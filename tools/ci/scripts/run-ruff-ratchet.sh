@@ -6,6 +6,12 @@
 # baseline or fall below a stale baseline that has not been shrunk.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"

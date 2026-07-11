@@ -4,6 +4,12 @@
 # historical evidence remains classified as historical instead of product default.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
@@ -11,15 +17,8 @@ export PYTHONPATH="${repo_root}/packages/ethos/src:${repo_root}/packages/ethos-c
 
 run_ethos_quality() {
   local check="$1"
-  if [[ -n "${ETHOS_PYTHON:-}" ]]; then
-    "${ETHOS_PYTHON}" -m ethos.cli quality "${check}" --json
-  elif [[ -n "${PYTHON:-}" ]]; then
-    "${PYTHON}" -m ethos.cli quality "${check}" --json
-  elif [[ -x "${repo_root}/.venv/bin/python" ]]; then
-    "${repo_root}/.venv/bin/python" -m ethos.cli quality "${check}" --json
-  else
-    uv run --package ethos python -m ethos.cli quality "${check}" --json
-  fi
+  local ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
+  "${ethos_python}" -m ethos.cli quality "${check}" --json
 }
 
 run_ethos_quality product-boundary

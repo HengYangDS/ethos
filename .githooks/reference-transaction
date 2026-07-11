@@ -34,11 +34,8 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 accepted="$(git config --get ethos.acceptedBranch 2>/dev/null)"
 [ -n "$accepted" ] || accepted="dev"
 
-if [ -x "$repo_root/.venv/bin/python" ]; then
-    ethos_python="$repo_root/.venv/bin/python"
-else
-    ethos_python="${PYTHON:-python}"
-fi
+runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
 ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
 
 while read -r old_value new_value ref_name; do
@@ -48,7 +45,7 @@ while read -r old_value new_value ref_name; do
     esac
     branch="${ref_name#refs/heads/}"
     verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-        "$ethos_python" -m ethos.cli hook ref-transaction \
+        "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
         "$ref_name" "$old_value" "$new_value" --phase "$phase" \
         --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
 

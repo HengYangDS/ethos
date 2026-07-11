@@ -4,10 +4,15 @@
 # registered under .config/checks/secrets/.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${script_dir}/install-gitleaks.sh"
 
 report_dir="${ETHOS_SECRETS_REPORT_DIR:-build/evidence/quality/secrets}"
@@ -23,7 +28,7 @@ trap 'rm -rf "${scan_parent}"' EXIT
 # tracked file set into an isolated mirror and scan that mirror as a regular
 # directory so untracked `.cache/`, `build/`, and `.ethos/state/` residue cannot
 # create false quality failures while tracked secrets still fail deterministically.
-python - "${repo_root}" "${scan_root}" <<'PY'
+"${UV_PROJECT_ENVIRONMENT}/bin/python" - "${repo_root}" "${scan_root}" <<'PY'
 from __future__ import annotations
 
 import os

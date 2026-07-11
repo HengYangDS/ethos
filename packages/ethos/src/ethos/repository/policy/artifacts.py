@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import tomllib
 from typing import TYPE_CHECKING
@@ -9,7 +10,9 @@ from typing import Any
 
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
-from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos_core.contracts.artifacts.topology import (
+    load_generated_artifact_topology_declaration,
+)
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 
 if TYPE_CHECKING:
@@ -45,6 +48,7 @@ _ENTRYPOINT_GLOB_PATTERNS = (
     ".config/ci/**/*.yaml",
     ".config/ci/**/*.toml",
     "tools/ci/scripts/*",
+    ".githooks/*",
 )
 _DENIED_ENTRYPOINT_CACHE_TOKENS = (
     ".import_linter_cache",
@@ -60,6 +64,15 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
     "build/cache/",
     "build/runtime/gitlab-ci-local",
     "dist/",
+)
+_RUNTIME_BOOTSTRAP_PATH = "tools/ci/scripts/with-python-runtime.sh"
+_ROOT_VENV_RUNTIME_TOKEN = ".venv/bin/python"
+_PYTHON_EXECUTION_PATTERN = re.compile(r"(?:^|[;&|()]|\s)(?:python(?:[0-9.]*)?)(?:\s|$)")
+_PYTHON_BOOTSTRAP_EXEMPTIONS = frozenset(
+    {
+        "tools/ci/scripts/bootstrap-python.sh",
+        "tools/ci/scripts/configure-git-checkout.sh",
+    }
 )
 
 
@@ -269,11 +282,55 @@ def _tool_route_findings(rel: str, active_text: str, full_text: str) -> list[dic
     producer_text = "\n".join(
         line for line in active_text.splitlines() if not _is_cleanup_line(line)
     )
+    findings.extend(_runtime_bootstrap_findings(rel, producer_text))
     findings.extend(_ruff_route_findings(rel, producer_text, full_text))
     findings.extend(_import_linter_route_findings(rel, producer_text, full_text))
     findings.extend(_pytest_runner_findings(rel, producer_text, full_text))
     findings.extend(_package_build_route_findings(rel, producer_text))
     findings.extend(_gitlab_local_route_findings(rel, producer_text))
+    return findings
+
+
+def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
+    """Reject executable Python/uv paths that evade the semantic bootstrap."""
+    if rel == _RUNTIME_BOOTSTRAP_PATH:
+        return []
+    root_venv = _ROOT_VENV_RUNTIME_TOKEN in producer_text
+    bootstrap_bound = "with-python-runtime.sh" in producer_text
+    bare_uv = "uv run" in producer_text and not bootstrap_bound
+    bare_python = (
+        rel not in _PYTHON_BOOTSTRAP_EXEMPTIONS
+        and bool(_PYTHON_EXECUTION_PATTERN.search(producer_text))
+        and not bootstrap_bound
+    )
+    findings: list[dict[str, str]] = []
+    if root_venv:
+        findings.append(
+            _entrypoint_finding(
+                rel,
+                check="root-venv-runtime",
+                boundary="active execution must not fall back to root .venv",
+                required_gap=f"generated_artifact_entrypoint_root_venv_runtime:{rel}",
+            )
+        )
+    if bare_uv:
+        findings.append(
+            _entrypoint_finding(
+                rel,
+                check="uv-runtime-bootstrap",
+                boundary="active uv execution must route through the semantic runtime bootstrap",
+                required_gap=f"generated_artifact_entrypoint_uv_runtime_unbound:{rel}",
+            )
+        )
+    if bare_python:
+        findings.append(
+            _entrypoint_finding(
+                rel,
+                check="python-runtime-bootstrap",
+                boundary="active Python execution must route through the semantic runtime bootstrap",
+                required_gap=f"generated_artifact_entrypoint_python_runtime_unbound:{rel}",
+            )
+        )
     return findings
 
 
@@ -405,7 +462,9 @@ def _mentions_gitlab_local(text: str) -> bool:
 
 
 def _is_executable_entrypoint(rel: str) -> bool:
-    return rel.startswith(("tools/ci/", ".github/workflows/")) or rel == ".gitlab-ci.yml"
+    return (
+        rel.startswith(("tools/ci/", ".github/workflows/", ".githooks/")) or rel == ".gitlab-ci.yml"
+    )
 
 
 def _contains_denied_home_token(line: str, token: str) -> bool:

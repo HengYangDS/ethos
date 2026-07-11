@@ -28,6 +28,8 @@ installation.
 - **AND** a hook quality tool with a development dependency invokes that tool
   through the bootstrap-bound uv development group
 
+## ADDED Requirements
+
 ### Requirement: Checkout-bound semantic runtime bootstrap
 
 ETHOS SHALL provide one repository-owned runtime bootstrap for product Python

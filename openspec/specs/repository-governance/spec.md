@@ -1418,6 +1418,76 @@ The generated-artifact entrypoint audit SHALL evaluate executable producer comma
 - **THEN** the entrypoint audit emits the corresponding denied-home producer gap
 - **AND** declaration-only filtering does not suppress the finding
 
+### Requirement: Checkout-bound semantic runtime bootstrap
+
+ETHOS SHALL provide one repository-owned runtime bootstrap for product Python
+execution. The bootstrap MUST bind `UV_PROJECT_ENVIRONMENT` to
+`build/runtime/venv` under the current Git worktree and MUST execute against
+that checkout's source tree. The bootstrap SHALL expose an explicit cache
+boundary: an explicitly supplied CI or operator cache location takes precedence;
+otherwise uv download state uses a host-scoped content-addressed cache outside
+the repository checkout.
+
+#### Scenario: two Work Lanes initialize independently
+
+- **GIVEN** two linked Work Lanes from the same Git common directory
+- **WHEN** each runs a Python owner command through the bootstrap
+- **THEN** each command receives its own `<worktree>/build/runtime/venv`
+- **AND** neither command resolves `<worktree>/.venv` as its project environment
+- **AND** the cache location does not become a Work Lane lease, source, evidence,
+  or authority store
+
+#### Scenario: a hook starts before its checkout environment exists
+
+- **GIVEN** a hook requests the default
+  `<worktree>/build/runtime/venv/bin/python` and that interpreter is absent
+- **WHEN** the request passes through the runtime bootstrap
+- **THEN** the bootstrap invokes `uv run --group dev python` with the original
+  Python arguments and lets uv materialize only that checkout's environment
+- **AND** it does not resolve `<worktree>/.venv/bin/python`
+
+### Requirement: Explicit execution overrides remain bounded
+
+ETHOS SHALL permit an explicit `ETHOS_PYTHON`, `PYTHON`, `UV_CACHE_DIR`, or
+`ETHOS_UV_CACHE_DIR` override for a bounded invocation. An override MUST NOT
+change the checkout root, substitute another checkout's source environment, or
+silently make root `.venv` the default runtime.
+
+#### Scenario: CI supplies its own cache path
+
+- **GIVEN** a hosted CI projection supplies an explicit uv cache location
+- **WHEN** an owner script invokes the runtime bootstrap
+- **THEN** the bootstrap preserves that cache location
+- **AND** the source environment remains under the current checkout's
+  `build/runtime/venv`
+
+### Requirement: Generated Artifact Topology Contract
+
+ETHOS SHALL classify generated outputs by semantic lifecycle and SHALL audit
+active executable producer entrypoints as well as existing files. Root `.venv`
+MUST NOT be an active normal-execution environment. Existing ignored root
+`.venv` directories MAY remain as non-authoritative migration residue until an
+explicit local operator removes them; ETHOS MUST NOT delete them automatically.
+Host-bootstrap adapters that install a missing hosted toolchain or configure the
+checkout before a repository runtime exists MAY invoke the host interpreter, but
+MUST NOT execute product modules and MUST remain explicitly allowlisted by the
+topology audit.
+
+#### Scenario: an executable entrypoint attempts root environment fallback
+
+- **WHEN** generated-artifact topology audits a product-owned executable script,
+  hook, or CI projection containing an active root `.venv/bin/python` fallback
+  or bare `uv run` path that bypasses the semantic bootstrap
+- **THEN** the audit reports a required runtime-entrypoint routing gap
+- **AND** proof remains blocked until the producer routes through the bootstrap
+
+#### Scenario: legacy root environment remains observable but non-authoritative
+
+- **GIVEN** an ignored root `.venv` exists after the runtime contract changes
+- **WHEN** topology and local-state audits run
+- **THEN** they identify it as migration residue rather than product truth
+- **AND** no cleanup command removes it without an explicit local operator action
+
 ### Requirement: Temporary test probe provenance remains explicit and bounded
 
 ETHOS SHALL classify a dirty entry as a temporary test probe only when Git

@@ -31,6 +31,7 @@ from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.policy.docstrings.core import docstring_coverage_report  # noqa: F401
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.layout.core import module_layout_report  # noqa: F401
+from ethos.repository.policy.performance.core import performance_quality_report  # noqa: F401
 from ethos.repository.policy.schema import schema_validation_report  # noqa: F401
 from ethos.repository.registry.commands import command_registry_report  # noqa: F401
 from ethos.repository.registry.docs.commands import command_examples_report  # noqa: F401
@@ -287,6 +288,20 @@ COVERAGE_COMMAND = ReportCommandSpec(
         current_hard_floor=path_value("policy", "current_hard_floor"),
         latest_line_percent=path_value("latest_artifact", "line_percent"),
         writer_active=path_value("latest_artifact", "writer_active", default=False),
+    ),
+)
+PERFORMANCE_COMMAND = ReportCommandSpec(
+    command="quality performance",
+    report=module_report(
+        _quality_report_namespace(),
+        "performance_quality_report",
+        current_head=_current_head,
+    ),
+    summary=field_data("summary"),
+    state=advisory_state("advisory_gaps"),
+    next_actions=conditional_actions(
+        when_blocked="refresh current-head evidence and resolve output or regression gaps",
+        when_clean="tools/ci/scripts/run-performance-evidence.sh",
     ),
 )
 DOCSTRINGS_COMMAND = ReportCommandSpec(

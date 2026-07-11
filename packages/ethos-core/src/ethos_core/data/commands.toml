@@ -163,6 +163,14 @@ show = true
 report_handler = { spec = "COVERAGE_COMMAND", enforce = true, bind_root = true }
 
 [[commands]]
+name = "performance"
+group = "quality"
+import_path = "ethos.surface.cli.quality.core:performance"
+help = "Report same-machine CLI regression and agent token-budget evidence."
+show = true
+report_handler = { spec = "PERFORMANCE_COMMAND", enforce = true, bind_root = true }
+
+[[commands]]
 name = "docstrings"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:docstrings"

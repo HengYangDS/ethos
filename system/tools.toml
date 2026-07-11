@@ -29,10 +29,11 @@ gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
 concern = "test_performance"
-tool = "pytest-benchmark"
-config = ".config/checks/pytest/policy.toml"
+tool = "ethos-command-performance"
+config = ".config/checks/performance/policy.toml"
+artifacts = "build/evidence/quality/performance/"
 profile = "product"
-planned = true
+gate = "ethos quality performance --json"
 
 [[tool]]
 concern = "test_reporting"

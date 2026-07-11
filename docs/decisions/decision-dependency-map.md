@@ -22,5 +22,7 @@ Purpose: show dependencies between ETHOS durable rulings.
 - Future decisions that alter proof scope compatibility, host-probe flags, or adopter proof command surfaces must cite DR-0003.
 - DR-0006 depends on DR-0005 for the declarative runtime spine that hosts proof/evidence contracts.
 - Future decisions that alter the proof trust boundary, the local-vs-enforcement claim semantics, or the independent-identity verification plug (local daemon or hosted forge) must cite DR-0006.
+- DR-0007 depends on DR-0004 for the documentation topology kernel it declares form-invariant.
+- Future decisions that alter the docs required-path kernel's form-invariance, or the locus of external-adopter parity evidence, must cite DR-0007.
 
 See also: [Decision Index](decision-index.md).

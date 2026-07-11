@@ -5,10 +5,10 @@
   "generated_on": "2026-07-11",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "d047bb8be768b515261892f68e873659e6d23c4c",
-    "target_head": "d047bb8be768b515261892f68e873659e6d23c4c",
-    "product_semantic_sha256": "32d4188c3e177865a474dc5108381651218eece1e169e3b4b34e458bb54b6291",
-    "target_semantic_sha256": "32d4188c3e177865a474dc5108381651218eece1e169e3b4b34e458bb54b6291",
+    "product_head": "391b4c69d8b6f41f0165a475e2efec9e687c0a94",
+    "target_head": "391b4c69d8b6f41f0165a475e2efec9e687c0a94",
+    "product_semantic_sha256": "cac18ef694115ae8f30aa9f1e5fbedf392320205afa05d480d7a781e694c540b",
+    "target_semantic_sha256": "cac18ef694115ae8f30aa9f1e5fbedf392320205afa05d480d7a781e694c540b",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,11 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "d047bb8be768b515261892f68e873659e6d23c4c",
-    "product_head": "d047bb8be768b515261892f68e873659e6d23c4c",
-    "changed_paths": [],
+    "target_head": "391b4c69d8b6f41f0165a475e2efec9e687c0a94",
+    "product_head": "391b4c69d8b6f41f0165a475e2efec9e687c0a94",
+    "changed_paths": [
+      "tests/unit/adoption/test_scaffold_templates.py"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -77,7 +79,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "a2591e9485fec4962eb3a4612fdd881aec62ee8222407323d60174f318bd706f"
+        "sha256": "fa02b6cb209012a38dece17c12f714b044bd7df5da94c8131c7437ce051aae2e"
       },
       {
         "path": "evidence/claims",
@@ -87,7 +89,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "7b497b80bfe51e8ead5ed3effade2d1b9d09d184a6b3e1cdacd487e2621a3fec"
+        "sha256": "e40016719c94e655d221a30125db790886da4a3c47fed89ef018bb7e07588713"
       },
       {
         "path": "rules",

@@ -1,0 +1,57 @@
+[claim]
+id = "runtime-topology-convergence-20260711"
+subject = "repository-governance:checkout-bound-runtime-topology"
+change_id = "runtime-topology-convergence-20260711"
+state = "active"
+summary = "ETHOS binds product-owned Python producers to a checkout-local semantic runtime while keeping dependency caching explicitly host- or CI-scoped."
+
+[evidence]
+dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md"
+sha256 = "9e50908d9b1a189bcff31820505981b34e33fe8abf6a7725177baa10ff0ab513"
+evidence_ids = ["evidence:runtime-topology-convergence-20260711"]
+binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, local generated-artifact audit, and this dated Chronicle bind the checkout-local runtime boundary."
+verifier = "semantic"
+tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_ci_provider_projections.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos quality generated-artifacts --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run openspec validate --all --strict --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Checkout-bound Python runtime bootstrap, explicit cache boundary, provider projection routing, and generated-artifact runtime-entrypoint enforcement."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711"
+fallback = "Invoke repository Python owners through the checkout-bound bootstrap and keep legacy root environments ignored and non-authoritative until an explicit local operator removes them."
+kill_signal = "A repository-owned executable producer falls back to root .venv, invokes bare uv run outside the bootstrap, shares a source environment across checkouts, or represents hosted or remote success without provider evidence."
+
+[promotion]
+targets = [
+  ".config/ci/templates/hosted/github-actions.yml",
+  ".config/ci/templates/hosted/gitlab-ci.yml",
+  ".githooks/pre-commit",
+  ".githooks/pre-push",
+  ".githooks/reference-transaction",
+  ".github/workflows/ci.yml",
+  ".gitlab-ci.yml",
+  "docs/plans/runtime-topology-convergence-20260711.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/repository/policy/artifacts.py",
+  "tools/ci/scripts/with-python-runtime.sh",
+  "tools/ci/scripts/run-github-local-emulator.sh",
+  "tools/ci/scripts/run-gitlab-local-emulator.sh",
+  "tests/architecture/test_ci_provider_projections.py",
+  "tests/unit/cli/test_hooks_runtime.py",
+  "tests/unit/governance/test_generated_artifact_topology.py",
+  "tests/unit/lanes/test_lane_runner_bootstrap.py",
+  "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md",
+  "evidence/claims/runtime-topology-convergence-20260711.toml",
+]

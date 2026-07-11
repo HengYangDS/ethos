@@ -3,13 +3,13 @@ id = "runtime-topology-convergence-20260711"
 subject = "repository-governance:worktree-bound-runtime-topology"
 change_id = "runtime-topology-convergence-20260711"
 state = "active"
-summary = "ETHOS binds product-owned Python producers to a worktree-local semantic runtime while keeping dependency caching explicitly host- or CI-scoped."
+summary = "ETHOS binds product-owned Python producers to a worktree-local semantic runtime while keeping dependency caching explicitly host- or CI-scoped, including safe cross-worktree nested bootstrap."
 
 [evidence]
 dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md"
-sha256 = "9e50908d9b1a189bcff31820505981b34e33fe8abf6a7725177baa10ff0ab513"
+sha256 = "587d7554e187da25f561559780c99415fa780353b8e7c9973591858291ed91ee"
 evidence_ids = ["evidence:runtime-topology-convergence-20260711"]
-binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, local generated-artifact audit, and this dated Chronicle bind the worktree-local runtime boundary."
+binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, nested-bootstrap cache-lock regression, local generated-artifact audit, and this dated Chronicle bind the worktree-local runtime boundary."
 verifier = "semantic"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_ci_provider_projections.py",
@@ -23,7 +23,7 @@ mode = "historical"
 
 [boundary]
 owner = "repository-governance"
-scope = "Worktree-bound Python runtime bootstrap, explicit cache boundary, provider projection routing, and generated-artifact runtime-entrypoint enforcement."
+scope = "Worktree-bound Python runtime bootstrap, bounded nested cache namespace, explicit cache boundary, provider projection routing, and generated-artifact runtime-entrypoint enforcement."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711"

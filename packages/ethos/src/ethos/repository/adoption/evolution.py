@@ -303,6 +303,22 @@ def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
+def _openspec_carrier_state(root: Path, change: str) -> str:
+    """Classify one campaign carrier by its canonical OpenSpec home."""
+    if not change:
+        return "missing"
+    changes_root = root / "openspec" / "changes"
+    active = (changes_root / change).exists()
+    archived = any((changes_root / "archive").glob(f"*-{change}"))
+    if active and archived:
+        return "ambiguous"
+    if active:
+        return "active"
+    if archived:
+        return "archived"
+    return "missing"
+
+
 def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
     gaps: list[str] = []
     gaps.extend(
@@ -349,15 +365,24 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
             if not closeout["evidence"]:
                 gaps.append(f"campaign_step_closeout_evidence_missing:{campaign['id']}:{step_id}")
         change = step["openspec_change"]
+        carrier_state = _openspec_carrier_state(root, change)
+        execution_step = step["state"] in {"active", "in_progress", "landed"}
+        terminal_step = step["state"] in {"closed", "retired"}
+        terminal_closeout = step["closeout"]["state"] in {"closed", "retired"}
+        if execution_step and terminal_closeout:
+            gaps.append(f"campaign_step_execution_closeout_terminal:{campaign['id']}:{step_id}")
+        if terminal_closeout and not terminal_step:
+            gaps.append(f"campaign_step_terminal_closeout_nonterminal:{campaign['id']}:{step_id}")
+        if carrier_state == "ambiguous":
+            gaps.append(f"campaign_step_openspec_ambiguous:{campaign['id']}:{step_id}")
+        elif execution_step and carrier_state == "archived":
+            gaps.append(f"campaign_step_active_openspec_archived:{campaign['id']}:{step_id}")
+        elif terminal_step and carrier_state != "archived":
+            gaps.append(f"campaign_step_terminal_openspec_not_archived:{campaign['id']}:{step_id}")
         needs_existing_carrier = (
             step["state"] != "planned" or step["closeout"]["state"] != "planned"
         )
-        if (
-            needs_existing_carrier
-            and change
-            and not (root / "openspec" / "changes" / change).exists()
-            and not any((root / "openspec" / "changes" / "archive").glob(f"*-{change}"))
-        ):
+        if needs_existing_carrier and change and carrier_state == "missing":
             gaps.append(f"campaign_step_openspec_missing:{campaign['id']}:{step_id}")
     return gaps
 

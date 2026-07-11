@@ -292,10 +292,14 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert campaign["objective"]
     assert campaign["state"] == "active"
     assert campaign["step_summary"]["total"] >= 8
-    assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
+    assert campaign["step_summary"]["planned"] >= 5
+    assert campaign["step_summary"]["active"] == 0
+    assert campaign["step_summary"]["closed"] >= 4
     assert campaign["lane_topology"]["kind"] == "openspec_lane_sequence"
     assert campaign["lane_topology"]["mode"] == "strict_serial"
-    assert campaign["lane_topology"]["active_step"] == "hooked-write-admission"
+    assert campaign["lane_topology"]["active_step"] == ""
+    assert campaign["lane_topology"]["active_steps"] == []
+    assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
     assert campaign["lane_topology"]["edges"][0] == {
         "from": "campaign-orchestration",
         "to": "openspec-product-protocol",
@@ -308,8 +312,14 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert first_step["work_lane"].startswith("work/")
     assert first_step["claim_id"]
     assert first_step["closeout"]["state"] in {"planned", "landed", "closed", "retired"}
-    active_step = next(item for item in campaign["steps"] if item["state"] == "active")
-    assert active_step["depends_on"] == ["openspec-archive-closeout"]
+    hooked_step = next(item for item in campaign["steps"] if item["id"] == "hooked-write-admission")
+    assert hooked_step["state"] == "closed"
+    assert hooked_step["closeout"] == {
+        "state": "retired",
+        "accepted_head": "c17b8939f8d55082d226b3090c03a1c37cd48b37",
+        "candidate_head": "d735b62add0a0d5dc7ebdf8cb0e7e1d8deadec30",
+        "evidence": ["evidence/chronicle/hooked-write-admission/2026-07-02.md"],
+    }
 
 
 def test_evolution_report_exposes_practice_selection_and_fate() -> None:

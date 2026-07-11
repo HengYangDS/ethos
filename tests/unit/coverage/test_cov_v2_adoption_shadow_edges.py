@@ -150,6 +150,7 @@ def test_campaign_required_gaps_flags_closeout_head_and_evidence(tmp_path: Path)
             "step": [
                 {
                     "id": "s1",
+                    "title": "step",
                     "state": "active",
                     "closeout": {
                         "state": "closed",
@@ -164,6 +165,99 @@ def test_campaign_required_gaps_flags_closeout_head_and_evidence(tmp_path: Path)
     gaps = evolution._campaign_required_gaps(tmp_path, campaign)
     assert "campaign_step_closeout_head_missing:cid:s1" in gaps
     assert "campaign_step_closeout_evidence_missing:cid:s1" in gaps
+
+
+def test_campaign_required_gaps_rejects_active_step_with_archived_carrier(tmp_path: Path) -> None:
+    """An archived carrier cannot be projected as a current execution lane."""
+    change = "archived-change"
+    (tmp_path / "openspec" / "changes" / "archive" / f"2026-07-11-{change}").mkdir(parents=True)
+    campaign = _campaign(
+        tmp_path,
+        {
+            "id": "cid",
+            "owner": "o",
+            "objective": "obj",
+            "claim_id": "cl",
+            "step": [
+                {
+                    "id": "s1",
+                    "state": "active",
+                    "openspec_change": change,
+                    "work_lane": "work/s1",
+                    "claim_id": "claim-s1",
+                }
+            ],
+        },
+    )
+
+    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
+
+    assert "campaign_step_active_openspec_archived:cid:s1" in gaps
+
+
+def test_campaign_required_gaps_rejects_terminal_step_with_active_carrier(tmp_path: Path) -> None:
+    """A terminal campaign step must have an archived, not active, carrier."""
+    change = "active-change"
+    (tmp_path / "openspec" / "changes" / change).mkdir(parents=True)
+    campaign = _campaign(
+        tmp_path,
+        {
+            "id": "cid",
+            "owner": "o",
+            "objective": "obj",
+            "claim_id": "cl",
+            "step": [
+                {
+                    "id": "s1",
+                    "title": "step",
+                    "state": "closed",
+                    "openspec_change": change,
+                    "work_lane": "work/s1",
+                    "claim_id": "claim-s1",
+                    "closeout": {
+                        "state": "retired",
+                        "accepted_head": "a" * 40,
+                        "candidate_head": "b" * 40,
+                        "evidence": ["evidence/chronicle/s1/2026-07-11.md"],
+                    },
+                }
+            ],
+        },
+    )
+
+    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
+
+    assert "campaign_step_terminal_openspec_not_archived:cid:s1" in gaps
+
+
+def test_campaign_required_gaps_rejects_ambiguous_carrier_home(tmp_path: Path) -> None:
+    """One lifecycle id cannot simultaneously be active and archived."""
+    change = "ambiguous-change"
+    (tmp_path / "openspec" / "changes" / change).mkdir(parents=True)
+    (tmp_path / "openspec" / "changes" / "archive" / f"2026-07-11-{change}").mkdir(parents=True)
+    campaign = _campaign(
+        tmp_path,
+        {
+            "id": "cid",
+            "owner": "o",
+            "objective": "obj",
+            "claim_id": "cl",
+            "step": [
+                {
+                    "id": "s1",
+                    "title": "step",
+                    "state": "active",
+                    "openspec_change": change,
+                    "work_lane": "work/s1",
+                    "claim_id": "claim-s1",
+                }
+            ],
+        },
+    )
+
+    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
+
+    assert "campaign_step_openspec_ambiguous:cid:s1" in gaps
 
 
 # --- repository/adoption/retirement package ---------------------------------

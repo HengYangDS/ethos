@@ -482,7 +482,6 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
         source_root=linked_worktree,
         state_dir=state_dir,
         expected_head=expected_head,
-        include_untracked=False,
     )
 
     snapshot = state_dir / "source"

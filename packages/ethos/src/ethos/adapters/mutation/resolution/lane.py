@@ -379,7 +379,7 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
         raise ValueError("lane_resolution_preservation_package_outside_root") from exc
     manifest = package.get("manifest")
     if not isinstance(manifest, dict):
-        raise ValueError("lane_resolution_preservation_manifest_invalid")
+        raise TypeError("lane_resolution_preservation_manifest_invalid")
     checks = (
         (destination / "repository.bundle", "bundle_sha256"),
         (destination / "tracked.patch", "patch_sha256"),

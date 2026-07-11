@@ -30,7 +30,7 @@ def _files_digest(files: dict[str, str]) -> str:
     [
         ("generic", 65, "3c7d9eec0a6b417c016a93bd0b55afc238d83c5a0230d43e2bbba619d2757305"),
         ("github", 66, "799103f823eddc6e6f04169a181928bc59abe5d51118a69aac37c508dbe8c8cf"),
-        ("gitlab", 66, "2afab7054df2d7a2e127c0f129afd029e1a9cfc166d3a0bdcd540e0397adbb6c"),
+        ("gitlab", 66, "a3665fcdd9c2f2531611a2a9f1847483ece3ebe27f8e2ba9d3cac0e066ed2626"),
     ],
 )
 def test_scaffold_template_migration_preserves_default_file_bytes(

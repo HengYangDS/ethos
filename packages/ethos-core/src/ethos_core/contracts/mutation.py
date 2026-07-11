@@ -42,6 +42,7 @@ class MutationTransition:
     role_gap: str
     dirty_gap: str
     dry_run_short_circuit: bool = False
+    dry_run_checked_commands: tuple[str, ...] = ()
     current_state: str = ""
 
 
@@ -99,6 +100,7 @@ WORK_LANE_MUTATION = MutationTransition(
     role_gap="protected_root_mutation",
     dirty_gap="work_lane_dirty",
     dry_run_short_circuit=True,
+    dry_run_checked_commands=("land",),
 )
 
 CLOSEOUT_MUTATION = MutationTransition(
@@ -136,7 +138,11 @@ def reduce_mutation(
     transition: MutationTransition,
 ) -> MutationEvaluation:
     """Reduce declarations and observed facts without filesystem, Git, or time access."""
-    if transition.dry_run_short_circuit and not request.apply:
+    if (
+        transition.dry_run_short_circuit
+        and not request.apply
+        and request.command not in transition.dry_run_checked_commands
+    ):
         return MutationEvaluation(ok=True, state="dry_run")
 
     gaps = list(_request_gaps(request, current_head=current_head))

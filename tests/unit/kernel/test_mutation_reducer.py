@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
 from ethos_core.contracts.mutation import HANDOFF_EXPORT
 from ethos_core.contracts.mutation import WORK_LANE_MUTATION
@@ -23,6 +25,17 @@ def test_work_lane_reducer_short_circuits_non_land_dry_runs() -> None:
     assert result.ok is True
     assert result.state == "dry_run"
     assert result.gaps == ()
+
+
+def test_work_lane_land_dry_run_checks_the_protected_role() -> None:
+    result = reduce_mutation(
+        MutationRequest(command="land", apply=False, authorized=False, expect_head=None),
+        current_head="current",
+        facts=MutationFacts(role="accepted_root"),
+        transition=WORK_LANE_MUTATION,
+    )
+
+    assert result.gaps == ("protected_root_mutation",)
 
 
 def test_work_lane_reducer_orders_request_lifecycle_and_evidence_gaps() -> None:
@@ -105,6 +118,11 @@ def test_lease_reducer_interprets_declared_operation_requirements() -> None:
         "lease_ttl_invalid",
         "handoff_offer_id_required",
     )
+
+
+def test_lease_transition_rejects_unknown_operation() -> None:
+    with pytest.raises(ValueError, match="lease_operation_unknown:unknown"):
+        lease_transition("unknown")
 
 
 def test_guard_reducer_preserves_declared_order_deduplicates_and_applies_state() -> None:

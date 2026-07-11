@@ -61,6 +61,34 @@ def status_for(
     }
 
 
+def accepted_status() -> dict[str, object]:
+    return status_for(
+        role=ROLE_ACCEPTED_ROOT,
+        candidate={
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": "/workspace/c",
+            "head": "c2",
+        },
+    )
+
+
+def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(
+        mutation_core,
+        "evaluate_closeout_mutation",
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
+    )
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: accepted_status())
+    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(
+        mutation_core,
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
+
+
 def evidence_for(head: str, runs: list[dict[str, object]] | None = None) -> dict[str, object]:
     body = {
         "id": "e1",
@@ -339,24 +367,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     # through the armed hook after the proof is pre-carried.
     assert merge_envs == [None]
 
-    monkeypatch.setattr(
-        mutation_core,
-        "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "workspace_status",
-        lambda root: status_for(
-            role=ROLE_ACCEPTED_ROOT,
-            candidate={
-                "exists": True,
-                "worktree_exists": True,
-                "worktree_path": "/workspace/c",
-                "head": "c2",
-            },
-        ),
-    )
+    prepare_accepted_closeout(monkeypatch)
     monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: False)
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -417,31 +428,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 def test_closeout_retries_transient_accepted_worktree_sync_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(
-        mutation_core,
-        "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "workspace_status",
-        lambda root: status_for(
-            role=ROLE_ACCEPTED_ROOT,
-            candidate={
-                "exists": True,
-                "worktree_exists": True,
-                "worktree_path": "/workspace/c",
-                "head": "c2",
-            },
-        ),
-    )
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
-    monkeypatch.setattr(
-        mutation_core,
-        "carry_executed_proof_record",
-        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
-    )
+    prepare_accepted_closeout(monkeypatch)
     reset_attempts = {"count": 0}
 
     def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
@@ -470,31 +457,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
 def test_closeout_blocks_dirty_accepted_worktree_after_sync(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(
-        mutation_core,
-        "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "workspace_status",
-        lambda root: status_for(
-            role=ROLE_ACCEPTED_ROOT,
-            candidate={
-                "exists": True,
-                "worktree_exists": True,
-                "worktree_path": "/workspace/c",
-                "head": "c2",
-            },
-        ),
-    )
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
-    monkeypatch.setattr(
-        mutation_core,
-        "carry_executed_proof_record",
-        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
-    )
+    prepare_accepted_closeout(monkeypatch)
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
         _ = check

@@ -4,6 +4,11 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.adoption.planner import detect_repo_profile
+from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
+from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
+from ethos.repository.policy.gates import _adopter_profile_active
+from ethos.repository.policy.gates import default_gate_ids
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -14,6 +19,7 @@ def _assert_required_scaffold_files_exist(tmp_path: Path, planned: set[str]) -> 
         ".gitignore",
         ".config/ethos/generated-artifacts.toml",
         ".ethos/project.toml",
+        ".ethos/profile.toml",
         ".ethos/workspace.toml",
         ".ethos/rules.toml",
         ".ethos/assistants.toml",
@@ -174,6 +180,26 @@ def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
         encoding="utf-8"
     )
     assert (tmp_path / ".ethos/state/.gitignore").read_text(encoding="utf-8").startswith("*")
+
+
+def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(tmp_path: Path) -> None:
+    """A freshly scaffolded repository must be a recognized ETHOS adopter that gets the
+    adopter proof floor — not left in a no-mans-land where it is neither the product nor
+    an adopter and is handed the product-owned floor it can never run. The scaffolded
+    .ethos/profile.toml is the binding-manifest entrypoint that makes this true."""
+    result = adoption_plan(tmp_path, apply=True)
+    assert result["applied"] is True
+
+    profile = load_repository_profile(tmp_path)
+    assert (tmp_path / ".ethos/profile.toml").exists()
+    assert profile.exists is True
+    assert profile.valid is True
+    assert profile.identity.get("profile_id") == tmp_path.name
+    assert _adopter_profile_active(tmp_path) is True
+
+    floor = default_gate_ids(root=tmp_path)
+    assert floor == ADOPTER_DEFAULT_GATE_IDS
+    assert floor != PRODUCT_DEFAULT_GATE_IDS
 
 
 def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None:

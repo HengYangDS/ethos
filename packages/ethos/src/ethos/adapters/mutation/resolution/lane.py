@@ -16,6 +16,9 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.contracts.mutation import LANE_RESOLUTION_APPLY
+from ethos_core.contracts.mutation import LANE_RESOLUTION_DECIDE
+from ethos_core.contracts.mutation import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
@@ -39,24 +42,36 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
 ) -> dict[str, object]:
     """Create the first-phase exceptional judgment; no lane effect occurs."""
     observation, gaps = _observe_lane(root, branch)
-    if disposition not in {"block", "preserve", "retire", "preserve-retire"}:
-        gaps.append("lane_resolution_disposition_invalid")
-    if not reason.strip():
-        gaps.append("lane_resolution_reason_required")
-    if not evidence_refs:
-        gaps.append("lane_resolution_evidence_required")
     chronicle_path, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
     gaps.extend(chronicle_gaps)
-    if not recovery_plan.strip():
-        gaps.append("lane_resolution_recovery_plan_required")
-    if disposition in {"retire", "preserve-retire"} and not break_glass:
-        gaps.append("retire_exception_requires_break_glass")
-    if not _local_artifact_path(root, decision_path):
-        gaps.append("lane_resolution_decision_path_not_local_artifact")
-    report = _report(branch=branch, apply=apply, gaps=gaps)
-    if apply and not gaps:
+    evaluation = reduce_guards(
+        LANE_RESOLUTION_DECIDE,
+        apply=apply,
+        initial_gaps=tuple(gaps),
+        prefix_checks=(
+            (
+                disposition in {"block", "preserve", "retire", "preserve-retire"},
+                "lane_resolution_disposition_invalid",
+            ),
+            (bool(reason.strip()), "lane_resolution_reason_required"),
+            (bool(evidence_refs), "lane_resolution_evidence_required"),
+        ),
+        checks=(
+            (bool(recovery_plan.strip()), "lane_resolution_recovery_plan_required"),
+            (
+                disposition not in {"retire", "preserve-retire"} or break_glass,
+                "retire_exception_requires_break_glass",
+            ),
+            (
+                _local_artifact_path(root, decision_path),
+                "lane_resolution_decision_path_not_local_artifact",
+            ),
+        ),
+    )
+    report = _report(branch=branch, evaluation=evaluation)
+    if apply and evaluation.ok:
         decision = LaneResolutionDecision(
             decision_id=f"lane-decision:{uuid.uuid4()}",
             disposition=cast("Any", disposition),
@@ -92,7 +107,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
         command="lane-resolution-plan",
         action="lane.resolution.decide",
         resource=branch,
-        expected_state={"observation_digest": observation.digest() if not gaps else ""},
+        expected_state={"observation_digest": observation.digest() if evaluation.ok else ""},
         report=report,
         apply=apply,
     )
@@ -111,15 +126,26 @@ def apply_lane_resolution(
     branch = str(decision.get("observation", {}).get("lane_ref") or "")
     observation, observation_gaps = _observe_lane(root, branch)
     gaps.extend(observation_gaps)
-    if decision and observation.digest() != str(decision.get("observation_digest") or ""):
-        gaps.append("lane_resolution_observation_stale")
     disposition = str(decision.get("disposition") or "")
-    if disposition in {"retire", "preserve-retire"} and not confirm_irreversible:
-        gaps.append("irreversible_confirmation_required")
-    if disposition == "retire" and observation.dirty:
-        gaps.append("dirty_lane_retirement_blocked")
-    report = _report(branch=branch, apply=apply, gaps=list(dict.fromkeys(gaps)))
-    if apply and not report["required_gaps"]:
+    evaluation = reduce_guards(
+        LANE_RESOLUTION_APPLY,
+        apply=apply,
+        initial_gaps=tuple(gaps),
+        checks=(
+            (
+                not decision
+                or observation.digest() == str(decision.get("observation_digest") or ""),
+                "lane_resolution_observation_stale",
+            ),
+            (
+                disposition not in {"retire", "preserve-retire"} or confirm_irreversible,
+                "irreversible_confirmation_required",
+            ),
+            (disposition != "retire" or not observation.dirty, "dirty_lane_retirement_blocked"),
+        ),
+    )
+    report = _report(branch=branch, evaluation=evaluation)
+    if apply and evaluation.ok:
         if disposition == "preserve":
             package = _preserve(root=root, observation=observation, decision=decision)
             report.update(state="preserved", preservation_package=package)
@@ -450,17 +476,17 @@ def _chronicle_completion(
     }
 
 
-def _report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, object]:
+def _report(*, branch: str, evaluation: Any) -> dict[str, object]:
     return {
-        "ok": not gaps,
-        "state": "planned" if not apply and not gaps else "blocked" if gaps else "applying",
+        "ok": evaluation.ok,
+        "state": evaluation.state,
         "branch": branch,
         "decision": {},
         "decision_path": "",
         "preservation_package": {},
         "receipt": {},
         "chronicle_event": {},
-        "required_gaps": gaps,
+        "required_gaps": list(evaluation.gaps),
     }
 
 

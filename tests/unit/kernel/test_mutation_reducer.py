@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
+from ethos_core.contracts.mutation import HANDOFF_EXPORT
 from ethos_core.contracts.mutation import WORK_LANE_MUTATION
 from ethos_core.contracts.mutation import LeaseFacts
 from ethos_core.contracts.mutation import MutationFacts
 from ethos_core.contracts.mutation import MutationRequest
 from ethos_core.contracts.mutation import lease_transition
+from ethos_core.contracts.mutation import reduce_guards
 from ethos_core.contracts.mutation import reduce_lease_request
 from ethos_core.contracts.mutation import reduce_mutation
 
@@ -103,3 +105,16 @@ def test_lease_reducer_interprets_declared_operation_requirements() -> None:
         "lease_ttl_invalid",
         "handoff_offer_id_required",
     )
+
+
+def test_guard_reducer_preserves_declared_order_deduplicates_and_applies_state() -> None:
+    evaluation = reduce_guards(
+        HANDOFF_EXPORT,
+        apply=True,
+        initial_gaps=("first", "first"),
+        checks=((False, "second"),),
+    )
+
+    assert evaluation.ok is False
+    assert evaluation.state == "blocked"
+    assert evaluation.gaps == ("first", "second")

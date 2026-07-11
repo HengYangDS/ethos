@@ -84,6 +84,15 @@ class LeaseFacts:
     initial_gaps: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class GuardedTransition:
+    """State names for a fact-only transition with no effectful knowledge."""
+
+    id: str
+    planned_state: str = "planned"
+    applied_state: str = "applying"
+
+
 WORK_LANE_MUTATION = MutationTransition(
     id="work_lane_mutation",
     required_role="work_lane",
@@ -111,6 +120,12 @@ LEASE_TRANSITIONS = (
         requires_offer=True,
     ),
 )
+
+HANDOFF_EXPORT = GuardedTransition(id="handoff_export")
+HANDOFF_IMPORT = GuardedTransition(id="handoff_import")
+HANDOFF_REVOKE_SOURCE = GuardedTransition(id="handoff_revoke_source")
+LANE_RESOLUTION_DECIDE = GuardedTransition(id="lane_resolution_decide")
+LANE_RESOLUTION_APPLY = GuardedTransition(id="lane_resolution_apply")
 
 
 def reduce_mutation(
@@ -178,6 +193,32 @@ def reduce_lease_request(
     return MutationEvaluation(
         ok=not ordered_gaps,
         state="blocked" if ordered_gaps else transition.applied_state if facts.apply else "planned",
+        gaps=ordered_gaps,
+    )
+
+
+def reduce_guards(
+    transition: GuardedTransition,
+    *,
+    apply: bool,
+    initial_gaps: tuple[str, ...] = (),
+    prefix_checks: tuple[tuple[bool, str], ...] = (),
+    checks: tuple[tuple[bool, str], ...] = (),
+) -> MutationEvaluation:
+    """Reduce adapter-observed predicates into one deterministic lifecycle verdict."""
+    gaps = [
+        *(gap for satisfied, gap in prefix_checks if not satisfied),
+        *initial_gaps,
+        *(gap for satisfied, gap in checks if not satisfied),
+    ]
+    ordered_gaps = tuple(dict.fromkeys(gaps))
+    return MutationEvaluation(
+        ok=not ordered_gaps,
+        state="blocked"
+        if ordered_gaps
+        else transition.applied_state
+        if apply
+        else transition.planned_state,
         gaps=ordered_gaps,
     )
 

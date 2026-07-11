@@ -56,11 +56,16 @@ def test_generated_artifact_topology_policy_is_declaration_first() -> None:
     assert package_resource.exists()
     assert package_resource.read_text(encoding="utf-8") == declaration.read_text(encoding="utf-8")
     assert "GeneratedArtifactTopologyDeclaration" in source
+    assert "TopologyCelRule" in source
+    assert "evaluate_cel_predicate" in source
+    assert "celpy.Environment" in source
     assert "system/policies/generated-artifact-topology.toml" in source
     assert "data/generated_artifact_topology.toml" in source
     assert "_ALLOWED_PREFIXES" not in source
     assert "_DENIED_ROOT_CACHE_PREFIXES" not in source
     assert "build/runtime/tool-cache/" not in source
+    assert "_legacy_generated_policy" not in source
+    assert "_generated_denial_policy" not in source
 
 
 def test_evidence_layout_policy_is_declaration_first() -> None:

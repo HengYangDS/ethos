@@ -2,51 +2,94 @@ schema_version = 1
 id = "generated-artifact-topology"
 source_refs = ["system/policies/generated-artifact-topology.toml"]
 adopter_specific_product_dirs_allowed = false
-declarative_boundary = "declarative config, policy, and adopter interface only"
-product_adopter_boundary = "ETHOS product repositories may not own adopter-specific roots"
-product_adopter_required_gap_prefix = "generated_artifact_adopter_specific_product_root"
-cache_flat_boundary = ".cache is reserved for semantic local-state, not flat cache buckets"
-cache_flat_required_gap_prefix = "generated_artifact_cache_flat_drift"
 cache_flat_root_prefix = ".cache"
 cache_allowed_prefixes = [".cache/local-state"]
-runtime_flat_boundary = "build/runtime must be organized by semantic runtime subroot: tool-cache or work"
-runtime_flat_required_gap_prefix = "generated_artifact_runtime_flat_drift"
 runtime_flat_root_prefix = "build/runtime"
 runtime_allowed_prefixes = ["build/runtime/tool-cache", "build/runtime/work"]
-generated_denial_boundary = "generated output may not live in config, semantic docs truth, or source"
-repo_root_generated_boundary = "repo root is not a generated artifact owner"
-repo_root_generated_required_gap_prefix = "generated_artifact_repo_root_drift"
 ignore_boundary = "not a generated artifact topology subject"
 source_schema_suffix = ".schema.json"
 
-generated_suffixes = [
-  ".coverage",
-  ".html",
-  ".json",
-  ".jsonl",
-  ".log",
-  ".sqlite",
-  ".xml",
-]
-generated_filenames = [
-  ".coverage",
-  "coverage.xml",
-  "junit.xml",
-  "proof.json",
-  "report.json",
-]
+generated_suffixes = [".coverage", ".html", ".json", ".jsonl", ".log", ".sqlite", ".xml"]
+generated_filenames = [".coverage", "coverage.xml", "junit.xml", "proof.json", "report.json"]
 generated_filename_prefixes = [".coverage."]
-source_metadata_filenames = [
-  "package-lock.json",
-  "package.json",
-  "pyproject.toml",
-  "uv.lock",
-]
-product_adopter_root_prefixes = [
-  "adopters",
-  "profiles",
-  "tests/fixtures/adopters",
-]
+source_metadata_filenames = ["package-lock.json", "package.json", "pyproject.toml", "uv.lock"]
+product_adopter_root_prefixes = ["adopters", "profiles", "tests/fixtures/adopters"]
+
+[[cel_rule]]
+id = "generated"
+expression = "!(policy.source_metadata_filenames.contains(facts.name) || facts.name.endsWith(policy.source_schema_suffix)) && (policy.generated_filenames.contains(facts.name) || policy.generated_suffixes.contains(facts.suffix) || policy.generated_filename_prefixes.exists(prefix, facts.name.startsWith(prefix)))"
+decision = "classify"
+
+[[cel_rule]]
+id = "product-adopter-root"
+expression = "policy.product_adopter_root_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = "ETHOS product repositories may not own adopter-specific roots"
+required_gap_prefix = "generated_artifact_adopter_specific_product_root"
+
+[[cel_rule]]
+id = "denied-prefix"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_prefix"
+
+[[cel_rule]]
+id = "denied-root-cache"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_root_cache_prefix"
+
+[[cel_rule]]
+id = "cache-flat"
+expression = "(facts.path == policy.cache_flat_root_prefix || facts.path.startsWith(policy.cache_flat_root_prefix + \"/\")) && !policy.cache_allowed_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = ".cache is reserved for semantic local-state, not flat cache buckets"
+required_gap_prefix = "generated_artifact_cache_flat_drift"
+
+[[cel_rule]]
+id = "denied-legacy-generated"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_legacy_generated_prefix"
+
+[[cel_rule]]
+id = "runtime-flat"
+expression = "facts.path != policy.runtime_flat_root_prefix && facts.path.startsWith(policy.runtime_flat_root_prefix + \"/\") && !policy.runtime_allowed_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = "build/runtime must be organized by semantic runtime subroot: tool-cache or work"
+required_gap_prefix = "generated_artifact_runtime_flat_drift"
+
+[[cel_rule]]
+id = "declarative"
+expression = "!facts.generated && policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "review"
+prefix_group = "declarative_prefix"
+
+[[cel_rule]]
+id = "allowed"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "allow"
+prefix_group = "allowed_prefix"
+
+[[cel_rule]]
+id = "review"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "review"
+prefix_group = "review_prefix"
+
+[[cel_rule]]
+id = "denied-generated"
+expression = "facts.generated && policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+boundary = "generated output may not live in config, semantic docs truth, or source"
+prefix_group = "denied_generated_prefix"
+
+[[cel_rule]]
+id = "repo-root-generated"
+expression = "facts.generated && !facts.path.contains(\"/\")"
+decision = "deny"
+boundary = "repo root is not a generated artifact owner"
+required_gap_prefix = "generated_artifact_repo_root_drift"
 
 [[declarative_prefix]]
 prefix = ".config/ethos"

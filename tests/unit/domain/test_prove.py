@@ -195,6 +195,12 @@ def test_source_budget_ignores_malformed_debt_records(debt):
         assert prove._budget_ints(debt) == {}  # noqa: RUF100, SLF001 - exact invalid-input reducer coverage
 
 
+def test_source_budget_ignores_boolean_allowance_and_blank_record_id():
+    assert prove._source_budget_allowance(
+        {"debt": {"records": [{"allowance": True, "id": ""}]}}
+    ) == (0, {}, [])
+
+
 def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, monkeypatch):
     monkeypatch.setattr(prove, "source_budget_policy", lambda _root: {})
     assert prove.source_budget_report(tmp_path)["required_gaps"] == ["source_budget_policy_missing"]
@@ -207,7 +213,7 @@ def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, m
         "source_budget_policy",
         lambda _root: {
             "baseline": {"unknown": 0},
-            "terminal": {"global_total": 0},
+            "terminal": {"global_total": 0, "shell": 2},
             "debt": {"maximum_total": 0, "records": [{"id": "growth", "allowance": 1}]},
             "enforcement": "terminal",
         },

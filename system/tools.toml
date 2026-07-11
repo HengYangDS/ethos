@@ -28,6 +28,14 @@ profile = "minimal"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
+concern = "property_testing"
+tool = "Hypothesis"
+config = ".config/checks/pytest/policy.toml"
+artifacts = "build/runtime/tool-cache/hypothesis/"
+profile = "product"
+gate = "tools/ci/scripts/run-python-tests.sh"
+
+[[tool]]
 concern = "test_performance"
 tool = "pytest-benchmark"
 config = ".config/checks/pytest/policy.toml"
@@ -323,8 +331,8 @@ planned = true
 
 [[tool]]
 concern = "generated_artifact_topology"
-tool = "ethos-generated-artifacts"
-config = "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py + docs/architecture/generated-artifact-topology.md"
+tool = "cel-python + ethos-generated-artifacts"
+config = "system/policies/generated-artifact-topology.toml + packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py"
 artifacts = "build/evidence/generated-artifacts/"
 gate = "ethos quality generated-artifacts --json"
 profile = "product"

@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from os import walk
+from pathlib import Path
 from typing import Any
 
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 _ROOT_TEST_RESIDUE_FILENAMES = frozenset({".coverage", "coverage.xml", "junit.xml"})
 _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
@@ -421,20 +418,37 @@ def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclarati
         if path.exists():
             candidates[rel] = path
 
-    for path in root.rglob("*"):
-        rel = path.relative_to(root).as_posix()
-        if rel in candidates:
-            continue
-        if any(part in _PRUNE_DIRS for part in path.relative_to(root).parts):
-            continue
-        policy = path_policy_from_declaration(path.relative_to(root), declaration)
-        if (path.is_file() and policy["decision"] != "ignore") or (
-            path.is_dir()
-            and policy["decision"] == "deny"
-            and not any(child.is_file() for child in path.rglob("*"))
-        ):
-            candidates[rel] = path
+    for parent, directories, filenames in walk(root, topdown=True):
+        directory = Path(parent)
+        rel_directory = directory.relative_to(root)
+        directories[:] = [
+            name for name in directories if not _skip_descendant(rel_directory / name, declaration)
+        ]
+        if directory != root:
+            rel = rel_directory.as_posix()
+            if rel not in candidates:
+                policy = path_policy_from_declaration(rel_directory, declaration)
+                if policy["decision"] == "deny" and not any(
+                    child.is_file() for child in directory.rglob("*")
+                ):
+                    candidates[rel] = directory
+        for name in filenames:
+            path = directory / name
+            rel = path.relative_to(root).as_posix()
+            if (
+                rel not in candidates
+                and path_policy_from_declaration(path.relative_to(root), declaration)["decision"]
+                != "ignore"
+            ):
+                candidates[rel] = path
     return [candidates[key] for key in sorted(candidates)]
+
+
+def _skip_descendant(rel: Path, declaration: GeneratedArtifactTopologyDeclaration) -> bool:
+    """Skip excluded implementation trees and recursive allowed artifact homes."""
+    return rel.name in _PRUNE_DIRS or any(
+        rel.as_posix() == item.prefix.rstrip("/") for item in declaration.allowed_prefix
+    )
 
 
 def _explicit_denied_roots(declaration: GeneratedArtifactTopologyDeclaration) -> list[str]:

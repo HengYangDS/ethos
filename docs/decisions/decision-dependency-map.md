@@ -20,5 +20,7 @@ Purpose: show dependencies between ETHOS durable rulings.
   product roots, or rollback evidence must cite DR-0001.
 - Future decisions that alter documentation topology, decision-record routing, or adopter docs kernel requirements must cite DR-0004.
 - Future decisions that alter proof scope compatibility, host-probe flags, or adopter proof command surfaces must cite DR-0003.
+- DR-0006 depends on DR-0005 for the declarative runtime spine that hosts proof/evidence contracts.
+- Future decisions that alter the proof trust boundary, the local-vs-enforcement claim semantics, or the independent-identity verification plug (local daemon or hosted forge) must cite DR-0006.
 
 See also: [Decision Index](decision-index.md).

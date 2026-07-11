@@ -22,10 +22,10 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef
-from ethos_core.contracts.mutation import HANDOFF_EXPORT
-from ethos_core.contracts.mutation import HANDOFF_IMPORT
-from ethos_core.contracts.mutation import HANDOFF_REVOKE_SOURCE
-from ethos_core.contracts.mutation import reduce_guards
+from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
+from ethos_core.contracts.lifecycle.core import HANDOFF_IMPORT
+from ethos_core.contracts.lifecycle.core import HANDOFF_REVOKE_SOURCE
+from ethos_core.contracts.lifecycle.core import reduce_guards
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

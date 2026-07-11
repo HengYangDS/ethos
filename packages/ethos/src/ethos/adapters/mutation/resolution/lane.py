@@ -16,9 +16,9 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.mutation import LANE_RESOLUTION_APPLY
-from ethos_core.contracts.mutation import LANE_RESOLUTION_DECIDE
-from ethos_core.contracts.mutation import reduce_guards
+from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_APPLY
+from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_DECIDE
+from ethos_core.contracts.lifecycle.core import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 

@@ -4,6 +4,7 @@ version = "0.1.0a1"
 description = "Pure ETHOS core kernel primitives"
 requires-python = ">=3.12"
 dependencies = [
+  "cel-python>=0.5,<0.6",
   "pydantic>=2.12,<3",
 ]
 

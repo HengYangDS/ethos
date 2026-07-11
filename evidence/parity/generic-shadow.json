@@ -5,10 +5,10 @@
   "generated_on": "2026-07-11",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "6d4201fefc211c0642e1a081fd2f5a1ce4165454",
-    "target_head": "6d4201fefc211c0642e1a081fd2f5a1ce4165454",
-    "product_semantic_sha256": "5d5511916ef1740e8a8c8f75945c2487d9125e557eef4804b7e44b3c6d908879",
-    "target_semantic_sha256": "5d5511916ef1740e8a8c8f75945c2487d9125e557eef4804b7e44b3c6d908879",
+    "product_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
+    "target_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
+    "product_semantic_sha256": "55f063764ae4a09f5cd273d15d1f7a4a2bc8712aa4d324959e2c1fb7cdc88c86",
+    "target_semantic_sha256": "55f063764ae4a09f5cd273d15d1f7a4a2bc8712aa4d324959e2c1fb7cdc88c86",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,25 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "6d4201fefc211c0642e1a081fd2f5a1ce4165454",
-    "product_head": "6d4201fefc211c0642e1a081fd2f5a1ce4165454",
-    "changed_paths": [],
+    "target_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
+    "product_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
+    "changed_paths": [
+      ".config/checks/pytest/policy.toml",
+      "packages/ethos-core/pyproject.toml",
+      "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
+      "packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml",
+      "packages/ethos/src/ethos/repository/policy/artifacts.py",
+      "pyproject.toml",
+      "system/policies/generated-artifact-topology.toml",
+      "system/tools.toml",
+      "tests/architecture/test_declarative_runtime_spine.py",
+      "tests/conftest.py",
+      "tests/unit/coverage/test_cov_generated_artifact_topology_edges.py",
+      "tests/unit/governance/test_generated_artifact_topology.py",
+      "tests/unit/kernel/test_cel_topology_predicates.py",
+      "tests/unit/kernel/test_invalid_states.py",
+      "uv.lock"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -77,7 +93,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "32aee72e1447b00edc351c83107ea33c97a805bf973b5fd89fe9ef8af610ca7b"
+        "sha256": "6a1a6c4b34abb17901831a466102b9e774339adc4a18bfbcbda7aaa8ad356b1f"
       },
       {
         "path": "evidence/claims",
@@ -87,7 +103,7 @@
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "98cb53a2a6625ade24a1f90294790b666ddd95d758e4f6138994d51c154321ef"
+        "sha256": "6153591d1edf4c509327d60f5c2f30104a3e759d59089de30db4e6b2f9dbeb83"
       },
       {
         "path": "rules",

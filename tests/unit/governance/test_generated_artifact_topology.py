@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ethos.repository.policy import artifacts as artifacts_mod
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
@@ -213,6 +214,38 @@ def test_generated_artifact_report_blocks_ignored_root_cache_with_internal_gitig
     assert report["ok"] is False
     assert ".import_linter_cache" in report["denied_paths"]
     assert "generated_artifact_root_cache_drift:.import_linter_cache" in report["required_gaps"]
+
+
+def test_candidate_paths_prune_recursive_allowed_homes_but_scan_adjacent_drift(
+    tmp_path: Path,
+) -> None:
+    declaration = load_generated_artifact_topology_declaration()
+    allowed = tmp_path / "build/runtime/tool-cache/pytest/deep/cache.json"
+    denied = tmp_path / "build/runtime/random-cache/state.json"
+    allowed.parent.mkdir(parents=True)
+    denied.parent.mkdir(parents=True)
+    allowed.write_text("{}\n", encoding="utf-8")
+    denied.write_text("{}\n", encoding="utf-8")
+
+    candidates = {
+        path.relative_to(tmp_path).as_posix()
+        for path in artifacts_mod._candidate_paths(tmp_path, declaration)
+    }
+
+    assert "build/runtime/tool-cache/pytest/deep/cache.json" not in candidates
+    assert "build/runtime/random-cache/state.json" in candidates
+
+
+def test_candidate_paths_retains_an_empty_denied_directory(tmp_path: Path) -> None:
+    declaration = load_generated_artifact_topology_declaration()
+    (tmp_path / ".cache" / "empty").mkdir(parents=True)
+
+    candidates = {
+        path.relative_to(tmp_path).as_posix()
+        for path in artifacts_mod._candidate_paths(tmp_path, declaration)
+    }
+
+    assert ".cache" in candidates
 
 
 def test_path_policy_denies_legacy_and_flat_generated_homes() -> None:

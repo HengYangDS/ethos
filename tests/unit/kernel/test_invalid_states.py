@@ -49,6 +49,7 @@ _NON_GAP_TOKENS = {
     "baseline_gap_limit",
     "unclassified_invalid_state",
     "required_gap",  # policy-result field name, not an emitted gap
+    "required_gap_prefix",  # declarative CEL-rule metadata, not an emitted gap
     "not_required",  # prewrite diagnostic reason, not an emitted gap
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap

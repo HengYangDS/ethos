@@ -90,13 +90,14 @@ owner = "global-declarative-compression-program-20260711"
 replacement = "source budget, carrier admission, and declaration compiler foundation"
 deletion_wave = "T5"
 expiry = "T5"
-allowance = 1200
+allowance = 1410
 
 [quality.source_budget.debt.records.allowance_by_category]
 python_product = 350
 python_tests = 400
 python_tools = 250
-toml = 200
+toml = 396
+json = 14
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

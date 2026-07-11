@@ -31,7 +31,7 @@ def test_command_declaration_compiles_command_sets_and_quality_handlers() -> Non
     assert declaration.sets.setup == ("ethos init", "ethos adopt", "ethos doctor")
 
     quality = declaration.group("quality")
-    assert len(quality) == 40
+    assert len(quality) == 41
     assert quality[0].name == "asset-policy"
     assert quality[-1].name == "governance-kernel"
     assert all(command.import_path.startswith("ethos.") for command in quality)
@@ -47,13 +47,16 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
         if command.report_handler is not None
     }
 
-    assert len(report_handlers) == 28
+    assert len(report_handlers) == 29
     assert report_handlers["asset-policy"].spec == "ASSET_POLICY_COMMAND"
     assert report_handlers["asset-policy"].enforce is False
     assert report_handlers["asset-policy"].bind_root is False
     assert report_handlers["types"].spec == "TYPES_COMMAND"
     assert report_handlers["types"].enforce is True
     assert report_handlers["types"].bind_root is True
+    assert report_handlers["performance"].spec == "PERFORMANCE_COMMAND"
+    assert report_handlers["performance"].enforce is True
+    assert report_handlers["performance"].bind_root is True
     assert report_handlers["no-compat"].spec == "NO_COMPAT_COMMAND"
     assert report_handlers["no-compat"].enforce is True
     assert report_handlers["no-compat"].bind_root is True
@@ -70,7 +73,7 @@ def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
 
     registered = register_declared_group(app, "quality")
 
-    assert registered == 40
+    assert registered == 41
     assert isinstance(app._commands["types"], CommandSpec)
     assert app._commands["types"].import_path == ("ethos.surface.cli.quality.core:quality_types")
     assert app._commands["no-compat"].import_path == (

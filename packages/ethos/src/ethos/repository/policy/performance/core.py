@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tomllib
 from pathlib import Path
 from typing import Any
 
 POLICY_PATH = Path(".config/checks/performance/policy.toml")
+SCHEMA_VERSION = 2
 DEFAULT_LATEST_PATH = Path("build/evidence/quality/performance/latest.json")
 DEFAULT_BASELINE_PATH = Path("build/evidence/quality/performance/baseline.json")
 _ABSOLUTE_BUDGETS = (
@@ -55,21 +57,30 @@ def performance_quality_report(root: Path, *, current_head: str) -> dict[str, ob
         )
         required_gaps.extend(latest_binding_gaps)
         measurements = _measurements(latest.get("measurements"))
-        required_gaps.extend(_absolute_measurement_gaps(commands, measurements))
-        baseline_ok, baseline_advisories = _baseline_compatibility(
-            baseline,
-            baseline_gaps,
-            latest=latest,
-            policy_digest=_policy_digest(root / POLICY_PATH),
-        )
-        advisory_gaps.extend(baseline_advisories)
-        if baseline_ok:
-            comparison = "available"
-            required_gaps.extend(
-                _regression_gaps(commands, latest_measurements=measurements, baseline=baseline)
-            )
-        elif not latest_binding_gaps:
-            comparison = "advisory"
+        if not latest_binding_gaps:
+            absolute_gaps = _absolute_measurement_gaps(commands, measurements)
+            required_gaps.extend(absolute_gaps)
+            if not absolute_gaps:
+                baseline_ok, baseline_advisories = _baseline_compatibility(
+                    baseline,
+                    baseline_gaps,
+                    latest=latest,
+                    policy_digest=_policy_digest(root / POLICY_PATH),
+                )
+                advisory_gaps.extend(baseline_advisories)
+                if baseline_ok:
+                    comparison = "available"
+                    required_gaps.extend(
+                        _regression_gaps(
+                            commands,
+                            latest_measurements=measurements,
+                            baseline=baseline,
+                        )
+                    )
+                else:
+                    comparison = "advisory"
+            else:
+                comparison = "unavailable"
 
     summary = _summary(commands, measurements, comparison=comparison)
     state = "blocked" if required_gaps else "advisory" if advisory_gaps else "clean"
@@ -106,7 +117,7 @@ def _load_policy(path: Path) -> tuple[dict[str, Any], list[str]]:
     if not isinstance(payload, dict):
         return {}, [f"performance_policy_invalid:{POLICY_PATH.as_posix()}"]
     gaps: list[str] = []
-    if payload.get("schema_version") != 2:
+    if payload.get("schema_version") != SCHEMA_VERSION:
         gaps.append("performance_policy_schema_version_invalid")
     if not _commands(payload):
         gaps.append("performance_policy_commands_missing")
@@ -124,7 +135,7 @@ def _load_evidence(path: Path, *, label: str) -> tuple[dict[str, Any], list[str]
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}, [f"performance_{label}_invalid_json"]
-    if not isinstance(payload, dict) or payload.get("schema_version") != 2:
+    if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION:
         return {}, [f"performance_{label}_schema_invalid"]
     return payload, []
 
@@ -294,8 +305,6 @@ def _path(policy: dict[str, Any], key: str, default: Path) -> Path:
 
 def _policy_digest(path: Path) -> str:
     """Hash the exact tracked contract that governed a capture."""
-    import hashlib
-
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else ""
 
 

@@ -56,7 +56,7 @@ class ReportDataField(BaseModel):
 
 
 class ReportHandlerDeclaration(BaseModel):
-    """One immutable quality report handler compiler declaration."""
+    """One immutable reader projection compiler declaration."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -66,11 +66,13 @@ class ReportHandlerDeclaration(BaseModel):
     summary: tuple[ReportSummaryField, ...] = ()
     data_path: tuple[str, ...] | None = None
     data_fields: tuple[ReportDataField, ...] = ()
+    governance_context_path: tuple[str, ...] | None = None
     state_mode: Literal["report", "advisory_gaps"] = "report"
     advisory_gaps_path: tuple[str, ...] = ("advisory_gaps",)
     clean_state: str = "clean"
     blocked_state: str = "blocked"
     next_actions: tuple[str, ...] = ()
+    next_actions_path: tuple[str, ...] | None = None
     when_blocked: str = ""
     when_clean: str = ""
     enforce: bool = False

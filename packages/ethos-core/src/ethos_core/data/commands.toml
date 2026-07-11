@@ -14,17 +14,9 @@ public_workflow = [
   "ethos land",
   "ethos publish",
 ]
-reader_view = [
-  "ethos orient",
-]
-scorecard = [
-  "ethos report",
-]
-setup = [
-  "ethos init",
-  "ethos adopt",
-  "ethos doctor",
-]
+reader_view = ["ethos orient"]
+scorecard = ["ethos report"]
+setup = ["ethos init", "ethos adopt", "ethos doctor"]
 maintainer_reference = [
   "ethos audit",
   "ethos openspec",
@@ -50,9 +42,7 @@ maintainer_reference = [
   "ethos explain",
   "ethos docs",
 ]
-governance_gate = [
-  "openspec validate --all --strict --json",
-]
+governance_gate = ["openspec validate --all --strict --json"]
 local_closeout = [
   "ethos land --closeout --apply --authorize --expect-head <HEAD>",
 ]
@@ -74,10 +64,79 @@ retired_public_command_prefixes = [
   "ethos project",
   "ethos node",
 ]
-historical_exempt_roots = [
-  "evidence",
-  "docs/archive",
-]
+historical_exempt_roots = ["evidence", "docs/archive"]
+
+[[commands]]
+name = "orient"
+group = "root"
+import_path = "ethos.surface.cli.root.inspection:orient"
+help = "Orient a human or agent without minting repository truth."
+show = true
+report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report", summary = [
+  { name = "role", path = [
+    "orientation",
+    "where",
+    "role",
+  ] },
+  { name = "candidate_action", path = [
+    "orientation",
+    "capability",
+    "candidate_action",
+  ] },
+  { name = "foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "foreign_work_lane_count",
+  ] },
+  { name = "unbound_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "unbound_work_lane_count",
+  ] },
+  { name = "missing_lease_count", path = [
+    "orientation",
+    "coordination",
+    "missing_lease_count",
+  ], default = 0 },
+  { name = "dirty_foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "dirty_foreign_work_lane_count",
+  ], default = 0 },
+  { name = "coordination_advisory_count", path = [
+    "orientation",
+    "coordination",
+    "advisory_items",
+  ], reducer = "count" },
+  { name = "coordination_blocking", path = [
+    "orientation",
+    "coordination",
+    "blocking",
+  ] },
+  { name = "governance_gap_count", path = [
+    "orientation",
+    "readiness",
+    "governance_gap_count",
+  ] },
+  { name = "parity_pending_count", path = [
+    "orientation",
+    "readiness",
+    "parity_pending_count",
+  ] },
+  { name = "advisory_gap_count", path = [
+    "orientation",
+    "readiness",
+    "advisory_gap_count",
+  ] },
+], data_fields = [
+  { name = "orientation", path = [
+    "orientation",
+  ] },
+], governance_context_path = [
+  "governance_context",
+], next_actions_path = [
+  "next_actions",
+], enforce = false, bind_root = true }
 
 [[commands]]
 name = "asset-policy"

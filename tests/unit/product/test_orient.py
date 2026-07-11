@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
+
+import pytest
 
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
+from ethos.surface.cli.quality.reporting import build_declarative_report_result
+from ethos.surface.cli.root import inspection
+from ethos_core.contracts.commands import load_command_registry_declaration
+from ethos_core.result import EthosResult
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.cli.test_contracts import git
 from tests.unit.cli.test_contracts import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_orient_json_is_projection_not_truth_store() -> None:
@@ -66,6 +69,35 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         orientation["coordination"]["next_action"] == status["data"]["coordination"]["next_action"]
     )
     assert payload["next_actions"] == orientation["next_actions"]
+
+
+def test_orient_json_matches_its_declared_reader_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    declaration = next(
+        command
+        for command in load_command_registry_declaration().group("root")
+        if command.name == "orient"
+    )
+    assert declaration.report_handler is not None
+    report = inspection._orient_report(Path.cwd())
+
+    expected = build_declarative_report_result(
+        command="orient",
+        handler=declaration.report_handler,
+        report=report,
+    ).to_dict()
+    emitted: list[dict[str, object]] = []
+
+    def capture_emit(result: EthosResult, **_kwargs: object) -> None:
+        emitted.append(result.to_dict())
+
+    monkeypatch.setattr(inspection, "_orient_report", lambda _root: report)
+    monkeypatch.setattr(inspection, "emit", capture_emit)
+
+    inspection.orient(root=Path.cwd(), json_output=True)
+
+    assert emitted == [expected]
 
 
 def test_status_json_keeps_workspace_status_pure() -> None:

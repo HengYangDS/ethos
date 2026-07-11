@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
@@ -356,9 +357,9 @@ def _preserve(
         "lane_ref": observation.lane_ref,
         "head": observation.head,
         "observation_digest": observation.digest(),
-        "bundle_sha256": _sha256(bundle),
-        "patch_sha256": _sha256(patch),
-        "untracked_archive_sha256": _sha256(archive) if archive.is_file() else "",
+        "bundle_sha256": sha256_digest(bundle),
+        "patch_sha256": sha256_digest(patch),
+        "untracked_archive_sha256": sha256_digest(archive) if archive.is_file() else "",
         "source_lease_transferred": False,
     }
     (package / "manifest.json").write_text(
@@ -410,11 +411,11 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
         (destination / "tracked.patch", "patch_sha256"),
     )
     for path, key in checks:
-        if not path.is_file() or _sha256(path) != str(manifest.get(key) or ""):
+        if not path.is_file() or sha256_digest(path) != str(manifest.get(key) or ""):
             raise ValueError(_PRESERVATION_PACKAGE_INVALID)
     archive_digest = str(manifest.get("untracked_archive_sha256") or "")
     archive = destination / "untracked.tar"
-    if archive_digest and (not archive.is_file() or _sha256(archive) != archive_digest):
+    if archive_digest and (not archive.is_file() or sha256_digest(archive) != archive_digest):
         raise ValueError(_PRESERVATION_PACKAGE_INVALID)
 
 
@@ -540,7 +541,3 @@ def _run(root: Path, *args: str) -> None:
     completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
         raise ValueError(completed.stderr.strip() or "command_failed")
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()

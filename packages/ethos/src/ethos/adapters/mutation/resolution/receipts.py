@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
@@ -160,7 +161,7 @@ def _manifests(root: Path) -> dict[str, dict[str, str]]:
             continue
         records[decision_id] = {
             "package_path": path.parent.relative_to(root).as_posix(),
-            "manifest_sha256": _sha256(path),
+            "manifest_sha256": sha256_digest(path),
             "lane_ref": str(payload.get("lane_ref") or ""),
             "head": str(payload.get("head") or ""),
         }
@@ -195,7 +196,7 @@ def _clear_chronicle(root: Path, chronicle_ref: str) -> tuple[str, str, list[str
         return relative, "", ["lane_resolution_clear_chronicle_missing"]
     if "lane_resolution/clear-preservation" not in candidate.read_text(encoding="utf-8"):
         return relative, "", ["lane_resolution_clear_chronicle_disposition_mismatch"]
-    return relative, _sha256(candidate), []
+    return relative, sha256_digest(candidate), []
 
 
 def _receipt_path(root: Path, decision_id: str) -> Path:
@@ -234,7 +235,3 @@ def _write_json_atomic(destination: Path, payload: dict[str, object]) -> None:
 def _validate_schema(root: Path, schema: str, payload: dict[str, object]) -> None:
     if not validate_schema_instance(schema, payload, root=root)["ok"]:
         raise ValueError(_RECEIPT_INVALID)
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()

@@ -14,4 +14,8 @@
 
 - [x] 3.1 Add focused tests for checkout isolation, override precedence, hook runtime selection, owner-script and provider-projection routing, topology audit failures, and adoption projections.
 - [x] 3.2 Run OpenSpec strict validation, focused tests, topology audit, and full head-bound proof/local fallback CI on a stable lane head.
-- [ ] 3.3 Bind claim and evidence, land through `candidate/dev`, execute accepted-root closeout, retire only this owned Work Lane, and record remote publication as deferred.
+- [x] 3.3 Bind the claim and Chronicle, refresh parity, and execute the final
+  HEAD-bound Work Lane proof. Candidate landing, accepted-root closeout, owned
+  lane retirement, and local publication readiness are governed post-archive
+  transitions rather than archive-task completion criteria; remote publication
+  remains separately deferred.

@@ -6,6 +6,8 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from tools.ci import format_selection
+
 ROOT = Path(__file__).resolve().parents[2]
 MIN_FORMAT_REGISTRY_ENTRIES = 8
 MIN_RUNBOOK_REGISTRY_ENTRIES = 6
@@ -33,10 +35,11 @@ def _tool_block(concern: str) -> str:
     return before[block_start:] + body
 
 
-def test_format_selection_config_is_report_first_and_executable() -> None:
+def test_format_selection_config_is_fail_closed_and_executable() -> None:
     config = tomllib.loads((ROOT / ".config/checks/format/selection.toml").read_text())
     formats = config["format"]
     assert len(formats) >= MIN_FORMAT_REGISTRY_ENTRIES
+    assert config["policy"]["unregistered_extension"] == "block"
     assert config["policy"]["forbid_tracked_extensions"] == [".pickle", ".pkl", ".joblib"]
     assert any(item["extensions"] == [".c4"] for item in formats)
     assert any(item["extensions"] == [".mmd"] for item in formats)
@@ -48,6 +51,31 @@ def test_format_selection_config_is_report_first_and_executable() -> None:
     assert payload["format_count"] >= MIN_FORMAT_REGISTRY_ENTRIES
     assert payload["observed_unregistered_extension_count"] == 0
     assert payload["observed_unregistered_extensions"] == []
+
+
+def test_format_selection_blocks_an_unregistered_tracked_extension(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(format_selection, "_tracked_files", lambda: ["system/new-policy.cue"])
+    monkeypatch.setattr(
+        format_selection,
+        "_load_config",
+        lambda: {
+            "format": [{"extensions": [".toml"]}],
+            "policy": {
+                "forbid_tracked_extensions": [],
+                "jsonl_allowed_roots": [],
+                "yaml_allowed_roots": [],
+                "unregistered_extension": "block",
+            },
+        },
+    )
+
+    assert format_selection.main() == 1
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert payload["failures"] == [
+        {"path": "system/new-policy.cue", "reason": "unregistered tracked extension: .cue"}
+    ]
 
 
 def test_architecture_projection_is_checked_from_source_to_mermaid() -> None:

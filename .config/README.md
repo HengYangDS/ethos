@@ -34,9 +34,9 @@ configuration plane, not a truth center.
   falls back to the pinned upstream GitHub release binary when no local
   `actionlint` is installed.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
-- `.config/checks/format/selection.toml` owns report-first carrier and
-  file-format boundary checks; `tools/ci/scripts/run-format-selection.sh` is the
-  reusable runner.
+- `.config/checks/format/selection.toml` owns fail-closed executable-carrier
+  admission and file-format boundary checks; `tools/ci/scripts/run-format-selection.sh`
+  is the reusable runner.
 - `.config/checks/architecture/projection.toml` owns architecture projection
   drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated
   diagram is review aid, not architecture truth.

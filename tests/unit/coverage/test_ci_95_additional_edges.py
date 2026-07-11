@@ -79,25 +79,24 @@ def test_start_work_lane_blocks_and_success(
 ) -> None:
     monkeypatch.setattr(lanes, "repo_root", lambda root: tmp_path)
     monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
-    assert lanes.start_work_lane(root=tmp_path, name="My Lane", path=tmp_path / "w", holder_ref="")[
-        "required_gaps"
-    ] == ["holder_ref_invalid"]
-    planned = lanes.start_work_lane(
-        root=tmp_path,
-        name="My Lane",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-    )
+
+    def start(**changes: object) -> dict[str, object]:
+        return lanes.start_work_lane(
+            **{
+                "root": tmp_path,
+                "name": "x",
+                "path": tmp_path / "w",
+                "holder_ref": "agent:test:case:me",
+                **changes,
+            }
+        )
+
+    assert start(name="My Lane", holder_ref="")["required_gaps"] == ["holder_ref_invalid"]
+    planned = start(name="My Lane")
     assert planned["state"] == "planned"
 
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_WORK_LANE))
-    blocked = lanes.start_work_lane(
-        root=tmp_path,
-        name="x",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-        apply=True,
-    )
+    blocked = start(apply=True)
     assert blocked["required_gaps"] == ["lane_start_requires_clean_accepted_root"]
 
     for candidate, gap in [
@@ -125,45 +124,21 @@ def test_start_work_lane_blocks_and_success(
             "workspace_status",
             lambda root, candidate=candidate: status_for(candidate=candidate),
         )
-        assert lanes.start_work_lane(
-            root=tmp_path,
-            name="x",
-            path=tmp_path / "w",
-            holder_ref="agent:test:case:me",
-            apply=True,
-        )["required_gaps"] == [gap]
+        assert start(apply=True)["required_gaps"] == [gap]
 
     monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for())
     monkeypatch.setattr(lanes, "changed_paths", lambda path: ["dirty.md"])
-    assert lanes.start_work_lane(
-        root=tmp_path,
-        name="x",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-        apply=True,
-    )["required_gaps"] == ["candidate_worktree_dirty"]
+    assert start(apply=True)["required_gaps"] == ["candidate_worktree_dirty"]
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
     monkeypatch.setattr(lanes, "_branch_exists", lambda root, branch: True)
-    assert lanes.start_work_lane(
-        root=tmp_path,
-        name="x",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-        apply=True,
-    )["required_gaps"] == ["branch_already_exists"]
+    assert start(apply=True)["required_gaps"] == ["branch_already_exists"]
     monkeypatch.setattr(lanes, "_branch_exists", lambda root, branch: False)
     monkeypatch.setattr(
         lanes,
         "run_git",
         lambda root, *args, check=True, **kwargs: cp(stderr="nope", returncode=1),
     )
-    assert lanes.start_work_lane(
-        root=tmp_path,
-        name="x",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-        apply=True,
-    )["required_gaps"] == ["worktree_add_failed"]
+    assert start(apply=True)["required_gaps"] == ["worktree_add_failed"]
 
     def fake_git(
         root: Path, *args: str, check: bool = True, **kwargs: object
@@ -183,14 +158,7 @@ def test_start_work_lane_blocks_and_success(
             "holder_ref": kwargs["holder_ref"],
         },
     )
-    started = lanes.start_work_lane(
-        root=tmp_path,
-        name="x",
-        path=tmp_path / "w",
-        holder_ref="agent:test:case:me",
-        claim_id="c",
-        apply=True,
-    )
+    started = start(claim_id="c", apply=True)
     assert started["state"] == "started"
     assert started["worktree"]["head"] == "newhead"
 

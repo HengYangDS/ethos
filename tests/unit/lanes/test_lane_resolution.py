@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
+from ethos.adapters.mutation.resolution.lane import _verify_preservation_package
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.repository.policy.schema import validate_schema_instance
@@ -37,7 +41,9 @@ def _chronicle(repo: Path, disposition: str) -> str:
     return relative.as_posix()
 
 
-def test_exceptional_resolution_recomputes_observation_before_effect(tmp_path: Path) -> None:
+def test_exceptional_resolution_recomputes_observation_before_effect(
+    tmp_path: Path,
+) -> None:
     repo, lane = _orphan_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     planned = plan_lane_resolution(
@@ -66,7 +72,9 @@ def test_exceptional_resolution_recomputes_observation_before_effect(tmp_path: P
     assert "lane_resolution_observation_stale" in applied["required_gaps"]
 
 
-def test_exceptional_resolution_observation_binds_untracked_content(tmp_path: Path) -> None:
+def test_exceptional_resolution_observation_binds_untracked_content(
+    tmp_path: Path,
+) -> None:
     repo, lane = _orphan_lane(tmp_path)
     untracked = lane / "notes.txt"
     untracked.write_text("first\n", encoding="utf-8")
@@ -96,7 +104,9 @@ def test_exceptional_resolution_observation_binds_untracked_content(tmp_path: Pa
     assert "lane_resolution_observation_stale" in applied["required_gaps"]
 
 
-def test_exceptional_resolution_requires_accepted_chronicle_binding(tmp_path: Path) -> None:
+def test_exceptional_resolution_requires_accepted_chronicle_binding(
+    tmp_path: Path,
+) -> None:
     repo, _ = _orphan_lane(tmp_path)
     planned = plan_lane_resolution(
         root=repo,
@@ -115,7 +125,9 @@ def test_exceptional_resolution_requires_accepted_chronicle_binding(tmp_path: Pa
     assert "lane_resolution_chronicle_missing" in planned["required_gaps"]
 
 
-def test_preserve_resolution_writes_recovery_package_and_completion_receipt(tmp_path: Path) -> None:
+def test_preserve_resolution_writes_recovery_package_and_completion_receipt(
+    tmp_path: Path,
+) -> None:
     repo, lane = _orphan_lane(tmp_path)
     (lane / "README.md").write_text("# dirty preserved\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
@@ -147,7 +159,9 @@ def test_preserve_resolution_writes_recovery_package_and_completion_receipt(tmp_
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
 
 
-def test_preserve_resolution_includes_non_ignored_untracked_files(tmp_path: Path) -> None:
+def test_preserve_resolution_includes_non_ignored_untracked_files(
+    tmp_path: Path,
+) -> None:
     repo, lane = _orphan_lane(tmp_path)
     (lane / "notes.txt").write_text("owner-unknown work\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
@@ -217,6 +231,7 @@ def test_preserve_retire_requires_break_glass_and_irreversible_confirmation(
         break_glass=True,
         apply=True,
     )
+
     assert planned["ok"] is True
 
     pending = apply_lane_resolution(
@@ -276,6 +291,42 @@ def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
         ).returncode
         != 0
     )
+
+
+def test_preservation_package_verifier_fails_closed_on_invalid_packages(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_outside_root"):
+        _verify_preservation_package(root=root, package={"path": "../outside", "manifest": {}})
+
+    package = root / "build" / "artifacts" / "recovery"
+    package.mkdir(parents=True)
+    with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
+        _verify_preservation_package(root=root, package={"path": "build/artifacts/recovery"})
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        _verify_preservation_package(
+            root=root,
+            package={"path": "build/artifacts/recovery", "manifest": {}},
+        )
+
+    bundle = package / "repository.bundle"
+    patch = package / "tracked.patch"
+    archive = package / "untracked.tar"
+    bundle.write_bytes(b"bundle")
+    patch.write_bytes(b"patch")
+    archive.write_bytes(b"archive")
+    manifest = {
+        "bundle_sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
+        "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),
+        "untracked_archive_sha256": "0" * 64,
+    }
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        _verify_preservation_package(
+            root=root,
+            package={"path": "build/artifacts/recovery", "manifest": manifest},
+        )
 
 
 def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
@@ -346,7 +397,9 @@ def test_resolution_rejects_tampered_schema_constants(tmp_path: Path) -> None:
     assert "lane_resolution_decision_invalid" in applied["required_gaps"]
 
 
-def test_resolution_decide_does_not_write_tracked_chronicle_path(tmp_path: Path) -> None:
+def test_resolution_decide_does_not_write_tracked_chronicle_path(
+    tmp_path: Path,
+) -> None:
     repo, _ = _orphan_lane(tmp_path)
     decision_path = repo / "evidence" / "chronicle" / "decision.json"
 

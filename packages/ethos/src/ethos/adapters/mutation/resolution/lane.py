@@ -305,7 +305,14 @@ def _preserve(
     package = root / relative
     package.mkdir(parents=True, exist_ok=True)
     bundle = package / "repository.bundle"
-    _run(Path(observation.path), "git", "bundle", "create", bundle.as_posix(), observation.lane_ref)
+    _run(
+        Path(observation.path),
+        "git",
+        "bundle",
+        "create",
+        bundle.as_posix(),
+        observation.lane_ref,
+    )
     patch = package / "tracked.patch"
     completed = subprocess.run(
         ["git", "diff", "--binary", "HEAD", "--"],
@@ -327,7 +334,14 @@ def _preserve(
     ]
     archive = package / "untracked.tar"
     if untracked_paths:
-        _run(Path(observation.path), "tar", "-cf", archive.as_posix(), "--", *untracked_paths)
+        _run(
+            Path(observation.path),
+            "tar",
+            "-cf",
+            archive.as_posix(),
+            "--",
+            *untracked_paths,
+        )
     manifest = {
         "decision_id": decision["decision_id"],
         "lane_ref": observation.lane_ref,
@@ -364,7 +378,9 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
     )
     if remove.returncode != 0:
         subprocess.run(
-            ["git", "update-ref", ref, observation.head, "0" * 40], cwd=root, check=False
+            ["git", "update-ref", ref, observation.head, "0" * 40],
+            cwd=root,
+            check=False,
         )
         raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
 
@@ -376,7 +392,7 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
     try:
         destination.relative_to(root.resolve())
     except ValueError as exc:
-        raise ValueError("lane_resolution_preservation_package_outside_root") from exc
+        raise ValueError("lane_resolution_preservation_package_outside_root") from exc  # noqa: EM101
     manifest = package.get("manifest")
     if not isinstance(manifest, dict):
         raise TypeError("lane_resolution_preservation_manifest_invalid")
@@ -386,11 +402,11 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
     )
     for path, key in checks:
         if not path.is_file() or _sha256(path) != str(manifest.get(key) or ""):
-            raise ValueError("lane_resolution_preservation_package_invalid")
+            raise ValueError("lane_resolution_preservation_package_invalid")  # noqa: EM101
     archive_digest = str(manifest.get("untracked_archive_sha256") or "")
     archive = destination / "untracked.tar"
     if archive_digest and (not archive.is_file() or _sha256(archive) != archive_digest):
-        raise ValueError("lane_resolution_preservation_package_invalid")
+        raise ValueError("lane_resolution_preservation_package_invalid")  # noqa: EM101
 
 
 def _completion_receipt(

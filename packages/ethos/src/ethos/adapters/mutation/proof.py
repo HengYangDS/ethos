@@ -1,17 +1,32 @@
-"""HEAD-keyed executed-proof records — tamper-evident.
+"""HEAD-keyed executed-proof records — tamper-EVIDENT, not tamper-PROOF.
 
-R3 pinned proof to a HEAD-keyed record, but the record was forgeable: any file with
-`state=="proven"` and a matching head was accepted, and the stored evidence_digest was
-never re-checked — so `echo '{"head":H,"state":"proven"}' > .ethos/state/proof/H.json`
-minted a proof `land` would consume.
+R3 pinned proof to a HEAD-keyed record. This module makes the record SELF-DESCRIBING:
+it stores the full evidence body (the executed proof-runs: command, exit code, verdict
+per gate), and `executed_proof_record` rederives the evidence digest from that stored
+body, rejecting the record unless (a) the recomputed digest equals the sealed digest,
+(b) the head matches, and (c) every trust-bearing run is recorded as passed.
 
-This module makes the record SELF-AUTHENTICATING. The record stores the full evidence
-body (the executed proof-runs: command, exit code, verdict per gate). `executed_proof_
-record` REDERIVES the evidence digest from that stored body and rejects the record
-unless (a) the recomputed digest equals the sealed digest, (b) the head matches, and
-(c) every trust-bearing run actually passed. A hand-written record cannot satisfy (a)
-without reproducing the real gate outputs, and cannot satisfy (c) without the gates
-having actually passed — so forgery by file-authoring fails.
+WHAT THIS DEFENDS AND WHAT IT DOES NOT (read before trusting a proof):
+
+  * Defends (tamper-EVIDENCE): partial edits, bit-rot, a record copied onto a different
+    HEAD, a truncated/half-written record, or a stale record whose policy has since moved
+    — all fail the recompute and are treated as absent. This is discipline against
+    fat-finger, tool-string-mix, and races.
+
+  * Does NOT defend (NOT tamper-PROOF): a same-UID actor who authors a WELL-FORMED record
+    from scratch. Checks (a) and (c) are self-referential — the forger writes every
+    `run` with `verdict="passed"`, then computes the sha256 over their own body — so a
+    hand-authored `.ethos/state/proof/<H>.json` that never ran a real gate is accepted.
+    The digest is UNKEYED (plain sha256, not a MAC/signature): it authenticates NOTHING
+    against the agent this product exists to govern, which runs as the same UID and can
+    write this file.
+
+Therefore a valid local record means only LOCAL READINESS ("this process asserts the
+gates passed"), never a prevention/enforcement guarantee. The genuine trust root against
+a same-UID adversary is RE-EXECUTION under an independent identity the agent cannot write
+(a local independent-identity verifier, or a hosted forge) — see the EnforcementReceipt
+path in adapters/admission/evidence/external.py. Consumers of this record MUST NOT surface
+it as "enforced"/"prevented"; the honest claim is `local_readiness`.
 """
 
 from __future__ import annotations
@@ -292,14 +307,16 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     evidence = record.get("evidence")
     if not isinstance(evidence, dict) or evidence.get("head") != head:
         return None
-    # (a) the digest must be reproducible from the sealed body — a forger cannot
-    # fabricate it without the real gate outputs.
+    # (a) the digest must be reproducible from the sealed body. This is tamper-EVIDENCE
+    # (a partial edit / wrong-HEAD copy / truncation fails to recompute), NOT tamper-proof:
+    # a same-UID forger authoring the whole body computes this sha256 themselves. Unkeyed
+    # digest ⇒ local readiness only; real anti-forgery is independent-identity re-execution.
     sealed = str(evidence.get("digest", ""))
     if not sealed or _evidence_digest(evidence) != sealed:
         return None
-    # (c) Mirror `ethos prove`: every run must pass, and at least one trust-bearing
-    # run must be proven. Non-trust diagnostic gates may be merely executed, but they
-    # cannot fail or stand alone as promotion evidence.
+    # (c) Mirror `ethos prove`: every run must be RECORDED as passed, and at least one
+    # trust-bearing run marked proven. This mirrors what a real prove would produce, but
+    # does not by itself establish the gates truly ran (see module docstring).
     if not _runs_prove_head(evidence.get("runs")):
         return None
     return record

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -173,10 +174,45 @@ def _entrypoint_files(root: Path) -> list[tuple[str, Path]]:
 
 def _entrypoint_findings(rel: str, text: str) -> list[dict[str, str]]:
     active_text = "\n".join(_active_entrypoint_lines(text))
+    producer_text = _entrypoint_producer_text(rel, text, active_text)
     findings: list[dict[str, str]] = []
-    findings.extend(_denied_home_findings(rel, active_text))
+    findings.extend(_denied_home_findings(rel, producer_text))
     findings.extend(_tool_route_findings(rel, active_text, text))
     return findings
+
+
+def _entrypoint_producer_text(rel: str, text: str, active_text: str) -> str:
+    if rel != "pyproject.toml":
+        return active_text
+    try:
+        document = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return active_text
+    tool = document.get("tool")
+    pixi = tool.get("pixi") if isinstance(tool, dict) else None
+    tasks = pixi.get("tasks") if isinstance(pixi, dict) else None
+    if not isinstance(tasks, dict):
+        return ""
+    commands: list[str] = []
+    for task in tasks.values():
+        commands.extend(_structured_task_commands(task))
+    return "\n".join(commands)
+
+
+def _structured_task_commands(task: object) -> list[str]:
+    if isinstance(task, str):
+        return [task]
+    if isinstance(task, list):
+        return [" ".join(str(token) for token in task)]
+    if not isinstance(task, dict):
+        return []
+    for key in ("cmd", "command"):
+        command = task.get(key)
+        if isinstance(command, str):
+            return [command]
+        if isinstance(command, list):
+            return [" ".join(str(token) for token in command)]
+    return []
 
 
 def _active_entrypoint_lines(text: str) -> list[str]:
@@ -437,7 +473,9 @@ def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclarati
     return [candidates[key] for key in sorted(candidates)]
 
 
-def _explicit_denied_roots(declaration: GeneratedArtifactTopologyDeclaration) -> list[str]:
+def _explicit_denied_roots(
+    declaration: GeneratedArtifactTopologyDeclaration,
+) -> list[str]:
     contract = generated_artifact_contract(declaration)
     roots: list[str] = []
     for group in ("denied_root_cache_prefixes", "denied_legacy_generated_prefixes"):

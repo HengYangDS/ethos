@@ -84,7 +84,7 @@ def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
     assert "trap cleanup_and_release EXIT" in script
 
 
-def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None:
+def test_performance_and_report_mechanisms_have_declared_boundaries() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}
 
@@ -94,8 +94,26 @@ def test_benchmark_and_report_mechanisms_are_planned_not_default_gates() -> None
         == ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
     )
     assert by_concern["tests"]["artifacts"] == "build/evidence/quality/tests/"
-    assert by_concern["test_performance"]["planned"] is True
+    assert by_concern["test_performance"]["gate"] == "ethos quality performance --json"
+    assert by_concern["test_performance"]["config"] == ".config/checks/performance/policy.toml"
+    assert by_concern["test_performance"]["artifacts"] == "build/evidence/quality/performance/"
     assert by_concern["test_reporting"]["planned"] is True
+
+
+def test_performance_evidence_is_head_bound_and_local_only() -> None:
+    policy = tomllib.loads(
+        (ROOT / ".config/checks/performance/policy.toml").read_text(encoding="utf-8")
+    )
+    script = (ROOT / "tools/ci/scripts/run-performance-evidence.sh").read_text(encoding="utf-8")
+
+    assert policy["samples"] == 5
+    assert policy["latest_path"] == "build/evidence/quality/performance/latest.json"
+    assert policy["baseline_path"] == "build/evidence/quality/performance/baseline.json"
+    assert "require-stable-head.sh capture" in script
+    assert "require-stable-head.sh verify" in script
+    assert "cold_subprocess_and_hot_inprocess_samples" in script
+    assert "--accept-baseline" in script
+    assert "token_estimate" in script
 
 
 def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:

@@ -119,13 +119,12 @@ def test_report_json_compact_emits_agent_token_friendly_contract(
     compact_data = compact_payload["data"]
     full_data = full_payload["data"]
     assert compact_data["compact"] is True
-    assert compact_data["governance_context"] == full_data["governance_context"]
+    assert compact_payload["governance_context"] == full_data["governance_context"]
     assert compact_data["scores"] == full_data["scores"]
     assert compact_data["score_model"] == full_data["score_model"]
     assert compact_data["first_hour"] == full_data["first_hour"]
     assert set(compact_data) == {
         "compact",
-        "governance_context",
         "scores",
         "score_model",
         "first_hour",

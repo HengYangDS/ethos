@@ -77,6 +77,7 @@ def status(
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
+    compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
     """Inspect repository state."""
     repo = resolve_root(root)
@@ -117,11 +118,61 @@ def status(
         governance_context=governance,
         data=status_payload,
     )
+    if compact:
+        result = _compact_status_result(result)
     if json_output:
         emit(result, json_output=json_output, enforce=False)
         return
     for line in orient_domain.human_orientation_lines(orientation):
         sys.stdout.write(f"{line}\n")
+
+
+def _compact_status_result(result: EthosResult) -> EthosResult:
+    """Project status into bounded decision facts for agent and CI callers."""
+    data = result.data
+    coordination = cast("dict[str, object]", data.get("coordination") or {})
+    landing = cast("dict[str, object]", data.get("landing_readiness") or {})
+    candidate = cast("dict[str, object]", data.get("candidate") or {})
+    compact_data = {
+        "compact": True,
+        "root": data.get("root", ""),
+        "branch": data.get("branch", ""),
+        "head": data.get("head", ""),
+        "role": data.get("role", ""),
+        "dirty": bool(data.get("dirty")),
+        "changed_path_count": _count_sequence(data.get("changed_paths")),
+        "landing_readiness": {
+            "state": landing.get("state", ""),
+            "required_gaps": _string_list(landing.get("required_gaps")),
+            "next_action": landing.get("next_action", ""),
+        },
+        "candidate": {
+            "branch": candidate.get("branch", ""),
+            "head": candidate.get("head", ""),
+            "exists": bool(candidate.get("exists")),
+            "worktree_exists": bool(candidate.get("worktree_exists")),
+        },
+        "coordination": {
+            "blocking": bool(coordination.get("blocking")),
+            "foreign_work_lane_count": int(coordination.get("foreign_work_lane_count") or 0),
+            "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
+            "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+            "advisory_count": _count_sequence(coordination.get("advisory_gaps")),
+            "required_count": _count_sequence(coordination.get("required_gaps")),
+        },
+        "stage_gates": cast("dict[str, object]", data.get("stage_gates") or {}),
+    }
+    return EthosResult(
+        command=result.command,
+        ok=result.ok,
+        state=result.state,
+        summary={**result.summary, "compact": True},
+        diagnostics=result.diagnostics,
+        required_gaps=result.required_gaps,
+        next_actions=result.next_actions,
+        governance_context=result.governance_context,
+        data=compact_data,
+    )
 
 
 @app.command
@@ -178,6 +229,11 @@ def _count_sequence(value: object) -> int:
     return 0
 
 
+def _string_list(value: object) -> list[str]:
+    """Return a string-list projection without passing through arbitrary values."""
+    return [str(item) for item in value] if isinstance(value, list | tuple) else []
+
+
 def _compact_invalid_states(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
         return {"category_count": 0, "gap_count": 0}
@@ -212,7 +268,6 @@ def _compact_report_data(data: dict[str, Any]) -> dict[str, object]:
     adopter_gaps = cast("dict[str, object]", parity.get("adopter_gaps") or {})
     return {
         "compact": True,
-        "governance_context": data["governance_context"],
         "scores": data.get("scores", {}),
         "score_model": data.get("score_model", {}),
         "first_hour": data.get("first_hour", {}),
@@ -254,6 +309,7 @@ def report(
         resolve_root(root),
         product_root=resolve_root(product_root) if product_root is not None else None,
     )
+    governance_context = cast("dict[str, Any]", payload["data"])["governance_context"]
     if compact:
         payload = _compact_report_payload(payload)
     result = EthosResult(
@@ -263,7 +319,7 @@ def report(
         summary=cast("dict[str, Any]", payload["summary"]),
         required_gaps=tuple(cast("tuple[str, ...] | list[str]", payload["required_gaps"])),
         next_actions=tuple(cast("tuple[str, ...] | list[str]", payload["next_actions"])),
-        governance_context=cast("dict[str, Any]", payload["data"])["governance_context"],
+        governance_context=cast("dict[str, Any]", governance_context),
         data=cast("dict[str, Any]", payload["data"]),
     )
     emit(result, json_output=json_output, enforce=False)

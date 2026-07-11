@@ -25,6 +25,31 @@ def test_status_json_contract() -> None:
     assert payload["next_actions"]
 
 
+def test_status_compact_json_is_bounded_without_foreign_lane_inventory() -> None:
+    payload = run_ethos("status", "--json", "--compact")
+
+    assert payload["summary"]["compact"] is True
+    assert set(payload["data"]) == {
+        "compact",
+        "root",
+        "branch",
+        "head",
+        "role",
+        "dirty",
+        "changed_path_count",
+        "landing_readiness",
+        "candidate",
+        "coordination",
+        "stage_gates",
+    }
+    assert payload["data"]["compact"] is True
+    assert isinstance(payload["data"]["changed_path_count"], int)
+    assert isinstance(payload["data"]["coordination"]["foreign_work_lane_count"], int)
+    assert isinstance(payload["data"]["coordination"]["advisory_count"], int)
+    assert "foreign_work_lanes" not in payload["data"]
+    assert "branch_bindings" not in payload["data"]
+
+
 PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT = (
     ("status", "--json"),
     ("plan", "--changed", "--json"),
@@ -547,6 +572,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "no-compat",
         "npm",
         "package-ontology",
+        "performance",
         "product-boundary",
         "projection-drift",
         "proof-policy",

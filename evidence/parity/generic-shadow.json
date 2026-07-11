@@ -5,10 +5,10 @@
   "generated_on": "2026-07-11",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
-    "target_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
-    "product_semantic_sha256": "55f063764ae4a09f5cd273d15d1f7a4a2bc8712aa4d324959e2c1fb7cdc88c86",
-    "target_semantic_sha256": "55f063764ae4a09f5cd273d15d1f7a4a2bc8712aa4d324959e2c1fb7cdc88c86",
+    "product_head": "e01f5a2b5f54b2afbd7e7f2e3a7ae0fa01bd694b",
+    "target_head": "e01f5a2b5f54b2afbd7e7f2e3a7ae0fa01bd694b",
+    "product_semantic_sha256": "659bd3b88e8ac5cbaddc1d22b16a8591133374c3a0d50ba7338096f3b3500e7f",
+    "target_semantic_sha256": "659bd3b88e8ac5cbaddc1d22b16a8591133374c3a0d50ba7338096f3b3500e7f",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,25 +35,9 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
-    "product_head": "b06fd27bb98581c51e45c757d0c072c6059ed94f",
-    "changed_paths": [
-      ".config/checks/pytest/policy.toml",
-      "packages/ethos-core/pyproject.toml",
-      "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
-      "packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml",
-      "packages/ethos/src/ethos/repository/policy/artifacts.py",
-      "pyproject.toml",
-      "system/policies/generated-artifact-topology.toml",
-      "system/tools.toml",
-      "tests/architecture/test_declarative_runtime_spine.py",
-      "tests/conftest.py",
-      "tests/unit/coverage/test_cov_generated_artifact_topology_edges.py",
-      "tests/unit/governance/test_generated_artifact_topology.py",
-      "tests/unit/kernel/test_cel_topology_predicates.py",
-      "tests/unit/kernel/test_invalid_states.py",
-      "uv.lock"
-    ],
+    "target_head": "e01f5a2b5f54b2afbd7e7f2e3a7ae0fa01bd694b",
+    "product_head": "e01f5a2b5f54b2afbd7e7f2e3a7ae0fa01bd694b",
+    "changed_paths": [],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -88,22 +72,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "a88ab89cb66435ed8d38dce189bd27bd74cfe110fc2e1050231a3d102df7f103"
+        "sha256": "cc6c637de9e7c86ed8978a2926863cee1be639fc4c80a14c9f134558d4d64e00"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "6a1a6c4b34abb17901831a466102b9e774339adc4a18bfbcbda7aaa8ad356b1f"
+        "sha256": "be25830bb53bb7d13d37d30e6c559cb00f858ef13306d1320b5ee2a3794efb49"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "fcd3eb14120c7b46d9af8fe8d799cf130f01e0093241474edb9ba24d05470ce8"
+        "sha256": "d28c13ba1e364ff9e3fc4490dc7ddb402bc974e93e6072093584e36d96e2ad56"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "6153591d1edf4c509327d60f5c2f30104a3e759d59089de30db4e6b2f9dbeb83"
+        "sha256": "21700b64ed7847d4f2b49be0ae17b7753622667436cd86efd6db5bd9183bff10"
       },
       {
         "path": "rules",

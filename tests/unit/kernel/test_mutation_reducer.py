@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
 from ethos_core.contracts.mutation import WORK_LANE_MUTATION
+from ethos_core.contracts.mutation import LeaseFacts
 from ethos_core.contracts.mutation import MutationFacts
 from ethos_core.contracts.mutation import MutationRequest
+from ethos_core.contracts.mutation import lease_transition
+from ethos_core.contracts.mutation import reduce_lease_request
 from ethos_core.contracts.mutation import reduce_mutation
 
 
@@ -72,3 +75,31 @@ def test_closeout_reducer_distinguishes_current_from_ready_and_blocked() -> None
         facts=MutationFacts(role="accepted_root"),
         transition=CLOSEOUT_MUTATION,
     ).gaps == ("expect_head_mismatch",)
+
+
+def test_lease_reducer_interprets_declared_operation_requirements() -> None:
+    result = reduce_lease_request(
+        lease_transition("handoff_accept"),
+        LeaseFacts(
+            role="accepted_root",
+            current_branch="work/other",
+            current_head="head",
+            branch="work/example",
+            expect_head="",
+            lease_id="",
+            epoch=None,
+            ttl_seconds=0,
+            offer_id="",
+            apply=True,
+        ),
+    )
+
+    assert result.gaps == (
+        "work_lane_required",
+        "lane_branch_mismatch",
+        "expect_head_required",
+        "lease_id_required",
+        "lease_epoch_required",
+        "lease_ttl_invalid",
+        "handoff_offer_id_required",
+    )

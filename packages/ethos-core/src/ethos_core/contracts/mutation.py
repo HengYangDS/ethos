@@ -57,6 +57,33 @@ class MutationFacts:
     current: bool = False
 
 
+@dataclass(frozen=True)
+class LeaseTransition:
+    """Immutable operation declaration for the local lease lifecycle."""
+
+    id: str
+    applied_state: str
+    requires_epoch: bool = True
+    requires_offer: bool = False
+
+
+@dataclass(frozen=True)
+class LeaseFacts:
+    """Observed local lease facts supplied to the pure lease reducer."""
+
+    role: str
+    current_branch: str
+    current_head: str
+    branch: str
+    expect_head: str
+    lease_id: str
+    epoch: int | None
+    ttl_seconds: int
+    offer_id: str
+    apply: bool
+    initial_gaps: tuple[str, ...] = ()
+
+
 WORK_LANE_MUTATION = MutationTransition(
     id="work_lane_mutation",
     required_role="work_lane",
@@ -71,6 +98,18 @@ CLOSEOUT_MUTATION = MutationTransition(
     role_gap="accepted_root_required",
     dirty_gap="accepted_root_dirty",
     current_state="current",
+)
+
+LEASE_TRANSITIONS = (
+    LeaseTransition(id="normalize", applied_state="normalized", requires_epoch=False),
+    LeaseTransition(id="renew", applied_state="renewed"),
+    LeaseTransition(id="resume", applied_state="resumed"),
+    LeaseTransition(id="handoff_offer", applied_state="handoff_offered"),
+    LeaseTransition(
+        id="handoff_accept",
+        applied_state="handoff_accepted",
+        requires_offer=True,
+    ),
 )
 
 
@@ -102,6 +141,45 @@ def reduce_mutation(
     if not request.apply:
         return MutationEvaluation(ok=True, state="dry_run")
     return MutationEvaluation(ok=True, state=f"{request.command}_ready")
+
+
+def lease_transition(operation: str) -> LeaseTransition:
+    """Resolve one declared lease transition without reaching into adapter state."""
+    for transition in LEASE_TRANSITIONS:
+        if transition.id == operation:
+            return transition
+    msg = f"lease_operation_unknown:{operation}"
+    raise ValueError(msg)
+
+
+def reduce_lease_request(
+    transition: LeaseTransition,
+    facts: LeaseFacts,
+) -> MutationEvaluation:
+    """Reduce lease facts into a deterministic planned, applied, or blocked state."""
+    gaps = list(facts.initial_gaps)
+    if facts.role != "work_lane":
+        gaps.append("work_lane_required")
+    if facts.current_branch != facts.branch:
+        gaps.append("lane_branch_mismatch")
+    if not facts.expect_head:
+        gaps.append("expect_head_required")
+    elif facts.current_head != facts.expect_head:
+        gaps.append("expect_head_mismatch")
+    if not facts.lease_id:
+        gaps.append("lease_id_required")
+    if transition.requires_epoch and (facts.epoch is None or facts.epoch < 1):
+        gaps.append("lease_epoch_required")
+    if facts.ttl_seconds < 1:
+        gaps.append("lease_ttl_invalid")
+    if transition.requires_offer and not facts.offer_id:
+        gaps.append("handoff_offer_id_required")
+    ordered_gaps = tuple(dict.fromkeys(gaps))
+    return MutationEvaluation(
+        ok=not ordered_gaps,
+        state="blocked" if ordered_gaps else transition.applied_state if facts.apply else "planned",
+        gaps=ordered_gaps,
+    )
 
 
 def _request_gaps(request: MutationRequest, *, current_head: str) -> tuple[str, ...]:

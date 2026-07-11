@@ -207,7 +207,14 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
     assert "docstrings" in nodes
     assert nodes["build"].depends_on == ("unit-architecture", "ruff")
     assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
-    assert nodes["build"].to_dict()["command"] == ["uv", "build", "--all-packages"]
+    assert nodes["build"].to_dict()["command"] == [
+        "uv",
+        "build",
+        "--all-packages",
+        "--out-dir",
+        "build/artifacts/python",
+        "--clear",
+    ]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == [

@@ -345,7 +345,14 @@ version_source = "product"
 id = "build"
 registries = ["runtime"]
 kind = "package"
-command = ["uv", "build", "--all-packages"]
+command = [
+  "uv",
+  "build",
+  "--all-packages",
+  "--out-dir",
+  "build/artifacts/python",
+  "--clear",
+]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"

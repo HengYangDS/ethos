@@ -233,10 +233,21 @@ def start(
             "path": report.get("path", ""),
         },
         required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos lane prewrite <path>",) if report["ok"] else (),
+        next_actions=_start_next_actions(report),
         data=report,
     )
     emit(result, json_output=json_output)
+
+
+def _start_next_actions(report: dict[str, object]) -> tuple[str, ...]:
+    if not report["ok"]:
+        return ()
+    bootstrap = cast("dict[str, object]", report.get("runner_bootstrap", {}))
+    runner_action = str(bootstrap.get("next_action") or "")
+    actions = ["ethos lane prewrite <path>"]
+    if runner_action:
+        actions.insert(0, runner_action)
+    return tuple(actions)
 
 
 @lane_app.command(name="refresh-base")

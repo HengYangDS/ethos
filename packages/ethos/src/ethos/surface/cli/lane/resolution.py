@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
 
@@ -9,12 +10,36 @@ from cyclopts import Parameter
 
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
+from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
+from ethos.adapters.mutation.resolution.receipts import clear_lane_resolution_package
+from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_resolution_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
+
+
+@dataclass(frozen=True)
+class _ClearOptions:
+    """CLI request fields for the explicit recovery-package clear transition."""
+
+    decision_id: Annotated[str, Parameter(name="--decision-id")]
+    expect_manifest_sha256: Annotated[str, Parameter(name="--expect-manifest-sha256")]
+    chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")]
+    reason: Annotated[str, Parameter(name="--reason")]
+    break_glass: Annotated[bool, Parameter(name="--break-glass")] = False
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False
+    apply: bool = False
+
+
+_DEFAULT_CLEAR_OPTIONS = _ClearOptions(
+    decision_id="",
+    expect_manifest_sha256="",
+    chronicle_ref="",
+    reason="",
+)
 
 
 def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None:
@@ -78,3 +103,55 @@ def lane_resolution_apply(
         apply=apply,
     )
     _emit("lane resolution apply", report, json_output=json_output)
+
+
+@lane_resolution_app.command(name="inventory")
+def lane_resolution_inventory_command(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Inspect durable local receipts, retained packages, and clear records."""
+    report = lane_resolution_inventory(root=resolve_root(root))
+    result = EthosResult(
+        command="lane resolution inventory",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=dict(report["summary"]),
+        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        next_actions=(),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=False)
+
+
+@lane_resolution_app.command(name="clear")
+def lane_resolution_clear(
+    options: Annotated[_ClearOptions, Parameter(name="*")] = _DEFAULT_CLEAR_OPTIONS,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Clear one retained package only after a bounded retention decision."""
+    report = clear_lane_resolution_package(
+        root=resolve_root(root),
+        request=LaneResolutionClearRequest(
+            decision_id=options.decision_id,
+            expect_manifest_sha256=options.expect_manifest_sha256,
+            chronicle_ref=options.chronicle_ref,
+            reason=options.reason,
+            break_glass=options.break_glass,
+            confirm_irreversible=options.confirm_irreversible,
+            apply=options.apply,
+        ),
+    )
+    result = EthosResult(
+        command="lane resolution clear",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={"decision_id": options.decision_id},
+        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        next_actions=("ethos lane resolution inventory --json",) if report["ok"] else (),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=options.apply)

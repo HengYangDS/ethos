@@ -113,6 +113,8 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane handoff revoke-source",
     "ethos lane resolution decide",
     "ethos lane resolution apply",
+    "ethos lane resolution inventory",
+    "ethos lane resolution clear",
     "ethos lane retire landed",
     "ethos lane retire superseded",
     "ethos lane retire unbound",

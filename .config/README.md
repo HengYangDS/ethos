@@ -78,6 +78,7 @@ policy inline.
 Configuration under `.config/checks/` owns policy only. Runtime caches and
 local generated outputs must use semantic ignored homes: `.cache/local-state/`
 for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
+`build/runtime/venv/` for source-bound Work Lane virtual environments,
 `build/runtime/work/<provider>/` for provider emulator work state,
 `build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine
 projections, and `build/artifacts/<kind>/` for local package/build outputs.

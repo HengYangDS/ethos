@@ -212,6 +212,8 @@ ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <l
 ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --context-file <path> --apply
 ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire|preserve-retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
 ethos lane resolution apply --decision-path <build-artifact> --apply
+ethos lane resolution inventory --json
+ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
 ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
@@ -306,7 +308,19 @@ local lane-resolution artifact root, then removes the exact branch and linked
 worktree. It requires `--break-glass` at decision time and
 `--confirm-irreversible` at apply time. Plain `retire` remains blocked for a
 dirty lane; `preserve` remains non-destructive.
-`ethos lane start --json` returns `data.worktree` in apply mode. That object
+Every successful resolution now materializes an immutable local receipt under
+`build/artifacts/lane-resolution/receipts/`. `ethos lane resolution inventory`
+derives retained, cleared, and unindexed package state from receipts, manifests,
+and clear receipts without treating any artifact as authority. Recovery package
+deletion is never a cache cleanup: `clear` requires an exact manifest SHA-256,
+an accepted Chronicle containing `lane_resolution/clear-preservation`, a
+reason, break-glass, and an irreversible confirmation; it leaves the receipt
+and Chronicle intact.
+`ethos lane start --json` returns `data.worktree` and
+`data.runner_bootstrap` in apply mode. The first `next_actions` entry changes
+to the new Work Lane and invokes `tools/ci/scripts/run-ethos-lane.sh`; that
+runner builds from the current checkout with its uv environment in
+`build/runtime/venv` and cache in `build/runtime/tool-cache/uv`. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.
 Start admission requires both the accepted root and the candidate worktree to be

@@ -294,6 +294,10 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
         "role": "work_lane",
         "worktree_binding": "linked",
     }
+    assert payload["next_actions"] == [
+        (f"cd {worktree.resolve().as_posix()} && tools/ci/scripts/run-ethos-lane.sh status --json"),
+        "ethos lane prewrite <path>",
+    ]
     assert git(worktree, "branch", "--show-current") == "work/feature"
 
 

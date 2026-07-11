@@ -9,10 +9,10 @@ cache_flat_boundary = ".cache is reserved for semantic local-state, not flat cac
 cache_flat_required_gap_prefix = "generated_artifact_cache_flat_drift"
 cache_flat_root_prefix = ".cache"
 cache_allowed_prefixes = [".cache/local-state"]
-runtime_flat_boundary = "build/runtime must be organized by semantic runtime subroot: tool-cache or work"
+runtime_flat_boundary = "build/runtime must be organized by semantic runtime subroot: tool-cache, venv, or work"
 runtime_flat_required_gap_prefix = "generated_artifact_runtime_flat_drift"
 runtime_flat_root_prefix = "build/runtime"
-runtime_allowed_prefixes = ["build/runtime/tool-cache", "build/runtime/work"]
+runtime_allowed_prefixes = ["build/runtime/tool-cache", "build/runtime/venv", "build/runtime/work"]
 generated_denial_boundary = "generated output may not live in config, semantic docs truth, or source"
 repo_root_generated_boundary = "repo root is not a generated artifact owner"
 repo_root_generated_required_gap_prefix = "generated_artifact_repo_root_drift"
@@ -63,6 +63,10 @@ boundary = "native ETHOS local runtime state, leases, locks, executions, session
 [[allowed_prefix]]
 prefix = "build/runtime/tool-cache"
 boundary = "ignored tool runtime caches keyed by tool name"
+
+[[allowed_prefix]]
+prefix = "build/runtime/venv"
+boundary = "ignored source-bound virtual environments for Work Lane runners"
 
 [[allowed_prefix]]
 prefix = "build/runtime/work"
@@ -174,6 +178,7 @@ homes = [
   ".cache/local-state",
   ".ethos/state",
   "build/runtime/tool-cache",
+  "build/runtime/venv",
   "build/runtime/work",
 ]
 tracked = false

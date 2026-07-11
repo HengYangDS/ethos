@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/lane-resolution-clear-receipt.schema.json",
+  "title": "ETHOS Lane Resolution Clear Receipt",
+  "type": "object",
+  "required": ["clear_receipt_id", "decision_id", "manifest_sha256", "chronicle_ref", "chronicle_digest", "reason", "completed", "mints_authority"],
+  "properties": {
+    "clear_receipt_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": "string", "minLength": 1},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "chronicle_ref": {"type": "string", "minLength": 1},
+    "chronicle_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "reason": {"type": "string", "minLength": 1},
+    "completed": {"const": true},
+    "mints_authority": {"const": false}
+  },
+  "additionalProperties": false
+}

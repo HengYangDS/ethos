@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -120,6 +121,7 @@ def apply_lane_resolution(
         gaps.append("dirty_lane_retirement_blocked")
     report = _report(branch=branch, apply=apply, gaps=list(dict.fromkeys(gaps)))
     if apply and not report["required_gaps"]:
+        package: dict[str, object] = {}
         if disposition == "preserve":
             package = _preserve(root=root, observation=observation, decision=decision)
             report.update(state="preserved", preservation_package=package)
@@ -137,6 +139,7 @@ def apply_lane_resolution(
             decision=decision,
             observation=observation,
             state=str(report["state"]),
+            preservation_package=package,
         )
         validation = validate_schema_instance(
             "lane-resolution-receipt.schema.json", receipt, root=root
@@ -148,7 +151,9 @@ def apply_lane_resolution(
                 required_gaps=["lane_resolution_receipt_invalid"],
             )
             return report
+        receipt_path = write_resolution_receipt(root=root, receipt=receipt)
         report["receipt"] = receipt
+        report["receipt_path"] = receipt_path
         report["chronicle_event"] = _chronicle_completion(decision, receipt)
     report["mutation"] = _envelope(
         command="lane-resolution-apply",
@@ -414,8 +419,14 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
 
 
 def _completion_receipt(
-    *, decision: dict[str, Any], observation: LaneObservation, state: str
+    *,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    state: str,
+    preservation_package: dict[str, object],
 ) -> dict[str, object]:
+    manifest = preservation_package.get("manifest")
+    manifest_payload = manifest if isinstance(manifest, dict) else {}
     return {
         "receipt_id": f"lane-resolution-receipt:{uuid.uuid4()}",
         "decision_id": str(decision["decision_id"]),
@@ -424,8 +435,19 @@ def _completion_receipt(
         "state": state,
         "observation_digest": observation.digest(),
         "reconciliation_required": bool(decision.get("break_glass")),
+        "lane_ref": observation.lane_ref,
+        "head": observation.head,
+        "preservation_package": str(preservation_package.get("path") or ""),
+        "preservation_manifest_sha256": _manifest_digest(manifest_payload),
         "mints_authority": False,
     }
+
+
+def _manifest_digest(manifest: dict[str, object]) -> str:
+    if not manifest:
+        return ""
+    content = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    return hashlib.sha256(content.encode()).hexdigest()
 
 
 def _chronicle_decision(decision: dict[str, Any]) -> dict[str, object]:
@@ -459,6 +481,7 @@ def _report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, object]:
         "decision_path": "",
         "preservation_package": {},
         "receipt": {},
+        "receipt_path": "",
         "chronicle_event": {},
         "required_gaps": gaps,
     }

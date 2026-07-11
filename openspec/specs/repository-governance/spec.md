@@ -1269,3 +1269,44 @@ bound the exact resolution.
 - **WHEN** a dirty Work Lane is resolved with plain `retire`
 - **THEN** ETHOS reports `dirty_lane_retirement_blocked`
 - **AND** it does not remove the branch or worktree
+
+### Requirement: Durable exceptional-resolution recovery inventory
+
+ETHOS SHALL materialize successful exceptional-resolution receipts under a
+semantic local-artifact home and SHALL expose a read-only inventory over
+receipts, preservation manifests, and bounded clear records.
+
+#### Scenario: a preserved resolution is discoverable
+
+- **GIVEN** a `preserve` or `preserve-retire` decision succeeds
+- **WHEN** ETHOS completes the local effect
+- **THEN** it writes a schema-validated immutable receipt bound to the observed
+  lane, head, decision, and manifest when present
+- **AND** inventory reports retained or unindexed state without minting
+  authority from an artifact
+
+### Requirement: Evidence-bound preservation-package clearing
+
+ETHOS SHALL remove a retained recovery package only after a manifest-bound,
+Chronicle-gated manual-clear decision.
+
+#### Scenario: a package is cleared deliberately
+
+- **GIVEN** the selected manifest matches its expected SHA-256 and the accepted
+  Chronicle selects `lane_resolution/clear-preservation`
+- **WHEN** a maintainer supplies a reason, break-glass, and irreversible
+  confirmation
+- **THEN** ETHOS records a clear receipt and removes only that package
+- **AND** preserves the original resolution receipt and Chronicle
+
+### Requirement: Source-bound Work Lane runner bootstrap
+
+ETHOS SHALL return a runner bootstrap for a newly started Work Lane that
+executes its own source with uv state in semantic runtime homes.
+
+#### Scenario: a Work Lane uses its bootstrap runner
+
+- **WHEN** the operator runs the returned runner from the linked Work Lane
+- **THEN** the uv environment is under `build/runtime/venv`
+- **AND** the uv cache is under `build/runtime/tool-cache/uv`
+- **AND** the command runner binds to that Work Lane source

@@ -1,0 +1,56 @@
+[claim]
+id = "lane-resolution-runtime-productization-20260711"
+subject = "repository-governance:lane-resolution-runtime-productization"
+change_id = "lane-resolution-runtime-productization-20260711"
+state = "active"
+summary = "The active change hardens local lane-resolution receipt discovery, retention clearing, and source-bound runtime bootstrap."
+
+[evidence]
+dated = "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md"
+sha256 = "d3165201b714034e385bd78bc3eca89e86c2fc275c6403c3392a33a845b68dc8"
+evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
+binding = "active OpenSpec carrier and user-authorized local productization scope"
+verifier = "digest_only"
+tests = [
+  "Focused lane-resolution, CLI, runner, and generated-artifact topology tests",
+  "ethos openspec --lifecycle --json",
+  "ethos prove --execute --expect-head <lane-head> --json",
+]
+
+[boundary]
+owner = "repository-governance"
+scope = "Local lane-resolution receipts, retention clear, and source-bound Work Lane runner bootstrap."
+
+[carriers]
+openspec = "openspec/changes/lane-resolution-runtime-productization-20260711"
+fallback = "Keep existing recovery packages intact and invoke ETHOS through an explicit current-worktree uv runner until the bounded surfaces are proven."
+kill_signal = "Any path reintroduces root cache or root virtual-environment creation for new lanes, clears a package without manifest-bound Chronicle evidence, or makes a local artifact authoritative."
+
+[promotion]
+targets = [
+  ".config/README.md",
+  "docs/architecture/generated-artifact-topology.md",
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos/src/ethos/surface/cli/lane/resolution.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/repository/registry/docs/commands.py",
+  "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py",
+  "packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml",
+  "system/schemas/kernel/lane-resolution-receipt.schema.json",
+  "system/schemas/kernel/lane-resolution-clear-receipt.schema.json",
+  "system/policies/generated-artifact-topology.toml",
+  "tools/ci/scripts/run-ethos-lane.sh",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/lanes/test_lane_resolution_artifacts.py",
+  "tests/unit/lanes/test_lane_runner_bootstrap.py",
+  "tests/unit/cli/test_contracts_lane_resolution.py",
+  "tests/unit/governance/test_docs_registry.py",
+  "tests/unit/governance/test_generated_artifact_topology.py",
+  "openspec/changes/lane-resolution-runtime-productization-20260711",
+  "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md",
+  "evidence/claims/lane-resolution-runtime-productization-20260711.toml",
+]

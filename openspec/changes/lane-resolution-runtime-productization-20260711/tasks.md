@@ -8,6 +8,7 @@
   its fail-closed tests.
 - [x] 4. Add the source-bound uv runner, lane-start bootstrap contract, and
   semantic `build/runtime/venv` topology support with tests.
-- [ ] 5. Update command-plane and artifact-topology documentation, execute
-  focused checks, OpenSpec validation, parity refresh, HEAD-bound proof, land,
-  accepted closeout, archive, and self-lane retirement.
+- [x] 5. Update command-plane and artifact-topology documentation, execute
+  focused checks, OpenSpec validation, parity refresh, and HEAD-bound proof.
+  Archive, land, accepted closeout, and self-lane retirement follow through
+  their separately guarded lifecycle transitions.

@@ -26,6 +26,10 @@ from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.mutation import CLOSEOUT_MUTATION
+from ethos_core.contracts.mutation import WORK_LANE_MUTATION
+from ethos_core.contracts.mutation import MutationFacts
+from ethos_core.contracts.mutation import reduce_mutation
 
 __all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 
@@ -106,30 +110,31 @@ def evaluate_mutation(
     current_head: str,
 ) -> MutationEvaluation:
     if not request.apply and request.command != "land":
-        return MutationEvaluation(ok=True, state="dry_run")
-    gaps: list[str] = []
-    if request.apply and not request.authorized:
-        gaps.append("authorization_required")
-    if request.apply and request.expect_head is None:
-        gaps.append("expect_head_required")
-    elif request.expect_head is not None and request.expect_head != current_head:
-        gaps.append("expect_head_mismatch")
+        return reduce_mutation(
+            request,
+            current_head=current_head,
+            facts=MutationFacts(),
+            transition=WORK_LANE_MUTATION,
+        )
     status = workspace_status(root)
-    if status["role"] != ROLE_WORK_LANE:
-        gaps.append("protected_root_mutation")
-    elif status["dirty"]:
-        gaps.append("work_lane_dirty")
-    else:
-        gaps.extend(openspec_carrier_gaps(root, ROLE_WORK_LANE))
-        closeout = cast("dict[str, object]", status.get("closeout_support", {}))
-        gaps.extend(str(gap) for gap in cast("list[object]", closeout.get("required_gaps", [])))
-    if request.apply:
-        gaps.extend(proof_gaps(root, current_head))
-    if gaps:
-        return MutationEvaluation(ok=False, state="blocked", gaps=tuple(gaps))
-    if not request.apply:
-        return MutationEvaluation(ok=True, state="dry_run")
-    return MutationEvaluation(ok=True, state=f"{request.command}_ready")
+    closeout = cast("dict[str, object]", status.get("closeout_support", {}))
+    return reduce_mutation(
+        request,
+        current_head=current_head,
+        facts=MutationFacts(
+            role=str(status["role"]),
+            dirty=bool(status["dirty"]),
+            healthy_gaps=tuple(
+                str(gap)
+                for gap in (
+                    *openspec_carrier_gaps(root, ROLE_WORK_LANE),
+                    *cast("list[object]", closeout.get("required_gaps", [])),
+                )
+            ),
+            evidence_gaps=tuple(proof_gaps(root, current_head)),
+        ),
+        transition=WORK_LANE_MUTATION,
+    )
 
 
 def evaluate_closeout_mutation(
@@ -138,38 +143,28 @@ def evaluate_closeout_mutation(
     root: Path,
     current_head: str,
 ) -> MutationEvaluation:
-    gaps: list[str] = []
-    if request.apply and not request.authorized:
-        gaps.append("authorization_required")
-    if request.expect_head is None:
-        if request.apply:
-            gaps.append("expect_head_required")
-    elif request.expect_head != current_head:
-        gaps.append("expect_head_mismatch")
     status = workspace_status(root)
-    if status["role"] != ROLE_ACCEPTED_ROOT:
-        gaps.append("accepted_root_required")
-    elif status["dirty"]:
-        gaps.append("accepted_root_dirty")
-    else:
-        gaps.extend(openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT))
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate.get("head") or "")
-    gaps.extend(
-        _closeout_candidate_gaps(
-            root,
-            candidate,
-            current_head,
-            require_proof=request.apply and candidate_head != current_head,
-        )
+    return reduce_mutation(
+        request,
+        current_head=current_head,
+        facts=MutationFacts(
+            role=str(status["role"]),
+            dirty=bool(status["dirty"]),
+            healthy_gaps=tuple(openspec_carrier_gaps(root, ROLE_ACCEPTED_ROOT)),
+            always_gaps=tuple(
+                _closeout_candidate_gaps(
+                    root,
+                    candidate,
+                    current_head,
+                    require_proof=request.apply and candidate_head != current_head,
+                )
+            ),
+            current=candidate_head == current_head,
+        ),
+        transition=CLOSEOUT_MUTATION,
     )
-    if gaps:
-        return MutationEvaluation(ok=False, state="blocked", gaps=tuple(gaps))
-    if candidate_head == current_head:
-        return MutationEvaluation(ok=True, state="current")
-    if not request.apply:
-        return MutationEvaluation(ok=True, state="dry_run")
-    return MutationEvaluation(ok=True, state=f"{request.command}_ready")
 
 
 def apply_land_to_candidate(

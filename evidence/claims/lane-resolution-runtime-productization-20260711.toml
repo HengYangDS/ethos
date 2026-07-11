@@ -7,9 +7,9 @@ summary = "The active change hardens local lane-resolution receipt discovery, re
 
 [evidence]
 dated = "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md"
-sha256 = "d3165201b714034e385bd78bc3eca89e86c2fc275c6403c3392a33a845b68dc8"
+sha256 = "2f97489e05f1544247377c0ce3f8f8edec15d1cc75d20f7f2407e2601158d4b7"
 evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
-binding = "active OpenSpec carrier and user-authorized local productization scope"
+binding = "archived OpenSpec carrier and user-authorized local productization scope"
 verifier = "digest_only"
 tests = [
   "Focused lane-resolution, CLI, runner, and generated-artifact topology tests",
@@ -22,7 +22,7 @@ owner = "repository-governance"
 scope = "Local lane-resolution receipts, retention clear, and source-bound Work Lane runner bootstrap."
 
 [carriers]
-openspec = "openspec/changes/lane-resolution-runtime-productization-20260711"
+openspec = "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization-20260711"
 fallback = "Keep existing recovery packages intact and invoke ETHOS through an explicit current-worktree uv runner until the bounded surfaces are proven."
 kill_signal = "Any path reintroduces root cache or root virtual-environment creation for new lanes, clears a package without manifest-bound Chronicle evidence, or makes a local artifact authoritative."
 
@@ -50,7 +50,7 @@ targets = [
   "tests/unit/cli/test_contracts_lane_resolution.py",
   "tests/unit/governance/test_docs_registry.py",
   "tests/unit/governance/test_generated_artifact_topology.py",
-  "openspec/changes/lane-resolution-runtime-productization-20260711",
+  "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization-20260711",
   "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md",
   "evidence/claims/lane-resolution-runtime-productization-20260711.toml",
 ]

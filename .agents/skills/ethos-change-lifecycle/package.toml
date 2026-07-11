@@ -41,7 +41,18 @@ guard = "ethos lane prewrite before land; land verdict gates the candidate fast-
 [[capability]]
 id = "ethos.parity"
 kind = "command_mutation_guarded"
-command = ["ethos", "parity", "shadow", "--adopter", "generic", "--target", ".", "--execute", "--write-evidence", "--json"]
+command = [
+  "ethos",
+  "parity",
+  "shadow",
+  "--adopter",
+  "generic",
+  "--target",
+  ".",
+  "--execute",
+  "--write-evidence",
+  "--json",
+]
 guard = "refreshes parity evidence after a land; run only after land succeeds, then commit the evidence"
 
 [[capability]]

@@ -34,6 +34,30 @@ from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
 
+def test_work_lane_ref_transition_admits_ref_deletion_without_lease(tmp_path: Path) -> None:
+    """A work-lane ref DELETION (new_value all-zeros) promotes nothing and is admitted
+    without lease binding — the teardown counterpart of the old_value==zero creation
+    short-circuit. This is what lets a lane with a legacy/unnormalizable lease still be
+    retired: its `git update-ref -d` fires this hook and must not block on lease admission
+    it cannot satisfy."""
+    repo = init_repo(tmp_path / "repo")
+    lane = tmp_path / "repo-work-doomed"
+    git(repo, "worktree", "add", "-b", "work/doomed", lane.as_posix(), "dev")
+    head = git(lane, "rev-parse", "HEAD")
+
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name="refs/heads/work/doomed",
+        old_value=head,
+        new_value="0" * 40,  # deletion — no lease exists for this lane
+    )
+
+    assert report["ok"] is True
+    assert report["decision"] == {"action": "allow", "reason": "lane_teardown_ref_deletion"}
+    assert report["required_gaps"] == []
+
+
 def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

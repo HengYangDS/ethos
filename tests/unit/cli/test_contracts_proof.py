@@ -604,9 +604,12 @@ def test_campaign_status_reports_manifest_steps() -> None:
         if item["id"] == "terminal-openspec-productization"
     )
     assert campaign["step_summary"]["total"] >= 8
-    assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
+    assert campaign["step_summary"]["planned"] >= 5
+    assert campaign["step_summary"]["active"] == 0
+    assert campaign["step_summary"]["closed"] >= 4
     assert campaign["lane_topology"]["mode"] == "strict_serial"
-    assert campaign["lane_topology"]["active_step"] == "hooked-write-admission"
+    assert campaign["lane_topology"]["active_step"] == ""
+    assert campaign["lane_topology"]["active_steps"] == []
     assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
     assert {
         "ordinal",

@@ -130,6 +130,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "module-layout",
         "no-compat",
         "python-size",
+        "source-budget",
         "toml-config",
         "yaml-config",
         "shell-lint",
@@ -152,6 +153,12 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "ethos",
         "quality",
         "code-size",
+        "--json",
+    ]
+    assert nodes["source-budget"].to_dict()["command"] == [
+        "ethos",
+        "quality",
+        "source-budget",
         "--json",
     ]
     assert nodes["toml-config"].to_dict()["command"] == ["tools/ci/scripts/run-config-lint.sh"]

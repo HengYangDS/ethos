@@ -5,6 +5,7 @@ from typing import cast
 
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.domain.prove import code_size_report
+from ethos.domain.prove import source_budget_report
 from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
@@ -98,6 +99,7 @@ def product_scores(
 def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     code_size = code_size_report(repo)
+    source_budget = source_budget_report(repo)
     coverage = coverage_quality_report(repo)
     types = ty_gate_report(repo)
     docstrings = docstring_coverage_report(repo)
@@ -106,6 +108,7 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     contributor_policy = contributor_policy_report(repo)
     gate_reports = {
         "python-size": code_size,
+        "source-budget": source_budget,
         "coverage": coverage,
         "types": types,
         "docstrings": docstrings,

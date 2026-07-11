@@ -224,6 +224,7 @@ def test_simple_quality_commands_are_compiled_from_report_specs() -> None:
         "coverage",
         "docstrings",
         "code_size",
+        "source_budget",
         "module_layout",
         "generated_artifacts",
         "command_surface",
@@ -256,6 +257,8 @@ def test_quality_report_commands_are_compiled_from_command_declaration() -> None
     assert registry["quality_types"].handler.report is quality_core.TYPES_COMMAND
     assert registry["quality_types"].handler.enforce is True
     assert registry["quality_types"].handler.bind_root is True
+    assert registry["source_budget"].handler.report is quality_core.SOURCE_BUDGET_COMMAND
+    assert registry["source_budget"].handler.enforce is True
     assert registry["claims"].handler.report is quality_core.CLAIMS_COMMAND
     assert registry["claims"].handler.enforce is False
     assert registry["claims"].handler.bind_root is True

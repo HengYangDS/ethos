@@ -311,6 +311,11 @@ CODE_SIZE_COMMAND = ReportCommandSpec(
     report=module_report(vars(prove_domain), "code_size_report"),
 )
 
+SOURCE_BUDGET_COMMAND = ReportCommandSpec(
+    command="quality source-budget",
+    report=module_report(vars(prove_domain), "source_budget_report"),
+)
+
 MODULE_LAYOUT_COMMAND = ReportCommandSpec(
     command="quality module-layout",
     report=module_report(_quality_report_namespace(), "module_layout_report"),
@@ -652,6 +657,9 @@ def provenance(
         state="ready",
         summary={"evidence_digest": evidence.digest},
         next_actions=("ethos prove --json",),
-        data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
+        data={
+            "evidence": evidence.to_dict(),
+            "provenance": provenance_envelope(evidence),
+        },
     )
     emit(result, json_output=json_output, enforce=False)

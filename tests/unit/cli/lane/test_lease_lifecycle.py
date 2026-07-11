@@ -219,7 +219,7 @@ def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(tmp_path
     assert [(row["holder_ref"], row["epoch"]) for row in leases] == [(HOLDER_B, 2)]
 
 
-def test_lane_lease_normalize_requires_exact_legacy_holder_and_head(tmp_path: Path) -> None:
+def test_lane_lease_normalize_migrates_freeform_legacy_owner(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
@@ -239,7 +239,7 @@ def test_lane_lease_normalize_requires_exact_legacy_holder_and_head(tmp_path: Pa
             (
                 legacy_id,
                 "work/feature",
-                HOLDER_A,
+                "codex",  # real free-form legacy owner (not a 4-segment HolderRef)
                 expires_at,
                 json.dumps({"path": worktree.as_posix()}),
             ),
@@ -266,4 +266,5 @@ def test_lane_lease_normalize_requires_exact_legacy_holder_and_head(tmp_path: Pa
 
     assert payload["state"] == "normalized"
     assert payload["data"]["lease"]["normalization_state"] == "normalized"
+    assert payload["data"]["lease"]["holder_ref"] == HOLDER_A
     assert payload["data"]["lease"]["expected_head"] == git(worktree, "rev-parse", "HEAD")

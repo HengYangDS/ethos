@@ -246,14 +246,18 @@ def test_acquire_lease_normalizes_holder_generation_and_timestamps(
     assert lease["claim_id"] == "claim-current"
 
 
-def test_normalize_lease_requires_same_legacy_holder_and_expected_head(
+def test_normalize_lease_migrates_freeform_legacy_owner_and_guards_by_lease_id(
     tmp_path: Path,
 ) -> None:
+    """A legacy lease with a free-form short owner (the real case) normalizes to a
+    canonical 4-segment holder_ref. Migration does NOT require the new holder_ref to
+    equal the legacy owner (impossible across schemas — the bug this fixes); safety comes
+    from the exact lease_id (proof the caller observed this exact lease)."""
     db_path = tmp_path / "state.sqlite"
     legacy = _insert_legacy_lease(
         db_path,
         subject="work/current",
-        owner="agent:codex:thread:first",
+        owner="codex",  # real legacy shape: not a 4-segment HolderRef
     )
 
     normalized = normalize_lease(
@@ -269,12 +273,13 @@ def test_normalize_lease_requires_same_legacy_holder_and_expected_head(
     assert normalized["epoch"] == 1
     assert normalized["expected_head"] == "a" * 40
 
-    with pytest.raises(ValueError, match="lease_holder_mismatch"):
+    # Anti-hijack guard is the lease_id, not a holder string: a wrong lease_id is rejected.
+    with pytest.raises(ValueError, match="lease_id_stale"):
         normalize_lease(
             db_path,
             subject="work/current",
             holder_ref="agent:claude:session:other",
-            expected_lease_id=legacy,
+            expected_lease_id="lease:not-the-one",
             expected_head="a" * 40,
         )
 

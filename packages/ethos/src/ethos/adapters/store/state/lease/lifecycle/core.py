@@ -102,7 +102,20 @@ def normalize_lease(
     expected_lease_id: str,
     expected_head: str,
 ) -> dict[str, Any]:
-    """Normalize one unambiguous legacy lease for the same holder and current head."""
+    """Normalize one unambiguous legacy lease to a canonical holder ref.
+
+    Legacy leases carry a free-form ``owner`` string (``codex``, ``agent:codex``,
+    ``local-agent:codex:<lane>``, …) and no structured ``holder_ref``. Normalization
+    rewrites both to a canonical four-segment ``HolderRef``. It deliberately does NOT
+    require the new ``holder_ref`` to string-equal the legacy ``owner``: those are
+    different schemas (a 4-segment ref can never equal a 1-to-3 segment legacy name), so
+    such a check made migration impossible (the exact bug this closes). Anti-hijack
+    safety comes from proof of OBSERVATION, established by the caller pipeline before we
+    are reached: the request is admitted only from the lane's own worktree at its exact
+    ``expect_head`` (``_lease_request_gaps``), and here the ``expected_lease_id`` must
+    match the row's UUID. Knowing a lane's exact lease UUID and holding its checkout is
+    the "same holder" evidence; a bystander cannot normalize another lane's lease.
+    """
     HolderRef.parse(holder_ref)
     initialize_state(db_path)
     now = datetime.now(UTC)
@@ -112,7 +125,6 @@ def normalize_lease(
         row = _sole_subject_row(connection, subject)
         payload = json_object(row[4])
         _expect_equal("lease_id", expected_lease_id, str(row[0]))
-        _expect_equal("holder", holder_ref, str(row[2]))
         normalized = _normalized_lease_payload(
             payload=payload,
             subject=subject,

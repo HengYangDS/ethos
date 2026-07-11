@@ -687,6 +687,75 @@ def test_semantic_runtime_bootstrap_namespaces_nested_cache_under_selected_root(
     assert command == "run --group dev python -m ethos.cli"
 
 
+def test_semantic_runtime_bootstrap_detaches_owner_script_from_uv_sync_lock(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    fake_uv = tmp_path / "bin" / "uv"
+    fake_uv.parent.mkdir()
+    fake_uv.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        'printf "%s\\n" "$*" > "$UV_CAPTURE"\n'
+        '[[ "$1" == "run" ]]\n'
+        "shift\n"
+        'while [[ "$1" != "env" ]]; do shift; done\n'
+        "shift\n"
+        'while [[ "$1" == *=* ]]; do export "$1"; shift; done\n'
+        'exec "$@"\n',
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+    owner_script = repo / "tools" / "ci" / "scripts" / "run-owner.sh"
+    owner_script.parent.mkdir(parents=True)
+    owner_script.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf "%s\\n%s\\n" "$ETHOS_RUNTIME_BOOTSTRAPPED" "$UV_PROJECT_ENVIRONMENT"\n',
+        encoding="utf-8",
+    )
+    owner_script.chmod(0o755)
+    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
+    capture = tmp_path / "uv-command.txt"
+    environment = dict(os.environ)
+    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
+    environment["UV_CAPTURE"] = capture.as_posix()
+    environment.pop("UV_PROJECT_ENVIRONMENT", None)
+    environment.pop("UV_CACHE_DIR", None)
+    environment.pop("ETHOS_UV_CACHE_DIR", None)
+    environment.pop("ETHOS_RUNTIME_ROOT", None)
+
+    completed = subprocess.run(
+        [
+            bootstrap.as_posix(),
+            "--",
+            "uv",
+            "run",
+            "--all-packages",
+            "--group",
+            "dev",
+            "env",
+            "OWNER_SCRIPT_MODE=test",
+            "ETHOS_RUNTIME_BOOTSTRAPPED=1",
+            owner_script.as_posix(),
+        ],
+        cwd=repo,
+        env=environment,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert completed.stdout.splitlines() == [
+        "1",
+        f"{repo.resolve()}/build/runtime/venv",
+    ]
+    assert capture.read_text(encoding="utf-8") == (
+        "run --no-sync --all-packages --group dev env "
+        f"OWNER_SCRIPT_MODE=test ETHOS_RUNTIME_BOOTSTRAPPED=1 {owner_script}\n"
+    )
+
+
 def test_generated_artifact_entrypoint_audit_blocks_root_venv_and_bare_uv_run(
     tmp_path: Path,
 ) -> None:

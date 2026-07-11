@@ -58,4 +58,35 @@ if [[ "$1" == "${semantic_python}" && ! -x "${semantic_python}" ]]; then
   exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --group dev python "${@:2}"
 fi
 
+# Owner scripts enter through `uv run ... env ETHOS_RUNTIME_BOOTSTRAPPED=1`.
+# Their bodies may invoke uv for the tool they own.  A synchronizing outer uv
+# process holds the semantic-environment lock until that body exits, which makes
+# the inner invocation wait on its own parent.  The marker is the explicit
+# handoff boundary: preserve its command and dependency selection, but keep the
+# outer runner non-synchronizing so the body owns any required sync itself.
+runtime_command=("$@")
+if [[ "${runtime_command[0]}" == "uv" && "${runtime_command[1]:-}" == "run" ]]; then
+  owner_script_handoff="false"
+  no_sync_requested="false"
+  for ((argument_index = 2; argument_index < ${#runtime_command[@]}; argument_index++)); do
+    if [[ "${runtime_command[argument_index]}" == "--no-sync" ]]; then
+      no_sync_requested="true"
+    fi
+    if [[ "${runtime_command[argument_index]}" == "env" ]]; then
+      for ((environment_index = argument_index + 1; environment_index < ${#runtime_command[@]}; environment_index++)); do
+        environment_assignment="${runtime_command[environment_index]}"
+        if [[ "${environment_assignment}" != *=* ]]; then
+          break
+        fi
+        if [[ "${environment_assignment}" == "ETHOS_RUNTIME_BOOTSTRAPPED=1" ]]; then
+          owner_script_handoff="true"
+        fi
+      done
+    fi
+  done
+  if [[ "${owner_script_handoff}" == "true" && "${no_sync_requested}" != "true" ]]; then
+    exec uv run --no-sync "${runtime_command[@]:2}"
+  fi
+fi
+
 exec "$@"

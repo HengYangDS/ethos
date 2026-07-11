@@ -41,7 +41,10 @@ otherwise uv download state uses a host-scoped content-addressed cache outside
 the repository checkout. A nested bootstrap that enters a different worktree
 while an outer uv invocation holds the selected cache lock MUST use a bounded
 child namespace beneath that selected cache root; it MUST retain the child
-worktree's source environment and MUST NOT wait on the outer lock.
+worktree's source environment and MUST NOT wait on the outer lock. An owner
+script launched through the explicit `ETHOS_RUNTIME_BOOTSTRAPPED=1` handoff MUST
+run its outer uv command with `--no-sync`, so a tool invoked by that script does
+not wait on a parent process holding the same worktree environment lock.
 
 #### Scenario: two Work Lanes initialize independently
 
@@ -71,6 +74,16 @@ worktree's source environment and MUST NOT wait on the outer lock.
 - **AND** its uv invocation uses a bounded namespace beneath the selected host
   or CI cache root
 - **AND** it does not wait on or share the outer uv cache lock
+
+#### Scenario: a marked owner script does not reenter its own environment lock
+
+- **GIVEN** a product owner script is handed off through
+  `env ETHOS_RUNTIME_BOOTSTRAPPED=1 <script>`
+- **WHEN** the runtime bootstrap launches that handoff
+- **THEN** its outer `uv run` invocation includes `--no-sync`
+- **AND** the script retains ownership of any later tool synchronization
+- **AND** an inner tool invocation does not wait on a parent process holding
+  the same `<worktree>/build/runtime/venv` lock
 
 ### Requirement: Explicit execution overrides remain bounded
 

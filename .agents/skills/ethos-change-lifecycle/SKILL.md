@@ -23,7 +23,11 @@ governs whether a change may land or publish, based on evidence, not assertion.
    executed proof — only `--execute` produces trust-bearing, HEAD-bound evidence.
 4. Run `ethos land --json`; the verdict gates the fast-forward to the candidate
    role. A blocked verdict refuses (non-zero exit); read `required_gaps`.
-5. Run `ethos publish --json` for local publication readiness. Remote push is a
+5. Run `ethos parity shadow --adopter generic --target . --execute
+   --write-evidence --json` and commit the refreshed evidence. A land changes what
+   the repository proves; stale parity evidence from before the change is not
+   truthful about the new HEAD.
+6. Run `ethos publish --json` for local publication readiness. Remote push is a
    deferred, separately human-authorized step — stop before it.
 
 ## Evidence
@@ -35,6 +39,7 @@ ethos status --json
 ethos plan --changed --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ethos land --json
+ethos parity shadow --adopter generic --target . --execute --write-evidence --json
 ethos report --json
 ```
 

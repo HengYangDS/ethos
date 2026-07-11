@@ -6,4 +6,4 @@
 - [x] Migrate active delivery claims to explicit historical freshness.
 - [x] Add historical, head-bound, semantic-scope, and missing-contract tests.
 - [x] Update canonical repository-governance and command-plane documentation.
-- [ ] Regenerate parity evidence and execute the complete proof/closeout chain.
+- [x] Regenerate parity evidence and execute the complete proof/closeout chain.

@@ -7,7 +7,7 @@
   "properties": {
     "schema_version": {"const": 1},
     "decision_id": {"type": "string", "minLength": 1},
-    "disposition": {"enum": ["block", "preserve", "retire"]},
+    "disposition": {"enum": ["block", "preserve", "retire", "preserve-retire"]},
     "observation": {
       "type": "object",
       "required": ["lane_ref", "head", "lane_incarnation_id", "holder_ref", "path", "dirty", "foreign", "orphan", "ambiguous", "tracked_digest", "untracked_digest"],

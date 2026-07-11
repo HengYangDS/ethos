@@ -184,6 +184,100 @@ def test_preserve_resolution_includes_non_ignored_untracked_files(tmp_path: Path
     )
 
 
+def test_preserve_retire_requires_break_glass_and_irreversible_confirmation(
+    tmp_path: Path,
+) -> None:
+    repo, lane = _orphan_lane(tmp_path)
+    (lane / "README.md").write_text("# dirty preserved then retired\n", encoding="utf-8")
+    decision_path = tmp_path / "decision.json"
+
+    blocked = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve-retire",
+        reason="Retire only after durable preservation.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=_chronicle(repo, "preserve-retire"),
+        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
+        decision_path=decision_path,
+        break_glass=False,
+        apply=True,
+    )
+    assert "retire_exception_requires_break_glass" in blocked["required_gaps"]
+
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve-retire",
+        reason="Retire only after durable preservation.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref="evidence/chronicle/lane-resolution-test/preserve-retire.md",
+        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    assert planned["ok"] is True
+
+    pending = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+    assert "irreversible_confirmation_required" in pending["required_gaps"]
+    assert lane.exists()
+
+
+def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
+    tmp_path: Path,
+) -> None:
+    repo, lane = _orphan_lane(tmp_path)
+    (lane / "README.md").write_text("# tracked delta\n", encoding="utf-8")
+    (lane / "notes.txt").write_text("untracked delta\n", encoding="utf-8")
+    decision_path = tmp_path / "decision.json"
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve-retire",
+        reason="Owner is unavailable; preserve before exceptional retirement.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=_chronicle(repo, "preserve-retire"),
+        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+
+    applied = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert planned["ok"] is True
+    assert applied["ok"] is True
+    assert applied["state"] == "preserved_and_retired"
+    package = repo / applied["preservation_package"]["path"]
+    manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
+    assert (package / "repository.bundle").is_file()
+    assert (package / "tracked.patch").is_file()
+    assert (package / "untracked.tar").is_file()
+    assert manifest["bundle_sha256"]
+    assert manifest["patch_sha256"]
+    assert manifest["untracked_archive_sha256"]
+    assert not lane.exists()
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "refs/heads/work/orphan"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        != 0
+    )
+
+
 def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
     tmp_path: Path,
 ) -> None:

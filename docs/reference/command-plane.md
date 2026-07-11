@@ -210,7 +210,7 @@ ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <paths> --editor-root <worktree-path> --require-editor-root
 ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --apply
 ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --context-file <path> --apply
-ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
+ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire|preserve-retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
 ethos lane resolution apply --decision-path <build-artifact> --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
@@ -299,6 +299,13 @@ durable judgments; they are not a separate lane-resolution truth store. This is
 a product read model, not a host message bus: assistant hosts, MCP, editor hosts,
 and CI adapters all see the same repository fact and must route mutation through
 their own owned lane.
+`preserve-retire` is the exceptional, irreversible path for a dirty orphan or
+foreign lane after accepted Chronicle evidence: it first creates and verifies a
+digest-bound bundle, tracked patch, untracked archive, and manifest under the
+local lane-resolution artifact root, then removes the exact branch and linked
+worktree. It requires `--break-glass` at decision time and
+`--confirm-irreversible` at apply time. Plain `retire` remains blocked for a
+dirty lane; `preserve` remains non-destructive.
 `ethos lane start --json` returns `data.worktree` in apply mode. That object
 uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.

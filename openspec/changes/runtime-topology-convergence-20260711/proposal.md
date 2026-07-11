@@ -33,16 +33,13 @@ or foreign-worktree cleanup is introduced.
 
 ## Capabilities
 
-### New Capabilities
-
-- `semantic-runtime-bootstrap`: Provider-neutral, checkout-bound Python runtime
-  execution with separate source environment and dependency-cache semantics.
-
 ### Modified Capabilities
 
 - `repository-governance`: The existing Work Lane runner requirement expands to
-  cover normal repository owner scripts and hooks; generated-artifact topology
-  gains an executable-entrypoint invariant.
+  cover provider-neutral, checkout-bound Python runtime execution in normal
+  repository owner scripts and hooks, with separate source-environment and
+  dependency-cache semantics. Generated-artifact topology gains an
+  executable-entrypoint invariant.
 
 ## Impact
 

@@ -1,6 +1,6 @@
 ---
 subject: ethos:runtime-topology-convergence-20260711
-role: implementation-plan
+role: plan
 state: active
 relations:
   implements: openspec/changes/runtime-topology-convergence-20260711
@@ -8,10 +8,17 @@ relations:
 
 # Runtime Topology Convergence Plan
 
-**Goal:** Make every normal product Python execution checkout-bound and prevent
+Status: active Work Lane implementation plan.
+
+Purpose: make every normal product Python execution checkout-bound and prevent
 root `.venv` creation from product-owned executable entrypoints.
 
-**Architecture:** One shell bootstrap owns Python runtime environment binding:
+See also: [Generated Artifact Topology](../architecture/generated-artifact-topology.md)
+and the [OpenSpec carrier](../../openspec/changes/runtime-topology-convergence-20260711/).
+
+## Architecture
+
+One shell bootstrap owns Python runtime environment binding:
 `build/runtime/venv` is bound to the current checkout, while uv's content cache
 is explicitly supplied by CI or defaults to host-local storage outside the
 checkout. Owner scripts, local hooks, and declared runner payloads consume that

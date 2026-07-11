@@ -10,9 +10,7 @@ from typing import Any
 
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
-from ethos_core.contracts.artifacts.topology import (
-    load_generated_artifact_topology_declaration,
-)
+from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 
 if TYPE_CHECKING:
@@ -327,7 +325,9 @@ def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, 
             _entrypoint_finding(
                 rel,
                 check="python-runtime-bootstrap",
-                boundary="active Python execution must route through the semantic runtime bootstrap",
+                boundary=(
+                    "active Python execution must route through the semantic runtime bootstrap"
+                ),
                 required_gap=f"generated_artifact_entrypoint_python_runtime_unbound:{rel}",
             )
         )

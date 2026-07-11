@@ -26,9 +26,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation.lane_retirement.core import (
-        SupersededLaneRetirementRequest,
-    )
+    from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 
 
 def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

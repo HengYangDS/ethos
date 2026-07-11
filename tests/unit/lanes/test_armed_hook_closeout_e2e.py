@@ -27,9 +27,7 @@ from pathlib import Path
 
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
-from ethos.adapters.mutation.lane_lifecycle.refresh import (
-    refresh_candidate_from_accepted,
-)
+from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet

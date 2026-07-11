@@ -26,7 +26,9 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
+    from ethos.adapters.mutation.lane_retirement.core import (
+        SupersededLaneRetirementRequest,
+    )
 
 
 def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -338,7 +340,9 @@ def _runner_bootstrap(target: Path) -> dict[str, str]:
     return {
         "command": "tools/ci/scripts/run-ethos-lane.sh",
         "project_environment": "build/runtime/venv",
-        "uv_cache": "build/runtime/tool-cache/uv",
+        "environment_scope": "checkout",
+        "uv_cache": "host_or_ci_content_addressed",
+        "cache_scope": "host_or_ci",
         "next_action": (f"cd {resolved} && tools/ci/scripts/run-ethos-lane.sh status --json"),
     }
 

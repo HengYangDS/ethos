@@ -27,7 +27,9 @@ from pathlib import Path
 
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
-from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
+from ethos.adapters.mutation.lane_lifecycle.refresh import (
+    refresh_candidate_from_accepted,
+)
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
@@ -35,6 +37,11 @@ from ethos.repository.policy.gates import promotion_required_gate_ids
 from tests.support.contract_helpers import conformant_proof_run
 
 _HOOK_SRC = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
+_RUNTIME_BOOTSTRAP_SRC = (
+    Path(__file__).resolve().parents[3] / "tools" / "ci" / "scripts" / "with-python-runtime.sh"
+)
+_TEST_PYTHON = Path(os.environ.get("ETHOS_TEST_PYTHON", os.sys.executable)).absolute()
+_TEST_VENV = _TEST_PYTHON.parent.parent
 
 
 def _g(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -62,25 +69,40 @@ def _armed_repo(tmp_path: Path) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
-    The installed hook resolves the ethos runtime from ``$repo_root/.venv`` and
-    ``$repo_root/packages/*/src``; symlink those from this checkout so the scratch repo
-    drives the real CLI the same way an adopted repository would.
+    The installed hook resolves its interpreter from the scratch checkout's semantic
+    ``build/runtime/venv`` home.  The fixture exposes a test interpreter there and
+    symlinks package source so the scratch repo drives the real CLI without depending
+    on the removed root ``.venv`` fallback.
     """
     src_root = Path(__file__).resolve().parents[3]
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "packages").mkdir()
-    (repo / ".venv").symlink_to(src_root / ".venv")
+    runtime_home = repo / "build" / "runtime" / "venv"
+    runtime_home.parent.mkdir(parents=True)
+    # `with-python-runtime.sh` deliberately calls `mkdir -p` on its semantic
+    # environment home.  Symlinking the directory itself therefore breaks the
+    # bootstrap; expose only its interpreter entrypoint instead.
+    runtime_home.mkdir()
+    for name in ("bin", "lib", "include"):
+        source = _TEST_VENV / name
+        if source.exists():
+            (runtime_home / name).symlink_to(source, target_is_directory=True)
+    (runtime_home / "pyvenv.cfg").symlink_to(_TEST_VENV / "pyvenv.cfg")
     (repo / "packages" / "ethos").symlink_to(src_root / "packages" / "ethos")
     (repo / "packages" / "ethos-core").symlink_to(src_root / "packages" / "ethos-core")
     _g(repo, "init", "-b", "dev")
     _g(repo, "config", "user.name", "t")
     _g(repo, "config", "user.email", "t@e.x")
-    (repo / ".gitignore").write_text(".ethos/state/\n.venv\npackages\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(".ethos/state/\nbuild\npackages\n", encoding="utf-8")
     hooks = repo / ".githooks"
     hooks.mkdir()
     shutil.copy(_HOOK_SRC, hooks / "reference-transaction")
     (hooks / "reference-transaction").chmod(0o755)
+    runtime_script_dir = repo / "tools" / "ci" / "scripts"
+    runtime_script_dir.mkdir(parents=True)
+    shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
+    (runtime_script_dir / "with-python-runtime.sh").chmod(0o755)
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
     _g(repo, "add", ".")
     _commit(repo, "init")
@@ -159,7 +181,9 @@ def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
 
 
-def test_candidate_refresh_from_accepted_admitted_without_bypass(tmp_path: Path) -> None:
+def test_candidate_refresh_from_accepted_admitted_without_bypass(
+    tmp_path: Path,
+) -> None:
     """`refresh_candidate_from_accepted` rewinds candidate onto the accepted head; the armed
     hook admits it without a fresh proof because the target is already accepted-contained.
     Without the refresh exemption this would self-block once the bypass is gone."""
@@ -178,7 +202,9 @@ def test_candidate_refresh_from_accepted_admitted_without_bypass(tmp_path: Path)
     # Move dev one commit further via a second sanctioned round so candidate lags accepted.
     second_head = _land_proven_work(repo, tmp_path, "w2", "yo\n")
     apply_candidate_to_accepted(
-        root=repo, authorized=True, expect_head=_g(repo, "rev-parse", "dev").stdout.strip()
+        root=repo,
+        authorized=True,
+        expect_head=_g(repo, "rev-parse", "dev").stdout.strip(),
     )
     accepted_head = _g(repo, "rev-parse", "dev").stdout.strip()
     assert accepted_head == second_head

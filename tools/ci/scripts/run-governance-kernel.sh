@@ -4,17 +4,16 @@
 # profiles and adapters may vary proof depth, never command semantics.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
 export PYTHONPATH="${repo_root}/packages/ethos/src:${repo_root}/packages/ethos-core/src${PYTHONPATH:+:${PYTHONPATH}}"
 
-if [[ -n "${ETHOS_PYTHON:-}" ]]; then
-  "${ETHOS_PYTHON}" -m ethos.cli quality governance-kernel --json
-elif [[ -n "${PYTHON:-}" ]]; then
-  "${PYTHON}" -m ethos.cli quality governance-kernel --json
-elif [[ -x "${repo_root}/.venv/bin/python" ]]; then
-  "${repo_root}/.venv/bin/python" -m ethos.cli quality governance-kernel --json
-else
-  uv run --package ethos python -m ethos.cli quality governance-kernel --json
-fi
+ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
+"${ethos_python}" -m ethos.cli quality governance-kernel --json

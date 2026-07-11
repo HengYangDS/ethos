@@ -13,6 +13,8 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
+runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
 ruff_config_path=".config/checks/ruff/ruff.toml"
 ruff_cache_dir="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 mkdir -p "${ruff_cache_dir}"
@@ -32,18 +34,13 @@ while IFS= read -r path; do
   staged_python+=("$path")
 done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
 if [ "${#staged_python[@]}" -gt 0 ]; then
-  if ! uv run --group dev ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${staged_python[@]}"; then
+  if ! "${runtime_runner}" -- uv run --group dev ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${staged_python[@]}"; then
     echo "pre_commit_python_format_failed" >&2
     exit 1
   fi
 fi
 
-if [ -x "$repo_root/.venv/bin/python" ]; then
-  ethos_python="$repo_root/.venv/bin/python"
-else
-  ethos_python="${PYTHON:-python}"
-fi
 ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
 PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-  "$ethos_python" -m ethos.cli hook admit pre-tool "${staged[@]}" \
+  "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook admit pre-tool "${staged[@]}" \
   --root "$repo_root" --editor-root "$repo_root" --json

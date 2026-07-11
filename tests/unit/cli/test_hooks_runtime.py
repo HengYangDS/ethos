@@ -15,14 +15,17 @@ def test_git_hooks_use_repo_bound_python_runtime() -> None:
 
     for expected in (
         'repo_root="$(git rev-parse --show-toplevel)"',
-        '"$repo_root/.venv/bin/python"',
+        "tools/ci/scripts/with-python-runtime.sh",
         "packages/ethos/src:$repo_root/packages/ethos-core/src",
-        '"$ethos_python" -m ethos.cli hook pre-push',
-        '"$ethos_python" -m ethos.cli hook ref-transaction',
+        'runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"',
+        '"${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook pre-push',
+        '"${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction',
         '--remote-head "$remote_sha"',
-        '"$ethos_python" -m ethos.cli hook admit pre-tool',
+        '"${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook admit pre-tool',
     ):
         assert expected in scripts
+    assert ".venv/bin/python" not in scripts
+    assert "uv run --package ethos python -m ethos.cli hook" not in scripts
 
 
 def test_pre_commit_blocks_staged_python_format_drift() -> None:
@@ -36,6 +39,7 @@ def test_pre_commit_blocks_staged_python_format_drift() -> None:
         'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check'
         in script
     )
+    assert '"${runtime_runner}" -- uv run --group dev ruff format' in script
     assert "pre_commit_python_format_failed" in script
 
 

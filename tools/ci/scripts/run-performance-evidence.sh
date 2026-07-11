@@ -6,6 +6,12 @@
 # silently redefine the reference point.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+  exec "${script_dir}/with-python-runtime.sh" -- \
+    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+
 accept_baseline=false
 if [[ "${1:-}" == "--accept-baseline" ]]; then
   accept_baseline=true
@@ -27,16 +33,7 @@ _ethos_verify_performance_head_stability() {
 }
 trap _ethos_verify_performance_head_stability EXIT
 
-ethos_python="${ETHOS_PYTHON:-${PYTHON:-}}"
-if [[ -z "${ethos_python}" && -x "${repo_root}/.venv/bin/python" ]]; then
-  ethos_python="${repo_root}/.venv/bin/python"
-fi
-if [[ -z "${ethos_python}" && -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
-  ethos_python="${VIRTUAL_ENV}/bin/python"
-fi
-if [[ -z "${ethos_python}" ]]; then
-  ethos_python="python3"
-fi
+ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
 
 if ! "${ethos_python}" -c 'import ethos' >/dev/null 2>&1; then
   echo "ETHOS Python environment is unavailable: ${ethos_python}" >&2

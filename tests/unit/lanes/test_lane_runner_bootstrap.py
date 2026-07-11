@@ -28,7 +28,9 @@ def test_start_work_lane_returns_source_bound_runner_bootstrap(tmp_path: Path) -
     assert report["runner_bootstrap"] == {
         "command": "tools/ci/scripts/run-ethos-lane.sh",
         "project_environment": "build/runtime/venv",
-        "uv_cache": "build/runtime/tool-cache/uv",
+        "environment_scope": "checkout",
+        "uv_cache": "host_or_ci_content_addressed",
+        "cache_scope": "host_or_ci",
         "next_action": (
             f"cd {lane.resolve().as_posix()} && tools/ci/scripts/run-ethos-lane.sh status --json"
         ),

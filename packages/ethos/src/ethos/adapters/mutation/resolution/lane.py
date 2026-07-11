@@ -426,7 +426,7 @@ def _completion_receipt(
     preservation_package: dict[str, object],
 ) -> dict[str, object]:
     manifest = preservation_package.get("manifest")
-    manifest_payload = manifest if isinstance(manifest, dict) else {}
+    manifest_payload = cast("dict[str, object]", manifest) if isinstance(manifest, dict) else {}
     return {
         "receipt_id": f"lane-resolution-receipt:{uuid.uuid4()}",
         "decision_id": str(decision["decision_id"]),

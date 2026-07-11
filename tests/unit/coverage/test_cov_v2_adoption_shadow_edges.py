@@ -34,6 +34,54 @@ def _campaign(root: Path, payload: dict[str, object]) -> dict[str, object]:
     return evolution._campaign_payload(root, path, payload)
 
 
+def _campaign_report_gaps(
+    root: Path,
+    *,
+    change: str,
+    step_state: str,
+    closeout_state: str = "planned",
+) -> list[str]:
+    """Write one complete campaign fixture and return the public report gaps."""
+    manifest = root / "evolution" / "campaigns" / "cid" / "campaign.toml"
+    manifest.parent.mkdir(parents=True)
+    terminal_closeout = closeout_state in {"closed", "retired"}
+    manifest.write_text(
+        "\n".join(
+            (
+                'id = "cid"',
+                'state = "active"',
+                'owner = "owner"',
+                'objective = "objective"',
+                'claim_id = "claim"',
+                "",
+                "[[step]]",
+                'id = "s1"',
+                'title = "step"',
+                f'state = "{step_state}"',
+                "ordinal = 1",
+                "depends_on = []",
+                f'openspec_change = "{change}"',
+                'work_lane = "work/s1"',
+                'claim_id = "claim-s1"',
+                "",
+                "[step.closeout]",
+                f'state = "{closeout_state}"',
+                f'accepted_head = "{"a" * 40 if terminal_closeout else ""}"',
+                f'candidate_head = "{"b" * 40 if terminal_closeout else ""}"',
+                'evidence = ["evidence/chronicle/s1/2026-07-11.md"]'
+                if terminal_closeout
+                else "evidence = []",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    report = evolution.campaign_report(root)
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    return [str(gap) for gap in gaps]
+
+
 def test_campaign_manifests_absent_root_returns_empty(tmp_path: Path) -> None:
     # No evolution/campaigns directory short-circuits to empty results (line 83).
     assert evolution._campaign_manifests(tmp_path, campaign_id=None) == ([], [])
@@ -171,26 +219,7 @@ def test_campaign_required_gaps_rejects_active_step_with_archived_carrier(tmp_pa
     """An archived carrier cannot be projected as a current execution lane."""
     change = "archived-change"
     (tmp_path / "openspec" / "changes" / "archive" / f"2026-07-11-{change}").mkdir(parents=True)
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {
-                    "id": "s1",
-                    "state": "active",
-                    "openspec_change": change,
-                    "work_lane": "work/s1",
-                    "claim_id": "claim-s1",
-                }
-            ],
-        },
-    )
-
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
+    gaps = _campaign_report_gaps(tmp_path, change=change, step_state="active")
 
     assert "campaign_step_active_openspec_archived:cid:s1" in gaps
 
@@ -199,33 +228,12 @@ def test_campaign_required_gaps_rejects_terminal_step_with_active_carrier(tmp_pa
     """A terminal campaign step must have an archived, not active, carrier."""
     change = "active-change"
     (tmp_path / "openspec" / "changes" / change).mkdir(parents=True)
-    campaign = _campaign(
+    gaps = _campaign_report_gaps(
         tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {
-                    "id": "s1",
-                    "title": "step",
-                    "state": "closed",
-                    "openspec_change": change,
-                    "work_lane": "work/s1",
-                    "claim_id": "claim-s1",
-                    "closeout": {
-                        "state": "retired",
-                        "accepted_head": "a" * 40,
-                        "candidate_head": "b" * 40,
-                        "evidence": ["evidence/chronicle/s1/2026-07-11.md"],
-                    },
-                }
-            ],
-        },
+        change=change,
+        step_state="closed",
+        closeout_state="retired",
     )
-
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
 
     assert "campaign_step_terminal_openspec_not_archived:cid:s1" in gaps
 
@@ -235,27 +243,7 @@ def test_campaign_required_gaps_rejects_ambiguous_carrier_home(tmp_path: Path) -
     change = "ambiguous-change"
     (tmp_path / "openspec" / "changes" / change).mkdir(parents=True)
     (tmp_path / "openspec" / "changes" / "archive" / f"2026-07-11-{change}").mkdir(parents=True)
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {
-                    "id": "s1",
-                    "title": "step",
-                    "state": "active",
-                    "openspec_change": change,
-                    "work_lane": "work/s1",
-                    "claim_id": "claim-s1",
-                }
-            ],
-        },
-    )
-
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
+    gaps = _campaign_report_gaps(tmp_path, change=change, step_state="active")
 
     assert "campaign_step_openspec_ambiguous:cid:s1" in gaps
 

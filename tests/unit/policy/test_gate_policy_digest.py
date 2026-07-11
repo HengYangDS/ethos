@@ -266,7 +266,11 @@ def test_committed_registry_none_when_declaration_blob_absent(tmp_path: Path) ->
     (repo / "system" / "gates.toml").unlink()
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "drop gates.toml"], check=True)
-    assert _committed_registry_and_floor(repo, _rev(repo, "HEAD")) is None
+    head = _rev(repo, "HEAD")
+    assert _committed_registry_and_floor(repo, head) is None
+    # gate_policy_digest on a product root whose committed declaration is unresolvable falls
+    # through to the live registry + working-tree floor (the 320->322 fall-through branch).
+    assert gate_policy_digest(repo, tree_ref=head) == gate_policy_digest(repo)
 
 
 def test_committed_registry_none_when_declaration_unparseable(tmp_path: Path) -> None:

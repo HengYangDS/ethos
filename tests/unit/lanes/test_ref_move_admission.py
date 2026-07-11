@@ -220,6 +220,25 @@ def test_ref_move_admission_blocks_unproven_candidate_ref_move(tmp_path: Path) -
     assert any("proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"])
 
 
+def test_ref_move_admission_admits_candidate_rewind_to_accepted_contained(tmp_path: Path) -> None:
+    """A candidate-branch move to a commit the accepted branch already contains (a
+    refresh-from-accepted rewind) promotes no new work, so it is admitted WITHOUT a fresh
+    proof — the exemption that keeps `ethos lane refresh-base` working once the
+    ETHOS_ALLOW_REF_MOVE bypass is gone. `base` is on the accepted branch (dev)."""
+    repo, base = _accepted_boundary_repo(tmp_path)
+    candidate_head = _advance_candidate(repo, "c1")
+
+    report = ref_move_admission_report(
+        root=repo,
+        ref_name="refs/heads/candidate/dev",
+        old_value=candidate_head,
+        new_value=base,  # rewind candidate back onto accepted-contained base
+    )
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+
+
 def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path) -> None:
     """B2: a raw rollback of dev to an older, still-proven, still-candidate-contained
     commit is a non-fast-forward and must block — accepted history only advances."""

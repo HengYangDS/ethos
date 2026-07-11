@@ -17,6 +17,9 @@ tests = [
   "ethos prove --execute --expect-head <lane-head> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
+
 [boundary]
 owner = "repository-governance"
 scope = "Local lane-resolution receipts, retention clear, and source-bound Work Lane runner bootstrap."

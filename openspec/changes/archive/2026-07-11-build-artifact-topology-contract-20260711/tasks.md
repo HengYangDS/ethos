@@ -6,5 +6,5 @@
 ## 2. Verification and closeout
 
 - [x] 2.1 Remove disposable legacy `dist/` residue and verify the artifact topology gate.
-- [ ] 2.2 Execute focused tests, configuration validation, and HEAD-bound full proof.
-- [ ] 2.3 Archive this completed OpenSpec change through the official lifecycle after its evidence is current.
+- [x] 2.2 Execute focused tests, configuration validation, deterministic build stress, and HEAD-bound full proof.
+- [x] 2.3 Archive this completed OpenSpec change through the official lifecycle after its evidence is current.

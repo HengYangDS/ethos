@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.repository.policy.artifacts import _structured_task_commands
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 
 if TYPE_CHECKING:
@@ -93,3 +94,16 @@ def test_malformed_pyproject_falls_back_to_conservative_text_audit(
     assert audit["required_gaps"] == [
         "generated_artifact_entrypoint_denied_generated_home:pyproject.toml:dist/"
     ]
+
+
+def test_structured_task_commands_cover_supported_and_declarative_shapes() -> None:
+    cases = [
+        (["uv", "build"], ["uv build"]),
+        (42, []),
+        ({"command": "uv build"}, ["uv build"]),
+        ({"cmd": 42, "command": ["uv", "build"]}, ["uv build"]),
+        ({"depends-on": ["lint"]}, []),
+    ]
+
+    for task, expected in cases:
+        assert _structured_task_commands(task) == expected

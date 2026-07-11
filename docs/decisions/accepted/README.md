@@ -19,5 +19,6 @@ Purpose: list accepted ETHOS durable rulings.
 | [DR-0004](DR-0004-native-documentation-topology-contract.md) | Minimal Semantic Documentation Topology Contract | Minimal semantic docs kernel plus product extension roots without lifecycle-labeled physical lanes. |
 | [DR-0005](DR-0005-declarative-runtime-spine.md) | Declarative Runtime Spine | Declaration-first contracts, policy DSL, graph compiler, command registry, scaffold projection, and anti-regression modernization. |
 | [DR-0006](DR-0006-proof-trust-boundary.md) | Proof Trust Boundary and Optional Independent-Identity Verification | Local proof is a readiness claim not an enforcement guarantee; no local MAC; genuine anti-forgery root is independent-identity re-execution via an optional default-off verifier plug. |
+| [DR-0007](DR-0007-docs-kernel-invariance-and-adopter-parity-locus.md) | Docs Kernel Form-Invariance and Adopter-Parity Evidence Locus | Docs required-path kernel is repository-form invariant, not lifecycle-conditional; real external-adopter parity evidence lives in the adopter repo while the product core tracks only the generic self-shadow. |
 
 See also: [Decision Records](../README.md).

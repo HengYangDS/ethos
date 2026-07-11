@@ -42,7 +42,7 @@ class CompiledReportCommand(BaseModel):
 
         def emit_result(target: Path, *, json_output: bool) -> None:
             result = build_declarative_report_result(
-                command=f"{self.declaration.group} {self.declaration.name}",
+                command=_command_name(self.declaration),
                 handler=handler,
                 report=_load_provider_report(handler, target),
             )
@@ -80,7 +80,8 @@ def build_declarative_report_result(
         state=_state(handler, report, is_ok=ok),
         summary=_summary(handler.summary, report),
         required_gaps=gaps,
-        next_actions=_next_actions(handler, gaps),
+        next_actions=_next_actions(handler, report, gaps),
+        governance_context=_governance_context(handler, report),
         data=_data(handler, report),
     )
 
@@ -109,21 +110,37 @@ def declared_report_handler(
     group: str = "quality",
 ) -> ReportHandler:
     """Compile one lazy-module command handler from the canonical registry."""
-    import_path = f"{module_name}:{function_name}"
-    declaration = next(
-        (
-            item
-            for item in load_command_registry_declaration().group(group)
-            if item.import_path == import_path
-        ),
-        None,
+    declaration = _declared_command(
+        module_name=module_name,
+        function_name=function_name,
+        group=group,
     )
-    if declaration is None:
-        msg = f"command declaration missing: {import_path}"
-        raise KeyError(msg)
     return CompiledReportCommand(
         function_name=function_name, declaration=declaration
     ).make_handler()
+
+
+def declared_report_result(
+    *,
+    module_name: str,
+    function_name: str,
+    target: Path,
+    group: str = "quality",
+) -> tuple[ReportHandlerDeclaration, ReportPayload, EthosResult]:
+    """Project one declared reader command while preserving its supplied facts."""
+    declaration = _declared_command(
+        module_name=module_name,
+        function_name=function_name,
+        group=group,
+    )
+    handler = _report_handler(declaration)
+    report = _load_provider_report(handler, target)
+    result = build_declarative_report_result(
+        command=_command_name(declaration),
+        handler=handler,
+        report=report,
+    )
+    return handler, report, result
 
 
 def _load_provider_report(
@@ -186,9 +203,26 @@ def _data(handler: ReportHandlerDeclaration, report: ReportPayload) -> dict[str,
     return dict(report)
 
 
-def _next_actions(handler: ReportHandlerDeclaration, gaps: tuple[str, ...]) -> tuple[str, ...]:
+def _governance_context(
+    handler: ReportHandlerDeclaration,
+    report: ReportPayload,
+) -> dict[str, object] | None:
+    if handler.governance_context_path is None:
+        return None
+    return dict(_mapping(_value_at(report, handler.governance_context_path)))
+
+
+def _next_actions(
+    handler: ReportHandlerDeclaration,
+    report: ReportPayload,
+    gaps: tuple[str, ...],
+) -> tuple[str, ...]:
     if handler.when_blocked or handler.when_clean:
         return (handler.when_blocked if gaps else handler.when_clean,)
+    if handler.next_actions_path is not None:
+        return tuple(
+            str(action) for action in _sequence(_value_at(report, handler.next_actions_path))
+        )
     return handler.next_actions
 
 
@@ -214,8 +248,33 @@ def _report_handler(declaration: CommandDeclaration) -> ReportHandlerDeclaration
     return declaration.report_handler
 
 
+def _declared_command(
+    *,
+    module_name: str,
+    function_name: str,
+    group: str,
+) -> CommandDeclaration:
+    import_path = f"{module_name}:{function_name}"
+    declaration = next(
+        (
+            item
+            for item in load_command_registry_declaration().group(group)
+            if item.import_path == import_path
+        ),
+        None,
+    )
+    if declaration is None:
+        msg = f"command declaration missing: {import_path}"
+        raise KeyError(msg)
+    return declaration
+
+
 def _function_name(command: CommandDeclaration) -> str:
     return command.import_path.rsplit(":", maxsplit=1)[1]
+
+
+def _command_name(command: CommandDeclaration) -> str:
+    return command.name if command.group == "root" else f"{command.group} {command.name}"
 
 
 def _mapping(value: object) -> Mapping[str, object]:

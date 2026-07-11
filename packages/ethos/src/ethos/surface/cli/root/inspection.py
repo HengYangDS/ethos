@@ -25,6 +25,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.quality.reporting import declared_report_result
 from ethos_core.result import EthosResult
 
 
@@ -69,6 +70,21 @@ def host_wrapper_report(repo: Path) -> dict[str, object]:
         "env_ethos_root": env_root,
         "advisory_gaps": advisory_gaps,
         "next_action": next_action,
+    }
+
+
+def _orient_report(repo: Path) -> dict[str, object]:
+    """Supply orient's facts without assembling its CLI envelope."""
+    packet = orient_domain.orientation_packet(
+        status_payload=workspace_status(repo),
+        report_payload=scorecard_report(repo),
+    )
+    return {
+        "ok": True,
+        "state": "oriented",
+        "next_actions": packet["next_actions"],
+        "governance_context": context_for_root(repo),
+        "orientation": packet,
     }
 
 
@@ -132,42 +148,16 @@ def orient(
 ) -> None:
     """Orient a human or agent without minting repository truth."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo)
-    governance = context_for_root(repo)
-    report_payload = scorecard_report(repo)
-    packet = orient_domain.orientation_packet(
-        status_payload=status_payload,
-        report_payload=report_payload,
-    )
-    where = cast("dict[str, Any]", packet["where"])
-    capability = cast("dict[str, Any]", packet["capability"])
-    coordination = cast("dict[str, Any]", packet["coordination"])
-    readiness = cast("dict[str, Any]", packet["readiness"])
-    packet_actions = cast("list[str]", packet["next_actions"])
-    result = EthosResult(
-        command="orient",
-        ok=True,
-        state="oriented",
-        summary={
-            "role": where["role"],
-            "candidate_action": capability["candidate_action"],
-            "foreign_work_lane_count": coordination["foreign_work_lane_count"],
-            "unbound_work_lane_count": coordination["unbound_work_lane_count"],
-            "missing_lease_count": coordination.get("missing_lease_count", 0),
-            "dirty_foreign_work_lane_count": coordination.get("dirty_foreign_work_lane_count", 0),
-            "coordination_advisory_count": len(coordination.get("advisory_items", [])),
-            "coordination_blocking": coordination["blocking"],
-            "governance_gap_count": readiness["governance_gap_count"],
-            "parity_pending_count": readiness["parity_pending_count"],
-            "advisory_gap_count": readiness["advisory_gap_count"],
-        },
-        next_actions=tuple(packet_actions),
-        governance_context=governance,
-        data={"orientation": packet},
+    handler, report_payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="orient",
+        target=repo,
+        group="root",
     )
     if json_output:
-        emit(result, json_output=json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=handler.enforce)
         return
+    packet = cast("dict[str, object]", report_payload["orientation"])
     for line in orient_domain.human_orientation_lines(packet):
         sys.stdout.write(f"{line}\n")
 

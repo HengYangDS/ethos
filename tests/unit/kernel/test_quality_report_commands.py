@@ -17,6 +17,7 @@ def test_declarative_report_projection_compiles_paths_counts_and_actions() -> No
     handler = ReportHandlerDeclaration(
         provider="ethos.test:sample",
         summary=(ReportSummaryField(name="item_count", path=("items",), reducer="count"),),
+        diagnostics_path=("diagnostics",),
         data_path=("payload",),
         governance_context_path=("governance_context",),
         next_actions_path=("next_actions",),
@@ -28,6 +29,7 @@ def test_declarative_report_projection_compiles_paths_counts_and_actions() -> No
         report={
             "ok": True,
             "items": ["a", "b"],
+            "diagnostics": [{"kind": "sample"}],
             "payload": {"id": "sample"},
             "governance_context": {"profile": "product"},
             "next_actions": ["ethos prove --json"],
@@ -35,6 +37,7 @@ def test_declarative_report_projection_compiles_paths_counts_and_actions() -> No
     )
 
     assert result.to_dict()["summary"] == {"item_count": 2}
+    assert result.to_dict()["diagnostics"] == [{"kind": "sample"}]
     assert result.to_dict()["next_actions"] == ["ethos prove --json"]
     assert result.to_dict()["governance_context"] == {"profile": "product"}
     assert result.to_dict()["data"] == {"id": "sample"}

@@ -139,6 +139,88 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report"
 ], enforce = false, bind_root = true }
 
 [[commands]]
+name = "status"
+group = "root"
+import_path = "ethos.surface.cli.root.inspection:status"
+help = "Inspect repository state."
+show = true
+report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report", summary = [
+  { name = "root", path = [
+    "status",
+    "root",
+  ] },
+  { name = "branch", path = [
+    "status",
+    "branch",
+  ] },
+  { name = "role", path = [
+    "status",
+    "role",
+  ], default = "" },
+  { name = "dirty", path = [
+    "status",
+    "dirty",
+  ] },
+  { name = "changed_path_count", path = [
+    "status",
+    "changed_paths",
+  ], reducer = "count" },
+  { name = "foreign_work_lane_count", path = [
+    "status",
+    "coordination",
+    "foreign_work_lane_count",
+  ], default = 0 },
+  { name = "unbound_work_lane_count", path = [
+    "status",
+    "coordination",
+    "unbound_work_lane_count",
+  ], default = 0 },
+  { name = "missing_lease_count", path = [
+    "status",
+    "coordination",
+    "missing_lease_count",
+  ], default = 0 },
+  { name = "dirty_foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "dirty_foreign_work_lane_count",
+  ], default = 0 },
+  { name = "coordination_advisory_count", path = [
+    "status",
+    "coordination",
+    "advisory_gaps",
+  ], reducer = "count" },
+  { name = "coordination_blocking", path = [
+    "status",
+    "coordination",
+    "blocking",
+  ] },
+], diagnostics_path = [
+  "diagnostics",
+], data_path = [
+  "status",
+], governance_context_path = [
+  "governance_context",
+], next_actions_path = [
+  "next_actions",
+], enforce = false, bind_root = true }
+
+[[commands]]
+name = "report"
+group = "root"
+import_path = "ethos.surface.cli.root.inspection:report"
+help = "Emit a concise scorecard."
+show = true
+report_handler = { provider = "ethos.surface.cli.root.inspection:_scorecard_reader_report", data_path = [
+  "data",
+], governance_context_path = [
+  "data",
+  "governance_context",
+], next_actions_path = [
+  "next_actions",
+], enforce = false, bind_root = true }
+
+[[commands]]
 name = "asset-policy"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:asset_policy"

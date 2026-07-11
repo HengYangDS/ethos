@@ -58,6 +58,27 @@ def test_work_lane_ref_transition_admits_ref_deletion_without_lease(tmp_path: Pa
     assert report["required_gaps"] == []
 
 
+def test_work_lane_ref_transition_admits_noop_without_lease(tmp_path: Path) -> None:
+    """A worktree setup can reassert a just-created lane ref at its existing HEAD before
+    the lane lease is recorded.  This is no state transition and must not be blocked by
+    the lease guard."""
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "branch", "work/starting", "dev")
+    head = git(repo, "rev-parse", "work/starting")
+
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name="refs/heads/work/starting",
+        old_value=head,
+        new_value=head,
+    )
+
+    assert report["ok"] is True
+    assert report["decision"] == {"action": "allow", "reason": "lane_ref_noop"}
+    assert report["required_gaps"] == []
+
+
 def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec"
+OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec@1.6.0"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 15
 
 

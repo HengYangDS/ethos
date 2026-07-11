@@ -6,7 +6,7 @@ ethos:verify:
   image: python:3.12
   script:
     - pip install uv
-    - npm install -g @fission-ai/openspec
+    - npm install -g @fission-ai/openspec@1.6.0
     - ethos status --json
     - ethos report --json
     - ethos prove --json

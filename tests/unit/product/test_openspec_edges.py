@@ -362,3 +362,19 @@ def test_openspec_base_command_prefers_cached_official_cli(tmp_path: Path, monke
     monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", (tmp_path / "_npx").as_posix())
 
     assert openspec_cli.openspec_base_command() == ("node", bin_path.as_posix())
+
+
+def test_openspec_base_command_uses_pinned_npx_fallback(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("ETHOS_OPENSPEC_BIN", raising=False)
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", (tmp_path / "_npx").as_posix())
+    monkeypatch.setattr(
+        openspec_cli.shutil,
+        "which",
+        lambda name: "/usr/bin/npx" if name == "npx" else None,
+    )
+
+    assert openspec_cli.openspec_base_command() == (
+        "npx",
+        "--yes",
+        "@fission-ai/openspec@1.6.0",
+    )

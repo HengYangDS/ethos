@@ -12,6 +12,6 @@ pip install uv
 if ! command -v npx >/dev/null 2>&1; then
   apt-get update >/dev/null && apt-get install -y --no-install-recommends nodejs npm >/dev/null
 fi
-printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec "$@"' > /usr/local/bin/openspec
+printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > /usr/local/bin/openspec
 chmod +x /usr/local/bin/openspec
 uv --version

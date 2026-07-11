@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation import lanes as lane_mutation
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -289,7 +291,9 @@ def test_prewrite_rejects_detached_lane(tmp_path: Path) -> None:
     assert report["error"] == "protected_lane_prewrite_blocked"
 
 
-def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path) -> None:
+def test_start_work_lane_apply_creates_worktree_and_records_lease(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
@@ -319,7 +323,9 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path
     ]
 
 
-def test_start_work_lane_defaults_path_to_sibling_candidate_home(tmp_path: Path) -> None:
+def test_start_work_lane_defaults_path_to_sibling_candidate_home(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     expected = repo.with_name(f"{repo.name}-work-feature")
@@ -429,7 +435,15 @@ def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> No
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/feature",
+        worktree.as_posix(),
+        "candidate/dev",
+    )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
     git(candidate, "add", "CANDIDATE.md")
     git(
@@ -476,7 +490,15 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/feature",
+        worktree.as_posix(),
+        "candidate/dev",
+    )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
     git(candidate, "add", "CANDIDATE.md")
     git(
@@ -525,13 +547,89 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
     assert (worktree / "FEATURE.md").exists()
 
 
+def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/feature",
+        worktree.as_posix(),
+        "candidate/dev",
+    )
+    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
+    git(candidate, "add", "CANDIDATE.md")
+    git(
+        candidate,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "advance candidate",
+    )
+    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
+    git(worktree, "add", "FEATURE.md")
+    git(
+        worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "feature work",
+    )
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    original_run_git = lane_mutation.run_git
+
+    def successful_noop_rebase(
+        root: Path, *args: str, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        if args == ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev"):
+            return subprocess.CompletedProcess(["git", *args], 0, "", "")
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(lane_mutation, "run_git", successful_noop_rebase)
+
+    report = refresh_work_lane_base(
+        root=worktree,
+        apply=True,
+        authorized=True,
+        expect_head=previous_head,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["head"] == previous_head
+    assert report["candidate_head"] == candidate_head
+    assert report["required_gaps"] == ["refresh_base_postcondition_failed"]
+    assert report["next_actions"] == [
+        "inspect current Git ancestry and runner, signing, or hook diagnostics",
+        "repair the replay environment and rerun ethos lane refresh-base",
+    ]
+
+
 def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/feature",
+        worktree.as_posix(),
+        "candidate/dev",
+    )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
     git(candidate, "add", "CANDIDATE.md")
     git(
@@ -561,7 +659,15 @@ def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path) -> N
     repo = init_repo(tmp_path / "repo")
     current_worktree = tmp_path / "repo-work-current"
     new_worktree = tmp_path / "repo-work-nested"
-    git(repo, "worktree", "add", "-b", "work/current", current_worktree.as_posix(), "dev")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/current",
+        current_worktree.as_posix(),
+        "dev",
+    )
 
     report = start_work_lane(
         root=current_worktree,
@@ -599,7 +705,9 @@ def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> No
     assert not worktree.exists()
 
 
-def test_workspace_status_reports_runtime_binding_for_audited_checkout(tmp_path: Path) -> None:
+def test_workspace_status_reports_runtime_binding_for_audited_checkout(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
 

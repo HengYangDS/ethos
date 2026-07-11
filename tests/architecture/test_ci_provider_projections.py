@@ -105,6 +105,17 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
+    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
+    adopter_gitlab_template = (
+        ROOT
+        / "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/ci/gitlab.yml.j2"
+    ).read_text(encoding="utf-8")
+
+    assert 'npx --yes @fission-ai/openspec@1.6.0 "$@"' in bootstrap
+    assert "npm install -g @fission-ai/openspec@1.6.0" in adopter_gitlab_template
+
+
 def test_markdown_lint_excludes_uv_cache_projection() -> None:
     config = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
@@ -147,7 +158,9 @@ def test_ci_template_check_reports_projection_drift_as_json() -> None:
     assert all(item["projection_matches_template"] for item in payload["projections"])
 
 
-def test_local_emulator_doctor_degrades_when_optional_tool_is_missing(monkeypatch) -> None:
+def test_local_emulator_doctor_degrades_when_optional_tool_is_missing(
+    monkeypatch,
+) -> None:
     ci_templates = _load_ci_templates_module()
     monkeypatch.setattr(ci_templates.shutil, "which", lambda _: None)
 

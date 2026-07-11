@@ -626,7 +626,7 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
 
     assert payload["ok"] is True
     assert payload["command"] == "openspec"
-    assert payload["data"]["official_cli"]["package"] == "@fission-ai/openspec"
+    assert payload["data"]["official_cli"]["package"] == "@fission-ai/openspec@1.6.0"
     assert payload["data"]["schema_name"] == "spec-driven"
     assert payload["data"]["commands"]["validate"]["json"]["summary"]["totals"]["failed"] == 0
 
@@ -636,7 +636,7 @@ def test_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
         return {
             "ok": True,
             "official_cli": {
-                "package": "@fission-ai/openspec",
+                "package": "@fission-ai/openspec@1.6.0",
                 "available": True,
                 "base_command": ["openspec"],
             },

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
@@ -65,7 +64,7 @@ def retire_landed_work_lanes(
     if branch:
         for lane in selected:
             gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
-        gaps.extend(_landed_actor_gaps(selected))
+        gaps.extend(lane_retirement_shared.holder_authority_gaps(selected))
         gaps.extend(_landed_expect_head_gaps(selected, expect_head=expect_head, apply=apply))
     if gaps:
         return {
@@ -81,8 +80,8 @@ def retire_landed_work_lanes(
                 apply=apply,
                 confirmed=False,
                 required_gaps=gaps,
-                holder_ref=_current_holder_ref(),
-                required_holder_ref=_selected_holder_ref(selected),
+                holder_ref=lane_retirement_shared.current_holder_ref(),
+                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
             ),
             "required_gaps": sorted(set(gaps)),
             **lane_retirement_shared.retire_authority_guidance(gaps),
@@ -101,8 +100,8 @@ def retire_landed_work_lanes(
                 apply=apply,
                 confirmed=False,
                 required_gaps=[],
-                holder_ref=_current_holder_ref(),
-                required_holder_ref=_selected_holder_ref(selected),
+                holder_ref=lane_retirement_shared.current_holder_ref(),
+                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
             ),
             "required_gaps": [],
         }
@@ -122,8 +121,8 @@ def retire_landed_work_lanes(
                 apply=apply,
                 confirmed=False,
                 required_gaps=_string_list(removed.get("required_gaps")),
-                holder_ref=_current_holder_ref(),
-                required_holder_ref=_selected_holder_ref(selected),
+                holder_ref=lane_retirement_shared.current_holder_ref(),
+                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
             ),
             **removed,
         }
@@ -145,49 +144,17 @@ def retire_landed_work_lanes(
             apply=apply,
             confirmed=False,
             required_gaps=[],
-            holder_ref=_current_holder_ref(),
-            required_holder_ref=_selected_holder_ref(selected),
+            holder_ref=lane_retirement_shared.current_holder_ref(),
+            required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
         ),
         "required_gaps": [],
     }
-
-
-def has_changed_paths(root: Path, *, runtime: LandedRetirementRuntime | None = None) -> bool:
-    """Return whether a Work Lane path has tracked or untracked local changes."""
-    active_runtime = runtime or LandedRetirementRuntime()
-    completed = active_runtime.shared.run_git(
-        root,
-        "status",
-        "--porcelain",
-        "--untracked-files=all",
-        check=False,
-    )
-    if completed.returncode != 0:
-        return True
-    return bool(completed.stdout.strip())
 
 
 def _string_list(value: object) -> list[str]:
     if not isinstance(value, list | tuple):
         return []
     return [str(item) for item in value]
-
-
-def _landed_actor_gaps(selected: list[dict[str, object]]) -> list[str]:
-    if not selected:
-        return []
-    required_holder_ref = _selected_holder_ref(selected)
-    invocation_holder_ref = _current_holder_ref()
-    if not required_holder_ref or invocation_holder_ref != required_holder_ref:
-        return ["foreign_work_lane_retire_authority_required"]
-    return []
-
-
-def _selected_holder_ref(selected: list[dict[str, object]]) -> str:
-    if not selected:
-        return ""
-    lease = selected[0].get("lease")
-    return str(lease.get("holder_ref") or "") if isinstance(lease, dict) else ""
 
 
 def _landed_expect_head_gaps(
@@ -206,10 +173,6 @@ def _landed_expect_head_gaps(
     return []
 
 
-def _current_holder_ref() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip()
-
-
 def _retirement_lane(
     repo: Path,
     lane: dict[str, object],
@@ -225,7 +188,7 @@ def _retirement_lane(
     holder_ref = str(lease.get("holder_ref") or "")
     if not active_runtime.is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_not_merged")
-    if has_changed_paths(path, runtime=active_runtime):
+    if lane_retirement_shared.has_changed_paths(path, runner=active_runtime.shared.run_git):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,

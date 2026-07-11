@@ -19,6 +19,10 @@ from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
+_PRESERVATION_MANIFEST_INVALID = "lane_resolution_preservation_manifest_invalid"
+_PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
+_PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
+
 
 def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
@@ -392,21 +396,21 @@ def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> N
     try:
         destination.relative_to(root.resolve())
     except ValueError as exc:
-        raise ValueError("lane_resolution_preservation_package_outside_root") from exc  # noqa: EM101
+        raise ValueError(_PRESERVATION_PACKAGE_OUTSIDE_ROOT) from exc
     manifest = package.get("manifest")
     if not isinstance(manifest, dict):
-        raise TypeError("lane_resolution_preservation_manifest_invalid")
+        raise TypeError(_PRESERVATION_MANIFEST_INVALID)
     checks = (
         (destination / "repository.bundle", "bundle_sha256"),
         (destination / "tracked.patch", "patch_sha256"),
     )
     for path, key in checks:
         if not path.is_file() or _sha256(path) != str(manifest.get(key) or ""):
-            raise ValueError("lane_resolution_preservation_package_invalid")  # noqa: EM101
+            raise ValueError(_PRESERVATION_PACKAGE_INVALID)
     archive_digest = str(manifest.get("untracked_archive_sha256") or "")
     archive = destination / "untracked.tar"
     if archive_digest and (not archive.is_file() or _sha256(archive) != archive_digest):
-        raise ValueError("lane_resolution_preservation_package_invalid")  # noqa: EM101
+        raise ValueError(_PRESERVATION_PACKAGE_INVALID)
 
 
 def _completion_receipt(

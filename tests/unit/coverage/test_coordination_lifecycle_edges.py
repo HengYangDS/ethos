@@ -25,6 +25,9 @@ from ethos_core.contracts.mutation import LeaseFacts
 from ethos_core.contracts.mutation import lease_transition
 from ethos_core.contracts.mutation import reduce_lease_request
 
+BRANCH = "work/example"
+HEAD = "a" * 40
+
 
 def _lease_payload() -> dict[str, object]:
     return {
@@ -32,64 +35,86 @@ def _lease_payload() -> dict[str, object]:
         "holder_ref": "agent:test:case:holder",
         "lease_id": "lease:one",
         "epoch": 1,
-        "expected_head": "a" * 40,
+        "expected_head": HEAD,
     }
 
 
+def _lease_facts(**changes: object) -> LeaseFacts:
+    return LeaseFacts(
+        **{
+            "role": "work_lane",
+            "current_branch": BRANCH,
+            "current_head": "a",
+            "branch": BRANCH,
+            "expect_head": "a",
+            "lease_id": "lease",
+            "epoch": 1,
+            "ttl_seconds": 1,
+            "offer_id": "",
+            "apply": False,
+            **changes,
+        }
+    )
+
+
 def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
-    assert handoff._holder_ref_gaps("bad", "also-bad") == [  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert handoff._holder_ref_gaps("bad", "also-bad") == [  # noqa: RUF100, SLF001 - exact private branch coverage
         "holder_ref_invalid",
         "target_holder_ref_invalid",
     ]
-    gaps = handoff._export_binding_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        status={"role": "accepted_root", "branch": "work/other"},
-        branch="work/example",
-        head="a" * 40,
-        expect_head="",
-        holder_ref="agent:test:case:holder",
-        lease_id="lease:one",
-        epoch=1,
-        lease={},
-    )
-    assert gaps == [
-        "work_lane_required",
-        "lane_branch_mismatch",
-        "expect_head_required",
-        "lease_holder_mismatch",
-        "lease_id_stale",
-        "lease_epoch_stale",
-        "lease_head_stale",
-    ]
-    assert handoff._export_binding_gaps(  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        status={"role": "work_lane", "branch": "work/example"},
-        branch="work/example",
-        head="a",
-        expect_head="b",
-        holder_ref="agent:test:case:holder",
-        lease_id="lease:one",
-        epoch=1,
-        lease={**_lease_payload(), "expected_head": "a"},
-    ) == ["expect_head_mismatch"]
-    assert handoff._dirty_disposition_gaps(("README.md",), "") == ["dirty_disposition_required"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert handoff._dirty_disposition_gaps((), "preserved") == ["dirty_disposition_mismatch"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert handoff._dirty_disposition_gaps(("README.md",), "clean") == [  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        "dirty_disposition_mismatch"
-    ]
-    assert handoff._dirty_disposition_gaps((), "invalid") == ["dirty_disposition_invalid"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-
+    binding = {
+        "branch": BRANCH,
+        "holder_ref": "agent:test:case:holder",
+        "lease_id": "lease:one",
+        "epoch": 1,
+    }
+    for facts, expected in (
+        (
+            {
+                "status": {"role": "accepted_root", "branch": "work/other"},
+                "head": HEAD,
+                "expect_head": "",
+                "lease": {},
+            },
+            [
+                "work_lane_required",
+                "lane_branch_mismatch",
+                "expect_head_required",
+                "lease_holder_mismatch",
+                "lease_id_stale",
+                "lease_epoch_stale",
+                "lease_head_stale",
+            ],
+        ),
+        (
+            {
+                "status": {"role": "work_lane", "branch": BRANCH},
+                "head": "a",
+                "expect_head": "b",
+                "lease": {**_lease_payload(), "expected_head": "a"},
+            },
+            ["expect_head_mismatch"],
+        ),
+    ):
+        assert handoff._export_binding_gaps(**binding, **facts) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
+    for dirty_paths, disposition, expected in (
+        (("README.md",), "", ["dirty_disposition_required"]),
+        ((), "preserved", ["dirty_disposition_mismatch"]),
+        (("README.md",), "clean", ["dirty_disposition_mismatch"]),
+        ((), "invalid", ["dirty_disposition_invalid"]),
+    ):
+        assert handoff._dirty_disposition_gaps(dirty_paths, disposition) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
     context = tmp_path / "context.md"
-    context.write_text("context\n", encoding="utf-8")
-    assert handoff._handoff_context(context_text="also", context_file=context)[1] == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        "handoff_context_ambiguous"
-    )
-    assert handoff._handoff_context(context_text="", context_file=context) == ("context\n", "")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    context.write_text("", encoding="utf-8")
-    assert handoff._handoff_context(context_text="", context_file=context)[1] == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        "handoff_context_required"
-    )
-    assert (
-        handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md")[1]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        == "handoff_context_file_unreadable"
+    for content, context_text, expected in (
+        ("context\n", "also", "handoff_context_ambiguous"),
+        ("context\n", "", ("context\n", "")),
+        ("", "", "handoff_context_required"),
+    ):
+        context.write_text(content, encoding="utf-8")
+        result = handoff._handoff_context(context_text=context_text, context_file=context)  # noqa: RUF100, SLF001 - exact private branch coverage
+        assert result == expected if isinstance(expected, tuple) else result[1] == expected
+    assert handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md")[1] == (  # noqa: RUF100, SLF001 - exact private branch coverage
+        "handoff_context_file_unreadable"
     )
 
 
@@ -111,33 +136,27 @@ def test_handoff_state_and_json_helpers(tmp_path: Path, monkeypatch) -> None:
             {"subject": "work/other", "lease_id": "two"},
         ],
     )
-    assert (
-        handoff._current_lease(status=status, repo=tmp_path, branch="work/example")["lease_id"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        == "one"
-    )
-    assert handoff._state_root(status=status, repo=tmp_path) == accepted  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert handoff._state_root(status={"worktrees": ["bad"]}, repo=tmp_path) == tmp_path  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert (
-        handoff._current_lease(status={"worktrees": "bad"}, repo=tmp_path, branch="work/example")[  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-            "lease_id"
-        ]
-        == "one"
-    )
-    assert (
-        handoff._current_lease(status={"worktrees": []}, repo=tmp_path, branch="work/example")[  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-            "lease_id"
-        ]
-        == "one"
-    )
-    assert handoff._state_root(status={"worktrees": "bad"}, repo=tmp_path) == tmp_path  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    for probe, expected_root in (
+        (status, accepted),
+        ({"worktrees": ["bad"]}, tmp_path),
+        ({"worktrees": "bad"}, tmp_path),
+        ({"worktrees": []}, tmp_path),
+    ):
+        assert (
+            handoff._current_lease(status=probe, repo=tmp_path, branch="work/example")["lease_id"]  # noqa: RUF100, SLF001 - exact private branch coverage
+            == "one"
+        )
+        assert handoff._state_root(status=probe, repo=tmp_path) == expected_root  # noqa: RUF100, SLF001 - exact private branch coverage
 
     gaps: list[str] = []
-    missing = handoff._json_mapping(tmp_path / "missing.json", gap="invalid", gaps=gaps)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert missing == {} and gaps == ["invalid"]
-    array = tmp_path / "array.json"
-    array.write_text("[]", encoding="utf-8")
-    assert handoff._json_mapping(array, gap="invalid", gaps=gaps) == {}  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert gaps == ["invalid", "invalid"]
+    for path, content, expected_gaps in (
+        (tmp_path / "missing.json", None, ["invalid"]),
+        (tmp_path / "array.json", "[]", ["invalid", "invalid"]),
+    ):
+        if content is not None:
+            path.write_text(content, encoding="utf-8")
+        assert handoff._json_mapping(path, gap="invalid", gaps=gaps) == {}  # noqa: RUF100, SLF001 - exact private branch coverage
+        assert gaps == expected_gaps
 
 
 def test_handoff_orchestration_catches_effect_failures(tmp_path: Path, monkeypatch) -> None:
@@ -303,29 +322,23 @@ def test_handoff_revoke_effect_failure_and_success(tmp_path: Path, monkeypatch) 
         "revoke_lease",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale")),
     )
-    failed = handoff.revoke_cross_host_source(
-        root=tmp_path,
-        package=tmp_path / "package",
-        acknowledgement=ack,
-        holder_ref="agent:test:case:holder",
-        lease_id="lease:one",
-        epoch=1,
-        expect_head="a" * 40,
-        apply=True,
-    )
+
+    def revoke() -> dict[str, object]:
+        return handoff.revoke_cross_host_source(
+            root=tmp_path,
+            package=tmp_path / "package",
+            acknowledgement=ack,
+            holder_ref="agent:test:case:holder",
+            lease_id="lease:one",
+            epoch=1,
+            expect_head="a" * 40,
+            apply=True,
+        )
+
+    failed = revoke()
     assert failed["required_gaps"] == ["stale"]
     monkeypatch.setattr(handoff, "revoke_lease", lambda *_args, **_kwargs: {"revoked": True})
-    succeeded = handoff.revoke_cross_host_source(
-        root=tmp_path,
-        package=tmp_path / "package",
-        acknowledgement=ack,
-        holder_ref="agent:test:case:holder",
-        lease_id="lease:one",
-        epoch=1,
-        expect_head="a" * 40,
-        apply=True,
-    )
-    assert succeeded["state"] == "source_revoked"
+    assert revoke()["state"] == "source_revoked"
 
 
 def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) -> None:
@@ -367,7 +380,7 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         "handoff_artifact_missing:missing.txt",
         "handoff_artifact_digest_mismatch:wrong.txt",
     ]
-    assert handoff_package._string_list("bad") == []  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert handoff_package._string_list("bad") == []  # noqa: RUF100, SLF001 - exact private branch coverage
 
     monkeypatch.setattr(
         handoff_package.subprocess,
@@ -375,14 +388,14 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stderr=b"diff failed"),
     )
     with pytest.raises(subprocess.SubprocessError, match="diff failed"):
-        handoff_package._preserve_dirty_work(repo=tmp_path, package_dir=tmp_path)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+        handoff_package._preserve_dirty_work(repo=tmp_path, package_dir=tmp_path)  # noqa: RUF100, SLF001 - exact private branch coverage
     monkeypatch.setattr(
         handoff_package.subprocess,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stderr="run failed"),
     )
     with pytest.raises(subprocess.SubprocessError, match="run failed"):
-        handoff_package._run(tmp_path, "false")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+        handoff_package._run(tmp_path, "false")  # noqa: RUF100, SLF001 - exact private branch coverage
 
 
 @pytest.mark.parametrize("fail_at", [1, 2])
@@ -500,10 +513,50 @@ def test_handoff_restore_and_empty_preservation_edges(tmp_path: Path, monkeypatc
     assert not (tmp_path / "tracked.patch").exists()
 
 
+@pytest.mark.parametrize(
+    ("operation", "facts", "expected_state", "expected_gaps"),
+    [
+        (
+            "handoff_accept",
+            _lease_facts(
+                role="accepted_root",
+                current_branch="work/other",
+                expect_head="",
+                lease_id="",
+                epoch=None,
+                ttl_seconds=0,
+            ),
+            "",
+            (
+                "work_lane_required",
+                "lane_branch_mismatch",
+                "expect_head_required",
+                "lease_id_required",
+                "lease_epoch_required",
+                "lease_ttl_invalid",
+                "handoff_offer_id_required",
+            ),
+        ),
+        ("renew", _lease_facts(), "planned", ()),
+        ("renew", _lease_facts(expect_head="b"), "", ("expect_head_mismatch",)),
+    ],
+)
+def test_lease_request_reducer_matrix(
+    operation: str,
+    facts: LeaseFacts,
+    expected_state: str,
+    expected_gaps: tuple[str, ...],
+) -> None:
+    result = reduce_lease_request(lease_transition(operation), facts)
+    if expected_state:
+        assert result.state == expected_state
+    assert result.gaps == expected_gaps
+
+
 def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypatch) -> None:
     state, gaps = lease_ops._lease_expected_state(
         repo=tmp_path,
-        branch="work/example",
+        branch=BRANCH,
         holder_ref="bad",
         lease_id="",
         epoch=None,
@@ -512,67 +565,6 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
         offer_id="",
     )
     assert state["epoch"] == 0 and gaps == ("holder_ref_invalid",)
-    request_gaps = reduce_lease_request(
-        lease_transition("handoff_accept"),
-        LeaseFacts(
-            role="accepted_root",
-            current_branch="work/other",
-            current_head="a",
-            branch="work/example",
-            expect_head="",
-            lease_id="",
-            epoch=None,
-            ttl_seconds=0,
-            offer_id="",
-            apply=False,
-        ),
-    ).gaps
-    assert request_gaps == (
-        "work_lane_required",
-        "lane_branch_mismatch",
-        "expect_head_required",
-        "lease_id_required",
-        "lease_epoch_required",
-        "lease_ttl_invalid",
-        "handoff_offer_id_required",
-    )
-    assert (
-        reduce_lease_request(
-            lease_transition("renew"),
-            LeaseFacts(
-                role="work_lane",
-                current_branch="work/example",
-                current_head="a",
-                branch="work/example",
-                expect_head="a",
-                lease_id="lease",
-                epoch=1,
-                ttl_seconds=1,
-                offer_id="",
-                apply=False,
-            ),
-        ).state
-        == "planned"
-    )
-    assert (
-        "expect_head_mismatch"
-        in reduce_lease_request(
-            lease_transition("renew"),
-            LeaseFacts(
-                role="work_lane",
-                current_branch="work/example",
-                current_head="a",
-                branch="work/example",
-                expect_head="b",
-                lease_id="lease",
-                epoch=1,
-                ttl_seconds=1,
-                offer_id="",
-                apply=False,
-            ),
-        ).gaps
-    )
-
     monkeypatch.setattr(
         lease_ops,
         "_apply_lease_lifecycle_operation",

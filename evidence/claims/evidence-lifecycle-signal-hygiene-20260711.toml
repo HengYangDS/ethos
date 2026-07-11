@@ -27,7 +27,7 @@ owner = "quality"
 scope = "Claim evidence freshness semantics and historical signal hygiene"
 
 [carriers]
-openspec = "openspec/changes/evidence-lifecycle-signal-hygiene-20260711"
+openspec = "openspec/changes/archive/2026-07-11-evidence-lifecycle-signal-hygiene-20260711"
 fallback = "Keep dated evidence digest-bound and surface a required gap until an explicit freshness mode is declared."
 kill_signal = "A historical Chronicle is shown as current-HEAD proof, or missing freshness silently degrades to an advisory."
 
@@ -47,7 +47,7 @@ targets = [
   "docs/reference/command-plane.md",
   "docs/governance/product-design-contract.md",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/evidence-lifecycle-signal-hygiene-20260711",
+  "openspec/changes/archive/2026-07-11-evidence-lifecycle-signal-hygiene-20260711",
   "evidence/claims/evidence-lifecycle-signal-hygiene-20260711.toml",
   "evidence/chronicle/evidence-lifecycle-signal-hygiene-20260711/2026-07-11.md",
 ]

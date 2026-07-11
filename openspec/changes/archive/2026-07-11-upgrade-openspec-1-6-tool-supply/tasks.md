@@ -6,4 +6,4 @@
 ## 2. Verification and closeout
 
 - [x] 2.1 Run focused ETHOS tests and strict official OpenSpec validation.
-- [ ] 2.2 Update task state, record local proof, and prepare the lane for closeout without remote publication.
+- [x] 2.2 Update task state, record local proof, and prepare the lane for closeout without remote publication.

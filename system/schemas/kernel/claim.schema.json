@@ -29,7 +29,38 @@
           "items": {"type": "string", "minLength": 1}
         },
         "binding": {"type": "string", "minLength": 1},
-        "verifier": {"type": "string", "enum": ["digest_only", "semantic"]}
+        "verifier": {"type": "string", "enum": ["digest_only", "semantic"]},
+        "freshness": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {"enum": ["historical", "head_bound", "semantic_scope"]},
+            "head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+            "semantic_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          },
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "properties": {"mode": {"const": "historical"}},
+              "required": ["mode"],
+              "not": {
+                "anyOf": [
+                  {"required": ["head"]},
+                  {"required": ["semantic_sha256"]}
+                ]
+              }
+            },
+            {
+              "properties": {"mode": {"const": "head_bound"}},
+              "required": ["mode", "head"],
+              "not": {"required": ["semantic_sha256"]}
+            },
+            {
+              "properties": {"mode": {"const": "semantic_scope"}},
+              "required": ["mode", "head", "semantic_sha256"]
+            }
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -111,6 +142,7 @@
       "then": {
         "required": ["boundary", "carriers", "promotion"],
         "properties": {
+          "evidence": {"required": ["freshness"]},
           "carriers": {"required": ["openspec"]}
         },
         "anyOf": [

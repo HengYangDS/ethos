@@ -170,6 +170,14 @@ command semantics; only profile and adapter bindings may vary.
 
 `ethos quality evidence-freshness --json` is profile-aware. Its summary reports the active profile durable evidence root. The product-default `evidence/` root and non-docs custom evidence roots use the strict kernel layout (`claims/`, `chronicle/`, `parity/`). A profile-declared `docs/evidence` root is audited as curated profile evidence so existing adopter delivery or rollback evidence trees can remain under `docs/evidence/` without becoming generated output or product-owned adopter fixtures.
 
+Active claims also declare an explicit evidence-freshness contract. `historical`
+means dated, digest-bound Chronicle support and deliberately makes no
+current-HEAD assertion. `head_bound` requires one exact current HEAD.
+`semantic_scope` requires a declared HEAD plus a digest of the current semantic
+promotion scope. Missing freshness is a required gap: ETHOS does not infer an
+undeclared currentness mode or turn durable history into an unearned
+present-tense proof.
+
 `ethos quality module-layout --json` audits semantic subpackages, suffix-flat
 modules, import-only facades, package-root submodule imports, flat-directory
 growth, and module-layout ratchet baselines. A clean verdict means no new or

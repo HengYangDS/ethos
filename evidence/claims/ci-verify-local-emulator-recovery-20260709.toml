@@ -22,6 +22,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head <lane-head> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "product-toolchain"
 scope = "Local provider emulator observation and materialization tool availability semantics."

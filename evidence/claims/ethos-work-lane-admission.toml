@@ -16,6 +16,8 @@ tests = [
   "tests/unit/cli/test_contracts.py",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 commands = [
   "ethos lane status",

@@ -19,6 +19,8 @@ tests = [
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality projection-drift --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

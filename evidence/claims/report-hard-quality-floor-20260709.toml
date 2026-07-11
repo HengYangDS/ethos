@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-reporting"
 scope = "Product scorecard hard quality floor read model for existing coverage, type, docstring, size, layout, product-boundary, and contributor-policy gates"

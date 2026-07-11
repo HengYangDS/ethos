@@ -17,6 +17,8 @@ tests = [
   "git diff --check",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Implemented authorization, admission, local Work Lane coordination, transition enforcement, external evidence adapters, and exceptional lane resolution."

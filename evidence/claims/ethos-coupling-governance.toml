@@ -26,6 +26,8 @@ tests = [
   "uv run --package ethos ethos campaign closeout --adopter reference-adopter --target <adopter-repo> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

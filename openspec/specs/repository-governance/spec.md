@@ -789,6 +789,28 @@ prior decisions SHALL NOT become reusable authorization by themselves.
 - **AND** first policy adoption requires a bootstrap approver/verifier configured
   outside the candidate tree and a bootstrap Chronicle decision.
 
+### Requirement: Claim evidence freshness is explicit
+
+ETHOS SHALL distinguish durable historical support from evidence that asserts
+current repository state. Every active claim SHALL declare exactly one evidence
+freshness mode: `historical`, `head_bound`, or `semantic_scope`.
+
+#### Scenario: historical evidence is durable without pretending currentness
+
+- **WHEN** an active claim declares `historical` freshness
+- **THEN** ETHOS verifies its dated evidence digest and ordinary active-claim
+  trust-envelope requirements
+- **AND** it does not emit a missing-HEAD migration advisory
+- **AND** it does not claim that historical evidence proves the current HEAD.
+
+#### Scenario: currentness-sensitive evidence fails closed
+
+- **WHEN** an active claim declares `head_bound` or `semantic_scope` freshness
+- **THEN** ETHOS requires the binding fields of that mode
+- **AND** a different declared HEAD blocks `head_bound` evidence
+- **AND** a changed declared semantic target blocks `semantic_scope` evidence
+- **AND** absent or unknown freshness mode is a required gap.
+
 ### Requirement: Work Lane Coordination Read Model
 
 ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Git

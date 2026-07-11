@@ -17,6 +17,8 @@ tests = [
   "ETHOS_ROOT=/private/tmp/ethos-unbound-lane-residue-readmodel uv run --group dev ethos quality schemas --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 schemas = ["system/schemas/kernel/workspace-status.schema.json"]

@@ -32,6 +32,8 @@ tests = [
   "npm run test:npm",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

@@ -22,6 +22,8 @@ tests = [
   "git diff --check",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-core"
 scope = "Root text, derived axioms, kernel interpretation boundary, and active low-level philosophy-label restraint"

@@ -17,6 +17,8 @@ tests = [
   "uv run --package ethos ethos prove --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

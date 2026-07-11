@@ -19,6 +19,8 @@ tests = [
   "tools/ci/scripts/run-repository-hygiene.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 paths = [
   "evidence/README.md",

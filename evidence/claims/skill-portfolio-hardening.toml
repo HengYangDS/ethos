@@ -18,6 +18,8 @@ tests = [
   "uv run --package ethos ethos quality projection-drift --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

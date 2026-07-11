@@ -23,6 +23,8 @@ tests = [
   "ETHOS_ROOT=$PWD uv run --group dev ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 schemas = ["system/schemas/kernel/workspace-status.schema.json"]

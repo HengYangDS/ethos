@@ -25,6 +25,9 @@ tests = [
   "uv run --group dev pytest tests/architecture/test_release_assets.py::test_python_test_gate_enforces_coverage_floor tests/architecture/test_testing_platform.py::test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted tests/architecture/test_testing_platform.py::test_python_test_gate_isolates_worker_local_proof_state -q",
   "uv run --group dev pytest tests/unit/audit/test_modes.py::test_report_uses_shallow_repository_audit tests/unit/cli/test_contracts.py::test_quality_schema_gate_and_commit_commands_are_available tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/cli/test_contracts_closeout.py::test_land_closeout_apply_fast_forwards_accepted_root_from_candidate tests/unit/coverage/test_cov_adapters_edges.py::test_signature_policy_clean_when_signing_required tests/unit/lanes/test_hook_admission.py::test_proof_state_dir_defaults_to_repository_local_state tests/unit/lanes/test_hook_admission.py::test_proof_state_dir_test_override_is_worker_local -q",
 ]
+
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Minimal semantic documentation topology, adoption scaffold extension boundaries, generated-artifact docs boundary, and command-surface governed-doc selectors."

@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.repository.evidence.claims import claims_report
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_claim_evidence_digests_are_verified() -> None:
@@ -114,7 +118,9 @@ def test_profile_claims_root_accepts_recursive_change_claims(tmp_path: Path) -> 
     assert "sample-change" in report["claims"]
 
 
-def test_active_change_claim_without_evidence_refs_is_not_closed_claim_gap(tmp_path: Path) -> None:
+def test_active_change_claim_without_evidence_refs_is_not_closed_claim_gap(
+    tmp_path: Path,
+) -> None:
     claims = tmp_path / "claims" / "changes"
     profile = tmp_path / ".ethos" / "profile.toml"
     claims.mkdir(parents=True)
@@ -164,7 +170,9 @@ def test_active_claims_reject_retired_product_family_subjects(tmp_path: Path) ->
     )
 
 
-def test_active_trust_claim_requires_boundary_carriers_and_promotion(tmp_path: Path) -> None:
+def test_active_trust_claim_requires_boundary_carriers_and_promotion(
+    tmp_path: Path,
+) -> None:
     claims = tmp_path / "evidence" / "claims"
     evidence = tmp_path / "evidence"
     claims.mkdir(parents=True)
@@ -388,13 +396,23 @@ def test_active_product_claim_rejects_private_adopter_and_workstation_literals(
     assert "sample:active_claim_private_coupling:local_workstation_path" in report["required_gaps"]
 
 
-def _write_head_claim(tmp_path: Path, *, head: str | None) -> None:
+def _write_freshness_claim(
+    tmp_path: Path,
+    *,
+    mode: str,
+    head: str | None = None,
+    semantic_sha256: str | None = None,
+) -> None:
     claims = tmp_path / "evidence" / "claims"
     evidence = tmp_path / "evidence"
+    openspec = tmp_path / "openspec" / "sample"
     claims.mkdir(parents=True, exist_ok=True)
     evidence.mkdir(parents=True, exist_ok=True)
+    openspec.mkdir(parents=True, exist_ok=True)
     evidence_file = evidence / "sample.md"
     evidence_file.write_text("sample\n", encoding="utf-8")
+    (tmp_path / "source.py").write_text("value = 1\n", encoding="utf-8")
+    (openspec / "proposal.md").write_text("# Sample\n", encoding="utf-8")
     lines = [
         "[claim]",
         'id = "ethos-sample"',
@@ -409,13 +427,32 @@ def _write_head_claim(tmp_path: Path, *, head: str | None) -> None:
         'verifier = "digest_only"',
         f'sha256 = "{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
     ]
+    lines.extend(["", "[evidence.freshness]", f'mode = "{mode}"'])
     if head is not None:
         lines.append(f'head = "{head}"')
+    if semantic_sha256 is not None:
+        lines.append(f'semantic_sha256 = "{semantic_sha256}"')
+    lines.extend(
+        [
+            "",
+            "[boundary]",
+            'owner = "quality"',
+            'scope = "sample claim"',
+            "",
+            "[carriers]",
+            'openspec = "openspec/sample/proposal.md"',
+            'fallback = "re-run the sample proof"',
+            'kill_signal = "sample evidence no longer matches"',
+            "",
+            "[promotion]",
+            'targets = ["source.py"]',
+        ]
+    )
     (claims / "ethos-sample.toml").write_text("\n".join(lines), encoding="utf-8")
 
 
 def test_claim_with_stale_head_blocks(tmp_path: Path) -> None:
-    _write_head_claim(tmp_path, head="oldhead")
+    _write_freshness_claim(tmp_path, mode="head_bound", head="oldhead")
 
     report = claims_report(tmp_path, current_head="newhead")
 
@@ -425,20 +462,144 @@ def test_claim_with_stale_head_blocks(tmp_path: Path) -> None:
     )
 
 
-def test_claim_without_head_is_advisory_not_blocking(tmp_path: Path) -> None:
-    _write_head_claim(tmp_path, head=None)
+def test_claim_without_freshness_is_blocking(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="historical")
+    path = tmp_path / "evidence" / "claims" / "ethos-sample.toml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace('\n[evidence.freshness]\nmode = "historical"', ""),
+        encoding="utf-8",
+    )
 
     report = claims_report(tmp_path, current_head="newhead")
 
-    # Legacy unbound claim surfaces as advisory (migration signal), does not block.
-    assert "ethos-sample:evidence.head_unbound" in report["advisory_gaps"]
-    assert not any("head" in gap for gap in report["required_gaps"])
+    assert "ethos-sample:evidence.freshness_missing" in report["required_gaps"]
+
+
+def test_claim_without_freshness_reports_declared_stale_head(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="historical")
+    path = tmp_path / "evidence" / "claims" / "ethos-sample.toml"
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        .replace("\n\n[evidence.freshness]", '\nhead = "oldhead"\n\n[evidence.freshness]')
+        .replace('\n[evidence.freshness]\nmode = "historical"', ""),
+        encoding="utf-8",
+    )
+
+    report = claims_report(tmp_path, current_head="newhead")
+
+    assert "ethos-sample:evidence.freshness_missing" in report["required_gaps"]
+    assert "ethos-sample:evidence.head_stale:oldhead!=newhead" in report["required_gaps"]
 
 
 def test_claim_with_matching_head_passes(tmp_path: Path) -> None:
-    _write_head_claim(tmp_path, head="matchhead")
+    _write_freshness_claim(tmp_path, mode="head_bound", head="matchhead")
 
     report = claims_report(tmp_path, current_head="matchhead")
 
     assert not any("head" in gap for gap in report["required_gaps"])
     assert not any("head" in gap for gap in report["advisory_gaps"])
+
+
+def test_head_bound_claim_requires_a_head(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="head_bound")
+
+    report = claims_report(tmp_path, current_head="currenthead")
+
+    assert "ethos-sample:evidence.head_missing" in report["required_gaps"]
+
+
+def test_head_bound_claim_rejects_a_semantic_digest(tmp_path: Path) -> None:
+    _write_freshness_claim(
+        tmp_path,
+        mode="head_bound",
+        head="currenthead",
+        semantic_sha256="a" * 64,
+    )
+
+    report = claims_report(tmp_path, current_head="currenthead")
+
+    assert "ethos-sample:evidence.head_bound_semantic_digest_forbidden" in report["required_gaps"]
+
+
+def test_historical_claim_is_durably_bound_without_current_head(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="historical")
+
+    report = claims_report(tmp_path, current_head="newhead")
+
+    assert report["required_gaps"] == []
+    assert report["claims"]["ethos-sample"]["freshness"]["state"] == "durably_bound"
+
+
+def test_semantic_scope_claim_requires_current_matching_digest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_freshness_claim(
+        tmp_path,
+        mode="semantic_scope",
+        head="a" * 40,
+        semantic_sha256="b" * 64,
+    )
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest",
+        lambda *_args, **_kwargs: "b" * 64,
+    )
+
+    report = claims_report(tmp_path, current_head="c" * 40)
+
+    assert report["required_gaps"] == []
+    assert report["claims"]["ethos-sample"]["freshness"]["state"] == "current"
+
+
+def test_semantic_scope_claim_blocks_when_semantic_target_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_freshness_claim(
+        tmp_path,
+        mode="semantic_scope",
+        head="a" * 40,
+        semantic_sha256="b" * 64,
+    )
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest",
+        lambda *_args, **_kwargs: "c" * 64,
+    )
+
+    report = claims_report(tmp_path, current_head="d" * 40)
+
+    assert "ethos-sample:evidence.semantic_scope_stale" in report["required_gaps"]
+
+
+def test_semantic_scope_claim_requires_its_binding_fields(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="semantic_scope")
+
+    report = claims_report(tmp_path, current_head="currenthead")
+
+    assert "ethos-sample:evidence.head_missing" in report["required_gaps"]
+    assert "ethos-sample:evidence.semantic_sha256_missing" in report["required_gaps"]
+
+
+def test_semantic_scope_claim_blocks_when_semantic_digest_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_freshness_claim(
+        tmp_path,
+        mode="semantic_scope",
+        head="a" * 40,
+        semantic_sha256="b" * 64,
+    )
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest",
+        lambda *_args, **_kwargs: "",
+    )
+
+    report = claims_report(tmp_path, current_head="c" * 40)
+
+    assert "ethos-sample:evidence.semantic_scope_unavailable" in report["required_gaps"]
+
+
+def test_claim_with_unknown_freshness_mode_is_blocking(tmp_path: Path) -> None:
+    _write_freshness_claim(tmp_path, mode="undeclared")
+
+    report = claims_report(tmp_path, current_head="currenthead")
+
+    assert "ethos-sample:evidence.freshness_mode_invalid" in report["required_gaps"]

@@ -475,6 +475,15 @@ def test_advisory_next_actions_route_closeout_residue_signal() -> None:
     assert actions == ("ethos orient --json", "ethos lane status --json")
 
 
+def test_advisory_next_actions_route_unbound_claim_evidence_signal() -> None:
+    actions = reporting_gaps.advisory_next_actions(("sample:evidence.head_unbound",))
+
+    assert actions == (
+        "ethos quality claims --json",
+        "ethos quality evidence-freshness --json",
+    )
+
+
 def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_action(
     monkeypatch, tmp_path: Path
 ) -> None:

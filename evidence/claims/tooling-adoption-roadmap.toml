@@ -26,6 +26,8 @@ tests = [
   "tools/ci/scripts/run-closeout-evidence-manifest.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 external_signing_image_scan_osv_adapters = "deferred_follow_up_work_lanes"
 local_dependency_prose_schema_observation_pip_audit_gates = "active_owner_surfaces"

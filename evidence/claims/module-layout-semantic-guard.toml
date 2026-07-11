@@ -19,6 +19,8 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = ["tests/unit/policy/test_module_layout.py"]

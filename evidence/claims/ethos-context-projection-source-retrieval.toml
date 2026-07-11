@@ -22,6 +22,8 @@ tests = [
   "uv run openspec validate --type change land-context-projection-source-retrieval --strict",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

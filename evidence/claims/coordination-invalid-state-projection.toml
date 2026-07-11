@@ -16,6 +16,8 @@ tests = [
   "ETHOS_ROOT=<workspace>/ethos-worktrees/coordination-invalid-state-projection uv run --group dev ethos status --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos", "ethos-core"]
 tests = [

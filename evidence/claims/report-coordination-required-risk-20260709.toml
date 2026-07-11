@@ -22,6 +22,8 @@ tests = [
   "ETHOS_ACTOR=codex uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-reporting"
 scope = "Report scorecard coordination risk read model across product and adopter profiles; status remains coordination truth owner and foreign Work Lane cleanup remains owner/handoff governed"

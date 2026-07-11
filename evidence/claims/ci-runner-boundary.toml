@@ -21,6 +21,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head <head> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-quality"
 scope = "CI and quality runner physical ownership boundary between configuration policy and executable tooling"

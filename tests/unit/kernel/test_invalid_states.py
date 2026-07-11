@@ -181,6 +181,25 @@ def test_head_unbound_evidence_advisories_reduce_to_evidence() -> None:
     assert classify("evidence.head_unbound") == "evidence_missing_or_stale"
 
 
+def test_claim_freshness_gaps_reduce_to_evidence() -> None:
+    freshness_gaps = (
+        "freshness_missing",
+        "freshness_mode_invalid",
+        "historical_freshness_overbound",
+        "head_missing",
+        "head_bound_semantic_digest_forbidden",
+        "head_stale:old!=new",
+        "semantic_sha256_missing",
+        "semantic_scope_empty",
+        "semantic_scope_unavailable",
+        "semantic_scope_stale",
+    )
+
+    assert all(
+        classify(f"sample:evidence.{gap}") == "evidence_missing_or_stale" for gap in freshness_gaps
+    )
+
+
 def test_coverage_artifact_gaps_reduce_to_evidence() -> None:
     assert classify("coverage_artifact_missing") == "evidence_missing_or_stale"
     assert (

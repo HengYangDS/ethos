@@ -6,6 +6,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.evidence.core import semantic_tree_digest
 from ethos.repository.profile import profile_root
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
@@ -63,6 +64,11 @@ ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS = (
         ),
     ),
 )
+_FRESHNESS_MODES = {"historical", "head_bound", "semantic_scope"}
+_HISTORICAL_CARRIER_PREFIXES = (
+    "evidence/chronicle/",
+    "openspec/changes/archive/",
+)
 
 
 def _sha256(path: Path) -> str:
@@ -116,6 +122,128 @@ def _promotion_targets(payload: dict[str, Any]) -> list[dict[str, str]]:
     return targets
 
 
+def _semantic_scope_paths(
+    *,
+    claim_path: str,
+    dated_evidence_path: str,
+    promotion_targets: list[dict[str, str]],
+) -> tuple[str, ...]:
+    """Return current semantic targets, excluding self-describing history carriers."""
+    paths = {
+        target["path"]
+        for target in promotion_targets
+        if target["path"] not in {claim_path, dated_evidence_path}
+        and not target["path"].startswith(_HISTORICAL_CARRIER_PREFIXES)
+    }
+    return tuple(sorted(paths))
+
+
+def _historical_freshness_state(head: str, recorded_digest: str) -> tuple[str, list[str]]:
+    """Return the state of evidence that deliberately makes no currentness assertion."""
+    return (
+        ("invalid", ["historical_freshness_overbound"])
+        if head or recorded_digest
+        else ("durably_bound", [])
+    )
+
+
+def _head_bound_freshness_state(
+    head: str, recorded_digest: str, current_head: str
+) -> tuple[str, list[str]]:
+    """Return the state of evidence that requires one exact repository revision."""
+    if not head:
+        return "invalid", ["head_missing"]
+    if recorded_digest:
+        return "invalid", ["head_bound_semantic_digest_forbidden"]
+    if current_head and head != current_head:
+        return "invalid", [f"head_stale:{head}!={current_head}"]
+    return ("current" if current_head else "uncompared"), []
+
+
+def _semantic_scope_freshness_state(
+    root: Path,
+    current_head: str,
+    head: str,
+    recorded_digest: str,
+    paths: tuple[str, ...],
+) -> tuple[str, str, list[str]]:
+    """Return the state of evidence bound to declared semantic promotion targets."""
+    gaps = [
+        gap
+        for gap, present in (
+            ("head_missing", bool(head)),
+            ("semantic_sha256_missing", bool(recorded_digest)),
+            ("semantic_scope_empty", bool(paths)),
+        )
+        if not present
+    ]
+    if gaps or not current_head:
+        return ("invalid" if gaps else "uncompared"), "", gaps
+    current_digest = semantic_tree_digest(root, head=current_head, relevant_paths=paths)
+    if not current_digest:
+        return "invalid", "", ["semantic_scope_unavailable"]
+    if current_digest != recorded_digest:
+        return "invalid", current_digest, ["semantic_scope_stale"]
+    return "current", current_digest, []
+
+
+def _freshness_record(
+    root: Path,
+    claim_path: str,
+    evidence: dict[str, Any],
+    promotion_targets: list[dict[str, str]],
+    current_head: str,
+) -> tuple[dict[str, object], list[str]]:
+    """Evaluate the declared relationship between a claim and its evidence freshness."""
+    raw_freshness = evidence.get("freshness")
+    if not isinstance(raw_freshness, dict):
+        declared_head = str(evidence.get("head") or "")
+        record_gaps = ["freshness_missing"]
+        if current_head and declared_head and declared_head != current_head:
+            record_gaps.append(f"head_stale:{declared_head}!={current_head}")
+        return {
+            "mode": "",
+            "state": "invalid",
+            "recorded_head": declared_head,
+            "current_head": current_head,
+            "recorded_semantic_sha256": "",
+            "current_semantic_sha256": "",
+            "paths": [],
+            "required_gaps": record_gaps,
+        }, record_gaps
+
+    mode = str(raw_freshness.get("mode") or "")
+    head = str(raw_freshness.get("head") or "")
+    recorded_digest = _normalized_digest(raw_freshness.get("semantic_sha256"))
+    paths = _semantic_scope_paths(
+        claim_path=claim_path,
+        dated_evidence_path=str(evidence.get("dated") or ""),
+        promotion_targets=promotion_targets,
+    )
+    if mode == "historical":
+        state, record_gaps = _historical_freshness_state(head, recorded_digest)
+        current_digest = ""
+    elif mode == "head_bound":
+        state, record_gaps = _head_bound_freshness_state(head, recorded_digest, current_head)
+        current_digest = ""
+    elif mode == "semantic_scope":
+        state, current_digest, record_gaps = _semantic_scope_freshness_state(
+            root, current_head, head, recorded_digest, paths
+        )
+    else:
+        state, current_digest, record_gaps = "invalid", "", ["freshness_mode_invalid"]
+    return {
+        "mode": mode,
+        "state": state,
+        "recorded_head": head,
+        "current_head": current_head,
+        "recorded_semantic_sha256": recorded_digest,
+        "current_semantic_sha256": current_digest,
+        "paths": list(paths) if mode == "semantic_scope" else [],
+        "required_gaps": record_gaps,
+    }, record_gaps
+
+
 def _has_repository_overclaim(text: str, verifier: str) -> bool:
     if verifier == "semantic":
         return False
@@ -137,6 +265,54 @@ def _active_product_claim_private_gaps(claim_id: str, payload: dict[str, Any]) -
     for kind, pattern in ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS:
         if pattern.search(text):
             gaps.append(f"{claim_id}:active_claim_private_coupling:{kind}")
+    return gaps
+
+
+def _active_claim_gaps(
+    claim_id: str, path: Path, payload: dict[str, Any], evidence: dict[str, Any]
+) -> list[str]:
+    """Return required trust-envelope gaps intrinsic to one active product claim."""
+    claim = payload.get("claim", {})
+    summary = str(claim.get("summary", ""))
+    active_identity = "\n".join(
+        [path.stem, str(claim.get("id", "")), str(claim.get("subject", ""))]
+    )
+    gaps = _active_product_claim_private_gaps(claim_id, payload)
+    gaps.extend(
+        f"{claim_id}:retired_product_family:{retired}"
+        for retired in RETIRED_PRODUCT_FAMILY_TOKENS
+        if retired in active_identity
+    )
+    evidence_ids = evidence.get("evidence_ids")
+    binding = evidence.get("binding")
+    verifier = evidence.get("verifier")
+    gaps.extend(
+        gap
+        for gap, valid in (
+            (
+                f"{claim_id}:evidence_ids_missing",
+                isinstance(evidence_ids, list) and bool(evidence_ids),
+            ),
+            (f"{claim_id}:binding_missing", isinstance(binding, str) and bool(binding)),
+            (f"{claim_id}:verifier_missing", isinstance(verifier, str) and bool(verifier)),
+        )
+        if not valid
+    )
+    if not isinstance(evidence_ids, list) or not binding or not verifier:
+        return gaps
+    claim_text = "\n".join((summary, str(binding)))
+    try:
+        EvidenceClaim(
+            id=claim_id,
+            change_id=str(claim.get("change_id") or claim_id),
+            evidence_ids=tuple(str(item) for item in evidence_ids),
+            binding=claim_text,
+            verifier=str(verifier),
+        )
+    except ValueError:
+        gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
+    if _has_repository_overclaim(claim_text, str(verifier)):
+        gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
     return gaps
 
 
@@ -309,45 +485,8 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
             continue
         is_active = claim.get("state") == "active"
         if is_active:
-            gaps.extend(_active_product_claim_private_gaps(claim_id, payload))
-            active_identity = "\n".join(
-                [
-                    path.stem,
-                    str(claim.get("id", "")),
-                    str(claim.get("subject", "")),
-                ]
-            )
-            for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
-                if retired in active_identity:
-                    gaps.append(f"{claim_id}:retired_product_family:{retired}")
-            evidence_ids = evidence.get("evidence_ids")
-            binding = evidence.get("binding")
-            verifier = evidence.get("verifier")
-            summary = str(claim.get("summary", ""))
-            if not isinstance(evidence_ids, list) or not evidence_ids:
-                gaps.append(f"{claim_id}:evidence_ids_missing")
-            if not isinstance(binding, str) or not binding:
-                gaps.append(f"{claim_id}:binding_missing")
-            if not isinstance(verifier, str) or not verifier:
-                gaps.append(f"{claim_id}:verifier_missing")
-            if isinstance(evidence_ids, list) and binding and verifier:
-                claim_text = "\n".join((summary, str(binding)))
-                # change_id must reference the Change this claim binds evidence to —
-                # NOT the Subject. Piping subject into change_id collapsed the
-                # Subject->Change->Claim boundary (kernel double-representation). Use
-                # an explicit change_id, falling back to the claim's own id.
-                try:
-                    EvidenceClaim(
-                        id=claim_id,
-                        change_id=str(claim.get("change_id") or claim_id),
-                        evidence_ids=tuple(str(item) for item in evidence_ids),
-                        binding=claim_text,
-                        verifier=str(verifier),
-                    )
-                except ValueError:
-                    gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
-                if _has_repository_overclaim(claim_text, str(verifier)):
-                    gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
+            gaps.extend(_active_claim_gaps(claim_id, path, payload, evidence))
+        promotion_targets = _promotion_targets(payload.get("promotion", {}))
         evidence_path = root / str(dated)
         if not evidence_path.exists():
             gaps.append(f"{claim_id}:evidence_file_missing:{dated}")
@@ -360,17 +499,19 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
         elif expected_digest != actual_digest:
             gaps.append(f"{claim_id}:evidence.sha256_mismatch")
             evidence_digest_gap = True
-        # HEAD-binding: a digest proves the narrative file is unchanged, NOT that the
-        # claim is current for the product state it asserts about. An active claim
-        # should record the product HEAD it was proven at. A DECLARED-but-mismatched
-        # head is a stale claim (blocking); an unbound legacy claim is surfaced as
-        # advisory so the fleet can be migrated without a hard break.
-        claim_head = str(evidence.get("head", ""))
-        if is_active and current_head:
-            if claim_head and claim_head != current_head:
-                gaps.append(f"{claim_id}:evidence.head_stale:{claim_head}!={current_head}")
-            elif not claim_head:
-                advisory_gaps.append(f"{claim_id}:evidence.head_unbound")
+        freshness = (
+            _freshness_record(
+                root,
+                path.relative_to(root).as_posix(),
+                evidence,
+                promotion_targets,
+                current_head,
+            )
+            if is_active
+            else ({}, [])
+        )
+        freshness_record, freshness_gaps = freshness
+        gaps.extend(f"{claim_id}:evidence.{gap}" for gap in freshness_gaps)
         trust_envelope = (
             _trust_envelope(
                 root=root,
@@ -382,8 +523,7 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
             if is_active
             else {}
         )
-        for gap in trust_envelope.get("required_gaps", []):
-            gaps.append(f"{claim_id}:{gap}")
+        gaps.extend(f"{claim_id}:{gap}" for gap in trust_envelope.get("required_gaps", []))
         claims[claim_id] = {
             "path": path.relative_to(root).as_posix(),
             "evidence": str(dated),
@@ -391,6 +531,7 @@ def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
             "actual_sha256": actual_digest,
             "state": claim.get("state", ""),
             "trust_envelope": trust_envelope,
+            "freshness": freshness_record,
         }
     return {
         "ok": not gaps,

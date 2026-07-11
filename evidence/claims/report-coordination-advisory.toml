@@ -22,6 +22,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = ["tests/unit/domain/test_report.py"]

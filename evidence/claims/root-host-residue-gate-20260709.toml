@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "quality"
 scope = "Repository hygiene owner script and root host-local residue policy."

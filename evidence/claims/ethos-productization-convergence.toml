@@ -27,6 +27,8 @@ tests = [
   "uv run --package ethos ethos parity shadow --target <sample-adopter-repo> --execute --timeout-seconds 60 --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 docs = [
   "README.md",

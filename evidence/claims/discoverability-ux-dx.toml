@@ -16,6 +16,8 @@ tests = [
   "ETHOS_ROOT=/private/tmp/ethos-discoverability-ux-dx uv run --group dev ethos status --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = ["tests/unit/product/test_orient.py"]

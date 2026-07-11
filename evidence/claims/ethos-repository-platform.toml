@@ -21,6 +21,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --gate repository-audit --gate claims --gate schemas --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

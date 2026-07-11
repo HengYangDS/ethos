@@ -16,6 +16,8 @@ tests = [
   "uv run --all-packages ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "repository-wide zero-residue boundary for retired authority-head vocabulary while preserving historical meaning"

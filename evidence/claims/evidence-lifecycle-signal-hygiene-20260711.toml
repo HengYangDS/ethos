@@ -1,0 +1,53 @@
+[claim]
+id = "evidence-lifecycle-signal-hygiene-20260711"
+subject = "ethos:evidence-lifecycle-signal-hygiene"
+state = "active"
+change_id = "evidence-lifecycle-signal-hygiene-20260711"
+summary = "Active claims declare whether their dated evidence is historical, head-bound, or semantic-scope-bound."
+
+[evidence]
+dated = "evidence/chronicle/evidence-lifecycle-signal-hygiene-20260711/2026-07-11.md"
+sha256 = "ad3481dabea50a1fc672e5309c995c4ae94dd87413fe5057fa50597336248fa0"
+evidence_ids = ["evidence:evidence-lifecycle-signal-hygiene-20260711"]
+binding = "The claim freshness contract separates durable historical support from explicit currentness bindings."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/governance/test_claims.py tests/unit/product/parity/test_gaps.py",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Claim evidence freshness semantics and historical signal hygiene"
+
+[carriers]
+openspec = "openspec/changes/evidence-lifecycle-signal-hygiene-20260711"
+fallback = "Keep dated evidence digest-bound and surface a required gap until an explicit freshness mode is declared."
+kill_signal = "A historical Chronicle is shown as current-HEAD proof, or missing freshness silently degrades to an advisory."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/evidence/core.py",
+  "packages/ethos/src/ethos/repository/evidence/claims.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/validation.py",
+  "packages/ethos-core/src/ethos_core/data/invalid_states.toml",
+  "system/invalid_states.toml",
+  "system/schemas/kernel/claim.schema.json",
+  ".config/checks/ruff/ratchet.toml",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/governance/test_claims.py",
+  "tests/unit/kernel/test_invalid_states.py",
+  "tests/unit/product/parity/test_gaps.py",
+  "docs/reference/command-plane.md",
+  "docs/governance/product-design-contract.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/evidence-lifecycle-signal-hygiene-20260711",
+  "evidence/claims/evidence-lifecycle-signal-hygiene-20260711.toml",
+  "evidence/chronicle/evidence-lifecycle-signal-hygiene-20260711/2026-07-11.md",
+]

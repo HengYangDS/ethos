@@ -17,6 +17,8 @@ tests = [
   "tools/ci/scripts/run-markdown-lint.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos", "ethos-core"]
 tests = ["tests/architecture/test_product_design_contract.py"]

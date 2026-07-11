@@ -420,6 +420,10 @@ An active claim needs an owner and scope boundary, an OpenSpec carrier, dated
 evidence with a matching digest, fallback and kill-signal text, and promotion
 targets. OpenSpec remains the official specification carrier, but a valid
 OpenSpec change is not trusted without a bound claim and promotion evidence.
+Its evidence freshness is explicit: historical evidence preserves a judged fact;
+head-bound and semantic-scope evidence make currentness assertions that must
+fail closed when their respective binding no longer holds. No missing-freshness
+compatibility mode is permitted.
 Work Lanes prove local ownership and write admission. Intake providers report
 projection evidence. Neither Work Lane presence nor intake completion promotes
 truth by itself.

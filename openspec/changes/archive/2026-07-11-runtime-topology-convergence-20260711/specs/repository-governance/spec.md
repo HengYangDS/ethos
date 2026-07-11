@@ -30,7 +30,7 @@ installation.
 
 ## ADDED Requirements
 
-### Requirement: Checkout-bound semantic runtime bootstrap
+### Requirement: Worktree-bound semantic runtime bootstrap
 
 ETHOS SHALL provide one repository-owned runtime bootstrap for product Python
 execution. The bootstrap MUST bind `UV_PROJECT_ENVIRONMENT` to

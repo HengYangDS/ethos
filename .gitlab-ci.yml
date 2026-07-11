@@ -57,7 +57,7 @@ ethos:types:
     # policy.toml): zero-tolerance packages must be 0 diagnostics, ratchet packages
     # must stay within their baseline (which may only shrink). Fail-closed via the
     # verdict->exit binding, so a breach fails the pipeline.
-    - uv run --all-packages --group dev ethos quality types --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
 
 ethos:architecture:
   <<: *python_setup
@@ -138,7 +138,7 @@ ethos:docs-links:
   stage: quality
   script:
     - tools/ci/scripts/install-lychee.sh
-    - uv run --package ethos ethos quality markdown-links --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos quality markdown-links --json
 
 ethos:markdown:
   <<: *python_setup
@@ -223,13 +223,13 @@ ethos:verify:
     # write-admission, so the dogfood signature/audit/prove gates and tests see the
     # same setup a developer's checkout has.
     - tools/ci/scripts/configure-git-checkout.sh
-    - uv run --package ethos ethos hook install --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
     - openspec --version
     - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
-    - uv run --package ethos ethos audit --json
-    - uv run --package ethos ethos report --json
-    - uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:npm:
   stage: verify
@@ -250,7 +250,7 @@ ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
+    - tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
   artifacts:
     when: always
     paths:

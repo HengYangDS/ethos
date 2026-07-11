@@ -21,6 +21,10 @@ explicit cache policy for interactive, hook, local-CI, and hosted-CI contexts.
 - Route all executable Python owner scripts and local Git hooks through that
 bootstrap or an explicitly passed interpreter; remove root `.venv` fallback from
 normal product execution paths.
+- Route the declared GitHub/GitLab provider templates, their checked
+projections, and both local emulator wrappers through that same bootstrap. The
+provider files remain projections over their templates and do not receive a
+second runtime policy.
 - Extend generated-artifact topology policy and its entrypoint audit so active
 `uv` and Python producer paths cannot silently default to root `.venv` or a
 checkout-local opaque uv cache.
@@ -43,7 +47,8 @@ or foreign-worktree cleanup is introduced.
 
 ## Impact
 
-- `tools/ci/scripts/`, `.githooks/`, and local/hosted CI projections.
+- `tools/ci/scripts/`, `.githooks/`, hosted provider templates and projections,
+  and local emulator wrappers.
 - Generated-artifact policy, its packaged mirror, audit implementation, and
   local-state audit configuration.
 - Work Lane CLI bootstrap payloads; repository and adopter documentation;

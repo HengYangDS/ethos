@@ -157,18 +157,20 @@ under ignored local state and continue to coordinate writes only.
   after verifying no active process uses them.
 - **[Cross-lane concurrency]** → per-checkout venvs prevent source mixing;
   content-addressed uv cache is managed by uv and does not carry lane state.
-- **[Provider projections are owned by another lane]** → the strengthened audit
-  reports their unbound runtime commands as explicit integration gaps. This lane
-  records the dependency and remains unlanded until the provider owner routes
-  them through the bootstrap; it MUST NOT waive the rule or mutate foreign work.
+- **[Provider projections overlap another lane]** → under the current
+  user-authorized integration decision, this lane updates only the four named
+  provider producer surfaces and their template sources, then proves checked
+  template/projection parity. The foreign lane is neither mutated in place nor
+  retired here; its later handoff or supersession remains an independently
+  evidenced lifecycle decision.
 
 ## Migration Plan
 
 1. Add bootstrap, contract declaration, audit checks, and tests while root
    `.venv` remains ignored migration residue.
-2. Route product owner scripts, hooks, and hosted/local CI projections through
-   the bootstrap; update Work Lane payload and docs to describe the hybrid
-   boundary.
+2. Route product owner scripts, hooks, named hosted/local provider projections,
+   and local emulator wrappers through the bootstrap; update Work Lane payload
+   and docs to describe the hybrid boundary.
 3. Run focused synthetic tests proving one checkout's bootstrap cannot choose a
    root `.venv`, then the full proof and local fallback CI on an immutable lane
    HEAD.

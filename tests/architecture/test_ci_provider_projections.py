@@ -98,6 +98,9 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "tools/ci/scripts/run-actionlint.sh" in gitlab
     assert "tools/ci/scripts/run-product-boundary.sh" in github
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
+    assert (
+        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+    ) in combined
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in combined
     assert "uv run --no-project --with import-linter lint-imports" not in combined
     assert "image: node:24" not in combined

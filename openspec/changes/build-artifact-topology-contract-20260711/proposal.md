@@ -8,7 +8,8 @@ topology the same proof is meant to uphold.
 ## What Changes
 
 - Bind the product build gate to `build/artifacts/python` and clear that
-  disposable local-artifact home before each build.
+  disposable local-artifact home before each build, without asking `uv` to
+  create a redundant output-local `.gitignore`.
 - Give contributors the same canonical package-build command.
 - Lock the registry and contributor instruction with focused tests.
 
@@ -36,6 +37,7 @@ home.
 
 ## Impact
 
-The gate declaration and its packaged projection, contributor guidance, and
-governance tests change. No release artifact becomes tracked, no fallback to
-`dist/` remains, and no hosted or remote publication behavior changes.
+The gate declaration and its packaged projection, contributor and release
+guidance, CI projections, coupling registry, and governance tests change. No
+release artifact becomes tracked, no fallback to `dist/` remains, and no hosted
+or remote publication behavior changes.

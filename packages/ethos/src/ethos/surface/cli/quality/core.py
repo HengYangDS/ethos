@@ -566,7 +566,7 @@ RELEASE_COMMAND = ReportCommandSpec(
         "host_profile": report["host_profile"],
     },
     next_actions=constant_actions(
-        "uv build --all-packages --out-dir build/artifacts/python --clear"
+        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
     ),
 )
 RELEASE_POLICY_COMMAND = ReportCommandSpec(
@@ -667,6 +667,9 @@ def provenance(
         state="ready",
         summary={"evidence_digest": evidence.digest},
         next_actions=("ethos prove --json",),
-        data={"evidence": evidence.to_dict(), "provenance": provenance_envelope(evidence)},
+        data={
+            "evidence": evidence.to_dict(),
+            "provenance": provenance_envelope(evidence),
+        },
     )
     emit(result, json_output=json_output, enforce=False)

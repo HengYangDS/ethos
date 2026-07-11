@@ -124,7 +124,7 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
-        run: uv build --all-packages --out-dir build/artifacts/python --clear
+        run: uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

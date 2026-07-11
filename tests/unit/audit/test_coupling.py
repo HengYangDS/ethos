@@ -52,7 +52,13 @@ def test_coupling_audit_keeps_git_native_and_classifies_provider_layers() -> Non
     }
     assert report["native_protocols"] == {
         "layer": "native_protocol_binding",
-        "formats": ["JSON Schema", "command JSON", "TOML", "JSONL", "SQLite local state"],
+        "formats": [
+            "JSON Schema",
+            "command JSON",
+            "TOML",
+            "JSONL",
+            "SQLite local state",
+        ],
         "provider_optional": False,
     }
     registry = {entry["id"]: entry for entry in report["binding_registry"]}
@@ -248,6 +254,11 @@ def test_binding_registry_exposes_substantive_binding_contract_metadata() -> Non
             assert entry["admission"]["decision_state"] == "admitted"
 
     registry = {entry["id"]: entry for entry in report["binding_registry"]}
+    build_command = (
+        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+    )
+    assert registry["hatchling_build_backend"]["proof_gate"] == build_command
+    assert registry["npm_launcher_distribution_adapter"]["proof_gate"] == build_command
     assert registry["git_repository_substrate"]["replaceability"] == "hard-bound"
     assert registry["git_repository_substrate"]["required_for"] == [
         "repository identity",
@@ -263,7 +274,9 @@ def test_binding_registry_exposes_substantive_binding_contract_metadata() -> Non
     assert registry["gitlab_release_profile"]["replaceability"] == "replaceable-adapter"
 
 
-def test_coupling_audit_branch_role_policy_reports_config_source(tmp_path: Path) -> None:
+def test_coupling_audit_branch_role_policy_reports_config_source(
+    tmp_path: Path,
+) -> None:
     workspace = tmp_path / ".ethos" / "workspace.toml"
     workspace.parent.mkdir(parents=True)
     workspace.write_text(
@@ -419,7 +432,11 @@ def test_coupling_audit_schema_exposes_adapter_admission_contract() -> None:
 
     admission = schema["$defs"]["bindingEntry"]["properties"]["admission"]
 
-    assert admission["required"] == ["authority_ref", "truth_boundary", "decision_state"]
+    assert admission["required"] == [
+        "authority_ref",
+        "truth_boundary",
+        "decision_state",
+    ]
     assert admission["properties"]["truth_boundary"] == {"const": "profile_or_adapter"}
     assert admission["properties"]["decision_state"] == {"const": "admitted"}
     assert admission["additionalProperties"] is False
@@ -479,7 +496,9 @@ def test_coupling_audit_flags_adapter_with_wrong_truth_boundary_or_decision(
     )
 
 
-def test_coupling_audit_flags_model_and_editor_terms_in_product_docs(tmp_path: Path) -> None:
+def test_coupling_audit_flags_model_and_editor_terms_in_product_docs(
+    tmp_path: Path,
+) -> None:
     doc = tmp_path / "docs" / "governance" / "product-design-contract.md"
     doc.parent.mkdir(parents=True)
     doc.write_text(

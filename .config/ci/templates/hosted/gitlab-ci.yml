@@ -250,7 +250,7 @@ ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - uv build --all-packages --out-dir build/artifacts/python --clear
+    - uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
   artifacts:
     when: always
     paths:

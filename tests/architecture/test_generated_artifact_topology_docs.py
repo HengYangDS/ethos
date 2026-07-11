@@ -38,9 +38,15 @@ def test_generated_artifact_topology_docs_bind_contract_and_rollback() -> None:
     assert "build/runtime/tool-cache/" in command_plane
     assert "runtime caches and local artifacts are regenerated, not promoted" in command_plane
     assert "Generated Artifact Topology Contract" in command_plane
-    assert "uv build --all-packages --out-dir build/artifacts/python --clear" in (
-        ROOT / "CONTRIBUTING.md"
-    ).read_text(encoding="utf-8")
+    build_command = (
+        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+    )
+    for path in (
+        ROOT / "CONTRIBUTING.md",
+        ROOT / "docs/governance/capability-parity-ledger.md",
+        ROOT / "docs/governance/release-governance.md",
+    ):
+        assert build_command in path.read_text(encoding="utf-8")
     assert "ethos quality docs-topology --json" in docs_topology
     assert "Minimal Semantic Documentation Topology Contract" in command_plane
 

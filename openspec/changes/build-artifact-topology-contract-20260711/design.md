@@ -23,9 +23,12 @@ repeated the same producer command.
 
 ## Decisions
 
-1. Keep one `build` gate and pass `--out-dir build/artifacts/python --clear`.
-   The gate already owns package-build proof; adding a second post-build gate
-   would duplicate the concern without improving the producer contract.
+1. Keep one `build` gate and pass `--out-dir build/artifacts/python --clear
+   --no-create-gitignore`. `uv build --all-packages` builds workspace packages
+   concurrently; its automatic output-local `.gitignore` is a shared transient
+   writer and races with `--clear`. The repository-level `build/` ignore already
+   owns this boundary, so suppressing the redundant marker makes the producer
+   deterministic without weakening cleanup or artifact placement.
 2. Change the contributor instruction to the exact same command. A human
    entrypoint is a producer surface and must not retain a divergent default.
 3. Test both the typed gate graph and the contributor text. The first protects
@@ -37,13 +40,14 @@ repeated the same producer command.
 - A local `dist/` directory from an earlier invocation remains denied until
   removed → remove that disposable residue after changing the producer, then
   prove the topology from a clean worktree.
-- The packaged gate registry could drift from `system/gates.toml` → update both
-  projections in one change and verify declaration parity through the existing
-  configuration and full-proof gates.
+- The packaged gate registry or CI projection could drift from
+  `system/gates.toml` → update each active command projection in one change and
+  verify declaration parity through the existing configuration, projection, and
+  full-proof gates.
 
 ## Migration Plan
 
-1. Change the two gate declarations and contributor command.
+1. Change the two gate declarations and every active command projection.
 2. Delete only generated, ignored `dist/` residue.
 3. Run focused gate and documentation tests, then execute full proof at the
    resulting HEAD.

@@ -240,8 +240,8 @@ def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
     monkeypatch.setattr(mutation_proof, "_promotion_required_gate_ids", lambda root: ("required",))
     monkeypatch.setattr(
         mutation_proof,
-        "adopter_code_correctness_gap",
-        lambda root: "adopter_code_correctness_missing",
+        "adopter_code_correctness_gaps",
+        lambda root: ("adopter_code_correctness_missing",),
     )
 
     assert mutation_proof.promotion_completeness_gaps(tmp_path, "h1") == [

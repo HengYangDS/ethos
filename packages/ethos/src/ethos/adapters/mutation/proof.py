@@ -38,7 +38,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from ethos.repository.policy.gates import adopter_code_correctness_gap
+from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
@@ -236,9 +236,7 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     # proof floor with no tests/lint/types dimension — a contentless proof must not be
     # promotion-worthy. This is a completeness requirement (not an executable gate), so
     # it is surfaced here rather than injected into the executable floor.
-    adopter_gap = adopter_code_correctness_gap(root)
-    if adopter_gap:
-        gaps.append(adopter_gap)
+    gaps.extend(adopter_code_correctness_gaps(root))
     gaps.extend(adopter_gate_descriptor_gaps(root))
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None

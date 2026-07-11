@@ -181,23 +181,159 @@ def _adopter_profile_active(root: Path | None) -> bool:
 
 ADOPTER_MISSING_CODE_CORRECTNESS_GATE = "adopter_profile_missing_code_correctness_gates"
 
+# The genuine code-correctness axes an adopter proof must cover. Deliberately minimal and
+# tool-agnostic: every real stack both EXECUTES the code and observes it (behavior) and
+# REASONS about the source without executing it (static-analysis). Each axis is
+# MAP-OR-WAIVE — a monolithic stack (e.g. a compiler that enforces types inside the test
+# run) waives the covered-elsewhere axis with an explicit reason, so we never false-reject
+# a legitimately different toolchain.
+REQUIRED_CODE_CORRECTNESS_AXES = ("behavior", "static-analysis")
 
-def adopter_code_correctness_gap(root: Path | None) -> str:
-    """Return a completeness gap when an active adopter declares no native
-    code-correctness gates, else ''.
+# A mapped gate must carry a trust-bearing verdict whose evidence class is promotion-grade.
+# Mirrors the product's own proof/contract line; `diagnostic` (e.g. ruff-style) cannot
+# launder a code-correctness claim. This is a FLOOR, not a ceiling — an adopter stricter
+# than the product (lint stamped proof) still qualifies.
+TRUST_EVIDENCE_CLASSES = frozenset({"proof", "contract"})
 
-    Separate from `default_gate_ids` (which drives BOTH proof execution and the
-    completeness floor, so it may only contain registry-executable gate ids). The
-    "an adopter proof must carry a code-correctness dimension" rule is a COMPLETENESS
-    requirement, surfaced here and folded into promotion_completeness_gaps — it must not
-    put a non-executable sentinel into the executable floor.
+# Seed axis vocabulary (adopter-extensible via [proof.code_correctness_axes]). Attribution
+# reads a gate's own `kind` + `dimensions` MEANING TOKENS — never a tool name — so any
+# stack maps its gates by declaring honest kinds/dimensions.
+_SEED_AXIS_TOKENS: dict[str, frozenset[str]] = {
+    "behavior": frozenset(
+        {"test", "coverage", "behavior", "property", "e2e", "acceptance", "integration"}
+    ),
+    "static-analysis": frozenset(
+        {
+            "typing",
+            "types",
+            "type-check",
+            "lint",
+            "static-analysis",
+            "architecture",
+            "import-discipline",
+            "complexity",
+            "compile",
+            "vet",
+            "sast",
+        }
+    ),
+}
+
+# POSIX no-ops: a command whose head is one of these is a degenerate gate (shallow, honest
+# denylist — cannot catch a real-looking harness over zero tests; that residual is closed
+# by governed profile review + DR-0006 re-execution, not here).
+_NOOP_EXECUTABLES = frozenset({"true", ":", "echo", "printf", "test", "["})
+
+
+def _code_correctness_axis_vocab(profile: object) -> dict[str, frozenset[str]]:
+    """Seed axis→token map unioned with the adopter's own [proof.code_correctness_axes].
+
+    The adopter may extend an axis's recognized tokens (e.g. add "fuzz" to behavior) so
+    their ontology is first-class without ETHOS blessing specific tools. The extension is
+    folded into the policy digest (gate_policy_fields), so an adopter cannot silently
+    redefine an axis after a proof is stamped.
+    """
+    vocab = {axis: set(tokens) for axis, tokens in _SEED_AXIS_TOKENS.items()}
+    tables = getattr(profile, "tables", {})
+    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
+    extension = proof_table.get("code_correctness_axes") if isinstance(proof_table, dict) else None
+    if isinstance(extension, dict):
+        for axis, tokens in extension.items():
+            if axis in vocab and isinstance(tokens, list):
+                vocab[axis].update(str(token) for token in tokens if str(token))
+    return {axis: frozenset(tokens) for axis, tokens in vocab.items()}
+
+
+def _gate_axes(gate: Gate, vocab: dict[str, frozenset[str]]) -> set[str]:
+    """The code-correctness axes a gate attributes to, via its kind + dimensions tokens."""
+    tokens = {str(gate.kind), *(str(dim) for dim in gate.dimensions)}
+    return {axis for axis, axis_tokens in vocab.items() if tokens & axis_tokens}
+
+
+def _command_is_degenerate(command: tuple[str, ...]) -> bool:
+    """True when the gate command is a literal no-op (empty or a POSIX no-op head)."""
+    if not command:
+        return True
+    head = Path(str(command[0])).name
+    return head in _NOOP_EXECUTABLES
+
+
+def _qualifies_for_axis(gate: Gate, axis: str, vocab: dict[str, frozenset[str]]) -> bool:
+    """Whether a gate genuinely backs `axis`: attributed, trust-bearing, promotion-grade
+    evidence, and a non-degenerate command. (Adopter-authorship + distinctness are checked
+    by the caller, which holds the overlay and the full mapping.)"""
+    return (
+        axis in _gate_axes(gate, vocab)
+        and gate.trust_bearing is True
+        and gate.evidence_class in TRUST_EVIDENCE_CLASSES
+        and not _command_is_degenerate(gate.command)
+    )
+
+
+def _code_correctness_map(profile: object) -> dict[str, dict[str, str]]:
+    """Parse [proof.code_correctness_map] into {axis: {"gate": id} | {"waived": reason}}."""
+    tables = getattr(profile, "tables", {})
+    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
+    raw = proof_table.get("code_correctness_map") if isinstance(proof_table, dict) else None
+    parsed: dict[str, dict[str, str]] = {}
+    if not isinstance(raw, dict):
+        return parsed
+    for axis, entry in raw.items():
+        if isinstance(entry, str):
+            parsed[str(axis)] = {"gate": entry}
+        elif isinstance(entry, dict):
+            if isinstance(entry.get("gate"), str):
+                parsed[str(axis)] = {"gate": str(entry["gate"])}
+            elif isinstance(entry.get("waived"), str) and str(entry["waived"]).strip():
+                parsed[str(axis)] = {"waived": str(entry["waived"])}
+    return parsed
+
+
+def adopter_code_correctness_gaps(root: Path | None) -> tuple[str, ...]:
+    """Completeness gaps for an adopter's native code-correctness proof surface.
+
+    Beyond "declared non-empty" (the old single check), this verifies the declared gates
+    are genuinely code-correctness-EQUIVALENT, not merely present. For each required axis
+    (behavior, static-analysis) the adopter must MAP a native gate or WAIVE with a reason;
+    a mapped gate must be adopter-authored, attribute to the axis via its kind/dimensions,
+    be trust-bearing with promotion-grade evidence, carry a non-degenerate command, and be
+    distinct from the gate mapped to any other axis.
+
+    This is a COMPLETENESS dimension (surfaced via promotion_completeness_gaps), never the
+    executable floor. It makes washing an explicit, digest-bound, diff-auditable lie; it
+    cannot detect an honest-shaped semantic no-op (a real-looking harness over zero checks)
+    — that residual closes via governed profile-diff review and DR-0006 re-execution.
     """
     if not _adopter_profile_active(root):
-        return ""
+        return ()
     profile = load_repository_profile(cast("Path", root))
-    if _adopter_native_code_correctness_gates(profile):
-        return ""
-    return ADOPTER_MISSING_CODE_CORRECTNESS_GATE
+    if not _adopter_native_code_correctness_gates(profile):
+        return (ADOPTER_MISSING_CODE_CORRECTNESS_GATE,)
+    overlay, _ = _adopter_gate_overlay(root, _product_gate_registry())
+    vocab = _code_correctness_axis_vocab(profile)
+    mapping = _code_correctness_map(profile)
+    gaps: list[str] = []
+    used_gate_ids: set[str] = set()
+    for axis in REQUIRED_CODE_CORRECTNESS_AXES:
+        entry = mapping.get(axis)
+        if entry is None:
+            gaps.append(f"adopter_code_correctness_axis_unmapped:{axis}")
+            continue
+        if "waived" in entry:
+            continue  # explicit, reason-bearing, digest-bound waiver
+        gate_id = entry["gate"]
+        gate = overlay.get(gate_id)
+        if gate is None:
+            gaps.append(f"adopter_code_correctness_axis_gate_missing:{axis}:{gate_id}")
+            continue
+        if gate_id in used_gate_ids:
+            gaps.append(f"adopter_code_correctness_axis_gate_reused:{axis}:{gate_id}")
+            continue
+        if not _qualifies_for_axis(gate, axis, vocab):
+            gaps.append(f"adopter_code_correctness_axis_unbacked:{axis}:{gate_id}")
+            continue
+        used_gate_ids.add(gate_id)
+    return tuple(dict.fromkeys(gaps))
 
 
 def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[str, ...]:
@@ -206,9 +342,10 @@ def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[s
         # and repository-native gates. The product code-correctness floor must not
         # assume product-owned `tools/ci/scripts/*` exist in every adopter — but the
         # adopter's DECLARED native code-correctness gates join the executable floor so
-        # promotion completeness requires them. The "declared none" case is enforced by
-        # adopter_code_correctness_gap (a completeness gap), NOT by a non-executable
-        # sentinel here — this set must stay registry-executable for gate_graph.
+        # promotion completeness requires them. The "declared none" case, and the
+        # axis-coverage/equivalence checks, are enforced by adopter_code_correctness_gaps
+        # (completeness gaps), NOT by a non-executable sentinel here — this set must stay
+        # registry-executable for gate_graph.
         profile = load_repository_profile(cast("Path", root))
         native = _adopter_native_code_correctness_gates(profile)
         return (*ADOPTER_DEFAULT_GATE_IDS, *native)

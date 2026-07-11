@@ -54,6 +54,7 @@ DEFAULT_POLICY: dict[str, Any] = {
         "not admitted",
         "does not authorize",
         "not put into",
+        "not handoff carrier",
         "observation-only",
         "observe_only_stash_read",
         "git_stash_forbidden",

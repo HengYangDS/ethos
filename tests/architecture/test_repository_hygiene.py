@@ -4,6 +4,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -16,7 +18,9 @@ def test_repository_hygiene_policy_owns_hidden_root_residue_gate() -> None:
     assert '".DS_Store"' in policy
     assert '"Thumbs.db"' in policy
     assert '"Desktop.ini"' in policy
+    assert '"not handoff carrier"' in policy
     assert 'POLICY_PATH = Path(".config/checks/repository-hygiene/policy.toml")' in runner
+    assert '"not handoff carrier"' in runner
     assert "host-local root residue is not repository truth" in runner
     assert 'concern = "repository_hygiene"' in tools
     assert 'config = ".config/checks/repository-hygiene/policy.toml"' in tools
@@ -50,3 +54,48 @@ def test_repository_hygiene_rejects_global_ignored_ds_store(tmp_path: Path) -> N
     assert ".DS_Store: host-local root residue is not repository truth; remove it" in (
         completed.stdout + completed.stderr
     )
+
+
+@pytest.mark.parametrize("policy_mode", ["default", "configured"])
+@pytest.mark.parametrize(
+    ("guidance", "expected_returncode", "expected_message"),
+    [
+        ("Git stash\nand chat transcripts are not handoff carriers.\n", 0, ""),
+        (
+            "When blocked, git stash, then retry.\n",
+            1,
+            "stash is not an accepted backup or closeout carrier",
+        ),
+    ],
+)
+def test_repository_hygiene_distinguishes_negative_and_positive_stash_guidance(
+    tmp_path: Path,
+    policy_mode: str,
+    guidance: str,
+    expected_returncode: int,
+    expected_message: str,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "tools/ci/scripts").mkdir(parents=True)
+    runner = repo / "tools/ci/scripts/run-repository-hygiene.sh"
+    shutil.copy2(ROOT / "tools/ci/scripts/run-repository-hygiene.sh", runner)
+    if policy_mode == "configured":
+        policy_path = repo / ".config/checks/repository-hygiene/policy.toml"
+        policy_path.parent.mkdir(parents=True)
+        shutil.copy2(ROOT / ".config/checks/repository-hygiene/policy.toml", policy_path)
+    (repo / "guidance.md").write_text(guidance, encoding="utf-8")
+
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+
+    completed = subprocess.run(
+        ["tools/ci/scripts/run-repository-hygiene.sh"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == expected_returncode
+    assert expected_message in (completed.stdout + completed.stderr)

@@ -5,11 +5,11 @@
 
 ## 2. Parser Correction
 
-- [ ] 2.1 Extract executable producer commands from supported structured manifest task tables.
-- [ ] 2.2 Keep shell and CI entrypoint checks unchanged and preserve malformed-input fail-closed behavior.
+- [x] 2.1 Extract executable producer commands from supported structured manifest task tables.
+- [x] 2.2 Keep shell and CI entrypoint checks unchanged and preserve malformed-input fail-closed behavior.
 
 ## 3. Verification And Integration
 
-- [ ] 3.1 Run focused generated-artifact unit and CLI tests.
-- [ ] 3.2 Re-run alphasim generated-artifact audit against the corrected product runner.
+- [x] 3.1 Run focused generated-artifact unit and CLI tests.
+- [x] 3.2 Re-run alphasim generated-artifact audit against the corrected product runner.
 - [ ] 3.3 Run head-bound ETHOS proof, land to `candidate/dev`, and retire this Work Lane without remote publication.

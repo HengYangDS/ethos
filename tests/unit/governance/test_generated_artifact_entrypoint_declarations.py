@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _write_pyproject(root: Path, body: str) -> None:
@@ -49,6 +52,39 @@ def test_pyproject_executable_task_still_blocks_denied_generated_home(
 [tool.pixi.tasks]
 package = "uv build --out-dir dist/python"
 """,
+    )
+
+    audit = generated_artifact_entrypoint_audit(tmp_path)
+
+    assert audit["ok"] is False
+    assert audit["required_gaps"] == [
+        "generated_artifact_entrypoint_denied_generated_home:pyproject.toml:dist/"
+    ]
+
+
+def test_pyproject_structured_task_command_is_audited(tmp_path: Path) -> None:
+    _write_pyproject(
+        tmp_path,
+        """
+[tool.pixi.tasks]
+package = { cmd = ["uv", "build", "--out-dir", "dist/python"] }
+""",
+    )
+
+    audit = generated_artifact_entrypoint_audit(tmp_path)
+
+    assert audit["ok"] is False
+    assert audit["required_gaps"] == [
+        "generated_artifact_entrypoint_denied_generated_home:pyproject.toml:dist/"
+    ]
+
+
+def test_malformed_pyproject_falls_back_to_conservative_text_audit(
+    tmp_path: Path,
+) -> None:
+    _write_pyproject(
+        tmp_path,
+        '[tool.pixi.tasks\npackage = "uv build --out-dir dist/python"\n',
     )
 
     audit = generated_artifact_entrypoint_audit(tmp_path)

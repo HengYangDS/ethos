@@ -9,10 +9,10 @@ freshness mode: `historical`, `head_bound`, or `semantic_scope`.
 #### Scenario: historical evidence is durable without pretending currentness
 
 - **WHEN** an active claim declares `historical` freshness
-- **THEN** ETHOS verifies its dated evidence digest and all ordinary active-claim
+- **THEN** ETHOS verifies its dated evidence digest and ordinary active-claim
   trust-envelope requirements
 - **AND** it does not emit a missing-HEAD migration advisory
-- **AND** it does not claim that the historical evidence proves the current HEAD.
+- **AND** it does not claim that historical evidence proves the current HEAD.
 
 #### Scenario: currentness-sensitive evidence fails closed
 

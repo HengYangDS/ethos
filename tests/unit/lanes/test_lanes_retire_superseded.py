@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
+import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
@@ -214,7 +215,7 @@ def test_retire_superseded_private_helpers_cover_unavailable_status(
 
     assert lane_retirement_core._branch_exists(repo, "work/x", runtime=runtime) is False
     assert lane_retirement_core._branch_head(repo, "work/x", runtime=runtime) == ""
-    assert lane_retirement_core._has_changed_paths(repo, runtime=runtime) is True
+    assert lane_retirement_shared.has_changed_paths(repo, runner=runtime.run_git) is True
 
 
 def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
@@ -596,4 +597,4 @@ def test_superseded_helper_edges_cover_head_mismatch_and_empty_actor_selection()
         head="actual",
         expect_head="expected",
     ) == ["expect_head_mismatch"]
-    assert lane_retirement_core._landed_actor_gaps([]) == []
+    assert lane_retirement_shared.holder_authority_gaps([]) == []

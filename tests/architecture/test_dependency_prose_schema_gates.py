@@ -86,6 +86,11 @@ def test_python_vulnerability_audit_scans_uv_exported_resolved_input() -> None:
     assert config["pip_audit"]["state"] == "active_owner_gate"
     assert "uv export" in config["pip_audit"]["input"]
     assert "pip-audit reads uv.lock directly" in config["pip_audit"]["forbidden_claims"]
+    runner = (ROOT / "tools/ci/scripts/run-python-vulnerability-audit.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "--no-deps" in runner
+    assert "--disable-pip" in runner
 
     payload = _run_json(["tools/ci/scripts/run-python-vulnerability-audit.sh"])
     persisted = json.loads(

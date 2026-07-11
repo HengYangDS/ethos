@@ -26,8 +26,11 @@ adapter; topology policy proves they cannot regress to root `.venv` or bare uv
 execution. If a hook must bootstrap a different worktree while an outer uv
 command holds the selected cache lock, only that nested bootstrap uses a bounded
 child namespace beneath the selected host or CI cache root; the source
-environment remains worktree-bound. Existing root environments remain ignored
-migration residue until an operator removes them deliberately.
+environment remains worktree-bound. Owner-script handoff uses the explicit
+`ETHOS_RUNTIME_BOOTSTRAPPED=1` marker: its outer uv runner is non-synchronizing
+so a tool selected by the script can synchronize only after the outer process no
+longer holds the same worktree environment lock. Existing root environments
+remain ignored migration residue until an operator removes them deliberately.
 
 ## Constraints
 
@@ -83,6 +86,8 @@ migration residue until an operator removes them deliberately.
 - [x] Migrate Python owner scripts to invoke the bootstrap around `uv run` or
   direct managed Python. Leave shell-only installers/scanners outside the
   contract unless they invoke Python/uv.
+- [x] Make marked owner-script handoff use an outer `uv run --no-sync`, so an
+  inner tool invocation cannot wait on the parent process's checkout venv lock.
 - [x] Migrate `pre-commit`, `pre-push`, and `reference-transaction` to use the
   checkout-managed interpreter with explicit source imports; preserve existing
   fail-closed/fail-open semantics. When that default interpreter is absent, the

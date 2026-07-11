@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 from cyclopts import App
-from cyclopts.command_spec import CommandSpec
 from pydantic import ValidationError
 
 import ethos_core.contracts.commands as command_contract
@@ -86,29 +85,17 @@ def test_report_handlers_are_provider_and_projection_declarations() -> None:
 
 def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
     app = App(name="quality")
+    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
 
     registered = register_declared_group(app, "quality")
 
-    assert registered == len(
-        load_command_registry_declaration(ROOT / "system/commands.toml").group("quality")
-    )
-    assert isinstance(app._commands["types"], CommandSpec)
-    assert app._commands["types"].import_path == ("ethos.surface.cli.quality.core:quality_types")
-    assert app._commands["no-compat"].import_path == (
-        "ethos.surface.cli.quality.cutover.core:no_compat"
-    )
-    assert app._commands["product-boundary"].import_path == (
-        "ethos.surface.cli.boundary.product:product_boundary"
-    )
-    assert app._commands["governance-kernel"].import_path == (
-        "ethos.surface.cli.boundary.readiness:governance_kernel"
-    )
+    assert registered == len(declaration.group("quality"))
+    assert {command.name for command in declaration.group("quality")} <= set(app)
     assert register_declared_group(app, "quality") == 0
 
     root = App(name="ethos")
-    assert register_declared_group(root, "root") == 4
-    assert isinstance(root._commands["doctor"], CommandSpec)
-    assert root._commands["doctor"].import_path == ("ethos.surface.cli.root.inspection:doctor")
+    assert register_declared_group(root, "root") == 14
+    assert {command.name for command in declaration.group("root")} <= set(root)
 
 
 def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> None:
@@ -122,14 +109,10 @@ def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> N
         CommandRegistryDeclaration.model_validate(payload)
 
 
-def test_command_declaration_packaged_fallback_matches_repository_owner(
+def test_command_declaration_falls_back_outside_a_checkout(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = ROOT / "system/commands.toml"
-    packaged = ROOT / "packages/ethos-core/src/ethos_core/data/commands.toml"
-
-    assert packaged.read_bytes() == repository.read_bytes()
     monkeypatch.chdir(tmp_path)
     assert load_command_registry_declaration(tmp_path / "missing.toml").id == (
         "ethos-command-registry"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
 from pathlib import Path
 from typing import Literal
 
@@ -11,6 +10,8 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
+
+from ethos_core._resources import declaration_text
 
 DECLARATION_PATH = Path("system/commands.toml")
 _DECLARATION_RESOURCE = "data/commands.toml"
@@ -128,17 +129,17 @@ def _default_declaration_path() -> Path:
     return DECLARATION_PATH
 
 
-def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
-
-
 def load_command_registry_declaration(
     path: Path | str | None = None,
 ) -> CommandRegistryDeclaration:
     """Load and validate the tracked command registry declaration."""
     declaration_path = Path(path) if path is not None else _default_declaration_path()
     return CommandRegistryDeclaration.model_validate(
-        tomllib.loads(_declaration_text(declaration_path))
+        tomllib.loads(
+            declaration_text(
+                declaration_path,
+                resource=_DECLARATION_RESOURCE,
+                canonical=DECLARATION_PATH,
+            )
+        )
     )

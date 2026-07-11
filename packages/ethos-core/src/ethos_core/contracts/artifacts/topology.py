@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import tomllib
 from functools import lru_cache
-from importlib import resources
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -20,6 +19,8 @@ from celpy.celtypes import BoolType
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import model_validator
+
+from ethos_core._resources import declaration_text
 
 DECLARATION_PATH = Path("system/policies/generated-artifact-topology.toml")
 _DECLARATION_RESOURCE = "data/generated_artifact_topology.toml"
@@ -228,9 +229,7 @@ def _default_declaration_path() -> Path:
 
 
 def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
 
 
 def load_generated_artifact_topology_declaration(

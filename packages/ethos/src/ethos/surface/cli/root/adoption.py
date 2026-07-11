@@ -8,7 +8,6 @@ from ethos.domain.status import adoption_mutation_gaps
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
@@ -56,7 +55,6 @@ def _adoption_result(
     return result
 
 
-@app.command
 def init(
     *,
     root: RootOption | None = None,
@@ -82,7 +80,6 @@ def init(
     emit(result, json_output=json_output, enforce=apply)
 
 
-@app.command
 def adopt(
     *,
     root: RootOption | None = None,

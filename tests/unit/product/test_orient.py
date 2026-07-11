@@ -99,6 +99,67 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["coordination_blocking"] == coordination["blocking"]
 
 
+def test_orient_gives_protected_roots_explicit_temporary_probe_remediation() -> None:
+    for role in ("accepted_root", "candidate"):
+        orientation = orientation_packet(
+            status_payload={
+                "root": "/repo",
+                "branch": "dev" if role == "accepted_root" else "candidate/dev",
+                "role": role,
+                "head": "abcdef1234567890",
+                "dirty": True,
+                "changed_paths": ["tests/unit/test_probe.py"],
+                "dirty_provenance": {
+                    "temporary_probes": {
+                        "count": 1,
+                        "paths": ["tests/unit/test_probe.py"],
+                        "truncated": False,
+                    }
+                },
+                "foreign_work_lanes": [],
+                "coordination": {},
+                "runtime_binding": {},
+                "landing_readiness": {},
+                "closeout_support": {"supported": False},
+            }
+        )
+
+        assert orientation["capability"]["candidate_action"] == "remove_or_migrate_temporary_probe"
+        assert orientation["capability"]["can_mutate_tracked_files"] is False
+        assert orientation["capability"]["can_land"] is False
+        assert orientation["temporary_probes"] == {
+            "count": 1,
+            "paths": ["tests/unit/test_probe.py"],
+            "truncated": False,
+            "automated_cleanup": False,
+        }
+        assert any("remove the temporary probe" in action for action in orientation["next_actions"])
+        assert "migrate it into an owned Work Lane" in orientation["human_summary"]
+
+
+def test_orient_keeps_generic_dirty_guidance_without_temporary_probe() -> None:
+    orientation = orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "dev",
+            "role": "accepted_root",
+            "head": "abcdef1234567890",
+            "dirty": True,
+            "changed_paths": ["README.md"],
+            "dirty_provenance": {"temporary_probes": {"count": 0, "paths": [], "truncated": False}},
+            "foreign_work_lanes": [],
+            "coordination": {},
+            "runtime_binding": {},
+            "landing_readiness": {},
+            "closeout_support": {"supported": False},
+        }
+    )
+
+    assert orientation["capability"]["candidate_action"] == "repair_or_commit_current_changes"
+    assert orientation["temporary_probes"]["automated_cleanup"] is False
+    assert not any("remove the temporary probe" in action for action in orientation["next_actions"])
+
+
 def test_orient_makes_foreign_lane_observe_only_capability_discoverable(
     tmp_path: Path,
 ) -> None:

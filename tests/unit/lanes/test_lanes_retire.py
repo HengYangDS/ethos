@@ -507,6 +507,45 @@ def test_workspace_status_reports_dirty_provenance(tmp_path: Path) -> None:
     assert entries["new.txt"]["kind"] == "untracked"
 
 
+def test_dirty_provenance_classifies_bounded_temporary_test_probes(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    probe_dir = repo / "tests" / "unit" / "kernel"
+    probe_dir.mkdir(parents=True)
+    for index in range(17):
+        (probe_dir / f"test_probe_{index:02d}.py").write_text("# TEMP PROBE\n", encoding="utf-8")
+
+    provenance = dirty_provenance(repo)
+
+    assert provenance["temporary_probes"] == {
+        "count": 17,
+        "paths": [f"tests/unit/kernel/test_probe_{index:02d}.py" for index in range(16)],
+        "truncated": True,
+    }
+
+
+def test_dirty_provenance_does_not_misclassify_ordinary_untracked_files(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    probe_dir = repo / "tests" / "unit"
+    probe_dir.mkdir(parents=True)
+    (probe_dir / "test_without_marker.py").write_text("def test_ok(): pass\n", encoding="utf-8")
+    (probe_dir / "probe.py").write_text("# TEMP PROBE\n", encoding="utf-8")
+    tracked = probe_dir / "test_tracked.py"
+    tracked.write_text("# TEMP PROBE\n", encoding="utf-8")
+    git(repo, "add", tracked.relative_to(repo).as_posix())
+
+    provenance = dirty_provenance(repo)
+
+    assert provenance["temporary_probes"] == {
+        "count": 0,
+        "paths": [],
+        "truncated": False,
+    }
+
+
 def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
     tmp_path: Path,
 ) -> None:

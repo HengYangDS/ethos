@@ -181,6 +181,11 @@ def workspace_status_contract_sample() -> dict[str, Any]:
                 "conflicted": 0,
                 "unavailable": 0,
             },
+            "temporary_probes": {
+                "count": 0,
+                "paths": [],
+                "truncated": False,
+            },
         },
         "role": "accepted_root",
         "role_policy": {

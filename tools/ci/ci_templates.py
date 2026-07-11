@@ -53,24 +53,14 @@ def _git_head() -> str:
     return _git_output("rev-parse", "HEAD")
 
 
-def _git_bytes(
-    root: Path, *args: str, input_bytes: bytes | None = None
-) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
+def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
+    result = subprocess.run(
         ["git", *args],
         cwd=root,
         input=input_bytes,
         capture_output=True,
         check=False,
     )
-
-
-def _require_git_bytes(
-    root: Path,
-    *args: str,
-    input_bytes: bytes | None = None,
-) -> bytes:
-    result = _git_bytes(root, *args, input_bytes=input_bytes)
     if result.returncode == 0:
         return result.stdout
     detail = result.stderr.decode("utf-8", errors="replace").strip()
@@ -80,35 +70,10 @@ def _require_git_bytes(
 
 
 def _remove_path(path: Path) -> None:
-    if path.is_symlink() or path.is_file():
-        path.unlink()
-    elif path.exists():
+    if path.is_dir() and not path.is_symlink():
         shutil.rmtree(path)
-
-
-def _copy_untracked_files(source_root: Path, snapshot_root: Path) -> int:
-    output = _require_git_bytes(source_root, "ls-files", "--others", "--exclude-standard", "-z")
-    copied = 0
-    for encoded_path in output.split(b"\0"):
-        if not encoded_path:
-            continue
-        relative = Path(encoded_path.decode("utf-8"))
-        if relative.is_absolute() or ".." in relative.parts:
-            message = f"GitLab source materialization refused unsafe untracked path: {relative}"
-            raise RuntimeError(message)
-        source = source_root / relative
-        destination = snapshot_root / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        _remove_path(destination)
-        if source.is_symlink():
-            destination.symlink_to(source.readlink())
-        elif source.is_file():
-            shutil.copy2(source, destination)
-        else:
-            message = f"GitLab source materialization could not copy untracked path: {relative}"
-            raise RuntimeError(message)
-        copied += 1
-    return copied
+    elif path.exists() or path.is_symlink():
+        path.unlink()
 
 
 def materialize_gitlab_source(
@@ -116,7 +81,6 @@ def materialize_gitlab_source(
     source_root: Path,
     state_dir: Path,
     expected_head: str,
-    include_untracked: bool,
 ) -> dict[str, Any]:
     """Create a standalone Git snapshot so Docker never sees a linked `.git` file."""
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -124,7 +88,7 @@ def materialize_gitlab_source(
     staging_dir = state_dir / "source.staging"
     _remove_path(staging_dir)
     try:
-        _require_git_bytes(
+        _git(
             source_root,
             "clone",
             "--no-local",
@@ -132,10 +96,10 @@ def materialize_gitlab_source(
             str(source_root),
             str(staging_dir),
         )
-        _require_git_bytes(staging_dir, "checkout", "--detach", expected_head)
-        tracked_diff = _require_git_bytes(source_root, "diff", "--binary", expected_head)
+        _git(staging_dir, "checkout", "--detach", expected_head)
+        tracked_diff = _git(source_root, "diff", "--binary", expected_head)
         if tracked_diff:
-            _require_git_bytes(
+            _git(
                 staging_dir,
                 "apply",
                 "--binary",
@@ -143,16 +107,13 @@ def materialize_gitlab_source(
                 "-",
                 input_bytes=tracked_diff,
             )
-        untracked_count = (
-            _copy_untracked_files(source_root, staging_dir) if include_untracked else 0
-        )
         _remove_path(source_dir)
         staging_dir.replace(source_dir)
     except Exception:
         _remove_path(staging_dir)
         raise
 
-    source_head = _require_git_bytes(source_dir, "rev-parse", "HEAD").decode().strip()
+    source_head = _git(source_dir, "rev-parse", "HEAD").decode().strip()
     return {
         "kind": "independent_git_checkout",
         "source_dir": str(source_dir),
@@ -163,7 +124,6 @@ def materialize_gitlab_source(
             source_dir / ".git" / "objects" / "info" / "alternates"
         ).is_file(),
         "tracked_diff_bytes": len(tracked_diff),
-        "untracked_files_copied": untracked_count,
     }
 
 
@@ -501,7 +461,6 @@ def emulator_evidence(
                 source_root=ROOT,
                 state_dir=ROOT / str(emulation["emulator_state_dir"]),
                 expected_head=str(git_start["head"]),
-                include_untracked=allow_untracked,
             )
         except RuntimeError as exc:
             issue = str(exc)

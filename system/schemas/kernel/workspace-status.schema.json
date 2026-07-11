@@ -770,7 +770,8 @@
         "dirty",
         "state",
         "entries",
-        "summary"
+        "summary",
+        "temporary_probes"
       ],
       "properties": {
         "dirty": {
@@ -796,8 +797,36 @@
             "type": "integer"
           }
         },
+        "temporary_probes": {
+          "$ref": "#/$defs/temporaryProbeSummary"
+        },
         "error": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "temporaryProbeSummary": {
+      "type": "object",
+      "required": [
+        "count",
+        "paths",
+        "truncated"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "paths": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

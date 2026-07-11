@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import subprocess
+from itertools import islice
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+_TEMPORARY_PROBE_HEADER_LINES = 20
+_TEMPORARY_PROBE_PATH_LIMIT = 16
+_TEMPORARY_PROBE_MARKER = "TEMP PROBE"
 
 
 def _run_git(root: Path, *args: str) -> str:
@@ -85,6 +92,7 @@ def dirty_provenance(root: Path) -> dict[str, object]:
         "state": "dirty" if entries else "clean",
         "entries": entries,
         "summary": summary,
+        "temporary_probes": _temporary_probe_summary(root, entries),
     }
 
 
@@ -102,6 +110,7 @@ def _unavailable_dirty_provenance(exc: BaseException) -> dict[str, object]:
             "conflicted": 0,
             "unavailable": 1,
         },
+        "temporary_probes": _empty_temporary_probe_summary(),
         "error": (stderr or str(exc)).strip(),
     }
 
@@ -135,3 +144,37 @@ def _dirty_kind(index: str, worktree: str) -> str:
     if index == "D" or worktree == "D":
         return "deleted"
     return "tracked"
+
+
+def _temporary_probe_summary(root: Path, entries: list[dict[str, str]]) -> dict[str, object]:
+    paths = [entry["path"] for entry in entries if _is_temporary_test_probe(root, entry)]
+    return {
+        "count": len(paths),
+        "paths": paths[:_TEMPORARY_PROBE_PATH_LIMIT],
+        "truncated": len(paths) > _TEMPORARY_PROBE_PATH_LIMIT,
+    }
+
+
+def _empty_temporary_probe_summary() -> dict[str, object]:
+    return {"count": 0, "paths": [], "truncated": False}
+
+
+def _is_temporary_test_probe(root: Path, entry: dict[str, str]) -> bool:
+    if entry["kind"] != "untracked":
+        return False
+    relative_path = PurePosixPath(entry["path"])
+    if (
+        relative_path.is_absolute()
+        or ".." in relative_path.parts
+        or not relative_path.parts
+        or relative_path.parts[0] != "tests"
+        or relative_path.suffix != ".py"
+        or not relative_path.name.startswith("test_")
+    ):
+        return False
+    try:
+        with (root / relative_path).open(encoding="utf-8", errors="replace") as source:
+            header = "".join(islice(source, _TEMPORARY_PROBE_HEADER_LINES))
+    except OSError:
+        return False
+    return _TEMPORARY_PROBE_MARKER in header

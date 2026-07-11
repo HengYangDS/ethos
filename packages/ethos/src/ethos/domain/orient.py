@@ -27,6 +27,7 @@ def orientation_packet(
     candidate = _dict(status_payload.get("candidate"))
     runtime = _dict(status_payload.get("runtime_binding"))
     landing = _dict(status_payload.get("landing_readiness"))
+    temporary_probes = _temporary_probe_summary(status_payload)
     role = str(status_payload.get("role") or "unknown")
     dirty = bool(status_payload.get("dirty"))
     changed_paths = _strings(status_payload.get("changed_paths"))
@@ -46,7 +47,12 @@ def orientation_packet(
     report_advisory = _report_advisory_items(report_payload)
     report_advisory_next_actions = _report_advisory_next_actions(report_payload)
     gaps = _dedupe([*required_gaps, *report_required])
-    capability = _capability(role=role, dirty=dirty, closeout=closeout)
+    capability = _capability(
+        role=role,
+        dirty=dirty,
+        closeout=closeout,
+        temporary_probe_count=int(temporary_probes["count"]),
+    )
     next_actions = _next_actions(
         {
             "role": role,
@@ -55,6 +61,7 @@ def orientation_packet(
             "closeout": closeout,
             "report_payload": report_payload,
             "advisory_next_actions": report_advisory_next_actions,
+            "temporary_probe_count": temporary_probes["count"],
         }
     )
     current_head = _current_head(status_payload, branch=str(status_payload.get("branch") or ""))
@@ -72,6 +79,7 @@ def orientation_packet(
             "changed_path_count": len(changed_paths),
         },
         "capability": capability,
+        "temporary_probes": temporary_probes,
         "candidate": {
             "branch": str(candidate.get("branch") or ""),
             "head": str(candidate.get("head") or ""),
@@ -249,7 +257,9 @@ def _report_advisory_items(report_payload: Mapping[str, Any] | None) -> list[str
     return _strings(signals.get("advisory_gaps"))
 
 
-def _report_advisory_next_actions(report_payload: Mapping[str, Any] | None) -> list[str]:
+def _report_advisory_next_actions(
+    report_payload: Mapping[str, Any] | None,
+) -> list[str]:
     if not isinstance(report_payload, dict):
         return []
     data = _dict(report_payload.get("data"))
@@ -272,6 +282,26 @@ def _strings(value: object) -> list[str]:
     if not isinstance(value, list | tuple):
         return []
     return [str(item) for item in value]
+
+
+def _temporary_probe_summary(status_payload: Mapping[str, Any]) -> dict[str, Any]:
+    provenance = _dict(status_payload.get("dirty_provenance"))
+    summary = _dict(provenance.get("temporary_probes"))
+    return {
+        "count": _nonnegative_int(summary.get("count")),
+        "paths": _strings(summary.get("paths")),
+        "truncated": bool(summary.get("truncated")),
+        "automated_cleanup": False,
+    }
+
+
+def _nonnegative_int(value: object) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(0, int(cast("int | str", value)))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _dedupe(values: list[str]) -> list[str]:
@@ -329,14 +359,30 @@ def _unbound_lane_ref_summary(item: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _capability(*, role: str, dirty: bool, closeout: Mapping[str, Any]) -> dict[str, Any]:
+def _capability(
+    *,
+    role: str,
+    dirty: bool,
+    closeout: Mapping[str, Any],
+    temporary_probe_count: int,
+) -> dict[str, Any]:
     capability = {
         "candidate_action": "unknown",
         "can_mutate_tracked_files": False,
         "can_land": False,
         "reason": "checkout role is not admitted for mutation",
     }
-    if dirty:
+    if temporary_probe_count and role in {"accepted_root", "candidate"}:
+        capability = {
+            "candidate_action": "remove_or_migrate_temporary_probe",
+            "can_mutate_tracked_files": False,
+            "can_land": False,
+            "reason": (
+                "temporary test probe detected; remove it or migrate it into an owned Work Lane; "
+                "no automated cleanup"
+            ),
+        }
+    elif dirty:
         capability = {
             "candidate_action": "repair_or_commit_current_changes",
             "can_mutate_tracked_files": role == "work_lane",
@@ -366,8 +412,15 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
     gaps = _strings(context.get("gaps"))
     report_payload = context.get("report_payload")
     advisory_next_actions = _strings(context.get("advisory_next_actions"))
+    temporary_probe_count = _nonnegative_int(context.get("temporary_probe_count"))
     actions = ["ethos status --json"]
-    if context.get("dirty") is True:
+    if temporary_probe_count and role in {"accepted_root", "candidate"}:
+        actions = [
+            "remove the temporary probe or migrate it into an owned Work Lane; "
+            "no automatic cleanup",
+            "inspect dirty_provenance.temporary_probes in ethos status --json",
+        ]
+    elif context.get("dirty") is True:
         actions = ["ethos status --json", "git status --short"]
     elif gaps:
         actions = [f"ethos explain {gaps[0]} --json", "ethos report --json"]

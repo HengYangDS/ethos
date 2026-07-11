@@ -287,7 +287,13 @@ def _non_git_status(root: Path) -> dict[str, object]:
         "branch": "untracked",
         "dirty": False,
         "changed_paths": [],
-        "dirty_provenance": {"dirty": False, "state": "non_git", "entries": [], "summary": {}},
+        "dirty_provenance": {
+            "dirty": False,
+            "state": "non_git",
+            "entries": [],
+            "summary": {},
+            "temporary_probes": {"count": 0, "paths": [], "truncated": False},
+        },
         "role": "other",
         "role_policy": policy.as_status_policy(),
         "runtime_binding": runtime_binding(root),
@@ -448,7 +454,10 @@ def _candidate_status(
     behind_accepted = 0
     if head:
         count = _run_git(
-            root, "rev-list", "--count", f"{policy.candidate_branch}..{policy.accepted_branch}"
+            root,
+            "rev-list",
+            "--count",
+            f"{policy.candidate_branch}..{policy.accepted_branch}",
         ).strip()
         behind_accepted = int(count) if count.isdigit() else 0
     return {

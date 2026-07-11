@@ -7,6 +7,7 @@ from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos.repository.policy.schema_samples.large import workspace_status_contract_sample
 from ethos_core.result import EthosResult
 
 ROLE_POLICY_SAMPLE = {
@@ -90,7 +91,19 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["instances"]["coupling-audit-contract"]["ok"] is True
 
 
-def test_schema_validation_report_uses_product_schemas_for_adopter_root(tmp_path) -> None:
+def test_workspace_status_schema_requires_temporary_probe_summary() -> None:
+    payload = workspace_status_contract_sample()
+    del payload["dirty_provenance"]["temporary_probes"]
+
+    validation = validate_schema_instance("workspace-status.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert any("temporary_probes" in gap for gap in validation["required_gaps"])
+
+
+def test_schema_validation_report_uses_product_schemas_for_adopter_root(
+    tmp_path,
+) -> None:
     (tmp_path / "docs").mkdir()
 
     report = schema_validation_report(tmp_path)
@@ -424,6 +437,11 @@ def test_workspace_status_payload_validatesworktree_bindings() -> None:
                 "deleted": 0,
                 "conflicted": 0,
                 "unavailable": 0,
+            },
+            "temporary_probes": {
+                "count": 0,
+                "paths": [],
+                "truncated": False,
             },
         },
         "role": "accepted_root",

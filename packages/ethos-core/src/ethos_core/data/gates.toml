@@ -352,6 +352,7 @@ command = [
   "--out-dir",
   "build/artifacts/python",
   "--clear",
+  "--no-create-gitignore",
 ]
 policy = "required"
 profile = "product-toolchain"

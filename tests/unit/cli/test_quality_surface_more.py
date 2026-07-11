@@ -169,7 +169,7 @@ def test_quality_release_commit_sbom_and_attestation_surfaces(
     ]
     assert payloads[0]["command"] == "quality release"
     assert payloads[0]["next_actions"] == [
-        "uv build --all-packages --out-dir build/artifacts/python --clear"
+        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
     ]
     assert payloads[1]["command"] == "quality release-policy"
     assert payloads[1]["next_actions"] == ["ethos quality release-attestation"]

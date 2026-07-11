@@ -214,6 +214,7 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
         "--out-dir",
         "build/artifacts/python",
         "--clear",
+        "--no-create-gitignore",
     ]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
     assert {"schema-contracts", "proof-policy"} <= nodes.keys()

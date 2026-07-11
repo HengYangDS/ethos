@@ -52,5 +52,5 @@ uv run --package ethos ethos report --json
 Changes that affect package metadata should also run:
 
 ```bash
-uv build --all-packages --out-dir build/artifacts/python --clear
+uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
 ```

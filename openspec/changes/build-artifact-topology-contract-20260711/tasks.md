@@ -1,7 +1,7 @@
 ## 1. Contract and producer convergence
 
-- [x] 1.1 Lock the expected semantic build command in focused governance and documentation tests.
-- [x] 1.2 Route the source and packaged gate declarations plus contributor guidance to the semantic artifact home.
+- [x] 1.1 Lock the deterministic semantic build command in focused governance, projection, and documentation tests.
+- [x] 1.2 Route every active build producer through the semantic artifact home without a redundant output-local ignore marker.
 
 ## 2. Verification and closeout
 

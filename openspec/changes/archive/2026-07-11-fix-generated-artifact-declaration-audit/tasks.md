@@ -12,4 +12,4 @@
 
 - [x] 3.1 Run focused generated-artifact unit and CLI tests.
 - [x] 3.2 Re-run alphasim generated-artifact audit against the corrected product runner.
-- [ ] 3.3 Run head-bound ETHOS proof, land to `candidate/dev`, and retire this Work Lane without remote publication.
+- [x] 3.3 Run head-bound ETHOS proof, land to `candidate/dev`, and retire this Work Lane without remote publication.

@@ -24,6 +24,8 @@ tests = [
   "tools/ci/scripts/run-python-tests.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos", "ethos-core"]
 tests = ["tests/unit/cli/test_contracts.py", "tests/unit/governance/validation/test_schemas.py"]

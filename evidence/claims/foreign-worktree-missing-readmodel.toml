@@ -19,6 +19,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "Workspace status and accepted-root closeout reader behavior for missing foreign Work Lane paths and absent, unbound, or missing candidate bindings"

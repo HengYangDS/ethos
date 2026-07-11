@@ -22,6 +22,8 @@ readiness_checks = [
   "ETHOS_ACTOR=codex uv run --package ethos ethos report --root <work-lane-root> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-governance"
 scope = "Design-only boundary for sensors, agentic issue intake, managed-agent platforms, execution backends, evidence binding, chronicle judgment, and bounded repository evolution guardrails"

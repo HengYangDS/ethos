@@ -19,6 +19,8 @@ tests = [
   "uv run --package ethos ethos parity shadow --adopter reference-adopter --target <adopter-repo> --execute --write-evidence --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos-adapters",

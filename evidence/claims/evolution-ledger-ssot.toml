@@ -23,6 +23,8 @@ tests = [
   "ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

@@ -15,6 +15,8 @@ tests = [
   "ETHOS_ROOT=<workspace>/ethos-worktrees/protected-openspec-release-root-gate uv run --group dev ethos publish --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

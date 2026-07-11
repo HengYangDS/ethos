@@ -23,6 +23,8 @@ readiness_checks = [
   "ETHOS_ACTOR=codex uv run --package ethos ethos prove --root <work-lane-root> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-governance"
 scope = "Read-only repository-local signal mining into intake envelopes and issue candidates; no issue creation, no Work Lane mutation, no agent dispatch, no publication claim."

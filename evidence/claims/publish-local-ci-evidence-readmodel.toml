@@ -23,6 +23,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "quality"
 scope = "Publish/local-CI fallback readmodel and evidence freshness; local readiness only"

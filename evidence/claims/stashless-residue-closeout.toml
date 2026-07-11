@@ -18,6 +18,8 @@ tests = [
   "openspec validate --all --strict",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "stashless residue closeout and pre-run admission"

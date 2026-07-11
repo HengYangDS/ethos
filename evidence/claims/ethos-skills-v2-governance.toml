@@ -31,6 +31,8 @@ tests = [
   "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 30 --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

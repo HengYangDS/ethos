@@ -21,6 +21,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = ["tests/unit/cli/lane_status/test_next_actions.py"]

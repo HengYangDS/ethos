@@ -15,6 +15,8 @@ tests = [
   "tools/ci/scripts/run-local-ci.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = ["tests/architecture/test_testing_platform.py"]

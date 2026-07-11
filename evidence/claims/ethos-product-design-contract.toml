@@ -25,6 +25,8 @@ tests = [
   "uv run --package ethos ethos report --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 docs = [
   "docs/governance/product-design-contract.md",

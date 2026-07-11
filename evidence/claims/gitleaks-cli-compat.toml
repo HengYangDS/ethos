@@ -18,6 +18,8 @@ tests = [
   "uv run --group dev ruff format --check tests/architecture/test_release_assets.py",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "quality"
 scope = "Local CI secrets gate owner script compatibility with gitleaks 8.30.1"

@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "quality"
 scope = "Land-stage domain module-layout debt reduction by semantic subpackage migration."

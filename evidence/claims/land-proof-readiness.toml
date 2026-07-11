@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "Work Lane land dry-run readiness and exact-HEAD executed proof visibility"

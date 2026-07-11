@@ -17,6 +17,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 schemas = ["system/schemas/kernel/shadow-parity.schema.json"]

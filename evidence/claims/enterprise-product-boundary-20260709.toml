@@ -20,6 +20,8 @@ tests = [
   "uv run --package ethos ethos quality contributor-policy --root <worktree> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

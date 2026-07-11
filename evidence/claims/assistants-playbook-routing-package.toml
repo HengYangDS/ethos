@@ -21,6 +21,8 @@ tests = [
   ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

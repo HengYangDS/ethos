@@ -16,6 +16,8 @@ tests = [
   "uv run --all-packages ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-core"
 scope = "Authority kernel head rename, protected-root projection pollution guard, and lease read fallback"

@@ -25,6 +25,8 @@ tests = [
   "uv build --all-packages",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos-adapters",

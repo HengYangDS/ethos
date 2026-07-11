@@ -21,6 +21,8 @@ tests = [
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

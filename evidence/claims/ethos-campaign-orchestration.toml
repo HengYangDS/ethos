@@ -22,6 +22,8 @@ tests = [
   "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = [
   "ethos",

@@ -18,6 +18,8 @@ tests = [
   "uv run --package ethos ethos quality gates --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos-quality", "ethos-repository"]
 tests = [

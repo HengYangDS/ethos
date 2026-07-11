@@ -22,6 +22,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head <HEAD> --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Expert-review hardening across command-plane, admission, report, publish, local-ci fallback, and release supply-chain evidence"

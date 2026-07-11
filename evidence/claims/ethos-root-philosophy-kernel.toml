@@ -19,6 +19,8 @@ tests = [
   "uv run --group dev pytest -q",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-core"
 scope = "Root text as restrained kernel judgment constraint for boundary-preserving future surfaces"

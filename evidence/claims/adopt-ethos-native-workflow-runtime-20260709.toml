@@ -23,6 +23,8 @@ tests = [
   "uv run --group dev pytest -q tests/unit/kernel/test_invalid_states.py tests/unit/lanes/hook/test_path_admission.py tests/architecture/test_product_boundaries.py::test_product_surfaces_are_author_and_adopter_neutral",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 docs = [
   "docs/architecture/workflow-runtime.md",

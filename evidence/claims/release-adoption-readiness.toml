@@ -36,6 +36,8 @@ tests = [
   "tools/ci/scripts/run-local-ci.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Release smoke, external adoption pilots, local publish readiness, remote-ref alignment, and hosted-CI claim boundary"

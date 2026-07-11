@@ -3,10 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.repository.evidence.core import semantic_tree_digest
 from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos_core.contracts.capability.parity import capability_parity_records
 
@@ -44,22 +44,6 @@ _RELEASE_VISIBLE_LOCAL_PATH_PATTERN = re.compile(
 def string_list(value: object) -> list[str]:
     """Return a string-normalized list when the payload field is list-shaped."""
     return [str(item) for item in value] if isinstance(value, list) else []
-
-
-def semantic_tree_digest(root: Path, *, head: str, relevant_paths: tuple[str, ...]) -> str:
-    """Digest the Git tree entries that can change generic parity semantics."""
-    if not head:
-        return ""
-    completed = subprocess.run(
-        ["git", "ls-tree", "-r", "--full-tree", head, "--", *relevant_paths],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        return ""
-    return sha256_text(completed.stdout)
 
 
 def tracked_evidence_provenance(

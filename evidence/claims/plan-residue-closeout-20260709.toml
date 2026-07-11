@@ -21,6 +21,8 @@ tests = [
   "uv run --package ethos ethos report --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "Archival closeout for stale self-healing closeout intelligence plan residue; no runtime, remote publication, adopter-private, or foreign-lane mutation claim."

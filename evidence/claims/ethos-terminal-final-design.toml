@@ -17,6 +17,8 @@ tests = [
   "ethos prove --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 docs = [
   "docs/plans/terminal-governance-product-design.md",

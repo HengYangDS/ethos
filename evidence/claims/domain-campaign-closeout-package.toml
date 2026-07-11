@@ -22,6 +22,8 @@ tests = [
   "tools/ci/scripts/run-python-tests.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

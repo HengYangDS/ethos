@@ -17,6 +17,8 @@ tests = [
   "uv run --package ethos ethos quality types --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "repository-governance"
 scope = "refresh-base projection-only parity evidence conflict handling"

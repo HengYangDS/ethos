@@ -18,6 +18,8 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "quality"
 scope = "Import-linter and module-layout readiness for enterprise-readiness aggregation placement"

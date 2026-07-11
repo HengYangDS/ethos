@@ -21,6 +21,8 @@ tests = [
   "tools/ci/scripts/run-governance-kernel.sh",
 ]
 
+[evidence.freshness]
+mode = "historical"
 [scope]
 packages = ["ethos"]
 tests = [

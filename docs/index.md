@@ -20,6 +20,7 @@ Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
 [Product Design Contract](governance/product-design-contract.md),
 [Terminal Governance Product Design](plans/terminal-governance-product-design.md),
+[Global Declarative Compression Program](plans/global-declarative-compression-program.md),
 [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
 [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md),
 [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
@@ -73,6 +74,7 @@ or maintainer break-glass evidence.
 - Plans docs: [Plans Documentation](plans/README.md)
 - History docs: [History Documentation](history/README.md)
 - Terminal target design: [Terminal Governance Product Design](plans/terminal-governance-product-design.md)
+- Global compression program: [Global Declarative Compression Program](plans/global-declarative-compression-program.md)
 - Tooling adoption roadmap: [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md)
 - Complete implementation roadmap: [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md)
 - Mechanism comparison audit: [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md)

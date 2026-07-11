@@ -40,10 +40,20 @@ def work_lane_ref_transition_report(
     status = workspace_status(repo)
     branch = ref_name.removeprefix("refs/heads/")
     # A ref CREATION (old==zero) starts the lane saga; a ref DELETION (new==zero) tears it
-    # down. Neither promotes anything to a protected branch, so both are admitted without
-    # lease binding. The deletion case is what lets a lane with a legacy/unnormalizable
-    # lease still be retired: its `git update-ref -d` fires this hook and must not block on
-    # lease admission it cannot satisfy — otherwise promotion-free cleanup is unreachable.
+    # down; and a no-op does not change the ref at all. None promotes anything to a
+    # protected branch, so all are admitted without lease binding. The no-op case occurs
+    # while Git attaches a just-created branch to its new worktree, before `lane start`
+    # can record the lease. The deletion case lets a lane with a legacy/unnormalizable
+    # lease retire: its `git update-ref -d` must not block on lease admission it cannot
+    # satisfy — otherwise promotion-free cleanup is unreachable.
+    if old_value == new_value:
+        return _admit(
+            phase=phase,
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+            reason="lane_ref_noop",
+        )
     if old_value in {_ZERO_OID, ""} or new_value in {_ZERO_OID, ""}:
         reason = (
             "lane_creation_saga_started"
@@ -51,7 +61,11 @@ def work_lane_ref_transition_report(
             else "lane_teardown_ref_deletion"
         )
         return _admit(
-            phase=phase, ref_name=ref_name, old_value=old_value, new_value=new_value, reason=reason
+            phase=phase,
+            ref_name=ref_name,
+            old_value=old_value,
+            new_value=new_value,
+            reason=reason,
         )
     worktrees = cast("list[dict[str, str]]", status.get("worktrees", []))
     leases = leases_by_branch(worktrees, current_path=repo)

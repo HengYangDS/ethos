@@ -7,11 +7,11 @@
 ## 2. Topology enforcement and adopter projection
 
 - [x] 2.1 Extend generated-artifact policy and entrypoint audit to reject active root environment fallback and bootstrap-bypassing uv producers while retaining legacy root environments as non-authoritative residue.
-- [ ] 2.2 Align local-state audit, command payloads, canonical architecture/reference docs, and adoption scaffold templates with the hybrid runtime boundary.
-- [ ] 2.3 Update packaged policy mirrors and generated declarations required for installed-runtime parity.
+- [x] 2.2 Align local-state audit, command payloads, canonical architecture/reference docs, and adoption scaffold templates with the hybrid runtime boundary.
+- [x] 2.3 Update packaged policy mirrors and generated declarations required for installed-runtime parity.
 
 ## 3. Verification and lifecycle
 
 - [x] 3.1 Add focused tests for checkout isolation, override precedence, hook runtime selection, owner-script and provider-projection routing, topology audit failures, and adoption projections.
-- [ ] 3.2 Run OpenSpec strict validation, focused tests, topology audit, and full head-bound proof/local fallback CI on a stable lane head.
+- [x] 3.2 Run OpenSpec strict validation, focused tests, topology audit, and full head-bound proof/local fallback CI on a stable lane head.
 - [ ] 3.3 Bind claim and evidence, land through `candidate/dev`, execute accepted-root closeout, retire only this owned Work Lane, and record remote publication as deferred.

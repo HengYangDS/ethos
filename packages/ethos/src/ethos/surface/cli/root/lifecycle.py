@@ -30,7 +30,6 @@ from ethos.repository.context import context_for_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
@@ -237,7 +236,6 @@ def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
     raise SystemExit(2)
 
 
-@app.command
 def land(
     *,
     apply: bool = False,
@@ -403,7 +401,6 @@ def land(
     emit(result, json_output=json_output, enforce=apply)
 
 
-@app.command
 def publish(
     options: Annotated[
         _PublishOptions,

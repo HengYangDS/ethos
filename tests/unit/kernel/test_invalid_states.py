@@ -104,19 +104,6 @@ def test_docs_topology_report_fields_do_not_pollute_taxonomy() -> None:
     assert "missing_required_state" not in prefixes
 
 
-def test_taxonomy_release_resource_matches_system_contract() -> None:
-    system_payload = tomllib.loads(
-        (ROOT / "system/invalid_states.toml").read_text(encoding="utf-8")
-    )
-    release_payload = tomllib.loads(
-        (ROOT / "packages/ethos-core/src/ethos_core/data/invalid_states.toml").read_text(
-            encoding="utf-8"
-        )
-    )
-
-    assert release_payload == system_payload
-
-
 def test_taxonomy_loads_from_packaged_resource_outside_checkout(
     monkeypatch,
     tmp_path: Path,

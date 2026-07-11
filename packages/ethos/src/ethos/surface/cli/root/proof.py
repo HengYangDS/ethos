@@ -19,7 +19,6 @@ from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate
@@ -116,7 +115,6 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
     }
 
 
-@app.command
 def prove(
     *,
     objective: str = "ethos proof",

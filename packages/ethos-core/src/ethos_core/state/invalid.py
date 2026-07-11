@@ -16,8 +16,9 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass
 from functools import lru_cache
-from importlib import resources
 from pathlib import Path
+
+from ethos_core._resources import declaration_text
 
 # The seven chain-node failures plus carrier/substrate boundary failures, in order.
 # A gap that classifies to none of these is itself an ungoverned invalid state.
@@ -67,7 +68,11 @@ def _taxonomy_text() -> str:
     taxonomy_path = _taxonomy_path()
     if taxonomy_path.exists():
         return taxonomy_path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_TAXONOMY_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(
+        taxonomy_path,
+        resource=_TAXONOMY_RESOURCE,
+        canonical=Path("system/invalid_states.toml"),
+    )
 
 
 @lru_cache(maxsize=1)

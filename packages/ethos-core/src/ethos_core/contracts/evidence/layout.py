@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+
+from ethos_core._resources import declaration_text
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
@@ -102,9 +103,7 @@ def _default_declaration_path() -> Path:
 
 
 def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
 
 
 def load_evidence_layout_declaration(

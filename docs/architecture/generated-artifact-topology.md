@@ -26,11 +26,12 @@ file as source, local state, generated output, or curated evidence.
 The product topology is now declaration-first. The source of the path families,
 required gap prefixes, lifecycle classes, generated filename rules, and product
 adopter root exclusions is
-`system/policies/generated-artifact-topology.toml`; the packaged mirror at
-`packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml`
-keeps installed wheels on the same contract. Python loads that declaration into
-strict frozen contract models and evaluates paths as a pure projection. It is
-not a second hand-written topology table.
+`system/policies/generated-artifact-topology.toml`. The build declaration in
+`packages/ethos-core/pyproject.toml` projects it into installed wheels as
+`ethos_core/data/generated_artifact_topology.toml`. Python loads the canonical
+declaration in a checkout or the wheel resource elsewhere, then evaluates paths
+through strict frozen contract models. It is not a second hand-written topology
+table.
 
 | Path family | Boundary | Generated output allowed? | Tracked? |
 | --- | --- | --- | --- |
@@ -47,11 +48,11 @@ not a second hand-written topology table.
 
 Evidence root topology is also declaration-first. The kernel `evidence/`
 subroots, profile-curated `docs/evidence` mode, allowed root entrypoints, glob
-patterns, and gap prefixes live in `system/policies/evidence-layout.toml`, with
-an installed mirror at `packages/ethos-core/src/ethos_core/data/evidence_layout.toml`.
-`ethos.repository.evidence.topology` scans filesystem facts and projects the
-read model from that declaration instead of owning a second hand-written layout
-table.
+patterns, and gap prefixes live in `system/policies/evidence-layout.toml`; its
+wheel resource is projected by `packages/ethos-core/pyproject.toml` as
+`ethos_core/data/evidence_layout.toml`. `ethos.repository.evidence.topology`
+scans filesystem facts and projects the read model from that declaration instead
+of owning a second hand-written layout table.
 
 Profile-mapped durable evidence roots preserve the same logical evidence
 boundary without forcing every repository to copy the product repository's

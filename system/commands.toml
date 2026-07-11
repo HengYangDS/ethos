@@ -228,6 +228,76 @@ help = "Inspect local host readiness."
 show = false
 
 [[commands]]
+name = "plan"
+group = "root"
+import_path = "ethos.surface.cli.root.planning:plan"
+help = "Plan deterministic action graph."
+show = true
+
+[[commands]]
+name = "prove"
+group = "root"
+import_path = "ethos.surface.cli.root.proof:prove"
+help = "Produce a local proof-readiness summary."
+show = true
+
+[[commands]]
+name = "land"
+group = "root"
+import_path = "ethos.surface.cli.root.lifecycle:land"
+help = "Report land readiness."
+show = true
+
+[[commands]]
+name = "publish"
+group = "root"
+import_path = "ethos.surface.cli.root.lifecycle:publish"
+help = "Report publish readiness without pushing."
+show = true
+
+[[commands]]
+name = "init"
+group = "root"
+import_path = "ethos.surface.cli.root.adoption:init"
+help = "Initialize ETHOS adoption for a repository."
+show = true
+
+[[commands]]
+name = "adopt"
+group = "root"
+import_path = "ethos.surface.cli.root.adoption:adopt"
+help = "Plan or apply ETHOS adoption for a repository."
+show = true
+
+[[commands]]
+name = "explain"
+group = "root"
+import_path = "ethos.surface.cli.root.reference:explain"
+help = "Explain a governance gap or advisory signal."
+show = false
+
+[[commands]]
+name = "docs"
+group = "root"
+import_path = "ethos.surface.cli.root.reference:docs"
+help = "Locate documentation for a topic."
+show = false
+
+[[commands]]
+name = "audit"
+group = "root"
+import_path = "ethos.surface.cli.root.reference:audit"
+help = "Audit repository governance against the active profile."
+show = false
+
+[[commands]]
+name = "openspec"
+group = "root"
+import_path = "ethos.surface.cli.root.reference:openspec"
+help = "Audit official OpenSpec governance state."
+show = false
+
+[[commands]]
 name = "asset-policy"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:asset_policy"

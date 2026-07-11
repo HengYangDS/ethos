@@ -60,7 +60,8 @@ registries.
 
 - **WHEN** runtime proof planning or quality-gate reporting loads the gate registry
 - **THEN** `system/gates.toml` is the repository declaration owner
-- **AND** the packaged `ethos_core/data/gates.toml` fallback is byte-identical
+- **AND** `packages/ethos-core/pyproject.toml` projects it into the wheel as
+  `ethos_core/data/gates.toml`
 - **AND** frozen Pydantic v2 contracts reject unknown fields, empty commands,
   duplicate gate ids per view, unavailable dependencies, and unknown proof-set ids
 - **AND** Python compiles the declaration to runtime and quality projections but

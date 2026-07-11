@@ -9,7 +9,6 @@ from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
@@ -17,7 +16,6 @@ from ethos_core.state.invalid import UNCLASSIFIED
 from ethos_core.state.invalid import explain_gap
 
 
-@app.command(show=False)
 def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     """Explain a governance gap or advisory signal as a read-only invalid-state projection."""
     data = explain_gap(gap_or_signal)
@@ -35,7 +33,6 @@ def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     emit(result, json_output=json_output, enforce=False)
 
 
-@app.command(show=False)
 def docs(
     topic: str = "index",
     *,
@@ -67,7 +64,6 @@ def docs(
     emit(result, json_output=json_output, enforce=False)
 
 
-@app.command(show=False)
 def audit(
     *,
     mode: str = "deep",
@@ -100,7 +96,6 @@ def audit(
     emit(result, json_output=json_output, enforce=False)
 
 
-@app.command(show=False)
 def openspec(
     *,
     change: str | None = None,

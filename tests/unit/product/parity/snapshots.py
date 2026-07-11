@@ -6,6 +6,8 @@ import hashlib
 import subprocess
 from typing import TYPE_CHECKING
 
+from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -18,17 +20,7 @@ MIGRATED_CAPABILITIES = [
     "openspec-claims-trust-review",
 ]
 
-SHADOW_COMMANDS = [
-    "ethos status --json",
-    "ethos plan --changed --json",
-    "ethos prove --json",
-    "ethos report --json",
-    "ethos quality command-surface --json",
-    "ethos assistants doctor --json",
-    "ethos playbooks route --changed --json",
-    "ethos land --json",
-    "ethos publish --json",
-]
+SHADOW_COMMANDS = list(SHADOW_PARITY_COMMANDS)
 
 
 def sha256_text(value: str) -> str:

@@ -452,6 +452,12 @@ is resolved from the owning repository profile, so an adopter may use
 profile's durable evidence root. If no target is supplied, ETHOS does not reuse a
 target path from stale evidence as the next action.
 
+Local shadow parity verifies the command surfaces needed for local governance,
+including `land` and `quality command-surface`. It does not execute `publish`:
+publication readiness deliberately probes remote availability, while remote
+publication remains a separate deferred state. The command-surface gate still
+verifies that `publish` is publicly available.
+
 ETHOS primary command payloads use a governed repository contract. Every
 primary command result (`status`, `plan`, `prove`, `land`, `publish`, `orient`,
 and `report`) exposes a top-level `governance_context` so consumers can read the

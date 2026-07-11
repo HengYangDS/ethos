@@ -14,11 +14,13 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 # The shadow-parity command set — the single source of truth for BOTH the executed
-# read-only commands (adapters/shadow/core.py imports SHADOW_COMMAND_ARGS to run them) and
-# the display-string identities recorded in parity evidence (SHADOW_PARITY_COMMANDS,
-# derived below). Add or remove a command in ONE place; the two forms cannot drift.
-# Lives in the repository layer so adapters may import it (adapters -> repository is the
-# permitted direction; the reverse is not).
+# local commands (adapters/shadow/core.py imports SHADOW_COMMAND_ARGS to run them) and the
+# display-string identities recorded in parity evidence (SHADOW_PARITY_COMMANDS, derived
+# below). Publish remains a public command checked by command-surface, but it is excluded
+# here because its local-readiness projection probes remote availability. Local parity must
+# not turn an unavailable remote into a proof prerequisite. Add or remove a command in ONE
+# place; the two forms cannot drift. Lives in the repository layer so adapters may import
+# it (adapters -> repository is the permitted direction; the reverse is not).
 SHADOW_COMMAND_ARGS: tuple[tuple[str, ...], ...] = (
     ("status",),
     ("plan", "--changed"),
@@ -28,7 +30,6 @@ SHADOW_COMMAND_ARGS: tuple[tuple[str, ...], ...] = (
     ("assistants", "doctor"),
     ("playbooks", "route", "--changed"),
     ("land",),
-    ("publish",),
 )
 SHADOW_PARITY_COMMANDS: tuple[str, ...] = tuple(
     "ethos " + " ".join(args) + " --json" for args in SHADOW_COMMAND_ARGS

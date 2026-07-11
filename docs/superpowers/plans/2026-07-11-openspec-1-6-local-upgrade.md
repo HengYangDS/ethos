@@ -32,6 +32,88 @@ ______________________________________________________________________
 | di-effect       | `tools/agentic/Dockerfile`, `.config/env/tools/.env.tools.example`, `tools/agentic/README.md`, `packages/di-effect-tooling/src/di_effect_tooling/repo/runtime/checks/cli/agentic_toolchain.py` | Docker/env supply pin and fail-closed runtime contract.                  |
 | di-effect tests | `tests/unit/di_effect_tooling/repo/runtime/checks/cli/test_agentic_toolchain.py`                                                                                                               | Current-repository assertion for the OpenSpec 1.6 toolchain contract.    |
 
+## Task 0: Admit each repository-owned mutation through its native OpenSpec carrier
+
+**Files:**
+
+- Create: `/Users/yheng/projects/ethos-worktrees/openspec-1-6-local-upgrade-20260711/openspec/changes/upgrade-openspec-1-6-tool-supply/{.openspec.yaml,proposal.md,design.md,tasks.md,specs/repository-governance/spec.md}`
+- Create: `/Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6/openspec/changes/upgrade-openspec-1-6-workflow/{.openspec.yaml,proposal.md,design.md,tasks.md,specs/native-agentic-sdd/spec.md}`
+- Create: `/Users/yheng/projects/di-effect-task-openspec-1-6/openspec/changes/upgrade-openspec-1-6-agentic-runtime/{.openspec.yaml,proposal.md,design.md,tasks.md,specs/runtime-readiness/spec.md}`
+
+**Interfaces:**
+
+- Consumes: official `openspec new change`, `openspec status --change <name> --json`, and `openspec instructions <artifact> --change <name> --json`.
+
+- Produces: one active, validated OpenSpec change per repository. These records bind the later pin, generated-surface, and runtime-contract edits without treating OpenSpec as a second command plane.
+
+- [ ] **Step 1: Create the three isolated worktrees before their carrier files exist**
+
+The ETHOS worktree already exists at `/Users/yheng/projects/ethos-worktrees/openspec-1-6-local-upgrade-20260711`. Create the remaining isolated worktrees with:
+
+```bash
+cd /Users/yheng/projects/alphasim-dmgr-fix-b3
+pixi run ethos lane start openspec-1-6 \
+  --path /Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6 \
+  --holder-ref agent:codex:thread:019f4fbf-b0b7-7e22-85ea-9c546512972e \
+  --apply --json
+
+cd /Users/yheng/projects/di-effect
+git worktree add \
+  /Users/yheng/projects/di-effect-task-openspec-1-6 \
+  -b task/openspec-1-6 dev
+```
+
+Expected: an owned alphasim `work/openspec-1-6` lane and a di-effect `task/openspec-1-6` worktree. Do not write a carrier from any protected primary checkout.
+
+- [ ] **Step 2: Create change directory skeletons through the official CLI**
+
+Run:
+
+```bash
+cd /Users/yheng/projects/ethos-worktrees/openspec-1-6-local-upgrade-20260711
+openspec new change upgrade-openspec-1-6-tool-supply
+
+cd /Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6
+openspec new change upgrade-openspec-1-6-workflow
+
+cd /Users/yheng/projects/di-effect-task-openspec-1-6
+openspec new change upgrade-openspec-1-6-agentic-runtime
+```
+
+Expected: each directory contains CLI-created `.openspec.yaml` and the active carrier is visible through `openspec list --json`.
+
+- [ ] **Step 3: Read the official artifact instructions before drafting the carrier**
+
+Run once per repository, replacing `<change>` with its Task 0 change id:
+
+```bash
+openspec status --change <change> --json
+openspec instructions proposal --change <change> --json
+openspec instructions design --change <change> --json
+openspec instructions tasks --change <change> --json
+```
+
+Expected: the JSON output names the authoritative artifact order and the schema-specific delta path. Do not infer a file shape from a previous OpenSpec release.
+
+- [ ] **Step 4: Write bounded proposal, design, task, and delta artifacts**
+
+Each proposal identifies the exact version `1.6.0`, affected source and host projections, verification commands from Tasks 1-5, a rollback that reverts only its own lane commit, and the exclusion of archival records and foreign worktrees. Each design states that official 1.6 validation occurs before repository-local gates. Each tasks file lists only the matching repository's edits and proof. Each delta spec states one requirement: current OpenSpec supply and generated projection surfaces use the official `1.6.0` release and retain repository authority boundaries.
+
+- [ ] **Step 5: Validate all active carriers before code/config mutation**
+
+Run:
+
+```bash
+for root in \
+  /Users/yheng/projects/ethos-worktrees/openspec-1-6-local-upgrade-20260711 \
+  /Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6 \
+  /Users/yheng/projects/di-effect-task-openspec-1-6; do
+  (cd "$root" && openspec validate --all --strict --json)
+done
+```
+
+Expected: no failed change or spec item. Repair the owning carrier before starting its source/configuration task.
+
 ## Task 1: Upgrade the shared OpenSpec profile for subsequent Codex projections
 
 **Files:**
@@ -227,18 +309,16 @@ Expected: one isolated ETHOS commit with no historical evidence edits.
 
 - Produces: `pixi run openspec`, `just openspec`, Codex, and Claude all use the six-workflow official OpenSpec 1.6 projection.
 
-- [ ] **Step 1: Create the alphasim Work Lane from its clean accepted root**
+- [ ] **Step 1: Confirm the Task 0 alphasim Work Lane is the only mutation target**
 
-Run from `/Users/yheng/projects/alphasim-dmgr-fix-b3`:
+Run:
 
 ```bash
-pixi run ethos lane start openspec-1-6 \
-  --path /Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6 \
-  --holder-ref agent:codex:thread:019f4fbf-b0b7-7e22-85ea-9c546512972e \
-  --apply --json
+git -C /Users/yheng/projects/alphasim-dmgr-fix-b3-openspec-1-6 status --short --branch
+git -C /Users/yheng/projects/alphasim-dmgr-fix-b3 status --short --branch
 ```
 
-Expected: an owned `work/openspec-1-6` linked worktree. Do not edit the primary checkout, which contains untracked `.agents/skills/openspec-*` residue.
+Expected: the Work Lane is on `work/openspec-1-6`; the primary checkout's untracked `.agents/skills/openspec-*` residue remains outside the lane and is not staged.
 
 - [ ] **Step 2: Write failing architecture assertions for exact pins and the new generated workflow**
 
@@ -346,17 +426,16 @@ Expected: one Work Lane commit; no `.agents/skills/openspec-*` file is added.
 
 - Produces: a runtime checker that reports an error if either tracked supply surface drifts from `1.6.0`.
 
-- [ ] **Step 1: Create an isolated di-effect task worktree**
+- [ ] **Step 1: Confirm the Task 0 di-effect worktree isolates user changes**
 
-Run from `/Users/yheng/projects/di-effect`:
+Run:
 
 ```bash
-git worktree add \
-  /Users/yheng/projects/di-effect-task-openspec-1-6 \
-  -b task/openspec-1-6 dev
+git -C /Users/yheng/projects/di-effect-task-openspec-1-6 status --short --branch
+git -C /Users/yheng/projects/di-effect status --short --branch
 ```
 
-Expected: a linked `task/openspec-1-6` worktree based on `dev`. Preserve the two unrelated modified source files in the primary checkout.
+Expected: the task worktree is on `task/openspec-1-6` and clean before carrier creation; the primary checkout still contains its two unrelated modified source files and they do not appear in the task worktree.
 
 - [ ] **Step 2: Write a failing runtime-contract test**
 

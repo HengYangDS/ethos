@@ -14,6 +14,7 @@ import pytest
 
 import ethos.adapters.admission.core as admission
 import ethos.adapters.admission.prewrite as prewrite
+import ethos.adapters.admission.transitions as transitions
 import ethos.adapters.mutation.lane_lifecycle.handoff.core as handoff
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
 import ethos.adapters.mutation.lane_lifecycle.lease as lease_ops
@@ -715,10 +716,10 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
         )["state"]
         == "admitted"
     )
-    assert admission._work_lane_lease_transition_gaps(
+    assert transitions._work_lane_lease_transition_gaps(
         branch="work/example", lease={}, actor="", old_value="a"
     ) == ["work_lane_missing_lease:work/example"]
-    assert admission._work_lane_lease_transition_gaps(
+    assert transitions._work_lane_lease_transition_gaps(
         branch="work/example",
         lease={"normalization_state": "bad", "holder_ref": "", "expected_head": "b"},
         actor="agent",
@@ -729,9 +730,9 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
         "lease_generation_missing:work/example",
         "lease_head_stale:b!=a",
     ]
-    assert admission._control_state_db({}, tmp_path) == tmp_path / ".ethos/state/state.sqlite"
+    assert transitions._control_state_db({}, tmp_path) == tmp_path / ".ethos/state/state.sqlite"
     assert (
-        admission._control_state_db(
+        transitions._control_state_db(
             {
                 "worktrees": [
                     {"role": "work_lane", "path": tmp_path.as_posix()},
@@ -744,17 +745,17 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
     )
     assert admission._string_list("bad") == []
 
-    monkeypatch.setattr(admission, "workspace_status", lambda _root: {"worktrees": []})
+    monkeypatch.setattr(transitions, "workspace_status", lambda _root: {"worktrees": []})
     monkeypatch.setattr(
-        admission, "leases_by_branch", lambda *args, **kwargs: {"work/example": _lease_payload()}
+        transitions, "leases_by_branch", lambda *args, **kwargs: {"work/example": _lease_payload()}
     )
-    monkeypatch.setattr(admission.os, "environ", {"ETHOS_ACTOR": "agent:test:case:holder"})
+    monkeypatch.setattr(transitions.os, "environ", {"ETHOS_ACTOR": "agent:test:case:holder"})
     monkeypatch.setattr(
-        admission,
+        transitions,
         "advance_lease_head",
         lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("stale")),
     )
-    failed = admission.work_lane_ref_transition_report(
+    failed = transitions.work_lane_ref_transition_report(
         root=tmp_path,
         phase="committed",
         ref_name="refs/heads/work/example",

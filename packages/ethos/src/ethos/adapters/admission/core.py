@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import os
 import subprocess
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -14,15 +12,18 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import executed_proof_record
-from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
-from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
+__all__ = ["work_lane_ref_transition_report"]
+
+
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
@@ -348,118 +349,6 @@ def ref_move_admission_report(
             decision={"action": "block", "reason": reason},
         )
     return base
-
-
-def work_lane_ref_transition_report(
-    *,
-    root: Path,
-    phase: str,
-    ref_name: str,
-    old_value: str,
-    new_value: str,
-) -> dict[str, object]:
-    """Check or record one Work Lane ref transition against its current lease.
-
-    ``prepared`` is the blocking admission point. ``committed`` updates ignored
-    local coordination after Git has won; failure there is repair-required rather
-    than an atomic rollback claim.
-    """
-    repo = root.resolve()
-    status = workspace_status(repo)
-    branch = ref_name.removeprefix("refs/heads/")
-    if old_value in {_ZERO_OID, ""}:
-        return {
-            "ok": True,
-            "state": "admitted",
-            "phase": phase,
-            "ref": ref_name,
-            "branch": branch,
-            "old_value": old_value,
-            "new_value": new_value,
-            "lease": {},
-            "decision": {"action": "allow", "reason": "lane_creation_saga_started"},
-            "required_gaps": [],
-        }
-    worktrees = cast("list[dict[str, str]]", status.get("worktrees", []))
-    leases = leases_by_branch(worktrees, current_path=repo)
-    lease = leases.get(branch, {})
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    gaps = _work_lane_lease_transition_gaps(
-        branch=branch,
-        lease=lease,
-        actor=actor,
-        old_value=old_value,
-    )
-    base: dict[str, object] = {
-        "ok": not gaps,
-        "state": "admitted" if not gaps else "blocked",
-        "phase": phase,
-        "ref": ref_name,
-        "branch": branch,
-        "old_value": old_value,
-        "new_value": new_value,
-        "lease": lease,
-        "decision": {
-            "action": "allow" if not gaps else "block",
-            "reason": "work_lane_ref_transition_admitted"
-            if not gaps
-            else "work_lane_ref_transition_stale",
-        },
-        "required_gaps": gaps,
-    }
-    if gaps or phase != "committed":
-        return base
-    try:
-        updated = advance_lease_head(
-            _control_state_db(status, repo),
-            subject=branch,
-            holder_ref=actor,
-            expected_lease_id=str(lease.get("lease_id") or lease.get("id") or ""),
-            expected_epoch=integer_value(lease.get("epoch")),
-            old_head=old_value,
-            new_head=new_value,
-        )
-    except ValueError as exc:
-        gap = str(exc)
-        return {
-            **base,
-            "ok": False,
-            "state": "repair_required",
-            "decision": {"action": "block", "reason": "lease_head_update_failed"},
-            "required_gaps": [gap],
-        }
-    return {
-        **base,
-        "state": "lease_head_advanced",
-        "lease": updated,
-        "decision": {"action": "allow", "reason": "lease_head_advanced"},
-    }
-
-
-def _work_lane_lease_transition_gaps(
-    *, branch: str, lease: dict[str, object], actor: str, old_value: str
-) -> list[str]:
-    gaps: list[str] = []
-    if not lease:
-        return [f"work_lane_missing_lease:{branch}"]
-    if str(lease.get("normalization_state") or "") != "normalized":
-        gaps.append(f"lane_lease_legacy_ambiguous:{branch}")
-    holder = str(lease.get("holder_ref") or "")
-    if not holder or holder != actor:
-        gaps.append(f"lease_holder_mismatch:{branch}")
-    if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:
-        gaps.append(f"lease_generation_missing:{branch}")
-    expected_head = str(lease.get("expected_head") or "")
-    if expected_head != old_value:
-        gaps.append(f"lease_head_stale:{expected_head}!={old_value}")
-    return gaps
-
-
-def _control_state_db(status: dict[str, object], repo: Path) -> Path:
-    for worktree in cast("list[dict[str, str]]", status.get("worktrees", [])):
-        if worktree.get("role") == "accepted_root" and worktree.get("path"):
-            return Path(worktree["path"]) / ".ethos" / "state" / "state.sqlite"
-    return repo / ".ethos" / "state" / "state.sqlite"
 
 
 def _normalize_layer(layer: str) -> str:

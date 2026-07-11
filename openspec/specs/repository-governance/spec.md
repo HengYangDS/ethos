@@ -1418,7 +1418,7 @@ The generated-artifact entrypoint audit SHALL evaluate executable producer comma
 - **THEN** the entrypoint audit emits the corresponding denied-home producer gap
 - **AND** declaration-only filtering does not suppress the finding
 
-### Requirement: Checkout-bound semantic runtime bootstrap
+### Requirement: Worktree-bound semantic runtime bootstrap
 
 ETHOS SHALL provide one repository-owned runtime bootstrap for product Python
 execution. The bootstrap MUST bind `UV_PROJECT_ENVIRONMENT` to

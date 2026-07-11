@@ -37,15 +37,15 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     current_head = git_adapter.current_tracked_head(repo)
-    claim_report = claims_report(repo, current_head=current_head)
+    audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
+    product_profile = audit_profile == "product"
+    claim_report = claims_report(repo, current_head=current_head, adopter_mode=not product_profile)
     command_report = command_registry_report(repo)
     projection = projection_contract()
     schemas_report = schema_validation_report(repo)
     evolution = evolution_report(repo)
     signature = signature_policy_report(repo)
     workflow_runtime = workflow_runtime_report(repo)
-    audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
-    product_profile = audit_profile == "product"
     playbooks = playbooks_report(repo, mode="v2-strict")
     adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()

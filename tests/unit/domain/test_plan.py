@@ -131,10 +131,11 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
     monkeypatch.setattr(
         plan,
         "claims_report",
-        lambda _repo, *, current_head: {
+        lambda _repo, *, current_head, adopter_mode: {
             "ok": False,
             "head": current_head,
-            "required_gaps": ["claims_missing", "digest_stale:x"],
+            "adopter_mode": adopter_mode,
+            "required_gaps": ["digest_stale:x"],
         },
     )
     monkeypatch.setattr(
@@ -195,7 +196,12 @@ def test_rule_fact_snapshot_marks_missing_prewrite_guard_unavailable(tmp_path, m
     monkeypatch.setattr(
         plan,
         "claims_report",
-        lambda _repo, *, current_head: {"ok": True, "head": current_head, "required_gaps": []},
+        lambda _repo, *, current_head, adopter_mode: {
+            "ok": True,
+            "head": current_head,
+            "adopter_mode": adopter_mode,
+            "required_gaps": [],
+        },
     )
     monkeypatch.setattr(
         plan,
@@ -216,8 +222,8 @@ def test_rule_fact_snapshot_converts_adapter_failures_to_unavailable_facts(tmp_p
     def explode(_repo):
         raise RuntimeError(BOOM_MESSAGE)
 
-    def explode_claims(_repo, *, current_head: str):
-        del current_head
+    def explode_claims(_repo, *, current_head: str, adopter_mode: bool):
+        del current_head, adopter_mode
         raise RuntimeError(BOOM_MESSAGE)
 
     monkeypatch.setattr(plan, "workspace_status", explode)

@@ -14,6 +14,7 @@ from ethos.domain.land.publication import remote_publication_deferred
 from ethos.domain.land.trust.core import trust_closeout_package
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
+from ethos.repository.context import is_product_root
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import shadow_parity_report
@@ -32,7 +33,11 @@ def campaign_closeout_report(
 ) -> dict[str, object]:
     """Compose the full campaign-closeout report (local readiness + parity + trust)."""
     status_payload = workspace_status(repo)
-    claim_report = claims_report(repo, current_head=git_adapter.current_tracked_head(repo))
+    claim_report = claims_report(
+        repo,
+        current_head=git_adapter.current_tracked_head(repo),
+        adopter_mode=not is_product_root(repo),
+    )
     intake_projection = intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)

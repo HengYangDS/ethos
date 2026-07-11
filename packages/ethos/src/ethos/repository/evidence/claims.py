@@ -456,14 +456,22 @@ def _trust_envelope(
     }
 
 
-def claims_report(root: Path, *, current_head: str = "") -> dict[str, object]:
+def claims_report(
+    root: Path, *, current_head: str = "", adopter_mode: bool = False
+) -> dict[str, object]:
+    """Report claim trust envelopes; an adopter with zero claims yet is not a gap.
+
+    `adopter_mode` reclassifies `claims_missing` from required to advisory: a freshly
+    scaffolded adopter has authored no claims yet, and there is no onboarding path that
+    fixes that except writing one, so it must not read as blocking.
+    """
     claims_dir = profile_root(root, "claims")
     gaps: list[str] = []
     advisory_gaps: list[str] = []
     claims: dict[str, dict[str, object]] = {}
     claim_paths = sorted(claims_dir.rglob("*.toml")) if claims_dir.exists() else []
     if not claim_paths:
-        gaps.append("claims_missing")
+        (advisory_gaps if adopter_mode else gaps).append("claims_missing")
     for path in claim_paths:
         payload = _claim_payload(path)
         if "claim" not in payload and ("id" in payload or "evidence_refs" in payload):

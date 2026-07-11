@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -114,6 +115,61 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     assert "adopters" in contract["product_adopter_root_prefixes"]
 
 
+def test_source_bound_uv_runner_uses_semantic_runtime_homes() -> None:
+    declaration = load_generated_artifact_topology_declaration(
+        Path("system/policies/generated-artifact-topology.toml")
+    )
+    runner = Path("tools/ci/scripts/run-ethos-lane.sh").read_text(encoding="utf-8")
+
+    assert "build/runtime/venv" in declaration.runtime_allowed_prefixes
+    assert (
+        path_policy_from_declaration("build/runtime/venv/bin/python", declaration)["decision"]
+        == "allow"
+    )
+    assert (
+        'UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-${repo_root}/build/runtime/venv}"'
+        in runner
+    )
+    assert 'UV_CACHE_DIR="${UV_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/uv}"' in runner
+    assert "uv run --package ethos ethos" in runner
+
+
+def test_source_bound_uv_runner_exports_semantic_homes_without_syncing_uv(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    fake_uv = tmp_path / "bin" / "uv"
+    fake_uv.parent.mkdir()
+    fake_uv.write_text(
+        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+    runner = Path("tools/ci/scripts/run-ethos-lane.sh").resolve()
+    environment = dict(os.environ)
+    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
+    environment.pop("UV_PROJECT_ENVIRONMENT", None)
+    environment.pop("UV_CACHE_DIR", None)
+
+    completed = subprocess.run(
+        [runner.as_posix(), "status", "--json"],
+        cwd=repo,
+        env=environment,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    assert completed.stdout.splitlines() == [
+        f"{repo}/build/runtime/venv",
+        f"{repo}/build/runtime/tool-cache/uv",
+        "run --package ethos ethos status --json",
+    ]
+    assert (repo / "build/runtime/venv").is_dir()
+    assert (repo / "build/runtime/tool-cache/uv").is_dir()
+
+
 def test_path_policy_keeps_config_declarative_and_build_generated() -> None:
     config = path_policy_for(".config/ethos/policy.toml")
     build = path_policy_for("build/ethos/proof/report.json")
@@ -150,7 +206,9 @@ def test_path_policy_treats_package_locks_as_metadata_not_generated_drift() -> N
     assert pyproject["generated"] is False
 
 
-def test_generated_artifact_report_allows_source_owned_json_schemas(tmp_path: Path) -> None:
+def test_generated_artifact_report_allows_source_owned_json_schemas(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     schema = repo / "packages" / "sample" / "schemas" / "contract.schema.json"
@@ -181,7 +239,9 @@ def test_generated_artifact_report_blocks_root_generated_output(tmp_path: Path) 
     assert "generated_artifact_repo_root_drift:coverage.xml" in report["required_gaps"]
 
 
-def test_generated_artifact_report_blocks_tracked_generated_home(tmp_path: Path) -> None:
+def test_generated_artifact_report_blocks_tracked_generated_home(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     output = repo / "packages" / "sample" / "report.json"
@@ -249,7 +309,9 @@ def test_generated_artifact_report_allows_package_metadata(tmp_path: Path) -> No
     assert report["required_gaps"] == []
 
 
-def test_generated_artifact_report_tolerates_ignored_root_test_residue(tmp_path: Path) -> None:
+def test_generated_artifact_report_tolerates_ignored_root_test_residue(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     (repo / ".gitignore").write_text(
@@ -273,7 +335,9 @@ def test_generated_artifact_report_tolerates_ignored_root_test_residue(tmp_path:
     }
 
 
-def test_generated_artifact_report_blocks_tracked_root_test_residue(tmp_path: Path) -> None:
+def test_generated_artifact_report_blocks_tracked_root_test_residue(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
     (repo / ".gitignore").write_text(".coverage.*\n", encoding="utf-8")
@@ -289,7 +353,9 @@ def test_generated_artifact_report_blocks_tracked_root_test_residue(tmp_path: Pa
     assert "generated_artifact_repo_root_drift:.coverage.worker" in report["required_gaps"]
 
 
-def test_entrypoint_audit_ignores_directories_matching_entrypoint_globs(tmp_path: Path) -> None:
+def test_entrypoint_audit_ignores_directories_matching_entrypoint_globs(
+    tmp_path: Path,
+) -> None:
     repo = tmp_path / "repo"
     (repo / "tools" / "ci" / "scripts" / "directory-entry").mkdir(parents=True)
 

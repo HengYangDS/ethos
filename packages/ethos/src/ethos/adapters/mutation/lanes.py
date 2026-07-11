@@ -61,6 +61,7 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
             "state": "planned",
             "branch": branch,
             "path": target.as_posix(),
+            "runner_bootstrap": _runner_bootstrap(target),
             "required_gaps": [],
         }
     status = workspace_status(repo)
@@ -149,6 +150,7 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
         "holder_ref": normalized_holder_ref,
         "claim_id": claim_id or "",
         "lease": lease,
+        "runner_bootstrap": _runner_bootstrap(target),
         "required_gaps": [],
     }
 
@@ -327,6 +329,17 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
         "head": head,
         "role": ROLE_WORK_LANE,
         "worktree_binding": "linked",
+    }
+
+
+def _runner_bootstrap(target: Path) -> dict[str, str]:
+    """Return the non-mutating source-bound runner contract for a new lane."""
+    resolved = target.resolve().as_posix()
+    return {
+        "command": "tools/ci/scripts/run-ethos-lane.sh",
+        "project_environment": "build/runtime/venv",
+        "uv_cache": "build/runtime/tool-cache/uv",
+        "next_action": (f"cd {resolved} && tools/ci/scripts/run-ethos-lane.sh status --json"),
     }
 
 

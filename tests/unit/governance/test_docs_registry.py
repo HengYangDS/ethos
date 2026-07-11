@@ -161,6 +161,25 @@ ethos lane nope --json
     assert "unknown_ethos_command_example:README.md:5:ethos lane nope" in report["required_gaps"]
 
 
+def test_command_examples_accept_lane_resolution_receipt_commands(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+ethos lane resolution inventory --json
+ethos lane resolution clear --decision-id <decision-id> --break-glass --confirm-irreversible --apply
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+
+
 def test_command_examples_validate_wrapped_uv_ethos_commands(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "README.md").write_text(

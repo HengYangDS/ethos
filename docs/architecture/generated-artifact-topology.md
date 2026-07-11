@@ -37,6 +37,7 @@ not a second hand-written topology table.
 | `.config/ethos/` | Declarative config, policy, and adopter interface only. | No | Yes |
 | `.cache/local-state/` and `.ethos/state/` | Host-local runtime state, leases, locks, executions, sessions. | Yes | No |
 | `build/runtime/tool-cache/` | Tool runtime caches keyed by tool name. | Yes | No |
+| `build/runtime/venv/` | Source-bound virtual environments for Work Lane runners. | Yes | No |
 | `build/runtime/work/` | Provider emulator state and scratch working state. | Yes | No |
 | `build/ethos/` | Machine proof, logs, reports, artifacts, and projections. | Yes | No |
 | `build/evidence/` | Machine evidence bundles before review/promotion. | Yes | No |
@@ -79,7 +80,9 @@ Root cache homes such as `.import_linter_cache/`, `.import-linter-cache/`,
 `.pytest_cache/`, `.ruff_cache/`, `.mypy_cache/`, `.tox/`, `.nox/`,
 `.uv-cache/`, and root `dist/` are denied even when ignored. They are local
 residue, not semantic topology. Route them to `build/runtime/tool-cache/<tool>/`
-or `build/artifacts/<kind>/`. Retired flat homes such as `build/cache/` and
+or `build/artifacts/<kind>/`. New Work Lane Python environments belong under
+`build/runtime/venv/` through `tools/ci/scripts/run-ethos-lane.sh`, not root
+`.venv/`. Retired flat homes such as `build/cache/` and
 `build/runtime/gitlab-ci-local/` are also denied; use
 `build/runtime/tool-cache/<tool>/` and `build/runtime/work/gitlab-ci-local/`
 instead.
@@ -92,7 +95,7 @@ how is it regenerated, and how is it cleaned up?
 
 | Lifecycle | Homes | Truth boundary | Cleanup / promotion rule |
 | --- | --- | --- | --- |
-| Runtime cache | `.cache/local-state/`, `.ethos/state/`, `build/runtime/tool-cache/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
+| Runtime cache | `.cache/local-state/`, `.ethos/state/`, `build/runtime/tool-cache/`, `build/runtime/venv/`, `build/runtime/work/` | Disposable host-local or provider-local state. | Never promote. Delete or recreate from source commands. |
 | Machine evidence | `build/evidence/`, `build/ethos/` | Generated, HEAD-bound command output before review. | Regenerate on HEAD movement. Promote only by explicit review or command into curated evidence. |
 | Local artifact | `build/artifacts/` | Rebuildable package/build output. | Never treat as repository truth. Rebuild from package metadata or release commands. |
 | Curated evidence | `docs/evidence/`, `evidence/chronicle/`, `evidence/parity/` | Reviewed, dated, tracked repository evidence. | Retire or supersede through tracked change; do not clean as cache. |
@@ -121,7 +124,8 @@ runtime command -> build/evidence/<concern>/... or build/ethos/<concern>/...
 ```
 
 Runtime caches under `.cache/local-state/`, `.ethos/state/`,
-`build/runtime/tool-cache/`, or `build/runtime/work/` are outside this path and
+`build/runtime/tool-cache/`, `build/runtime/venv/`, or `build/runtime/work/`
+are outside this path and
 must never be promoted. Local artifacts under `build/artifacts/` are rebuilt
 from source/package metadata rather than promoted as truth.
 

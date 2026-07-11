@@ -67,3 +67,43 @@ class LaneResolutionDecision(BaseModel):
             "reusable_authorization": False,
             "mints_authority": False,
         }
+
+
+class LaneResolutionReceipt(BaseModel):
+    """Immutable local completion record for one lane-resolution decision."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    receipt_id: str = Field(min_length=1)
+    decision_id: str = Field(min_length=1)
+    disposition: LaneDisposition
+    completed: Literal[True]
+    state: str = Field(min_length=1)
+    observation_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    reconciliation_required: bool
+    lane_ref: str = Field(min_length=1)
+    head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    preservation_package: str = ""
+    preservation_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$|^$")
+    mints_authority: Literal[False]
+
+    def to_payload(self) -> dict[str, object]:
+        return self.model_dump(mode="json")
+
+
+class LaneResolutionClearReceipt(BaseModel):
+    """Immutable local record for one approved recovery-package removal."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    clear_receipt_id: str = Field(min_length=1)
+    decision_id: str = Field(min_length=1)
+    manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    chronicle_ref: str = Field(min_length=1)
+    chronicle_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    reason: str = Field(min_length=1)
+    completed: Literal[True]
+    mints_authority: Literal[False]
+
+    def to_payload(self) -> dict[str, object]:
+        return self.model_dump(mode="json")

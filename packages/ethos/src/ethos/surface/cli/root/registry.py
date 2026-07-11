@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import importlib
 
+from ethos.surface.cli._base import app
+from ethos.surface.cli.quality.registry import register_declared_group
+
 ROOT_COMMAND_MODULES = (
     "adoption",
-    "inspection",
     "lifecycle",
     "planning",
     "proof",
@@ -15,6 +17,7 @@ ROOT_COMMAND_MODULES = (
 
 
 def load_root_commands() -> None:
-    """Import root command modules for decorator registration."""
+    """Bind declared root readers before importing bounded legacy command modules."""
+    register_declared_group(app, "root")
     for name in ROOT_COMMAND_MODULES:
         importlib.import_module(f"ethos.surface.cli.root.{name}")

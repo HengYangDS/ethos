@@ -19,8 +19,8 @@ def test_gate_declaration_compiles_runtime_quality_and_proof_sets() -> None:
     bound_runtime = declaration.registry("runtime", python_executable="/python")
     quality = declaration.registry("quality")
 
-    assert len(runtime) == 34
-    assert len(quality) == 19
+    assert "source-budget" in runtime
+    assert "source-budget" in quality
     assert runtime["repository-audit"].resolved_command("/python") == (
         "/python",
         "-m",

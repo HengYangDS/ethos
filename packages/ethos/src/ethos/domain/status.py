@@ -82,7 +82,7 @@ def adopter_audit(root: Path) -> dict[str, object]:
     """Compose the adopter-repository audit (adopter + schema + claims + docs)."""
     adopter = inspect_adopter(root)
     schemas = schema_validation_report(root)
-    claims = claims_report(root, current_head=git_current_head(root))
+    claims = claims_report(root, current_head=git_current_head(root), adopter_mode=True)
     docs = docs_health_report(root)
     gaps = list(cast("list[str]", adopter["required_gaps"])) + [
         f"schema:{gap}" for gap in cast("list[str]", schemas["required_gaps"])

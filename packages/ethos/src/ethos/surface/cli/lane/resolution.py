@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
+from typing import cast
 
 from cyclopts import Parameter
 
@@ -48,7 +49,7 @@ def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={"branch": report["branch"]},
-        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        required_gaps=tuple(str(gap) for gap in cast("list[object]", report["required_gaps"])),
         next_actions=(),
         data=report,
     )
@@ -117,8 +118,8 @@ def lane_resolution_inventory_command(
         command="lane resolution inventory",
         ok=bool(report["ok"]),
         state=str(report["state"]),
-        summary=dict(report["summary"]),
-        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        summary=dict(cast("dict[str, object]", report["summary"])),
+        required_gaps=tuple(str(gap) for gap in cast("list[object]", report["required_gaps"])),
         next_actions=(),
         data=report,
     )
@@ -150,7 +151,7 @@ def lane_resolution_clear(
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={"decision_id": options.decision_id},
-        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        required_gaps=tuple(str(gap) for gap in cast("list[object]", report["required_gaps"])),
         next_actions=("ethos lane resolution inventory --json",) if report["ok"] else (),
         data=report,
     )

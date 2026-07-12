@@ -1,19 +1,21 @@
-schema_version = 1
+[claim]
 id = "explain-signal-language"
-summary = "Explain projects governance gaps and advisory signals without required-gap overclaim."
-state = "accepted"
 subject = "command-plane:explain-signal-language"
-evidence = "evidence/chronicle/explain-signal-language/2026-07-07.md"
+state = "accepted"
+summary = "Explain projects governance gaps and advisory signals without required-gap overclaim."
 
-[bindings]
-head = "708ea3e4570d22d42dfe6f374055ce5c3f931298"
+[evidence]
+dated = "evidence/chronicle/explain-signal-language/2026-07-07.md"
+sha256 = "cfc6e776755c66384f5c56f143bb1919413995d040f9e584b5469d8526017e60"
+tests = [
+  "tests/unit/cli/test_invalid_state_projection.py::test_explain_projects_advisory_signal_without_required_gap_overclaim",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-explain-signal-language"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/cli/test_invalid_state_projection.py::test_explain_projects_advisory_signal_without_required_gap_overclaim"
-
-[[promotion_targets]]
-path = "packages/ethos-core/src/ethos_core/state/invalid.py"
+[promotion]
+targets = ["packages/ethos-core/src/ethos_core/state/invalid.py"]

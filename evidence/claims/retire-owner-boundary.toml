@@ -1,23 +1,22 @@
-schema_version = 1
+[claim]
 id = "retire-owner-boundary"
-summary = "Landed Work Lane retirement is bound to lane lease ownership instead of visibility alone."
-state = "accepted"
 subject = "repository-governance:retire-owner-boundary"
-evidence = "evidence/chronicle/retire-owner-boundary/2026-07-07.md"
+state = "accepted"
+summary = "Landed Work Lane retirement is bound to lane lease ownership instead of visibility alone."
 
-[bindings]
-head = "20af266fb262f71f77045ded84110840fc9a2e7a"
+[evidence]
+dated = "evidence/chronicle/retire-owner-boundary/2026-07-07.md"
+sha256 = "58f05e5d7b84dcc32c4e2b8922cfc2f686851d1bc2e7dc5e786811fbc3d17464"
+tests = [
+  "tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority",
+  "tests/unit/lanes/test_lanes_retire.py::test_retire_landed_work_lane_requires_matching_owner_for_leased_lane",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-retire-owner-boundary"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/lanes/test_lanes_retire.py::test_retire_landed_work_lane_requires_matching_owner_for_leased_lane"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py"
+[promotion]
+targets = ["packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py"]

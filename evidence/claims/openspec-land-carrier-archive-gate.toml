@@ -1,27 +1,26 @@
-schema_version = 1
+[claim]
 id = "openspec-land-carrier-archive-gate"
-summary = "Work Lane active OpenSpec carriers are blocked at land admission until archived and fused."
-state = "accepted"
 subject = "repository-governance:openspec-land-carrier-archive-gate"
-evidence = "evidence/chronicle/openspec-land-carrier-archive-gate/2026-07-07.md"
+state = "accepted"
+summary = "Work Lane active OpenSpec carriers are blocked at land admission until archived and fused."
+
+[evidence]
+dated = "evidence/chronicle/openspec-land-carrier-archive-gate/2026-07-07.md"
+sha256 = "33fa4b23b9709558d9ab1ddc17e1c83df62f3a3c7845b94a7237789a04d5b525"
+tests = [
+  "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_any_active_openspec_carrier_before_land",
+  "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_unarchived_openspec_carriers",
+  "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_active_openspec_carriers_on_closeout",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-openspec-land-carrier-archive-gate"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_any_active_openspec_carrier_before_land"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_unarchived_openspec_carriers"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_active_openspec_carriers_on_closeout"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/mutation/core.py"
-
-[[promotion_targets]]
-path = "tests/unit/coverage/test_core_state_claims_edges.py"
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "tests/unit/coverage/test_core_state_claims_edges.py",
+]

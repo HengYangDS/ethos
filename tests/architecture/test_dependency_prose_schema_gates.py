@@ -6,23 +6,10 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from tests.support.architecture import run_json
+from tests.support.architecture import tool_block
+
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def _run_json(command: list[str]) -> dict[str, object]:
-    result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=True)
-    return json.loads(result.stdout)
-
-
-def _tool_block(concern: str) -> str:
-    text = (ROOT / "system" / "tools.toml").read_text(encoding="utf-8")
-    marker = f'concern = "{concern}"'
-    assert marker in text
-    before, after = text.split(marker, 1)
-    block_start = before.rfind("[[tool]]")
-    next_block = after.find("[[tool]]")
-    body = marker + (after if next_block == -1 else after[:next_block])
-    return before[block_start:] + body
 
 
 def test_dependency_hygiene_runs_per_distribution_and_writes_summary() -> None:
@@ -30,7 +17,7 @@ def test_dependency_hygiene_runs_per_distribution_and_writes_summary() -> None:
     assert {item["id"] for item in config["package"]} == {"ethos", "ethos-core"}
     assert config["runner"] == "tools/ci/scripts/run-dependency-hygiene.sh"
 
-    payload = _run_json(["tools/ci/scripts/run-dependency-hygiene.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-dependency-hygiene.sh"])
     persisted = json.loads(
         (ROOT / "build/evidence/quality/dependency/summary.json").read_text(encoding="utf-8")
     )
@@ -51,7 +38,7 @@ def test_prose_and_schema_gates_are_report_first_owner_surfaces() -> None:
     assert schema["runner"] == "tools/ci/scripts/run-json-schema-check.sh"
     assert schema["check"][0]["mode"] == "metaschema"
 
-    schema_payload = _run_json(["tools/ci/scripts/run-json-schema-check.sh"])
+    schema_payload = run_json(ROOT, ["tools/ci/scripts/run-json-schema-check.sh"])
     assert schema_payload["status"] == "ok"
     subprocess.run(["tools/ci/scripts/run-prose-check.sh"], cwd=ROOT, check=True)
 
@@ -70,7 +57,7 @@ def test_active_dependency_prose_schema_gates_have_all_owner_surfaces() -> None:
     runbook = (ROOT / "docs/reference/runbook-registry.md").read_text(encoding="utf-8")
 
     for concern, gate in active.items():
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         script = ROOT / gate
         assert f'gate = "{gate}"' in block
         assert "planned = true" not in block
@@ -87,7 +74,7 @@ def test_python_vulnerability_audit_scans_uv_exported_resolved_input() -> None:
     assert "uv export" in config["pip_audit"]["input"]
     assert "pip-audit reads uv.lock directly" in config["pip_audit"]["forbidden_claims"]
 
-    payload = _run_json(["tools/ci/scripts/run-python-vulnerability-audit.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-python-vulnerability-audit.sh"])
     persisted = json.loads(
         (ROOT / "build/evidence/quality/security/python-vulnerability-audit.json").read_text(
             encoding="utf-8"
@@ -110,7 +97,7 @@ def test_non_pip_vulnerability_scanners_remain_planned() -> None:
     assert config["osv_scanner"]["state"] == "planned_profile_gate"
 
     for concern in ["osv_vuln", "image_package_scan", "signing"]:
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert "planned = true" in block
 
 

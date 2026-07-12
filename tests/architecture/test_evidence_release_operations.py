@@ -2,41 +2,21 @@ from __future__ import annotations
 
 import json
 import stat
-import subprocess
 import tomllib
 from pathlib import Path
 
+from tests.support.architecture import run_json
+from tests.support.architecture import tool_block
+
 ROOT = Path(__file__).resolve().parents[2]
 SHA256_HEX_LENGTH = 64
-
-
-def _run_json(command: list[str]) -> dict[str, object]:
-    result = subprocess.run(
-        command,
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return json.loads(result.stdout)
-
-
-def _tool_block(concern: str) -> str:
-    text = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
-    marker = f'concern = "{concern}"'
-    assert marker in text
-    before, after = text.split(marker, 1)
-    block_start = before.rfind("[[tool]]")
-    next_block = after.find("[[tool]]")
-    body = marker + (after if next_block == -1 else after[:next_block])
-    return before[block_start:] + body
 
 
 def test_closeout_manifest_hashes_reviewed_evidence_carriers() -> None:
     config = tomllib.loads((ROOT / ".config/checks/evidence/closeout.toml").read_text())
     assert config["output"] == "build/evidence/workflow/closeout/manifest.json"
 
-    payload = _run_json(["tools/ci/scripts/run-closeout-evidence-manifest.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-closeout-evidence-manifest.sh"])
     persisted = json.loads(
         (ROOT / "build/evidence/workflow/closeout/manifest.json").read_text(encoding="utf-8")
     )
@@ -56,7 +36,7 @@ def test_closeout_manifest_hashes_reviewed_evidence_carriers() -> None:
 
 
 def test_local_state_audit_keeps_generated_state_out_of_repository_truth() -> None:
-    payload = _run_json(["tools/ci/scripts/run-local-state-audit.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-local-state-audit.sh"])
     persisted = json.loads((ROOT / "build/evidence/local-state/audit.json").read_text())
 
     assert payload == persisted
@@ -66,7 +46,7 @@ def test_local_state_audit_keeps_generated_state_out_of_repository_truth() -> No
 
 
 def test_release_supply_chain_uses_ethos_native_envelopes_without_publication_claims() -> None:
-    payload = _run_json(["tools/ci/scripts/run-release-supply-chain.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-release-supply-chain.sh"])
     persisted = json.loads((ROOT / "build/evidence/release/supply-chain.json").read_text())
 
     assert payload == persisted
@@ -88,7 +68,7 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         "attestation": "tools/ci/scripts/run-release-supply-chain.sh",
     }
     for concern, gate in active.items():
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         script = ROOT / gate
         assert f'gate = "{gate}"' in block
         assert "planned = true" not in block
@@ -96,7 +76,7 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         assert script.stat().st_mode & stat.S_IXUSR
 
     for concern in ["osv_vuln", "image_package_scan", "signing"]:
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert "planned = true" in block
 
 

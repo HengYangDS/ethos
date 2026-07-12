@@ -2,37 +2,16 @@ from __future__ import annotations
 
 import json
 import stat
-import subprocess
 import tomllib
 from pathlib import Path
 
+from tests.support.architecture import run_json
+from tests.support.architecture import tool_block
 from tools.ci import format_selection
 
 ROOT = Path(__file__).resolve().parents[2]
 MIN_FORMAT_REGISTRY_ENTRIES = 8
 MIN_RUNBOOK_REGISTRY_ENTRIES = 6
-
-
-def _run_json(command: list[str]) -> dict[str, object]:
-    result = subprocess.run(
-        command,
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return json.loads(result.stdout)
-
-
-def _tool_block(concern: str) -> str:
-    text = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
-    marker = f'concern = "{concern}"'
-    assert marker in text
-    before, after = text.split(marker, 1)
-    block_start = before.rfind("[[tool]]")
-    next_block = after.find("[[tool]]")
-    body = marker + (after if next_block == -1 else after[:next_block])
-    return before[block_start:] + body
 
 
 def test_format_selection_config_is_fail_closed_and_executable() -> None:
@@ -45,7 +24,7 @@ def test_format_selection_config_is_fail_closed_and_executable() -> None:
     assert any(item["extensions"] == [".mmd"] for item in formats)
     assert any(item["extensions"] == [".j2"] for item in formats)
 
-    payload = _run_json(["tools/ci/scripts/run-format-selection.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-format-selection.sh"])
     assert payload["kind"] == "ethos_format_selection_audit"
     assert payload["ok"] is True
     assert payload["format_count"] >= MIN_FORMAT_REGISTRY_ENTRIES
@@ -84,7 +63,7 @@ def test_architecture_projection_is_checked_from_source_to_mermaid() -> None:
     assert projection["source"] == ".config/checks/architecture/models/ethos_repository.c4"
     assert projection["output"] == "docs/architecture/_generated/ethos-repository.mmd"
 
-    payload = _run_json(["tools/ci/scripts/run-architecture-projection-drift.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-architecture-projection-drift.sh"])
     assert payload["kind"] == "ethos_architecture_projection_drift"
     assert payload["ok"] is True
     assert payload["projections"][0]["matches"] is True
@@ -96,7 +75,7 @@ def test_architecture_projection_is_checked_from_source_to_mermaid() -> None:
 
 
 def test_runbook_registry_drift_check_covers_new_runbooks() -> None:
-    payload = _run_json(["tools/ci/scripts/run-runbook-registry-check.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-runbook-registry-check.sh"])
     assert payload["kind"] == "ethos_runbook_registry_check"
     assert payload["ok"] is True
     assert payload["entry_count"] >= MIN_RUNBOOK_REGISTRY_ENTRIES
@@ -119,7 +98,7 @@ def test_runbook_registry_drift_check_covers_new_runbooks() -> None:
 
 
 def test_mcp_smoke_is_projection_only_and_writes_local_evidence() -> None:
-    payload = _run_json(["tools/ci/scripts/run-mcp-smoke.sh"])
+    payload = run_json(ROOT, ["tools/ci/scripts/run-mcp-smoke.sh"])
     evidence = ROOT / str(payload["evidence_path"])
     persisted = json.loads(evidence.read_text(encoding="utf-8"))
     latest = ROOT / str(payload["latest_projection_path"])
@@ -141,7 +120,7 @@ def test_active_p1_p2_tools_have_owner_surfaces() -> None:
         "mcp_smoke": "tools/ci/scripts/run-mcp-smoke.sh",
     }
     for concern, gate in active.items():
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         script = ROOT / gate
         assert f'gate = "{gate}"' in block
         assert "planned = true" not in block
@@ -165,5 +144,5 @@ def test_optional_adapters_and_supply_chain_remain_planned() -> None:
         "task_ledger_adapter",
         "agent_method_pack_adapter",
     ]:
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert "planned = true" in block

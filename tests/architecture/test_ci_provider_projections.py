@@ -9,6 +9,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+from tests.support.architecture import tool_block
+
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_CONFIG = ROOT / ".config/checks/ci/templates.toml"
 
@@ -21,17 +23,6 @@ def _projection_entries() -> list[dict[str, object]]:
     entries = _template_config()["projection"]
     assert isinstance(entries, list)
     return entries
-
-
-def _tool_block(concern: str) -> str:
-    text = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
-    marker = f'concern = "{concern}"'
-    assert marker in text
-    before, after = text.split(marker, 1)
-    block_start = before.rfind("[[tool]]")
-    next_block = after.find("[[tool]]")
-    body = marker + (after if next_block == -1 else after[:next_block])
-    return before[block_start:] + body
 
 
 def _load_ci_templates_module():
@@ -545,13 +536,13 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "hosted_provider_observation": "tools/ci/scripts/run-hosted-provider-observation.sh",
     }
     for concern, gate in active.items():
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert f'gate = "{gate}"' in block
         assert "planned = true" not in block
         assert "adapter_only = true" not in block
 
     for concern in ["github_local_emulator", "gitlab_local_emulator"]:
-        assert 'config = ".config/checks/ci/templates.toml"' in _tool_block(concern)
+        assert 'config = ".config/checks/ci/templates.toml"' in tool_block(ROOT, concern)
 
     tool_catalog = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     assert ".config/ci/emulators/" not in tool_catalog
@@ -563,7 +554,7 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "task_ledger_adapter",
         "agent_method_pack_adapter",
     ]:
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert "planned = true" in block
 
     for concern in [
@@ -573,5 +564,5 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "task_ledger_adapter",
         "agent_method_pack_adapter",
     ]:
-        block = _tool_block(concern)
+        block = tool_block(ROOT, concern)
         assert "adapter_only = true" in block

@@ -33,6 +33,7 @@ source = [
 ]
 tests = ["extensions/independent-verification/tests/test_reference_verifier.py"]
 openspec = ["openspec/changes/physical-topology-reference-adapters-20260712"]
+claims = ["evidence/claims/assurance-program-20260712.toml"]
 
 [boundary]
 owner = "ethos-adapters"
@@ -49,6 +50,7 @@ targets = [
   "docs/architecture/package-ontology.md",
   "docs/decisions/accepted/DR-0006-proof-trust-boundary.md",
   "docs/governance/independent-verification-adoption.md",
+  "evidence/claims/assurance-program-20260712.toml",
   "openspec/changes/physical-topology-reference-adapters-20260712",
   "evidence/chronicle/physical-topology-reference-adapters-20260712/2026-07-12.md",
   "evidence/claims/physical-topology-reference-adapters-20260712.toml",

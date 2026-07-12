@@ -47,6 +47,11 @@ time-bound facts. This change adds new topology evidence instead of rewriting
 the historical record; current canonical docs and executable tests must contain
 only the new location.
 
+The active assurance claim is a current promotion map rather than historical
+narrative. Its promotion targets and recorded focused-test command therefore
+move with the source. Its dated Chronicle remains unchanged as evidence of the
+predecessor state.
+
 ## Alternatives
 
 ### Keep `reference_adapters/` at the root

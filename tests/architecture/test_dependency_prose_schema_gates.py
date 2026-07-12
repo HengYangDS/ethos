@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 import subprocess
 import tomllib
@@ -152,6 +153,7 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
         check=False,
         capture_output=True,
         text=True,
+        env={**os.environ, "ETHOS_RUNTIME_BOOTSTRAPPED": "1"},
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr

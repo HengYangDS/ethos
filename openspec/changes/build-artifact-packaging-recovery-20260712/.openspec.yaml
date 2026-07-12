@@ -1,4 +1,2 @@
 schema: spec-driven
 created: 2026-07-12
-goal: Make the ethos-core source distribution self-contained when Hatch builds
-  its wheel, without duplicating canonical system declarations in source.

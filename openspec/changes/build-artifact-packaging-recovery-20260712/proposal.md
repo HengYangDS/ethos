@@ -15,6 +15,16 @@ refer to paths outside the unpacked source distribution.
 - Reallocate four existing candidate-train product-Python allowance lines to
   YAML metadata, preserving the immutable global source-budget cap.
 
+## Capabilities
+
+### New Capabilities
+
+- None.
+
+### Modified Capabilities
+
+- `repository-governance`: subject=core-package-artifact-projection; reuse=extend; change=modify; facet:lifecycle=validation,archive; facet:surface=package,openspec,evidence; facet:authority=source,test,claim,evidence.
+
 ## Out Of Scope
 
 - Duplicating declaration files in the tracked package source.

@@ -6,5 +6,5 @@
 - [x] Validate provider-local anchor, protected receipt store, and SSH receipt signature.
 - [x] Add a one-shot sandboxed independent-identity reference adapter and adversarial tests.
 - [x] Add external-adopter policy fixtures and adoption runbook.
-- [ ] Run final repository quality, executed proof, and parity evidence on the final HEAD.
+- [x] Run final implementation quality, executed proof, and parity evidence before archive.
 - [ ] Archive this OpenSpec carrier only after the final lifecycle evidence is recorded.

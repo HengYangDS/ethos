@@ -14,32 +14,11 @@ from tests.unit.product.parity.snapshots import complete_parity_evidence
 from tests.unit.product.parity.snapshots import git_head
 from tests.unit.product.parity.snapshots import init_git_repo
 from tests.unit.product.parity.snapshots import retarget_parity_evidence
+from tests.unit.product.parity.snapshots import set_durable_evidence_root
 from tests.unit.product.parity.snapshots import sha256_text
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _set_durable_evidence_root(repo: Path, value: str) -> None:
-    profile = repo / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True, exist_ok=True)
-    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "configure evidence root",
-        ],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
 
 
 def test_shadow_evidence_command_includes_product_root_only_for_external_target(
@@ -209,7 +188,7 @@ def test_parity_gaps_reads_adopter_profile_durable_evidence_root(
 ) -> None:
     product = init_git_repo(tmp_path / "product")
     target = init_git_repo(tmp_path / "sample-adopter")
-    _set_durable_evidence_root(target, "docs/evidence")
+    set_durable_evidence_root(target, "docs/evidence")
     evidence_dir = target / "docs" / "evidence" / "parity"
     evidence_dir.mkdir(parents=True)
     evidence = complete_parity_evidence("sample-adopter")

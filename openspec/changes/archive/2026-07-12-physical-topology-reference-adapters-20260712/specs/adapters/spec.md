@@ -19,6 +19,13 @@ declared extension bundle, never in an unowned root-level adapter directory.
   Chronicle decision
 - **AND** missing or unverifiable provenance returns `defer`.
 
+#### Scenario: hosted prevention requires exact receipt
+
+- **WHEN** ETHOS claims hosted prevention for a ref transition
+- **THEN** a provider receipt binds the exact action, resource, old value, new
+  value, observation, coverage, and receipt digest
+- **AND** local hooks or provider configuration alone do not prove prevention.
+
 #### Scenario: provider-local reference implementation is physically bounded
 
 - **WHEN** ETHOS ships the default-off independent-verification reference source

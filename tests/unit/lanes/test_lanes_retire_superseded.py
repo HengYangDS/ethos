@@ -12,9 +12,10 @@ import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime
-from tests.unit.lanes.test_lanes_retire import add_candidate_worktree
-from tests.unit.lanes.test_lanes_retire import git
-from tests.unit.lanes.test_lanes_retire import init_repo
+from tests.support.lane_helpers import absorb_obsolete_delta_in_accepted
+from tests.support.lane_helpers import add_candidate_worktree
+from tests.support.lane_helpers import git
+from tests.support.lane_helpers import init_repo
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -32,22 +33,6 @@ def _actor_env(actor: str) -> Iterator[None]:
             os.environ.pop("ETHOS_ACTOR", None)
         else:
             os.environ["ETHOS_ACTOR"] = previous
-
-
-def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
-    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
-    git(repo, "add", "obsolete.txt")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "absorb obsolete lane delta",
-    )
-    return git(repo, "rev-parse", "dev")
 
 
 def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -> None:

@@ -506,7 +506,7 @@ def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: 
         assert args == ("status", "--porcelain", "--untracked-files=all")
         raise subprocess.CalledProcessError(128, ["git", *args], stderr="fatal: not a git repo")
 
-    monkeypatch.setattr(repo_status, "_run_git", fail_git)
+    monkeypatch.setattr(repo_status, "git_stdout_checked", fail_git)
 
     report = dirty_provenance(tmp_path)
 

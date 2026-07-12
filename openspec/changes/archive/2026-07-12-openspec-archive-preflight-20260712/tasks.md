@@ -22,6 +22,6 @@
 - [x] 3.1 Run focused OpenSpec lifecycle, CLI-contract, format, and lint tests.
 - [x] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
   executed proof in this owned Work Lane.
-- [ ] 3.3 Bind final evidence, archive the carrier, land through candidate,
-  close out accepted root, retire this Work Lane, and keep remote publication
-  deferred while GitLab is unavailable.
+- [x] 3.3 Bind final evidence and archive the carrier. Candidate landing,
+  accepted-root closeout, and owned-lane retirement are post-archive lifecycle
+  transitions; remote publication remains separately deferred.

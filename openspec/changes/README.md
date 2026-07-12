@@ -26,3 +26,12 @@ Lifecycle validates archiveability through the configured official archive CLI
 in a disposable workspace copy. It never archives or rewrites this source
 change; an application-time conflict must be repaired before plan, proof, or
 land can proceed.
+
+## Completion Grammar
+
+An archived carrier's checklist may assert only work that was completed before
+archive. The archive-closeout gate correctly blocks any unchecked archived task.
+Candidate landing, accepted-root closeout, Work Lane retirement, and remote
+publication therefore belong to explicit post-archive lifecycle transitions:
+record their boundary in the carrier, but do not leave them as unchecked archive
+tasks or mark them complete before the transition occurs.

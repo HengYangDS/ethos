@@ -7,7 +7,7 @@ summary = "ETHOS audits the frozen uv-exported dependency set without re-resolvi
 
 [evidence]
 dated = "evidence/chronicle/fix-pip-audit-resolved-input-20260712/2026-07-12.md"
-sha256 = "f5e1187a123b5082c3b4b79abe59c128c8f64313fd763d8014e52b5bfa4db49d"
+sha256 = "54c6996375cbe73adce0714b86f28197003c649514b26234d060637dcc1055d2"
 evidence_ids = ["evidence:fix-pip-audit-resolved-input-20260712"]
 binding = "The owner script, focused regression test, active OpenSpec carrier, and dated Chronicle bind the input-bound Python vulnerability audit."
 verifier = "semantic"

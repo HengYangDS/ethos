@@ -48,10 +48,10 @@ tools/ci/scripts/run-architecture-projection-drift.sh
 tools/ci/scripts/run-runbook-registry-check.sh
 tools/ci/scripts/run-mcp-smoke.sh
 tools/ci/scripts/run-closeout-evidence-manifest.sh
+tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-local-state-audit.sh
 tools/ci/scripts/run-release-supply-chain.sh
 tools/ci/scripts/run-hosted-provider-observation.sh
-tools/ci/scripts/run-python-tests.sh
 
 mkdir -p build/evidence/local-ci
 ETHOS_LOCAL_CI_HEAD="${ethos_local_ci_head}" python - <<'PY'

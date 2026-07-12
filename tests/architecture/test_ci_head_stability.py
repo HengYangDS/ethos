@@ -68,6 +68,7 @@ def test_local_ci_fails_closed_when_head_changes_during_run() -> None:
     assert "tools/ci/scripts/require-stable-head.sh capture" in script
     assert "tools/ci/scripts/require-stable-head.sh verify" in script
     assert "trap _ethos_verify_local_ci_head_stability EXIT" in script
+    assert script.index("run-python-tests") < script.index("run-local-state-audit")
 
 
 def test_local_ci_writes_head_bound_fallback_manifest() -> None:

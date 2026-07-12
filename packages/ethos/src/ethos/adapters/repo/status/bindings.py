@@ -6,6 +6,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
+from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -14,21 +15,10 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
-def _run_git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.rstrip("\n")
-
-
 def has_changed_paths(root: Path) -> bool:
     """Return whether the target worktree has tracked, untracked, or unreadable state."""
     try:
-        return bool(_run_git(root, "status", "--porcelain", "--untracked-files=all"))
+        return bool(git_stdout_checked(root, "status", "--porcelain", "--untracked-files=all"))
     except (OSError, subprocess.CalledProcessError):
         return True
 
@@ -101,7 +91,7 @@ def branch_bindings(
 
 def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, str]]:
     try:
-        output = _run_git(
+        output = git_stdout_checked(
             root,
             "for-each-ref",
             "--format=%(refname:short) %(objectname)",

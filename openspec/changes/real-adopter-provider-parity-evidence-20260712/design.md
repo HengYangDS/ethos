@@ -8,12 +8,13 @@ copying adopter content.
 ## Goals / Non-Goals
 
 **Goals:** record exact revisions, all profile outcomes, preservation, bundle
-hash, and the local-only non-authorizing boundary.
+hash, and the local-only non-authorizing boundary; route the required evidence
+and history documentation entrypoints to existing canonical records.
 
 **Non-Goals:** re-run the exercise; validate semantics, provider configuration,
 or hosted CI; add an adopter, account, credential, service, key, or
 `yheng-agent-ethos` prerequisite; or track host paths, raw envelopes, protected
-bytes, or remote state.
+bytes, remote state, or copied proof payloads in `docs/`.
 
 ## Decisions
 
@@ -32,6 +33,13 @@ host-local; a second repository evidence root is not created.
 
 `github` and `gitlab` name local profiles, not hosted access, execution, or
 authority.  The same kernel and boundary apply to every profile.
+
+### Documentation routes do not create a second truth root
+
+`docs/evidence/` links claims, Chronicles, parity JSON, and the evidence-root
+boundary. `docs/history/` links decisions, archived OpenSpec carriers, and
+historical Chronicles. Both files remain curated routing surfaces: they copy no
+raw packet, claim payload, or current-state assertion.
 
 ### The carrier budget is configuration, not an exemption
 

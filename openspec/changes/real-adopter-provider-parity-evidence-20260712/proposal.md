@@ -9,6 +9,9 @@ paths, provider state, credentials, or raw proof bundle.
 - Add a digest-bound claim and Chronicle for `generic`, `github`, and `gitlab`.
 - Bind product/adopter revisions, profile outcomes, preservation assertion, and
   SHA-256 of the host-local bundle.
+- Activate the required evidence and history documentation entrypoints as
+  routes to existing claims, Chronicles, parity records, decisions, and the
+  OpenSpec archive; do not duplicate proof payloads.
 - Keep the evidence local-only and non-authorizing.
 
 ## Capabilities
@@ -19,7 +22,7 @@ paths, provider state, credentials, or raw proof bundle.
 
 ### Modified Capabilities
 
-- `repository-governance`: subject=external-adopter-provider-parity-evidence; reuse=extend; change=modify; facet:lifecycle=evidence,claim; facet:surface=adoption,parity,chronicle; facet:authority=source,claim,evidence,openspec.
+- `repository-governance`: subject=external-adopter-provider-parity-evidence; reuse=extend; change=modify; facet:lifecycle=evidence,claim; facet:surface=adoption,parity,chronicle,docs; facet:authority=source,claim,evidence,openspec.
 - `quality`: subject=source-budget-evidence-carrier; reuse=extend; change=modify; facet:lifecycle=admission,archive; facet:surface=source-budget,format; facet:authority=policy,claim,openspec.
 
 ## Out Of Scope

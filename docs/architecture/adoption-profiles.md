@@ -17,6 +17,25 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 `ethos adopt` projects ETHOS into another repository without copying adopter
 semantics into ETHOS core.
 
+The default adoption mode is strict: differing nonempty scaffold files stop the
+apply before any write. This protects existing repositories from an accidental
+governance replacement. An adopter that already owns its entrypoints,
+documentation, OpenSpec workspace, or hosted-provider projection can request
+an explicit non-destructive overlay:
+
+```bash
+ethos adopt --profile gitlab --overlay --dry-run --json
+```
+
+Overlay preserves those adopter-owned surfaces byte-for-byte and records their
+paths and SHA-256 digests in the plan. It creates only missing ETHOS-owned
+binding, local-state, skill, evidence, and generated-artifact surfaces; the
+existing additive `.gitignore` merge remains the sole shared-file exception.
+Differing `.ethos/**`, `.config/ethos/**`, ETHOS skill-package, and schema
+placeholder files remain blocking conflicts even in overlay mode. Preservation
+is a boundary record, not a claim that existing adopter semantics are valid or
+that hosted CI has passed.
+
 Supported profiles:
 
 ```bash
@@ -48,6 +67,22 @@ evidence/claims/
 
 The exact set is profile-driven and repository-owned; adopters may map an existing `docs/evidence/` root through their profile, but ETHOS product truth uses `evidence/`. `.config/` remains the
 execution/config layer; `.ethos/profile.toml` is only the ETHOS binding manifest.
+
+Branch-role names are likewise adopter configuration, not product semantics.
+An adopter whose lifecycle is not the default `work/* → candidate/dev → dev`
+declares its existing names in `.ethos/workspace.toml`; for example:
+
+```toml
+[branch_roles]
+release_branch = "master"
+accepted_branch = "dev"
+candidate_branch = "integration/dev"
+work_branch_prefix = "task/"
+submit_branch_prefix = "submit/"
+```
+
+The mapped candidate ref and worktree must exist before landing readiness can
+be claimed. ETHOS does not invent a parallel branch train for an adopter.
 ETHOS must not require `packages/`, `tools/`, `skills/`, `system/`, a monorepo
 workspace, or any language-specific layout as the universal adopter shape.
 

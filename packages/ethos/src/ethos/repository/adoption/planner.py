@@ -35,6 +35,9 @@ APPLY_CRITERIA = (
     "rollback path is understood before apply",
 )
 
+_OVERLAY_ROOT_FILES = frozenset({"AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md"})
+_OVERLAY_PREFIXES = ("docs/", "openspec/")
+
 
 def available_profiles() -> tuple[str, ...]:
     return PROFILES
@@ -85,17 +88,49 @@ def _profile_match(root: Path, profile: str, detected_profile: str) -> dict[str,
     return {"ok": False, "reasons": reasons}
 
 
-def _write_plan(root: Path, files: dict[str, str]) -> list[dict[str, object]]:
+def _overlay_preserves(relative: str, profile: str) -> bool:
+    """Return whether overlay mode preserves this adopter-owned scaffold surface."""
+    if relative in _OVERLAY_ROOT_FILES or relative.startswith(_OVERLAY_PREFIXES):
+        return True
+    if profile == "gitlab" and relative == ".gitlab-ci.yml":
+        return True
+    return profile == "github" and relative.startswith(".github/")
+
+
+def _overlay_skips_missing(root: Path, relative: str, profile: str) -> bool:
+    """Return whether an existing adopter root owns a missing scaffold child."""
+    if relative.startswith("docs/"):
+        return (root / "docs").exists()
+    if relative.startswith("openspec/"):
+        return (root / "openspec").exists()
+    if profile == "gitlab" and relative == ".gitlab-ci.yml":
+        return True
+    return profile == "github" and relative.startswith(".github/")
+
+
+def _write_plan(
+    root: Path,
+    files: dict[str, str],
+    *,
+    profile: str,
+    overlay: bool,
+) -> list[dict[str, object]]:
     plan: list[dict[str, object]] = []
     for relative in sorted(files):
         content = files[relative]
         target = root / relative
         existed = target.exists()
         conflict = False
+        existing_sha256 = ""
         if not existed:
-            action = "create"
+            action = (
+                "preserve_adopter_root"
+                if overlay and _overlay_skips_missing(root, relative, profile)
+                else "create"
+            )
         else:
             existing = target.read_text(encoding="utf-8")
+            existing_sha256 = _sha256_text(existing)
             if existing == content:
                 action = "keep_existing"
             elif existing == "":
@@ -103,6 +138,8 @@ def _write_plan(root: Path, files: dict[str, str]) -> list[dict[str, object]]:
             elif relative == ".gitignore":
                 missing_lines = _missing_gitignore_lines(existing, content)
                 action = "keep_existing" if not missing_lines else "merge_gitignore"
+            elif overlay and _overlay_preserves(relative, profile):
+                action = "preserve_existing"
             else:
                 action = "skip_existing_nonempty"
                 conflict = True
@@ -113,6 +150,7 @@ def _write_plan(root: Path, files: dict[str, str]) -> list[dict[str, object]]:
                 "conflict": conflict,
                 "existed": existed,
                 "content_sha256": _sha256_text(content),
+                "existing_sha256": existing_sha256,
                 "preview": content.splitlines()[0] if content.splitlines() else "",
             }
         )
@@ -123,6 +161,7 @@ def adoption_plan(
     root: Path,
     *,
     profile: str | None = None,
+    overlay: bool = False,
     apply: bool = False,
 ) -> dict[str, object]:
     requested_profile = profile or detect_repo_profile(root)
@@ -136,18 +175,24 @@ def adoption_plan(
     files = default_files(root, selected_profile)
     planned = sorted(files)
     existing = sorted(relative for relative in files if (root / relative).exists())
-    write_plan = _write_plan(root, files)
+    write_plan = _write_plan(root, files, profile=selected_profile, overlay=overlay)
     conflict_gaps = [f"adoption_conflict:{item['path']}" for item in write_plan if item["conflict"]]
     profile_ok = bool(profile_match["ok"])
     required_gaps = list(conflict_gaps)
     if apply and not profile_ok:
         required_gaps.append(f"profile_mismatch:{selected_profile}")
-    generated_files = sorted(str(item["path"]) for item in write_plan if not bool(item["existed"]))
+    generated_files = sorted(
+        str(item["path"]) for item in write_plan if item["action"] in {"create", "write_empty"}
+    )
     applied = bool(apply and not required_gaps)
     if applied:
         for relative, content in files.items():
             item = next(entry for entry in write_plan if entry["path"] == relative)
-            if item["action"] == "keep_existing":
+            if item["action"] in {
+                "keep_existing",
+                "preserve_existing",
+                "preserve_adopter_root",
+            }:
                 continue
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -174,6 +219,7 @@ def adoption_plan(
         "observed_files": observed,
         "applied": applied,
         "profile": selected_profile,
+        "mode": "overlay" if overlay else "strict",
         "detected_profile": detected_profile,
         "profile_match": profile_match,
         "requested_profile": requested_profile,
@@ -181,6 +227,14 @@ def adoption_plan(
         "available_profiles": list(PROFILES),
         "existing_files": existing,
         "write_plan": write_plan,
+        "preserved_files": [
+            {"path": item["path"], "sha256": item["existing_sha256"]}
+            for item in write_plan
+            if item["action"] == "preserve_existing"
+        ],
+        "skipped_files": [
+            str(item["path"]) for item in write_plan if item["action"] == "preserve_adopter_root"
+        ],
         "apply_criteria": list(APPLY_CRITERIA),
         "required_gaps": required_gaps,
         "next_action": next_action,

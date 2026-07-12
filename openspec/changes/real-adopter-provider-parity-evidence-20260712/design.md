@@ -1,65 +1,41 @@
 ## Context
 
-The real-adopter exercise was deliberately run on temporary isolated copies.
-Those command envelopes and protected-file digests are useful diagnostic
-material, but their paths and full contents are host-local rather than tracked
-repository truth.  The repository needs a compact promotion record that is
-precise about revision, profile result, integrity assertion, and raw-bundle
-identity without copying either the adopter or its content into ETHOS.
+The exercise ran on isolated copies.  Raw command envelopes and protected-file
+digests are host-local diagnostics, not repository truth.  ETHOS records
+revisions, outcomes, preservation assertion, and bundle identity without
+copying adopter content.
 
 ## Goals / Non-Goals
 
-**Goals:**
+**Goals:** record exact revisions, all profile outcomes, preservation, bundle
+hash, and the local-only non-authorizing boundary.
 
-- Record the exact product and isolated-adopter revisions observed.
-- Record all three requested profile outcomes and the preservation assertion.
-- Bind the observation to the SHA-256 of its host-local raw bundle.
-- Make the local-only and non-authorizing boundary explicit.
-
-**Non-Goals:**
-
-- Re-run adoption or shadow parity as part of this evidence-only change.
-- Validate the adopter's governance semantics, provider configuration, or
-  hosted CI.
-- Add a named adopter, a provider account, a credential, a daemon, a key, or
-  `yheng-agent-ethos` as a prerequisite.
-- Promote host paths, raw command envelopes, protected source bytes, or remote
-  state into tracked evidence.
+**Non-Goals:** re-run the exercise; validate semantics, provider configuration,
+or hosted CI; add an adopter, account, credential, service, key, or
+`yheng-agent-ethos` prerequisite; or track host paths, raw envelopes, protected
+bytes, or remote state.
 
 ## Decisions
 
 ### Digest-bound claim, not semantic attestation
 
-The claim uses `digest_only`.  It establishes that the Chronicle is bound to a
-specific local observation packet.  It does not turn an overlay result into an
-independent review, semantic-correctness, or authority claim.
+`digest_only` binds the Chronicle to one local packet.  It is not independent
+review, semantic proof, or authority.
 
-### Profile outcomes are summarized, not re-materialized
+### Summarize outcomes; retain raw material locally
 
-The Chronicle records only the outcome facts required to audit the exercise:
-apply state, command-comparison count, false-negative count, preservation
-count, and matched state.  The raw packet is identified by SHA-256 and remains
-host-local so it can be inspected under local access controls without making a
-second evidence root in the repository.
+The Chronicle records apply state, comparison and false-negative counts,
+preservation count, matched state, and bundle hash.  The packet stays
+host-local; a second repository evidence root is not created.
 
-### Provider labels remain profile selectors
+### Provider labels are profile selectors
 
-`github` and `gitlab` in this record identify local adoption profiles.  They do
-not assert hosted-provider access, status, execution, or authority.  The same
-kernel and claim boundary apply to every listed profile.
+`github` and `gitlab` name local profiles, not hosted access, execution, or
+authority.  The same kernel and boundary apply to every profile.
 
-## Risks / Trade-offs
+## Risks / rollback
 
-- **A digest cannot validate semantic meaning** — this is declared through
-  `digest_only`; a future semantic claim must carry its own independent review
-  receipt and verification evidence.
-- **A raw bundle may become unavailable on the host** — the tracked record
-  remains an honest historical pointer by hash and must not invent a replacement
-  packet or claim freshness.
-- **Profile success may be overread as adoption completion** — the Chronicle
-  states the excluded lifecycle and remote boundaries explicitly.
-
-## Rollback
-
-Revert only this carrier, claim, and Chronicle.  No adopter, product runtime,
-provider projection, or remote state needs rollback because none is changed.
+A digest cannot validate meaning; any semantic claim needs its own reviewed
+receipt.  If raw material disappears, this remains a historical hash, not fresh
+evidence.  Revert only this carrier, claim, and Chronicle: no adopter, runtime,
+provider, or remote state changed.

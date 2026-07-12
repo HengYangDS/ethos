@@ -161,7 +161,7 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
             "stage": "work_lane_before_proof",
             "write_root": target.resolve().as_posix(),
             "write_path": "evidence/parity/sample-adopter-shadow.json",
-            "commit_required_before_proof": True,
+            "commit_before_proof": True,
             "authority_boundary": (
                 "refresh and commit tracked parity evidence from the admitted "
                 "Work Lane; candidate and accepted roots remain write-protected"

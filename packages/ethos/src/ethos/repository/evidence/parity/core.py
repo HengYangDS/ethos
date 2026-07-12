@@ -153,7 +153,7 @@ def parity_evidence_refresh_package(
             "stage": "work_lane_before_proof",
             "write_root": evidence_root.resolve().as_posix(),
             "write_path": evidence_path.relative_to(evidence_root).as_posix(),
-            "commit_required_before_proof": True,
+            "commit_before_proof": True,
             "authority_boundary": (
                 "refresh and commit tracked parity evidence from the admitted "
                 "Work Lane; candidate and accepted roots remain write-protected"

@@ -299,6 +299,12 @@ def test_candidate_paths_prune_recursive_allowed_homes_but_scan_adjacent_drift(
     assert "build/runtime/random-cache/state.json" in candidates
 
 
+def test_candidate_paths_prune_pixi_runtime_environment_before_recursive_descent() -> None:
+    declaration = load_generated_artifact_topology_declaration()
+
+    assert artifacts_mod._skip_descendant(Path(".pixi"), declaration) is True
+
+
 def test_candidate_paths_retains_an_empty_denied_directory(tmp_path: Path) -> None:
     declaration = load_generated_artifact_topology_declaration()
     (tmp_path / ".cache" / "empty").mkdir(parents=True)

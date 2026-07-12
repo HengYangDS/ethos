@@ -22,7 +22,6 @@ repos:
         entry: tools/ci/scripts/run-config-lint.sh
         language: system
         files: \.(toml|ya?ml|json)$
-        pass_filenames: true
       - id: repository-hygiene
         name: repository hygiene
         entry: tools/ci/scripts/run-repository-hygiene.sh

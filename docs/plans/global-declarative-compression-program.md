@@ -85,17 +85,18 @@ lines that preserve compact-report governance context are explicit foundation
 debt, not an uncounted documentation escape. The separate
 `candidate-train-reconciliation` record is a measured integration allowance for
 already-admitted candidate-train capabilities that arrived while this program
-was being rebased: independent verification, performance evidence, runtime
-binding, and lane-resolution receipts. It expires in T8 and must be deleted by
+was being rebased: independent verification, performance evidence, native proof
+bootstrap, runtime binding, and lane-resolution receipts. It expires in T8 and must be deleted by
 consolidating their scenario tests, runner wrappers, templates, and provider
 copies; it is not permission to retain duplicate behavior.
 
 The reconciliation record is exact rather than aspirational. The current
-candidate-train reconciliation snapshot bounds 1,325 product-Python, 1,886
-test-Python, 347 other-Python, 368 shell, 102 JSON, and 15 Jinja effective
-lines. Together with the foundation record its aggregate allowance is 4,514,
-below the immutable 5,267 maximum. The recorded snapshot remains **36,117 global**
-and **29,589 Python** effective lines above the terminal maxima; T8 and T9
+candidate-train reconciliation snapshot bounds 1,348 product-Python, 1,970
+test-Python, 347 other-Python, 368 shell, 40 TOML, 2 YAML, 102 JSON, and 15
+Jinja effective lines. Together with the foundation record its aggregate allowance
+is 4,665, below the immutable 5,267 maximum. The recorded snapshot remains
+**36,268 global** and **29,696 Python** effective lines above the terminal maxima;
+T8 and T9
 cannot close while any of that gap or either active debt record remains.
 
 ## Final Technical Choices

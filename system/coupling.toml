@@ -1,0 +1,271 @@
+id = "ethos-coupling-registry"
+schema_version = 1
+layers = { product_semantic_hard_binding = "Kernel chain, public command semantics, Git facts, branch roles, and worktree lifecycle that define ETHOS product behavior.", mandatory_governance_dependency = "Official governance capabilities required for current planning records, deep proof, release proof, or archive proof.", native_protocol_binding = "Repository-local data protocols that keep command, config, state, event, and schema contracts stable across adapters.", product_toolchain_binding = "Current product-repository implementation and proof tools required to validate the ETHOS product repository, without becoming adopter ontology.", profile_or_adapter_binding = "Configured host, provider, projection, distribution, or execution surfaces that bind evidence without owning product semantics.", default_policy = "Repository-default policies that can be configured without changing semantics.", historical_evidence = "Historical proof records that preserve prior provider facts.", test_fixture = "Tests and fixtures that intentionally model a provider or adopter." }
+ui_projection_fields = ["action", "label", "open_action", "open_label"]
+product_semantic_docs = [
+  "docs/governance/product-design-contract.md",
+  "docs/reference/command-plane.md",
+  "docs/architecture/runner-and-mutation.md",
+  "docs/architecture/package-ontology.md",
+  "docs/governance/release-governance.md",
+  "docs/architecture/gate-runner.md",
+]
+product_vendor_terms = [
+  "PyCharm",
+  "Claude",
+  "Codex",
+  "OpenAI",
+  "GPT",
+  "IDE",
+  "JetBrains",
+  "Anthropic",
+  "Gemini",
+  "Copilot",
+  "Cursor",
+  "Windsurf",
+]
+product_host_projection_terms = ["Open Worktree", "Checkout"]
+git_native_terms = ["Git", "git", "worktree", "branch", "refs", "HEAD", "role_policy"]
+native_protocol_formats = ["JSON Schema", "command JSON", "TOML", "JSONL", "SQLite local state"]
+product_repository_gates = ["unit-architecture", "ruff", "build"]
+
+[openspec_governance]
+required = true
+layer = "mandatory_governance_dependency"
+capability = "official-native governance records"
+execution_surface = "profile_or_adapter_binding"
+not_a_second_command_plane = true
+
+[native_protocols]
+layer = "native_protocol_binding"
+formats = ["JSON Schema", "command JSON", "TOML", "JSONL", "SQLite local state"]
+provider_optional = false
+
+[[binding]]
+id = "git_repository_substrate"
+layer = "product_semantic_hard_binding"
+required = true
+owns_product_semantics = true
+adapter_replaceable = false
+required_for = ["repository identity", "branch roles", "HEAD-bound evidence", "worktree lifecycle"]
+replaceability = "hard-bound"
+degradation_state = "blocked:git_repository_missing"
+proof_gate = "ethos status --json"
+surfaces = ["commits", "refs", "branches", "worktrees", "HEAD"]
+
+[[binding]]
+id = "branch_role_policy"
+layer = "product_semantic_hard_binding"
+required = true
+owns_product_semantics = true
+adapter_replaceable = false
+config_source = ".ethos/workspace.toml"
+config_keys = [
+  "release_branch",
+  "accepted_branch",
+  "candidate_branch",
+  "work_branch_prefix",
+  "submit_branch_prefix",
+]
+required_for = ["semantic role classification", "mutation admission"]
+replaceability = "hard-bound"
+degradation_state = "default policy only"
+proof_gate = "ethos status --json"
+
+[[binding]]
+id = "work_lane_lifecycle_command_contract"
+layer = "product_semantic_hard_binding"
+required = true
+owns_product_semantics = true
+adapter_replaceable = false
+commands = [
+  "ethos lane start",
+  "ethos lane prewrite",
+  "ethos lane bind-claim",
+  "ethos lane refresh-base",
+  "ethos land",
+  "ethos land --closeout",
+  "ethos lane retire landed",
+  "ethos lane retire superseded",
+  "ethos lane retire unbound",
+]
+forbidden_workflow_state = ["raw_git_worktree_add"]
+required_for = ["tracked mutation isolation", "local closeout"]
+replaceability = "hard-bound"
+degradation_state = "blocked:protected_root_mutation"
+proof_gate = "ethos prove --full --execute --json"
+
+[[binding]]
+id = "openspec_workspace"
+not_a_second_command_plane = true
+layer = "mandatory_governance_dependency"
+required = true
+owns_product_semantics = false
+adapter_replaceable = false
+not_product_substrate = true
+required_for = ["official governance records", "strict specification validation"]
+replaceability = "mandatory"
+degradation_state = "blocked:openspec_shape_gap"
+proof_gate = "openspec validate --all --strict --json"
+
+[[binding]]
+id = "openspec_cli"
+not_a_second_command_plane = true
+layer = "mandatory_governance_dependency"
+required = true
+owns_product_semantics = false
+adapter_replaceable = false
+not_product_substrate = true
+required_for = ["official governance validation"]
+replaceability = "mandatory"
+degradation_state = "blocked:openspec_cli_unavailable"
+proof_gate = "openspec validate --all --strict --json"
+surfaces = ["official OpenSpec status", "official OpenSpec strict validation"]
+
+[[binding]]
+id = "command_json_schema_protocol"
+layer = "native_protocol_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = false
+required_for = ["command JSON contracts"]
+replaceability = "mandatory"
+degradation_state = "blocked:schema_validation_gap"
+proof_gate = "ethos quality schemas --json"
+formats = ["command JSON", "JSON Schema"]
+
+[[binding]]
+id = "claims_evidence_digest_protocol"
+layer = "native_protocol_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = false
+required_for = ["claim trust envelopes"]
+replaceability = "mandatory"
+degradation_state = "blocked:claim_digest_mismatch"
+proof_gate = "ethos quality claims --json"
+formats = ["TOML claims", "Markdown evidence", "SHA-256 digest"]
+
+[[binding]]
+id = "sqlite_local_state_protocol"
+layer = "native_protocol_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = false
+required_for = ["lease and local state coordination"]
+replaceability = "mandatory"
+degradation_state = "blocked:state_unavailable"
+proof_gate = "ethos doctor --json"
+formats = ["ignored SQLite local state"]
+
+[[binding]]
+id = "uv_workspace_toolchain"
+layer = "product_toolchain_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["product repository proof execution"]
+replaceability = "replaceable-adapter"
+degradation_state = "gapped:toolchain_unavailable"
+proof_gate = "tools/ci/scripts/run-python-tests.sh"
+toolchains = ["uv workspace", "uv lock", "uv run", "uv build"]
+
+[[binding]]
+id = "hatchling_build_backend"
+layer = "product_toolchain_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["Python package build"]
+replaceability = "replaceable-adapter"
+degradation_state = "gapped:build_backend_unavailable"
+proof_gate = "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+surfaces = ["PEP 517 build backend", "wheel", "sdist"]
+
+[[binding]]
+id = "pytest_test_runner"
+layer = "product_toolchain_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["unit and architecture proof"]
+replaceability = "replaceable-adapter"
+degradation_state = "gapped:test_runner_unavailable"
+proof_gate = "tools/ci/scripts/run-python-tests.sh"
+surfaces = ["pytest"]
+gates = ["unit-architecture"]
+
+[[binding]]
+id = "ruff_lint_runner"
+layer = "product_toolchain_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["lint diagnostics"]
+replaceability = "replaceable-adapter"
+degradation_state = "gapped:lint_runner_unavailable"
+proof_gate = "tools/ci/scripts/run-python-lint.sh"
+surfaces = ["Ruff"]
+gates = ["ruff"]
+
+[[binding]]
+id = "gitlab_release_profile"
+layer = "profile_or_adapter_binding"
+required = true
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["hosted release profile"]
+replaceability = "replaceable-adapter"
+degradation_state = "deferred:remote_publication_adapter_unavailable"
+proof_gate = "ethos quality release-policy --json"
+admission = { authority_ref = "docs/governance/product-design-contract.md#binding-taxonomy", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
+
+[[binding]]
+id = "mcp_acp_protocol_adapters"
+layer = "profile_or_adapter_binding"
+required = false
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["assistant projection adapters"]
+replaceability = "replaceable-adapter"
+degradation_state = "deferred:assistant_adapter_unavailable"
+proof_gate = "ethos assistants doctor --json"
+admission = { authority_ref = "docs/governance/product-design-contract.md#binding-taxonomy", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
+surfaces = ["MCP", "ACP", "assistant context projections"]
+
+[[binding]]
+id = "npm_launcher_distribution_adapter"
+layer = "profile_or_adapter_binding"
+required = false
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["npm launcher distribution"]
+replaceability = "replaceable-adapter"
+degradation_state = "deferred:npm_distribution_unavailable"
+proof_gate = "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+admission = { authority_ref = "docs/governance/product-design-contract.md#binding-taxonomy", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
+surfaces = ["distributions/npm", "npm launcher"]
+
+[[binding]]
+id = "historical_evidence_records"
+layer = "historical_evidence"
+required = false
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["historical auditability"]
+replaceability = "historical"
+degradation_state = "nonblocking:historical_evidence_absent"
+proof_gate = "ethos report --json"
+surfaces = ["archived evidence", "migration oracle records"]
+
+[[binding]]
+id = "provider_test_fixtures"
+layer = "test_fixture"
+required = false
+owns_product_semantics = false
+adapter_replaceable = true
+required_for = ["provider boundary regression tests"]
+replaceability = "fixture-only"
+degradation_state = "nonblocking:test_fixture_absent"
+proof_gate = "tools/ci/scripts/run-python-tests.sh"
+surfaces = ["hosted provider fixtures", "adopter fixtures"]

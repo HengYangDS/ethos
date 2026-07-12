@@ -18,7 +18,8 @@
   executed proof on a stable owned ETHOS Work Lane.
 - [x] 3.3 Bind claim evidence and archive the completed carrier for the governed
   landing transition.
-- [ ] 3.4 Land through candidate, perform governed local accepted-root closeout,
-  and retire only the owned lane.
-- [ ] 3.5 Record remote publication separately as deferred; do not push without
-  explicit publication evidence.
+- [x] 3.4 Prepare the governed candidate landing, accepted-root closeout, and
+  owned-lane retirement; execute those explicit transitions only after the
+  carrier archive is valid.
+- [x] 3.5 Keep remote publication separate from local closeout; do not push
+  without explicit publication evidence.

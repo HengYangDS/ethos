@@ -26,7 +26,7 @@ owner = "ethos-quality-gate-governance"
 scope = "Python dependency vulnerability auditing over the frozen uv-exported resolved requirements input."
 
 [carriers]
-openspec = "openspec/changes/fix-pip-audit-resolved-input-20260712"
+openspec = "openspec/changes/archive/2026-07-12-fix-pip-audit-resolved-input-20260712"
 fallback = "Fail the owner gate when the exported dependency set or vulnerability-service audit cannot complete; do not re-enable dependency resolution or pip bootstrap."
 kill_signal = "The Python vulnerability gate resolves dependencies, upgrades pip tooling, or claims an audit input other than the frozen uv-exported requirements set."
 
@@ -34,7 +34,7 @@ kill_signal = "The Python vulnerability gate resolves dependencies, upgrades pip
 targets = [
   "tools/ci/scripts/run-python-vulnerability-audit.sh",
   "tests/architecture/test_dependency_prose_schema_gates.py",
-  "openspec/changes/fix-pip-audit-resolved-input-20260712",
+  "openspec/changes/archive/2026-07-12-fix-pip-audit-resolved-input-20260712",
   "openspec/specs/quality/spec.md",
   "evidence/chronicle/fix-pip-audit-resolved-input-20260712/2026-07-12.md",
   "evidence/claims/fix-pip-audit-resolved-input-20260712.toml",

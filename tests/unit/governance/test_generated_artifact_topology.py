@@ -299,10 +299,32 @@ def test_candidate_paths_prune_recursive_allowed_homes_but_scan_adjacent_drift(
     assert "build/runtime/random-cache/state.json" in candidates
 
 
-def test_candidate_paths_prune_pixi_runtime_environment_before_recursive_descent() -> None:
-    declaration = load_generated_artifact_topology_declaration()
+def test_generated_artifact_report_prunes_pixi_runtime_environment_before_recursive_descent(
+    monkeypatch, tmp_path: Path
+) -> None:
+    policy = tmp_path / "system/policies/generated-artifact-topology.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_text(
+        Path("system/policies/generated-artifact-topology.toml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    visited: list[Path] = []
 
-    assert artifacts_mod._skip_descendant(Path(".pixi"), declaration) is True
+    def walk_with_pixi_first(root: Path, *, topdown: bool):
+        assert topdown is True
+        directories = [".pixi"]
+        yield root, directories, []
+        if ".pixi" in directories:
+            pixi = root / ".pixi"
+            visited.append(pixi)
+            yield pixi, [], ["report.json"]
+
+    monkeypatch.setattr(artifacts_mod, "walk", walk_with_pixi_first)
+
+    report = generated_artifact_topology_report(tmp_path)
+
+    assert visited == []
+    assert report["ok"] is True
 
 
 def test_candidate_paths_retains_an_empty_denied_directory(tmp_path: Path) -> None:

@@ -165,7 +165,7 @@ def test_openspec_shape_flags_metadata_keys_before_editor_parse(tmp_path: Path) 
     change = openspec / "changes" / "active-change"
     change.mkdir(parents=True)
     (change / ".openspec.yaml").write_text(
-        "schema: spec-driven\ngoal: should fail before PyCharm parses it\n",
+        "schema: spec-driven\nowner: should fail before PyCharm parses it\n",
         encoding="utf-8",
     )
 
@@ -173,7 +173,7 @@ def test_openspec_shape_flags_metadata_keys_before_editor_parse(tmp_path: Path) 
 
     assert report["ok"] is False
     assert (
-        "openspec_metadata_key_unsupported:goal:"
+        "openspec_metadata_key_unsupported:owner:"
         "openspec/changes/active-change/.openspec.yaml" in report["required_gaps"]
     )
     metadata = report["metadata_compatibility"]

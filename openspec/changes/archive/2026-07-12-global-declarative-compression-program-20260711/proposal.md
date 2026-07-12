@@ -6,9 +6,10 @@ ETHOS has strong governance boundaries but its maintained executable source keep
 growing across product Python, tests, tools, reports, configuration, templates,
 and provider projections. The existing code-size gate protects individual files;
 it cannot prove that a migration removed repository-wide procedure. This carrier
-therefore closes the completed T0--T5 foundation only. The terminal program
-remains governed by the canonical plan and must proceed through later bounded
-carriers rather than by keeping one permanently active OpenSpec change.
+therefore records the completed foundation and selected vertical slices only. The
+terminal program remains governed by the canonical plan and must proceed through
+later bounded carriers rather than by keeping one permanently active OpenSpec
+change.
 
 ## What Changes
 
@@ -43,7 +44,8 @@ remain owned by ETHOS; external tools are bounded mechanism providers.
 
 ## Out Of Scope
 
-- T6--T9 lifecycle, command, test/tool/template, and terminal-deletion work.
+- T1, T2, the unfinished portions of T3--T5, and T6--T9 lifecycle, command,
+  test/tool/template, and terminal-deletion work.
 - A claim that either terminal source budget is met or that all temporary debt is
   settled.
 - A workflow platform, scheduler, hosted control plane, OPA/Rego, NetworkX,

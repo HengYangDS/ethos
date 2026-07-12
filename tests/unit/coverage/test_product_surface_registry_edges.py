@@ -246,7 +246,9 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     lifecycle = openspec_lifecycle.lifecycle_report(
-        tmp_path, selected="c1", list_payload={}, enabled=True
+        tmp_path,
+        request=openspec_lifecycle.OpenSpecRequest(change="c1", lifecycle=True),
+        list_payload={},
     )
     assert "openspec_design_missing:c1" in lifecycle["required_gaps"]
     assert "openspec_tasks_missing:c1" in lifecycle["required_gaps"]

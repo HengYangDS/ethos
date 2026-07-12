@@ -111,7 +111,9 @@ def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) 
 def test_lifecycle_report_non_list_changes_yields_no_change_names(tmp_path: Path) -> None:
     # No selected change and a non-list `changes` payload takes the else branch (line 632).
     report = openspec_lifecycle.lifecycle_report(
-        tmp_path, selected=None, list_payload={"changes": 5}, enabled=True
+        tmp_path,
+        request=openspec_lifecycle.OpenSpecRequest(change=None, lifecycle=True),
+        list_payload={"changes": 5},
     )
     assert report["changes"] == []
     assert report["required_gaps"] == []

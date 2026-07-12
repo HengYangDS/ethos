@@ -36,6 +36,15 @@ design, tasks, delta specs, and an active trust-bearing claim whose
 `carriers.openspec` points at the change. A syntactically valid change without a
 claim binding reports `openspec_claim_binding_missing:<change>`.
 
+Lifecycle also asks the configured official CLI to archive each active change
+inside a disposable copy of `openspec/`. This is an archiveability preflight,
+not a second delta parser: ETHOS neither rewrites delta operations nor mutates
+the source workspace. An official failure becomes
+`openspec_archive_preflight_failed:<change>:<code>` with the official diagnostic
+projected under `archive_preflight`. The same lifecycle projection is consumed
+by `ethos plan --changed`, `ethos prove`, and `ethos land`; accepted-root
+closeout evaluates it against the admitted candidate root.
+
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
 `capability-profile.schema.json` and record the family owner, primary invariant,

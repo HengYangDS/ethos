@@ -44,6 +44,25 @@ while read -r old_value new_value ref_name; do
         *) continue ;;
     esac
     branch="${ref_name#refs/heads/}"
+    # `git worktree add -b work/<name>` creates then reasserts its fresh Work
+    # Lane ref before `ethos lane start` can create a lease.  A fresh checkout
+    # also lacks its checkout-local interpreter.  Do not bootstrap a full
+    # runtime for that work-lane setup event: it has no lease transition to
+    # repair and must not require network access merely to create the lane that
+    # will own subsequent work.  Changed existing Work Lane refs still use the
+    # normal hook path so their committed phase repairs the lease head.
+    case "$old_value" in
+        *[!0]*) old_is_zero="false" ;;
+        *) old_is_zero="true" ;;
+    esac
+    case "$branch" in
+        work/*)
+            if [ ! -x "$runtime_python" ] && \
+                { [ "$old_value" = "$new_value" ] || [ "$old_is_zero" = "true" ]; }; then
+                continue
+            fi
+            ;;
+    esac
     verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
         "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
         "$ref_name" "$old_value" "$new_value" --phase "$phase" \

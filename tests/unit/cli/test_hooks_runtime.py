@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -50,3 +53,59 @@ def test_reference_transaction_updates_work_lane_lease_after_commit() -> None:
     assert '--phase "$phase"' in script
     assert '"state":"lease_head_advanced"' in script
     assert "lease repair required" in script
+
+
+def test_reference_transaction_skips_runtime_bootstrap_for_fresh_work_lane_ref(
+    tmp_path: Path,
+) -> None:
+    """A no-op Work Lane setup ref must not bootstrap a runtime before its lease exists."""
+    source_root = Path.cwd()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "dev"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@example.test"], cwd=repo, check=True)
+    (repo / "README.md").write_text("# test\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True)
+    subprocess.run(["git", "branch", "candidate/dev"], cwd=repo, check=True)
+
+    hooks = repo / ".githooks"
+    hooks.mkdir()
+    hook = hooks / "reference-transaction"
+    runtime = repo / "tools" / "ci" / "scripts" / "with-python-runtime.sh"
+    runtime.parent.mkdir(parents=True)
+    shutil.copy(source_root / ".githooks" / "reference-transaction", hook)
+    shutil.copy(source_root / "tools" / "ci" / "scripts" / "with-python-runtime.sh", runtime)
+    hook.chmod(0o755)
+    runtime.chmod(0o755)
+    subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "ethos.acceptedBranch", "dev"], cwd=repo, check=True)
+
+    marker = tmp_path / "uv-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(f'#!/bin/sh\ntouch "{marker}"\nexit 0\n', encoding="utf-8")
+    fake_uv.chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"}
+
+    created = subprocess.run(
+        [
+            "git",
+            "worktree",
+            "add",
+            "-b",
+            "work/fresh",
+            str(tmp_path / "fresh"),
+            "candidate/dev",
+        ],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert created.returncode == 0, created.stderr
+    assert marker.exists() is False

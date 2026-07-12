@@ -225,7 +225,8 @@ def _governance_context(
 ) -> dict[str, object] | None:
     if handler.governance_context_path is None:
         return None
-    return dict(_mapping(_value_at(report, handler.governance_context_path)))
+    context = _value_at(report, handler.governance_context_path) or report.get("governance_context")
+    return dict(_mapping(context))
 
 
 def _next_actions(

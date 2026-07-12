@@ -277,6 +277,7 @@ def _compact_report_payload(payload: dict[str, object]) -> dict[str, object]:
     data = cast("dict[str, Any]", payload["data"])
     return {
         **payload,
+        "governance_context": data.get("governance_context", {}),
         "summary": {**cast("dict[str, object]", payload["summary"]), "compact": True},
         "data": _compact_report_data(data),
     }

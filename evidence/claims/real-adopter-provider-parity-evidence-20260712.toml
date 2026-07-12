@@ -1,50 +1,5 @@
-[claim]
-id = "real-adopter-provider-parity-evidence-20260712"
-subject = "ethos:external-adopter-provider-parity-observation"
-change_id = "real-adopter-provider-parity-evidence-20260712"
-state = "active"
-summary = "Digest-bound, local-only evidence for generic, GitHub, and GitLab overlay preservation against an isolated real-adopter clone."
-
-[evidence]
-dated = "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md"
-sha256 = "7a01946dafa5b8b5a1730af4bf0bb6776e1998fed5b66f28f1dee906bc83644a"
-evidence_ids = ["evidence:real-adopter-provider-parity-evidence-20260712"]
-binding = "digest-bound current-head local overlay and shadow-parity observation"
-verifier = "digest_only"
-tests = [
-  "ethos adopt --profile generic --overlay --apply --authorize --root <isolated-adopter> --json",
-  "ethos adopt --profile github --overlay --apply --authorize --root <isolated-adopter> --json",
-  "ethos adopt --profile gitlab --overlay --apply --authorize --root <isolated-adopter> --json",
-  "ethos parity shadow --adopter <profile> --target <isolated-adopter> --execute --json",
-  "sha256 protected-surface before/after comparison for each profile",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[scope]
-profiles = ["generic", "github", "gitlab"]
-paths = [
-  "evidence/claims/real-adopter-provider-parity-evidence-20260712.toml",
-  "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md",
-  "openspec/changes/real-adopter-provider-parity-evidence-20260712",
-]
-
-[boundary]
-owner = "ethos-repository"
-scope = "Historical, local-only digest binding for isolated external-adopter overlay preservation and shared-command parity observations."
-
-[carriers]
-openspec = "openspec/changes/real-adopter-provider-parity-evidence-20260712"
-fallback = "Treat the host-local raw bundle as diagnostic-only and retain existing generic product evidence without an external-adopter parity claim."
-kill_signal = "This claim is used to assert semantic correctness, hosted execution, provider authority, remote publication, or a mandatory account, credential, key, daemon, network service, or yheng-agent-ethos prerequisite."
-
-[promotion]
-targets = [
-  "openspec/changes/real-adopter-provider-parity-evidence-20260712/proposal.md",
-  "openspec/changes/real-adopter-provider-parity-evidence-20260712/design.md",
-  "openspec/changes/real-adopter-provider-parity-evidence-20260712/tasks.md",
-  "openspec/changes/real-adopter-provider-parity-evidence-20260712/specs/repository-governance/spec.md",
-  "evidence/claims/real-adopter-provider-parity-evidence-20260712.toml",
-  "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md",
-]
+claim = { id = "real-adopter-provider-parity-evidence-20260712", subject = "ethos:external-adopter-provider-parity-observation", state = "active", summary = "Digest-bound local evidence for generic, GitHub, and GitLab isolated-adopter overlay preservation." }
+evidence = { dated = "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md", sha256 = "7a01946dafa5b8b5a1730af4bf0bb6776e1998fed5b66f28f1dee906bc83644a", evidence_ids = ["evidence:real-adopter-provider-parity-evidence-20260712"], binding = "Digest-bound current-head local overlay and shadow-parity observation.", verifier = "digest_only", freshness = { mode = "historical" }, tests = ["isolated overlay apply and eight-command shadow comparison for generic, github, and gitlab"] }
+boundary = { owner = "ethos-repository", scope = "Historical local-only external-adopter overlay and shared-command parity observation." }
+carriers = { openspec = "openspec/changes/real-adopter-provider-parity-evidence-20260712", fallback = "Retain existing generic product evidence without an external-adopter parity claim.", kill_signal = "Use as semantic, hosted, authority, remote, or mandatory-account evidence." }
+promotion = { targets = ["openspec/changes/real-adopter-provider-parity-evidence-20260712", "evidence/claims/real-adopter-provider-parity-evidence-20260712.toml", "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md"] }

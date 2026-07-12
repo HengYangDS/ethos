@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-12
+goal: Record bounded local evidence for generic, GitHub, and GitLab overlay
+  preservation without altering the source adopter or publishing remotely.

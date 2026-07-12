@@ -6,7 +6,7 @@ summary = "Active change record for optional, action-bound independent proof re-
 
 [evidence]
 dated = "evidence/chronicle/assurance-program-20260712/2026-07-12.md"
-sha256 = "4567cb36e5bdd77315b0784bf3dbffe855152ca6592752c9c3bd08e2db9ba391"
+sha256 = "a497949494a087fa41704b87e1b38745f7f135728cf42ab1bd13487dd7f6a631"
 evidence_ids = ["evidence:assurance-program-20260712"]
 binding = "active OpenSpec carrier and bounded implementation evidence"
 verifier = "semantic_attested"

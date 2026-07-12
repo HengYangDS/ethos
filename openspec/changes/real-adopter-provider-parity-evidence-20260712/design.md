@@ -33,6 +33,13 @@ host-local; a second repository evidence root is not created.
 `github` and `gitlab` name local profiles, not hosted access, execution, or
 authority.  The same kernel and boundary apply to every profile.
 
+### The carrier budget is configuration, not an exemption
+
+The compact claim is formatted through the declared TOML policy.  Its five
+lines and the seven-line debt record add twelve effective lines; one existing
+line of global slack leaves an exact eleven-line allowance.  It changes neither
+the baseline nor the maximum debt and grants no per-file exemption.
+
 ## Risks / rollback
 
 A digest cannot validate meaning; any semantic claim needs its own reviewed

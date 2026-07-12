@@ -20,6 +20,7 @@ paths, provider state, credentials, or raw proof bundle.
 ### Modified Capabilities
 
 - `repository-governance`: subject=external-adopter-provider-parity-evidence; reuse=extend; change=modify; facet:lifecycle=evidence,claim; facet:surface=adoption,parity,chronicle; facet:authority=source,claim,evidence,openspec.
+- `quality`: subject=source-budget-evidence-carrier; reuse=extend; change=modify; facet:lifecycle=admission,archive; facet:surface=source-budget,format; facet:authority=policy,claim,openspec.
 
 ## Out Of Scope
 
@@ -29,4 +30,4 @@ paths, provider state, credentials, or raw proof bundle.
 
 ## Impact
 
-- Carrier, claim, and Chronicle only; no runtime, planner, adapter, adopter, remote, or account change.
+- Carrier, claim, Chronicle, and bounded policy record only; no runtime, planner, adapter, adopter, remote, or account change.

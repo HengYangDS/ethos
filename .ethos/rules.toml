@@ -107,6 +107,14 @@ deletion_wave = "T8"
 expiry = "T8"
 allowance = 3237
 
+[[quality.source_budget.debt.records]]
+id = "real-adopter-provider-parity-evidence-20260712"
+owner = "real-adopter-provider-parity-evidence-20260712"
+replacement = "digest-bound external-adopter profile evidence carrier"
+deletion_wave = "carrier archive"
+expiry = "carrier archive"
+allowance = 11
+
 [quality.source_budget.debt.records.allowance_by_category]
 python_product = 1344
 python_tests = 1970

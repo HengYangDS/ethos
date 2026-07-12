@@ -349,6 +349,14 @@ an evidence-recording commit prove what it actually proves without pretending to
 know its own future commit hash, while any later parity-relevant source or
 contract change still stales the evidence.
 
+When a Work Lane changes that parity-relevant tree, it SHALL refresh and commit
+the tracked generic parity evidence in the same admitted Work Lane after the
+source commit and before executed proof. `quality evidence-freshness` SHALL
+surface a stale configured generic carrier as a first-class proof gap, rather
+than leaving it to an ambient unit assertion. Candidate and accepted roots stay
+write-protected: landing carries the already-committed semantic evidence forward;
+it is not a license to repair evidence after integration.
+
 Generated proof artifacts are physical evidence projections, not truth stores.
 When multiple local or hosted runners can write the same latest artifact, the
 owner gate must serialize cleanup and writes or use an equivalent per-run

@@ -157,12 +157,22 @@ def test_parity_gaps_recommends_write_evidence_when_tracked_evidence_is_stale(
             "parity_evidence_invalid:sample-adopter",
             "parity_evidence_invalid:sample-adopter:product_head",
         ],
+        "lifecycle": {
+            "stage": "work_lane_before_proof",
+            "write_root": target.resolve().as_posix(),
+            "write_path": "evidence/parity/sample-adopter-shadow.json",
+            "commit_required_before_proof": True,
+            "authority_boundary": (
+                "refresh and commit tracked parity evidence from the admitted "
+                "Work Lane; candidate and accepted roots remain write-protected"
+            ),
+        },
         "command": (
             "ethos parity shadow --adopter sample-adopter "
             f"--root {product.resolve().as_posix()} "
             f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
         ),
-        "next_action": "refresh tracked shadow parity evidence",
+        "next_action": "refresh and commit tracked shadow parity evidence before proof",
     }
 
 
@@ -260,15 +270,6 @@ def test_parity_gaps_reports_generic_tracked_evidence_state() -> None:
             True,
             "generic",
         )
-
-
-def test_parity_gaps_closes_generic_from_tracked_product_evidence() -> None:
-    payload = run_ethos("parity", "gaps", "--json")
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["pending_packages"] == []
-    assert payload["data"]["evidence"]["path"] == "evidence/parity/generic-shadow.json"
 
 
 def test_parity_gaps_defaults_target_to_repo_for_self_governance() -> None:

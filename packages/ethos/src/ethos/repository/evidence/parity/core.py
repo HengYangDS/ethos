@@ -133,6 +133,8 @@ def parity_evidence_refresh_package(
     target: Path | None,
     required_gaps: Iterable[str] = (),
 ) -> dict[str, object]:
+    evidence_root = parity_evidence_repository_root(root=root, target=target)
+    evidence_path = parity_evidence_path(root=evidence_root, adopter=adopter)
     target_name = (
         target_identity(root=root, adopter=adopter, target=target.resolve())
         if target is not None
@@ -147,13 +149,23 @@ def parity_evidence_refresh_package(
         "target": target_name,
         "blocking": True,
         "required_gaps": [str(gap) for gap in required_gaps],
+        "lifecycle": {
+            "stage": "work_lane_before_proof",
+            "write_root": evidence_root.resolve().as_posix(),
+            "write_path": evidence_path.relative_to(evidence_root).as_posix(),
+            "commit_required_before_proof": True,
+            "authority_boundary": (
+                "refresh and commit tracked parity evidence from the admitted "
+                "Work Lane; candidate and accepted roots remain write-protected"
+            ),
+        },
         "command": _shadow_refresh_command(
             adopter=adopter,
             root=root,
             target=target_arg,
             include_product_root=include_product_root,
         ),
-        "next_action": "refresh tracked shadow parity evidence",
+        "next_action": "refresh and commit tracked shadow parity evidence before proof",
     }
 
 

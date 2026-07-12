@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos.repository.evidence.freshness as freshness
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_evidence_freshness_surfaces_configured_generic_parity_gap(

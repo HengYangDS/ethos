@@ -6,9 +6,9 @@ summary = "ETHOS preflights each active OpenSpec archive through the configured 
 
 [evidence]
 dated = "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md"
-sha256 = "c5c69b7285c40c71a7d5529f754f9274e1c42653c37624ff5a1d6897ffc32c7e"
+sha256 = "f638374f2e1e72465de4fd55cfd4ca133b3c8e750e8c4d16b770555af88a764e"
 evidence_ids = ["evidence:openspec-archive-preflight-20260712"]
-binding = "The active carrier, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind official isolated archive preflight semantics."
+binding = "The archived carrier, official archive receipt, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind official isolated archive preflight semantics."
 verifier = "semantic"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/product/test_openspec_cache.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_preflight.py tests/unit/product/test_openspec_substrate.py",
@@ -42,7 +42,7 @@ owner = "ethos-adapters"
 scope = "Official isolated OpenSpec archive preflight, source-safety projection, and lifecycle transition admission."
 
 [carriers]
-openspec = "openspec/changes/openspec-archive-preflight-20260712"
+openspec = "openspec/changes/archive/2026-07-12-openspec-archive-preflight-20260712"
 fallback = "Keep official archive as the closeout authority and block the affected lifecycle transition when preflight cannot establish archiveability."
 kill_signal = "An active change can pass lifecycle admission while the same official archive command deterministically rejects its delta against the current canonical specs."
 
@@ -61,7 +61,7 @@ targets = [
   "tests/unit/cli/test_contracts_proof.py",
   "docs/governance/openspec-governance.md",
   "docs/reference/command-plane.md",
-  "openspec/changes/openspec-archive-preflight-20260712",
+  "openspec/changes/archive/2026-07-12-openspec-archive-preflight-20260712",
   "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md",
   "evidence/claims/openspec-archive-preflight-20260712.toml",
 ]

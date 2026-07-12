@@ -16,7 +16,7 @@
 
 ## Follow-on Boundary
 
-T6--T9 remain active work in the canonical program plan, not unfinished tasks
-inside this completed foundation carrier. They require separate phase claims,
-short-lived OpenSpec changes, old-mechanism deletion evidence, and new
-HEAD-bound proof before they can be promoted.
+T1, T2, the unfinished portions of T3--T5, and T6--T9 remain active work in the
+canonical program plan, not unfinished tasks inside this completed foundation
+carrier. They require separate phase claims, short-lived OpenSpec changes,
+old-mechanism deletion evidence, and new HEAD-bound proof before promotion.

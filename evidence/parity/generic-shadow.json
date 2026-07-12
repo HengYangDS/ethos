@@ -5,10 +5,10 @@
   "generated_on": "2026-07-12",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "418f83c4dfc17acab7ec74b29e7fe3f2dcd78ce8",
-    "target_head": "418f83c4dfc17acab7ec74b29e7fe3f2dcd78ce8",
-    "product_semantic_sha256": "6185fe09e145a66eb11f6757a78a0f1782966f650a93a1374a815c10fe9600ab",
-    "target_semantic_sha256": "6185fe09e145a66eb11f6757a78a0f1782966f650a93a1374a815c10fe9600ab",
+    "product_head": "ca013ccf8d9f3fc410bdf56f27fb19bf2e9ddc10",
+    "target_head": "ca013ccf8d9f3fc410bdf56f27fb19bf2e9ddc10",
+    "product_semantic_sha256": "01d627e478987703f6b62de31b489baff64b4372f52a1d24dee9633244697049",
+    "target_semantic_sha256": "01d627e478987703f6b62de31b489baff64b4372f52a1d24dee9633244697049",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,11 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "418f83c4dfc17acab7ec74b29e7fe3f2dcd78ce8",
-    "product_head": "418f83c4dfc17acab7ec74b29e7fe3f2dcd78ce8",
-    "changed_paths": [],
+    "target_head": "ca013ccf8d9f3fc410bdf56f27fb19bf2e9ddc10",
+    "product_head": "ca013ccf8d9f3fc410bdf56f27fb19bf2e9ddc10",
+    "changed_paths": [
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -77,17 +79,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "b8f826b5bb49088451923726d0537566eb53e279a4d8762163a9d8925b6bf389"
+        "sha256": "f7cce1c4d0a21c7de520eba096f8220a8a21d8a8260ff0baa3516f0bd80ec54c"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "229cce331f200ec3da0e2ce37e786c3a750a4321937d81f8702874802f640179"
+        "sha256": "977e757c392187062ab3d1b1a36f3c894445781fa8388c1bf807c5e3b360bb4f"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "1c6a19a4784c9b78ec12df20346c553472ca054b82f7a4b5fa880134e1868c4f"
+        "sha256": "e77d130763925cd067ea496f60d3a89b5bbe27b95b445bf0aad1097b1c574175"
       },
       {
         "path": "rules",

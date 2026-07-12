@@ -36,7 +36,7 @@ owner = "ethos-repository"
 scope = "Configured generic parity evidence lifecycle from owned Work Lane through candidate landing"
 
 [carriers]
-openspec = "openspec/changes/parity-evidence-transaction-20260712"
+openspec = "openspec/changes/archive/2026-07-12-parity-evidence-transaction-20260712"
 
 fallback = "Keep stale generic parity evidence blocking proof and require a manual owner-lane refresh rather than writing a protected candidate checkout."
 kill_signal = "A candidate or accepted checkout can directly write generic parity evidence, or stale parity can pass proof without a Work-Lane refresh package."

@@ -19,6 +19,6 @@
   lint.
 - [x] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
   executed proof on this stable owned Work Lane.
-- [ ] 3.3 Bind final command evidence, archive the carrier, and land through
+- [x] 3.3 Bind final command evidence, archive the carrier, and land through
   candidate only when all local gates are green.
 - [x] 3.4 Keep remote publication deferred while GitLab is unavailable.

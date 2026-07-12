@@ -79,8 +79,9 @@ moving logic to a declaration does not satisfy this program.
 The active debt remains globally capped at 5,267 effective lines. It is not a
 baseline reset and it never changes either terminal budget. `program-foundation`
 is the bounded measurement, compiler, and archival-evidence record. Its 14
-effective TOML lines for the accepted claim and archive binder are explicit
-foundation debt, not an uncounted documentation escape. The separate
+effective TOML lines for the accepted claim/archive binder and two effective
+JSON lines for refreshed generic parity evidence are explicit foundation debt,
+not an uncounted documentation escape. The separate
 `candidate-train-reconciliation` record is a measured integration allowance for
 already-admitted candidate-train capabilities that arrived while this program
 was being rebased: independent verification, performance evidence, runtime
@@ -91,8 +92,8 @@ copies; it is not permission to retain duplicate behavior.
 The reconciliation record is exact rather than aspirational. The current
 candidate-train reconciliation snapshot bounds 1,274 product-Python, 1,783
 test-Python, 347 other-Python, 368 shell, 102 JSON, and 15 Jinja effective
-lines. Together with the foundation record its aggregate allowance is 4,238,
-below the immutable 5,267 maximum. The same snapshot remains **35,841 global**
+lines. Together with the foundation record its aggregate allowance is 4,240,
+below the immutable 5,267 maximum. The same snapshot remains **35,843 global**
 and **29,433 Python** effective lines above the terminal maxima; T8 and T9
 cannot close while any of that gap or either active debt record remains.
 

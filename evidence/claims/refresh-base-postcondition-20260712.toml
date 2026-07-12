@@ -34,7 +34,7 @@ owner = "ethos-lifecycle"
 scope = "Work Lane base refresh truthfulness: replay success requires captured-candidate ancestry in the resulting Work Lane head."
 
 [carriers]
-openspec = "openspec/changes/refresh-base-postcondition-20260712"
+openspec = "openspec/changes/archive/2026-07-12-refresh-base-postcondition-20260712"
 fallback = "Keep the Work Lane transition blocked when replay cannot establish captured-candidate ancestry; repair the replay environment and rerun refresh-base."
 kill_signal = "A zero-exit replay can report success while the captured candidate head is absent from the resulting Work Lane history."
 

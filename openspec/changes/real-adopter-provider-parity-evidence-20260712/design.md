@@ -41,12 +41,15 @@ boundary. `docs/history/` links decisions, archived OpenSpec carriers, and
 historical Chronicles. Both files remain curated routing surfaces: they copy no
 raw packet, claim payload, or current-state assertion.
 
-### The carrier budget is configuration, not an exemption
+### Capacity belongs to the reconciliation carrier that consumes it
 
-The compact claim is formatted through the declared TOML policy.  Its five
-lines and the seven-line debt record add twelve effective lines; one existing
-line of global slack leaves an exact eleven-line allowance.  It changes neither
-the baseline nor the maximum debt and grants no per-file exemption.
+The broad category allowances were introduced for candidate-train reconciliation
+and therefore belong to that record. After the candidate absorbs archive
+preflight capacity, the separate eleven-line evidence-carrier record would push
+the declared total above the unchanged hard cap. The category envelope moves to
+the reconciliation record unchanged and the redundant eleven-line record is
+removed. The compact claim then uses existing declared capacity; no baseline,
+maximum, or per-file exemption changes.
 
 ## Risks / rollback
 

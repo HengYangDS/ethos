@@ -197,6 +197,9 @@ match_prefixes = [
   "carrier_invalid",
   "openspec_",
   "official_openspec_",
+  "official_archive_",
+  "isolated_workspace_",
+  "workspace_",
   "capability_profile_",
   "capability_family_",
 ]

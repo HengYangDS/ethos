@@ -1,5 +1,15 @@
 # Design
 
+## Carrier Boundary
+
+This change is the completed declaration-first foundation, not the terminal
+compression program. It covers T0 measurement/debt, the first T3
+declaration/projection compiler, the T4 restricted-CEL topology cutover, and
+the T5 reconciliation needed to keep the integrated candidate train inside its
+declared temporary debt. The canonical program plan retains T6--T9. Each later
+wave requires a new claim and a short-lived phase carrier in its own Work Lane;
+this carrier is archived after its foundation evidence is bound.
+
 ## Fixed Point
 
 ETHOS remains a small repository-governance product with one truth boundary and

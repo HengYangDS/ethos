@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.openspec.preflight.core as preflight_core
 from ethos.adapters.openspec.preflight.core import openspec_archive_preflight_report
 
 if TYPE_CHECKING:
@@ -22,6 +23,31 @@ def _result(**kwargs: object) -> dict[str, object]:
     } | kwargs
 
 
+def _configure_case(root: Path, tmp_path: Path, case: str, monkeypatch) -> None:
+    if case == "missing":
+        shutil.rmtree(root / "openspec")
+    elif case == "copy":
+        monkeypatch.setattr(
+            shutil, "copytree", lambda *_args: (_ for _ in ()).throw(shutil.Error())
+        )
+    elif case == "temporary":
+        monkeypatch.setattr(
+            preflight_core, "TemporaryDirectory", lambda **_kwargs: (_ for _ in ()).throw(OSError())
+        )
+    elif case == "cleanup":
+
+        class BrokenTemporary:
+            name = str(tmp_path / "broken-temporary")
+
+            def __init__(self, **_kwargs: object) -> None:
+                pass
+
+            def cleanup(self) -> None:
+                raise OSError
+
+        monkeypatch.setattr(preflight_core, "TemporaryDirectory", BrokenTemporary)
+
+
 @pytest.mark.parametrize(
     ("case", "code"),
     [
@@ -32,6 +58,11 @@ def _result(**kwargs: object) -> dict[str, object]:
         ("receipt", "official_archive_result_invalid"),
         ("copy", "workspace_copy_failed"),
         ("invoke", "official_archive_invocation_failed"),
+        ("missing", "workspace_missing"),
+        ("temporary", "isolated_workspace_unavailable"),
+        ("cleanup", "isolated_workspace_cleanup_failed"),
+        ("none", "official_archive_invocation_failed"),
+        ("exit", "official_archive_failed"),
     ],
 )
 def test_official_archive_preflight_isolated_and_fail_closed(
@@ -43,10 +74,7 @@ def test_official_archive_preflight_isolated_and_fail_closed(
     tracked.write_text("# Adapters\n", encoding="utf-8")
     before = tracked.read_text(encoding="utf-8")
     roots: list[Path] = []
-    if case == "copy":
-        monkeypatch.setattr(
-            shutil, "copytree", lambda *_args: (_ for _ in ()).throw(shutil.Error())
-        )
+    _configure_case(root, tmp_path, case, monkeypatch)
 
     def run(command_root: Path, _base: tuple[str, ...], args: tuple[str, ...]) -> dict[str, object]:
         roots.append(command_root)
@@ -57,6 +85,8 @@ def test_official_archive_preflight_isolated_and_fail_closed(
             ) == before
         if case == "invoke":
             raise OSError(case)
+        if case == "none":
+            return None  # type: ignore[return-value]
         if case == "redacted":
             return _result(
                 exit_code=1,
@@ -72,9 +102,10 @@ def test_official_archive_preflight_isolated_and_fail_closed(
                 },
             )
         return {
-            "invalid-json": _result(json={}, parse_error="invalid"),
+            "invalid-json": _result(json=[], parse_error="invalid"),
             "timeout": _result(exit_code=124, json={}, parse_error="openspec_command_timeout"),
-            "receipt": _result(json={"archive": None, "status": []}),
+            "receipt": _result(json={"archive": None, "status": [None]}),
+            "exit": _result(exit_code="failed", json={}),
         }.get(case, _result())
 
     report = openspec_archive_preflight_report(
@@ -82,7 +113,6 @@ def test_official_archive_preflight_isolated_and_fail_closed(
     )
 
     assert report["state"] == ("ready" if not code else "blocked")
-    assert tracked.read_text(encoding="utf-8") == before
     if code:
         assert report["required_gaps"] == [
             f"openspec_archive_preflight_failed:sample-change:{code}"

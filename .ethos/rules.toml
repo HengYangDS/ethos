@@ -90,10 +90,10 @@ owner = "global-declarative-compression-program-20260711"
 replacement = "source budget, carrier admission, and declaration compiler foundation"
 deletion_wave = "T5"
 expiry = "T5"
-allowance = 1426
+allowance = 1428
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_product = 350
+python_product = 352
 python_tests = 400
 python_tools = 250
 toml = 714

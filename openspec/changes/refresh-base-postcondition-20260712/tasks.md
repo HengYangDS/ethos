@@ -2,6 +2,7 @@
 
 - [x] 1.1 Add an OpenSpec delta for ancestry-bound Work Lane refresh success.
 - [x] 1.2 Add a focused zero-code no-op rebase regression.
+- [x] 1.3 Make temporary Git fixtures locally disable commit signing.
 
 ## 2. Minimal Control Repair
 

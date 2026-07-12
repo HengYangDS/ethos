@@ -31,6 +31,7 @@ def git(root: Path, *args: str) -> str:
 def init_git_repo(path: Path) -> Path:
     path.mkdir(parents=True)
     git(path, "init", "-b", "dev")
+    git(path, "config", "commit.gpgsign", "false")
     (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
     (path / ".ethos" / "state").mkdir(parents=True)

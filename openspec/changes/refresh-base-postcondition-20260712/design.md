@@ -13,8 +13,8 @@ references changed as required.
 - Bind a successful refresh report to the Git ancestry fact it claims.
 - Keep ordinary semantic conflicts blocked and parity-projection recovery
   available.
-- Exercise the exact false-success shape without relying on host signing or
-  hook behavior.
+- Exercise the exact false-success and projection-recovery shapes in hermetic
+  temporary repositories, without relying on host signing or hook behavior.
 
 **Non-Goals:**
 
@@ -43,6 +43,8 @@ advance remains a separate freshness condition for landing.
   captured base; normal land freshness checks still reject a stale lane.
 - **Projection recovery changes control flow** -> one shared postcondition keeps
   the recovery path from becoming an exemption.
+- **Ambient Git signing affects temporary rebases** -> test fixtures set local
+  `commit.gpgsign=false`; production signing policy remains untouched.
 
 ## Migration Plan
 

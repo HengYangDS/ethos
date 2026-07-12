@@ -20,6 +20,7 @@ product_default = [
   "module-layout",
   "no-compat",
   "python-size",
+  "source-budget",
   "toml-config",
   "yaml-config",
   "shell-lint",
@@ -53,6 +54,7 @@ product_full = [
   "schema-contracts",
   "proof-policy",
   "python-size",
+  "source-budget",
   "npm-pack",
 ]
 adopter_default = [
@@ -647,6 +649,24 @@ execution_mode = "inprocess"
 evidence_class = "contract"
 trust_bearing = true
 tool_adapter = "ethos-code-size"
+writes_files = false
+network_policy = "offline"
+version_source = "product"
+
+[[gates]]
+id = "source-budget"
+registries = ["quality", "runtime"]
+kind = "determinism"
+command = ["ethos", "quality", "source-budget", "--json"]
+policy = "required"
+profile = "product"
+toolchain = "quality-adapter"
+asset_classes = ["repository-source"]
+dimensions = ["volume", "maintainability", "deletion"]
+execution_mode = "inprocess"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "ethos-source-budget"
 writes_files = false
 network_policy = "offline"
 version_source = "product"

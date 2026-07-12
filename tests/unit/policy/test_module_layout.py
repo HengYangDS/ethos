@@ -3,6 +3,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import pytest
+
 import ethos.repository.policy.layout.imports.core as layout_imports
 from ethos.repository.policy.layout.core import module_layout_report
 
@@ -10,6 +12,23 @@ from ethos.repository.policy.layout.core import module_layout_report
 def _write(path: Path, text: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _write_suffix_baseline_policy(
+    root: Path,
+    modules: tuple[str, ...],
+    baseline_limit: int | None,
+) -> None:
+    entries = "\n".join(
+        f'  "module_layout_suffix_module:packages/ethos/src/ethos/{module}:{Path(module).stem}",'
+        for module in modules
+    )
+    _write(
+        root / ".config" / "checks" / "module-layout" / "policy.toml",
+        'paths = ["packages/ethos/src"]\n'
+        f"{f'baseline_gap_limit = {baseline_limit}\n' if baseline_limit is not None else ''}"
+        f"allowed_suffix_modules = [\n{entries}\n]\n",
+    )
 
 
 def _assert_summary_counts(report: dict[str, object], **expected: int) -> None:
@@ -230,100 +249,37 @@ def test_module_layout_blocks_stale_baseline_entries(tmp_path: Path) -> None:
     ]
 
 
-def test_module_layout_blocks_baseline_growth_over_ratchet_limit(tmp_path: Path) -> None:
-    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
-    _write(source / "old_report.py")
-    _write(source / "new_report.py")
-    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
-    _write(
-        policy,
-        textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 1
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-              "module_layout_suffix_module:packages/ethos/src/ethos/new_report.py:new_report",
-            ]
-            """
+@pytest.mark.parametrize(
+    ("modules", "baseline_limit", "expected_state", "expected_gap"),
+    [
+        (
+            ("old_report.py", "new_report.py"),
+            1,
+            "blocked",
+            "module_layout_baseline_limit:2>1",
         ),
-    )
-
-    report = module_layout_report(tmp_path)
-
-    assert report["ok"] is False
-    assert "module_layout_baseline_limit:2>1" in report["required_gaps"]
-    assert report["baseline_limit"] == 1
-
-
-def test_module_layout_requires_baseline_limit_when_baseline_exists(tmp_path: Path) -> None:
-    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
-    _write(source / "old_report.py")
-    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
-    _write(
-        policy,
-        textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
-        ),
-    )
-
-    report = module_layout_report(tmp_path)
-
-    assert report["ok"] is False
-    assert "module_layout_baseline_limit_missing" in report["required_gaps"]
-
-
-def test_module_layout_requires_baseline_limit_to_match_current_baseline_count(
+        (("old_report.py",), None, "blocked", "module_layout_baseline_limit_missing"),
+        (("old_report.py",), 2, "blocked", "module_layout_baseline_limit:1!=2"),
+        (("old_report.py",), 1, "clean", None),
+    ],
+    ids=["growth-over-limit", "limit-missing", "limit-count-mismatch", "current-limit"],
+)
+def test_module_layout_validates_baseline_limit(
     tmp_path: Path,
+    modules: tuple[str, ...],
+    baseline_limit: int | None,
+    expected_state: str,
+    expected_gap: str | None,
 ) -> None:
     source = tmp_path / "packages" / "ethos" / "src" / "ethos"
-    _write(source / "old_report.py")
-    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
-    _write(
-        policy,
-        textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 2
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
-        ),
-    )
+    for module in modules:
+        _write(source / module)
+    _write_suffix_baseline_policy(tmp_path, modules, baseline_limit)
 
     report = module_layout_report(tmp_path)
 
-    assert report["ok"] is False
-    assert "module_layout_baseline_limit:1!=2" in report["required_gaps"]
-
-
-def test_module_layout_accepts_current_baseline_limit(tmp_path: Path) -> None:
-    source = tmp_path / "packages" / "ethos" / "src" / "ethos"
-    _write(source / "old_report.py")
-    policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
-    _write(
-        policy,
-        textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 1
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
-        ),
-    )
-
-    report = module_layout_report(tmp_path)
-
-    assert report["ok"] is True
-    assert report["required_gaps"] == []
+    assert report["ok"] is (expected_state == "clean")
+    assert (expected_gap in report["required_gaps"]) is (expected_gap is not None)
 
 
 def test_module_layout_clean_state_still_exposes_tracked_ratchet_debt(

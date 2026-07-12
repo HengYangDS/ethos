@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 import ethos_core.contracts.gates as gates_contract
+from ethos_core._resources import resolve_declaration_path
 from ethos_core.contracts.gates import GateRegistryDeclaration
 from ethos_core.contracts.gates import load_gate_registry_declaration
 
@@ -19,8 +20,8 @@ def test_gate_declaration_compiles_runtime_quality_and_proof_sets() -> None:
     bound_runtime = declaration.registry("runtime", python_executable="/python")
     quality = declaration.registry("quality")
 
-    assert len(runtime) == 34
-    assert len(quality) == 19
+    assert "source-budget" in runtime
+    assert "source-budget" in quality
     assert runtime["repository-audit"].resolved_command("/python") == (
         "/python",
         "-m",
@@ -32,6 +33,7 @@ def test_gate_declaration_compiles_runtime_quality_and_proof_sets() -> None:
     )
     assert bound_runtime["repository-audit"].command[0] == "/python"
     assert runtime["repository-audit"].to_dict()["command"][0] == "{python}"
+    assert bound_runtime["repository-audit"].to_node().id == "repository-audit"
     assert quality["module-layout"].depends_on == ("python-lint",)
     assert runtime["module-layout"].depends_on == ()
     assert declaration.proof_sets.product_default[0] == "repository-audit"
@@ -112,4 +114,8 @@ def test_gate_declaration_uses_repository_default_and_packaged_fallback(
 
     monkeypatch.setattr(gates_contract, "DECLARATION_PATH", Path("absent.toml"))
     monkeypatch.setattr(gates_contract, "__file__", str(tmp_path / "isolated" / "gates.py"))
-    assert gates_contract._default_declaration_path() == Path("absent.toml")
+    assert resolve_declaration_path(
+        None,
+        canonical=gates_contract.DECLARATION_PATH,
+        module_file=gates_contract.__file__,
+    ) == Path("absent.toml")

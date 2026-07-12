@@ -55,6 +55,66 @@ surface_path_globs = ["packages/ethos/src/ethos/cli.py", "packages/ethos/src/eth
 # surface (still bounded to prevent unbounded growth), not the product limit.
 test_effective_max_lines = 800
 
+[quality.source_budget]
+# The parent of the global-declarative-compression Work Lane. This baseline is
+# never reset by a migration; every tracked executable carrier remains visible.
+baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
+enforcement = "transition"
+
+[quality.source_budget.baseline]
+python_product = 35675
+python_tests = 46730
+python_tools = 1038
+python_other = 446
+shell = 1445
+js = 89
+toml = 11633
+yaml = 1082
+json = 6439
+ini = 70
+jinja = 671
+diagram = 24
+python_total = 83889
+global_total = 105342
+
+[quality.source_budget.terminal]
+python_total = 58722
+global_total = 73739
+
+[quality.source_budget.debt]
+maximum_total = 5267
+
+[[quality.source_budget.debt.records]]
+id = "program-foundation"
+owner = "global-declarative-compression-program-20260711"
+replacement = "source budget, carrier admission, and declaration compiler foundation"
+deletion_wave = "T5"
+expiry = "T5"
+allowance = 1410
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 350
+python_tests = 400
+python_tools = 250
+toml = 700
+json = 14
+
+[[quality.source_budget.debt.records]]
+id = "candidate-train-reconciliation"
+owner = "global-declarative-compression-program-20260711"
+replacement = "candidate-train semantic integrations pending T8 scenario, runner, template, and provider-copy consolidation"
+deletion_wave = "T8"
+expiry = "T8"
+allowance = 2780
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 1233
+python_tests = 1781
+python_other = 347
+shell = 368
+json = 102
+jinja = 15
+
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"
 blocking = true

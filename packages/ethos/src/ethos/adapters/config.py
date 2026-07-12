@@ -30,3 +30,13 @@ def code_size_policy(root: Path) -> dict[str, object]:
         return {}
     code_size = quality.get("code_size")
     return cast("dict[str, object]", code_size) if isinstance(code_size, dict) else {}
+
+
+def source_budget_policy(root: Path) -> dict[str, object]:
+    """Project the global source-budget contract from the rules configuration."""
+    rules = rules_config(root)
+    quality = rules.get("quality")
+    if not isinstance(quality, dict):
+        return {}
+    budget = quality.get("source_budget")
+    return cast("dict[str, object]", budget) if isinstance(budget, dict) else {}

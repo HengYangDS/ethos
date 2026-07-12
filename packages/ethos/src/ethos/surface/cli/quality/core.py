@@ -15,49 +15,27 @@ from typing import cast
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.prove as prove_domain
 import ethos.repository.audit as repository_audit_module
+import ethos.repository.release.core as release_policy_module
 import ethos.surface.cli.results.tool as tool_results
 from ethos.adapters.gates.signature import signature_policy_report
-from ethos.adapters.gates.ty import ty_gate_report  # noqa: F401
-from ethos.assistants.projections import projection_drift_report  # noqa: F401
-from ethos.repository.evidence.claims import claims_report  # noqa: F401
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
-from ethos.repository.evidence.freshness import evidence_freshness_report  # noqa: F401
-from ethos.repository.policy.artifacts import generated_artifact_topology_report  # noqa: F401
 from ethos.repository.policy.coupling.core import coupling_audit_report
-from ethos.repository.policy.coverage import coverage_quality_report  # noqa: F401
 from ethos.repository.policy.docs.topology import docs_topology_report
-from ethos.repository.policy.docstrings.core import docstring_coverage_report  # noqa: F401
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.layout.core import module_layout_report  # noqa: F401
-from ethos.repository.policy.performance.core import performance_quality_report  # noqa: F401
-from ethos.repository.policy.schema import schema_validation_report  # noqa: F401
-from ethos.repository.registry.commands import command_registry_report  # noqa: F401
-from ethos.repository.registry.docs.commands import command_examples_report  # noqa: F401
-from ethos.repository.registry.docs.health import docs_health_report  # noqa: F401
 from ethos.repository.registry.docs.quality import docs_quality_report
 from ethos.repository.registry.standards import standard_adapter_registry
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
-from ethos.repository.release.core import release_policy_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos.surface.cli.quality.reporting import ReportCommandSpec
-from ethos.surface.cli.quality.reporting import advisory_state
+from ethos.surface.cli.quality.reporting import build_declarative_report_result
 from ethos.surface.cli.quality.reporting import compile_report_handlers
-from ethos.surface.cli.quality.reporting import conditional_actions
-from ethos.surface.cli.quality.reporting import constant_actions
-from ethos.surface.cli.quality.reporting import count_at
-from ethos.surface.cli.quality.reporting import count_of
-from ethos.surface.cli.quality.reporting import emit_report_command
-from ethos.surface.cli.quality.reporting import field_data
-from ethos.surface.cli.quality.reporting import module_report
-from ethos.surface.cli.quality.reporting import path_value
-from ethos.surface.cli.quality.reporting import payload_report
-from ethos.surface.cli.quality.reporting import project_summary
+from ethos_core.contracts.commands import ReportDataField
+from ethos_core.contracts.commands import ReportHandlerDeclaration
 from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.contracts.package.ontology import workspace_package_config_report
@@ -69,15 +47,6 @@ from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _quality_report_namespace() -> dict[str, object]:
-    """Return live module bindings so tests and adapters can monkeypatch reports."""
-    return globals()
-
-
-def _current_head(root: Path) -> str:
-    return git_adapter.current_head(root)
 
 
 def _product_quality_profile(_root: Path) -> object:
@@ -96,13 +65,21 @@ def _standard_adapter_registry(_root: Path) -> object:
     return standard_adapter_registry()
 
 
+def _standards_report(root: Path) -> object:
+    return {"adapters": _standard_adapter_registry(root)}
+
+
+def _sbom_report(root: Path) -> object:
+    return {"sbom": sbom_projection(root)}
+
+
 def _gate_registry_report(root: Path) -> dict[str, object]:
     return {"gates": {gate_id: gate.to_dict() for gate_id, gate in gate_registry(root).items()}}
 
 
 def _release_file_report(root: Path) -> dict[str, object]:
     release_files = repository_audit_module.release_files_report(root)
-    policy = release_policy_report(root)
+    policy = release_policy_module.release_policy_report(root)
     return {
         "ok": bool(release_files["ok"]),
         "state": "ready" if release_files["ok"] else "blocked",
@@ -124,19 +101,6 @@ def _release_attestation_report(root: Path, *, evidence_digest: str) -> dict[str
         "summary": {"tag": attestation["predicate"]["tag"]},
         "attestation": attestation,
     }
-
-
-ASSET_POLICY_COMMAND = ReportCommandSpec(
-    command="quality asset-policy",
-    report=payload_report(_product_quality_profile),
-    summary=project_summary(asset_class_count=count_at("payload", "asset_classes")),
-    data=field_data("payload"),
-)
-TYPES_COMMAND = ReportCommandSpec(
-    command="quality types",
-    report=module_report(_quality_report_namespace(), "ty_gate_report"),
-    summary=project_summary(package_count=count_of("packages")),
-)
 
 
 def quality_docs(
@@ -166,33 +130,6 @@ def quality_docs(
         },
     )
     emit(result, json_output=json_output, enforce=False)
-
-
-DOCS_TOPOLOGY_COMMAND = ReportCommandSpec(
-    command="quality docs-topology",
-    report=module_report(_quality_report_namespace(), "docs_topology_report"),
-    next_actions=conditional_actions(
-        when_blocked=(
-            "restore minimal semantic docs kernel: README, decisions, evidence, "
-            "history, and reference"
-        ),
-        when_clean=(
-            "ethos prove --execute --gate docs-topology --expect-head $(git rev-parse HEAD) --json"
-        ),
-    ),
-)
-PROOF_POLICY_COMMAND = ReportCommandSpec(
-    command="quality proof-policy",
-    report=payload_report(_proof_lattice),
-    summary=project_summary(state_count=count_at("payload", "states")),
-    data=field_data("payload"),
-)
-TOOL_PROFILES_COMMAND = ReportCommandSpec(
-    command="quality tool-profiles",
-    report=payload_report(_tool_profiles),
-    summary=project_summary(tool_adapter_count=count_at("payload", "tool_adapters")),
-    data=field_data("payload"),
-)
 
 
 def markdown_links(
@@ -281,85 +218,6 @@ def yaml_quality(
     )
 
 
-COVERAGE_COMMAND = ReportCommandSpec(
-    command="quality coverage",
-    report=module_report(_quality_report_namespace(), "coverage_quality_report"),
-    summary=project_summary(
-        current_hard_floor=path_value("policy", "current_hard_floor"),
-        latest_line_percent=path_value("latest_artifact", "line_percent"),
-        writer_active=path_value("latest_artifact", "writer_active", default=False),
-    ),
-)
-PERFORMANCE_COMMAND = ReportCommandSpec(
-    command="quality performance",
-    report=module_report(
-        _quality_report_namespace(),
-        "performance_quality_report",
-        current_head=_current_head,
-    ),
-    summary=field_data("summary"),
-    state=advisory_state("advisory_gaps"),
-    next_actions=conditional_actions(
-        when_blocked="refresh current-head evidence and resolve output or regression gaps",
-        when_clean="tools/ci/scripts/run-performance-evidence.sh",
-    ),
-)
-DOCSTRINGS_COMMAND = ReportCommandSpec(
-    command="quality docstrings",
-    report=module_report(_quality_report_namespace(), "docstring_coverage_report"),
-    summary=project_summary(
-        coverage_percent=path_value("coverage_percent"),
-        documented_count=path_value("documented_count"),
-        public_count=path_value("public_count"),
-        style_issue_count=path_value("style_issue_count", default=0),
-        advisory_missing_count=path_value(
-            "advisory_public_definition_inventory",
-            "missing_count",
-            default=0,
-        ),
-    ),
-)
-
-
-CODE_SIZE_COMMAND = ReportCommandSpec(
-    command="quality code-size",
-    report=module_report(vars(prove_domain), "code_size_report"),
-)
-
-MODULE_LAYOUT_COMMAND = ReportCommandSpec(
-    command="quality module-layout",
-    report=module_report(_quality_report_namespace(), "module_layout_report"),
-)
-
-GENERATED_ARTIFACTS_COMMAND = ReportCommandSpec(
-    command="quality generated-artifacts",
-    report=module_report(_quality_report_namespace(), "generated_artifact_topology_report"),
-    next_actions=conditional_actions(
-        when_blocked=(
-            "move generated outputs under build/ethos or build/evidence; "
-            "promote curated summaries into docs/evidence"
-        ),
-        when_clean="ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
-    ),
-)
-
-COMMAND_SURFACE_COMMAND = ReportCommandSpec(
-    command="quality command-surface",
-    report=module_report(_quality_report_namespace(), "command_registry_report"),
-)
-
-SCHEMAS_COMMAND = ReportCommandSpec(
-    command="quality schemas",
-    report=module_report(_quality_report_namespace(), "schema_validation_report"),
-)
-
-COMMAND_REGISTRY_COMMAND = ReportCommandSpec(
-    command="quality command-registry",
-    report=module_report(_quality_report_namespace(), "command_registry_report"),
-    next_actions=constant_actions("ethos repository audit"),
-)
-
-
 def npm_quality(
     *,
     root: RootOption | None = None,
@@ -407,30 +265,6 @@ def format_policy(
         },
     )
     emit(result, json_output=json_output, enforce=False)
-
-
-PROJECTION_DRIFT_COMMAND = ReportCommandSpec(
-    command="quality projection-drift",
-    report=module_report(_quality_report_namespace(), "projection_drift_report"),
-)
-
-DOCS_REGISTRY_COMMAND = ReportCommandSpec(
-    command="quality docs-registry",
-    report=module_report(_quality_report_namespace(), "docs_health_report"),
-    next_actions=constant_actions("ethos docs"),
-)
-
-COMMAND_EXAMPLES_COMMAND = ReportCommandSpec(
-    command="quality command-examples",
-    report=module_report(_quality_report_namespace(), "command_examples_report"),
-)
-
-
-STANDARDS_COMMAND = ReportCommandSpec(
-    command="quality standards",
-    report=payload_report(lambda root: {"adapters": _standard_adapter_registry(root)}),
-    data=field_data("payload"),
-)
 
 
 def package_ontology(
@@ -498,14 +332,6 @@ def package_ontology(
     emit(result, json_output=json_output, enforce=False)
 
 
-GATES_COMMAND = ReportCommandSpec(
-    command="quality gates",
-    report=payload_report(_gate_registry_report, state="ready"),
-    summary=project_summary(gate_count=count_at("payload", "gates")),
-    data=field_data("payload"),
-)
-
-
 def coupling_audit(
     *,
     root: RootOption | None = None,
@@ -558,82 +384,29 @@ def commits(
     emit(result, json_output=json_output, enforce=False)
 
 
-RELEASE_COMMAND = ReportCommandSpec(
-    command="quality release",
-    report=_release_file_report,
-    data=lambda report: {
-        "release_files": report["release_files"],
-        "host_profile": report["host_profile"],
-    },
-    next_actions=constant_actions(
-        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
-    ),
-)
-RELEASE_POLICY_COMMAND = ReportCommandSpec(
-    command="quality release-policy",
-    report=module_report(_quality_report_namespace(), "release_policy_report"),
-    clean_state="ready",
-    next_actions=constant_actions("ethos quality release-attestation"),
-)
-SBOM_COMMAND = ReportCommandSpec(
-    command="quality sbom",
-    report=payload_report(lambda root: {"sbom": sbom_projection(root)}, state="ready"),
-    summary=project_summary(package_count=count_at("payload", "sbom", "packages")),
-    data=field_data("payload"),
-)
-
-
 def release_attestation_command(
     *,
     evidence_digest: str = "planned",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Emit release attestation envelope without publishing it."""
-    spec = ReportCommandSpec(
+    """Emit a parameterized release-attestation projection without publishing it."""
+    repo = resolve_root(root)
+    result = build_declarative_report_result(
         command="quality release-attestation",
-        report=lambda repo: _release_attestation_report(repo, evidence_digest=evidence_digest),
-        data=lambda report: {"attestation": report["attestation"]},
+        handler=ReportHandlerDeclaration(
+            provider="ethos.surface.cli.quality.core:_release_attestation_report",
+            data_fields=(ReportDataField(name="attestation", path=("attestation",)),),
+        ),
+        report=_release_attestation_report(repo, evidence_digest=evidence_digest),
     )
-    emit_report_command(
-        spec,
-        resolve_root(root),
-        emit_func=lambda result: emit(result, json_output=json_output, enforce=False),
-    )
-
-
-EVIDENCE_FRESHNESS_COMMAND = ReportCommandSpec(
-    command="quality evidence-freshness",
-    report=module_report(
-        _quality_report_namespace(),
-        "evidence_freshness_report",
-        current_head=_current_head,
-    ),
-    data=field_data("data"),
-    next_actions=constant_actions("ethos prove --json"),
-)
-CLAIMS_COMMAND = ReportCommandSpec(
-    command="quality claims",
-    report=module_report(
-        _quality_report_namespace(),
-        "claims_report",
-        current_head=_current_head,
-    ),
-    summary=project_summary(
-        claim_count=count_of("claims"),
-        advisory_gap_count=count_of("advisory_gaps"),
-    ),
-    state=advisory_state("advisory_gaps"),
-    next_actions=constant_actions("ethos prove --json"),
-)
+    emit(result, json_output=json_output, enforce=False)
 
 
 REPORT_COMMANDS = compile_report_handlers(
     declarations=load_command_registry_declaration().group("quality"),
-    specs=cast("dict[str, ReportCommandSpec]", globals()),
     import_path_prefix="ethos.surface.cli.quality.core:",
 )
-
 globals().update(
     {function_name: command.make_handler() for function_name, command in REPORT_COMMANDS.items()}
 )

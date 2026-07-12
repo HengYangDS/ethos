@@ -11,6 +11,7 @@ from ethos.adapters.repo.coordination import foreign_work_lane
 from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
+from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.bindings import branch_bindings
 from ethos.adapters.repo.status.bindings import closeout_support
@@ -104,29 +105,18 @@ def landing_readiness(
 
 def _safe_ref(root: Path, ref: str) -> str:
     try:
-        return _run_git(root, "rev-parse", ref)
+        return git_stdout_checked(root, "rev-parse", ref)
     except subprocess.CalledProcessError:
         return ""
 
 
-def _run_git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.rstrip("\n")
-
-
 def current_branch(root: Path) -> str:
-    return _run_git(root, "branch", "--show-current") or "detached"
+    return git_stdout_checked(root, "branch", "--show-current") or "detached"
 
 
 def workspace_status(root: Path) -> dict[str, object]:
     try:
-        repo = Path(_run_git(root, "rev-parse", "--show-toplevel")).resolve()
+        repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
         return _non_git_status(root)
     current_path = repo
@@ -351,7 +341,7 @@ def _worktrees(
     current_path: Path,
     policy: BranchRolePolicy,
 ) -> list[dict[str, str]]:
-    output = _run_git(root, "worktree", "list", "--porcelain")
+    output = git_stdout_checked(root, "worktree", "list", "--porcelain")
     entries: list[dict[str, str]] = []
     current: dict[str, str] = {}
     for line in output.splitlines():
@@ -453,11 +443,8 @@ def _candidate_status(
     # bypassed the candidate train (e.g. a raw merge straight to accepted).
     behind_accepted = 0
     if head:
-        count = _run_git(
-            root,
-            "rev-list",
-            "--count",
-            f"{policy.candidate_branch}..{policy.accepted_branch}",
+        count = git_stdout_checked(
+            root, "rev-list", "--count", f"{policy.candidate_branch}..{policy.accepted_branch}"
         ).strip()
         behind_accepted = int(count) if count.isdigit() else 0
     return {

@@ -12,6 +12,7 @@ dev = [
   "codespell>=2.4.2",
   "cyclopts>=3.20",
   "deptry>=0.25.1",
+  "hypothesis>=6.0,<7",
   "import-linter>=2.12",
   "jsonschema>=4.23",
   "pip-audit>=2.10.1",

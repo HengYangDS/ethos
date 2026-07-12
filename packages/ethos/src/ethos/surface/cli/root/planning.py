@@ -11,13 +11,11 @@ from ethos.repository.context import context_for_root
 from ethos.repository.workflow.runtime import workflow_runtime_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
-@app.command
 def plan(
     *,
     changed: bool = False,

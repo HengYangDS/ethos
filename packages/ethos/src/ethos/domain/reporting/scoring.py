@@ -5,6 +5,7 @@ from typing import cast
 
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.domain.prove import code_size_report
+from ethos.domain.prove import source_budget_report
 from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
@@ -16,6 +17,17 @@ from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+_HARD_QUALITY_COMMANDS = (
+    (True, ("code_size_",), "ethos quality code-size --json"),
+    (True, ("coverage_",), "ethos quality coverage --json"),
+    (True, ("ty_",), "ethos quality types --json"),
+    (True, ("docstring_", "public_docstring_missing:"), "ethos quality docstrings --json"),
+    (True, ("module_layout_",), "ethos quality module-layout --json"),
+    (False, ("product-boundary", "product_boundary"), "ethos quality product-boundary --json"),
+    (False, ("contributor", "identity"), "ethos quality contributor-policy --json"),
+)
 
 
 def adopter_scores(
@@ -98,6 +110,7 @@ def product_scores(
 def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     code_size = code_size_report(repo)
+    source_budget = source_budget_report(repo)
     coverage = coverage_quality_report(repo)
     types = ty_gate_report(repo)
     docstrings = docstring_coverage_report(repo)
@@ -106,6 +119,7 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     contributor_policy = contributor_policy_report(repo)
     gate_reports = {
         "python-size": code_size,
+        "source-budget": source_budget,
         "coverage": coverage,
         "types": types,
         "docstrings": docstrings,
@@ -172,32 +186,15 @@ def scorecard_next_actions(
 
 def _hard_quality_next_actions(quality_gaps: list[str]) -> tuple[str, ...]:
     """Route hard quality gaps to the narrowest standalone quality command."""
-    commands: list[str] = []
-    if _has_prefixed_gap(quality_gaps, ("code_size_",)):
-        commands.append("ethos quality code-size --json")
-    if _has_prefixed_gap(quality_gaps, ("coverage_",)):
-        commands.append("ethos quality coverage --json")
-    if _has_prefixed_gap(quality_gaps, ("ty_",)):
-        commands.append("ethos quality types --json")
-    if _has_prefixed_gap(quality_gaps, ("docstring_", "public_docstring_missing:")):
-        commands.append("ethos quality docstrings --json")
-    if _has_prefixed_gap(quality_gaps, ("module_layout_",)):
-        commands.append("ethos quality module-layout --json")
-    if _has_token_gap(quality_gaps, ("product-boundary", "product_boundary")):
-        commands.append("ethos quality product-boundary --json")
-    if _has_token_gap(quality_gaps, ("contributor", "identity")):
-        commands.append("ethos quality contributor-policy --json")
-    return tuple(commands or ["ethos quality --json"])
-
-
-def _has_prefixed_gap(quality_gaps: list[str], prefixes: tuple[str, ...]) -> bool:
-    """Return whether any quality gap starts with one of the given prefixes."""
-    return any(gap.startswith(prefixes) for gap in quality_gaps)
-
-
-def _has_token_gap(quality_gaps: list[str], tokens: tuple[str, ...]) -> bool:
-    """Return whether any quality gap contains one of the given legacy tokens."""
-    return any(any(token in gap for token in tokens) for gap in quality_gaps)
+    commands = tuple(
+        command
+        for prefixes, tokens, command in _HARD_QUALITY_COMMANDS
+        if any(
+            gap.startswith(tokens) if prefixes else any(token in gap for token in tokens)
+            for gap in quality_gaps
+        )
+    )
+    return commands or ("ethos quality --json",)
 
 
 def first_hour(*, product_profile: bool, required_gaps: tuple[str, ...]) -> dict[str, object]:

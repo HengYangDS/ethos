@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 from typing import cast
 
+from ethos_core.normalization.core import string_list
+
 SKILL_PACKAGE_FILE_LIMIT = 6
 INTENT_TOKEN_OWNER_LIMIT = 2
 
@@ -31,11 +33,13 @@ def portfolio_coverage(
     records: list[dict[str, object]],
 ) -> dict[str, object]:
     contract = coverage_contract if isinstance(coverage_contract, dict) else {}
-    required_subjects = dedupe(coverage_subjects(contract.get("required_primary_subjects")))
+    required_subjects = dedupe(
+        string_list(contract.get("required_primary_subjects"), drop_empty=True)
+    )
     single_owner_subjects = dedupe(
         [
             *required_subjects,
-            *coverage_subjects(contract.get("single_owner_subjects")),
+            *string_list(contract.get("single_owner_subjects"), drop_empty=True),
         ]
     )
     owners: dict[str, list[str]] = {}
@@ -107,12 +111,6 @@ def portfolio_design(
         "intent_token_owner_count": {key: len(ids) for key, ids in sorted(token_owners.items())},
         "required_gaps": gaps,
     }
-
-
-def coverage_subjects(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]
 
 
 def dedupe(items: list[str]) -> list[str]:

@@ -35,6 +35,13 @@ Repository source, tests, schemas, docs, claims, evidence, and command JSON are 
 """
 
 
+def _sample_package(root: Path) -> Path:
+    package_dir = root / ".agents" / "skills" / "sample-skill"
+    package_dir.mkdir(parents=True)
+    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    return package_dir
+
+
 def _write_manifest(package_dir: Path, expected_digest: str) -> Path:
     path = package_dir / "package.toml"
     path.write_text(
@@ -58,9 +65,7 @@ command = ["ethos", "report", "--json"]
 
 
 def test_skill_package_manifest_binds_entrypoint_digest(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     manifest = _write_manifest(package_dir, digest)
 
@@ -79,9 +84,7 @@ def test_skill_package_manifest_binds_entrypoint_digest(tmp_path: Path) -> None:
 
 
 def test_skill_package_manifest_rejects_stale_digest(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     manifest = _write_manifest(package_dir, "sha256:" + ("0" * 64))
 
     result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
@@ -93,9 +96,7 @@ def test_skill_package_manifest_rejects_stale_digest(tmp_path: Path) -> None:
 def test_skill_package_manifest_reports_missing_include_without_crashing(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     (package_dir / "package.toml").write_text(
         """
 schema_version = 2
@@ -119,9 +120,7 @@ required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
 
 def test_skill_package_manifest_rejects_path_escape(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     (package_dir / "package.toml").write_text(
         """
 schema_version = 2
@@ -152,9 +151,7 @@ def test_skill_package_manifest_rejects_escaped_manifest_path(tmp_path: Path) ->
 
 
 def test_skill_package_manifest_requires_schema_fields(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     (package_dir / "package.toml").write_text(
         """
 id = "sample-skill"
@@ -233,9 +230,7 @@ placeholder_allowed = false
 
 
 def test_skill_package_manifest_validates_capability_semantics(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""
@@ -279,9 +274,7 @@ command = ["ethos", "status", "--json"]
 def test_skill_package_manifest_rejects_untrusted_readonly_capabilities(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""
@@ -325,9 +318,7 @@ command = ["scripts/inspect.sh"]
 def test_skill_package_manifest_rejects_non_proof_internal_commands(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""
@@ -398,9 +389,7 @@ def test_skill_markdown_rejects_overlong_entrypoint_without_progressive_disclosu
 
 
 def test_skill_package_manifest_accepts_readonly_repo_local_script(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     scripts_dir = package_dir / "scripts"
     scripts_dir.mkdir()
     (scripts_dir / "audit.py").write_text("#!/usr/bin/env python3\nprint('ok')\n", encoding="utf-8")
@@ -440,9 +429,7 @@ command = ["scripts/audit.py", "."]
 
 
 def test_skill_package_manifest_rejects_untrusted_readonly_script(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f'''
@@ -484,9 +471,7 @@ command = ["scripts/audit.py", "--apply"]
 
 
 def test_skill_package_manifest_accepts_eval_metadata(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""
@@ -516,9 +501,7 @@ evidence_refs = ["evidence/chronicle/sample/2026-07-09.md"]
 
 
 def test_skill_package_manifest_rejects_invalid_eval_metadata(tmp_path: Path) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""
@@ -552,9 +535,7 @@ evidence_refs = []
 def test_skill_package_manifest_rejects_non_table_and_empty_eval_metadata(
     tmp_path: Path,
 ) -> None:
-    package_dir = tmp_path / ".agents" / "skills" / "sample-skill"
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(OFFICIAL_SKILL, encoding="utf-8")
+    package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(
         f"""

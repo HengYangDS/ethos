@@ -13,32 +13,11 @@ from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES
 from tests.unit.product.parity.snapshots import SHADOW_COMMANDS
 from tests.unit.product.parity.snapshots import git_head
 from tests.unit.product.parity.snapshots import init_git_repo
+from tests.unit.product.parity.snapshots import set_durable_evidence_root
 from tests.unit.product.parity.snapshots import sha256_text
 
 if TYPE_CHECKING:
     import pytest
-
-
-def _set_durable_evidence_root(repo: Path, value: str) -> None:
-    profile = repo / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True, exist_ok=True)
-    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "configure evidence root",
-        ],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
 
 
 def _checkout_work_lane(repo: Path) -> None:
@@ -286,7 +265,7 @@ def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root
     _checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
-    _set_durable_evidence_root(target, "docs/evidence")
+    set_durable_evidence_root(target, "docs/evidence")
     _checkout_work_lane(target)
 
     def fake_shadow(

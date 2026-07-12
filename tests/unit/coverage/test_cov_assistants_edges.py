@@ -7,6 +7,7 @@ from pathlib import Path
 
 import ethos.assistants.skills.capabilities as cap
 import ethos.assistants.skills.packages as sp
+from ethos_core.normalization.core import string_list
 
 
 def test_validate_skill_markdown_missing_file(tmp_path: Path) -> None:
@@ -17,7 +18,7 @@ def test_validate_skill_markdown_missing_file(tmp_path: Path) -> None:
 
 
 def test_manifest_schema_gaps_flags_missing_include() -> None:
-    # `include` key absent -> _string_list -> [] -> `if not include` -> line 294.
+    # `include` key absent -> string_list -> [] -> `if not include`.
     gaps = sp._manifest_schema_gaps(
         "sample",
         {
@@ -31,7 +32,7 @@ def test_manifest_schema_gaps_flags_missing_include() -> None:
 
 
 def test_manifest_schema_gaps_flags_missing_required_sections() -> None:
-    # `required_sections` key absent -> _string_list -> [] -> line 302.
+    # `required_sections` key absent -> string_list -> [] -> `if not required_sections`.
     gaps = sp._manifest_schema_gaps(
         "sample",
         {
@@ -121,5 +122,5 @@ def test_frontmatter_ok_false_when_unterminated() -> None:
 
 
 def test_string_list_returns_empty_for_non_list() -> None:
-    assert sp._string_list(None) == []  # line 468
-    assert sp._string_list("SKILL.md") == []
+    assert string_list(None, drop_empty=True) == []
+    assert string_list("SKILL.md", drop_empty=True) == []

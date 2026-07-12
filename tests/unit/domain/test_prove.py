@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from ethos.domain import prove
 
 
@@ -81,6 +83,151 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
     assert report["ok"] is True
     assert report["files"] == []
     assert report["required_gaps"] == []
+
+
+def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growth(
+    tmp_path, monkeypatch
+):
+    files = {
+        "packages/ethos/src/ethos/domain/current.py": "value = 1\n",
+        "tests/unit/test_current.py": "assert True\n",
+        "tools/check.sh": "echo ok\n",
+        "system/current.toml": "value = 1\n",
+        "schemas/current.json": '{"type": "object"}\n',
+        "templates/current.j2": "{# generated comment #}\n{{ value }}\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    monkeypatch.setattr(
+        prove,
+        "source_budget_policy",
+        lambda _root: {
+            "baseline": {
+                "global_total": 6,
+                "python_product": 1,
+                "python_tests": 1,
+                "python_tools": 0,
+                "toml": 1,
+                "json": 1,
+                "jinja": 1,
+            },
+            "terminal": {"global_total": 3, "python_total": 2},
+            "debt": {"maximum_total": 0, "records": []},
+            "enforcement": "transition",
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: tuple(files))
+
+    report = prove.source_budget_report(tmp_path)
+
+    assert report["metrics"] == {
+        "python_product": 1,
+        "python_tests": 1,
+        "python_tools": 0,
+        "python_other": 0,
+        "shell": 1,
+        "js": 0,
+        "toml": 1,
+        "yaml": 0,
+        "json": 1,
+        "jinja": 1,
+        "ini": 0,
+        "diagram": 0,
+        "python_total": 2,
+        "global_total": 6,
+    }
+    assert report["terminal_target_met"] is False
+    assert report["ok"] is True
+
+    (tmp_path / "tools" / "growth.sh").write_text("echo growth\n", encoding="utf-8")
+    monkeypatch.setattr(
+        prove.git_adapter,
+        "git_files",
+        lambda _root, *_patterns: (*files, "tools/growth.sh"),
+    )
+
+    grown = prove.source_budget_report(tmp_path)
+
+    assert grown["ok"] is False
+    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:7>6"]
+
+
+def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):
+    relative = "packages/ethos/src/ethos/domain/current.py"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text("value = 1\n", encoding="utf-8")
+    monkeypatch.setattr(
+        prove,
+        "source_budget_policy",
+        lambda _root: {
+            "baseline": {"python_product": 0, "python_total": 0, "global_total": 0},
+            "terminal": {"global_total": 0},
+            "debt": {
+                "maximum_total": 1,
+                "records": [
+                    {
+                        "id": "typed-foundation",
+                        "allowance": 1,
+                        "allowance_by_category": {"python_product": 1},
+                    }
+                ],
+            },
+            "enforcement": "transition",
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
+
+    report = prove.source_budget_report(tmp_path)
+
+    assert report["ok"] is True
+
+
+@pytest.mark.parametrize("debt", ["invalid", {"records": "invalid"}, {"records": [None]}])
+def test_source_budget_ignores_malformed_debt_records(debt):
+    assert prove._source_budget_allowance({"debt": debt}) == (0, {}, [])  # noqa: RUF100, SLF001 - exact malformed-debt reducer coverage
+    if debt == "invalid":
+        assert prove._budget_ints(debt) == {}  # noqa: RUF100, SLF001 - exact invalid-input reducer coverage
+
+
+def test_source_budget_ignores_boolean_allowance_and_blank_record_id():
+    assert prove._source_budget_allowance(
+        {"debt": {"records": [{"allowance": True, "id": ""}]}}
+    ) == (0, {}, [])
+
+
+def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, monkeypatch):
+    monkeypatch.setattr(prove, "source_budget_policy", lambda _root: {})
+    assert prove.source_budget_report(tmp_path)["required_gaps"] == ["source_budget_policy_missing"]
+
+    path = tmp_path / "tools" / "current.sh"
+    path.parent.mkdir()
+    path.write_text("echo current\n", encoding="utf-8")
+    monkeypatch.setattr(
+        prove,
+        "source_budget_policy",
+        lambda _root: {
+            "baseline": {"unknown": 0},
+            "terminal": {"global_total": 0, "shell": 2},
+            "debt": {"maximum_total": 0, "records": [{"id": "growth", "allowance": 1}]},
+            "enforcement": "terminal",
+        },
+    )
+    monkeypatch.setattr(
+        prove.git_adapter, "git_files", lambda _root, *_patterns: ("tools/current.sh",)
+    )
+
+    report = prove.source_budget_report(tmp_path)
+
+    assert report["required_gaps"] == [
+        "source_budget_debt_exceeded:1>0",
+        "source_budget_terminal_exceeded:global_total:1>0",
+    ]
 
 
 def test_workspace_status_validation_prefixes_schema_gaps(monkeypatch, tmp_path):

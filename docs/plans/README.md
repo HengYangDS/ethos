@@ -26,6 +26,7 @@ claims, or evidence.
 ## Planned Work
 
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
+- [Global Declarative Compression Program](global-declarative-compression-program.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
 - [Complete Implementation Roadmap](complete-implementation-roadmap.md)
 

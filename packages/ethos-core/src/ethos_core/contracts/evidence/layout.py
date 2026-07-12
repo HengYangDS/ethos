@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+
+from ethos_core._resources import declaration_text
+from ethos_core._resources import resolve_declaration_path
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
@@ -90,27 +92,20 @@ class EvidenceLayoutDeclaration(BaseModel):
         }
 
 
-def _default_declaration_path() -> Path:
-    cwd_candidate = Path.cwd() / DECLARATION_PATH
-    if cwd_candidate.exists():
-        return cwd_candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / DECLARATION_PATH
-        if candidate.exists():
-            return candidate
-    return DECLARATION_PATH
-
-
 def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(
+        path,
+        resource=_DECLARATION_RESOURCE,
+        canonical=Path("system/policies/evidence-layout.toml"),
+    )
 
 
 def load_evidence_layout_declaration(
     path: Path | str | None = None,
 ) -> EvidenceLayoutDeclaration:
     """Load the evidence layout declaration from TOML."""
-    declaration_path = Path(path) if path is not None else _default_declaration_path()
+    declaration_path = resolve_declaration_path(
+        path, canonical=DECLARATION_PATH, module_file=__file__
+    )
     payload = tomllib.loads(_declaration_text(declaration_path))
     return EvidenceLayoutDeclaration.model_validate(payload)

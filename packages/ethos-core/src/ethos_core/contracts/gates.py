@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
 from pathlib import Path
 from typing import Literal
 from typing import Self
@@ -12,6 +11,10 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
+
+from ethos_core._resources import declaration_text
+from ethos_core._resources import resolve_declaration_path
+from ethos_core.action_graph.core import ActionNode
 
 DECLARATION_PATH = Path("system/gates.toml")
 _DECLARATION_RESOURCE = "data/gates.toml"
@@ -56,6 +59,28 @@ class GateDescriptor(BaseModel):
     def to_dict(self) -> dict[str, object]:
         """Project the descriptor to the stable public quality-gate shape."""
         return self.model_dump(mode="json")
+
+    def to_node(self) -> ActionNode:
+        """Compile this declaration into its ActionGraph node projection."""
+        return ActionNode(
+            id=self.id,
+            kind=self.kind,
+            command=self.command,
+            policy=self.policy,
+            tool="ethos",
+            depends_on=self.depends_on,
+            metadata={
+                "asset_classes": list(self.asset_classes),
+                "dimensions": list(self.dimensions),
+                "execution_mode": self.execution_mode,
+                "evidence_class": self.evidence_class,
+                "trust_bearing": self.trust_bearing,
+                "tool_adapter": self.tool_adapter,
+                "writes_files": self.writes_files,
+                "network_policy": self.network_policy,
+                "version_source": self.version_source,
+            },
+        )
 
 
 class GateEntry(GateDescriptor):
@@ -154,27 +179,16 @@ def _validate_proof_floor(gate_ids: tuple[str, ...], runtime_ids: set[str]) -> N
         raise ValueError(_DUPLICATE_PROOF_GATE)
 
 
-def _default_declaration_path() -> Path:
-    cwd_candidate = Path.cwd() / DECLARATION_PATH
-    if cwd_candidate.exists():
-        return cwd_candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / DECLARATION_PATH
-        if candidate.exists():
-            return candidate
-    return DECLARATION_PATH
-
-
 def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
 
 
 def load_gate_registry_declaration(
     path: Path | str | None = None,
 ) -> GateRegistryDeclaration:
     """Load and validate the tracked gate registry declaration."""
-    declaration_path = Path(path) if path is not None else _default_declaration_path()
+    declaration_path = resolve_declaration_path(
+        path, canonical=DECLARATION_PATH, module_file=__file__
+    )
     payload = tomllib.loads(_declaration_text(declaration_path))
     return GateRegistryDeclaration.model_validate(payload)

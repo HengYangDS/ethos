@@ -5,6 +5,7 @@ import tomllib
 from typing import TYPE_CHECKING
 
 from ethos_core.contracts.commands import load_command_registry_declaration
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -52,12 +53,6 @@ def _command_surface_policy(root: Path) -> dict[str, object]:
     return policy if isinstance(policy, dict) else {}
 
 
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
 def _all_doc_paths(root: Path) -> tuple[Path, ...]:
     paths = [root / "README.md", root / "CONTRIBUTING.md", root / "CHANGELOG.md"]
     docs = root / "docs"
@@ -69,11 +64,11 @@ def _all_doc_paths(root: Path) -> tuple[Path, ...]:
 def _policy_doc_paths(root: Path) -> tuple[Path, ...]:
     policy = _command_surface_policy(root)
     paths = list(_all_doc_paths(root))
-    governed_docs = _string_list(policy.get("governed_docs"))
-    governed_globs = _string_list(policy.get("governed_doc_globs"))
-    retired_reference_docs = set(_string_list(policy.get("retired_reference_docs")))
+    governed_docs = string_list(policy.get("governed_docs"))
+    governed_globs = string_list(policy.get("governed_doc_globs"))
+    retired_reference_docs = set(string_list(policy.get("retired_reference_docs")))
     historical_roots = tuple(
-        _string_list(policy.get("historical_exempt_roots")) or DEFAULT_HISTORICAL_EXEMPT_ROOTS
+        string_list(policy.get("historical_exempt_roots")) or DEFAULT_HISTORICAL_EXEMPT_ROOTS
     )
     if governed_docs or governed_globs:
         selected: list[Path] = []

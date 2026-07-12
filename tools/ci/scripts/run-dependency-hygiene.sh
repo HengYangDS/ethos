@@ -25,6 +25,7 @@ uv run --group dev deptry packages/ethos/src/ethos \
 uv run --group dev deptry packages/ethos-core/src/ethos_core \
   --config packages/ethos-core/pyproject.toml \
   --known-first-party ethos_core \
+  --package-module-name-map cel-python=celpy \
   --per-rule-ignores DEP003=jsonschema \
   --json-output build/evidence/quality/dependency/deptry-ethos-core.json \
   --no-ansi

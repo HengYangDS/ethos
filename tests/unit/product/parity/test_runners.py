@@ -14,7 +14,26 @@ from ethos.repository.evidence.parity.validation import SHADOW_COMMAND_ARGS
 from tests.support.ethos_cli_runner import run_ethos
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pytest
+
+
+def _successful_run(
+    calls: list[tuple[list[str], Path]],
+    *,
+    reported_command: str = "status",
+) -> Callable[..., subprocess.CompletedProcess[str]]:
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps({"ok": True, "command": reported_command, "state": "ready"}),
+            stderr="",
+        )
+
+    return fake_run
 
 
 def test_local_shadow_commands_exclude_remote_publication_probe() -> None:
@@ -128,16 +147,7 @@ platforms = ["osx-arm64"]
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout='{"ok": true, "command": "status", "state": "ready"}',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
 
     result = run_embedded(target, ("status",), timeout_seconds=5)
 
@@ -167,16 +177,7 @@ ethos = "python -m ethos.cli"
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout='{"ok": true, "command": "status", "state": "ready"}',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
 
     result = run_embedded(repo, ("status",), timeout_seconds=5)
 
@@ -205,16 +206,7 @@ members = ["packages/ethos"]
     )
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout='{"ok": true, "command": "status", "state": "ready"}',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
 
     result = run_embedded(repo, ("status",), timeout_seconds=5)
 
@@ -240,16 +232,11 @@ def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout='{"ok": true, "command": "assistants doctor"}',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _successful_run(calls, reported_command="assistants doctor"),
+    )
 
     run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
 
@@ -264,16 +251,7 @@ def test_external_shadow_runner_uses_root_option_for_rooted_commands(
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout='{"ok": true, "command": "status"}',
-            stderr="",
-        )
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
 
     run_external(tmp_path, ("status",), timeout_seconds=5)
 

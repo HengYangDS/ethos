@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkeypatch) -> None:
+def _lifecycle_root(tmp_path: Path) -> tuple[Path, Path]:
     root = tmp_path / "repo"
     change = root / "openspec" / "changes" / "sample-change"
     (root / "openspec" / "specs" / "ethos-repository").mkdir(parents=True)
@@ -27,36 +27,44 @@ def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkey
         "## ADDED Requirements\n",
         encoding="utf-8",
     )
+    return root, change
 
-    def fake_base_command() -> tuple[str, ...]:
-        return ("openspec",)
 
-    def fake_run_json(
-        _root: Path,
-        _base: tuple[str, ...],
-        args: tuple[str, ...],
-    ) -> dict[str, object]:
-        if args == ("doctor", "--json"):
-            payload = {"root": {"healthy": True}}
-        elif args == ("list", "--json"):
-            payload = {"changes": [{"name": "sample-change", "status": "in-progress"}]}
-        elif args == ("status", "--change", "sample-change", "--json"):
-            payload = {"isComplete": True, "schemaName": "spec-driven"}
-        elif args == ("validate", "--all", "--strict", "--json"):
-            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
-        else:
-            payload = {}
-        return {
-            "command": ["openspec", *args],
-            "exit_code": 0,
-            "stdout": "{}",
-            "stderr": "",
-            "json": payload,
-            "parse_error": "",
-        }
+def _openspec_base_command() -> tuple[str, ...]:
+    return ("openspec",)
 
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
+
+def _run_lifecycle_json(
+    _root: Path,
+    _base: tuple[str, ...],
+    args: tuple[str, ...],
+) -> dict[str, object]:
+    payloads = {
+        ("doctor", "--json"): {"root": {"healthy": True}},
+        ("list", "--json"): {"changes": [{"name": "sample-change", "status": "in-progress"}]},
+        ("status", "--change", "sample-change", "--json"): {
+            "isComplete": True,
+            "schemaName": "spec-driven",
+        },
+        ("validate", "--all", "--strict", "--json"): {
+            "items": [],
+            "summary": {"totals": {"failed": 0}},
+        },
+    }
+    return {
+        "command": ["openspec", *args],
+        "exit_code": 0,
+        "stdout": "{}",
+        "stderr": "",
+        "json": payloads.get(args, {}),
+        "parse_error": "",
+    }
+
+
+def test_openspec_lifecycle_requires_active_claim_binding(tmp_path: Path, monkeypatch) -> None:
+    root, _ = _lifecycle_root(tmp_path)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", _openspec_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", _run_lifecycle_json)
 
     report = openspec_core.openspec_governance_report(
         root,
@@ -79,24 +87,9 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    root = tmp_path / "repo"
-    change = root / "openspec" / "changes" / "sample-change"
-    (root / "openspec" / "specs" / "ethos-repository").mkdir(parents=True)
-    change.mkdir(parents=True)
-    (root / "openspec" / "config.yaml").write_text("project: ethos\n", encoding="utf-8")
-    (root / "openspec" / "specs" / "ethos-repository" / "spec.md").write_text(
-        "# ETHOS Repository\n",
-        encoding="utf-8",
-    )
+    root, change = _lifecycle_root(tmp_path)
     (change / "proposal.md").write_text(
         "## Why\nTest product protocol validation.\n\n## Capabilities\n- `unknown-capability`: subject=sample; reuse=borrow; change=modify\n",
-        encoding="utf-8",
-    )
-    for artifact in ("design.md", "tasks.md"):
-        (change / artifact).write_text("# artifact\n", encoding="utf-8")
-    (change / "specs" / "ethos-repository").mkdir(parents=True)
-    (change / "specs" / "ethos-repository" / "spec.md").write_text(
-        "## ADDED Requirements\n",
         encoding="utf-8",
     )
     (root / "evidence" / "claims").mkdir(parents=True)
@@ -134,35 +127,8 @@ def test_openspec_lifecycle_requires_product_protocol_metadata(
         encoding="utf-8",
     )
 
-    def fake_base_command() -> tuple[str, ...]:
-        return ("openspec",)
-
-    def fake_run_json(
-        _root: Path,
-        _base: tuple[str, ...],
-        args: tuple[str, ...],
-    ) -> dict[str, object]:
-        if args == ("doctor", "--json"):
-            payload = {"root": {"healthy": True}}
-        elif args == ("list", "--json"):
-            payload = {"changes": [{"name": "sample-change", "status": "in-progress"}]}
-        elif args == ("status", "--change", "sample-change", "--json"):
-            payload = {"isComplete": True, "schemaName": "spec-driven"}
-        elif args == ("validate", "--all", "--strict", "--json"):
-            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
-        else:
-            payload = {}
-        return {
-            "command": ["openspec", *args],
-            "exit_code": 0,
-            "stdout": "{}",
-            "stderr": "",
-            "json": payload,
-            "parse_error": "",
-        }
-
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", _openspec_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", _run_lifecycle_json)
 
     report = openspec_core.openspec_governance_report(
         root,

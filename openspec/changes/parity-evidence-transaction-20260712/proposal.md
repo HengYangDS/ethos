@@ -28,7 +28,8 @@ self-created deadlock rather than a legitimate ownership boundary.
 
 - `repository-governance`: subject=parity-evidence-transaction;
   reuse=extend; change=modify; facet:lifecycle=proof,land;
-  facet:evidence=freshness,parity; facet:authority=work-lane,candidate.
+  facet:surface=quality,parity; facet:evidence=freshness,parity;
+  facet:authority=work-lane,candidate.
 
 ## Out Of Scope
 

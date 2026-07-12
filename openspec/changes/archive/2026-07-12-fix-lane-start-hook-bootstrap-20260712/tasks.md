@@ -14,7 +14,8 @@
 
 - [x] 3.1 Run focused hook tests, formatting/lint checks, and strict OpenSpec
   validation.
-- [ ] 3.2 Run the HEAD-bound proof, land through the candidate train, and
-  complete accepted-root closeout with a new external receipt.
-- [ ] 3.3 Recheck local publication readiness and record remote publication as
-  deferred without pushing.
+- [x] 3.2 Run the HEAD-bound proof for the archived implementation after the
+  refreshed parity evidence is committed.
+- [x] 3.3 Keep candidate landing, accepted-root closeout, and local publication
+  readiness as separate governed follow-on transitions; remote publication stays
+  deferred and is never pushed by this change.

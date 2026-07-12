@@ -11,11 +11,5 @@ rules:
     type: unix
   trailing-spaces: enable
   truthy:
-    allowed-values:
-      - "false"
-      - "no"
-      - "off"
-      - "on"
-      - "true"
-      - "yes"
+    allowed-values: ["false", "no", "off", "on", "true", "yes"]
     check-keys: false

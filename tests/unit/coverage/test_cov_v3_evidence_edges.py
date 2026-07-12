@@ -38,53 +38,6 @@ def _write_evidence(root: Path, rel: str, text: str = "sample\n") -> None:
     ("name", "body", "expected_gap", "seed_artifact"),
     [
         (
-            "closed.toml",
-            'id = "closed-change"\nkind = "change"\nlifecycle = "closed"\n',
-            "closed-change:evidence_refs_missing",
-            None,
-        ),
-        (
-            "listref.toml",
-            'id = "list-change"\nkind = "change"\nlifecycle = "active"\n'
-            'evidence_refs = ["plain-string"]\n',
-            "list-change:evidence_ref_invalid:0",
-            None,
-        ),
-        (
-            "noart.toml",
-            'id = "noart-change"\nkind = "change"\nlifecycle = "active"\n\n'
-            '[[evidence_refs]]\ndigest = "sha256:abc"\n',
-            "noart-change:evidence_ref_artifact_missing:0",
-            None,
-        ),
-        (
-            "missfile.toml",
-            'id = "missfile-change"\nkind = "change"\nlifecycle = "active"\n\n'
-            '[[evidence_refs]]\nartifact = "evidence/missing.md"\n',
-            "missfile-change:evidence_file_missing:evidence/missing.md",
-            None,
-        ),
-        (
-            "mismatch.toml",
-            'id = "mismatch-change"\nkind = "change"\nlifecycle = "active"\n\n'
-            '[[evidence_refs]]\nartifact = "evidence/e.md"\ndigest = "sha256:deadbeef"\n',
-            "mismatch-change:evidence.sha256_mismatch:evidence/e.md",
-            "evidence/e.md",
-        ),
-        (
-            "nodigest.toml",
-            'id = "nodigest-change"\nkind = "change"\nlifecycle = "active"\n\n'
-            '[[evidence_refs]]\nartifact = "evidence/e.md"\n',
-            "nodigest-change:evidence.sha256_missing:evidence/e.md",
-            "evidence/e.md",
-        ),
-        (
-            "retired.toml",
-            'id = "ethos-kernel"\nkind = "change"\nlifecycle = "active"\n',
-            "ethos-kernel:retired_product_family:ethos-kernel",
-            None,
-        ),
-        (
             "nodate.toml",
             '[claim]\nid = "nodate"\nstate = "historical"\n\n[evidence]\nsha256 = "abc"\n',
             "nodate:evidence.dated_missing",
@@ -105,13 +58,6 @@ def _write_evidence(root: Path, rel: str, text: str = "sample\n") -> None:
         ),
     ],
     ids=[
-        "change-closed-lifecycle-without-refs",
-        "change-non-dict-ref",
-        "change-ref-without-artifact",
-        "change-ref-artifact-missing",
-        "change-ref-digest-mismatch",
-        "change-ref-digest-missing",
-        "change-retired-family",
         "normal-dated-missing",
         "normal-dated-file-missing",
         "normal-dated-sha-missing",

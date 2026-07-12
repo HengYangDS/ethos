@@ -228,6 +228,13 @@ def _active_product_claim_private_gaps(claim_id: str, payload: dict[str, Any]) -
     return gaps
 
 
+def _has_repository_overclaim(text: str, verifier: str) -> bool:
+    """Return whether a non-formal verifier overclaims repository assurance."""
+    return canonical_assurance_class(verifier) != "formally_proven" and any(
+        phrase in text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES
+    )
+
+
 def _active_claim_gaps(
     claim_id: str, path: Path, payload: dict[str, Any], evidence: dict[str, Any]
 ) -> list[str]:
@@ -274,9 +281,7 @@ def _active_claim_gaps(
         )
     except ValueError:
         gaps.append(f"{claim_id}:claim_assurance_invalid")
-    if canonical_assurance_class(str(verifier)) != "formally_proven" and any(
-        phrase in claim_text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES
-    ):
+    if _has_repository_overclaim(claim_text, str(verifier)):
         gaps.append(f"{claim_id}:claim_assurance_invalid")
     return gaps
 

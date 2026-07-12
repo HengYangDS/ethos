@@ -6,7 +6,7 @@ summary = "ETHOS preflights each active OpenSpec archive through the configured 
 
 [evidence]
 dated = "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md"
-sha256 = "c89ff4e508ffbe15b26319f98d7aab8dd626cd49131177f03c5ed26aec5bda90"
+sha256 = "c5c69b7285c40c71a7d5529f754f9274e1c42653c37624ff5a1d6897ffc32c7e"
 evidence_ids = ["evidence:openspec-archive-preflight-20260712"]
 binding = "The active carrier, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind official isolated archive preflight semantics."
 verifier = "semantic"

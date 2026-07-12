@@ -20,7 +20,7 @@
 ## 3. Verification And Closeout
 
 - [x] 3.1 Run focused OpenSpec lifecycle, CLI-contract, format, and lint tests.
-- [ ] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
+- [x] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
   executed proof in this owned Work Lane.
 - [ ] 3.3 Bind final evidence, archive the carrier, land through candidate,
   close out accepted root, retire this Work Lane, and keep remote publication

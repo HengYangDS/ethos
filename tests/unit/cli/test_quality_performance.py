@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import ethos.surface.cli.quality.core as quality_core
+import ethos.repository.policy.performance.core as performance_core
 from tests.support.ethos_cli_runner import run_ethos
 
 
 def test_quality_performance_projects_a_machine_local_contract(monkeypatch) -> None:
     monkeypatch.setattr(
-        quality_core,
+        performance_core,
         "performance_quality_report",
         lambda _root, *, current_head: {
             "ok": True,

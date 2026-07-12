@@ -159,8 +159,8 @@ def run_json_command(
     except subprocess.TimeoutExpired as exc:
         return {
             "exit_code": 124,
-            "stdout": exc.stdout or "",
-            "stderr": exc.stderr or "timeout",
+            "stdout": _text(exc.stdout),
+            "stderr": _text(exc.stderr) or "timeout",
             "json": {},
         }
     return {
@@ -169,6 +169,11 @@ def run_json_command(
         "stderr": completed.stderr,
         "json": parse_json_from_stdout(completed.stdout),
     }
+
+
+def _text(value: str | bytes | None) -> str:
+    """Normalize timeout streams before their shadow result becomes JSON evidence."""
+    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
 
 
 def parse_json_from_stdout(stdout: str) -> dict[str, Any]:

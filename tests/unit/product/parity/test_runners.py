@@ -112,6 +112,32 @@ def test_parity_shadow_execute_reports_missing_embedded_backend(tmp_path: Path) 
     )
 
 
+def test_shadow_json_runner_normalizes_timeout_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    command = ["ethos", "status", "--json"]
+
+    def timeout(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(
+            command,
+            timeout=1,
+            output=b'{"partial":true}',
+            stderr=b"timed out",
+        )
+
+    monkeypatch.setattr(subprocess, "run", timeout)
+
+    result = shadow_execution.run_json_command(command, cwd=tmp_path, timeout_seconds=1)
+
+    assert result == {
+        "exit_code": 124,
+        "stdout": '{"partial":true}',
+        "stderr": "timed out",
+        "json": {},
+    }
+
+
 def test_embedded_shadow_runner_accepts_pixi_pyproject_workspace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

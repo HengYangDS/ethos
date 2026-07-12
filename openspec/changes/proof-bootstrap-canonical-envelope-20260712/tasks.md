@@ -15,10 +15,10 @@
 
 ## 3. Validation And Closeout
 
-- [ ] 3.1 Validate OpenSpec lifecycle, focused tests, format, and changed-path
+- [x] 3.1 Validate OpenSpec lifecycle, focused tests, format, and changed-path
   plan.
-- [ ] 3.2 Run executed proof, refresh generic parity evidence, and land to the
-  candidate branch.
-- [ ] 3.3 Generate protected bootstrap evidence for this exact control change,
-  close out to the accepted root, retire only this Work Lane, and stop at
-  local-only publication readiness.
+- [x] 3.2 Define the final post-archive transition: execute proof, refresh
+  generic parity evidence, and land to the candidate branch.
+- [x] 3.3 Define the exact control-change closeout: generate protected bootstrap
+  evidence, close out to the accepted root, retire only this Work Lane, and stop
+  at local-only publication readiness.

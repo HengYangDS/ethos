@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.openspec.cli as openspec_cli
+from ethos.adapters.openspec.lifecycle.core import OpenSpecLifecycleRuntime
 from ethos.adapters.openspec.lifecycle.core import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.core import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.core import lifecycle_report
@@ -122,10 +123,10 @@ def _openspec_governance_report(
     )
     lifecycle_payload = lifecycle_report(
         root,
-        selected=request.change,
+        request=request,
         list_payload=list_result["json"],
-        enabled=request.lifecycle,
         protected_branch_residue=protected_branch_residue,
+        runtime=OpenSpecLifecycleRuntime(base_command, openspec_cli.run_json),
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
 

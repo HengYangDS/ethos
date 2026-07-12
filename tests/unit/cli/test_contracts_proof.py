@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import ethos.surface.cli.root.proof as proof_cli
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.branch.roles import load_branch_role_policy
@@ -129,6 +130,27 @@ def test_default_proof_reports_readiness_not_proven() -> None:
     assert payload["data"]["executed"] is False
     assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"planned"}
     assert all(run["trust_bearing"] is False for run in payload["data"]["evidence"]["runs"])
+
+
+def test_prove_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
+    lifecycle = {
+        "ok": False,
+        "required_gaps": [
+            "openspec_archive_preflight_failed:sample-change:archive_spec_update_failed"
+        ],
+    }
+    monkeypatch.setattr(
+        proof_cli,
+        "openspec_governance_report",
+        lambda _root, **_kwargs: lifecycle,
+        raising=False,
+    )
+
+    payload = run_ethos_blocked("prove", "--json")
+
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle["required_gaps"]
+    assert payload["data"]["openspec_lifecycle"] == lifecycle
 
 
 def test_prove_accepts_proof_scope_compatibility_flag() -> None:
@@ -464,15 +486,24 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(
         evidence_class="diagnostic",
         trust_bearing=False,
     )
+
+    def fake_gate_registry(root=None):
+        _ = root
+        return {"diagnostic-only": diagnostic_gate}
+
+    def fake_gate_graph(gate=(), *, full, root):
+        _ = gate, full, root
+        return ActionGraph(nodes=(diagnostic_gate.to_node(),))
+
     monkeypatch.setattr(
         proof_cli,
         "gate_registry",
-        lambda root=None: {"diagnostic-only": diagnostic_gate},  # noqa: ARG005
+        fake_gate_registry,
     )
     monkeypatch.setattr(
         proof_cli,
         "gate_graph",
-        lambda gate=(), full=False, root=None: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
+        fake_gate_graph,
     )
 
     class PassingDiagnosticRunner:

@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
+from ethos.adapters.openspec.preflight.core import openspec_archive_preflight_report
 from ethos.adapters.openspec.protocol.core import proposal_protocol_report
 from ethos.repository.profile import profile_root
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -28,6 +30,13 @@ class OpenSpecReportContext(NamedTuple):
     required_gaps: list[str]
     advisory_gaps: list[str]
     protected_branch_residue: dict[str, object]
+
+
+class OpenSpecLifecycleRuntime(NamedTuple):
+    """Configured official CLI dependency for lifecycle preflight projections."""
+
+    base_command: tuple[str, ...]
+    run_json: Callable[[Path, tuple[str, ...], tuple[str, ...]], dict[str, object]]
 
 
 def selected_change(list_payload: dict[str, Any], requested: str | None) -> str | None:
@@ -173,7 +182,11 @@ def openspec_command_gaps(
         gaps.append(f"openspec_status_incomplete:{selected}")
     if validate["exit_code"] != 0:
         gaps.extend(validation_failures(validate["json"]))
-    for name, result in (("doctor", doctor), ("list", list_result), ("validate", validate)):
+    for name, result in (
+        ("doctor", doctor),
+        ("list", list_result),
+        ("validate", validate),
+    ):
         if result["parse_error"]:
             gaps.append(f"openspec_{name}_json_parse_failed")
     if status and status.get("parse_error"):
@@ -217,10 +230,10 @@ def claim_binds_change(carriers: set[str], change_name: str) -> bool:
 def lifecycle_report(
     root: Path,
     *,
-    selected: str | None,
+    request: OpenSpecRequest,
     list_payload: dict[str, Any],
-    enabled: bool,
     protected_branch_residue: dict[str, object] | None = None,
+    runtime: OpenSpecLifecycleRuntime | None = None,
 ) -> dict[str, Any]:
     """Return OpenSpec change lifecycle obligations for active changes."""
     residue = protected_branch_residue or {
@@ -229,15 +242,15 @@ def lifecycle_report(
         "advisory_gaps": [],
         "summary": {"residue_count": 0},
     }
-    if not enabled:
+    if not request.lifecycle:
         return {
             "required_gaps": [],
             "changes": [],
             "protected_branch_residue": residue,
         }
     changes_payload = list_payload.get("changes", [])
-    if selected:
-        change_names = [selected]
+    if request.change:
+        change_names = [request.change]
     elif isinstance(changes_payload, list):
         change_names = [
             str(item.get("name"))
@@ -268,12 +281,32 @@ def lifecycle_report(
             required_gaps.append(f"openspec_claim_binding_missing:{change_name}")
         proposal_protocol = proposal_protocol_report(root, change_name)
         required_gaps.extend(str(gap) for gap in proposal_protocol["required_gaps"])
+        archive_preflight = (
+            openspec_archive_preflight_report(
+                root,
+                change_name,
+                base_command=runtime.base_command,
+                run_json=runtime.run_json,
+            )
+            if runtime is not None
+            else {
+                "ok": True,
+                "state": "not_run",
+                "change": change_name,
+                "isolated": True,
+                "command": [],
+                "diagnostics": [],
+                "required_gaps": [],
+            }
+        )
+        required_gaps.extend(str(gap) for gap in archive_preflight["required_gaps"])
         changes.append(
             {
                 "name": change_name,
                 "path": change_root.relative_to(root).as_posix(),
                 "carriers": carriers,
                 "proposal_protocol": proposal_protocol,
+                "archive_preflight": archive_preflight,
                 "required_gaps": [
                     gap
                     for gap in required_gaps

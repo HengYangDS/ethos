@@ -21,3 +21,8 @@ Use `template.md` as the authoring scaffold and validate with:
 ```bash
 ethos openspec --lifecycle --json
 ```
+
+Lifecycle validates archiveability through the configured official archive CLI
+in a disposable workspace copy. It never archives or rewrites this source
+change; an application-time conflict must be repaired before plan, proof, or
+land can proceed.

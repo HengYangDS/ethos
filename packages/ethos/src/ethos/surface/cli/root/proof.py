@@ -10,6 +10,8 @@ import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalSubprocessRunner
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.repository.context import is_product_root
 from ethos.repository.evidence.core import AdapterProofResult
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -134,6 +136,12 @@ def prove(
     audit = status_domain.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
+    openspec_lifecycle = (
+        openspec_governance_report(repo, lifecycle=True)
+        if is_product_root(repo)
+        else {"ok": True, "required_gaps": []}
+    )
+    lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
     graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
     gates_by_id = gate_registry(repo)
@@ -193,6 +201,7 @@ def prove(
     host_probe = host_probe_boundary(host=host, probe=probe)
     ok = (
         bool(audit["ok"])
+        and bool(openspec_lifecycle.get("ok"))
         and runs_ok
         and graph_validation.ok
         and not failed_gate_gaps
@@ -228,6 +237,7 @@ def prove(
         },
         required_gaps=(
             tuple(audit["required_gaps"])
+            + lifecycle_gaps
             + tuple(graph_validation.gaps)
             + failed_gate_gaps
             + proof_gaps
@@ -240,6 +250,7 @@ def prove(
         data={
             "governance_context": audit["governance_context"],
             "repository_audit": audit,
+            "openspec_lifecycle": openspec_lifecycle,
             "executed": execute,
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,

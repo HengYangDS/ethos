@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 import ethos.adapters.openspec.cli as openspec_cli
+import ethos.surface.cli.root.planning as planning_cli
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
@@ -288,6 +289,28 @@ def test_plan_changed_returns_action_graph() -> None:
     assert "action_graph" in payload["data"]
     assert payload["data"]["workflow_runtime"]["kind"] == "workflow_runtime_read_model"
     assert payload["data"]["workflow_runtime"]["truth_boundary"] == "derived_repository_projection"
+
+
+def test_plan_changed_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
+    lifecycle = {
+        "ok": False,
+        "required_gaps": [
+            "openspec_archive_preflight_failed:sample-change:archive_spec_update_failed"
+        ],
+    }
+    monkeypatch.setattr(
+        planning_cli,
+        "openspec_governance_report",
+        lambda _root, **_kwargs: lifecycle,
+        raising=False,
+    )
+
+    payload = run_ethos("plan", "--changed", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle["required_gaps"]
+    assert payload["data"]["openspec_lifecycle"] == lifecycle
 
 
 def test_plan_changed_maps_repository_rules_to_required_gates(tmp_path: Path) -> None:

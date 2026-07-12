@@ -2,12 +2,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import NamedTuple
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.archive.core import openspec_archive_closeout_report
+from ethos.adapters.openspec.core import openspec_governance_report
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+class CompletedActiveChangesEvidence(NamedTuple):
+    """Lifecycle projections returned with completed-active change review."""
+
+    active_lifecycle: dict[str, Any]
+    archive_closeout: dict[str, Any]
 
 
 def completed_active_changes_report(root: Path) -> dict[str, Any]:
@@ -18,6 +27,10 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
             completed_changes=[],
             required_gaps=[],
             list_result={},
+            evidence=CompletedActiveChangesEvidence(
+                {"ok": True, "state": "not_applicable", "required_gaps": []},
+                {},
+            ),
         )
     base_command = openspec_cli.openspec_base_command()
     if base_command is None:
@@ -26,6 +39,10 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
             completed_changes=[],
             required_gaps=["openspec_official_cli_missing"],
             list_result={},
+            evidence=CompletedActiveChangesEvidence(
+                {"ok": False, "state": "unavailable", "required_gaps": []},
+                {},
+            ),
         )
 
     list_result = openspec_cli.run_json(root, base_command, ("list", "--json"))
@@ -38,6 +55,12 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
     required_gaps.extend(
         f"openspec_completed_change_unarchived:{name}" for name in completed_changes
     )
+    active_lifecycle = (
+        openspec_governance_report(root, lifecycle=True)
+        if not required_gaps
+        else {"ok": False, "state": "not_run", "required_gaps": []}
+    )
+    required_gaps.extend(str(gap) for gap in active_lifecycle.get("required_gaps", []))
     archive_closeout = openspec_archive_closeout_report(root)
     required_gaps.extend(str(gap) for gap in archive_closeout["required_gaps"])
     return completed_active_changes_payload(
@@ -45,7 +68,7 @@ def completed_active_changes_report(root: Path) -> dict[str, Any]:
         completed_changes=completed_changes,
         required_gaps=required_gaps,
         list_result=list_result,
-        archive_closeout=archive_closeout,
+        evidence=CompletedActiveChangesEvidence(active_lifecycle, archive_closeout),
     )
 
 
@@ -71,7 +94,7 @@ def completed_active_changes_payload(
     completed_changes: list[str],
     required_gaps: list[str],
     list_result: dict[str, Any],
-    archive_closeout: dict[str, Any] | None = None,
+    evidence: CompletedActiveChangesEvidence,
 ) -> dict[str, Any]:
     """Build the completed-active OpenSpec read model payload."""
     return {
@@ -79,7 +102,8 @@ def completed_active_changes_payload(
         "state": "blocked" if required_gaps else "clean",
         "root": root.as_posix(),
         "completed_changes": completed_changes,
-        "archive_closeout": archive_closeout
+        "active_lifecycle": evidence.active_lifecycle,
+        "archive_closeout": evidence.archive_closeout
         or {
             "ok": True,
             "state": "clean",

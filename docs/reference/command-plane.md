@@ -528,7 +528,12 @@ shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes
 official OpenSpec CLI validation and is required for release or archive proof.
 `ethos openspec --lifecycle --json` adds ETHOS lifecycle carrier review:
 active changes need proposal, design, tasks, delta specs, and an active claim
-binding in addition to official OpenSpec validation.
+binding in addition to official OpenSpec validation. Lifecycle runs the
+configured official archive command only in a disposable `openspec/` copy, so
+an application-time delta conflict is reported as
+`openspec_archive_preflight_failed:<change>:<official-code>` before plan, proof,
+land, or accepted-root closeout. The source workspace is never archived or
+rewritten by this projection.
 
 Proof states are execution-depth states. `ethos prove --json` is readiness and
 reports `state=ready` with `executed=false` when planning and static admission

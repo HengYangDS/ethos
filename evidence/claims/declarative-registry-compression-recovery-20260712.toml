@@ -7,7 +7,7 @@ summary = "Coupling and standards registries compile from frozen TOML contracts 
 
 [evidence]
 dated = "evidence/chronicle/declarative-registry-compression-recovery-20260712/2026-07-12.md"
-sha256 = "26680b0e3d0d0fff0cf35648b76681ed4e4e2b3e878afc1279b22f172c125fed"
+sha256 = "dbd74c05d866be3a8f5222a0ffc8e0b0601d63be56e405f75c9283668245d9ab"
 evidence_ids = ["evidence:declarative-registry-compression-recovery-20260712"]
 binding = "TOML declarations, frozen Pydantic contracts, static projection matrices, deleted former builders, and the bounded OpenSpec carrier bind this compression slice."
 verifier = "semantic"

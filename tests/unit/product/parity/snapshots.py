@@ -60,6 +60,29 @@ def git_head(path: Path) -> str:
     ).stdout.strip()
 
 
+def set_durable_evidence_root(repo: Path, value: str) -> None:
+    """Configure and commit the fixture's durable evidence root."""
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "configure evidence root",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 def complete_parity_evidence(adopter: str) -> dict[str, object]:
     command = (
         f"uv run --package ethos ethos parity shadow --adopter {adopter} "

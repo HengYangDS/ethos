@@ -15,6 +15,7 @@ from ethos.repository.adoption.evolution import evolution_report
 from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -55,7 +56,7 @@ def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) 
             "active_hypothesis_count": len(active_hypotheses),
             "active_hypotheses": active_hypotheses,
             "campaign_count": campaigns.get("campaign_count", 0),
-            "campaign_required_gaps": _strings(campaigns.get("required_gaps")),
+            "campaign_required_gaps": string_list(campaigns.get("required_gaps")),
             "practice_claim_count": selection.get("practice_claim_count", 0),
             "practice_claims": selection.get("practice_claims", []),
             "selection_policy": contract_evolution.get("selection_policy", ""),
@@ -116,9 +117,3 @@ def _dict_items(value: object) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [cast("dict[str, Any]", item) for item in value if isinstance(item, dict)]
-
-
-def _strings(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]

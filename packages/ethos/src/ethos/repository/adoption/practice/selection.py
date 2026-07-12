@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos_core.normalization.core import string_list
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -162,7 +164,7 @@ def _practice_claim_link_gaps(
             item, item_id, "evaluation_record", context["evaluation_ids"], "practice_claim"
         )
     )
-    practice_change_refs = _strings(item.get("practice_changes"))
+    practice_change_refs = string_list(item.get("practice_changes"), drop_empty=True)
     if not practice_change_refs:
         gaps.append(f"practice_claim_practice_changes_missing:{item_id}")
     gaps.extend(
@@ -263,7 +265,7 @@ def _evaluation_records_gaps(root: Path, context: dict[str, Any]) -> list[str]:
 def _evaluation_selection_gaps(item: dict[str, Any], item_id: str) -> list[str]:
     gaps: list[str] = []
     selected = str(item.get("selected_candidate") or "")
-    rejected = _strings(item.get("rejected_candidates"))
+    rejected = string_list(item.get("rejected_candidates"), drop_empty=True)
     if not selected:
         gaps.append(f"evaluation_selected_candidate_missing:{item_id}")
     if not rejected:
@@ -319,11 +321,11 @@ def _practice_change_commitment_effect_gaps(
 def _incumbent_fate_gaps(item: dict[str, Any], item_id: str, change_kind: str) -> list[str]:
     gaps: list[str] = []
     if change_kind in {"supersede", "retire"}:
-        if not _strings(item.get("incumbents")):
+        if not string_list(item.get("incumbents"), drop_empty=True):
             gaps.append(f"practice_change_incumbents_missing:{item_id}")
-        if not _strings(item.get("retirement_conditions")):
+        if not string_list(item.get("retirement_conditions"), drop_empty=True):
             gaps.append(f"practice_change_retirement_conditions_missing:{item_id}")
-    if change_kind == "introduce" and _strings(item.get("incumbents")):
+    if change_kind == "introduce" and string_list(item.get("incumbents"), drop_empty=True):
         gaps.append(f"practice_change_introduce_has_incumbents:{item_id}")
     return gaps
 
@@ -331,7 +333,7 @@ def _incumbent_fate_gaps(item: dict[str, Any], item_id: str, change_kind: str) -
 def _hypothesis_link_gaps(item: dict[str, Any], item_id: str, hypotheses: set[str]) -> list[str]:
     return [
         f"experiment_hypothesis_ref_missing:{item_id}:{hypothesis_ref}"
-        for hypothesis_ref in _strings(item.get("hypothesis_refs"))
+        for hypothesis_ref in string_list(item.get("hypothesis_refs"), drop_empty=True)
         if hypothesis_ref not in hypotheses
     ]
 
@@ -357,7 +359,9 @@ def _required_list_gaps(
     item: dict[str, Any], item_id: str, prefix: str, fields: tuple[str, ...]
 ) -> list[str]:
     return [
-        f"{prefix}_{field}_missing:{item_id}" for field in fields if not _strings(item.get(field))
+        f"{prefix}_{field}_missing:{item_id}"
+        for field in fields
+        if not string_list(item.get(field), drop_empty=True)
     ]
 
 
@@ -392,9 +396,3 @@ def _list_items(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
-
-
-def _strings(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]

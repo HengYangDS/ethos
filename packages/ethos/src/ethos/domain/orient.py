@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos_core.normalization.core import string_sequence
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -29,7 +31,7 @@ def orientation_packet(
     landing = _dict(status_payload.get("landing_readiness"))
     role = str(status_payload.get("role") or "unknown")
     dirty = bool(status_payload.get("dirty"))
-    changed_paths = _strings(status_payload.get("changed_paths"))
+    changed_paths = string_sequence(status_payload.get("changed_paths"))
     foreign_lanes = [
         _foreign_lane_summary(cast("Mapping[str, Any]", item))
         for item in cast("list[object]", status_payload.get("foreign_work_lanes") or [])
@@ -40,9 +42,11 @@ def orientation_packet(
         for item in cast("list[object]", coordination.get("unbound_work_lane_refs") or [])
         if isinstance(item, dict)
     ]
-    required_gaps = _strings(status_payload.get("required_gaps"))
+    required_gaps = string_sequence(status_payload.get("required_gaps"))
     report_summary = _dict(report_payload.get("summary") if report_payload else None)
-    report_required = _strings(report_payload.get("required_gaps") if report_payload else None)
+    report_required = string_sequence(
+        report_payload.get("required_gaps") if report_payload else None
+    )
     report_advisory = _report_advisory_items(report_payload)
     report_advisory_next_actions = _report_advisory_next_actions(report_payload)
     gaps = _dedupe([*required_gaps, *report_required])
@@ -96,8 +100,8 @@ def orientation_packet(
                 for item in cast("list[object]", coordination.get("closeout_residue_lanes") or [])
                 if isinstance(item, dict)
             ],
-            "advisory_items": _strings(coordination.get("advisory_gaps")),
-            "required_items": _strings(coordination.get("required_gaps")),
+            "advisory_items": string_sequence(coordination.get("advisory_gaps")),
+            "required_items": string_sequence(coordination.get("required_gaps")),
             "next_action": str(coordination.get("next_action") or ""),
             "foreign_work_lanes": foreign_lanes,
             "unbound_work_lane_refs": unbound_refs,
@@ -108,14 +112,14 @@ def orientation_packet(
             "schema_source_root": str(runtime.get("schema_source_root") or ""),
             "runner_matches_audit_root": bool(runtime.get("runner_matches_audit_root")),
             "schema_matches_audit_root": bool(runtime.get("schema_matches_audit_root")),
-            "advisory_items": _strings(runtime.get("advisory_gaps")),
+            "advisory_items": string_sequence(runtime.get("advisory_gaps")),
             "next_action": str(runtime.get("next_action") or ""),
         },
         "landing_readiness": {
             "state": str(landing.get("state") or ""),
             "candidate_branch": str(landing.get("candidate_branch") or ""),
             "candidate_head": str(landing.get("candidate_head") or ""),
-            "required_items": _strings(landing.get("required_gaps")),
+            "required_items": string_sequence(landing.get("required_gaps")),
             "next_action": str(landing.get("next_action") or ""),
         },
         "readiness": {
@@ -192,16 +196,16 @@ def human_orientation_lines(packet: Mapping[str, Any]) -> tuple[str, ...]:
         )
     else:
         lines.append("readiness: status-only view; run ethos report --json for scorecard")
-    runtime_items = _strings(runtime.get("advisory_items"))
+    runtime_items = string_sequence(runtime.get("advisory_items"))
     if runtime_items:
         lines.append(f"runtime: {runtime.get('state')}; {runtime.get('next_action')}")
-    landing_items = _strings(landing.get("required_items"))
+    landing_items = string_sequence(landing.get("required_items"))
     if landing_items:
         lines.append(f"landing: {landing.get('state')}; {landing.get('next_action')}")
     coordination_line = _coordination_line(coordination)
     if coordination_line:
         lines.append(coordination_line)
-    next_actions = _strings(packet.get("next_actions"))
+    next_actions = string_sequence(packet.get("next_actions"))
     if next_actions:
         lines.append("next: " + " | ".join(next_actions))
     return tuple(lines)
@@ -211,7 +215,7 @@ def _coordination_line(coordination: Mapping[str, Any]) -> str:
     parts: list[str] = []
     foreign_count = int(coordination.get("foreign_work_lane_count") or 0)
     unbound_count = int(coordination.get("unbound_work_lane_count") or 0)
-    required_items = _strings(coordination.get("required_items"))
+    required_items = string_sequence(coordination.get("required_items"))
     missing_lease_count = int(coordination.get("missing_lease_count") or 0)
     dirty_foreign_count = int(coordination.get("dirty_foreign_work_lane_count") or 0)
     closeout_residue_count = int(coordination.get("closeout_residue_count") or 0)
@@ -242,11 +246,11 @@ def _report_advisory_items(report_payload: Mapping[str, Any] | None) -> list[str
     data = _dict(report_payload.get("data"))
     layers = _dict(data.get("gap_layers"))
     advisory_layer = _dict(layers.get("advisory_signals"))
-    items = _strings(advisory_layer.get("advisory_gaps"))
+    items = string_sequence(advisory_layer.get("advisory_gaps"))
     if items:
         return items
     signals = _dict(data.get("advisory_signals"))
-    return _strings(signals.get("advisory_gaps"))
+    return string_sequence(signals.get("advisory_gaps"))
 
 
 def _report_advisory_next_actions(report_payload: Mapping[str, Any] | None) -> list[str]:
@@ -255,23 +259,17 @@ def _report_advisory_next_actions(report_payload: Mapping[str, Any] | None) -> l
     data = _dict(report_payload.get("data"))
     layers = _dict(data.get("gap_layers"))
     advisory_layer = _dict(layers.get("advisory_signals"))
-    actions = _strings(advisory_layer.get("next_actions"))
+    actions = string_sequence(advisory_layer.get("next_actions"))
     if actions:
         return actions
     signals = _dict(data.get("advisory_signals"))
-    return _strings(signals.get("next_actions"))
+    return string_sequence(signals.get("next_actions"))
 
 
 def _dict(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
     return cast("dict[str, Any]", value)
-
-
-def _strings(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value]
 
 
 def _dedupe(values: list[str]) -> list[str]:
@@ -313,7 +311,7 @@ def _foreign_lane_summary(item: Mapping[str, Any]) -> dict[str, Any]:
         "next_action": str(item.get("next_action") or ""),
         "coordination_state": str(item.get("coordination_state") or ""),
         "action_preview": _dict(item.get("action_preview")),
-        "path_scope": _strings(item.get("path_scope")),
+        "path_scope": string_sequence(item.get("path_scope")),
         "dirty": bool(item.get("dirty")),
     }
 
@@ -363,9 +361,9 @@ def _capability(*, role: str, dirty: bool, closeout: Mapping[str, Any]) -> dict[
 def _next_actions(context: Mapping[str, Any]) -> list[str]:
     role = str(context["role"])
     closeout = _dict(context.get("closeout"))
-    gaps = _strings(context.get("gaps"))
+    gaps = string_sequence(context.get("gaps"))
     report_payload = context.get("report_payload")
-    advisory_next_actions = _strings(context.get("advisory_next_actions"))
+    advisory_next_actions = string_sequence(context.get("advisory_next_actions"))
     actions = ["ethos status --json"]
     if context.get("dirty") is True:
         actions = ["ethos status --json", "git status --short"]
@@ -387,15 +385,15 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
     elif role == "candidate":
         actions = ["ethos land --closeout --json"]
     elif isinstance(report_payload, dict):
-        actions = _strings(report_payload.get("next_actions")) or actions
+        actions = string_sequence(report_payload.get("next_actions")) or actions
     return _dedupe([*actions, *advisory_next_actions])
 
 
 def _human_summary(context: Mapping[str, Any]) -> str:
     dirty = bool(context["dirty"])
-    gaps = _strings(context.get("gaps"))
+    gaps = string_sequence(context.get("gaps"))
     capability = _dict(context["capability"])
-    next_actions = _strings(context.get("next_actions"))
+    next_actions = string_sequence(context.get("next_actions"))
     state = "dirty" if dirty else "gapped" if gaps else "ready"
     actor = capability.get("candidate_action")
     foreign_count = int(context["foreign_count"])

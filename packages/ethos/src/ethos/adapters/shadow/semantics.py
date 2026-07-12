@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import ethos.adapters.shadow.planning as shadow_planning
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -54,8 +55,8 @@ def false_negative_gaps(
         external,
         embedded,
     )
-    external_required = set(_gap_list(external_projection.get("required_gaps")))
-    embedded_required = set(_gap_list(embedded_projection.get("required_gaps")))
+    external_required = set(string_list(external_projection.get("required_gaps")))
+    embedded_required = set(string_list(embedded_projection.get("required_gaps")))
     return sorted(embedded_required - external_required)
 
 
@@ -104,8 +105,8 @@ def _normalized_semantic_projections(
     external_projection = _semantic_projection(command, external)
     embedded_projection = _semantic_projection(command, embedded)
     accepted: list[dict[str, Any]] = []
-    embedded_gaps = _gap_list(embedded_projection.get("required_gaps"))
-    external_gaps = _gap_list(external_projection.get("required_gaps"))
+    embedded_gaps = string_list(embedded_projection.get("required_gaps"))
+    external_gaps = string_list(external_projection.get("required_gaps"))
     if embedded_gaps:
         missing_embedded_gaps = sorted(set(embedded_gaps) - set(external_gaps))
         external_extra_gaps = sorted(set(external_gaps) - set(embedded_gaps))
@@ -240,7 +241,7 @@ def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> d
         "ok": payload.get("ok"),
         "command": command_name,
         "state": state,
-        "required_gaps": sorted(_gap_list(payload.get("required_gaps"))),
+        "required_gaps": sorted(string_list(payload.get("required_gaps"))),
     }
     command_root = command[0] if command else command_name.split()[0] if command_name else ""
     if command_root == "status":
@@ -354,7 +355,7 @@ def _semantic_state(
             payload.get("ok") is True
             and command == "prove"
             and state == "ready"
-            and not _gap_list(payload.get("required_gaps"))
+            and not string_list(payload.get("required_gaps"))
         ):
             return "proven"
         return state
@@ -389,12 +390,6 @@ def _ready_state_for_command(command: object) -> str | None:
     return None
 
 
-def _gap_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
 def _without_product_repository_audit_gaps(
     payload: dict[str, Any],
     gaps: list[str],
@@ -405,7 +400,7 @@ def _without_product_repository_audit_gaps(
     repository_audit = repository_audit_value if isinstance(repository_audit_value, dict) else {}
     audit_gaps = {
         gap
-        for gap in _gap_list(repository_audit.get("required_gaps"))
+        for gap in string_list(repository_audit.get("required_gaps"))
         if _is_product_repository_audit_gap(gap)
     }
     if not audit_gaps:

@@ -18,6 +18,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.normalization.core import string_sequence
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,7 @@ def retire_landed_work_lanes(
                 expect_head=expect_head,
                 apply=apply,
                 confirmed=False,
-                required_gaps=_string_list(removed.get("required_gaps")),
+                required_gaps=string_sequence(removed.get("required_gaps")),
                 holder_ref=lane_retirement_shared.current_holder_ref(),
                 required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
             ),
@@ -149,12 +150,6 @@ def retire_landed_work_lanes(
         ),
         "required_gaps": [],
     }
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value]
 
 
 def _landed_expect_head_gaps(

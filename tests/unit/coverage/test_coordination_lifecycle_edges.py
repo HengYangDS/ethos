@@ -18,12 +18,12 @@ import ethos.adapters.admission.transitions as transitions
 import ethos.adapters.mutation.lane_lifecycle.handoff.core as handoff
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
 import ethos.adapters.mutation.lane_lifecycle.lease as lease_ops
-import ethos.adapters.mutation.lane_retirement.landed.core as landed
 import ethos.adapters.store.state.lease.lifecycle.core as lease_state
 import ethos.adapters.store.state.lease.projection as lease_projection
 from ethos_core.contracts.lifecycle.core import LeaseFacts
 from ethos_core.contracts.lifecycle.core import lease_transition
 from ethos_core.contracts.lifecycle.core import reduce_lease_request
+from ethos_core.normalization.core import string_sequence
 
 BRANCH = "work/example"
 HEAD = "a" * 40
@@ -380,7 +380,7 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         "handoff_artifact_missing:missing.txt",
         "handoff_artifact_digest_mismatch:wrong.txt",
     ]
-    assert handoff_package._string_list("bad") == []  # noqa: RUF100, SLF001 - exact private branch coverage
+    assert string_sequence("bad") == []
 
     monkeypatch.setattr(
         handoff_package.subprocess,
@@ -757,7 +757,7 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
         )
         == tmp_path / "accepted/.ethos/state/state.sqlite"
     )
-    assert admission._string_list("bad") == []
+    assert string_sequence("bad") == []
 
     monkeypatch.setattr(transitions, "workspace_status", lambda _root: {"worktrees": []})
     monkeypatch.setattr(
@@ -818,4 +818,5 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
 
 
 def test_landed_string_list_scalar_is_empty() -> None:
-    assert landed._string_list("bad") == []
+    assert string_sequence(("a", 2)) == ["a", "2"]
+    assert string_sequence("bad") == []

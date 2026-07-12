@@ -143,7 +143,9 @@ def test_native_proof_parser_rejects_handwritten_head_state_envelope() -> None:
     candidate_head = "a" * 40
 
     assert (
-        control_verifier._native_executed_proof_head({"head": candidate_head, "state": "proven"})
+        control_verifier._native_executed_proof_head(  # noqa: RUF100, SLF001 - asserts the standalone verifier's fail-closed parser
+            {"head": candidate_head, "state": "proven"}
+        )
         == ""
     )
 

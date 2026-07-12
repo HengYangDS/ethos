@@ -1,0 +1,60 @@
+[claim]
+id = "global-declarative-compression-program-20260711"
+subject = "quality:global-declarative-compression-foundation"
+state = "active"
+summary = "Active claim for the completed declarative-compression foundation; terminal global compression remains explicitly open."
+
+[evidence]
+dated = "evidence/chronicle/global-declarative-compression-program-20260711/2026-07-12.md"
+sha256 = "446d57b10a6bc5764996a0b220dd4c4990196c39ba692eb6ae1dae61326a1076"
+evidence_ids = ["evidence:global-declarative-compression-program-20260711"]
+binding = "Dated foundation Chronicle, exact source-budget/debt policy, declaration and receipt-boundary changes, focused contract tests, OpenSpec lifecycle validation, and subsequent HEAD-bound proof bind only the completed foundation."
+verifier = "semantic_attested"
+tests = [
+  "ethos quality source-budget --json",
+  "ethos quality code-size --json",
+  "ethos quality claims --json",
+  "ethos openspec --lifecycle --json",
+  "pytest -q tests/unit/adoption/test_apply_sample.py tests/unit/cli/test_contracts_proof.py tests/unit/lanes/test_lane_resolution.py",
+  "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+docs = ["docs/plans/global-declarative-compression-program.md"]
+source = [
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos/src/ethos/repository/adoption/planner.py",
+]
+tests = [
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/lanes/test_lane_resolution.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "Repository-wide source-budget/debt foundation, declaration-first cutovers, and integrated candidate-train reconciliation."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-12-global-declarative-compression-program-20260711"
+fallback = "Keep the existing explicit budget and refuse terminal-completion claims until each later wave proves deletion, parity, and a non-growing source delta."
+kill_signal = "This foundation is presented as terminal completion, a debt record is extended without a new governed change, or a later wave leaves a duplicate implementation after cutover."
+
+[promotion]
+targets = [
+  ".ethos/rules.toml",
+  "docs/plans/global-declarative-compression-program.md",
+  "openspec/changes/archive/2026-07-12-global-declarative-compression-program-20260711",
+  "evidence/chronicle/global-declarative-compression-program-20260711/2026-07-12.md",
+  "evidence/claims/global-declarative-compression-program-20260711.toml",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos/src/ethos/repository/adoption/planner.py",
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/lanes/test_lane_resolution.py",
+]

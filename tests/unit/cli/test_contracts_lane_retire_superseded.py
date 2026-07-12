@@ -11,22 +11,7 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-
-
-def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
-    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
-    git(repo, "add", "obsolete.txt")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "absorb obsolete lane delta",
-    )
-    return git(repo, "rev-parse", "dev")
+from tests.support.lane_helpers import absorb_obsolete_delta_in_accepted
 
 
 def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(

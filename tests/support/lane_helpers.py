@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 __all__ = (
+    "absorb_obsolete_delta_in_accepted",
     "add_candidate_worktree",
     "assert_no_ui_projection",
     "git",
@@ -28,6 +29,23 @@ __all__ = (
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
     git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
     return path
+
+
+def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
+    """Commit a fixture change directly on the accepted branch."""
+    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(repo, "add", "obsolete.txt")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "absorb obsolete lane delta",
+    )
+    return git(repo, "rev-parse", "dev")
 
 
 def write_role_policy(

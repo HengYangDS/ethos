@@ -21,6 +21,7 @@ _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
 _PRUNE_DIRS = frozenset(
     {
         ".git",
+        ".pixi",
         ".venv",
         "__pycache__",
         "node_modules",

@@ -115,6 +115,20 @@ shell = 368
 json = 102
 jinja = 15
 
+[[quality.source_budget.debt.records]]
+id = "openspec-archive-preflight-20260712"
+owner = "openspec-archive-preflight-20260712"
+replacement = "collapse isolated archive preflight after the official lifecycle API exposes a source-safe dry-run receipt"
+deletion_wave = "archive-closeout"
+expiry = "archive-closeout"
+allowance = 577
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 253
+python_tests = 242
+yaml = 2
+toml = 80
+
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"
 blocking = true

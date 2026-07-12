@@ -14,6 +14,8 @@
   change-scoped required gaps.
 - [x] 2.3 Keep lifecycle caching, timeout/error handling, and source-truth
   boundaries intact.
+- [x] 2.4 Record the exact, expiring source-budget delta rather than silently
+  weakening the global source-growth ceiling.
 
 ## 3. Verification And Closeout
 

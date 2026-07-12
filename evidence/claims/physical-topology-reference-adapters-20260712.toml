@@ -1,0 +1,55 @@
+[claim]
+id = "physical-topology-reference-adapters-20260712"
+subject = "ethos:optional-independent-verification-extension-topology"
+state = "active"
+summary = "ETHOS moves the optional independent-verification reference implementation from an unowned root directory into a declared, default-off provider-local extension without compatibility residue or adopter burden."
+
+[evidence]
+dated = "evidence/chronicle/physical-topology-reference-adapters-20260712/2026-07-12.md"
+sha256 = "16f60fd24c664d036426728f81dbf6b38450574966284f2a5cbb24c64cfe0b21"
+evidence_ids = ["evidence:physical-topology-reference-adapters-20260712"]
+binding = "The extension-only source path, focused topology and fail-closed tests, canonical documentation, OpenSpec delta, and dated Chronicle bind the physical-boundary correction."
+verifier = "semantic_attested"
+tests = [
+  "uv run --group dev pytest -q extensions/independent-verification/tests/test_reference_verifier.py",
+  "uv run --group dev ruff check extensions/independent-verification",
+  "tools/ci/scripts/run-format-selection.sh --check extensions/independent-verification docs/architecture/package-ontology.md docs/decisions/accepted/DR-0006-proof-trust-boundary.md docs/governance/independent-verification-adoption.md",
+  "uv run --package ethos ethos openspec --change physical-topology-reference-adapters-20260712 --lifecycle --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+docs = [
+  "docs/architecture/package-ontology.md",
+  "docs/decisions/accepted/DR-0006-proof-trust-boundary.md",
+  "docs/governance/independent-verification-adoption.md",
+]
+source = [
+  "extensions/independent-verification/extension.toml",
+  "extensions/independent-verification/adapters/independent_identity/reference_verifier.py",
+]
+tests = ["extensions/independent-verification/tests/test_reference_verifier.py"]
+openspec = ["openspec/changes/physical-topology-reference-adapters-20260712"]
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Physical placement of the optional provider-local independent-verification reference source and its colocated extension artifacts."
+
+[carriers]
+openspec = "openspec/changes/physical-topology-reference-adapters-20260712"
+fallback = "Revert the atomic topology change if a declared proof or provider installation boundary fails; do not restore a forwarding compatibility path."
+kill_signal = "A root-level adapter directory, alias, symlink, package import, or adopter requirement remains after the extension move."
+
+[promotion]
+targets = [
+  "extensions/independent-verification",
+  "docs/architecture/package-ontology.md",
+  "docs/decisions/accepted/DR-0006-proof-trust-boundary.md",
+  "docs/governance/independent-verification-adoption.md",
+  "openspec/changes/physical-topology-reference-adapters-20260712",
+  "evidence/chronicle/physical-topology-reference-adapters-20260712/2026-07-12.md",
+  "evidence/claims/physical-topology-reference-adapters-20260712.toml",
+]

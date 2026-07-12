@@ -78,11 +78,13 @@ correctness or mint authority.
 
 ## Reference Adapter
 
-`reference_adapters/independent_identity/reference_verifier.py` is a
-one-shot reference implementation. Install a provider-owned copy under a
-dedicated noninteractive OS identity, with an out-of-tree ETHOS runtime and a
-private signing key readable only by that identity. It has no daemon, schedule,
-host service, general shell command input, or privileged escalation path.
+`extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
+is the one-shot reference implementation in the declared
+`independent-verification` extension bundle. Install a provider-owned copy
+under a dedicated noninteractive OS identity, with an out-of-tree ETHOS runtime
+and a private signing key readable only by that identity. It has no daemon,
+schedule, host service, general shell command input, or privileged escalation
+path.
 
 The adapter accepts one provider-owned TOML file and one generated request. It
 allows one immutable remote and commit, creates an independent checkout,

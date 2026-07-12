@@ -100,6 +100,8 @@ _SOURCE_BUDGET_CATEGORIES = (
 def _source_budget_category(relative: str) -> str | None:
     """Classify one tracked executable carrier without inventing a source role."""
     path = relative.lower()
+    if path.startswith("openspec/changes/archive/") and path.endswith("/.openspec.yaml"):
+        return None
     if path.endswith(".py"):
         if path.startswith("packages/") and "/src/" in path:
             return "python_product"

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 OPENSPEC_METADATA_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
-ALLOWED_OPENSPEC_METADATA_KEYS = frozenset({"schema", "created", "status"})
+ALLOWED_OPENSPEC_METADATA_KEYS = frozenset({"schema", "created", "goal", "status"})
 
 
 def is_relative_to(path: Path, root: Path) -> bool:

@@ -1636,4 +1636,3 @@ receipt publication failure.
 - **WHEN** the adapter starts its independent proof command
 - **THEN** it SHALL provide a minimal key-free environment
 - **AND** SHALL use an out-of-tree runtime and checkout.
-

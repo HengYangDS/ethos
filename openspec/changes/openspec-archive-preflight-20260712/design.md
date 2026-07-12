@@ -32,6 +32,9 @@ later concurrent source change will remain archiveable.
   the command returns.
 - Official archive diagnostics remain attributable to the active change that
   produced them.
+- The temporary source-budget debt records only this bounded implementation
+  delta and expires when the official lifecycle API supplies an equivalent
+  source-safe dry-run receipt.
 
 ## Alternatives Rejected
 

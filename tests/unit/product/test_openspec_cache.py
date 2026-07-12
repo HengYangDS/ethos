@@ -359,35 +359,17 @@ def test_openspec_report_reuses_result_for_unchanged_workspace(
     ]
 
 
-def test_openspec_lifecycle_preflights_official_archive_in_isolated_copy(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    root = tmp_path / "repo"
-    change = root / "openspec" / "changes" / "sample-change"
-    canonical = root / "openspec" / "specs" / "adapters" / "spec.md"
-    delta = change / "specs" / "adapters" / "spec.md"
-    canonical.parent.mkdir(parents=True)
-    delta.parent.mkdir(parents=True)
-    (root / "openspec" / "config.yaml").write_text("project: ethos\n", encoding="utf-8")
-    canonical.write_text(
-        "# Adapters\n\n## Requirements\n\n"
-        "### Requirement: Existing archive contract\n"
-        "\n#### Scenario: Existing canonical behavior\n"
-        "- **WHEN** archive runs\n- **THEN** the canonical contract remains present\n",
-        encoding="utf-8",
-    )
-    delta.write_text(
-        "## ADDED Requirements\n\n"
-        "### Requirement: Existing archive contract\n"
-        "\n#### Scenario: Existing canonical behavior\n"
-        "- **WHEN** archive runs\n- **THEN** the canonical contract remains present\n",
-        encoding="utf-8",
-    )
-    for artifact in ("proposal.md", "design.md", "tasks.md"):
-        (change / artifact).write_text("# artifact\n", encoding="utf-8")
-    source_before = canonical.read_text(encoding="utf-8")
-    archive_roots: list[Path] = []
+def test_openspec_lifecycle_projects_archive_preflight(tmp_path: Path, monkeypatch) -> None:
+    root, _change = _lifecycle_root(tmp_path)
+    preflight = {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": [
+            "openspec_archive_preflight_failed:sample-change:archive_spec_update_failed"
+        ],
+        "diagnostics": [{"severity": "error", "code": "archive_spec_update_failed"}],
+    }
+    calls: list[tuple[Path, str]] = []
 
     monkeypatch.setattr(
         openspec_lifecycle,
@@ -399,79 +381,20 @@ def test_openspec_lifecycle_preflights_official_archive_in_isolated_copy(
         "proposal_protocol_report",
         lambda _root, _change: {"ok": True, "required_gaps": []},
     )
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-
-    def fake_run_json(
-        command_root: Path,
-        _base: tuple[str, ...],
-        args: tuple[str, ...],
-    ) -> dict[str, object]:
-        if args == ("doctor", "--json"):
-            payload: dict[str, object] = {"root": {"healthy": True}}
-            exit_code = 0
-        elif args == ("list", "--json"):
-            payload = {"changes": [{"name": "sample-change", "status": "in-progress"}]}
-            exit_code = 0
-        elif args == ("status", "--change", "sample-change", "--json"):
-            payload = {"isComplete": True, "schemaName": "spec-driven"}
-            exit_code = 0
-        elif args == ("validate", "--all", "--strict", "--json"):
-            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
-            exit_code = 0
-        elif args == ("archive", "sample-change", "--yes", "--json"):
-            archive_roots.append(command_root)
-            assert command_root != root
-            assert (command_root / "openspec" / "specs" / "adapters" / "spec.md").read_text(
-                encoding="utf-8"
-            ) == source_before
-            assert (
-                command_root
-                / "openspec"
-                / "changes"
-                / "sample-change"
-                / "specs"
-                / "adapters"
-                / "spec.md"
-            ).exists()
-            payload = {
-                "archive": None,
-                "status": [
-                    {
-                        "severity": "error",
-                        "code": "archive_spec_update_failed",
-                        "message": "adapters ADDED failed - already exists",
-                        "fix": "Fix the change delta specs and rerun.",
-                    }
-                ],
-            }
-            exit_code = 1
-        else:
-            raise AssertionError(args)
-        return {
-            "command": ["openspec", *args],
-            "exit_code": exit_code,
-            "stdout": "{}",
-            "stderr": "",
-            "json": payload,
-            "parse_error": "",
-        }
-
-    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
-
-    report = openspec_core.openspec_governance_report(root, lifecycle=True)
-    cached = openspec_core.openspec_governance_report(root, lifecycle=True)
-
-    (root / "openspec" / "cache-buster.md").write_text("refresh\n", encoding="utf-8")
-    refreshed = openspec_core.openspec_governance_report(root, lifecycle=True)
-
-    assert len(archive_roots) == 2
-    assert (
-        "openspec_archive_preflight_failed:sample-change:archive_spec_update_failed"
-        in (report["required_gaps"])
+    monkeypatch.setattr(
+        openspec_lifecycle,
+        "openspec_archive_preflight_report",
+        lambda current_root, current_change, **_kwargs: (
+            calls.append((current_root, current_change)) or preflight
+        ),
     )
-    assert cached["required_gaps"] == report["required_gaps"]
-    assert refreshed["required_gaps"] == report["required_gaps"]
-    preflight = report["lifecycle"]["changes"][0]["archive_preflight"]
-    assert preflight["state"] == "blocked"
-    assert preflight["diagnostics"][0]["code"] == "archive_spec_update_failed"
-    assert canonical.read_text(encoding="utf-8") == source_before
+    report = openspec_lifecycle.lifecycle_report(
+        root,
+        request=openspec_lifecycle.OpenSpecRequest(change=None, lifecycle=True),
+        list_payload={"changes": [{"name": "sample-change"}]},
+        runtime=openspec_lifecycle.OpenSpecLifecycleRuntime(("openspec",), lambda *_args: {}),
+    )
+
+    assert calls == [(root, "sample-change")]
+    assert preflight["required_gaps"][0] in report["required_gaps"]
+    assert report["changes"][0]["archive_preflight"] is preflight

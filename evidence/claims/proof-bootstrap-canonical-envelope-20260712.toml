@@ -6,7 +6,7 @@ summary = "ETHOS binds protected control-replacement bootstrap verification to t
 
 [evidence]
 dated = "evidence/chronicle/proof-bootstrap-canonical-envelope-20260712/2026-07-12.md"
-sha256 = "fffa37f8f0613d35c78bd1e1ccc10341b3c08732f8c0287a614aab82ca4947ca"
+sha256 = "92259e75fd503aa22ee67de0df3d4101de8ba532285f345039d30c5befc6925b"
 evidence_ids = ["evidence:proof-bootstrap-canonical-envelope-20260712"]
 binding = "The external verifier source, native-shaped admission fixture, canonical contract, OpenSpec delta, and dated Chronicle bind one generic control-replacement proof-parser repair."
 verifier = "semantic_attested"
@@ -23,14 +23,14 @@ mode = "historical"
 docs = ["docs/architecture/runner-and-mutation.md"]
 source = ["packages/ethos/src/ethos/adapters/admission/control/verifier.py"]
 tests = ["tests/unit/admission/test_control_replacement.py"]
-openspec = ["openspec/changes/proof-bootstrap-canonical-envelope-20260712"]
+openspec = ["openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712"]
 
 [boundary]
 owner = "ethos-adapters"
 scope = "Generic parsing of native executed proof JSON by the candidate-external control-replacement verifier."
 
 [carriers]
-openspec = "openspec/changes/proof-bootstrap-canonical-envelope-20260712"
+openspec = "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712"
 fallback = "Revert the atomic native-proof parser change if the public proof contract changes; do not retain a hand-authored proof envelope as a standing compatibility format."
 kill_signal = "The verifier accepts a bare head/state record, a non-executed proof, or divergent evidence and provenance heads."
 
@@ -39,7 +39,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/admission/control/verifier.py",
   "tests/unit/admission/test_control_replacement.py",
   "docs/architecture/runner-and-mutation.md",
-  "openspec/changes/proof-bootstrap-canonical-envelope-20260712",
+  "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712",
   "openspec/specs/adapters/spec.md",
   "evidence/chronicle/proof-bootstrap-canonical-envelope-20260712/2026-07-12.md",
   "evidence/claims/proof-bootstrap-canonical-envelope-20260712.toml",

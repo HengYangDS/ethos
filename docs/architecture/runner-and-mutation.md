@@ -116,6 +116,15 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
+When a candidate changed a control path and needs a protected external bootstrap
+receipt, the candidate-proof input is the native JSON result of
+`ethos prove --execute --json`. The verifier requires `command = "prove"`,
+`ok = true`, `state = "proven"`, `data.executed = true`, and matching candidate
+HEAD bindings at `data.evidence.head` and
+`data.provenance.predicate.head`. A hand-written `{head, state}` envelope is
+not a proof record. This keeps the bootstrap adapter bound to the product proof
+contract without adding a profile, provider, or adopter-specific branch.
+
 If the accepted root and candidate branch already resolve to the same HEAD,
 closeout is current rather than ready-to-mutate. `ethos land --closeout --json`
 reports `state = "accepted_current"`, `closeout_bootstrap.state = "current"`,

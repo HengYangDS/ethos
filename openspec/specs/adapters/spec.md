@@ -119,6 +119,12 @@ declared extension bundle, never in an unowned root-level adapter directory.
 - **THEN** closeout requires a receipt outside the candidate tree binding both
   heads, both control digests, verifier digest, candidate proof, and bootstrap
   Chronicle decision
+- **AND** the candidate proof is a native executed `ethos prove --execute --json`
+  result with `command = "prove"`, `ok = true`, `state = "proven"`,
+  `data.executed = true`, and matching candidate HEAD bindings in
+  `data.evidence.head` and `data.provenance.predicate.head`
+- **AND** a hand-authored `{head, state}` envelope is not accepted as candidate
+  proof
 - **AND** missing or unverifiable provenance returns `defer`.
 
 #### Scenario: hosted prevention requires exact receipt

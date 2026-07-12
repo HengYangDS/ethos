@@ -1135,6 +1135,18 @@ repository-root `dist/` default.
   store
 - **AND** local fallback evidence does not claim hosted CI success.
 
+#### Scenario: An interrupted coverage writer does not block future proof forever
+
+- **GIVEN** the generated coverage writer lock records a process identity whose
+  PID and start fingerprint no longer identify a live process
+- **WHEN** a later Python owner test gate starts for that same evidence home
+- **THEN** it reclaims only that dead-owner lock before acquiring the writer
+  boundary
+- **AND** it never preempts an unknown or live owner
+- **AND** an unrecoverable lock fails after a configured bounded wait with the
+  lock path and observed owner identity, rather than waiting indefinitely
+- **AND** lock metadata remains ignored generated state, not repository truth.
+
 #### Scenario: Package build writes to the semantic artifact home
 
 - **WHEN** the product full proof executes its package build gate or a

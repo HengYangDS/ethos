@@ -126,3 +126,23 @@ topology audit.
 - **WHEN** topology and local-state audits run
 - **THEN** they identify it as migration residue rather than product truth
 - **AND** no cleanup command removes it without an explicit local operator action
+
+### Requirement: Recoverable generated test-evidence lock
+
+ETHOS SHALL serialize generated Python coverage evidence writes without allowing
+an interrupted writer to leave future proof waiting indefinitely. The lock MUST
+record its current owner process identity: PID plus start fingerprint. A later
+writer MAY reclaim a lock only when that recorded identity no longer identifies
+a live process; it MUST NOT preempt an unknown or live owner, and it MUST fail
+after a bounded wait with an actionable lock diagnostic. Lock metadata remains
+ignored generated state rather than repository truth.
+
+#### Scenario: a dead coverage writer lock is reclaimed safely
+
+- **GIVEN** a generated coverage lock records a process identity with no live
+  process matching its PID and start fingerprint
+- **WHEN** a later owner test gate requests that same coverage evidence home
+- **THEN** it removes the dead-owner marker and empty lock before acquiring it
+- **AND** a live or unknown owner remains protected from preemption
+- **AND** the command reports bounded failure instead of waiting forever when
+  it cannot safely acquire the lock

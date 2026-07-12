@@ -31,6 +31,10 @@ environment remains worktree-bound. Owner-script handoff uses the explicit
 so a tool selected by the script can synchronize only after the outer process no
 longer holds the same worktree environment lock. Existing root environments
 remain ignored migration residue until an operator removes them deliberately.
+Generated test evidence remains a separate local lifecycle: its writer lock
+records the current process identity (PID plus start fingerprint), reclaims a
+demonstrably dead owner, and fails boundedly without preempting a live or
+unknown writer.
 
 ## Constraints
 
@@ -88,6 +92,10 @@ remain ignored migration residue until an operator removes them deliberately.
   contract unless they invoke Python/uv.
 - [x] Make marked owner-script handoff use an outer `uv run --no-sync`, so an
   inner tool invocation cannot wait on the parent process's checkout venv lock.
+- [x] Make the generated coverage evidence lock process-identity-backed:
+  reclaim only a dead recorded owner and fail with a bounded diagnostic for live
+  or unknown owners, so an interrupted proof cannot leave later proof
+  indefinitely waiting.
 - [x] Migrate `pre-commit`, `pre-push`, and `reference-transaction` to use the
   checkout-managed interpreter with explicit source imports; preserve existing
   fail-closed/fail-open semantics. When that default interpreter is absent, the

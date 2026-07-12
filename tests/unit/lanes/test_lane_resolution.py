@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.mutation.resolution.lane import _verify_preservation_package
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
+from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -299,14 +299,14 @@ def test_preservation_package_verifier_fails_closed_on_invalid_packages(
     root = tmp_path / "repo"
     root.mkdir()
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_outside_root"):
-        _verify_preservation_package(root=root, package={"path": "../outside", "manifest": {}})
+        verify_preservation_package(root=root, package={"path": "../outside", "manifest": {}})
 
     package = root / "build" / "artifacts" / "recovery"
     package.mkdir(parents=True)
     with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
-        _verify_preservation_package(root=root, package={"path": "build/artifacts/recovery"})
+        verify_preservation_package(root=root, package={"path": "build/artifacts/recovery"})
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
-        _verify_preservation_package(
+        verify_preservation_package(
             root=root,
             package={"path": "build/artifacts/recovery", "manifest": {}},
         )
@@ -323,7 +323,7 @@ def test_preservation_package_verifier_fails_closed_on_invalid_packages(
         "untracked_archive_sha256": "0" * 64,
     }
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
-        _verify_preservation_package(
+        verify_preservation_package(
             root=root,
             package={"path": "build/artifacts/recovery", "manifest": manifest},
         )

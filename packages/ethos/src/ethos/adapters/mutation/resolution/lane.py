@@ -15,9 +15,7 @@ from pydantic import ValidationError
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.resolution._shared import sha256_digest
-from ethos.adapters.mutation.resolution.receipts import (
-    verify_preservation_package as _verify_preservation_package,
-)
+from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
@@ -154,7 +152,7 @@ def apply_lane_resolution(
             report.update(state="preserved", preservation_package=package)
         elif disposition == "preserve-retire":
             package = _preserve(root=root, observation=observation, decision=decision)
-            _verify_preservation_package(root=root, package=package)
+            verify_preservation_package(root=root, package=package)
             _retire(root=root, observation=observation)
             report.update(state="preserved_and_retired", preservation_package=package)
         elif disposition == "retire":

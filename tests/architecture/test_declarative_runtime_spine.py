@@ -42,11 +42,9 @@ def test_graph_and_workflow_projections_use_the_shared_kernel() -> None:
         assert token not in source
     assert "GraphKernel" in source
     source = _read("packages/ethos-core/src/ethos_core/graph/core.py")
-    assert "from graphlib import" in source
-    assert "TopologicalSorter" in source
+    assert "from graphlib import" in source and "TopologicalSorter" in source
     source = _read("packages/ethos-core/src/ethos_core/contracts/workflow.py")
-    assert "GraphKernel" in source
-    assert "GraphNode" in source
+    assert "GraphKernel" in source and "GraphNode" in source
     assert "TopologicalSorter" not in source
     for token in ("visiting", "visited", "while remaining", "def visit("):
         assert token not in source

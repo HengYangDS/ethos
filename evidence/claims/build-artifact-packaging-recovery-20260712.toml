@@ -1,5 +1,11 @@
 claim = { id = "build-artifact-packaging-recovery-20260712", subject = "ethos:core-package-artifact-projection", state = "active", summary = "Digest-bound local recovery of the ethos-core wheel-from-sdist declaration projection." }
-evidence = { dated = "evidence/chronicle/build-artifact-packaging-recovery-20260712/2026-07-12.md", sha256 = "6b96cd2c2e237c39181c54cc20501ff759d0ed03510308581c0d6994b7a3bac8", evidence_ids = ["evidence:build-artifact-packaging-recovery-20260712"], binding = "Digest-bound local package build and architecture observation.", verifier = "digest_only", freshness = { mode = "historical" } }
+evidence = { dated = "evidence/chronicle/build-artifact-packaging-recovery-20260712/2026-07-12.md", sha256 = "6b96cd2c2e237c39181c54cc20501ff759d0ed03510308581c0d6994b7a3bac8", evidence_ids = [
+  "evidence:build-artifact-packaging-recovery-20260712",
+], binding = "Digest-bound local package build and architecture observation.", verifier = "digest_only", freshness = { mode = "historical" } }
 boundary = { owner = "ethos-repository", scope = "Core package artifact projection and local build recovery." }
 carriers = { openspec = "openspec/changes/build-artifact-packaging-recovery-20260712", fallback = "Retain the last verified package configuration.", kill_signal = "Treat as remote publication, release authorization, or semantic-correctness proof." }
-promotion = { targets = ["openspec/changes/build-artifact-packaging-recovery-20260712", "evidence/claims/build-artifact-packaging-recovery-20260712.toml", "evidence/chronicle/build-artifact-packaging-recovery-20260712/2026-07-12.md"] }
+promotion = { targets = [
+  "openspec/changes/build-artifact-packaging-recovery-20260712",
+  "evidence/claims/build-artifact-packaging-recovery-20260712.toml",
+  "evidence/chronicle/build-artifact-packaging-recovery-20260712/2026-07-12.md",
+] }

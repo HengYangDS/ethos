@@ -103,6 +103,11 @@ unknown writer.
   injected interpreters retain caller-owned behavior. `pre-commit` MUST invoke
   Ruff through the bootstrap-bound dev group, so an existing runtime created by
   a non-dev command cannot leave the format guard without its required tool.
+- [x] Keep accepted reference admission fail-closed for every raw ref
+  transaction. Because Git's files backend represents `pack-refs` with records
+  indistinguishable from accepted creation or deletion, `ethos hook install`
+  writes local `gc.packRefs=false` rather than creating a hook bypass; failed
+  maintenance-policy configuration blocks hook installation.
 - [x] Run focused runner, hook, and owner-script topology tests.
 
 ## 3. Policy and audit promotion

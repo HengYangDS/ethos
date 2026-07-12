@@ -471,6 +471,19 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
 
     no_binary = {**os.environ, "PATH": "/usr/bin:/bin"}
 
+    # `pack-refs` presents ref creation/deletion records indistinguishable from
+    # real transitions. The hook must reject it rather than admitting direct
+    # accepted deletion; installation disables automatic packing separately.
+    dev_before_noop = g("rev-parse", "dev").stdout.strip()
+    maintenance = g("pack-refs", "--all", "--prune", env=no_binary)
+    assert maintenance.returncode != 0
+    assert g("rev-parse", "dev").stdout.strip() == dev_before_noop
+    g("checkout", "-b", "work/x", env=no_binary)
+    blocked_delete = g("branch", "-D", "dev", env=no_binary)
+    assert blocked_delete.returncode != 0
+    assert g("rev-parse", "dev").stdout.strip() == dev_before_noop
+    g("checkout", "dev", env=no_binary)
+
     # (1) accepted branch, no ethos binary -> BLOCKED (fail-closed)
     (tmp_path / "b").write_text("2", encoding="utf-8")
     g("add", ".")
@@ -479,7 +492,7 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     dev_head = g("rev-parse", "dev").stdout.strip()
 
     # (2) non-accepted branch, no ethos binary -> ALLOWED (fail-open)
-    g("checkout", "-b", "work/x", env=no_binary)
+    g("checkout", "work/x", env=no_binary)
     (tmp_path / "w").write_text("w", encoding="utf-8")
     g("add", ".")
     work_commit = g("commit", "-m", "work commit", env=no_binary)

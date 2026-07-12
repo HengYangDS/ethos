@@ -450,6 +450,13 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     hook_cli.install(json_output=True)
     assert emitted[-1].required_gaps == ("hooks_path_wire_failed",)
     monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: True)
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: False)
+    hook_cli.install(json_output=True)
+    assert emitted[-1].required_gaps == (
+        "hook_config_write_failed:ethos.acceptedBranch",
+        "hook_config_write_failed:gc.packRefs",
+    )
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: True)
     hook_cli.install(json_output=True)
     assert emitted[-1].ok is True
 

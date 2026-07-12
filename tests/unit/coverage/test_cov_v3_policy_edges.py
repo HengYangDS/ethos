@@ -21,6 +21,7 @@ from ethos.repository.policy.rules.evaluation import rules_evaluation_report
 from ethos.repository.policy.rules.migration import rules_toml_text
 from ethos.repository.profile import load_repository_profile
 from ethos_core.contracts.gates import GateDescriptor
+from ethos_core.contracts.registry.declarations import load_coupling_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -93,7 +94,7 @@ def test_binding_taxonomy_flags_non_hard_binding_owning_semantics() -> None:
     gaps = coupling_registry.binding_taxonomy_gaps(
         "x",
         {"layer": "profile_or_adapter_binding", "owns_product_semantics": True},
-        {"layer": "product_semantic_hard_binding", "owns_product_semantics": True},
+        load_coupling_declaration().binding("git_repository_substrate"),
     )
 
     assert "binding_registry_product_semantics:x" in gaps

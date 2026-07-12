@@ -24,7 +24,6 @@ import ethos.cli as cli_entrypoint
 import ethos.repository.audit as repository_audit
 import ethos.repository.evidence.parity.core as evidence_parity
 import ethos.repository.evidence.parity.validation as parity_validation
-import ethos.repository.policy.coupling.contracts as coupling_contracts
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
 import ethos.repository.policy.gates as policy_gates
@@ -43,6 +42,7 @@ from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.registry.declarations import load_coupling_declaration
 from ethos_core.result import EthosResult
 
 
@@ -545,14 +545,14 @@ def test_audit_coupling_config_and_misc_edges(
     meta = coupling_registry.branch_role_policy_metadata(tmp_path)
     assert meta["default_policy"] is True
     corrupted = {
-        **coupling_contracts.BINDING_CONTRACTS["openspec_workspace"],
+        **load_coupling_declaration().binding("openspec_workspace").projection(),
         "id": "openspec_workspace",
         "layer": "wrong",
         "owns_product_semantics": True,
         "not_product_substrate": False,
     }
     gaps = coupling_registry.binding_taxonomy_gaps(
-        "openspec_workspace", corrupted, coupling_contracts.BINDING_CONTRACTS["openspec_workspace"]
+        "openspec_workspace", corrupted, load_coupling_declaration().binding("openspec_workspace")
     )
     assert "binding_registry_layer:openspec_workspace:wrong" in gaps
     assert "binding_registry_product_semantics:openspec_workspace" in gaps

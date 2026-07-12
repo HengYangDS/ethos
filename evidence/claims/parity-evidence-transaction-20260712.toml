@@ -7,7 +7,7 @@ summary = "ETHOS requires configured generic parity evidence to refresh and comm
 
 [evidence]
 dated = "evidence/chronicle/parity-evidence-transaction-20260712/2026-07-12.md"
-sha256 = "dc8ab26691d3942d7627c4835e85a82ef43a34cc61943bdf3248dbcd05d527bb"
+sha256 = "798735f54553af24f6d2f1010ecf3e99e2f352bab3e7b40e03f2c944de8a38af"
 evidence_ids = ["evidence:parity-evidence-transaction-20260712"]
 binding = "Work-Lane-owned parity refresh and proof-order evidence binding"
 verifier = "semantic_attested"

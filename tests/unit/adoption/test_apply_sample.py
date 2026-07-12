@@ -300,6 +300,23 @@ def test_overlay_adoption_keeps_ethos_owned_conflicts_blocking(tmp_path: Path) -
     assert "adoption_conflict:.ethos/profile.toml" in result["required_gaps"]
 
 
+def test_overlay_adoption_skips_missing_provider_projection_and_writes_empty_binding(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".gitlab").mkdir()
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("", encoding="utf-8")
+
+    result = adoption_plan(tmp_path, profile="gitlab", overlay=True, apply=True)
+
+    actions = {item["path"]: item["action"] for item in result["write_plan"]}
+    assert result["applied"] is True
+    assert actions[".gitlab-ci.yml"] == "preserve_adopter_root"
+    assert actions[".ethos/profile.toml"] == "write_empty"
+    assert profile.read_text(encoding="utf-8")
+
+
 def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
     tmp_path: Path,
 ) -> None:

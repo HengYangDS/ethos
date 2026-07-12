@@ -6,7 +6,7 @@ summary = "Explicit overlay adoption preserves declared external governance surf
 
 [evidence]
 dated = "evidence/chronicle/external-adopter-overlay-resume-20260712/2026-07-12.md"
-sha256 = "e312ce9f54cc36d5ad375e7b2689684dec547c4d4f6575b8d20e12680de038a6"
+sha256 = "a76adeddbb3540765ffa902a9a7c06a99a317736745a8d9a708644c063a49aec"
 evidence_ids = ["evidence:external-adopter-overlay-resume-20260712"]
 binding = "bounded local external-adopter overlay pilot evidence"
 verifier = "semantic_attested"

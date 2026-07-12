@@ -9,40 +9,12 @@ import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retiremen
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.repo.dirty.core import dirty_provenance
+from tests.support.lane_helpers import add_candidate_worktree
+from tests.support.lane_helpers import git
+from tests.support.lane_helpers import init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(["git", *args], cwd=root, check=True, text=True, capture_output=True)
-    return completed.stdout.strip()
-
-
-def init_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
-    return path
-
-
-def add_candidate_worktree(repo: Path, path: Path) -> Path:
-    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
-    return path
 
 
 def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(

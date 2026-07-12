@@ -19,6 +19,7 @@ def _adoption_result(
     *,
     root: RootOption | None,
     profile: str | None,
+    overlay: bool,
 ) -> EthosResult:
     target = resolve_root(root)
     current_head = git.current_head(target)
@@ -29,7 +30,7 @@ def _adoption_result(
         current_head=current_head,
     )
     do_apply = request.apply and not mutation_gaps
-    plan_payload = adoption_plan(target, profile=profile, apply=do_apply)
+    plan_payload = adoption_plan(target, profile=profile, overlay=overlay, apply=do_apply)
     required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
     ok = not required_gaps
     hooks_armed = False
@@ -65,6 +66,7 @@ def init(
     authorize: bool = False,
     expect_head: str | None = None,
     profile: str | None = None,
+    overlay: bool = False,
     json_output: JsonFlag = False,
 ) -> None:
     """Initialize ETHOS adoption for a repository."""
@@ -78,6 +80,7 @@ def init(
         ),
         root=root,
         profile=profile,
+        overlay=overlay,
     )
     emit(result, json_output=json_output, enforce=apply)
 
@@ -91,6 +94,7 @@ def adopt(
     authorize: bool = False,
     expect_head: str | None = None,
     profile: str | None = None,
+    overlay: bool = False,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
@@ -104,5 +108,6 @@ def adopt(
         ),
         root=root,
         profile=profile,
+        overlay=overlay,
     )
     emit(result, json_output=json_output, enforce=apply)

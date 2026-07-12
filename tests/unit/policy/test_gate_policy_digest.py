@@ -23,7 +23,6 @@ from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy import gates as policy_gates
-from ethos.repository.policy.gates import Gate
 from ethos.repository.policy.gates import _committed_blob
 from ethos.repository.policy.gates import _committed_registry_and_floor
 from ethos.repository.policy.gates import canonical_gate_command
@@ -32,6 +31,7 @@ from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.gates import promotion_required_gate_ids
+from ethos_core.contracts.gates import GateDescriptor
 from tests.support.contract_helpers import conformant_proof_run
 
 
@@ -79,7 +79,7 @@ def test_gate_policy_source_digest_tracks_script_content(tmp_path: Path) -> None
     script_dir.mkdir(parents=True)
     script = script_dir / "run-python-tests.sh"
     script.write_text("#!/bin/sh\necho v1\n", encoding="utf-8")
-    gate = Gate(id="x", kind="quality", command=("tools/ci/scripts/run-python-tests.sh",))
+    gate = GateDescriptor(id="x", kind="quality", command=("tools/ci/scripts/run-python-tests.sh",))
 
     first = gate_policy_fields(gate, tmp_path)["policy_source_digest"]
     script.write_text("#!/bin/sh\necho TAMPERED\n", encoding="utf-8")
@@ -90,7 +90,7 @@ def test_gate_policy_source_digest_tracks_script_content(tmp_path: Path) -> None
 
 
 def test_gate_policy_source_digest_is_empty_for_in_process_gate(tmp_path: Path) -> None:
-    gate = Gate(id="x", kind="quality", command=("python", "-m", "ethos.cli", "audit"))
+    gate = GateDescriptor(id="x", kind="quality", command=("python", "-m", "ethos.cli", "audit"))
     assert gate_policy_fields(gate, tmp_path)["policy_source_digest"] == ""
 
 
@@ -124,7 +124,7 @@ def test_canonical_command_passes_through_empty() -> None:
 
 def test_policy_source_digest_empty_for_empty_command(tmp_path: Path) -> None:
     # gates.py:480 — a gate with no command contributes no script digest.
-    gate = Gate(id="x", kind="quality", command=())
+    gate = GateDescriptor.model_construct(id="x", kind="quality", command=())
     assert gate_policy_fields(gate, tmp_path)["policy_source_digest"] == ""
 
 

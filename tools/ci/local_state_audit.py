@@ -9,19 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.repo.git import current_tracked_head
+
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/local-state/audit.toml"
-
-
-def _git_head() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _git_lines(*args: str, root: Path = ROOT) -> list[str]:
@@ -117,7 +108,7 @@ def main() -> int:
         "schema_version": 1,
         "kind": "ethos_local_state_audit",
         "ok": not failures and not denied_root_cache_state,
-        "head": _git_head(),
+        "head": current_tracked_head(ROOT),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
         "semantic_roots": semantic_roots,

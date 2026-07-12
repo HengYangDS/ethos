@@ -51,7 +51,6 @@ kill_signal = "Product and governed repository semantics diverge into separate c
 targets = [
   { kind = "source", path = "packages/ethos/src/ethos/repository/policy/governance/kernel.py" },
   { kind = "source", path = "packages/ethos/src/ethos/domain/readiness/enterprise.py" },
-  { kind = "source", path = "packages/ethos-core/src/ethos_core/data/invalid_states.toml" },
   { kind = "source", path = "system/invalid_states.toml" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/boundary/readiness.py" },
   { kind = "source", path = "tools/ci/scripts/run-governance-kernel.sh" },

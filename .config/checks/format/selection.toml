@@ -1,6 +1,6 @@
 schema = "ethos-format-selection-v1"
 owner = "ethos-quality-gate-governance"
-summary = "Report-first file-format boundary audit."
+summary = "Fail-closed executable-carrier admission audit."
 runner = "tools/ci/scripts/run-format-selection.sh"
 
 [[format]]
@@ -96,6 +96,7 @@ truth_boundary = "tracked scaffold declarations compiled through strict typed co
 
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
+unregistered_extension = "block"
 jsonl_allowed_roots = ["build/", ".ethos/state/"]
 yaml_allowed_roots = [
   ".github/",
@@ -105,3 +106,18 @@ yaml_allowed_roots = [
   "openspec/",
   ".pre-commit-config.yaml",
 ]
+
+[policy.extension_paths]
+".ini" = { roots = [".config/"] }
+".json" = { roots = [
+  "system/schemas/",
+  "evidence/parity/",
+  "distributions/npm/",
+], files = [
+  "package.json",
+  "package-lock.json",
+] }
+".j2" = { roots = ["packages/"] }
+".mjs" = { roots = ["distributions/npm/"] }
+".c4" = { roots = [".config/checks/architecture/models/"] }
+".mmd" = { roots = ["docs/architecture/_generated/"] }

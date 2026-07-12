@@ -17,35 +17,6 @@ from ethos_core.contracts.gates import GateDescriptor
 from ethos_core.contracts.gates import GateRegistryDeclaration
 from ethos_core.contracts.gates import load_gate_registry_declaration
 
-
-class Gate(GateDescriptor):
-    """Runtime gate projection with ActionGraph compilation behavior."""
-
-    command: tuple[str, ...] = ()
-
-    def to_node(self) -> ActionNode:
-        """Compile this immutable gate descriptor to an action node."""
-        return ActionNode(
-            id=self.id,
-            kind=self.kind,
-            command=self.command,
-            policy=self.policy,
-            tool="ethos",
-            depends_on=self.depends_on,
-            metadata={
-                "asset_classes": list(self.asset_classes),
-                "dimensions": list(self.dimensions),
-                "execution_mode": self.execution_mode,
-                "evidence_class": self.evidence_class,
-                "trust_bearing": self.trust_bearing,
-                "tool_adapter": self.tool_adapter,
-                "writes_files": self.writes_files,
-                "network_policy": self.network_policy,
-                "version_source": self.version_source,
-            },
-        )
-
-
 _GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.product_default
 PRODUCT_FULL_GATE_IDS = _GATE_DECLARATION.proof_sets.product_full
@@ -53,19 +24,15 @@ DEFAULT_GATE_IDS = PRODUCT_DEFAULT_GATE_IDS
 ADOPTER_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.adopter_default
 
 
-def _product_gate_registry() -> dict[str, Gate]:
+def _product_gate_registry() -> dict[str, GateDescriptor]:
     """Compile the product-owned runtime gate registry."""
-    descriptors = _GATE_DECLARATION.registry("runtime", python_executable=sys.executable)
-    return {
-        gate_id: Gate.model_validate(descriptor.model_dump())
-        for gate_id, descriptor in descriptors.items()
-    }
+    return _GATE_DECLARATION.registry("runtime", python_executable=sys.executable)
 
 
 def _adopter_gate_overlay(
     root: Path | None,
-    product_registry: dict[str, Gate],
-) -> tuple[dict[str, Gate], tuple[str, ...]]:
+    product_registry: dict[str, GateDescriptor],
+) -> tuple[dict[str, GateDescriptor], tuple[str, ...]]:
     """Compile repository-native gate descriptors from an adopter profile."""
     if not _adopter_profile_active(root):
         return {}, ()
@@ -75,7 +42,7 @@ def _adopter_gate_overlay(
     if not isinstance(raw_gates, list):
         return {}, ("adopter_gate_descriptors_invalid",)
 
-    overlay: dict[str, Gate] = {}
+    overlay: dict[str, GateDescriptor] = {}
     gaps: list[str] = []
     for index, raw_gate in enumerate(raw_gates):
         gate, gap = _adopter_gate(raw_gate, index=index)
@@ -99,7 +66,7 @@ def _adopter_gate_overlay(
     return overlay, tuple(dict.fromkeys(gaps))
 
 
-def _adopter_gate(raw_gate: object, *, index: int) -> tuple[Gate | None, str]:
+def _adopter_gate(raw_gate: object, *, index: int) -> tuple[GateDescriptor | None, str]:
     """Validate one repository-native gate descriptor from profile data."""
     if not isinstance(raw_gate, dict):
         return None, f"adopter_gate_descriptor_invalid:{index}"
@@ -109,8 +76,7 @@ def _adopter_gate(raw_gate: object, *, index: int) -> tuple[Gate | None, str]:
     payload.setdefault("execution_mode", "subprocess")
     payload.setdefault("tool_adapter", "repository-native")
     try:
-        descriptor = GateDescriptor.model_validate(payload)
-        gate = Gate.model_validate(descriptor.model_dump())
+        gate = GateDescriptor.model_validate(payload)
     except ValueError:
         identifier = str(payload.get("id") or index)
         return None, f"adopter_gate_descriptor_invalid:{identifier}"
@@ -119,7 +85,7 @@ def _adopter_gate(raw_gate: object, *, index: int) -> tuple[Gate | None, str]:
     return gate, ""
 
 
-def gate_registry(root: Path | None = None) -> dict[str, Gate]:
+def gate_registry(root: Path | None = None) -> dict[str, GateDescriptor]:
     """Compile product gates plus a typed repository-native adopter overlay."""
     registry = _product_gate_registry()
     overlay, _ = _adopter_gate_overlay(root, registry)
@@ -244,7 +210,7 @@ def _code_correctness_axis_vocab(profile: object) -> dict[str, frozenset[str]]:
     return {axis: frozenset(tokens) for axis, tokens in vocab.items()}
 
 
-def _gate_axes(gate: Gate, vocab: dict[str, frozenset[str]]) -> set[str]:
+def _gate_axes(gate: GateDescriptor, vocab: dict[str, frozenset[str]]) -> set[str]:
     """The code-correctness axes a gate attributes to, via its kind + dimensions tokens."""
     tokens = {str(gate.kind), *(str(dim) for dim in gate.dimensions)}
     return {axis for axis, axis_tokens in vocab.items() if tokens & axis_tokens}
@@ -258,7 +224,7 @@ def _command_is_degenerate(command: tuple[str, ...]) -> bool:
     return head in _NOOP_EXECUTABLES
 
 
-def _qualifies_for_axis(gate: Gate, axis: str, vocab: dict[str, frozenset[str]]) -> bool:
+def _qualifies_for_axis(gate: GateDescriptor, axis: str, vocab: dict[str, frozenset[str]]) -> bool:
     """Whether a gate genuinely backs `axis`: attributed, trust-bearing, promotion-grade
     evidence, and a non-degenerate command. (Adopter-authorship + distinctness are checked
     by the caller, which holds the overlay and the full mapping.)"""
@@ -415,7 +381,7 @@ def _committed_blob(root: Path, tree_ref: str, path: str) -> bytes | None:
 
 def _committed_registry_and_floor(
     root: Path, tree_ref: str
-) -> tuple[dict[str, Gate], tuple[str, ...]] | None:
+) -> tuple[dict[str, GateDescriptor], tuple[str, ...]] | None:
     """Compile the gate registry and product floor from `tree_ref`'s `system/gates.toml`.
 
     The registry declaration is import-cached from cwd at module load, so a promoted
@@ -433,17 +399,15 @@ def _committed_registry_and_floor(
         declaration = GateRegistryDeclaration.model_validate(tomllib.loads(blob.decode("utf-8")))
     except (tomllib.TOMLDecodeError, ValueError, UnicodeDecodeError):
         return None
-    descriptors = declaration.registry("runtime", python_executable=sys.executable)
-    registry = {
-        gate_id: Gate.model_validate(descriptor.model_dump())
-        for gate_id, descriptor in descriptors.items()
-    }
-    return registry, declaration.proof_sets.product_default
+    return (
+        declaration.registry("runtime", python_executable=sys.executable),
+        declaration.proof_sets.product_default,
+    )
 
 
 def _policy_registry_and_required(
     root: Path, tree_ref: str | None
-) -> tuple[dict[str, Gate], tuple[str, ...]]:
+) -> tuple[dict[str, GateDescriptor], tuple[str, ...]]:
     """Resolve the (registry, required-floor) pair the policy digest ranges over.
 
     Working-tree mode (tree_ref=None) uses the live registry and this root's floor
@@ -459,7 +423,9 @@ def _policy_registry_and_required(
     return gate_registry(root), promotion_required_gate_ids(root)
 
 
-def _gate_policy_source_digest(gate: Gate, root: Path, tree_ref: str | None = None) -> str:
+def _gate_policy_source_digest(
+    gate: GateDescriptor, root: Path, tree_ref: str | None = None
+) -> str:
     """Digest of a script-type gate's source, or '' for in-process gates.
 
     B12: a gate whose command is a repo-relative script (same path, tampered content)
@@ -491,7 +457,9 @@ def _gate_policy_source_digest(gate: Gate, root: Path, tree_ref: str | None = No
     return hashlib.sha256(script.read_bytes()).hexdigest()
 
 
-def gate_policy_fields(gate: Gate, root: Path, *, tree_ref: str | None = None) -> dict[str, object]:
+def gate_policy_fields(
+    gate: GateDescriptor, root: Path, *, tree_ref: str | None = None
+) -> dict[str, object]:
     """The cross-environment-stable policy identity of a single gate."""
     return {
         "gate_id": gate.id,

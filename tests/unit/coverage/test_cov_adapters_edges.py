@@ -24,6 +24,16 @@ def _patch_signature(
     monkeypatch.setattr(signature, "_git", lambda _root, *args: git[args])
 
 
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=T", "-c", "user.email=t@e.co", *args],
+        cwd=repo,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+
 _SIGNED_GIT = {
     ("config", "--get", "commit.gpgsign"): "true",
     ("config", "--get", "gpg.format"): "ssh",
@@ -226,24 +236,15 @@ def test_ref_relation_descendant_of_accepted(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def run(*args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=T", "-c", "user.email=t@e.co", *args],
-            cwd=repo,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    run("init", "-b", "dev")
+    _git(repo, "init", "-b", "dev")
     (repo / "a.txt").write_text("1", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c1")
-    run("checkout", "-b", "work/ahead")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c1")
+    _git(repo, "checkout", "-b", "work/ahead")
     (repo / "b.txt").write_text("2", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c2")
-    run("checkout", "dev")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c2")
+    _git(repo, "checkout", "dev")
 
     assert status_bindings.ref_relation(repo, "work/ahead", "dev") == "descendant_of_accepted"
 
@@ -254,27 +255,18 @@ def test_ref_relation_diverged_from_accepted(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def run(*args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=T", "-c", "user.email=t@e.co", *args],
-            cwd=repo,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    run("init", "-b", "dev")
+    _git(repo, "init", "-b", "dev")
     (repo / "a.txt").write_text("1", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c1")
-    run("checkout", "-b", "work/div")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c1")
+    _git(repo, "checkout", "-b", "work/div")
     (repo / "c.txt").write_text("3", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c3")
-    run("checkout", "dev")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c3")
+    _git(repo, "checkout", "dev")
     (repo / "d.txt").write_text("4", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c4")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c4")
 
     assert status_bindings.ref_relation(repo, "work/div", "dev") == "diverged_from_accepted"
 
@@ -284,24 +276,15 @@ def test_unbound_ref_next_action_descendant_of_accepted(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def run(*args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=T", "-c", "user.email=t@e.co", *args],
-            cwd=repo,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    run("init", "-b", "dev")
+    _git(repo, "init", "-b", "dev")
     (repo / "a.txt").write_text("1", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c1")
-    run("checkout", "-b", "work/ahead")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c1")
+    _git(repo, "checkout", "-b", "work/ahead")
     (repo / "b.txt").write_text("2", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c2")
-    run("checkout", "dev")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c2")
+    _git(repo, "checkout", "dev")
 
     assert (
         status_bindings.unbound_ref_next_action(repo, "work/ahead", "dev")
@@ -315,27 +298,18 @@ def test_unbound_ref_next_action_diverged_from_accepted(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def run(*args: str) -> None:
-        subprocess.run(
-            ["git", "-c", "user.name=T", "-c", "user.email=t@e.co", *args],
-            cwd=repo,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-    run("init", "-b", "dev")
+    _git(repo, "init", "-b", "dev")
     (repo / "a.txt").write_text("1", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c1")
-    run("checkout", "-b", "work/div")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c1")
+    _git(repo, "checkout", "-b", "work/div")
     (repo / "c.txt").write_text("3", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c3")
-    run("checkout", "dev")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c3")
+    _git(repo, "checkout", "dev")
     (repo / "d.txt").write_text("4", encoding="utf-8")
-    run("add", ".")
-    run("commit", "-m", "c4")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "c4")
 
     assert (
         status_bindings.unbound_ref_next_action(repo, "work/div", "dev")

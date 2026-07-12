@@ -21,38 +21,8 @@ from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import conformant_proof_run
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
-
-
-def init_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
-    return path
+from tests.support.lane_helpers import git
+from tests.support.lane_helpers import init_repo
 
 
 def test_cast_worktrees_treats_non_list_status_payload_as_empty() -> None:
@@ -64,6 +34,25 @@ def test_cast_worktrees_normalizes_dict_items_and_skips_noise() -> None:
     assert admission_prewrite.cast_worktrees([{"branch": "work/x", "head": 1}, "noise"]) == [
         {"branch": "work/x", "head": "1"}
     ]
+
+
+@pytest.fixture
+def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    repo = init_repo(tmp_path / "repo")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        holder_ref="agent:test:case:agent-a",
+        payload={
+            "path": worktree.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
+    return worktree
 
 
 def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
@@ -155,130 +144,72 @@ def test_pre_tool_hook_blocks_raw_work_lane_without_lease(tmp_path: Path) -> Non
     assert "work_lane_missing_lease:work/feature" in report["required_gaps"]
 
 
-def test_pre_tool_hook_blocks_work_lane_actor_mismatch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
-
-    report = hook_admission_report(
-        root=worktree,
-        layer="pre-tool",
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["decision"] == {
-        "action": "block",
-        "reason": "lease_holder_mismatch:work/feature",
-    }
-    lease_check = report["admission"]["work_lane_lease"]
-    assert lease_check["ok"] is False
-    assert lease_check["required"] is True
-    assert lease_check["branch"] == "work/feature"
-    assert lease_check["holder_ref"] == "agent:test:case:agent-a"
-    assert lease_check["invocation_holder_ref"] == "agent:test:case:agent-b"
-    assert lease_check["lease_id"].startswith("lease:")
-    assert lease_check["epoch"] == 1
-    assert lease_check["expected_head"] == git(worktree, "rev-parse", "HEAD")
-    assert lease_check["reason"] == "lease_holder_mismatch:work/feature"
-    assert report["next_actions"] == [
-        "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff",
-        "ethos lane prewrite <path>",
-    ]
-
-
-def test_pre_tool_hook_admits_leased_work_lane_for_matching_actor(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("actor", "expected"),
+    [
+        ("agent:test:case:agent-a", ("admitted", "allow", "matched")),
+        (
+            "agent:test:case:agent-b",
+            ("blocked", "block", "lease_holder_mismatch:work/feature"),
+        ),
+    ],
+    ids=["matching-actor", "actor-mismatch"],
+)
+def test_pre_tool_hook_evaluates_leased_work_lane_actor(
+    leased_worktree: Path,
     monkeypatch: pytest.MonkeyPatch,
+    actor: str,
+    expected: tuple[str, str, str],
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-
+    expected_state, expected_action, expected_lease_reason = expected
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
     report = hook_admission_report(
-        root=worktree,
+        root=leased_worktree,
         layer="pre-tool",
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
+        paths=[leased_worktree / "README.md"],
+        editor_root=leased_worktree,
         require_editor_root=True,
     )
 
-    assert report["ok"] is True
-    assert report["state"] == "admitted"
+    assert report["ok"] is (expected_state == "admitted")
+    assert report["state"] == expected_state
     assert report["role"] == "work_lane"
     assert report["decision"] == {
-        "action": "allow",
-        "reason": "prewrite_admitted",
+        "action": expected_action,
+        "reason": "prewrite_admitted" if expected_state == "admitted" else expected_lease_reason,
     }
-    assert report["admission"]["ok"] is True
     lease_check = report["admission"]["work_lane_lease"]
-    assert lease_check["ok"] is True
+    assert report["admission"]["ok"] is (expected_state == "admitted")
+    assert lease_check["ok"] is (expected_state == "admitted")
     assert lease_check["required"] is True
     assert lease_check["branch"] == "work/feature"
     assert lease_check["holder_ref"] == "agent:test:case:agent-a"
-    assert lease_check["invocation_holder_ref"] == "agent:test:case:agent-a"
+    assert lease_check["invocation_holder_ref"] == actor
     assert lease_check["lease_id"].startswith("lease:")
     assert lease_check["epoch"] == 1
-    assert lease_check["expected_head"] == git(worktree, "rev-parse", "HEAD")
-    assert lease_check["reason"] == "matched"
+    assert lease_check["expected_head"] == git(leased_worktree, "rev-parse", "HEAD")
+    assert lease_check["reason"] == expected_lease_reason
+    if expected_state == "blocked":
+        assert report["next_actions"] == [
+            "set ETHOS_ACTOR=agent:test:case:agent-a and rerun the blocked command, or obtain handoff",
+            "ethos lane prewrite <path>",
+        ]
 
 
 def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    leased_worktree: Path,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-    git(worktree, "checkout", "--detach")
-    git_dir = Path(git(worktree, "rev-parse", "--absolute-git-dir"))
+    git(leased_worktree, "checkout", "--detach")
+    git_dir = Path(git(leased_worktree, "rev-parse", "--absolute-git-dir"))
     rebase_dir = git_dir / "rebase-merge"
     rebase_dir.mkdir()
     (rebase_dir / "head-name").write_text("refs/heads/work/feature\n", encoding="utf-8")
 
     report = hook_admission_report(
-        root=worktree,
+        root=leased_worktree,
         layer="pre-tool",
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
+        paths=[leased_worktree / "README.md"],
+        editor_root=leased_worktree,
         require_editor_root=True,
     )
 

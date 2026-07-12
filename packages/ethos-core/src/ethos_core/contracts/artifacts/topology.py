@@ -8,15 +8,39 @@ without encoding one adopter, profile, or repository-specific fixture name.
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from typing import Literal
+from typing import cast
 
+import celpy
+from celpy.celtypes import BoolType
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import model_validator
+
+from ethos_core._resources import declaration_text
+from ethos_core._resources import resolve_declaration_path
 
 DECLARATION_PATH = Path("system/policies/generated-artifact-topology.toml")
 _DECLARATION_RESOURCE = "data/generated_artifact_topology.toml"
+_CEL_RULE_IDS = frozenset(
+    {
+        "generated",
+        "product-adopter-root",
+        "denied-prefix",
+        "denied-root-cache",
+        "cache-flat",
+        "denied-legacy-generated",
+        "runtime-flat",
+        "declarative",
+        "allowed",
+        "review",
+        "denied-generated",
+        "repo-root-generated",
+    }
+)
 
 
 class TopologyPrefix(BaseModel):
@@ -60,6 +84,41 @@ class LifecycleClass(BaseModel):
         }
 
 
+class TopologyCelRule(BaseModel):
+    """One ordered, restricted CEL predicate for a topology decision."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: Literal[
+        "generated",
+        "product-adopter-root",
+        "denied-prefix",
+        "denied-root-cache",
+        "cache-flat",
+        "denied-legacy-generated",
+        "runtime-flat",
+        "declarative",
+        "allowed",
+        "review",
+        "denied-generated",
+        "repo-root-generated",
+    ]
+    expression: str
+    decision: Literal["classify", "allow", "review", "deny"]
+    boundary: str = ""
+    required_gap_prefix: str = ""
+    prefix_group: Literal[
+        "",
+        "declarative_prefix",
+        "allowed_prefix",
+        "review_prefix",
+        "denied_prefix",
+        "denied_root_cache_prefix",
+        "denied_legacy_generated_prefix",
+        "denied_generated_prefix",
+    ] = ""
+
+
 class GeneratedArtifactTopologyDeclaration(BaseModel):
     """Typed declaration for generated artifact topology policy."""
 
@@ -69,20 +128,10 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
     schema_version: int = 1
     source_refs: tuple[str, ...] = ()
     adopter_specific_product_dirs_allowed: bool = False
-    declarative_boundary: str
-    product_adopter_boundary: str
-    product_adopter_required_gap_prefix: str
-    cache_flat_boundary: str
-    cache_flat_required_gap_prefix: str
     cache_flat_root_prefix: str
     cache_allowed_prefixes: tuple[str, ...]
-    runtime_flat_boundary: str
-    runtime_flat_required_gap_prefix: str
     runtime_flat_root_prefix: str
     runtime_allowed_prefixes: tuple[str, ...]
-    generated_denial_boundary: str
-    repo_root_generated_boundary: str
-    repo_root_generated_required_gap_prefix: str
     ignore_boundary: str
     source_schema_suffix: str
     generated_suffixes: tuple[str, ...]
@@ -98,6 +147,23 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
     denied_legacy_generated_prefix: tuple[TopologyPrefix, ...]
     denied_generated_prefix: tuple[TopologyPrefix, ...]
     lifecycle_class: tuple[LifecycleClass, ...]
+    cel_rule: tuple[TopologyCelRule, ...]
+
+    @model_validator(mode="after")
+    def validate_cel_rules(self) -> GeneratedArtifactTopologyDeclaration:
+        """Require the complete ordered topology rule set before evaluation."""
+        ids = [rule.id for rule in self.cel_rule]
+        if len(ids) != len(set(ids)) or set(ids) != _CEL_RULE_IDS:
+            msg = "topology CEL rule ids must be unique and complete"
+            raise ValueError(msg)
+        generated = next(rule for rule in self.cel_rule if rule.id == "generated")
+        if generated.decision != "classify":
+            msg = "topology CEL generated rule must classify"
+            raise ValueError(msg)
+        if any(rule.decision == "classify" for rule in self.cel_rule if rule is not generated):
+            msg = "topology CEL only generated may classify"
+            raise ValueError(msg)
+        return self
 
     def to_contract(self) -> dict[str, Any]:
         """Return the stable generated artifact topology contract."""
@@ -129,33 +195,40 @@ class GeneratedArtifactTopologyDeclaration(BaseModel):
             ),
         }
 
+    def cel_policy(self) -> dict[str, object]:
+        """Project the immutable declaration fields visible to CEL predicates."""
+        return cast(
+            "dict[str, object]",
+            self.model_dump(
+                mode="json",
+                exclude={
+                    "id",
+                    "schema_version",
+                    "source_refs",
+                    "adopter_specific_product_dirs_allowed",
+                    "ignore_boundary",
+                    "lifecycle_class",
+                    "cel_rule",
+                },
+            ),
+        )
+
 
 def _prefix_key(item: TopologyPrefix) -> str:
     return item.prefix
 
 
-def _default_declaration_path() -> Path:
-    cwd_candidate = Path.cwd() / DECLARATION_PATH
-    if cwd_candidate.exists():
-        return cwd_candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / DECLARATION_PATH
-        if candidate.exists():
-            return candidate
-    return DECLARATION_PATH
-
-
 def _declaration_text(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return resources.files("ethos_core").joinpath(_DECLARATION_RESOURCE).read_text(encoding="utf-8")
+    return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
 
 
 def load_generated_artifact_topology_declaration(
     path: Path | str | None = None,
 ) -> GeneratedArtifactTopologyDeclaration:
     """Load the generated-artifact topology declaration from TOML."""
-    declaration_path = Path(path) if path is not None else _default_declaration_path()
+    declaration_path = resolve_declaration_path(
+        path, canonical=DECLARATION_PATH, module_file=__file__
+    )
     payload = tomllib.loads(_declaration_text(declaration_path))
     return GeneratedArtifactTopologyDeclaration.model_validate(payload)
 
@@ -186,7 +259,7 @@ def is_product_adopter_path(
     """Return whether a product-repository path embeds adopter-specific roots."""
     rel = normalize_artifact_path(path)
     topology = declaration or load_generated_artifact_topology_declaration()
-    return any(_matches_prefix(rel, prefix) for prefix in topology.product_adopter_root_prefixes)
+    return _topology_rule_matches("product-adopter-root", rel, topology)
 
 
 def is_runner_script_path(path: Path | str) -> bool:
@@ -206,7 +279,7 @@ def is_denied_root_cache_path(
     """Return whether a path revives a root-level tool cache home."""
     rel = normalize_artifact_path(path)
     topology = declaration or load_generated_artifact_topology_declaration()
-    return any(_matches_prefix(rel, item.prefix) for item in topology.denied_root_cache_prefix)
+    return _topology_rule_matches("denied-root-cache", rel, topology)
 
 
 def is_generated_artifact_path(
@@ -216,17 +289,76 @@ def is_generated_artifact_path(
     """Return whether a path has the shape of generated runtime/proof output."""
     rel = normalize_artifact_path(path)
     topology = declaration or load_generated_artifact_topology_declaration()
-    name = rel.rsplit("/", maxsplit=1)[-1]
-    if name in topology.source_metadata_filenames:
-        return False
-    if name.endswith(topology.source_schema_suffix):
-        return False
-    suffix = Path(name).suffix
-    return (
-        name in topology.generated_filenames
-        or suffix in topology.generated_suffixes
-        or any(name.startswith(prefix) for prefix in topology.generated_filename_prefixes)
+    return _topology_rule_matches("generated", rel, topology)
+
+
+def evaluate_cel_predicate(
+    expression: str,
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+    rule: dict[str, object],
+) -> bool:
+    """Evaluate a restricted CEL predicate over immutable topology fact maps."""
+    result = _evaluate_cel(expression, facts=facts, policy=policy, rule=rule)
+    if not isinstance(result, BoolType):
+        msg = "CEL predicate must return a boolean"
+        raise TypeError(msg)
+    return bool(result)
+
+
+def _evaluate_cel(
+    expression: str,
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+    rule: dict[str, object],
+) -> object:
+    activation = cast(
+        "dict[str, object]",
+        celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}),
     )
+    return _cel_program(expression).evaluate(cast("Any", activation))
+
+
+@lru_cache
+def _cel_program(expression: str) -> Any:
+    """Compile and cache a declaration-owned CEL predicate."""
+    environment = celpy.Environment()
+    return environment.program(environment.compile(expression))
+
+
+def _topology_facts(rel: str) -> dict[str, object]:
+    name = rel.rsplit("/", maxsplit=1)[-1]
+    return {"path": rel, "name": name, "suffix": Path(name).suffix}
+
+
+def _topology_rule_matches(
+    rule_id: str,
+    rel: str,
+    declaration: GeneratedArtifactTopologyDeclaration,
+) -> bool:
+    """Evaluate one named CEL predicate over a normalized topology path."""
+    return evaluate_cel_predicate(
+        _cel_rule(declaration, rule_id).expression,
+        facts=_topology_facts(rel),
+        policy=declaration.cel_policy(),
+        rule=_cel_rule_context(_cel_rule(declaration, rule_id)),
+    )
+
+
+def _cel_rule(declaration: GeneratedArtifactTopologyDeclaration, rule_id: str) -> TopologyCelRule:
+    """Return one declared CEL rule or fail closed when the policy is incomplete."""
+    for rule in declaration.cel_rule:
+        if rule.id == rule_id:
+            return rule
+    msg = f"missing topology CEL rule: {rule_id}"
+    raise ValueError(msg)
+
+
+def _cel_rule_context(rule: TopologyCelRule) -> dict[str, object]:
+    """Project one rule's declared selector facts into the CEL activation."""
+    return {"prefix_group": rule.prefix_group}
 
 
 def _policy(
@@ -250,151 +382,53 @@ def _gap(prefix: str, rel: str) -> str:
     return f"{prefix}:{rel}" if prefix else ""
 
 
-def _matched_prefix_policy(
-    rel: str,
-    *,
-    generated: bool,
-    prefixes: tuple[TopologyPrefix, ...],
-    decision: str,
-) -> dict[str, Any] | None:
-    for item in prefixes:
-        if _matches_prefix(rel, item.prefix):
-            return _policy(
-                path=rel,
-                decision=decision,
-                boundary=item.boundary,
-                generated=generated,
-                required_gap=_gap(item.required_gap_prefix, rel),
-            )
-    return None
-
-
-def _product_adopter_policy(
+def _topology_policy(
     rel: str,
     *,
     generated: bool,
     declaration: GeneratedArtifactTopologyDeclaration,
 ) -> dict[str, Any] | None:
-    if not is_product_adopter_path(rel, declaration):
-        return None
-    return _policy(
-        path=rel,
-        decision="deny",
-        boundary=declaration.product_adopter_boundary,
-        generated=generated,
-        required_gap=_gap(declaration.product_adopter_required_gap_prefix, rel),
-    )
-
-
-def _declarative_policy(
-    rel: str,
-    *,
-    generated: bool,
-    declaration: GeneratedArtifactTopologyDeclaration,
-) -> dict[str, Any] | None:
-    if generated:
-        return None
-    return _matched_prefix_policy(
-        rel,
-        generated=generated,
-        prefixes=declaration.declarative_prefix,
-        decision="review",
-    )
-
-
-def _allowed_policy(
-    rel: str,
-    *,
-    generated: bool,
-    declaration: GeneratedArtifactTopologyDeclaration,
-) -> dict[str, Any] | None:
-    return _matched_prefix_policy(
-        rel,
-        generated=generated,
-        prefixes=declaration.allowed_prefix,
-        decision="allow",
-    )
-
-
-def _legacy_generated_policy(
-    rel: str,
-    *,
-    generated: bool,
-    declaration: GeneratedArtifactTopologyDeclaration,
-) -> dict[str, Any] | None:
-    if _matches_prefix(rel, declaration.cache_flat_root_prefix) and not any(
-        _matches_prefix(rel, prefix) for prefix in declaration.cache_allowed_prefixes
-    ):
+    facts = {**_topology_facts(rel), "generated": generated}
+    policy = declaration.cel_policy()
+    for rule in declaration.cel_rule:
+        if rule.decision == "classify":
+            continue
+        rule_context = _cel_rule_context(rule)
+        if not evaluate_cel_predicate(
+            rule.expression, facts=facts, policy=policy, rule=rule_context
+        ):
+            continue
+        matched = _matched_prefix(rule, rel, declaration)
         return _policy(
             path=rel,
-            decision="deny",
-            boundary=declaration.cache_flat_boundary,
+            decision=rule.decision,
+            boundary=rule.boundary or matched.get("boundary", ""),
             generated=generated,
-            required_gap=_gap(declaration.cache_flat_required_gap_prefix, rel),
-        )
-    declared = _matched_prefix_policy(
-        rel,
-        generated=generated,
-        prefixes=declaration.denied_legacy_generated_prefix,
-        decision="deny",
-    )
-    if declared is not None:
-        return declared
-    if (
-        rel != declaration.runtime_flat_root_prefix
-        and _matches_prefix(rel, declaration.runtime_flat_root_prefix)
-        and not any(_matches_prefix(rel, prefix) for prefix in declaration.runtime_allowed_prefixes)
-    ):
-        return _policy(
-            path=rel,
-            decision="deny",
-            boundary=declaration.runtime_flat_boundary,
-            generated=generated,
-            required_gap=_gap(declaration.runtime_flat_required_gap_prefix, rel),
+            required_gap=_gap(
+                rule.required_gap_prefix or matched.get("required_gap_prefix", ""),
+                rel,
+            ),
         )
     return None
 
 
-def _review_policy(
+def _matched_prefix(
+    rule: TopologyCelRule,
     rel: str,
-    *,
-    generated: bool,
     declaration: GeneratedArtifactTopologyDeclaration,
-) -> dict[str, Any] | None:
-    return _matched_prefix_policy(
-        rel,
-        generated=generated,
-        prefixes=declaration.review_prefix,
-        decision="review",
+) -> dict[str, str]:
+    """Return metadata for the first matching declared prefix group item."""
+    if not rule.prefix_group:
+        return {}
+    prefixes = cast("tuple[TopologyPrefix, ...]", getattr(declaration, rule.prefix_group))
+    return next(
+        (
+            {"boundary": item.boundary, "required_gap_prefix": item.required_gap_prefix}
+            for item in prefixes
+            if _matches_prefix(rel, item.prefix)
+        ),
+        {},
     )
-
-
-def _generated_denial_policy(
-    rel: str,
-    *,
-    generated: bool,
-    declaration: GeneratedArtifactTopologyDeclaration,
-) -> dict[str, Any] | None:
-    if not generated:
-        return None
-    declared = _matched_prefix_policy(
-        rel,
-        generated=generated,
-        prefixes=declaration.denied_generated_prefix,
-        decision="deny",
-    )
-    if declared is not None:
-        declared["boundary"] = declaration.generated_denial_boundary
-        return declared
-    if "/" not in rel:
-        return _policy(
-            path=rel,
-            decision="deny",
-            boundary=declaration.repo_root_generated_boundary,
-            generated=generated,
-            required_gap=_gap(declaration.repo_root_generated_required_gap_prefix, rel),
-        )
-    return None
 
 
 def path_policy_from_declaration(
@@ -404,28 +438,9 @@ def path_policy_from_declaration(
     """Classify a repository-relative path under the generated topology contract."""
     rel = normalize_artifact_path(path)
     generated = is_generated_artifact_path(rel, declaration)
-    for candidate in (
-        _product_adopter_policy(rel, generated=generated, declaration=declaration),
-        _matched_prefix_policy(
-            rel,
-            generated=generated,
-            prefixes=declaration.denied_prefix,
-            decision="deny",
-        ),
-        _matched_prefix_policy(
-            rel,
-            generated=generated,
-            prefixes=declaration.denied_root_cache_prefix,
-            decision="deny",
-        ),
-        _legacy_generated_policy(rel, generated=generated, declaration=declaration),
-        _declarative_policy(rel, generated=generated, declaration=declaration),
-        _allowed_policy(rel, generated=generated, declaration=declaration),
-        _review_policy(rel, generated=generated, declaration=declaration),
-        _generated_denial_policy(rel, generated=generated, declaration=declaration),
-    ):
-        if candidate is not None:
-            return candidate
+    candidate = _topology_policy(rel, generated=generated, declaration=declaration)
+    if candidate is not None:
+        return candidate
     return _policy(
         path=rel,
         decision="ignore",

@@ -11,7 +11,6 @@ import ethos.repository.policy.coupling.toolchain as coupling_toolchain
 import ethos.repository.policy.docstrings.core as docstrings_mod
 import ethos.repository.policy.docstrings.style as docstring_style
 import ethos.repository.policy.gates as gates_mod
-from ethos.repository.policy.gates import Gate
 from ethos.repository.policy.rules.check import rules_layer_report
 from ethos.repository.policy.rules.config import configured_gate_tables
 from ethos.repository.policy.rules.config import configured_rules
@@ -21,6 +20,7 @@ from ethos.repository.policy.rules.evaluation import required_gate_details
 from ethos.repository.policy.rules.evaluation import rules_evaluation_report
 from ethos.repository.policy.rules.migration import rules_toml_text
 from ethos.repository.profile import load_repository_profile
+from ethos_core.contracts.gates import GateDescriptor
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,21 +44,21 @@ def test_gate_profile_gaps_flag_profile_and_toolchain_mismatch(
     # A product gate whose profile != "product-toolchain" hits the append at
     # coupling.py 377, and toolchain != "uv-python" hits the append at 379.
     fake = {
-        "unit-architecture": Gate(
+        "unit-architecture": GateDescriptor.model_construct(
             id="unit-architecture",
             kind="test",
             command=(),
             profile="mismatch",
             toolchain="mismatch",
         ),
-        "ruff": Gate(
+        "ruff": GateDescriptor.model_construct(
             id="ruff",
             kind="lint",
             command=(),
             profile="product-toolchain",
             toolchain="uv-python",
         ),
-        "build": Gate(
+        "build": GateDescriptor.model_construct(
             id="build",
             kind="package",
             command=(),

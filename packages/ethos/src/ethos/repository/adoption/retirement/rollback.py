@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos_core.normalization.core import string_list
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -34,9 +36,9 @@ def rollback_window_checks(
         and external_state in external_default_states
         and embedded_state in embedded_frozen_states
     )
-    configured_required = string_list(rollback_window.get("required_scenarios"))
+    configured_required = string_list(rollback_window.get("required_scenarios"), drop_empty=True)
     required_scenarios = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *configured_required)))
-    completed_scenarios = string_list(rollback_window.get("completed_scenarios"))
+    completed_scenarios = string_list(rollback_window.get("completed_scenarios"), drop_empty=True)
     evidence_manifest = str(rollback_window.get("evidence_manifest") or "")
     state = str(rollback_window.get("state") or "")
     gaps = []
@@ -254,9 +256,3 @@ def git_commit_reachable(repo: Path, commit: str) -> bool:
         stderr=subprocess.DEVNULL,
     )
     return ancestor.returncode == 0
-
-
-def string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]

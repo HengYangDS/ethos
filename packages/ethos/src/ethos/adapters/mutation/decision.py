@@ -2,40 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Literal
 
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.admission import DecisionBasis
 from ethos_core.contracts.admission import MutationSubject
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
+from ethos_core.contracts.lifecycle.core import MutationRequest
 
 MutationVerdict = Literal["allow", "block", "defer"]
 
-
-@dataclass(frozen=True)
-class MutationRequest:
-    command: str
-    apply: bool
-    authorized: bool
-    expect_head: str | None
-
-    def to_payload(self) -> dict[str, object]:
-        """Project intent and confirmation without calling either authorization."""
-        return {
-            "command": self.command,
-            "apply": self.apply,
-            "confirmation_present": self.authorized,
-            "expect_head": self.expect_head,
-        }
-
-
-@dataclass(frozen=True)
-class MutationEvaluation:
-    """Internal reducer result; the public contract is ``AdmissionDecision``."""
-
-    ok: bool
-    state: str
-    gaps: tuple[str, ...] = ()
+__all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 
 
 def mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

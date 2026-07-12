@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import pytest
+import pytest
 
 from ethos.repository.evidence.topology import evidence_topology_report
+from ethos_core import _resources
 from ethos_core.contracts.evidence import layout as layout_contract
 from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
 from tests.support.ethos_cli_runner import run_ethos
@@ -417,3 +416,15 @@ def test_evidence_layout_declaration_default_path_falls_back_to_packaged_resourc
 
     assert declaration.id == "evidence-layout"
     assert declaration.source_refs == ("system/policies/evidence-layout.toml",)
+
+
+def test_evidence_layout_declaration_fails_when_no_resource_or_source_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(_resources, "_SOURCE_FILE", tmp_path / "source.py")
+    monkeypatch.setattr(
+        _resources.resources, "files", lambda _: (_ for _ in ()).throw(FileNotFoundError)
+    )
+
+    with pytest.raises(FileNotFoundError, match="declaration resource unavailable"):
+        load_evidence_layout_declaration(tmp_path / "missing.toml")

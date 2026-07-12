@@ -10,6 +10,7 @@ from typing import cast
 
 from ethos.assistants.skills.capabilities import capability_records
 from ethos.assistants.skills.capabilities import contained_package_path
+from ethos_core.normalization.core import string_list
 
 SKILL_PACKAGE_SCHEMA_VERSION = 2
 FRONTMATTER_PART_COUNT = 3
@@ -64,7 +65,7 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
 
     skill_id = str(manifest.get("id") or relative_manifest.parent.name)
     entrypoint = str(manifest.get("entrypoint") or "SKILL.md")
-    include = _string_list(manifest.get("include")) or [entrypoint]
+    include = string_list(manifest.get("include"), drop_empty=True) or [entrypoint]
     gaps.extend(_manifest_schema_gaps(skill_id, manifest))
     for relative in [entrypoint, *include]:
         if not contained_package_path(package_dir, relative):
@@ -85,7 +86,7 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
         if expected and expected != digest:
             gaps.append(f"skill_package_digest_mismatch:{skill_id}")
 
-    required_sections = _string_list(manifest.get("required_sections")) or list(
+    required_sections = string_list(manifest.get("required_sections"), drop_empty=True) or list(
         DEFAULT_REQUIRED_SECTIONS
     )
     if contained_package_path(package_dir, entrypoint):
@@ -214,7 +215,7 @@ def _manifest_schema_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
         gaps.append(f"skill_package_schema_version_invalid:{skill_id}")
     if manifest.get("digest_algorithm") != "sha256":
         gaps.append(f"skill_package_digest_algorithm_invalid:{skill_id}")
-    include = _string_list(manifest.get("include"))
+    include = string_list(manifest.get("include"), drop_empty=True)
     if not include:
         gaps.append(f"skill_package_include_missing:{skill_id}")
     expected = str(manifest.get("expected_digest") or "")
@@ -222,7 +223,7 @@ def _manifest_schema_gaps(skill_id: str, manifest: dict[str, Any]) -> list[str]:
         gaps.append(f"skill_package_expected_digest_missing:{skill_id}")
     elif not _SHA256_PATTERN.fullmatch(expected):
         gaps.append(f"skill_package_expected_digest_invalid:{skill_id}")
-    required_sections = _string_list(manifest.get("required_sections"))
+    required_sections = string_list(manifest.get("required_sections"), drop_empty=True)
     if not required_sections:
         gaps.append(f"skill_package_required_sections_missing:{skill_id}")
     return gaps
@@ -310,12 +311,6 @@ def _is_placeholder_body(body: str) -> bool:
     return normalized in {"", "tbd", "todo", "placeholder", "coming soon"}
 
 
-def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]
-
-
 _ALLOWED_EVAL_METRICS = {"pass_at_k", "pass_power_k", "weighted_score", "instability_gap"}
 
 
@@ -328,7 +323,7 @@ def _eval_metadata(skill_id: str, value: Any) -> tuple[list[str], dict[str, Any]
     treatment_id = str(value.get("treatment_id") or "")
     if not treatment_id:
         gaps.append(f"skill_package_eval_treatment_missing:{skill_id}")
-    metrics = _string_list(value.get("metrics"))
+    metrics = string_list(value.get("metrics"), drop_empty=True)
     if not metrics:
         gaps.append(f"skill_package_eval_metrics_missing:{skill_id}")
     for metric in metrics:
@@ -337,7 +332,7 @@ def _eval_metadata(skill_id: str, value: Any) -> tuple[list[str], dict[str, Any]
     for key in _ALLOWED_EVAL_METRICS:
         if key in value and not _unit_interval(value.get(key)):
             gaps.append(f"skill_package_eval_metric_out_of_bounds:{skill_id}:{key}")
-    evidence_refs = _string_list(value.get("evidence_refs"))
+    evidence_refs = string_list(value.get("evidence_refs"), drop_empty=True)
     if not evidence_refs:
         gaps.append(f"skill_package_eval_evidence_refs_missing:{skill_id}")
     return gaps, {

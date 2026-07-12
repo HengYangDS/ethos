@@ -550,6 +550,7 @@ def test_quality_help_lists_canonical_commands() -> None:
         "asset-policy",
         "claims",
         "code-size",
+        "source-budget",
         "command-examples",
         "command-registry",
         "command-surface",

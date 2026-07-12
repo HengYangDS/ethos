@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from ethos.adapters.mutation import core as mutation
@@ -12,6 +11,7 @@ from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.mutation.remediation.core import remediation_for_gaps
+from tests.support.contract_helpers import git
 
 
 def seed_proof(root: Path, head: str) -> None:
@@ -34,17 +34,6 @@ def seed_proof(root: Path, head: str) -> None:
     )
     evidence = EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     record_executed_proof(root, evidence)
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
 
 
 def init_repo(path: Path) -> Path:

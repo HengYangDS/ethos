@@ -24,9 +24,15 @@ import shutil
 from pathlib import Path
 
 import pytest
+from hypothesis.configuration import set_hypothesis_home_dir
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TEST_PROOF_STATE_DIR_ENV = "ETHOS_TEST_PROOF_STATE_DIR"
+set_hypothesis_home_dir(
+    _REPO_ROOT
+    / "build/runtime/tool-cache/hypothesis"
+    / os.environ.get("PYTEST_XDIST_WORKER", "local")
+)
 
 
 def _worker_proof_dir() -> Path:

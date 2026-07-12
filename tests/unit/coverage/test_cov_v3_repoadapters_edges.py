@@ -80,7 +80,7 @@ def test_worktrees_skips_blank_lines_with_empty_current(
     def _stub_run_git(_root: Path, *_args: str) -> str:
         return porcelain
 
-    monkeypatch.setattr(status, "_run_git", _stub_run_git)
+    monkeypatch.setattr(status, "git_stdout_checked", _stub_run_git)
     policy = load_branch_role_policy(tmp_path)
     entries = status._worktrees(tmp_path, current_path=tmp_path, policy=policy)
     assert len(entries) == 1

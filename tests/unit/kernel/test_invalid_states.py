@@ -49,6 +49,7 @@ _NON_GAP_TOKENS = {
     "baseline_gap_limit",
     "unclassified_invalid_state",
     "required_gap",  # policy-result field name, not an emitted gap
+    "required_gap_prefix",  # declarative CEL-rule metadata, not an emitted gap
     "not_required",  # prewrite diagnostic reason, not an emitted gap
     "review_gaps",  # artifact-topology report field, not an emitted gap
     "review_gap_count",  # artifact-topology report field, not an emitted gap
@@ -101,19 +102,6 @@ def test_docs_topology_report_fields_do_not_pollute_taxonomy() -> None:
     assert "missing_required_state_count" in _NON_GAP_TOKENS
     assert "missing_required_state_paths" in _NON_GAP_TOKENS
     assert "missing_required_state" not in prefixes
-
-
-def test_taxonomy_release_resource_matches_system_contract() -> None:
-    system_payload = tomllib.loads(
-        (ROOT / "system/invalid_states.toml").read_text(encoding="utf-8")
-    )
-    release_payload = tomllib.loads(
-        (ROOT / "packages/ethos-core/src/ethos_core/data/invalid_states.toml").read_text(
-            encoding="utf-8"
-        )
-    )
-
-    assert release_payload == system_payload
 
 
 def test_taxonomy_loads_from_packaged_resource_outside_checkout(

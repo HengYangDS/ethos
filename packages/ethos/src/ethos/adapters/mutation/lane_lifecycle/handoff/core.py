@@ -22,6 +22,10 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import HolderRef
+from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
+from ethos_core.contracts.lifecycle.core import HANDOFF_IMPORT
+from ethos_core.contracts.lifecycle.core import HANDOFF_REVOKE_SOURCE
+from ethos_core.contracts.lifecycle.core import reduce_guards
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -76,8 +80,9 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         dirty_disposition=disposition,
         context_gap=context_gap,
     )
-    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
-    if apply and not gaps:
+    evaluation = reduce_guards(HANDOFF_EXPORT, apply=apply, initial_gaps=tuple(gaps))
+    report = _handoff_report(branch=branch, evaluation=evaluation)
+    if apply and evaluation.ok:
         try:
             report.update(
                 handoff_package.write_handoff_package(
@@ -134,16 +139,22 @@ def import_cross_host_handoff(
         normalized_target = target_holder_ref
     if manifest and normalized_target != str(manifest.get("target_holder_ref") or ""):
         gaps.append("handoff_target_holder_mismatch")
-    if status.get("role") != ROLE_ACCEPTED_ROOT:
-        gaps.append("handoff_import_requires_accepted_root")
-    if status.get("dirty"):
-        gaps.append("handoff_import_requires_clean_destination")
     branch = str(manifest.get("source_lane_ref") or "")
-    if branch and _branch_exists(destination, branch):
-        gaps.append("handoff_destination_branch_exists")
-    gaps = list(dict.fromkeys(gaps))
-    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
-    if apply and not gaps:
+    evaluation = reduce_guards(
+        HANDOFF_IMPORT,
+        apply=apply,
+        initial_gaps=tuple(gaps),
+        checks=(
+            (status.get("role") == ROLE_ACCEPTED_ROOT, "handoff_import_requires_accepted_root"),
+            (not bool(status.get("dirty")), "handoff_import_requires_clean_destination"),
+            (
+                not branch or not _branch_exists(destination, branch),
+                "handoff_destination_branch_exists",
+            ),
+        ),
+    )
+    report = _handoff_report(branch=branch, evaluation=evaluation)
+    if apply and evaluation.ok:
         try:
             report.update(
                 handoff_package.apply_handoff_import(
@@ -196,10 +207,6 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
         "epoch": epoch,
         "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
     }
-    if status.get("role") != ROLE_WORK_LANE or status.get("branch") != branch:
-        gaps.append("handoff_source_lane_mismatch")
-    if head != expect_head:
-        gaps.append("expect_head_mismatch")
     comparisons = (
         (str(binding.get("holder_ref") or ""), holder_ref, "handoff_source_holder_mismatch"),
         (str(binding.get("lease_id") or ""), lease_id, "handoff_source_lease_mismatch"),
@@ -216,12 +223,25 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
             "handoff_acknowledgement_head_mismatch",
         ),
     )
-    gaps.extend(gap for actual, expected, gap in comparisons if actual != expected)
-    if ack.get("source_lease_transferred") is not False:
-        gaps.append("handoff_acknowledgement_lease_boundary_invalid")
-    gaps = list(dict.fromkeys(gaps))
-    report = _handoff_report(branch=branch, apply=apply, gaps=gaps)
-    if apply and not gaps:
+    evaluation = reduce_guards(
+        HANDOFF_REVOKE_SOURCE,
+        apply=apply,
+        initial_gaps=tuple(gaps),
+        checks=(
+            (
+                status.get("role") == ROLE_WORK_LANE and status.get("branch") == branch,
+                "handoff_source_lane_mismatch",
+            ),
+            (head == expect_head, "expect_head_mismatch"),
+            *((actual == expected, gap) for actual, expected, gap in comparisons),
+            (
+                ack.get("source_lease_transferred") is False,
+                "handoff_acknowledgement_lease_boundary_invalid",
+            ),
+        ),
+    )
+    report = _handoff_report(branch=branch, evaluation=evaluation)
+    if apply and evaluation.ok:
         try:
             revoked = revoke_lease(
                 _state_root(status=status, repo=repo) / ".ethos" / "state" / "state.sqlite",
@@ -398,10 +418,10 @@ def _json_mapping(path: Path, *, gap: str, gaps: list[str]) -> dict[str, Any]:
     return cast("dict[str, Any]", payload)
 
 
-def _handoff_report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, object]:
+def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:
     return {
-        "ok": not gaps,
-        "state": "planned" if not apply and not gaps else "blocked" if gaps else "applying",
+        "ok": evaluation.ok,
+        "state": evaluation.state,
         "branch": branch,
         "package_id": "",
         "package_path": "",
@@ -409,7 +429,7 @@ def _handoff_report(*, branch: str, apply: bool, gaps: list[str]) -> dict[str, o
         "lease": {},
         "acknowledgement": {},
         "receipt": {},
-        "required_gaps": gaps,
+        "required_gaps": list(evaluation.gaps),
     }
 
 

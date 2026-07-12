@@ -57,20 +57,24 @@ def test_prewrite_cast_worktrees_skips_non_dict_entries() -> None:
 
 
 def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
-    report = {
-        "ok": False,
-        "next_actions": [
-            "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
-            "ethos lane prewrite <path>",
-        ],
-    }
-
-    assert admission_cli._hook_admit_next_actions(report) == (  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
-        "ethos lane prewrite <path>",
-    )
-    assert admission_cli._hook_admit_next_actions({"ok": True}) == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert admission_cli._hook_admit_next_actions({"ok": False}) == ("ethos lane prewrite <path>",)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    for report, expected in (
+        (
+            {
+                "ok": False,
+                "next_actions": [
+                    "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+                    "ethos lane prewrite <path>",
+                ],
+            },
+            (
+                "set ETHOS_ACTOR=agent-a and rerun the blocked command, or obtain lane handoff",
+                "ethos lane prewrite <path>",
+            ),
+        ),
+        ({"ok": True}, ()),
+        ({"ok": False}, ("ethos lane prewrite <path>",)),
+    ):
+        assert admission_cli._hook_admit_next_actions(report) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
 
 
 def test_prewrite_block_next_actions_cover_holderless_mismatch() -> None:
@@ -197,73 +201,51 @@ def test_admission_prewrite_and_hook_success_edges(
     assert admission.hook_admission_report(root=tmp_path, layer="git")["state"] == "fallback"
     assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
-    assert admission_shell.git_stash_policy("git stash") == {
-        "forbidden": True,
-        "operation": "push",
-        "reason": "stash_is_hidden_change_carrier",
-    }
-    assert admission_shell.git_stash_policy("git stash -u")["operation"] == "push"
-    malformed_stash = admission_shell.git_stash_policy("git stash '")
-    assert malformed_stash["forbidden"] is True
-    assert malformed_stash["reason"] == "stash_is_hidden_change_carrier"
-    assert (
-        admission_shell.git_stash_policy("git --git-dir=/tmp/repo/.git stash clear")["operation"]
-        == "clear"
-    )
-    assert admission_shell.git_stash_policy("git --bare") == {
-        "forbidden": False,
-        "operation": "",
-        "reason": "not_git_stash",
-    }
-    assert admission_shell.git_stash_policy("git -C") == {
-        "forbidden": False,
-        "operation": "",
-        "reason": "not_git_stash",
-    }
-    assert admission_shell.command_risk("", role=ROLE_WORK_LANE) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git --bare", role=ROLE_WORK_LANE) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git branch --list", role=ROLE_WORK_LANE) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git worktree list", role=ROLE_WORK_LANE) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git branch -D old", role=ROLE_WORK_LANE) == {
-        "tracked_mutation_risk": True,
-        "reason": "command_text_matches_mutation_pattern",
-    }
-    assert admission_shell.command_risk("cat README.md", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git status", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("git branch --list", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("ethos status --json", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
-    assert admission_shell.command_risk("python scripts/task.py", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": True,
-        "reason": "protected_role_unknown_command_requires_paths",
-    }
-    assert admission_shell.command_risk("git worktree remove ../x", role=ROLE_ACCEPTED_ROOT) == {
-        "tracked_mutation_risk": True,
-        "reason": "protected_role_unknown_command_requires_paths",
-    }
+    for command, forbidden, operation, reason in (
+        ("git stash", True, "push", "stash_is_hidden_change_carrier"),
+        ("git stash -u", True, "push", "stash_is_hidden_change_carrier"),
+        ("git stash '", True, "'", "stash_is_hidden_change_carrier"),
+        (
+            "git --git-dir=/tmp/repo/.git stash clear",
+            True,
+            "clear",
+            "stash_is_hidden_change_carrier",
+        ),
+        ("git --bare", False, "", "not_git_stash"),
+        ("git -C", False, "", "not_git_stash"),
+    ):
+        assert admission_shell.git_stash_policy(command) == {
+            "forbidden": forbidden,
+            "operation": operation,
+            "reason": reason,
+        }
+    for command, role, risk, reason in (
+        ("", ROLE_WORK_LANE, False, "observe_only_command"),
+        ("git --bare", ROLE_WORK_LANE, False, "observe_only_command"),
+        ("git branch --list", ROLE_WORK_LANE, False, "observe_only_command"),
+        ("git worktree list", ROLE_WORK_LANE, False, "observe_only_command"),
+        ("git branch -D old", ROLE_WORK_LANE, True, "command_text_matches_mutation_pattern"),
+        ("cat README.md", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
+        ("git status", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
+        ("git branch --list", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
+        ("ethos status --json", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
+        (
+            "python scripts/task.py",
+            ROLE_ACCEPTED_ROOT,
+            True,
+            "protected_role_unknown_command_requires_paths",
+        ),
+        (
+            "git worktree remove ../x",
+            ROLE_ACCEPTED_ROOT,
+            True,
+            "protected_role_unknown_command_requires_paths",
+        ),
+    ):
+        assert admission_shell.command_risk(command, role=role) == {
+            "tracked_mutation_risk": risk,
+            "reason": reason,
+        }
     assert admission_shell._is_protected_read_command([]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert admission_shell._git_command_is_read_only(["git"]) is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert admission_shell._git_command_is_read_only(["git", "stash", "show"]) is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
@@ -335,10 +317,8 @@ def test_admission_prewrite_and_hook_success_edges(
 def test_lifecycle_json_helpers_tolerate_malformed_payloads() -> None:
     assert lifecycle_cli._gap_tuple({"required_gaps": "not-a-list"}) == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert lifecycle_cli._first_string(()) == ""  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert lifecycle_cli._int_value(3) == 3  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert lifecycle_cli._int_value("4") == 4  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert lifecycle_cli._int_value("bad", default=7) == 7  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert lifecycle_cli._int_value(object()) == 0  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    for value, default, expected in ((3, 0, 3), ("4", 0, 4), ("bad", 7, 7), (object(), 0, 0)):
+        assert lifecycle_cli._int_value(value, default=default) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
 
 
 def test_cli_wrappers_emit_expected_results(

@@ -22,9 +22,10 @@ from ethos.domain.report import scorecard_report
 from ethos.repository.context import context_for_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
-from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.quality.reporting import build_declarative_report_result
+from ethos.surface.cli.quality.reporting import declared_report_result
 from ethos_core.result import EthosResult
 
 
@@ -72,7 +73,49 @@ def host_wrapper_report(repo: Path) -> dict[str, object]:
     }
 
 
-@app.command
+def _orient_report(repo: Path) -> dict[str, object]:
+    """Supply orient's facts without assembling its CLI envelope."""
+    packet = orient_domain.orientation_packet(
+        status_payload=workspace_status(repo),
+        report_payload=scorecard_report(repo),
+    )
+    return {
+        "ok": True,
+        "state": "oriented",
+        "next_actions": packet["next_actions"],
+        "governance_context": context_for_root(repo),
+        "orientation": packet,
+    }
+
+
+def _status_report(repo: Path) -> dict[str, object]:
+    """Supply validated status facts without assembling its CLI envelope."""
+    status_payload = workspace_status(repo)
+    validation = workspace_status_validation(repo, status_payload)
+    orientation = orient_domain.orientation_packet(status_payload=status_payload)
+    ok = bool(validation["ok"])
+    return {
+        "ok": ok,
+        "state": "invalid" if not ok else "dirty" if status_payload["dirty"] else "ready",
+        "diagnostics": [validation],
+        "required_gaps": tuple(status_payload.get("required_gaps", ()))
+        + workspace_status_validation_gaps(validation),
+        "next_actions": orientation["next_actions"],
+        "governance_context": context_for_root(repo),
+        "status": status_payload,
+        "orientation": orientation,
+    }
+
+
+def _scorecard_reader_report(
+    repo: Path,
+    *,
+    product_root: Path | None = None,
+) -> dict[str, object]:
+    """Supply scorecard facts for the report reader projection."""
+    return scorecard_report(repo, product_root=product_root)
+
+
 def status(
     *,
     root: RootOption | None = None,
@@ -81,48 +124,18 @@ def status(
 ) -> None:
     """Inspect repository state."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo)
-    governance = context_for_root(repo)
-    orientation = orient_domain.orientation_packet(status_payload=status_payload)
-    orientation_actions = cast("list[str]", orientation["next_actions"])
-    coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
-    validation = workspace_status_validation(repo, status_payload)
-    validation_gaps = workspace_status_validation_gaps(validation)
-    ok = bool(validation["ok"])
-    result = EthosResult(
-        command="status",
-        ok=ok,
-        state="invalid" if not ok else "dirty" if status_payload["dirty"] else "ready",
-        summary={
-            "root": str(repo),
-            "branch": status_payload["branch"],
-            "role": status_payload.get("role", ""),
-            "dirty": status_payload["dirty"],
-            "changed_path_count": len(cast("list[object]", status_payload["changed_paths"])),
-            "foreign_work_lane_count": coordination.get("foreign_work_lane_count", 0),
-            "unbound_work_lane_count": coordination.get("unbound_work_lane_count", 0),
-            "missing_lease_count": coordination.get("missing_lease_count", 0),
-            "dirty_foreign_work_lane_count": sum(
-                1
-                for lane in cast("list[object]", status_payload.get("foreign_work_lanes") or [])
-                if isinstance(lane, dict) and bool(lane.get("dirty"))
-            ),
-            "coordination_advisory_count": len(
-                cast("list[object]", coordination.get("advisory_gaps") or [])
-            ),
-            "coordination_blocking": bool(coordination.get("blocking")),
-        },
-        diagnostics=(validation,),
-        required_gaps=tuple(status_payload.get("required_gaps", ())) + validation_gaps,
-        next_actions=tuple(orientation_actions),
-        governance_context=governance,
-        data=status_payload,
+    handler, report_payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="status",
+        target=repo,
+        group="root",
     )
     if compact:
         result = _compact_status_result(result)
     if json_output:
-        emit(result, json_output=json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=handler.enforce)
         return
+    orientation = cast("dict[str, object]", report_payload["orientation"])
     for line in orient_domain.human_orientation_lines(orientation):
         sys.stdout.write(f"{line}\n")
 
@@ -175,7 +188,6 @@ def _compact_status_result(result: EthosResult) -> EthosResult:
     )
 
 
-@app.command
 def orient(
     *,
     root: RootOption | None = None,
@@ -183,42 +195,16 @@ def orient(
 ) -> None:
     """Orient a human or agent without minting repository truth."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo)
-    governance = context_for_root(repo)
-    report_payload = scorecard_report(repo)
-    packet = orient_domain.orientation_packet(
-        status_payload=status_payload,
-        report_payload=report_payload,
-    )
-    where = cast("dict[str, Any]", packet["where"])
-    capability = cast("dict[str, Any]", packet["capability"])
-    coordination = cast("dict[str, Any]", packet["coordination"])
-    readiness = cast("dict[str, Any]", packet["readiness"])
-    packet_actions = cast("list[str]", packet["next_actions"])
-    result = EthosResult(
-        command="orient",
-        ok=True,
-        state="oriented",
-        summary={
-            "role": where["role"],
-            "candidate_action": capability["candidate_action"],
-            "foreign_work_lane_count": coordination["foreign_work_lane_count"],
-            "unbound_work_lane_count": coordination["unbound_work_lane_count"],
-            "missing_lease_count": coordination.get("missing_lease_count", 0),
-            "dirty_foreign_work_lane_count": coordination.get("dirty_foreign_work_lane_count", 0),
-            "coordination_advisory_count": len(coordination.get("advisory_items", [])),
-            "coordination_blocking": coordination["blocking"],
-            "governance_gap_count": readiness["governance_gap_count"],
-            "parity_pending_count": readiness["parity_pending_count"],
-            "advisory_gap_count": readiness["advisory_gap_count"],
-        },
-        next_actions=tuple(packet_actions),
-        governance_context=governance,
-        data={"orientation": packet},
+    handler, report_payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="orient",
+        target=repo,
+        group="root",
     )
     if json_output:
-        emit(result, json_output=json_output, enforce=False)
+        emit(result, json_output=json_output, enforce=handler.enforce)
         return
+    packet = cast("dict[str, object]", report_payload["orientation"])
     for line in orient_domain.human_orientation_lines(packet):
         sys.stdout.write(f"{line}\n")
 
@@ -296,7 +282,6 @@ def _compact_report_payload(payload: dict[str, object]) -> dict[str, object]:
     }
 
 
-@app.command
 def report(
     *,
     root: RootOption | None = None,
@@ -305,27 +290,25 @@ def report(
     compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
     """Emit a concise scorecard."""
-    payload = scorecard_report(
-        resolve_root(root),
-        product_root=resolve_root(product_root) if product_root is not None else None,
+    handler, payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="report",
+        target=resolve_root(root),
+        group="root",
+        provider_kwargs={
+            "product_root": resolve_root(product_root) if product_root is not None else None
+        },
     )
-    governance_context = cast("dict[str, Any]", payload["data"])["governance_context"]
     if compact:
         payload = _compact_report_payload(payload)
-    result = EthosResult(
-        command="report",
-        ok=bool(payload["ok"]),
-        state=str(payload.get("state") or ("ready" if payload["ok"] else "gapped")),
-        summary=cast("dict[str, Any]", payload["summary"]),
-        required_gaps=tuple(cast("tuple[str, ...] | list[str]", payload["required_gaps"])),
-        next_actions=tuple(cast("tuple[str, ...] | list[str]", payload["next_actions"])),
-        governance_context=cast("dict[str, Any]", governance_context),
-        data=cast("dict[str, Any]", payload["data"]),
-    )
-    emit(result, json_output=json_output, enforce=False)
+        result = build_declarative_report_result(
+            command="report",
+            handler=handler,
+            report=payload,
+        )
+    emit(result, json_output=json_output, enforce=handler.enforce)
 
 
-@app.command(show=False)
 def doctor(
     *,
     root: RootOption | None = None,

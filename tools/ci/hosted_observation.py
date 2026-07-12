@@ -12,19 +12,10 @@ from typing import Any
 
 from cyclopts import App
 
+from ethos.adapters.repo.git import current_tracked_head
+
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/ci/hosted-observation.toml"
-
-
-def _git_head() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _git_remote_url() -> str:
@@ -151,7 +142,7 @@ def capture_observation(
         "kind": "ethos_hosted_provider_observation",
         "ok": True,
         "state": "observed" if execute else "dry_run",
-        "head": _git_head(),
+        "head": current_tracked_head(ROOT),
         "remote_url": _git_remote_url(),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),

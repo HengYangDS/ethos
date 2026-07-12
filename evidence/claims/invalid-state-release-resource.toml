@@ -2,7 +2,7 @@
 id = "invalid-state-release-resource"
 subject = "ethos:invalid-state-release-resource"
 state = "active"
-summary = "Installed ethos-core packages load the invalid-state taxonomy from a release mirror when no source checkout is present."
+summary = "Installed ethos-core packages load the invalid-state taxonomy from a wheel projection when no source checkout is present."
 
 [evidence]
 dated = "evidence/chronicle/invalid-state-release-resource/2026-07-08.md"
@@ -27,8 +27,8 @@ scope = "Invalid-state taxonomy source contract and package resource fallback"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-08-invalid-state-release-resource"
-fallback = "Keep source-checkout taxonomy loading only; installed package usage requires a checkout."
-kill_signal = "An installed ethos-core wheel cannot load invalid-state categories outside a repository checkout, or the packaged mirror diverges from system/invalid_states.toml."
+fallback = "Read system/invalid_states.toml in a source checkout; installed package usage requires the wheel projection."
+kill_signal = "An installed ethos-core wheel cannot load invalid-state categories outside a repository checkout, or its resource is not projected from system/invalid_states.toml."
 
 [promotion]
 targets = [
@@ -38,7 +38,8 @@ targets = [
   "openspec/changes/archive/2026-07-08-invalid-state-release-resource/design.md",
   "openspec/changes/archive/2026-07-08-invalid-state-release-resource/tasks.md",
   "openspec/changes/archive/2026-07-08-invalid-state-release-resource/specs/repository-governance/spec.md",
-  "packages/ethos-core/src/ethos_core/data/invalid_states.toml",
+  "system/invalid_states.toml",
+  "packages/ethos-core/pyproject.toml",
   "packages/ethos-core/src/ethos_core/state/invalid.py",
   "tests/unit/kernel/test_invalid_states.py",
 ]

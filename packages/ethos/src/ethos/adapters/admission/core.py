@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos_core.normalization.core import string_sequence
 
 __all__ = ["work_lane_ref_transition_report"]
 
@@ -444,7 +445,7 @@ def _post_write_report(
     expected_paths: list[Path],
 ) -> dict[str, object]:
     status = workspace_status(repo)
-    changed_paths = _string_list(status.get("changed_paths"))
+    changed_paths = string_sequence(status.get("changed_paths"))
     base["role"] = status["role"]
     base["branch"] = status["branch"]
     base["changed_paths"] = changed_paths
@@ -466,12 +467,6 @@ def _relative(root: Path, path: Path) -> str:
         return resolved.resolve().relative_to(root).as_posix()
     except ValueError:
         return resolved.as_posix()
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value]
 
 
 def _fallback_report(base: dict[str, object]) -> dict[str, object]:

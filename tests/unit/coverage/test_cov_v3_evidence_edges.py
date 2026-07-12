@@ -11,8 +11,9 @@ All lines are reached through the real public/underscore-prefixed functions.
 
 from __future__ import annotations
 
-import hashlib
 from typing import TYPE_CHECKING
+
+import pytest
 
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity.validation import command_matches_identity
@@ -27,150 +28,107 @@ def _claims_dir(root: Path) -> Path:
     return claims
 
 
-def _write_evidence(root: Path, rel: str, text: str = "sample\n") -> str:
+def _write_evidence(root: Path, rel: str, text: str = "sample\n") -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-# --------------------------------------------------------------------------- #
-# ethos.repository.evidence.claims :: _change_claim_record
-# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("name", "body", "expected_gap", "seed_artifact"),
+    [
+        (
+            "closed.toml",
+            'id = "closed-change"\nkind = "change"\nlifecycle = "closed"\n',
+            "closed-change:evidence_refs_missing",
+            None,
+        ),
+        (
+            "listref.toml",
+            'id = "list-change"\nkind = "change"\nlifecycle = "active"\n'
+            'evidence_refs = ["plain-string"]\n',
+            "list-change:evidence_ref_invalid:0",
+            None,
+        ),
+        (
+            "noart.toml",
+            'id = "noart-change"\nkind = "change"\nlifecycle = "active"\n\n'
+            '[[evidence_refs]]\ndigest = "sha256:abc"\n',
+            "noart-change:evidence_ref_artifact_missing:0",
+            None,
+        ),
+        (
+            "missfile.toml",
+            'id = "missfile-change"\nkind = "change"\nlifecycle = "active"\n\n'
+            '[[evidence_refs]]\nartifact = "evidence/missing.md"\n',
+            "missfile-change:evidence_file_missing:evidence/missing.md",
+            None,
+        ),
+        (
+            "mismatch.toml",
+            'id = "mismatch-change"\nkind = "change"\nlifecycle = "active"\n\n'
+            '[[evidence_refs]]\nartifact = "evidence/e.md"\ndigest = "sha256:deadbeef"\n',
+            "mismatch-change:evidence.sha256_mismatch:evidence/e.md",
+            "evidence/e.md",
+        ),
+        (
+            "nodigest.toml",
+            'id = "nodigest-change"\nkind = "change"\nlifecycle = "active"\n\n'
+            '[[evidence_refs]]\nartifact = "evidence/e.md"\n',
+            "nodigest-change:evidence.sha256_missing:evidence/e.md",
+            "evidence/e.md",
+        ),
+        (
+            "retired.toml",
+            'id = "ethos-kernel"\nkind = "change"\nlifecycle = "active"\n',
+            "ethos-kernel:retired_product_family:ethos-kernel",
+            None,
+        ),
+        (
+            "nodate.toml",
+            '[claim]\nid = "nodate"\nstate = "historical"\n\n[evidence]\nsha256 = "abc"\n',
+            "nodate:evidence.dated_missing",
+            None,
+        ),
+        (
+            "normal-missfile.toml",
+            '[claim]\nid = "missing-file"\nstate = "historical"\n\n'
+            '[evidence]\ndated = "evidence/nope.md"\n',
+            "missing-file:evidence_file_missing:evidence/nope.md",
+            None,
+        ),
+        (
+            "nosha.toml",
+            '[claim]\nid = "nosha"\nstate = "historical"\n\n[evidence]\ndated = "evidence/e.md"\n',
+            "nosha:evidence.sha256_missing",
+            "evidence/e.md",
+        ),
+    ],
+    ids=[
+        "change-closed-lifecycle-without-refs",
+        "change-non-dict-ref",
+        "change-ref-without-artifact",
+        "change-ref-artifact-missing",
+        "change-ref-digest-mismatch",
+        "change-ref-digest-missing",
+        "change-retired-family",
+        "normal-dated-missing",
+        "normal-dated-file-missing",
+        "normal-dated-sha-missing",
+    ],
+)
+def test_claim_record_gap(
+    tmp_path: Path,
+    name: str,
+    body: str,
+    expected_gap: str,
+    seed_artifact: str | None,
+) -> None:
+    if seed_artifact:
+        _write_evidence(tmp_path, seed_artifact)
+    (_claims_dir(tmp_path) / name).write_text(body, encoding="utf-8")
 
-
-def test_change_claim_closed_lifecycle_without_refs_is_gap(tmp_path: Path) -> None:
-    # Line 111: requires_evidence (lifecycle="closed") + no evidence_refs -> refs_missing.
-    (_claims_dir(tmp_path) / "closed.toml").write_text(
-        'id = "closed-change"\nkind = "change"\nlifecycle = "closed"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "closed-change:evidence_refs_missing" in report["required_gaps"]
-
-
-def test_change_claim_non_dict_ref_is_invalid(tmp_path: Path) -> None:
-    # Lines 116-117: an evidence_ref that is not a dict -> evidence_ref_invalid, continue.
-    (_claims_dir(tmp_path) / "listref.toml").write_text(
-        'id = "list-change"\nkind = "change"\nlifecycle = "active"\n'
-        'evidence_refs = ["plain-string"]\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "list-change:evidence_ref_invalid:0" in report["required_gaps"]
-
-
-def test_change_claim_ref_without_artifact_is_gap(tmp_path: Path) -> None:
-    # Lines 121-122: a dict ref with no artifact -> evidence_ref_artifact_missing, continue.
-    (_claims_dir(tmp_path) / "noart.toml").write_text(
-        'id = "noart-change"\nkind = "change"\nlifecycle = "active"\n\n'
-        '[[evidence_refs]]\ndigest = "sha256:abc"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "noart-change:evidence_ref_artifact_missing:0" in report["required_gaps"]
-
-
-def test_change_claim_ref_artifact_file_missing_is_gap(tmp_path: Path) -> None:
-    # Line 126: ref artifact path does not exist on disk -> evidence_file_missing.
-    (_claims_dir(tmp_path) / "missfile.toml").write_text(
-        'id = "missfile-change"\nkind = "change"\nlifecycle = "active"\n\n'
-        '[[evidence_refs]]\nartifact = "evidence/missing.md"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "missfile-change:evidence_file_missing:evidence/missing.md" in report["required_gaps"]
-
-
-def test_change_claim_ref_digest_mismatch_is_gap(tmp_path: Path) -> None:
-    # Line 130: artifact exists but declared digest != actual -> evidence.sha256_mismatch.
-    _write_evidence(tmp_path, "evidence/e.md")
-    (_claims_dir(tmp_path) / "mismatch.toml").write_text(
-        'id = "mismatch-change"\nkind = "change"\nlifecycle = "active"\n\n'
-        '[[evidence_refs]]\nartifact = "evidence/e.md"\ndigest = "sha256:deadbeef"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "mismatch-change:evidence.sha256_mismatch:evidence/e.md" in report["required_gaps"]
-
-
-def test_change_claim_ref_digest_missing_is_gap(tmp_path: Path) -> None:
-    # Line 132: artifact exists but no digest declared -> evidence.sha256_missing.
-    _write_evidence(tmp_path, "evidence/e.md")
-    (_claims_dir(tmp_path) / "nodigest.toml").write_text(
-        'id = "nodigest-change"\nkind = "change"\nlifecycle = "active"\n\n'
-        '[[evidence_refs]]\nartifact = "evidence/e.md"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "nodigest-change:evidence.sha256_missing:evidence/e.md" in report["required_gaps"]
-
-
-def test_change_claim_active_retired_family_token_is_gap(tmp_path: Path) -> None:
-    # Line 145: lifecycle="active" and a retired product-family token in claim id.
-    (_claims_dir(tmp_path) / "retired.toml").write_text(
-        'id = "ethos-kernel"\nkind = "change"\nlifecycle = "active"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "ethos-kernel:retired_product_family:ethos-kernel" in report["required_gaps"]
-
-
-# --------------------------------------------------------------------------- #
-# ethos.repository.evidence.claims :: claims_report (normal [claim] records)
-# --------------------------------------------------------------------------- #
-
-
-def test_normal_claim_without_dated_is_gap(tmp_path: Path) -> None:
-    # Lines 250-251: [evidence] table present but no `dated` -> dated_missing, continue.
-    (_claims_dir(tmp_path) / "nodate.toml").write_text(
-        '[claim]\nid = "nodate"\nstate = "historical"\n\n[evidence]\nsha256 = "abc"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "nodate:evidence.dated_missing" in report["required_gaps"]
-
-
-def test_normal_claim_dated_file_missing_is_gap(tmp_path: Path) -> None:
-    # Lines 294-295: dated points at a non-existent file -> evidence_file_missing, continue.
-    (_claims_dir(tmp_path) / "missfile.toml").write_text(
-        '[claim]\nid = "missing-file"\nstate = "historical"\n\n'
-        '[evidence]\ndated = "evidence/nope.md"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "missing-file:evidence_file_missing:evidence/nope.md" in report["required_gaps"]
-
-
-def test_normal_claim_dated_file_without_sha256_is_gap(tmp_path: Path) -> None:
-    # Lines 299-300: dated file exists but no declared sha256 -> evidence.sha256_missing.
-    _write_evidence(tmp_path, "evidence/e.md")
-    (_claims_dir(tmp_path) / "nosha.toml").write_text(
-        '[claim]\nid = "nosha"\nstate = "historical"\n\n[evidence]\ndated = "evidence/e.md"\n',
-        encoding="utf-8",
-    )
-
-    report = claims_report(tmp_path)
-
-    assert "nosha:evidence.sha256_missing" in report["required_gaps"]
+    assert expected_gap in claims_report(tmp_path)["required_gaps"]
 
 
 # --------------------------------------------------------------------------- #

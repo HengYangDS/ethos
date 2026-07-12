@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.repo.git import git_stdout_checked
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -14,17 +16,6 @@ if TYPE_CHECKING:
 _TEMPORARY_PROBE_HEADER_LINES = 20
 _TEMPORARY_PROBE_PATH_LIMIT = 16
 _TEMPORARY_PROBE_MARKER = "TEMP PROBE"
-
-
-def _run_git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.rstrip("\n")
 
 
 def changed_paths(root: Path) -> tuple[str, ...]:
@@ -76,7 +67,7 @@ def dirty_provenance(root: Path) -> dict[str, object]:
     hooks, and failed-mutation diagnostics without a second state store.
     """
     try:
-        output = _run_git(root, "status", "--porcelain", "--untracked-files=all")
+        output = git_stdout_checked(root, "status", "--porcelain", "--untracked-files=all")
     except (OSError, subprocess.CalledProcessError) as exc:
         return _unavailable_dirty_provenance(exc)
     entries = [_dirty_entry(line) for line in output.splitlines() if line]

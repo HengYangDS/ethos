@@ -37,6 +37,18 @@ def current_tracked_head(root: Path) -> str:
     return "" if head == "untracked" else head
 
 
+def git_stdout_checked(root: Path, *args: str) -> str:
+    """Run `git <args>` in root and return stdout, raising on failure."""
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout.rstrip("\n")
+
+
 def git_stdout(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stripped stdout, or '' on failure."""
     try:

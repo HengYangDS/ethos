@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
@@ -121,6 +122,40 @@ def retire_authority_guidance(gaps: list[str]) -> dict[str, str]:
     if "foreign_work_lane_retire_authority_required" not in gaps:
         return {}
     return {"next_action": "set ETHOS_ACTOR to the current holder_ref or obtain handoff"}
+
+
+def current_holder_ref() -> str:
+    """Read the sole local holder identity input for retirement commands."""
+    return os.environ.get("ETHOS_ACTOR", "").strip()
+
+
+def lane_holder_ref(lane: dict[str, object]) -> str:
+    """Project the holder identity from a normalized lane lease payload."""
+    lease = lane.get("lease")
+    return str(lease.get("holder_ref") or "") if isinstance(lease, dict) else ""
+
+
+def selected_holder_ref(selected: list[dict[str, object]]) -> str:
+    """Project the selected lane holder, preserving the empty-selection contract."""
+    return lane_holder_ref(selected[0]) if selected else ""
+
+
+def holder_authority_gaps(selected: list[dict[str, object]]) -> list[str]:
+    """Reject retirement unless the invocation holder owns the selected lane."""
+    if not selected:
+        return []
+    required = selected_holder_ref(selected)
+    return (
+        []
+        if required and current_holder_ref() == required
+        else ["foreign_work_lane_retire_authority_required"]
+    )
+
+
+def has_changed_paths(root: Path, *, runner: GitRunner) -> bool:
+    """Fail closed when Git cannot prove the linked Work Lane is clean."""
+    completed = runner(root, "status", "--porcelain", "--untracked-files=all", check=False)
+    return completed.returncode != 0 or bool(completed.stdout.strip())
 
 
 def retire_mutation_binding(

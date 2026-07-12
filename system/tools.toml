@@ -28,6 +28,14 @@ profile = "minimal"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
+concern = "property_testing"
+tool = "Hypothesis"
+config = ".config/checks/pytest/policy.toml"
+artifacts = "build/runtime/tool-cache/hypothesis/"
+profile = "product"
+gate = "tools/ci/scripts/run-python-tests.sh"
+
+[[tool]]
 concern = "test_performance"
 tool = "ethos-command-performance"
 config = ".config/checks/performance/policy.toml"
@@ -280,7 +288,7 @@ profile = "provider"
 [[tool]]
 concern = "github_local_emulator"
 tool = "act"
-config = ".config/ci/emulators/act.yml"
+config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/github/"
 gate = "tools/ci/scripts/run-github-local-emulator.sh"
 profile = "provider"
@@ -288,7 +296,7 @@ profile = "provider"
 [[tool]]
 concern = "gitlab_local_emulator"
 tool = "gitlab-ci-local"
-config = ".config/ci/emulators/gitlab.yml"
+config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/gitlab/"
 gate = "tools/ci/scripts/run-gitlab-local-emulator.sh"
 profile = "provider"
@@ -324,8 +332,8 @@ planned = true
 
 [[tool]]
 concern = "generated_artifact_topology"
-tool = "ethos-generated-artifacts"
-config = "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py + docs/architecture/generated-artifact-topology.md"
+tool = "cel-python + ethos-generated-artifacts"
+config = "system/policies/generated-artifact-topology.toml + packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py"
 artifacts = "build/evidence/generated-artifacts/"
 gate = "ethos quality generated-artifacts --json"
 profile = "product"

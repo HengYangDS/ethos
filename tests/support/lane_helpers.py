@@ -8,48 +8,44 @@ no-UI-projection assertion — are the setup every split imports.
 
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
+
+from tests.support.contract_helpers import git
+from tests.support.contract_helpers import init_git_repo as init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
+__all__ = (
+    "absorb_obsolete_delta_in_accepted",
+    "add_candidate_worktree",
+    "assert_no_ui_projection",
+    "git",
+    "init_repo",
+    "write_role_policy",
+)
 
 
-def init_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
+def add_candidate_worktree(repo: Path, path: Path) -> Path:
+    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
+    return path
+
+
+def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
+    """Commit a fixture change directly on the accepted branch."""
+    (repo / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(repo, "add", "obsolete.txt")
     git(
-        path,
+        repo,
         "-c",
         "user.name=Test User",
         "-c",
         "user.email=test@example.com",
         "commit",
         "-m",
-        "init",
+        "absorb obsolete lane delta",
     )
-    return path
-
-
-def add_candidate_worktree(repo: Path, path: Path) -> Path:
-    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
-    return path
+    return git(repo, "rev-parse", "dev")
 
 
 def write_role_policy(

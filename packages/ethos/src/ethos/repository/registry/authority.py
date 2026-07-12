@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos_core.normalization.core import string_list
+
 RELATION_TYPES = {"authority", "derived_view", "decision", "superseded_vocabulary"}
 
 
@@ -12,22 +14,16 @@ def _graph_path(root: Path) -> Path:
     return root / "docs" / "_meta" / "authority_graph.toml"
 
 
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
 def _node_to_entry(node: dict[str, Any]) -> dict[str, object]:
     return {
         "id": str(node.get("id", "")),
         "owner": str(node.get("owner", "")),
-        "canonical_for": _string_list(node.get("canonical_for")),
-        "derived_from": _string_list(node.get("derived_from")),
-        "supersedes": _string_list(node.get("supersedes")),
+        "canonical_for": string_list(node.get("canonical_for")),
+        "derived_from": string_list(node.get("derived_from")),
+        "supersedes": string_list(node.get("supersedes")),
         "superseded_by": [],
-        "doc_refs": _string_list(node.get("doc_refs")),
-        "evidence_refs": _string_list(node.get("evidence_refs")),
+        "doc_refs": string_list(node.get("doc_refs")),
+        "evidence_refs": string_list(node.get("evidence_refs")),
         "stable_path": str(node.get("stable_path", "")),
         "relation_type": str(node.get("relation_type", "")),
     }

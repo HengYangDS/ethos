@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
@@ -117,8 +116,8 @@ def retire_superseded_work_lane(
             apply=request.apply,
             confirmed=request.authorized,
             required_gaps=gaps,
-            holder_ref=_current_holder_ref(),
-            required_holder_ref=_lane_holder_ref(lane),
+            holder_ref=lane_retirement_shared.current_holder_ref(),
+            required_holder_ref=lane_retirement_shared.lane_holder_ref(lane),
             extra_state={"absorbed_by": absorbed_by, "accepted_head": accepted_head},
         ),
         "required_gaps": sorted(set(gaps)),
@@ -156,7 +155,7 @@ def _superseded_retire_gaps(context: dict[str, object]) -> list[str]:
     )
     if lane:
         gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
-        gaps.extend(_landed_actor_gaps([lane]))
+        gaps.extend(lane_retirement_shared.holder_authority_gaps([lane]))
     gaps.extend(
         _superseded_absorption_head_gaps(
             reason=str(context["reason"]),
@@ -321,25 +320,6 @@ def _superseded_expected_head_gaps(
     return []
 
 
-def _current_holder_ref() -> str:
-    return os.environ.get("ETHOS_ACTOR", "").strip()
-
-
-def _landed_actor_gaps(selected: list[dict[str, object]]) -> list[str]:
-    if not selected:
-        return []
-    required_holder_ref = _lane_holder_ref(selected[0])
-    invocation_holder_ref = _current_holder_ref()
-    if not required_holder_ref or invocation_holder_ref != required_holder_ref:
-        return ["foreign_work_lane_retire_authority_required"]
-    return []
-
-
-def _lane_holder_ref(lane: dict[str, object]) -> str:
-    lease = lane.get("lease")
-    return str(lease.get("holder_ref") or "") if isinstance(lease, dict) else ""
-
-
 def _branch_exists(
     root: Path,
     branch: str,
@@ -411,7 +391,7 @@ def _superseded_retirement_lane(
     holder_ref = str(lease.get("holder_ref") or "")
     if active_runtime.is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_already_merged_use_retire_landed")
-    if _has_changed_paths(path, runtime=active_runtime):
+    if lane_retirement_shared.has_changed_paths(path, runner=active_runtime.run_git):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,
@@ -422,17 +402,3 @@ def _superseded_retirement_lane(
         "retire_ready": not gaps,
         "required_gaps": gaps,
     }
-
-
-def _has_changed_paths(
-    root: Path,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
-) -> bool:
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(
-        root, "status", "--porcelain", "--untracked-files=all", check=False
-    )
-    if completed.returncode != 0:
-        return True
-    return bool(completed.stdout.strip())

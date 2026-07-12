@@ -203,8 +203,9 @@ Deliverables:
 1. Activate OSV, image/package scanning, or external signing only after pinned
    tool supply, owner configs, runner scripts, CI projections, and proof coverage
    exist.
-1. Keep report-first file-format audits for Python, Markdown, TOML, YAML, JSON,
-   shell, and ecosystem-native formats.
+1. Keep fail-closed file-format admission for Python, Markdown, TOML, YAML,
+   JSON, shell, and ecosystem-native formats; an unregistered executable carrier
+   or a carrier outside its declared home blocks rather than merely reporting.
 1. Add a source-owned architecture model and generated diagram projection only
    when it proves value over existing documentation.
 1. Add architecture projection drift checks so generated diagrams cannot become

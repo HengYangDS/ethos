@@ -21,6 +21,14 @@ if TYPE_CHECKING:
     import pytest
 
 
+def _adopter_product(tmp_path: Path) -> tuple[Path, Path]:
+    adopter = tmp_path / "adopter"
+    product = tmp_path / "product"
+    adopter.mkdir()
+    product.mkdir()
+    return adopter, product
+
+
 def test_repository_profile_exposes_generic_tables(tmp_path: Path) -> None:
     write_profile(tmp_path, external_state="adoption_preview", embedded_state="active")
 
@@ -34,10 +42,7 @@ def test_repository_profile_exposes_generic_tables(tmp_path: Path) -> None:
 def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(adopter, external_state="adoption_preview", embedded_state="active")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -58,10 +63,7 @@ def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
 
 
 def test_retirement_readiness_next_actions_follow_current_stage(tmp_path: Path) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="adoption_preview",
@@ -92,10 +94,7 @@ def test_retirement_readiness_next_actions_follow_current_stage(tmp_path: Path) 
 def test_retirement_readiness_rejects_product_core_adopter_directories(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     init_git_repo(adopter)
     init_git_repo(product)
     write_profile(
@@ -123,10 +122,7 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
 def test_retirement_readiness_validates_declared_backend_control_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="adoption_preview",
@@ -162,10 +158,7 @@ def test_retirement_readiness_validates_declared_backend_control_manifest(
 def test_retirement_readiness_rejects_missing_backend_control_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="adoption_preview",
@@ -234,10 +227,7 @@ def test_retirement_readiness_rejects_backend_control_path_and_parse_gaps(
 def test_retirement_readiness_reports_backend_control_contract_and_state_gaps(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="default",
@@ -273,10 +263,7 @@ def test_retirement_readiness_reports_backend_control_contract_and_state_gaps(
 def test_retirement_readiness_accepts_default_backend_control_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="default",
@@ -302,10 +289,7 @@ def test_retirement_readiness_accepts_default_backend_control_manifest(
 def test_retirement_readiness_requires_backend_control_rollback_window_for_ready_state(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="retirement_ready",
@@ -338,10 +322,7 @@ def test_retirement_readiness_requires_backend_control_rollback_window_for_ready
 def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_state(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -413,10 +394,7 @@ def test_retirement_readiness_blocks_missing_docs_topology_kernel(
 def test_retirement_readiness_rejects_placeholder_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(
         adopter,
         external_state="retirement_ready",
@@ -611,10 +589,7 @@ def test_retirement_readiness_rejects_bad_scenario_evidence_paths(
 def test_retirement_readiness_requires_tracked_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     init_git_repo(adopter)
     init_git_repo(product)
     write_profile(
@@ -647,10 +622,7 @@ def test_retirement_readiness_requires_tracked_rollback_manifest(
 def test_retirement_readiness_rejects_unreachable_rollback_heads(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     init_git_repo(adopter)
     init_git_repo(product)
     rollback = terminal_rollback(adopter, product)
@@ -686,10 +658,7 @@ def test_fleet_retirement_readiness_cli_reports_profile_stage(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     init_git_repo(adopter)
     init_git_repo(product)
     write_profile(
@@ -759,10 +728,7 @@ def test_retirement_readiness_reports_missing_and_invalid_profiles(tmp_path: Pat
 def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(adopter, external_state="default", embedded_state="reference_only")
     (adopter / ".config").rmdir()
     profile_path = adopter / ".ethos/profile.toml"
@@ -807,10 +773,7 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
 
 
 def test_retirement_readiness_reports_embedded_not_frozen_stage(tmp_path: Path) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(adopter, external_state="default", embedded_state="active")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -829,10 +792,7 @@ def test_retirement_readiness_reports_embedded_not_frozen_stage(tmp_path: Path) 
 def test_retirement_readiness_distinguishes_shadow_and_rollback_stages(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     write_profile(adopter, external_state="rollback_window", embedded_state="frozen_fallback")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
 
@@ -860,10 +820,7 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
+    adopter, product = _adopter_product(tmp_path)
     init_git_repo(adopter)
     init_git_repo(product)
     write_profile(

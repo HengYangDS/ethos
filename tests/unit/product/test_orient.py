@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
+from ethos.surface.cli.quality.reporting import build_declarative_report_result
+from ethos.surface.cli.root import inspection
+from ethos_core.contracts.commands import load_command_registry_declaration
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.cli.test_contracts import git
 from tests.unit.cli.test_contracts import init_git_repo
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    import pytest
+
+    from ethos_core.result import EthosResult
 
 
 def test_orient_json_is_projection_not_truth_store() -> None:
@@ -68,6 +74,35 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     assert payload["next_actions"] == orientation["next_actions"]
 
 
+def test_orient_json_matches_its_declared_reader_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    declaration = next(
+        command
+        for command in load_command_registry_declaration().group("root")
+        if command.name == "orient"
+    )
+    assert declaration.report_handler is not None
+    report = inspection._orient_report(Path.cwd())
+
+    expected = build_declarative_report_result(
+        command="orient",
+        handler=declaration.report_handler,
+        report=report,
+    ).to_dict()
+    emitted: list[dict[str, object]] = []
+
+    def capture_emit(result: EthosResult, **_kwargs: object) -> None:
+        emitted.append(result.to_dict())
+
+    monkeypatch.setattr(inspection, "_orient_report", lambda _root: report)
+    monkeypatch.setattr(inspection, "emit", capture_emit)
+
+    inspection.orient(root=Path.cwd(), json_output=True)
+
+    assert emitted == [expected]
+
+
 def test_status_json_keeps_workspace_status_pure() -> None:
     payload = run_ethos("status", "--json")
 
@@ -97,6 +132,34 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     )
     assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] == coordination["blocking"]
+
+
+def test_status_json_matches_its_declared_reader_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    declaration = next(
+        command
+        for command in load_command_registry_declaration().group("root")
+        if command.name == "status"
+    )
+    assert declaration.report_handler is not None
+    report = inspection._status_report(Path.cwd())
+    expected = build_declarative_report_result(
+        command="status",
+        handler=declaration.report_handler,
+        report=report,
+    ).to_dict()
+    emitted: list[dict[str, object]] = []
+
+    def capture_emit(result: EthosResult, **_kwargs: object) -> None:
+        emitted.append(result.to_dict())
+
+    monkeypatch.setattr(inspection, "_status_report", lambda _root: report)
+    monkeypatch.setattr(inspection, "emit", capture_emit)
+
+    inspection.status(root=Path.cwd(), json_output=True)
+
+    assert emitted == [expected]
 
 
 def test_orient_gives_protected_roots_explicit_temporary_probe_remediation() -> None:
@@ -134,7 +197,7 @@ def test_orient_gives_protected_roots_explicit_temporary_probe_remediation() -> 
             "automated_cleanup": False,
         }
         assert any("remove the temporary probe" in action for action in orientation["next_actions"])
-        assert "migrate it into an owned Work Lane" in orientation["human_summary"]
+        assert "migrate it into an owned Work Lane" in orientation["capability"]["reason"]
 
 
 def test_orient_keeps_generic_dirty_guidance_without_temporary_probe() -> None:

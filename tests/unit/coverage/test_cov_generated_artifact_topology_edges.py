@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy import artifacts as artifacts_mod
+from ethos_core._resources import resolve_declaration_path
 from ethos_core.contracts.artifacts import topology
 
 if TYPE_CHECKING:
@@ -88,20 +89,10 @@ def test_explicit_denied_roots_ignores_empty_contract_prefix(
     declaration = topology.GeneratedArtifactTopologyDeclaration.model_validate(
         {
             "id": "generated-artifact-topology-test",
-            "declarative_boundary": "declarative",
-            "product_adopter_boundary": "adopter",
-            "product_adopter_required_gap_prefix": "adopter_gap",
-            "cache_flat_boundary": "cache",
-            "cache_flat_required_gap_prefix": "cache_gap",
             "cache_flat_root_prefix": ".cache",
             "cache_allowed_prefixes": [".cache/local-state"],
-            "runtime_flat_boundary": "runtime",
-            "runtime_flat_required_gap_prefix": "runtime_gap",
             "runtime_flat_root_prefix": "build/runtime",
             "runtime_allowed_prefixes": ["build/runtime/tool-cache"],
-            "generated_denial_boundary": "generated",
-            "repo_root_generated_boundary": "root",
-            "repo_root_generated_required_gap_prefix": "root_gap",
             "ignore_boundary": "ignore",
             "source_schema_suffix": ".schema.json",
             "generated_suffixes": [".json"],
@@ -117,6 +108,17 @@ def test_explicit_denied_roots_ignores_empty_contract_prefix(
             "denied_legacy_generated_prefix": [{"prefix": "dist"}],
             "denied_generated_prefix": [],
             "lifecycle_class": [],
+            "cel_rule": [
+                {
+                    "id": rule.id,
+                    "expression": rule.expression,
+                    "decision": rule.decision,
+                    "boundary": rule.boundary,
+                    "required_gap_prefix": rule.required_gap_prefix,
+                    "prefix_group": rule.prefix_group,
+                }
+                for rule in topology.load_generated_artifact_topology_declaration().cel_rule
+            ],
         }
     )
 
@@ -128,7 +130,9 @@ def test_default_declaration_path_finds_source_tree_policy_from_module_parent(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    path = topology._default_declaration_path()
+    path = resolve_declaration_path(
+        None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+    )
 
     assert path.name == "generated-artifact-topology.toml"
     assert path.exists()
@@ -140,7 +144,12 @@ def test_default_declaration_path_falls_back_when_no_source_tree_policy(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(topology.Path, "exists", lambda self: False)
 
-    assert topology._default_declaration_path() == topology.DECLARATION_PATH
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        )
+        == topology.DECLARATION_PATH
+    )
 
 
 def test_declaration_text_falls_back_to_packaged_resource(tmp_path: Path) -> None:

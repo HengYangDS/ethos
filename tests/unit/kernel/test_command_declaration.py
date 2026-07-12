@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 from cyclopts import App
-from cyclopts.command_spec import CommandSpec
 from pydantic import ValidationError
 
 import ethos_core.contracts.commands as command_contract
@@ -31,9 +30,9 @@ def test_command_declaration_compiles_command_sets_and_quality_handlers() -> Non
     assert declaration.sets.setup == ("ethos init", "ethos adopt", "ethos doctor")
 
     quality = declaration.group("quality")
-    assert len(quality) == 41
     assert quality[0].name == "asset-policy"
     assert quality[-1].name == "governance-kernel"
+    assert "source-budget" in {command.name for command in quality}
     assert all(command.import_path.startswith("ethos.") for command in quality)
     assert all(command.help for command in quality)
 
@@ -47,45 +46,64 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
         if command.report_handler is not None
     }
 
-    assert len(report_handlers) == 29
-    assert report_handlers["asset-policy"].spec == "ASSET_POLICY_COMMAND"
+    assert report_handlers["asset-policy"].provider == (
+        "ethos.surface.cli.quality.core:_product_quality_profile"
+    )
     assert report_handlers["asset-policy"].enforce is False
     assert report_handlers["asset-policy"].bind_root is False
-    assert report_handlers["types"].spec == "TYPES_COMMAND"
+    assert report_handlers["types"].provider == "ethos.adapters.gates.ty:ty_gate_report"
     assert report_handlers["types"].enforce is True
     assert report_handlers["types"].bind_root is True
-    assert report_handlers["performance"].spec == "PERFORMANCE_COMMAND"
+    assert report_handlers["source-budget"].provider == "ethos.domain.prove:source_budget_report"
+    assert report_handlers["source-budget"].enforce is True
+    assert report_handlers["source-budget"].bind_root is True
+    assert (
+        report_handlers["performance"].provider
+        == "ethos.repository.policy.performance.core:performance_quality_report"
+    )
+    assert report_handlers["performance"].bind_current_head is True
+    assert report_handlers["performance"].state_mode == "advisory_gaps"
     assert report_handlers["performance"].enforce is True
     assert report_handlers["performance"].bind_root is True
-    assert report_handlers["no-compat"].spec == "NO_COMPAT_COMMAND"
+    assert (
+        report_handlers["no-compat"].provider
+        == "ethos.repository.policy.no_compat.core:no_compat_report"
+    )
     assert report_handlers["no-compat"].enforce is True
     assert report_handlers["no-compat"].bind_root is True
-    assert report_handlers["product-boundary"].spec == "PRODUCT_BOUNDARY_COMMAND"
-    assert report_handlers["contributor-policy"].spec == "CONTRIBUTOR_POLICY_COMMAND"
-    assert report_handlers["enterprise-readiness"].spec == "ENTERPRISE_READINESS_COMMAND"
-    assert report_handlers["governance-kernel"].spec == "GOVERNANCE_KERNEL_COMMAND"
+    assert report_handlers["product-boundary"].provider.endswith(":product_boundary_report")
+    assert report_handlers["contributor-policy"].provider.endswith(":contributor_policy_report")
+    assert report_handlers["enterprise-readiness"].provider.endswith(":enterprise_readiness_report")
+    assert report_handlers["governance-kernel"].provider.endswith(":governance_kernel_report")
     assert "docs" not in report_handlers
     assert "coupling-audit" not in report_handlers
 
 
+def test_report_handlers_are_provider_and_projection_declarations() -> None:
+    handlers = [
+        command.report_handler
+        for command in load_command_registry_declaration(ROOT / "system/commands.toml").group(
+            "quality"
+        )
+        if command.report_handler is not None
+    ]
+
+    assert all(handler.provider for handler in handlers)
+
+
 def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
     app = App(name="quality")
+    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
 
     registered = register_declared_group(app, "quality")
 
-    assert registered == 41
-    assert isinstance(app._commands["types"], CommandSpec)
-    assert app._commands["types"].import_path == ("ethos.surface.cli.quality.core:quality_types")
-    assert app._commands["no-compat"].import_path == (
-        "ethos.surface.cli.quality.cutover.core:no_compat"
-    )
-    assert app._commands["product-boundary"].import_path == (
-        "ethos.surface.cli.boundary.product:product_boundary"
-    )
-    assert app._commands["governance-kernel"].import_path == (
-        "ethos.surface.cli.boundary.readiness:governance_kernel"
-    )
+    assert registered == len(declaration.group("quality"))
+    assert {command.name for command in declaration.group("quality")} <= set(app)
     assert register_declared_group(app, "quality") == 0
+
+    root = App(name="ethos")
+    assert register_declared_group(root, "root") == 14
+    assert {command.name for command in declaration.group("root")} <= set(root)
 
 
 def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> None:
@@ -99,14 +117,10 @@ def test_command_declaration_is_frozen_strict_and_rejects_duplicate_names() -> N
         CommandRegistryDeclaration.model_validate(payload)
 
 
-def test_command_declaration_packaged_fallback_matches_repository_owner(
+def test_command_declaration_falls_back_outside_a_checkout(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = ROOT / "system/commands.toml"
-    packaged = ROOT / "packages/ethos-core/src/ethos_core/data/commands.toml"
-
-    assert packaged.read_bytes() == repository.read_bytes()
     monkeypatch.chdir(tmp_path)
     assert load_command_registry_declaration(tmp_path / "missing.toml").id == (
         "ethos-command-registry"

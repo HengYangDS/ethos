@@ -33,7 +33,6 @@ targets = [
   { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/lane/core.py" },
   { kind = "schema", path = "system/invalid_states.toml" },
-  { kind = "schema", path = "packages/ethos-core/src/ethos_core/data/invalid_states.toml" },
   { kind = "docs", path = "docs/governance/product-design-contract.md" },
   { kind = "docs", path = "docs/reference/command-plane.md" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },

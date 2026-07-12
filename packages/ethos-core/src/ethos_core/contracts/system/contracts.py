@@ -9,11 +9,9 @@ leaf, so the contract-name list is owned here.
 from __future__ import annotations
 
 import tomllib
-from importlib import resources
-from typing import TYPE_CHECKING
+from pathlib import Path
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos_core._resources import declaration_text
 
 # The machine governance kernel's declarative contracts under system/.
 RESOURCE_BACKED_SYSTEM_CONTRACTS = {"workflows": "data/workflows.toml"}
@@ -43,7 +41,7 @@ def load_system_contract(root: Path, name: str) -> dict[str, object]:
         return tomllib.loads(path.read_text(encoding="utf-8"))
     resource = RESOURCE_BACKED_SYSTEM_CONTRACTS.get(name)
     if resource:
-        text = resources.files("ethos_core").joinpath(resource).read_text(encoding="utf-8")
+        text = declaration_text(path, resource=resource, canonical=Path("system") / f"{name}.toml")
         return tomllib.loads(text)
     return tomllib.loads(path.read_text(encoding="utf-8"))
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.planner import adoption_plan
@@ -182,7 +183,9 @@ def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
     assert (tmp_path / ".ethos/state/.gitignore").read_text(encoding="utf-8").startswith("*")
 
 
-def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(tmp_path: Path) -> None:
+def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(
+    tmp_path: Path,
+) -> None:
     """A freshly scaffolded repository must be a recognized ETHOS adopter that gets the
     adopter proof floor — not left in a no-mans-land where it is neither the product nor
     an adopter and is handed the product-owned floor it can never run. The scaffolded
@@ -246,6 +249,72 @@ def test_adopt_apply_extends_existing_gitignore_idempotently(tmp_path: Path) -> 
     gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
     assert gitignore.count(".import_linter_cache/") == 1
     assert gitignore.count("# Semantic ignored generated homes") == 1
+
+
+def test_overlay_adoption_preserves_existing_adopter_governance_surfaces(
+    tmp_path: Path,
+) -> None:
+    preserved_contents = {
+        "AGENTS.md": "# Existing agent entrypoint\n",
+        "CONTRIBUTING.md": "# Existing contribution guide\n",
+        "docs/README.md": "# Existing docs\n",
+        "openspec/config.yaml": "schema: existing-adopter\n",
+        "openspec/specs/kernel/spec.md": "# Existing OpenSpec\n",
+        ".gitlab-ci.yml": "stages: [test]\n",
+    }
+    for relative, content in preserved_contents.items():
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    strict = adoption_plan(tmp_path, profile="gitlab", apply=True)
+
+    assert strict["applied"] is False
+    assert "adoption_conflict:AGENTS.md" in strict["required_gaps"]
+
+    overlay = adoption_plan(tmp_path, profile="gitlab", overlay=True, apply=True)
+
+    assert overlay["applied"] is True
+    assert overlay["mode"] == "overlay"
+    preserved = {item["path"]: item for item in overlay["preserved_files"]}
+    assert set(preserved_contents) <= set(preserved)
+    for relative, content in preserved_contents.items():
+        assert (tmp_path / relative).read_text(encoding="utf-8") == content
+        assert preserved[relative]["sha256"] == hashlib.sha256(content.encode()).hexdigest()
+    assert (tmp_path / ".ethos" / "profile.toml").exists()
+    assert (tmp_path / ".agents" / "skills" / "activation.toml").exists()
+    assert not (tmp_path / "docs" / "index.md").exists()
+    assert not (tmp_path / "openspec" / "specs" / "repository-governance" / "spec.md").exists()
+    assert "docs/index.md" in overlay["skipped_files"]
+    assert "openspec/specs/repository-governance/spec.md" in overlay["skipped_files"]
+
+
+def test_overlay_adoption_keeps_ethos_owned_conflicts_blocking(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text("profile_id = 'foreign'\n", encoding="utf-8")
+
+    result = adoption_plan(tmp_path, overlay=True, apply=True)
+
+    assert result["applied"] is False
+    assert "adoption_conflict:.ethos/profile.toml" in result["required_gaps"]
+
+
+def test_overlay_adoption_skips_missing_provider_projection_and_writes_empty_binding(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".gitlab").mkdir()
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("", encoding="utf-8")
+
+    result = adoption_plan(tmp_path, profile="gitlab", overlay=True, apply=True)
+
+    actions = {item["path"]: item["action"] for item in result["write_plan"]}
+    assert result["applied"] is True
+    assert actions[".gitlab-ci.yml"] == "preserve_adopter_root"
+    assert actions[".ethos/profile.toml"] == "write_empty"
+    assert profile.read_text(encoding="utf-8")
 
 
 def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(

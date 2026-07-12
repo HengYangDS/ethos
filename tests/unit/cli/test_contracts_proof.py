@@ -73,7 +73,9 @@ def test_prove_missing_gate_dependency_reports_concrete_rerun(tmp_path: Path) ->
     ]
 
 
-def test_adopter_id_only_gate_declaration_fails_closed_without_traceback(tmp_path: Path) -> None:
+def test_adopter_id_only_gate_declaration_fails_closed_without_traceback(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos/profile.toml").write_text(
@@ -342,6 +344,33 @@ def test_adopt_apply_accepts_authorized_matching_head(tmp_path: Path) -> None:
     assert (repo / ".ethos/project.toml").exists()
 
 
+def test_adopt_overlay_apply_preserves_existing_adopter_entrypoint(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    agent_entrypoint = repo / "AGENTS.md"
+    agent_entrypoint.write_text("# Existing adopter guide\n", encoding="utf-8")
+
+    payload = run_ethos(
+        "adopt",
+        "--root",
+        str(repo),
+        "--overlay",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["data"]["mode"] == "overlay"
+    assert payload["data"]["preserved_files"][0]["path"] == "AGENTS.md"
+    assert agent_entrypoint.read_text(encoding="utf-8") == "# Existing adopter guide\n"
+
+
 def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     payload = run_ethos("prove", "--json")
 
@@ -431,7 +460,9 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
     assert recorded == {"repo": Path.cwd(), "evidence": payload["data"]["evidence"]}
 
 
-def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypatch) -> None:
+def test_prove_execute_preserves_non_trust_bearing_gate_classification(
+    monkeypatch,
+) -> None:
     import ethos.surface.cli.root.proof as proof_cli
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos_core.action_graph.core import ActionGraph

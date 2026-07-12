@@ -21,6 +21,7 @@ from pydantic import ConfigDict
 from pydantic import model_validator
 
 from ethos_core._resources import declaration_text
+from ethos_core._resources import resolve_declaration_path
 
 DECLARATION_PATH = Path("system/policies/generated-artifact-topology.toml")
 _DECLARATION_RESOURCE = "data/generated_artifact_topology.toml"
@@ -217,17 +218,6 @@ def _prefix_key(item: TopologyPrefix) -> str:
     return item.prefix
 
 
-def _default_declaration_path() -> Path:
-    cwd_candidate = Path.cwd() / DECLARATION_PATH
-    if cwd_candidate.exists():
-        return cwd_candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / DECLARATION_PATH
-        if candidate.exists():
-            return candidate
-    return DECLARATION_PATH
-
-
 def _declaration_text(path: Path) -> str:
     return declaration_text(path, resource=_DECLARATION_RESOURCE, canonical=DECLARATION_PATH)
 
@@ -236,7 +226,9 @@ def load_generated_artifact_topology_declaration(
     path: Path | str | None = None,
 ) -> GeneratedArtifactTopologyDeclaration:
     """Load the generated-artifact topology declaration from TOML."""
-    declaration_path = Path(path) if path is not None else _default_declaration_path()
+    declaration_path = resolve_declaration_path(
+        path, canonical=DECLARATION_PATH, module_file=__file__
+    )
     payload = tomllib.loads(_declaration_text(declaration_path))
     return GeneratedArtifactTopologyDeclaration.model_validate(payload)
 

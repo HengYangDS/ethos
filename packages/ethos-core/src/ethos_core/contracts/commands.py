@@ -12,6 +12,7 @@ from pydantic import Field
 from pydantic import model_validator
 
 from ethos_core._resources import declaration_text
+from ethos_core._resources import resolve_declaration_path
 
 DECLARATION_PATH = Path("system/commands.toml")
 _DECLARATION_RESOURCE = "data/commands.toml"
@@ -118,22 +119,13 @@ class CommandRegistryDeclaration(BaseModel):
         return tuple(command for command in self.commands if command.group == name)
 
 
-def _default_declaration_path() -> Path:
-    cwd_candidate = Path.cwd() / DECLARATION_PATH
-    if cwd_candidate.exists():
-        return cwd_candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / DECLARATION_PATH
-        if candidate.exists():
-            return candidate
-    return DECLARATION_PATH
-
-
 def load_command_registry_declaration(
     path: Path | str | None = None,
 ) -> CommandRegistryDeclaration:
     """Load and validate the tracked command registry declaration."""
-    declaration_path = Path(path) if path is not None else _default_declaration_path()
+    declaration_path = resolve_declaration_path(
+        path, canonical=DECLARATION_PATH, module_file=__file__
+    )
     return CommandRegistryDeclaration.model_validate(
         tomllib.loads(
             declaration_text(

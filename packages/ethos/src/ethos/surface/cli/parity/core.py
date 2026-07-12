@@ -169,7 +169,16 @@ def parity_shadow(
         ok=bool(report["ok"]) and not required_gaps,
         state="blocked" if write_evidence and required_gaps else str(report["state"]),
         required_gaps=tuple(required_gaps),
-        next_actions=("ethos prove --full",) if not required_gaps else ("ethos parity gaps",),
+        next_actions=(
+            (
+                "commit the written parity evidence in the admitted Work Lane",
+                "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+            )
+            if evidence_path
+            else ("ethos prove --full",)
+        )
+        if not required_gaps
+        else ("ethos parity gaps",),
         data=report,
     )
     emit(result, json_output=json_output, enforce=write_evidence)

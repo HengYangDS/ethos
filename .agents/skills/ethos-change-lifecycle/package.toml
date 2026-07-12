@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:8797e740dd082fbcdb802a27df5fc255899b2cd8b0e818a1d12883a5e965d5c0"
+expected_digest = "sha256:e822b0c848d09a09109a1047df75a57bbace51dc90f1bdeef1111b722bf07970"
 
 [quality]
 placeholder_allowed = false
@@ -53,7 +53,7 @@ command = [
   "--write-evidence",
   "--json",
 ]
-guard = "refreshes parity evidence after a land; run only after land succeeds, then commit the evidence"
+guard = "refreshes and commits parity evidence in the admitted Work Lane before executed proof and land"
 
 [[capability]]
 id = "ethos.publish"

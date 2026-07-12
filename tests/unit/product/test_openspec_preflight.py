@@ -26,15 +26,15 @@ def _result(**kwargs: object) -> dict[str, object]:
 def _configure_case(root: Path, tmp_path: Path, case: str, monkeypatch) -> None:
     if case == "missing":
         shutil.rmtree(root / "openspec")
-    elif case == "copy":
+    if case in {"copy", "cleanup-copy"}:
         monkeypatch.setattr(
             shutil, "copytree", lambda *_args: (_ for _ in ()).throw(shutil.Error())
         )
-    elif case == "temporary":
+    if case == "temporary":
         monkeypatch.setattr(
             preflight_core, "TemporaryDirectory", lambda **_kwargs: (_ for _ in ()).throw(OSError())
         )
-    elif case == "cleanup":
+    if case in {"cleanup", "cleanup-copy"}:
 
         class BrokenTemporary:
             name = str(tmp_path / "broken-temporary")
@@ -61,6 +61,7 @@ def _configure_case(root: Path, tmp_path: Path, case: str, monkeypatch) -> None:
         ("missing", "workspace_missing"),
         ("temporary", "isolated_workspace_unavailable"),
         ("cleanup", "isolated_workspace_cleanup_failed"),
+        ("cleanup-copy", "workspace_copy_failed"),
         ("none", "official_archive_invocation_failed"),
         ("exit", "official_archive_failed"),
     ],
@@ -104,8 +105,8 @@ def test_official_archive_preflight_isolated_and_fail_closed(
         return {
             "invalid-json": _result(json=[], parse_error="invalid"),
             "timeout": _result(exit_code=124, json={}, parse_error="openspec_command_timeout"),
-            "receipt": _result(json={"archive": None, "status": [None]}),
-            "exit": _result(exit_code="failed", json={}),
+            "receipt": _result(json={"archive": None, "status": [None, {}]}),
+            "exit": _result(exit_code="failed", json={"status": [{"severity": "warning"}]}),
         }.get(case, _result())
 
     report = openspec_archive_preflight_report(

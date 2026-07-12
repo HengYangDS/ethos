@@ -9,7 +9,7 @@ dated = "evidence/chronicle/asset-quality-kernel/2026-07-01.md"
 sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6"
 evidence_ids = ["evidence:ethos-asset-quality-kernel"]
 binding = "semantic quality-kernel evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/kernel/test_quality.py tests/unit/governance/test_docs_registry.py tests/unit/governance/validation tests/unit/cli/test_contracts.py tests/unit/governance/test_evolution_ledger.py tests/unit/product/parity tests/architecture/test_product_boundaries.py -q",
   "uv run --group dev pytest -q",

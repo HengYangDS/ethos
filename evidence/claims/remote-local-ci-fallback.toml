@@ -3,14 +3,14 @@ id = "remote-local-ci-fallback"
 subject = "ethos:remote-local-ci-fallback"
 state = "active"
 change_id = "remote-local-ci-fallback-20260707"
-summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote publication is unavailable."
+summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote delivery is unavailable."
 
 [evidence]
 dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md"
 sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515"
 evidence_ids = ["evidence:remote-local-ci-fallback"]
 binding = "Remote availability probe and local-ci fallback binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-local-ci.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos publish --json",

@@ -136,6 +136,22 @@ def profile_table(root: Path, key: str) -> dict[str, Any]:
     return dict(profile.tables.get(key, {}))
 
 
+def independent_verification_policy_table(root: Path, action: str = "") -> dict[str, str]:
+    """Read a provider-neutral independent-verification policy.
+
+    Absence is intentionally `disabled` so no adopter needs this workstation's
+    optional provider.  Per-action configuration is limited to policy mode;
+    provider accounts, anchors, keys, and host paths remain outside the repo.
+    """
+    table = profile_table(root, "independent_verification")
+    selected: object = table.get("mode", "disabled")
+    actions = table.get("actions")
+    if action and isinstance(actions, dict) and isinstance(actions.get(action), dict):
+        selected = actions[action].get("mode", selected)
+    mode = str(selected)
+    return {"mode": mode if mode in {"disabled", "optional", "required"} else "disabled"}
+
+
 def table_version(payload: dict[str, Any]) -> int:
     meta = payload.get("meta")
     if not isinstance(meta, dict):

@@ -2,14 +2,14 @@
 id = "ethos-openspec-product-protocol"
 subject = "ethos:openspec-product-protocol"
 state = "active"
-summary = "ETHOS OpenSpec lifecycle review enforces proposal protocol metadata and live capability routing."
+summary = "ETHOS OpenSpec lifecycle review checks proposal protocol metadata and live capability routing."
 
 [evidence]
 dated = "evidence/chronicle/openspec-product-protocol/2026-07-02.md"
 sha256 = "b8a402189d49119f29c7d3b40ec12a3a38e386a9d4bc822c6c27ecd83a437dc7"
 evidence_ids = ["evidence:ethos-openspec-product-protocol"]
 binding = "digest-bound OpenSpec product protocol evidence"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/product/test_openspec_cache.py",
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/openspec/protocol/core.py tests/unit/product/test_openspec_cache.py",

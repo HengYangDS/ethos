@@ -29,7 +29,17 @@
           "items": {"type": "string", "minLength": 1}
         },
         "binding": {"type": "string", "minLength": 1},
-        "verifier": {"type": "string", "enum": ["digest_only", "semantic"]},
+        "verifier": {
+          "type": "string",
+          "enum": [
+            "digest_only",
+            "semantic",
+            "semantic_attested",
+            "independently_reviewed",
+            "independently_reexecuted",
+            "formally_proven"
+          ]
+        },
         "freshness": {
           "type": "object",
           "required": ["mode"],

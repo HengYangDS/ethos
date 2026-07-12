@@ -9,7 +9,7 @@ dated = "evidence/chronicle/hooked-write-admission/2026-07-02.md"
 sha256 = "ba1a5daa232f7554195c82d2ae5ccbf694a172be63a8acf2add3df96a3e0af35"
 evidence_ids = ["evidence:ethos-hooked-write-admission"]
 binding = "semantic hooked write admission evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/lanes/test_hook_admission.py tests/unit/cli/test_contracts.py::test_hook_admit_pre_tool_blocks_accepted_root tests/unit/cli/test_contracts.py::test_hook_admit_pre_run_blocks_mutation_risk_without_paths tests/unit/cli/test_command_registry.py::test_hook_admission_is_reference_command_not_public_workflow",
   "uv run --group dev pytest -q",

@@ -15,6 +15,8 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
@@ -429,12 +431,27 @@ def publish(
         current_head=current_head,
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
+    independent_verification = independent_verification_admission_report(
+        root=repo,
+        action="publish",
+        request=independent_verification_request(root=repo, action="publish"),
+    )
     branch = workspace_status(repo)["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    gaps = _gap_tuple(audit) + decision.gaps + release_carrier_gaps
-    ok = bool(audit["ok"]) and decision.ok and not release_carrier_gaps
+    gaps = (
+        _gap_tuple(audit)
+        + decision.gaps
+        + release_carrier_gaps
+        + _gap_tuple(independent_verification)
+    )
+    ok = (
+        bool(audit["ok"])
+        and decision.ok
+        and not release_carrier_gaps
+        and bool(independent_verification.get("ok"))
+    )
     remote_sync = git.remote_tracking_sync(repo, str(branch))
     remote_availability = {
         **git.remote_availability(repo),
@@ -465,6 +482,9 @@ def publish(
         "remote_ahead": _int_value(remote_sync.get("ahead")),
         "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
+        "independent_verification": str(
+            independent_verification.get("evidence_class") or "local_readiness"
+        ),
         "submit_branch": str(publication.get("submit_branch") or ""),
         "next_publication_action": _first_string(publication.get("next_actions")),
     }
@@ -501,6 +521,7 @@ def publish(
                 "required_gaps": list(release_carrier_gaps),
                 "blocking": bool(release_carrier_gaps),
             },
+            "independent_verification": independent_verification,
             "remote_push": remote_push,
             "remote_availability": remote_availability,
             "remote_sync": remote_sync,

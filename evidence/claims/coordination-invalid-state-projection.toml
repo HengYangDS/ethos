@@ -9,7 +9,7 @@ dated = "evidence/chronicle/coordination-invalid-state-projection/2026-07-07.md"
 sha256 = "b276ca4bba7349afdd0f4ab1d352a9a3dd6bd272fc03ad76a56531d6374f68e8"
 evidence_ids = ["evidence:coordination-invalid-state-projection"]
 binding = "semantic Work Lane coordination invalid-state projection"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/governance/validation tests/unit/kernel/test_invalid_states.py -q",
   "tools/ci/scripts/run-python-lint.sh && tools/ci/scripts/run-config-lint.sh",

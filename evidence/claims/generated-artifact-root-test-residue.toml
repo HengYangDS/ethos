@@ -9,7 +9,7 @@ dated = "evidence/chronicle/generated-artifact-root-test-residue/2026-07-09.md"
 sha256 = "5a8646d8e3a462098a2f5dcbc4e20c7f4df9359b42697523d0a9652871bb4bfa"
 evidence_ids = ["evidence:generated-artifact-root-test-residue"]
 binding = "Generated-artifact topology contract, quality gate implementation, OpenSpec carrier, and focused regression tests."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py tests/architecture/test_generated_artifact_topology_docs.py tests/architecture/test_testing_platform.py tests/unit/governance/validation/test_gates.py",
   "tools/ci/scripts/run-python-lint.sh",

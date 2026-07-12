@@ -9,7 +9,7 @@ dated = "evidence/chronicle/gitleaks-cli-compat/2026-07-09.md"
 sha256 = "f2b0a1db1996633ed0708546bd2831bb9d2a7a2b66500f0f9bcb56144cfd80e9"
 evidence_ids = ["evidence:gitleaks-cli-compat"]
 binding = "Digest-bound evidence for gitleaks history-scan CLI compatibility."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "uv run --group dev pytest -q tests/architecture/test_release_assets.py::test_secrets_scan_is_bounded_to_git_tracked_source tests/architecture/test_release_assets.py::test_secrets_gate_scans_current_tree_and_git_history",

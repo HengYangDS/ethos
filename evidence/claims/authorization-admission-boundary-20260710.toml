@@ -8,8 +8,8 @@ summary = "ETHOS separates truth precedence, action-specific admission, local co
 dated = "evidence/chronicle/authorization-admission-boundary-20260710/2026-07-10.md"
 sha256 = "5d21884dfe2d603bebca85cc4ca7d1ffa01dcba688bebc0bb979b2c67af9e963"
 evidence_ids = ["evidence:authorization-admission-boundary-20260710"]
-binding = "Semantic and executed local evidence for normalized Lane coordination, exact admission decisions, protected control replacement, cross-host handoff, and exceptional resolution; excludes hosted enforcement and remote publication."
-verifier = "semantic"
+binding = "Semantic attestation and executed local evidence for normalized Lane coordination, exact admission decisions, protected control replacement, cross-host handoff, and exceptional resolution; excludes provider enforcement and remote delivery."
+verifier = "semantic_attested"
 tests = [
   "npx --yes @fission-ai/openspec validate --all --strict --json",
   "uv run --package ethos ethos openspec --lifecycle --json",

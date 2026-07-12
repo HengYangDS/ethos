@@ -12,6 +12,7 @@ import ethos.domain.reporting.parity.core as reporting_parity
 import ethos.domain.reporting.scoring as reporting_scoring
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.signature import signature_policy_report
+from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
@@ -37,6 +38,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     current_head = git_adapter.current_tracked_head(repo)
+    proof_readiness = proof_readiness_report(repo, current_head)
     audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
     product_profile = audit_profile == "product"
     claim_report = claims_report(repo, current_head=current_head, adopter_mode=not product_profile)
@@ -188,6 +190,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "coordination_risk_count": coordination_risk_count,
             "parity_pending_count": parity_pending_count,
             "advisory_gap_count": len(advisory_gap_items),
+            "proof_evidence_class": str(proof_readiness.get("evidence_class") or "local_readiness"),
         },
         "required_gaps": result_required_gaps,
         "next_actions": next_actions,
@@ -211,6 +214,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             ),
             "scorecards": [reporting_gaps.skills_scorecard(playbooks)],
             "repository_audit": audit,
+            "proof_readiness": proof_readiness,
             "docs": docs_report,
             "claims": claim_report,
             "assistant_projection": projection,

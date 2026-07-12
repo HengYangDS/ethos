@@ -238,6 +238,18 @@ def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path)
         "blocking": True,
         "required_gaps": ["proof_not_proven"],
         "next_action": f"ethos prove --execute --expect-head {work_head} --json",
+        "local_readiness": False,
+        "evidence_class": "local_readiness",
+        "independent_verification": {
+            "ok": True,
+            "state": "disabled",
+            "root": worktree.resolve().as_posix(),
+            "mode": "disabled",
+            "receipt": {},
+            "evidence_class": "local_readiness",
+            "mints_authority": False,
+            "required_gaps": [],
+        },
     }
 
 
@@ -288,6 +300,18 @@ def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None
         "blocking": False,
         "required_gaps": [],
         "next_action": "",
+        "local_readiness": True,
+        "evidence_class": "local_readiness",
+        "independent_verification": {
+            "ok": True,
+            "state": "disabled",
+            "root": worktree.resolve().as_posix(),
+            "mode": "disabled",
+            "receipt": {},
+            "evidence_class": "local_readiness",
+            "mints_authority": False,
+            "required_gaps": [],
+        },
     }
     mutation = payload["data"]["mutation"]
     assert mutation["request"] == {

@@ -10,7 +10,7 @@ dated = "evidence/chronicle/openspec-semantic-capability-layout/2026-07-06.md"
 sha256 = "8a51c1414f75cf1c25210bf6b8ed31534114492a9aa9e6703b0aaa814a415a93"
 evidence_ids = ["evidence:openspec-semantic-capability-layout"]
 binding = "active OpenSpec change carrier binding for semantic capability layout"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "openspec validate --all --strict --json",
   "ethos openspec --lifecycle --json",

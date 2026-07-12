@@ -9,7 +9,7 @@ dated = "evidence/chronicle/enterprise-neutrality-and-doc-topology-closeout/2026
 sha256 = "91bcfa4c4d4db9a9bcb3019adaa6da8332c61effbfd897d88cb6f81f9bfcc418"
 evidence_ids = ["evidence:enterprise-neutrality-and-doc-topology-closeout"]
 binding = "enterprise-readiness aggregate gate, product-boundary neutrality, semantic docs topology, organization-native identity, generic parity, distribution boundary, and local-vs-remote closeout separation"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py tests/unit/governance/test_claims.py tests/unit/policy/test_product_boundary.py tests/unit/domain/test_report.py -q",
   "uv run --package ethos ethos quality enterprise-readiness --json",

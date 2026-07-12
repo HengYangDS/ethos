@@ -10,7 +10,7 @@ dated = "evidence/chronicle/campaign-lifecycle-truth-20260711/2026-07-11.md"
 sha256 = "8f1ef6883dd58bede018ad9dd2efc04fbe3ec26293925922eaf3cbc5b5ed3b91"
 evidence_ids = ["evidence:campaign-lifecycle-truth-20260711"]
 binding = "The lifecycle validator, regression tests, campaign manifest, governance document, and OpenSpec change bind the correction."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "Focused campaign lifecycle regression tests",
   "ethos campaign status --json",

@@ -9,7 +9,7 @@ dated = "evidence/chronicle/governance-productization/2026-07-01.md"
 sha256 = "dec9216af50270f7a5a6801af9682325ab3e5c5e22a8c81fe2b578edecabd171"
 evidence_ids = ["evidence:ethos-lifecycle-productization"]
 binding = "semantic governance lifecycle productization evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/governance/validation tests/unit/governance/test_claims.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/product/test_openspec_cache.py tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_runners.py -q",
   "uv run --group dev pytest tests/unit/adoption/test_apply_sample.py tests/unit/governance/validation tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/test_lifecycle.py tests/architecture/test_product_design_contract.py -q",

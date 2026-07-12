@@ -10,7 +10,7 @@ dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md"
 sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6"
 evidence_ids = ["evidence:evolution-ledger-ssot"]
 binding = "Evolution ledger SSOT binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "ethos campaign hypotheses --json",
   "ethos quality schemas --json",

@@ -9,7 +9,7 @@ dated = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md
 sha256 = "dce6a2750f18a6d72e2a79722139127a5c18ee897f72ffef065d22017650d92a"
 evidence_ids = ["evidence:isomorphic-governance-context-envelope"]
 binding = "Primary command envelope governance_context for product and adopted repositories; status.data remains workspace-status schema data."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run pytest tests/unit/cli/test_contracts.py::test_primary_commands_expose_top_level_governance_context tests/unit/cli/test_contracts.py::test_primary_commands_use_same_context_for_adopted_repository tests/unit/governance/validation/test_schemas.py::test_result_payload_accepts_governed_repository_context -q",
   "uv run pytest tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py tests/architecture/test_product_design_contract.py -q",

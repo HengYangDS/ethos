@@ -10,7 +10,7 @@ dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md"
 sha256 = "947cf311d1958fb53ef1d6692857014be64cf455b5af2d97f19bc1dcf9b39a04"
 evidence_ids = ["evidence:runtime-topology-convergence-20260711"]
 binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, cross-worktree and same-worktree cache-lock regressions, dead-owner coverage-lock recovery, fail-closed accepted-ref maintenance policy, local generated-artifact audit, and this dated Chronicle bind the worktree-local runtime boundary."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_ci_provider_projections.py",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_testing_platform.py",

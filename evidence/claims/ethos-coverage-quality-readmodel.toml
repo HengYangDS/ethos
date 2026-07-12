@@ -9,7 +9,7 @@ dated = "evidence/chronicle/coverage-quality-readmodel/2026-07-06.md"
 sha256 = "1c4a68b644017aa5cc16433f882fc00bc68c295a55136795698d93de43740da9"
 evidence_ids = ["evidence:ethos-coverage-quality-readmodel"]
 binding = "semantic coverage quality read-model evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py::test_quality_coverage_reports_policy_and_latest_artifact tests/unit/cli/test_contracts.py::test_quality_help_lists_canonical_commands -q",
   "uv run --group dev pytest tests/unit/kernel/test_invalid_states.py::test_every_emitted_gap_classifies_to_exactly_one_node -q",

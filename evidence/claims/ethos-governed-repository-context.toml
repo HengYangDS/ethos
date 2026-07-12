@@ -9,7 +9,7 @@ dated = "evidence/chronicle/governed-repository-context/2026-07-01.md"
 sha256 = "06d62adb5914056f8a24fa20bcfa77583e4f1547360bcf0ba95e826b00e2c2a6"
 evidence_ids = ["evidence:ethos-governed-repository-context"]
 binding = "semantic governed repository context evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_repository_audit_reports_governed_repository_shape tests/unit/cli/test_contracts.py::test_prove_uses_repository_audit_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
   "uv run --group dev pytest -q tests/unit/adoption/test_apply_sample.py::test_adopt_rules_use_single_kernel_governance_entrypoints tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_governed_repository",

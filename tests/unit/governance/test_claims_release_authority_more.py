@@ -58,7 +58,7 @@ targets = ["docs/guide.md", "missing.py"]
     assert report["ok"] is False
     gaps = report["required_gaps"]
     assert "sample:evidence.head_stale:old-head!=new-head" in gaps
-    assert "sample:semantic_overclaim_requires_semantic_verifier" in gaps
+    assert "sample:claim_assurance_invalid" in gaps
     assert "sample:fallback_missing" in gaps
     assert "sample:kill_signal_missing" in gaps
     assert "sample:promotion_target_missing:missing.py" in gaps

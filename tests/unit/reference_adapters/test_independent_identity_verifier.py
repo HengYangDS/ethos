@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import os
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+MODULE_PATH = ROOT / "reference_adapters/independent_identity/reference_verifier.py"
+
+
+def _adapter():
+    spec = importlib.util.spec_from_file_location("ethos_reference_verifier", MODULE_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _config(module, tmp_path: Path):
+    return module.ReferenceVerifierConfig(
+        account="verifier",
+        remote="file:///trusted/mirror.git",
+        commit="a" * 40,
+        runtime_python=tmp_path / "runtime-python",
+        implementation_digest="b" * 64,
+        signing_key=tmp_path / "signing-key",
+        key_id="provider:reference",
+        receipt_store=tmp_path / "receipts",
+        checkout_root=tmp_path / "checkouts",
+        sandbox_exec=tmp_path / "sandbox-exec",
+    )
+
+
+def _request(**overrides: object) -> dict[str, object]:
+    request: dict[str, object] = {
+        "remote": "file:///trusted/mirror.git",
+        "commit": "a" * 40,
+        "tree": "c" * 40,
+        "action": "publish",
+        "proof_floor_id": "ethos:promotion-required-gates:v1",
+        "proof_floor_digest": "d" * 64,
+        "policy_digest": "e" * 64,
+        "implementation_digest": "b" * 64,
+    }
+    request.update(overrides)
+    return request
+
+
+def test_reference_adapter_rejects_foreign_sha_and_unallowlisted_remote(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+
+    with pytest.raises(module.VerificationError, match="foreign_commit"):
+        module.validate_request(config, _request(commit="f" * 40))
+    with pytest.raises(module.VerificationError, match="remote_not_allowlisted"):
+        module.validate_request(config, _request(remote="file:///foreign/mirror.git"))
+    with pytest.raises(module.VerificationError, match="implementation_mismatch"):
+        module.validate_request(config, _request(implementation_digest="c" * 64))
+    module.validate_request(config, _request(implementation_digest=""))
+
+
+def test_reference_adapter_canonicalizes_the_proof_floor_and_supplies_its_own_digest() -> None:
+    module = _adapter()
+    expected = hashlib.sha256(
+        json.dumps({"gate_ids": ["a", "z"]}, separators=(",", ":"), sort_keys=True).encode()
+    ).hexdigest()
+
+    assert (
+        module._proof_floor_digest(  # noqa: RUF100, SLF001 - request/receipt boundary must share a canonical floor digest
+            {"data": {"action_graph": {"nodes": [{"id": "z"}, {"id": "a"}]}}}
+        )
+        == expected
+    )
+
+
+def test_reference_adapter_fails_closed_when_sandbox_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+
+    with pytest.raises(module.VerificationError, match="sandbox_unavailable"):
+        module.sandboxed_command(config, ["/usr/bin/git", "status"], tmp_path / "checkout")
+
+
+def test_reference_adapter_fails_when_receipt_cannot_be_published(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    config.receipt_store.write_text("not a directory", encoding="utf-8")
+
+    with pytest.raises(module.VerificationError, match="receipt_publication_failed"):
+        module.publish_receipt(config, "receipt.json", {"result": "pass"})
+
+
+def test_reference_adapter_never_forwards_keys_to_proof_children(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    monkeypatch.setenv("SSH_AUTH_SOCK", "/private/key-agent.sock")
+    monkeypatch.setenv("ETHOS_SIGNING_KEY", "private-key-material")
+    monkeypatch.setenv("UNRELATED", "discard-me")
+
+    child = module.proof_child_environment(config)
+
+    assert child["HOME"] == tmp_path.as_posix()
+    assert "SSH_AUTH_SOCK" not in child
+    assert "ETHOS_SIGNING_KEY" not in child
+    assert "UNRELATED" not in child
+    assert all("KEY" not in key for key in child)
+    assert os.environ["ETHOS_SIGNING_KEY"] == "private-key-material"

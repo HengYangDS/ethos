@@ -9,7 +9,7 @@ dated = "evidence/chronicle/coordination-next-action/2026-07-06.md"
 sha256 = "00bf4f790f0a8c5f3b1715418d60a478a7e053ed4bafafb3b9d5a228d1a9fa43"
 evidence_ids = ["evidence:coordination-next-action"]
 binding = "semantic Work Lane coordination read-model evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/coverage/test_core_state_claims_edges.py::test_git_and_coordination_edges -q",
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/coordination.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/coverage/test_core_state_claims_edges.py",

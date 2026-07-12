@@ -1,22 +1,23 @@
 ---
 subject: ethos:assurance-program-20260712
 role: plan
-state: active
+state: archived
 relations:
   implements: DR-0006
-  carrier: openspec/changes/assurance-program-20260712
+  carrier: openspec/changes/archive/2026-07-12-assurance-program-20260712
 ---
 
 # Assurance Program — 2026-07-12
 
-Status: active.
+Status: archived after implementation verification; final lane proof and
+candidate promotion remain lifecycle work.
 
 Purpose: describe the active change plan for optional, action-bound independent
 proof re-execution.
 
 See also: [Independent Verification Adoption](../governance/independent-verification-adoption.md),
 [DR-0006](../decisions/accepted/DR-0006-proof-trust-boundary.md), and
-[OpenSpec Carrier](../../openspec/changes/assurance-program-20260712/proposal.md).
+[Archived OpenSpec Carrier](../../openspec/changes/archive/2026-07-12-assurance-program-20260712/proposal.md).
 
 ## Objective
 

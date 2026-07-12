@@ -7,4 +7,4 @@
 - [x] Add a one-shot sandboxed independent-identity reference adapter and adversarial tests.
 - [x] Add external-adopter policy fixtures and adoption runbook.
 - [x] Run final implementation quality, executed proof, and parity evidence before archive.
-- [ ] Archive this OpenSpec carrier only after the final lifecycle evidence is recorded.
+- [x] Archive this OpenSpec carrier after the final pre-archive lifecycle evidence is recorded.

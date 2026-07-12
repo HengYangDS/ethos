@@ -6,9 +6,9 @@ summary = "Active change record for optional, action-bound independent proof re-
 
 [evidence]
 dated = "evidence/chronicle/assurance-program-20260712/2026-07-12.md"
-sha256 = "a497949494a087fa41704b87e1b38745f7f135728cf42ab1bd13487dd7f6a631"
+sha256 = "5c581619c99199706d41eef5b0695a52f5033aa4601c7cd99c313d760056c6f3"
 evidence_ids = ["evidence:assurance-program-20260712"]
-binding = "active OpenSpec carrier and bounded implementation evidence"
+binding = "archived OpenSpec carrier and bounded implementation evidence"
 verifier = "semantic_attested"
 tests = [
   "pytest -q tests/unit/admission/test_independent_verification.py tests/unit/cli/test_independent_verification_publish.py tests/unit/mutation/test_independent_verification_readiness.py tests/unit/reference_adapters/test_independent_identity_verifier.py tests/unit/adoption/test_independent_verification_fixtures.py",
@@ -23,7 +23,7 @@ docs = [
   "docs/governance/independent-verification-adoption.md",
   "docs/plans/assurance-program-20260712.md",
 ]
-openspec = ["openspec/changes/assurance-program-20260712"]
+openspec = ["openspec/changes/archive/2026-07-12-assurance-program-20260712"]
 source = [
   "packages/ethos/src/ethos/adapters/admission/evidence/external.py",
   "packages/ethos/src/ethos/adapters/mutation/core.py",
@@ -36,7 +36,7 @@ owner = "ethos-repository"
 scope = "optional independent re-execution receipt admission and reference provider boundary"
 
 [carriers]
-openspec = "openspec/changes/assurance-program-20260712"
+openspec = "openspec/changes/archive/2026-07-12-assurance-program-20260712"
 fallback = "Disable the action policy and retain local-readiness semantics."
 kill_signal = "A receipt can be admitted without exact binding, protected provider configuration, or a passing independent proof floor."
 
@@ -44,7 +44,7 @@ kill_signal = "A receipt can be admitted without exact binding, protected provid
 targets = [
   "evidence/claims/assurance-program-20260712.toml",
   "evidence/chronicle/assurance-program-20260712/2026-07-12.md",
-  "openspec/changes/assurance-program-20260712",
+  "openspec/changes/archive/2026-07-12-assurance-program-20260712",
   "docs/governance/independent-verification-adoption.md",
   "docs/plans/assurance-program-20260712.md",
   "packages/ethos/src/ethos/adapters/admission/evidence/external.py",

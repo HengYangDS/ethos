@@ -91,11 +91,11 @@ consolidating their scenario tests, runner wrappers, templates, and provider
 copies; it is not permission to retain duplicate behavior.
 
 The reconciliation record is exact rather than aspirational. The current
-candidate-train reconciliation snapshot bounds 1,274 product-Python, 1,783
+candidate-train reconciliation snapshot bounds 1,325 product-Python, 1,886
 test-Python, 347 other-Python, 368 shell, 102 JSON, and 15 Jinja effective
-lines. Together with the foundation record its aggregate allowance is 4,242,
-below the immutable 5,267 maximum. The recorded snapshot remains **35,845 global**
-and **29,435 Python** effective lines above the terminal maxima; T8 and T9
+lines. Together with the foundation record its aggregate allowance is 4,514,
+below the immutable 5,267 maximum. The recorded snapshot remains **36,117 global**
+and **29,589 Python** effective lines above the terminal maxima; T8 and T9
 cannot close while any of that gap or either active debt record remains.
 
 ## Final Technical Choices

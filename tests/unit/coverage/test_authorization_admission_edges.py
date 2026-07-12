@@ -107,7 +107,7 @@ def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -
 
 @pytest.mark.parametrize(
     "payload",
-    (
+    [
         {},
         {"command": "prove", "ok": True, "state": "proven", "data": {}},
         {
@@ -148,7 +148,7 @@ def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -
                 "provenance": {"predicate": {"head": "b"}},
             },
         },
-    ),
+    ],
 )
 def test_native_proof_parser_fails_closed_for_noncanonical_payloads(payload: object) -> None:
     assert verifier._native_executed_proof_head(payload) == ""  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch

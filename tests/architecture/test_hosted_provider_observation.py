@@ -8,18 +8,9 @@ import sys
 import tomllib
 from pathlib import Path
 
+from tests.support.architecture import tool_block
+
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def _tool_block(concern: str) -> str:
-    text = (ROOT / "system" / "tools.toml").read_text(encoding="utf-8")
-    marker = f'concern = "{concern}"'
-    assert marker in text
-    before, after = text.split(marker, 1)
-    block_start = before.rfind("[[tool]]")
-    next_block = after.find("[[tool]]")
-    body = marker + (after if next_block == -1 else after[:next_block])
-    return before[block_start:] + body
 
 
 def test_hosted_provider_observation_dry_run_is_observation_only() -> None:
@@ -49,7 +40,7 @@ def test_hosted_provider_observation_dry_run_is_observation_only() -> None:
 
 def test_hosted_provider_observation_has_owner_surfaces() -> None:
     gate = "tools/ci/scripts/run-hosted-provider-observation.sh"
-    block = _tool_block("hosted_provider_observation")
+    block = tool_block(ROOT, "hosted_provider_observation")
     combined_ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8") + (
         ROOT / ".gitlab-ci.yml"
     ).read_text(encoding="utf-8")

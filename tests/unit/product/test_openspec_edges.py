@@ -130,7 +130,7 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
     archive = root / "openspec" / "changes" / "archive" / "bad_name"
     archive.mkdir(parents=True)
     (archive / ".openspec.yaml").write_text(
-        "schema: wrong\ncreated: not-a-date\ngoal: not plugin compatible\n",
+        "schema: wrong\ncreated: not-a-date\nowner: not plugin compatible\n",
         encoding="utf-8",
     )
     (archive / "proposal.md").write_text("# Proposal\n", encoding="utf-8")
@@ -142,7 +142,7 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
     assert report["ok"] is False
     gaps = set(report["required_gaps"])
     assert "openspec_archive_name_invalid:bad_name" in gaps
-    assert "openspec_archive_metadata_key_unsupported:goal:bad_name" in gaps
+    assert "openspec_archive_metadata_key_unsupported:owner:bad_name" in gaps
     assert "openspec_archive_metadata_schema_invalid:bad_name" in gaps
     assert "openspec_archive_metadata_created_invalid:bad_name" in gaps
     assert "openspec_archive_design_empty:bad_name" in gaps
@@ -170,9 +170,8 @@ def test_openspec_metadata_compatibility_checks_active_and_archived_changes(
     report = openspec_metadata.openspec_metadata_compatibility_report(root)
 
     assert report["ok"] is False
-    assert report["allowed_keys"] == ["created", "schema", "status"]
+    assert report["allowed_keys"] == ["created", "goal", "schema", "status"]
     assert {
-        "openspec_metadata_key_unsupported:goal:openspec/changes/active-change/.openspec.yaml",
         "openspec_metadata_key_unsupported:owner:"
         "openspec/changes/archive/2026-07-05-done-change/.openspec.yaml",
     } == set(report["required_gaps"])

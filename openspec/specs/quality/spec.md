@@ -610,6 +610,17 @@ compression-debt record.
   expiry, deletion wave, and expected net deletion
 - **AND** a stale, missing, expired, or over-budget debt record is a required gap
 
+#### Scenario: Archived OpenSpec metadata remains historical evidence
+
+- **WHEN** `ethos quality source-budget --json` evaluates archived OpenSpec
+  change records
+- **THEN** it SHALL exclude only the `.openspec.yaml` metadata file beneath
+  `openspec/changes/archive/`
+- **AND** active OpenSpec metadata and every other tracked YAML carrier SHALL
+  remain in the source-budget inventory
+- **AND** the exclusion SHALL not broaden to archived proposals, designs, tasks,
+  specification deltas, or arbitrary YAML paths.
+
 ### Requirement: Executable Carrier Admission
 
 ETHOS SHALL admit an executable carrier or tool only when its semantic owner,
@@ -639,3 +650,19 @@ SHALL not treat a listed job as passing parity evidence.
   redacted inputs, and execution verdict
 - **AND** an unsupported hosted-only job is reported as hosted-observation-only,
   not as a locally passing job
+
+### Requirement: Local dependency runtime trees are excluded from artifact topology traversal
+
+ETHOS SHALL exclude non-authoritative local dependency runtime roots from
+recursive generated-artifact candidate traversal, including a Pixi `.pixi/`
+environment tree, while retaining generated-artifact policy evaluation for all
+non-excluded repository paths.
+
+#### Scenario: Pixi-backed Work Lane runs the topology gate
+
+- **WHEN** `ethos quality generated-artifacts --json` runs in a Work Lane that
+  contains a local `.pixi/` environment tree
+- **THEN** the audit SHALL prune `.pixi/` before recursive candidate descent
+- **AND** the command SHALL remain finite and read-only
+- **AND** adjacent non-excluded generated-artifact drift SHALL remain subject to
+  the existing policy.

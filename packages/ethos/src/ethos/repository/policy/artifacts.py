@@ -18,15 +18,7 @@ _ROOT_TEST_RESIDUE_FILENAMES = frozenset({".coverage", "coverage.xml", "junit.xm
 _ROOT_TEST_RESIDUE_PREFIXES = (".coverage.",)
 
 
-_PRUNE_DIRS = frozenset(
-    {
-        ".git",
-        ".pixi",
-        ".venv",
-        "__pycache__",
-        "node_modules",
-    }
-)
+_PRUNE_DIRS = frozenset({".git", ".pixi", ".venv", "__pycache__", "node_modules"})
 
 _ENTRYPOINT_EXPLICIT_FILES = (
     ".gitlab-ci.yml",

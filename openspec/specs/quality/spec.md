@@ -610,6 +610,17 @@ compression-debt record.
   expiry, deletion wave, and expected net deletion
 - **AND** a stale, missing, expired, or over-budget debt record is a required gap
 
+#### Scenario: Archived OpenSpec metadata remains historical evidence
+
+- **WHEN** `ethos quality source-budget --json` evaluates archived OpenSpec
+  change records
+- **THEN** it SHALL exclude only the `.openspec.yaml` metadata file beneath
+  `openspec/changes/archive/`
+- **AND** active OpenSpec metadata and every other tracked YAML carrier SHALL
+  remain in the source-budget inventory
+- **AND** the exclusion SHALL not broaden to archived proposals, designs, tasks,
+  specification deltas, or arbitrary YAML paths.
+
 ### Requirement: Executable Carrier Admission
 
 ETHOS SHALL admit an executable carrier or tool only when its semantic owner,

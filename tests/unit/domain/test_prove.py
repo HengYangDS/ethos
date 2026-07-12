@@ -188,6 +188,36 @@ def test_source_budget_derives_python_total_allowance_from_python_categories(tmp
     assert report["ok"] is True
 
 
+def test_source_budget_excludes_archived_openspec_metadata_only(tmp_path, monkeypatch):
+    files = {
+        "openspec/changes/archive/2026-07-12-closed/.openspec.yaml": (
+            "schema: spec-driven\ncreated: 2026-07-12\nstatus: archived\n"
+        ),
+        "openspec/changes/current/.openspec.yaml": "schema: spec-driven\n",
+        "config/current.yaml": "value: true\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(
+        prove,
+        "source_budget_policy",
+        lambda _root: {
+            "baseline": {"yaml": 2, "global_total": 2},
+            "terminal": {"global_total": 2},
+            "debt": {"maximum_total": 0, "records": []},
+            "enforcement": "transition",
+        },
+    )
+    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: tuple(files))
+
+    metrics = prove.source_budget_report(tmp_path)["metrics"]
+
+    assert metrics["yaml"] == 2
+    assert metrics["global_total"] == 2
+
+
 @pytest.mark.parametrize("debt", ["invalid", {"records": "invalid"}, {"records": [None]}])
 def test_source_budget_ignores_malformed_debt_records(debt):
     assert prove._source_budget_allowance({"debt": debt}) == (0, {}, [])  # noqa: RUF100, SLF001 - exact malformed-debt reducer coverage

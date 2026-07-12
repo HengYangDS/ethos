@@ -210,10 +210,20 @@ def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> No
             "parity_evidence_invalid:sample-adopter",
             "parity_evidence_invalid:sample-adopter:target_head",
         ],
+        "lifecycle": {
+            "stage": "work_lane_before_proof",
+            "write_root": target.resolve().as_posix(),
+            "write_path": "evidence/parity/sample-adopter-shadow.json",
+            "commit_before_proof": True,
+            "authority_boundary": (
+                "refresh and commit tracked parity evidence from the admitted "
+                "Work Lane; candidate and accepted roots remain write-protected"
+            ),
+        },
         "command": (
             "ethos parity shadow --adopter sample-adopter "
             f"--root {tmp_path.resolve().as_posix()} "
             f"--target {target.resolve().as_posix()} --execute --write-evidence --json"
         ),
-        "next_action": "refresh tracked shadow parity evidence",
+        "next_action": "refresh and commit tracked shadow parity evidence before proof",
     }

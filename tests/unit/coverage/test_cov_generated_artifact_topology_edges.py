@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy import artifacts as artifacts_mod
+from ethos_core._resources import resolve_declaration_path
 from ethos_core.contracts.artifacts import topology
 
 if TYPE_CHECKING:
@@ -129,7 +130,9 @@ def test_default_declaration_path_finds_source_tree_policy_from_module_parent(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    path = topology._default_declaration_path()
+    path = resolve_declaration_path(
+        None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+    )
 
     assert path.name == "generated-artifact-topology.toml"
     assert path.exists()
@@ -141,7 +144,12 @@ def test_default_declaration_path_falls_back_when_no_source_tree_policy(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(topology.Path, "exists", lambda self: False)
 
-    assert topology._default_declaration_path() == topology.DECLARATION_PATH
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        )
+        == topology.DECLARATION_PATH
+    )
 
 
 def test_declaration_text_falls_back_to_packaged_resource(tmp_path: Path) -> None:

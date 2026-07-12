@@ -8,6 +8,20 @@ from pathlib import Path
 _SOURCE_FILE = Path(__file__).resolve()
 
 
+def resolve_declaration_path(path: Path | str | None, *, canonical: Path, module_file: str) -> Path:
+    """Prefer an explicit declaration or discover its checkout default."""
+    if path is not None:
+        return Path(path)
+    cwd_candidate = Path.cwd() / canonical
+    if cwd_candidate.exists():
+        return cwd_candidate
+    for parent in Path(module_file).resolve().parents:
+        candidate = parent / canonical
+        if candidate.exists():
+            return candidate
+    return canonical
+
+
 def declaration_text(path: Path, *, resource: str, canonical: Path) -> str:
     """Read a requested declaration, then wheel resource, then checkout source."""
     if path.is_file():

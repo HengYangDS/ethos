@@ -15,6 +15,8 @@ import subprocess
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
+import pytest
+
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -451,62 +453,29 @@ tool_adapter = "repository-native"
 """
 
 
-def test_wash_noop_command_is_rejected(tmp_path: Path) -> None:
-    """A behavior gate whose command is a literal no-op does not back the axis."""
+@pytest.mark.parametrize(
+    "behavior_gate",
+    [
+        'id = "acme-behavior"\nkind = "test"\ncommand = ["echo", "ok"]\n'
+        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
+        'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"',
+        'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
+        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
+        'evidence_class = "proof"\ntrust_bearing = false\ntool_adapter = "repository-native"',
+        'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
+        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
+        'evidence_class = "diagnostic"\ntrust_bearing = true\ntool_adapter = "repository-native"',
+        'id = "acme-behavior"\nkind = "lint"\ncommand = ["cargo", "clippy"]\n'
+        'dimensions = ["lint"]\nexecution_mode = "subprocess"\n'
+        'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"',
+    ],
+    ids=["noop-command", "non-trust-bearing", "diagnostic-evidence", "wrong-axis-attribution"],
+)
+def test_wash_behavior_gate_is_rejected(tmp_path: Path, behavior_gate: str) -> None:
+    """Behavior gates must be executable, trust-bearing proof for the behavior axis."""
     _write_profile(
         tmp_path,
-        _wash_profile(
-            'id = "acme-behavior"\nkind = "test"\ncommand = ["echo", "ok"]\n'
-            'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-            'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"'
-        ),
-    )
-    assert "adopter_code_correctness_axis_unbacked:behavior:acme-behavior" in (
-        adopter_code_correctness_gaps(tmp_path)
-    )
-
-
-def test_wash_non_trust_bearing_is_rejected(tmp_path: Path) -> None:
-    """A behavior gate that is not trust-bearing cannot back the axis."""
-    _write_profile(
-        tmp_path,
-        _wash_profile(
-            'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
-            'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-            'evidence_class = "proof"\ntrust_bearing = false\ntool_adapter = "repository-native"'
-        ),
-    )
-    assert "adopter_code_correctness_axis_unbacked:behavior:acme-behavior" in (
-        adopter_code_correctness_gaps(tmp_path)
-    )
-
-
-def test_wash_diagnostic_evidence_is_rejected(tmp_path: Path) -> None:
-    """A behavior gate with diagnostic (non-proof/contract) evidence cannot launder a
-    code-correctness claim."""
-    _write_profile(
-        tmp_path,
-        _wash_profile(
-            'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
-            'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-            'evidence_class = "diagnostic"\ntrust_bearing = true\ntool_adapter = "repository-native"'
-        ),
-    )
-    assert "adopter_code_correctness_axis_unbacked:behavior:acme-behavior" in (
-        adopter_code_correctness_gaps(tmp_path)
-    )
-
-
-def test_wash_wrong_axis_attribution_is_rejected(tmp_path: Path) -> None:
-    """A gate mapped to behavior but whose kind/dimensions attribute only to static
-    analysis does not back the behavior axis."""
-    _write_profile(
-        tmp_path,
-        _wash_profile(
-            'id = "acme-behavior"\nkind = "lint"\ncommand = ["cargo", "clippy"]\n'
-            'dimensions = ["lint"]\nexecution_mode = "subprocess"\n'
-            'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"'
-        ),
+        _wash_profile(behavior_gate),
     )
     assert "adopter_code_correctness_axis_unbacked:behavior:acme-behavior" in (
         adopter_code_correctness_gaps(tmp_path)

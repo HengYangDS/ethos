@@ -18,6 +18,7 @@ from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.coordination import CrossHostHandoff
 from ethos_core.contracts.coordination import HolderRef
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -82,7 +83,7 @@ def write_handoff_package(  # noqa: PLR0913, RUF100 - exact request envelope pre
     validation = validate_schema_instance("handoff-package.schema.json", manifest, root=repo)
     if not validation["ok"]:
         raise ValueError(
-            "handoff_manifest_invalid:" + ",".join(_string_list(validation.get("required_gaps")))
+            "handoff_manifest_invalid:" + ",".join(string_sequence(validation.get("required_gaps")))
         )
     manifest_path = package_dir / "manifest.json"
     manifest_path.write_text(
@@ -117,7 +118,8 @@ def verified_handoff_manifest(*, package: Path, root: Path) -> tuple[dict[str, A
         return {}, ["handoff_manifest_invalid"]
     validation = validate_schema_instance("handoff-package.schema.json", manifest, root=root)
     gaps = [
-        f"handoff_manifest_invalid:{gap}" for gap in _string_list(validation.get("required_gaps"))
+        f"handoff_manifest_invalid:{gap}"
+        for gap in string_sequence(validation.get("required_gaps"))
     ]
     for artifact in manifest.get("artifacts", []):
         if not isinstance(artifact, dict):
@@ -129,12 +131,6 @@ def verified_handoff_manifest(*, package: Path, root: Path) -> tuple[dict[str, A
         elif _sha256_file(path) != str(artifact.get("sha256") or ""):
             gaps.append(f"handoff_artifact_digest_mismatch:{path.name}")
     return cast("dict[str, Any]", manifest), gaps
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value]
 
 
 def apply_handoff_import(

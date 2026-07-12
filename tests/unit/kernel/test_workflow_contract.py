@@ -12,6 +12,7 @@ from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
+from ethos_core.normalization.core import string_list
 
 
 def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
@@ -294,7 +295,8 @@ def test_workflow_contract_reports_invalid_transition_node_event_eval_and_evolut
 def test_workflow_runtime_container_helpers_reject_non_container_values() -> None:
     assert workflow_runtime_model._dict("not-a-dict") == {}
     assert workflow_runtime_model._dict_items("not-a-list") == []
-    assert workflow_runtime_model._strings("not-a-list") == []
+    assert string_list(["a", 2, ""]) == ["a", "2", ""]
+    assert string_list("not-a-list") == []
 
 
 def test_workflow_runtime_report_returns_gap_when_contract_is_unavailable(

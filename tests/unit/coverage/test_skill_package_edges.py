@@ -5,6 +5,7 @@ from pathlib import Path
 
 import ethos.assistants.skills.capabilities as cap
 import ethos.assistants.skills.packages as sp
+from ethos_core.normalization.core import string_list
 
 SKILL_MD = """---
 name: sample
@@ -153,4 +154,4 @@ def test_capability_semantics_and_helpers(tmp_path: Path) -> None:
     assert sp._frontmatter_ok("---\nname: x\ndescription: y\n---\n") is True
     assert sp._section_body("## A\nbody\n## B\nnext", "A") == "body"
     assert sp._is_placeholder_body(" Coming soon. ") is True
-    assert sp._string_list(["a", 2, ""]) == ["a", "2"]
+    assert string_list(["a", 2, ""], drop_empty=True) == ["a", "2"]

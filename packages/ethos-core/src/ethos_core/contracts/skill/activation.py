@@ -4,6 +4,8 @@ import hashlib
 import json
 from typing import Any
 
+from ethos_core.normalization.core import string_list
+
 
 def normalize_skill_activation(
     payload: dict[str, Any],
@@ -38,9 +40,9 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
     skill_id = declared_id
     identifier_source = "id" if declared_id else "missing"
     primary_subject = _string(entry.get("subject") or entry.get("primary_subject"))
-    path_globs = _string_list(entry.get("path_globs"))
+    path_globs = string_list(entry.get("path_globs"), drop_empty=True)
     subjects = _route_subjects(
-        _string_list(entry.get("subjects")),
+        string_list(entry.get("subjects"), drop_empty=True),
         primary_subject=primary_subject,
         has_path_globs=bool(path_globs),
     )
@@ -60,18 +62,18 @@ def _normalize_record(entry: dict[str, Any], *, raw_version: int) -> dict[str, A
         "route_subjects": subjects,
         "subjects": subjects,
         "activation": {"path_globs": path_globs},
-        "routing": {"intent_tokens": _string_list(entry.get("intent_tokens"))},
+        "routing": {"intent_tokens": string_list(entry.get("intent_tokens"), drop_empty=True)},
         "obligations": {
-            "pre_reads": _string_list(entry.get("pre_reads")),
-            "during_rules": _string_list(entry.get("during_rules")),
-            "post_checks": _string_list(entry.get("post_checks")),
+            "pre_reads": string_list(entry.get("pre_reads"), drop_empty=True),
+            "during_rules": string_list(entry.get("during_rules"), drop_empty=True),
+            "post_checks": string_list(entry.get("post_checks"), drop_empty=True),
         },
         "relations": {
-            "may_coactivate": _string_list(entry.get("may_coactivate")),
-            "supports": _string_list(entry.get("supports")),
-            "excludes": _string_list(entry.get("excludes")),
+            "may_coactivate": string_list(entry.get("may_coactivate"), drop_empty=True),
+            "supports": string_list(entry.get("supports"), drop_empty=True),
+            "excludes": string_list(entry.get("excludes"), drop_empty=True),
         },
-        "commands": _string_list(entry.get("commands")),
+        "commands": string_list(entry.get("commands"), drop_empty=True),
         "boundary": _string(entry.get("boundary")),
         "source_version": raw_version,
         "extensions": _extensions(entry),
@@ -97,12 +99,6 @@ def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
-
-
-def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]
 
 
 def _string(value: Any) -> str:

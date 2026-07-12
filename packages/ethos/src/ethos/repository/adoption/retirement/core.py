@@ -12,6 +12,7 @@ from ethos.repository.adoption.retirement.rollback import rollback_window_checks
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.profile import load_repository_profile
+from ethos_core.normalization.core import string_list
 
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}
 EXTERNAL_DEFAULT_STATES = RETIREMENT_READY_STATES | {"default", "rollback_window"}
@@ -81,7 +82,7 @@ def retirement_readiness_report(
         "shadow": _shadow_checks(shadow),
     }
     for check in checks.values():
-        required_gaps.extend(_string_list(check.get("required_gaps")))
+        required_gaps.extend(string_list(check.get("required_gaps"), drop_empty=True))
 
     lifecycle_stage = _lifecycle_stage(
         external_state=external_state,
@@ -322,7 +323,9 @@ def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> di
 def _product_boundary_checks(
     product_root: Path, adoption_boundary: dict[str, Any]
 ) -> dict[str, object]:
-    forbidden = _string_list(adoption_boundary.get("forbidden_external_product_roots"))
+    forbidden = string_list(
+        adoption_boundary.get("forbidden_external_product_roots"), drop_empty=True
+    )
     present = [path for path in forbidden if (product_root / path).exists()]
     gaps = [f"forbidden_external_product_root_present:{path}" for path in present]
     return {
@@ -335,14 +338,17 @@ def _product_boundary_checks(
 
 def _docs_topology_checks(repo: Path) -> dict[str, object]:
     report = docs_topology_report(repo)
-    gaps = [f"retirement_docs_topology:{gap}" for gap in _string_list(report.get("required_gaps"))]
+    gaps = [
+        f"retirement_docs_topology:{gap}"
+        for gap in string_list(report.get("required_gaps"), drop_empty=True)
+    ]
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
     return {
         "ok": not gaps,
         "state": report.get("state", ""),
-        "missing_paths": _string_list(report.get("missing_paths")),
-        "forbidden_roots": _string_list(report.get("forbidden_roots")),
-        "time_state_roots": _string_list(report.get("time_state_roots")),
+        "missing_paths": string_list(report.get("missing_paths"), drop_empty=True),
+        "forbidden_roots": string_list(report.get("forbidden_roots"), drop_empty=True),
+        "time_state_roots": string_list(report.get("time_state_roots"), drop_empty=True),
         "profile_policy": report.get("profile_policy", {}),
         "required_gaps": gaps,
         "summary": {
@@ -355,15 +361,16 @@ def _docs_topology_checks(repo: Path) -> dict[str, object]:
 def _generated_artifacts_checks(repo: Path) -> dict[str, object]:
     report = generated_artifact_topology_report(repo)
     gaps = [
-        f"retirement_generated_artifacts:{gap}" for gap in _string_list(report.get("required_gaps"))
+        f"retirement_generated_artifacts:{gap}"
+        for gap in string_list(report.get("required_gaps"), drop_empty=True)
     ]
     summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
     return {
         "ok": not gaps,
         "state": report.get("state", ""),
-        "allowed_paths": _string_list(report.get("allowed_paths")),
-        "denied_paths": _string_list(report.get("denied_paths")),
-        "review_paths": _string_list(report.get("review_paths")),
+        "allowed_paths": string_list(report.get("allowed_paths"), drop_empty=True),
+        "denied_paths": string_list(report.get("denied_paths"), drop_empty=True),
+        "review_paths": string_list(report.get("review_paths"), drop_empty=True),
         "required_gaps": gaps,
         "summary": {
             "allowed_path_count": summary.get("allowed_path_count", 0),
@@ -380,7 +387,7 @@ def _parity_checks(parity_gaps: dict[str, object] | None) -> dict[str, object]:
             "ok": False,
             "required_gaps": ["retirement_parity_gaps_not_checked"],
         }
-    gaps = _string_list(parity_gaps.get("required_gaps"))
+    gaps = string_list(parity_gaps.get("required_gaps"), drop_empty=True)
     if parity_gaps.get("ok") is not True and not gaps:
         gaps.append("retirement_parity_not_clean")
     return {
@@ -399,7 +406,7 @@ def _shadow_checks(shadow: dict[str, object] | None) -> dict[str, object]:
             "ok": False,
             "required_gaps": ["retirement_shadow_not_checked"],
         }
-    gaps = _string_list(shadow.get("required_gaps"))
+    gaps = string_list(shadow.get("required_gaps"), drop_empty=True)
     false_negative_count = _int_value(shadow.get("false_negative_count"))
     if shadow.get("ok") is not True and not gaps:
         gaps.append("retirement_shadow_not_matched")
@@ -507,12 +514,6 @@ def _next_actions(adopter: str, repo: Path, product: Path, gaps: list[str]) -> l
 
 def _has_any_gap(gaps: list[str], *prefixes: str) -> bool:
     return any(gap.startswith(prefix) for gap in gaps for prefix in prefixes)
-
-
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value if str(item)]
 
 
 def _object_list(value: object) -> list[object]:

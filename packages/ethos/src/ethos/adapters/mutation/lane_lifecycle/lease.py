@@ -27,6 +27,20 @@ from ethos_core.contracts.lifecycle.core import LeaseFacts
 from ethos_core.contracts.lifecycle.core import lease_transition
 from ethos_core.contracts.lifecycle.core import reduce_lease_request
 
+_LEASE_EFFECTS = {
+    "normalize": (normalize_lease, ("holder_ref",)),
+    "renew": (renew_lease, ("holder_ref", "expected_epoch", "ttl_seconds")),
+    "resume": (resume_lease, ("holder_ref", "expected_epoch", "ttl_seconds")),
+    "handoff_offer": (
+        offer_lease_handoff,
+        ("holder_ref", "expected_epoch", "target_holder_ref"),
+    ),
+    "handoff_accept": (
+        accept_lease_handoff,
+        ("target_holder_ref", "offer_id", "expected_epoch", "holder_quiesced", "ttl_seconds"),
+    ),
+}
+
 
 def normalize_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
@@ -341,57 +355,25 @@ def _apply_lease_lifecycle_operation(  # noqa: PLR0913, RUF100 - exact request e
     holder_quiesced: bool,
     ttl_seconds: int,
 ) -> dict[str, object]:
-    if operation == "normalize":
-        return normalize_lease(
-            db_path,
-            subject=branch,
-            holder_ref=holder_ref,
-            expected_lease_id=lease_id,
-            expected_head=expect_head,
-        )
-    if operation == "renew":
-        return renew_lease(
-            db_path,
-            subject=branch,
-            holder_ref=holder_ref,
-            expected_lease_id=lease_id,
-            expected_epoch=epoch,
-            expected_head=expect_head,
-            ttl_seconds=ttl_seconds,
-        )
-    if operation == "resume":
-        return resume_lease(
-            db_path,
-            subject=branch,
-            holder_ref=holder_ref,
-            expected_lease_id=lease_id,
-            expected_epoch=epoch,
-            expected_head=expect_head,
-            ttl_seconds=ttl_seconds,
-        )
-    if operation == "handoff_offer":
-        return offer_lease_handoff(
-            db_path,
-            subject=branch,
-            holder_ref=holder_ref,
-            expected_lease_id=lease_id,
-            expected_epoch=epoch,
-            target_holder_ref=target_holder_ref,
-            expected_head=expect_head,
-        )
-    if operation == "handoff_accept":
-        return accept_lease_handoff(
-            db_path,
-            subject=branch,
-            target_holder_ref=target_holder_ref,
-            offer_id=offer_id,
-            expected_lease_id=lease_id,
-            expected_epoch=epoch,
-            expected_head=expect_head,
-            holder_quiesced=holder_quiesced,
-            ttl_seconds=ttl_seconds,
-        )
-    raise ValueError(f"lease_operation_unknown:{operation}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
+    try:
+        handler, fields = _LEASE_EFFECTS[operation]
+    except KeyError:
+        raise ValueError(f"lease_operation_unknown:{operation}") from None  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
+    arguments = {
+        "holder_ref": holder_ref,
+        "target_holder_ref": target_holder_ref,
+        "offer_id": offer_id,
+        "expected_epoch": epoch,
+        "holder_quiesced": holder_quiesced,
+        "ttl_seconds": ttl_seconds,
+    }
+    return cast("Any", handler)(
+        db_path,
+        subject=branch,
+        expected_lease_id=lease_id,
+        expected_head=expect_head,
+        **{field: arguments[field] for field in fields},
+    )
 
 
 def _state_root(status: dict[str, object], default_root: Path) -> Path:

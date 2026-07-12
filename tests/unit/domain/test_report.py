@@ -72,6 +72,25 @@ def _patch_scorecard_baseline(monkeypatch, audit: dict[str, object]) -> None:
         monkeypatch.setattr(target, name, replacement)
 
 
+def _patch_hard_quality_reports(monkeypatch, **reports: dict[str, object]) -> None:
+    for name in (
+        "code_size_report",
+        "source_budget_report",
+        "coverage_quality_report",
+        "ty_gate_report",
+        "docstring_coverage_report",
+        "module_layout_report",
+        "product_boundary_report",
+        "contributor_policy_report",
+    ):
+        report = reports.get(name, {"required_gaps": []})
+        monkeypatch.setattr(
+            reporting_scoring,
+            name,
+            lambda _repo, report=report: report,
+        )
+
+
 def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
     assert (
         reporting_scoring.terminal_control(
@@ -183,46 +202,12 @@ def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
             "openspec": {"ok": True, "advisory_gaps": []},
         },
     )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "code_size_report",
-        lambda _repo: {
+    _patch_hard_quality_reports(
+        monkeypatch,
+        code_size_report={
             "ok": False,
             "required_gaps": ["code_size_exceeded:tests/unit/product/test_flat.py:999>800"],
         },
-    )
-    monkeypatch.setattr(
-        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "module_layout_report",
-        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "coverage_quality_report",
-        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "ty_gate_report",
-        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "docstring_coverage_report",
-        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "product_boundary_report",
-        lambda _repo: {"required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "contributor_policy_report",
-        lambda _repo: {"required_gaps": []},
     )
     payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
 
@@ -308,33 +293,9 @@ def test_scorecard_next_actions_route_module_layout_gaps() -> None:
 
 
 def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
-    monkeypatch.setattr(
-        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "coverage_quality_report",
-        lambda _repo: {"required_gaps": []},
-    )
-    monkeypatch.setattr(reporting_scoring, "ty_gate_report", lambda _repo: {"required_gaps": []})
-    monkeypatch.setattr(
-        reporting_scoring,
-        "docstring_coverage_report",
-        lambda _repo: {"required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "product_boundary_report",
-        lambda _repo: {"required_gaps": ["product-boundary:README.md:1"]},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "contributor_policy_report",
-        lambda _repo: {"required_gaps": []},
+    _patch_hard_quality_reports(
+        monkeypatch,
+        product_boundary_report={"required_gaps": ["product-boundary:README.md:1"]},
     )
 
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
@@ -349,37 +310,13 @@ def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_p
 def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(reporting_scoring, "code_size_report", lambda _repo: {"required_gaps": []})
-    monkeypatch.setattr(
-        reporting_scoring, "source_budget_report", lambda _repo: {"required_gaps": []}
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "coverage_quality_report",
-        lambda _repo: {"required_gaps": ["coverage_artifact_missing:coverage.xml"]},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "ty_gate_report",
-        lambda _repo: {"required_gaps": ["ty_zero_tolerance_violation:packages/ethos-core:1"]},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "docstring_coverage_report",
-        lambda _repo: {"required_gaps": ["public_docstring_missing:pkg/mod.py:pkg.mod"]},
-    )
-    monkeypatch.setattr(
-        reporting_scoring, "module_layout_report", lambda _repo: {"required_gaps": []}
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "product_boundary_report",
-        lambda _repo: {"required_gaps": []},
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "contributor_policy_report",
-        lambda _repo: {"required_gaps": []},
+    _patch_hard_quality_reports(
+        monkeypatch,
+        coverage_quality_report={"required_gaps": ["coverage_artifact_missing:coverage.xml"]},
+        ty_gate_report={"required_gaps": ["ty_zero_tolerance_violation:packages/ethos-core:1"]},
+        docstring_coverage_report={
+            "required_gaps": ["public_docstring_missing:pkg/mod.py:pkg.mod"]
+        },
     )
 
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)

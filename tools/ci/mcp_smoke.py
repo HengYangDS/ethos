@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import tomllib
 from datetime import UTC
@@ -10,21 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.repo.git import current_tracked_head
+
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/mcp/smoke.toml"
 OUTPUT_PATH = ROOT / "build/evidence/agent/mcp/smoke.json"
 RUNS_DIR = ROOT / "build/evidence/agent/mcp/runs"
-
-
-def _git_head() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _load_config() -> dict[str, Any]:
@@ -43,7 +33,7 @@ def main() -> int:
         if not present:
             failures.append({"id": str(check["id"]), "reason": f"missing {required_text}"})
     generated_at = datetime.now(UTC).isoformat()
-    head = _git_head()
+    head = current_tracked_head(ROOT)
     run_id = f"{generated_at.replace(':', '').replace('+', 'Z')}-{os.getpid()}"
     run_output_path = RUNS_DIR / f"{run_id}.json"
     payload = {

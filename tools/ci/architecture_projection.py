@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from ethos.adapters.repo.git import current_tracked_head
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
@@ -17,17 +18,6 @@ DESCRIPTION_QUOTED_PARTS = 4
 IDENTIFIER_INDEX = 1
 RELATION_SOURCE_INDEX = 1
 RELATION_TARGET_INDEX = 2
-
-
-def _git_head() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def _load_config() -> dict[str, Any]:
@@ -92,7 +82,7 @@ def main() -> int:
         "schema_version": 1,
         "kind": "ethos_architecture_projection_drift",
         "ok": not failures,
-        "head": _git_head(),
+        "head": current_tracked_head(ROOT),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
         "projections": projections,

@@ -1,25 +1,36 @@
-schema_version = 1
+[claim]
 id = "openspec-lifecycle-protected-advisory"
-summary = "OpenSpec lifecycle reader surfaces protected branch active-carrier residue as advisory state."
-state = "active"
 subject = "command-plane:openspec-lifecycle-protected-advisory"
-evidence = "evidence/chronicle/openspec-lifecycle-protected-advisory/2026-07-07.md"
+state = "active"
+summary = "OpenSpec lifecycle reader surfaces protected branch active-carrier residue as advisory state."
 
-[bindings]
-head = "73dff73bbbcfd7f3eea3cccef1a4f212596bb33a"
+[evidence]
+dated = "evidence/chronicle/openspec-lifecycle-protected-advisory/2026-07-07.md"
+sha256 = "b549c1e9bfc41ec7a9e6c38a197d81dd8a59d7b65a614117e1f3a071b7fd0cf2"
+evidence_ids = [
+  "test:tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory",
+]
+binding = "Historical dated evidence binds the declared claim to its focused verification references and promotion targets without asserting current repository state."
+verifier = "semantic"
+tests = [
+  "tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-command-plane"
+scope = "OpenSpec lifecycle reader surfaces protected branch active-carrier residue as advisory state."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-openspec-lifecycle-protected-advisory"
+fallback = "Preserve the accepted behavior and surface a required claim-evidence gap if its dated evidence or declared carriers no longer validate."
+kill_signal = "A top-level alternate claim format or a second claim parser is accepted."
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/product/test_openspec_substrate.py::test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/openspec/openspec.py"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/repository/openspec/audit.py"
-
-[[promotion_targets]]
-path = "tests/unit/product/test_openspec_substrate.py"
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/openspec/core.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
+  "tests/unit/product/test_openspec_substrate.py",
+]

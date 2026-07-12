@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,6 +18,17 @@ def test_claim_evidence_digests_are_verified() -> None:
     assert report["required_gaps"] == []
     assert "ethos-product-canonization" in report["claims"]
     assert "ethos-framework-hardening" in report["claims"]
+
+
+def test_tracked_claims_use_only_the_canonical_envelope() -> None:
+    claim_paths = sorted((Path.cwd() / "evidence" / "claims").rglob("*.toml"))
+    noncanonical = [
+        path.relative_to(Path.cwd()).as_posix()
+        for path in claim_paths
+        if not isinstance(tomllib.loads(path.read_text(encoding="utf-8")).get("claim"), dict)
+    ]
+
+    assert noncanonical == []
 
 
 def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -> None:
@@ -82,7 +94,7 @@ def test_empty_claims_directory_is_a_gap(tmp_path: Path) -> None:
     assert "claims_missing" in report["required_gaps"]
 
 
-def test_profile_claims_root_accepts_recursive_change_claims(tmp_path: Path) -> None:
+def test_profile_claims_root_accepts_recursive_canonical_claims(tmp_path: Path) -> None:
     evidence = tmp_path / "docs" / "evidence"
     claims = tmp_path / "claims" / "changes"
     profile = tmp_path / ".ethos" / "profile.toml"
@@ -98,14 +110,15 @@ def test_profile_claims_root_accepts_recursive_change_claims(tmp_path: Path) -> 
     (claims / "sample.toml").write_text(
         "\n".join(
             [
+                "[claim]",
                 'id = "sample-change"',
-                'kind = "change"',
-                'lifecycle = "evidence_closed"',
+                'subject = "ethos:sample-change"',
+                'state = "accepted"',
+                'summary = "sample canonical claim"',
                 "",
-                "[[evidence_refs]]",
-                'artifact = "docs/evidence/sample.md"',
-                f'digest = "sha256:{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
-                'verdict = "pass"',
+                "[evidence]",
+                'dated = "docs/evidence/sample.md"',
+                f'sha256 = "{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
             ]
         ),
         encoding="utf-8",
@@ -118,7 +131,7 @@ def test_profile_claims_root_accepts_recursive_change_claims(tmp_path: Path) -> 
     assert "sample-change" in report["claims"]
 
 
-def test_active_change_claim_without_evidence_refs_is_not_closed_claim_gap(
+def test_top_level_claim_shape_is_rejected_without_compatibility_parser(
     tmp_path: Path,
 ) -> None:
     claims = tmp_path / "claims" / "changes"
@@ -127,14 +140,14 @@ def test_active_change_claim_without_evidence_refs_is_not_closed_claim_gap(
     profile.parent.mkdir()
     profile.write_text('schema_version = 1\n[roots]\nclaims = "claims"\n', encoding="utf-8")
     (claims / "active.toml").write_text(
-        'id = "active-change"\nkind = "change"\nlifecycle = "active"\n',
+        'id = "active-change"\n',
         encoding="utf-8",
     )
 
     report = claims_report(tmp_path)
 
-    assert report["ok"] is True
-    assert report["claims"]["active-change"]["state"] == "active"
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["active:claim_envelope_missing"]
 
 
 def test_active_claims_reject_retired_product_family_subjects(tmp_path: Path) -> None:

@@ -112,8 +112,8 @@ def _write_plan(
     root: Path,
     files: dict[str, str],
     *,
-    profile: str,
-    overlay: bool,
+    profile: str = "generic",
+    overlay: bool = False,
 ) -> list[dict[str, object]]:
     plan: list[dict[str, object]] = []
     for relative in sorted(files):
@@ -143,17 +143,17 @@ def _write_plan(
             else:
                 action = "skip_existing_nonempty"
                 conflict = True
-        plan.append(
-            {
-                "path": relative,
-                "action": action,
-                "conflict": conflict,
-                "existed": existed,
-                "content_sha256": _sha256_text(content),
-                "existing_sha256": existing_sha256,
-                "preview": content.splitlines()[0] if content.splitlines() else "",
-            }
-        )
+        entry: dict[str, object] = {
+            "path": relative,
+            "action": action,
+            "conflict": conflict,
+            "existed": existed,
+            "content_sha256": _sha256_text(content),
+            "preview": content.splitlines()[0] if content.splitlines() else "",
+        }
+        if overlay:
+            entry["existing_sha256"] = existing_sha256
+        plan.append(entry)
     return plan
 
 

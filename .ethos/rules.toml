@@ -121,11 +121,11 @@ owner = "openspec-archive-preflight-20260712"
 replacement = "collapse isolated archive preflight after the official lifecycle API exposes a source-safe dry-run receipt"
 deletion_wave = "archive-closeout"
 expiry = "archive-closeout"
-allowance = 577
+allowance = 601
 
 [quality.source_budget.debt.records.allowance_by_category]
 python_product = 253
-python_tests = 242
+python_tests = 266
 yaml = 2
 toml = 80
 

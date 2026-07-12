@@ -449,16 +449,6 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: False)
     hook_cli.install(json_output=True)
     assert emitted[-1].required_gaps == ("hooks_path_wire_failed",)
-    monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: True)
-    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: False)
-    hook_cli.install(json_output=True)
-    assert emitted[-1].required_gaps == (
-        "hook_config_write_failed:ethos.acceptedBranch",
-        "hook_config_write_failed:gc.packRefs",
-    )
-    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: True)
-    hook_cli.install(json_output=True)
-    assert emitted[-1].ok is True
 
     monkeypatch.setattr(
         hook_cli,
@@ -487,3 +477,29 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     )
     hook_cli.ref_transaction("refs/heads/dev", "a", "b", json_output=True)
     assert emitted[-1].command == "hook ref-transaction"
+
+
+def test_hook_install_persists_accepted_branch_and_disables_pack_refs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(hook_cli, "resolve_root", lambda root: tmp_path)
+    emitted: list[EthosResult] = []
+    monkeypatch.setattr(
+        hook_cli, "emit", lambda result, json_output, enforce=True: emitted.append(result)
+    )
+    hooks = tmp_path / ".githooks"
+    hooks.mkdir()
+    for name in ("pre-commit", "pre-push", "reference-transaction"):
+        (hooks / name).write_text("#!/bin/sh\n", encoding="utf-8")
+    monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: True)
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: False)
+
+    hook_cli.install(json_output=True)
+
+    assert emitted[-1].required_gaps == (
+        "hook_config_write_failed:ethos.acceptedBranch",
+        "hook_config_write_failed:gc.packRefs",
+    )
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: True)
+    hook_cli.install(json_output=True)
+    assert emitted[-1].ok is True

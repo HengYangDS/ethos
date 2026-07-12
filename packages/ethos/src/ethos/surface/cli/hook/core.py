@@ -199,18 +199,33 @@ def install(
     if not ref_hook_path.exists():
         gaps.append("hook_script_missing:.githooks/reference-transaction")
     wired = git_adapter.set_hooks_path(repo, ".githooks") if not gaps else False
+    accepted_branch_recorded = False
+    pack_refs_disabled = False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")
     if wired:
         # Record the accepted branch so the reference-transaction hook knows which ref
         # to fail-closed on (the hook runs as a plain shell script with no ETHOS import).
         accepted = load_branch_role_policy(repo).accepted_branch
-        git_adapter.set_config(repo, "ethos.acceptedBranch", accepted)
+        accepted_branch_recorded = git_adapter.set_config(repo, "ethos.acceptedBranch", accepted)
+        # Git's files ref backend represents `pack-refs` as raw create/delete
+        # transactions that a fail-closed accepted-ref hook cannot safely distinguish
+        # from semantic mutations. Keep automatic maintenance away from that ambiguous
+        # path instead of adding an environment or representation-based bypass.
+        pack_refs_disabled = git_adapter.set_config(repo, "gc.packRefs", "false")
+        if not accepted_branch_recorded:
+            gaps.append("hook_config_write_failed:ethos.acceptedBranch")
+        if not pack_refs_disabled:
+            gaps.append("hook_config_write_failed:gc.packRefs")
     result = EthosResult(
         command="hook install",
         ok=not gaps,
         state="installed" if not gaps else "blocked",
-        summary={"hooks_path": ".githooks", "wired": wired},
+        summary={
+            "hooks_path": ".githooks",
+            "wired": wired,
+            "pack_refs_disabled": pack_refs_disabled,
+        },
         required_gaps=tuple(gaps),
         next_actions=(
             ("git commit — the pre-commit + pre-push admission gates are now active",)
@@ -221,6 +236,8 @@ def install(
             "hooks_path": ".githooks",
             "hook_scripts": [".githooks/pre-commit", ".githooks/pre-push"],
             "wired": wired,
+            "accepted_branch_recorded": accepted_branch_recorded,
+            "pack_refs_disabled": pack_refs_disabled,
         },
     )
     emit(result, json_output=json_output, enforce=True)

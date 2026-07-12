@@ -238,6 +238,7 @@ def test_hook_install_wires_hooks_path(tmp_path: Path) -> None:
     assert payload["data"]["hooks_path"] == ".githooks"
     configured = git(repo, "config", "core.hooksPath")
     assert configured == ".githooks"
+    assert git(repo, "config", "gc.packRefs") == "false"
 
 
 def test_hook_install_blocks_when_hook_script_missing(tmp_path: Path) -> None:

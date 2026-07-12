@@ -479,6 +479,17 @@ branch as ready for another closeout mutation.
 - **AND** no new proof is required for a candidate head that is already accepted
 - **AND** the accepted root remains at the same HEAD
 
+#### Scenario: Reference storage maintenance cannot bypass accepted admission
+
+- **GIVEN** Git's files ref backend can represent `pack-refs` with transactions
+  indistinguishable from accepted branch creation or deletion
+- **WHEN** `ethos hook install` arms the reference-transaction guard
+- **THEN** it writes local `gc.packRefs=false` and blocks installation if that
+  maintenance policy cannot be recorded
+- **AND** the hook applies its existing fail-closed admission to every raw
+  accepted transaction rather than guessing that a physical ref rewrite is safe
+- **AND** a manual `pack-refs` is not classified as an authorized closeout.
+
 ### Requirement: OpenSpec Lifecycle Trust Review
 ETHOS SHALL review OpenSpec lifecycle readiness in addition to official
 OpenSpec CLI validation.

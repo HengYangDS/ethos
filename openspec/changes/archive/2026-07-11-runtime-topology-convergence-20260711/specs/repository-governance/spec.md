@@ -28,6 +28,16 @@ installation.
 - **AND** a hook quality tool with a development dependency invokes that tool
   through the bootstrap-bound uv development group
 
+#### Scenario: ambiguous ref storage maintenance cannot bypass admission
+
+- **GIVEN** Git's files ref backend can represent `pack-refs` with records
+  indistinguishable from accepted branch creation or deletion
+- **WHEN** the repository installs the reference-transaction hook
+- **THEN** installation writes local `gc.packRefs=false` and fails when it
+  cannot record that maintenance policy
+- **AND** every raw accepted-branch transaction remains fail-closed through the
+  normal candidate-validated admission path
+
 ## ADDED Requirements
 
 ### Requirement: Worktree-bound semantic runtime bootstrap

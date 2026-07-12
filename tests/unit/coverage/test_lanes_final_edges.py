@@ -194,6 +194,12 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         "run_git",
         fake_git({("rev-parse", "HEAD"): cp(stdout="h2\n")}),
     )
+    ancestry_results = iter((False, True))
+    monkeypatch.setattr(
+        lanes,
+        "is_ancestor",
+        lambda root, ancestor, descendant: next(ancestry_results),
+    )
     assert (
         lanes.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="h2")[
             "state"
@@ -341,7 +347,12 @@ def test_refresh_work_lane_base_disables_update_refs_during_rebase(
         ),
     )
     monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
-    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
+    ancestry_results = iter((False, True))
+    monkeypatch.setattr(
+        lanes,
+        "is_ancestor",
+        lambda root, ancestor, descendant: next(ancestry_results),
+    )
     calls: list[tuple[str, ...]] = []
     monkeypatch.setattr(
         lanes,

@@ -2,16 +2,13 @@
 # safe over the sha256-content-pinned evidence/chronicle documents that back
 # governance claims. Machine-managed, generated, frozen, and local-state trees
 # are excluded so the gate governs human-authored prose only.
-globs:
-  - "**/*.md"
+globs: ["**/*.md"]
 
 ignores:
   - ".venv/**"
   - ".cache/**"
-  - "build/runtime/tool-cache/uv/**"
   - ".uv-cache/**"
   - "build/**"
-  - "build/artifacts/**"
   - "dist/**"
   - "node_modules/**"
   # Governance artifacts under version/digest control — not prose to lint.
@@ -33,8 +30,7 @@ config:
   MD041: false
   # Repeated section names are legitimate under distinct parents — e.g. an
   # "Added" block per release in a Keep a Changelog CHANGELOG.
-  MD024:
-    siblings_only: true
+  MD024: {siblings_only: true}
   # Some governance documents carry a second top-level heading as a deliberate
   # root-constraint marker (e.g. the 问道 section of the Product Design Contract).
   MD025: false

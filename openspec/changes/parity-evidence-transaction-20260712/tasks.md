@@ -15,10 +15,10 @@
 
 ## 3. Verification And Closeout
 
-- [ ] 3.1 Run focused parity and evidence-freshness tests plus formatting and
+- [x] 3.1 Run focused parity and evidence-freshness tests plus formatting and
   lint.
-- [ ] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
+- [x] 3.2 Run strict OpenSpec validation, changed-scope planning, parity, and
   executed proof on this stable owned Work Lane.
 - [ ] 3.3 Bind final command evidence, archive the carrier, and land through
   candidate only when all local gates are green.
-- [ ] 3.4 Keep remote publication deferred while GitLab is unavailable.
+- [x] 3.4 Keep remote publication deferred while GitLab is unavailable.

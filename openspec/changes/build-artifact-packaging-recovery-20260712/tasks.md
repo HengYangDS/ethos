@@ -11,5 +11,6 @@
 ## 2. Verification and closeout
 
 - [x] 2.1 Run the focused architecture test and `uv build --all-packages`.
-- [ ] 2.2 Validate the OpenSpec carrier, execute a HEAD-bound proof, land
-  locally through the candidate, and stop before remote publication.
+- [ ] 2.2 Bind the carrier to a digest-checked claim and Chronicle, then validate
+  the OpenSpec carrier and execute a HEAD-bound proof.
+- [ ] 2.3 Land locally through the candidate and stop before remote publication.

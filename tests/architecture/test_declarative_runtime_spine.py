@@ -58,7 +58,7 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     wheel = build["targets"]["wheel"]["force-include"]
     sdist = build["targets"]["sdist"]["force-include"]
 
-    assert build["hooks"]["custom"]["path"] == "src/ethos_core/build_hook.py"
+    assert build["hooks"]["custom"]["path"] == "src/ethos_core/packaging/hooks.py"
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
@@ -67,7 +67,7 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
     interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
     monkeypatch.setitem(sys.modules, interface.__name__, interface)
-    path = ROOT / "packages/ethos-core/src/ethos_core/build_hook.py"
+    path = ROOT / "packages/ethos-core/src/ethos_core/packaging/hooks.py"
     spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
     assert spec is not None
     assert spec.loader is not None

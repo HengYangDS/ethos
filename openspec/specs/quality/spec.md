@@ -4,7 +4,6 @@
 
 ETHOS SHALL define quality, determinism, documentation quality, proof policy,
 and asset-governance semantics as a first-class product capability.
-
 ## Requirements
 ### Requirement: Quality Asset Model
 
@@ -267,7 +266,6 @@ and curated evidence remain distinct authority surfaces.
 - **AND** cleanup commands may remove denied residue but do not make a producer
   that recreates denied homes compliant.
 
-
 ### Requirement: No Compatibility Residue Gate
 
 ETHOS SHALL enforce destructive cutover by blocking compatibility residue in
@@ -501,6 +499,9 @@ boundaries explicit.
 - **THEN** ETHOS SHALL invoke `tools/ci/scripts/run-python-vulnerability-audit.sh`
 - **AND** the runner SHALL export a frozen resolved requirements input from
   `uv.lock` before invoking `pip-audit`
+- **AND** the runner SHALL invoke `pip-audit` with `--no-deps --disable-pip` so
+  the exported pinned input is audited without dependency resolution or a pip
+  bootstrap step
 - **AND** the evidence SHALL be local owner-gate evidence under
   `build/evidence/quality/security/`
 - **AND** the gate SHALL NOT claim that `pip-audit` reads `uv.lock` directly

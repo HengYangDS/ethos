@@ -10,7 +10,7 @@ dated = "evidence/chronicle/ci-verify-local-emulator-recovery-20260709/2026-07-0
 sha256 = "ec557253eea051cb1cd8f0c1a0d4ad654afe15bb223d5e61ce40132cc29b753e"
 evidence_ids = ["evidence:ci-verify-local-emulator-recovery-20260709"]
 binding = "CI verify local emulator optional-tool boundary evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-python-lint.sh",
   "uv run --all-packages --group dev pytest tests/architecture/test_ci_provider_projections.py::test_local_emulator_doctor_degrades_when_optional_tool_is_missing tests/architecture/test_ci_provider_projections.py::test_local_emulator_run_requires_optional_tool_when_materializing tests/architecture/test_ci_provider_projections.py::test_local_emulator_wrappers_do_not_require_optional_flag_environment -q",

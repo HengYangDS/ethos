@@ -9,7 +9,7 @@ dated = "evidence/chronicle/shadow-false-negative-gate/2026-07-06.md"
 sha256 = "6a34c79177018445f91b3a360ca2dd8b484d5a481fe6861b685c395145531285"
 evidence_ids = ["evidence:shadow-false-negative-gate"]
 binding = "runtime shadow comparison, tracked parity evidence validation, schema contract, and focused test proof"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_runners.py -q",
   "uv run --group dev pytest tests/unit/product/parity/test_projection_semantics.py tests/unit/product/parity/test_accepted_differences.py tests/unit/product/parity/test_identity.py tests/unit/product/parity/test_validation.py tests/unit/governance/validation tests/unit/cli/test_contracts.py -q",

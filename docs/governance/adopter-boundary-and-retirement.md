@@ -35,6 +35,12 @@ The adopter owns domain truth:
 A profile changes required gates, proof depth, evidence classes, and adapter
 bindings. It does not change ETHOS command semantics or kernel ontology.
 
+Independent proof re-execution is one such adapter binding. It is default-off,
+may be selected only for particular actions, and keeps provider identity, keys,
+anchors, and receipt paths outside the adopter repository. A generic product
+self-shadow cannot establish the external subject and evidence ownership needed
+for adopter parity.
+
 ## Migration Lifecycle
 
 The safe lifecycle is:

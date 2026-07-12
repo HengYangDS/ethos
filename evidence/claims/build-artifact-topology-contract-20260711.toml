@@ -10,7 +10,7 @@ dated = "evidence/chronicle/build-artifact-topology-contract-20260711/2026-07-11
 sha256 = "3f400a5ab9ee665946182ffefa574fbeb1b8585fdfff4a0eb9bd928c53258d45"
 evidence_ids = ["evidence:build-artifact-topology-contract-20260711"]
 binding = "The gate declaration, packaged registry projection, contributor command, OpenSpec carrier, and topology audit bind package artifact routing."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",
   "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore",

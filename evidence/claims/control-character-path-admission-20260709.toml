@@ -10,7 +10,7 @@ dated = "evidence/chronicle/control-character-path-admission-20260709/2026-07-09
 sha256 = "4ec46e4d0ff3963040cbf29eef6683674360f780db8f068934af0a49afbb3a10"
 evidence_ids = ["evidence:control-character-path-admission-20260709"]
 binding = "control-character path-token admission evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --package ethos pytest tests/unit/lanes/test_hook_admission.py tests/unit/lanes/hook/test_path_admission.py tests/unit/cli/hook/test_path_admission.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
   "tools/ci/scripts/run-python-lint.sh",

@@ -37,7 +37,8 @@ def test_claims_trust_envelope_and_report_edges(tmp_path: Path) -> None:
         {"kind": "source", "path": "src/a.py"},
     ]
     assert claims._has_repository_overclaim("published and verified", "digest") is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert claims._has_repository_overclaim("published and verified", "semantic") is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._has_repository_overclaim("published and verified", "semantic_attested") is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+    assert claims._has_repository_overclaim("published and verified", "formally_proven") is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     evidence = tmp_path / "evidence" / "proof.md"
     evidence.parent.mkdir(parents=True)
@@ -75,7 +76,7 @@ targets = ["docs/missing.md"]
     report = claims.claims_report(tmp_path, current_head="new")
     gaps = set(report["required_gaps"])
     assert "c1:evidence_ids_missing" in gaps
-    assert "c1:semantic_overclaim_requires_semantic_verifier" in gaps
+    assert "c1:claim_assurance_invalid" in gaps
     assert "c1:evidence.sha256_mismatch" in gaps
     assert "c1:evidence.head_stale:old!=new" in gaps
     assert "c1:boundary.owner_missing" in gaps

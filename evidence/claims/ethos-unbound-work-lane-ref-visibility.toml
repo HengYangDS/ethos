@@ -9,7 +9,7 @@ dated = "evidence/chronicle/unbound-work-lane-ref-visibility/2026-07-06.md"
 sha256 = "bbee381b2b833fa9bece846c8fa6c1a1ce602eb3025601b1aae497f7de890d52"
 evidence_ids = ["evidence:ethos-unbound-work-lane-ref-visibility"]
 binding = "semantic status and coordination contract evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "openspec status --change expose-unbound-work-lane-refs --json",
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/lanes/test_lanes.py::test_workspace_status_reports_branch_worktree_bindings_without_ui_actions tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/governance/validation/test_schemas.py::test_workspace_status_payload_validates_worktree_bindings -q",

@@ -10,7 +10,7 @@ dated = "evidence/chronicle/evidence-lifecycle-signal-hygiene-20260711/2026-07-1
 sha256 = "ad3481dabea50a1fc672e5309c995c4ae94dd87413fe5057fa50597336248fa0"
 evidence_ids = ["evidence:evidence-lifecycle-signal-hygiene-20260711"]
 binding = "The claim freshness contract separates durable historical support from explicit currentness bindings."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_claims.py tests/unit/product/parity/test_gaps.py",
   "uv run --package ethos ethos quality claims --json",

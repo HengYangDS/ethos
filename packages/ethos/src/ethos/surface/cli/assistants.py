@@ -8,6 +8,8 @@ this group is imported).
 
 from __future__ import annotations
 
+import sys
+
 from ethos.adapters.store.retrieval.indexing import purge_context_index
 from ethos.adapters.store.retrieval.indexing import rebuild_context_index
 from ethos.adapters.store.retrieval.query import context_eval_report
@@ -16,6 +18,7 @@ from ethos.assistants.context.bundle import context_bundle
 from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.projections import projection_contract
 from ethos.assistants.server import mcp_server_descriptor
+from ethos.assistants.server import serve_mcp
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import assistants_app
@@ -79,8 +82,17 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
 
 
 @assistants_app.command(name="mcp-server")
-def mcp_server_command(*, json_output: JsonFlag = False) -> None:
-    """Describe the ETHOS MCP server adapter."""
+def mcp_server_command(
+    *,
+    root: RootOption | None = None,
+    serve: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Describe or serve the ETHOS read-only MCP stdio adapter."""
+    repo = resolve_root(root)
+    if serve:
+        serve_mcp(root=repo, reader=sys.stdin, writer=sys.stdout)
+        return
     descriptor = mcp_server_descriptor()
     result = EthosResult(
         command="assistants mcp-server",

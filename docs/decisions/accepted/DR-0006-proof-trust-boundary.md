@@ -95,9 +95,10 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 
 - ETHOS stops over-claiming: a local land is honestly a readiness assertion. Solo and
   same-UID multi-agent users get exactly that, with no new moving parts.
-- The path to a genuine local trust root is specified and ready to *insert* without any
-  unused code shipped now (如非必要勿增实体): the plug interface already exists
-  (`EnforcementReceipt`); the daemon is a future optional adapter.
+- The optional plug now has a provider-neutral exact-receipt contract and a
+  one-shot independent-identity reference adapter. It remains default-off:
+  installation, provider-local trust anchors, key ownership, and any daemon or
+  hosted implementation remain an operator choice rather than product defaults.
 - `receipt_digest` in `EnforcementReceipt` is currently regex-validated only (never
   cryptographically verified) and `external_evidence_report` has no `src/` callers. Making
   either load-bearing REQUIRES real signature verification + a pinned out-of-tree issuer +
@@ -115,13 +116,14 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
   accepted (forgeable-by-design) and that the docstring does not over-claim; tripwire against
   future over-claiming.
 - `packages/ethos/src/ethos/adapters/admission/evidence/external.py`,
-  `packages/ethos-core/src/ethos_core/contracts/evidence/external.py` — the plug interface.
+  `packages/ethos-core/src/ethos_core/contracts/evidence/external.py` — exact receipt
+  contract and provider-local admission boundary.
+- `reference_adapters/independent_identity/reference_verifier.py` — optional,
+  one-shot constrained reference adapter; no daemon or scheduling surface.
 
 ## Revisit Trigger
 
-Revisit when any of: (a) an operator opts into the lightweight local verifier (build the
-adapter + real signature verification then); (b) a hosted forge `pre-receive` is stood up;
-(c) the same-UID threat model changes (e.g. agents gain isolable identities by default).
-The five open decisions (server-hook vs SaaS; where trust anchors + floor allowlist live
-out-of-band; default posture; re-execution latency/resource budget; control-plane bootstrap)
-are settled at that time, not before.
+Revisit when a hosted forge `pre-receive` is stood up, a provider needs a daemon rather than
+the one-shot reference flow, or the same-UID threat model changes (for example, agents gain
+isolable identities by default). Provider-specific trust-anchor storage, floor allowlists,
+latency budgets, and control-plane bootstrap remain local adoption decisions.

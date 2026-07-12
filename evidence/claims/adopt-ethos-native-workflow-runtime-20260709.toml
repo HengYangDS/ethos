@@ -9,7 +9,7 @@ dated = "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07
 sha256 = "81699107fa5177263bc8350bf371a66871900465884c786e715a72bad47bcc15"
 evidence_ids = ["evidence:adopt-ethos-native-workflow-runtime-20260709"]
 binding = "digest-bound workflow runtime and practice-evolution adoption evidence"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py",
   "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py tests/unit/domain/test_plan.py tests/unit/domain/test_report.py",

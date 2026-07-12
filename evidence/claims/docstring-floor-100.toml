@@ -2,14 +2,14 @@
 id = "docstring-floor-100"
 subject = "ethos:docstring-floor-100"
 state = "active"
-summary = "ETHOS enforces 100 percent public Python product-surface docstring coverage through repository-owned policy and architecture tests."
+summary = "ETHOS records a 100 percent public Python product-surface docstring coverage floor through repository-owned policy and architecture tests."
 
 [evidence]
 dated = "evidence/chronicle/docstring-floor-100/2026-07-09.md"
 sha256 = "37ac637ade7f7c4147f0c2e6031f4db5df23c184d8e277058dc9b91cfac93065"
 evidence_ids = ["evidence:docstring-floor-100"]
 binding = "docstring policy floor, architecture tests, OpenSpec carrier, and quality gate output"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/architecture/test_docstring_governance.py tests/architecture/test_release_assets.py::test_docstring_gate_is_owned_by_separated_policy_and_ci_script tests/unit/policy/test_docstrings.py",
   "uv run --package ethos ethos quality docstrings --json",

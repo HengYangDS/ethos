@@ -28,6 +28,7 @@ Start with [Start](start/quickstart.md), then read
 [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Repository Profile Contract](governance/repository-profile-contract.md),
+[Optional Independent Verification Adoption](governance/independent-verification-adoption.md),
 [Config Boundary Model](governance/config-boundary-model.md),
 [Post-Publication Governance Plan](plans/post-publication-governance-plan.md),
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
@@ -83,6 +84,7 @@ or maintainer break-glass evidence.
 - Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
+- Optional independent verification: [Independent Verification Adoption](governance/independent-verification-adoption.md)
 - Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
 - Post-publication governance: [Post-Publication Governance Plan](plans/post-publication-governance-plan.md)

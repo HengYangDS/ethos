@@ -9,7 +9,7 @@ dated = "evidence/chronicle/openspec-archive-closeout/2026-07-02.md"
 sha256 = "4df075fbf310e0118d603cf702a109a090caed15bccef110664c2b2c1be35939"
 evidence_ids = ["evidence:ethos-openspec-archive-closeout"]
 binding = "semantic OpenSpec archive closeout evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/product/test_openspec_cache.py",
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/openspec/archive/core.py tests/unit/product/test_openspec_cache.py",

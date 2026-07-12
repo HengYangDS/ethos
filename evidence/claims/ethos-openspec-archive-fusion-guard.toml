@@ -9,7 +9,7 @@ dated = "evidence/chronicle/openspec-archive-fusion-guard/2026-07-05.md"
 sha256 = "b7fa3de9818828b9bbcf3269215c00e896aa46cf5c1f8ca79619fa7325ea81ce"
 evidence_ids = ["evidence:ethos-openspec-archive-fusion-guard"]
 binding = "semantic OpenSpec archive fusion guard evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_modes.py::test_openspec_shape_flags_removed_accepted_spec_obligations tests/unit/audit/test_modes.py::test_openspec_shape_allows_added_or_unchanged_spec_obligations -q",
   "uv run --group dev pytest tests/unit/audit/test_modes.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_cache.py -q",

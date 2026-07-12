@@ -10,7 +10,7 @@ dated = "evidence/chronicle/domain-campaign-closeout-package/2026-07-09.md"
 sha256 = "f133829559a0c8bc61efafe3a58a20187eda027aef7624456ed7db5dbba23c67"
 evidence_ids = ["evidence:domain-campaign-closeout-package"]
 binding = "Semantic subpackage migration, direct concrete imports, no compatibility facade, module-layout ratchet shrink, focused tests, and quality audits."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/domain/test_report.py::test_scorecard_next_actions_route_module_layout_gaps",
   "tools/ci/scripts/run-module-layout.sh",

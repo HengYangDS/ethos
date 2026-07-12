@@ -9,7 +9,7 @@ dated = "evidence/chronicle/root-host-residue-gate-20260709/2026-07-09.md"
 sha256 = "8817e832e4de063bbb90ddf3c5feca50a635df9de43d408a95f715e3a919bc3f"
 evidence_ids = ["evidence:root-host-residue-gate-20260709"]
 binding = "Digest-bound evidence for repository hygiene host-local residue boundary."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-repository-hygiene.sh",
   "uv run --group dev pytest -q tests/architecture/test_repository_hygiene.py",

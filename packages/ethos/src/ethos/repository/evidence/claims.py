@@ -10,6 +10,7 @@ from ethos.repository.evidence.core import semantic_tree_digest
 from ethos.repository.profile import profile_root
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
+from ethos_core.models import canonical_assurance_class
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -245,7 +246,7 @@ def _freshness_record(
 
 
 def _has_repository_overclaim(text: str, verifier: str) -> bool:
-    if verifier == "semantic":
+    if canonical_assurance_class(verifier) == "formally_proven":
         return False
     lowered = text.lower()
     return any(phrase in lowered for phrase in REPOSITORY_OVERCLAIM_PHRASES)
@@ -310,9 +311,9 @@ def _active_claim_gaps(
             verifier=str(verifier),
         )
     except ValueError:
-        gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
+        gaps.append(f"{claim_id}:claim_assurance_invalid")
     if _has_repository_overclaim(claim_text, str(verifier)):
-        gaps.append(f"{claim_id}:semantic_overclaim_requires_semantic_verifier")
+        gaps.append(f"{claim_id}:claim_assurance_invalid")
     return gaps
 
 

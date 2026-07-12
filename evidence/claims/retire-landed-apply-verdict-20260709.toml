@@ -10,7 +10,7 @@ dated = "evidence/chronicle/retire-landed-apply-verdict-20260709/2026-07-09.md"
 sha256 = "f767aaa562de9fe8bd4315e1c2d902dd266c3afbc57b6931dea4d630d66bd6e8"
 evidence_ids = ["evidence:retire-landed-apply-verdict-20260709"]
 binding = "TDD regression for post-apply selected retirement summary plus existing retire-landed lifecycle contract tests."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply",
   "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_removes_selected_branch tests/unit/cli/test_contracts_land.py::test_configured_branch_roles_drive_local_lifecycle_commands",

@@ -9,7 +9,7 @@ dated = "evidence/chronicle/parity-semantic-freshness/2026-07-06.md"
 sha256 = "6a1aa0bc4beeb043234f61f3c968014227f6947ed116b7f29742876e35d637d8"
 evidence_ids = ["evidence:parity-semantic-freshness"]
 binding = "semantic parity freshness evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity -q",
   "tools/ci/scripts/run-python-tests.sh",

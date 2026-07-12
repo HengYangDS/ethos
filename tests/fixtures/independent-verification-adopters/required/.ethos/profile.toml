@@ -1,0 +1,5 @@
+profile_id = "external-required"
+profile_version = 1
+
+[independent_verification.actions.publish]
+mode = "required"

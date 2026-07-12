@@ -10,7 +10,7 @@ dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
 sha256 = "5773afac15c472f58f3764001d413110ec358f6228299b56f2cc93aa9491884e"
 evidence_ids = ["evidence:tooling-adoption-roadmap"]
 binding = "Completed roadmap baseline, mechanism comparison audit, closeout carrier, active owner gates, and explicit future adapter sequencing evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "tools/ci/scripts/run-dependency-hygiene.sh",
   "tools/ci/scripts/run-json-schema-check.sh",

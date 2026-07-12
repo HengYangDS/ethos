@@ -10,6 +10,8 @@ from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import clear_closeout_intent
 from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_intents
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.decision import MutationEvaluation
 from ethos.adapters.mutation.decision import MutationRequest
@@ -58,11 +60,22 @@ def proof_gaps(root: Path, current_head: str) -> list[str]:
 def proof_readiness_report(root: Path, current_head: str) -> dict[str, object]:
     """Describe whether the exact HEAD has valid executed proof evidence."""
     gaps = proof_gaps(root, current_head)
+    independent = independent_verification_admission_report(
+        root=root,
+        action="publish",
+        request=independent_verification_request(root=root, action="publish"),
+    )
     return {
         "kind": "executed_proof_readiness",
         "head": current_head,
         "state": "proven" if not gaps else "missing",
         "blocking": bool(gaps),
+        "local_readiness": not gaps,
+        "evidence_class": str(independent.get("evidence_class") or "local_readiness"),
+        # This is a read projection of publish's opt-in policy, not a second
+        # action admission.  A receipt requirement for publish must not block
+        # unrelated proof, land, or local-first workflows.
+        "independent_verification": independent,
         "required_gaps": gaps,
         "next_action": ""
         if not gaps
@@ -436,7 +449,8 @@ def _advance_accepted_ref(
     )
     if not proof_carry["ok"]:
         return blocked(
-            list(cast("list[str]", proof_carry.get("required_gaps", []))), proof_carry=proof_carry
+            list(cast("list[str]", proof_carry.get("required_gaps", []))),
+            proof_carry=proof_carry,
         )
     completed = _git(
         root,

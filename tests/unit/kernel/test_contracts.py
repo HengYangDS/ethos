@@ -13,9 +13,9 @@ from ethos_core.contracts.system.contracts import system_contracts_report
 from ethos_core.result import EthosResult
 
 
-def test_semantic_claims_require_semantic_verifier() -> None:
+def test_digest_only_claims_reject_semantic_conclusions() -> None:
     assert hasattr(models, "EvidenceClaim")
-    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
         models.EvidenceClaim(
             id="claim:overreach",
             change_id="change:example",
@@ -39,15 +39,15 @@ def test_core_claim_model_allows_policy_specific_digest_phrasing() -> None:
         id="claim:policy-specific",
         change_id="change:example",
         evidence_ids=("evidence:example",),
-        binding="hosted CI verified and adopter adopter-domain storage parity passed",
+        binding="hosted CI result and adopter-domain storage parity observation",
         verifier="digest_only",
     )
 
-    assert claim.binding == "hosted CI verified and adopter adopter-domain storage parity passed"
+    assert claim.binding == "hosted CI result and adopter-domain storage parity observation"
 
 
 def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
-    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
         models.EvidenceClaim(
             id="claim:overreach",
             change_id="change:example",

@@ -10,7 +10,7 @@ dated = "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md"
 sha256 = "4295442d85663a1d084535214ff649168d35534ffeb53fdecd4d00376f652527"
 evidence_ids = ["evidence:skill-portfolio-hardening"]
 binding = "semantic skill portfolio hardening evidence binding"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skills/packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
   "uv run --group dev pytest tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py -q",

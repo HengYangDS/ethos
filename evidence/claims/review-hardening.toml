@@ -10,7 +10,7 @@ dated = "evidence/chronicle/review-hardening/2026-07-09.md"
 sha256 = "7f7617c1012de9dadb20c398df79cf6a270d8c3e01b15b01e368ba23a280ffc5"
 evidence_ids = ["evidence:review-hardening"]
 binding = "semantic review-hardening evidence binding for fail-closed proof, admission, report, publish, local-ci, and supply-chain hardening"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/cli/test_contracts_proof.py tests/unit/cli/test_lifecycle_hardening.py::test_prove_execute_reports_failed_gate_as_required_gap -q",
   "uv run --group dev pytest tests/unit/lanes/test_hook_admission.py tests/unit/coverage/test_cli_admission_final_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/cli/test_contracts_lane.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/cli/test_contracts_land.py tests/unit/cli/test_quality_surface_more.py tests/unit/domain/test_report.py tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_projection_semantics.py tests/unit/product/parity/test_accepted_differences.py tests/unit/release/test_policy_attestation.py tests/architecture/test_release_assets.py -q",

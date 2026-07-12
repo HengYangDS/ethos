@@ -105,14 +105,14 @@ def test_evidence_claim_to_dict_serializes_all_fields() -> None:
         id="claim:serialize",
         change_id="change:serialize",
         evidence_ids=("evidence:one", "evidence:two"),
-        binding="digest binding verified",
+        binding="digest binding recorded",
         verifier="digest_only",
     )
     assert claim.to_dict() == {
         "id": "claim:serialize",
         "change_id": "change:serialize",
         "evidence_ids": ["evidence:one", "evidence:two"],
-        "binding": "digest binding verified",
+        "binding": "digest binding recorded",
         "verifier": "digest_only",
     }
 

@@ -10,7 +10,7 @@ dated = "evidence/chronicle/retire-landed-selected-summary-20260709/2026-07-09.m
 sha256 = "7fc78423d73bb3746ffc59793e2948f603e179cbb91e48cff6c18fb028b79808"
 evidence_ids = ["evidence:retire-landed-selected-summary-20260709"]
 binding = "TDD regression for selected unmerged lane, selected summary fields, focused lifecycle tests, lint, and code-size gate."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready",
   "uv run --group dev pytest -q tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_requires_explicit_branch tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_requires_expected_head tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_removes_selected_branch tests/unit/cli/test_contracts_land.py::test_configured_branch_roles_drive_local_lifecycle_commands",

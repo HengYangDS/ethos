@@ -9,7 +9,7 @@ dated = "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md"
 sha256 = "97dcdb4068375b44094ffc7f5628bc062b0909026446906e842e906eda379008"
 evidence_ids = ["evidence:enterprise-product-boundary-20260709"]
 binding = "enterprise product boundary, active private-reference boundary, distribution manifest scope, and contributor identity policy"
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py tests/unit/cli/test_quality_boundary.py tests/unit/governance/validation/test_gates.py tests/architecture/test_product_boundaries.py tests/unit/kernel/test_skill_activation.py -q",
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py --cov-config=.config/checks/coverage/coverage.ini --cov=ethos.repository.policy.boundary.product --cov-report=term-missing --cov-fail-under=100 -q",

@@ -304,7 +304,7 @@ def test_digest_only_claim_rejects_operational_overclaim(tmp_path: Path) -> None
     report = claims_report(tmp_path)
 
     assert report["ok"] is False
-    assert "sample:semantic_overclaim_requires_semantic_verifier" in report["required_gaps"]
+    assert "sample:claim_assurance_invalid" in report["required_gaps"]
 
 
 def test_digest_only_claim_rejects_summary_overclaim(tmp_path: Path) -> None:
@@ -337,7 +337,7 @@ def test_digest_only_claim_rejects_summary_overclaim(tmp_path: Path) -> None:
     report = claims_report(tmp_path)
 
     assert report["ok"] is False
-    assert "sample:semantic_overclaim_requires_semantic_verifier" in report["required_gaps"]
+    assert "sample:claim_assurance_invalid" in report["required_gaps"]
 
 
 def test_active_product_claim_rejects_private_adopter_and_workstation_literals(

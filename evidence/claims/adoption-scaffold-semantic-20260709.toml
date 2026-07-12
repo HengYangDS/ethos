@@ -9,7 +9,7 @@ dated = "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md"
 sha256 = "c99043557216fda63e5f10b33baebcab806e55663722f846604a76a9abc8daee"
 evidence_ids = ["evidence:adoption-scaffold-semantic-20260709"]
 binding = "Semantic scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/adoption tests/unit/coverage/test_cov_repository_edges.py tests/unit/coverage/test_cov_v3_registrymisc_edges.py tests/unit/coverage/test_free_surface_quality_edges.py",

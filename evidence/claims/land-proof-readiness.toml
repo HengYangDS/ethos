@@ -9,7 +9,7 @@ dated = "evidence/chronicle/land-proof-readiness/2026-07-09.md"
 sha256 = "b6dd82253474d33f2c14cbfd8a2395577c68f894eef20abe59bfb8461e24b8ee"
 evidence_ids = ["evidence:land-proof-readiness"]
 binding = "Semantic evidence binding for proof-grounded Work Lane land readiness."
-verifier = "semantic"
+verifier = "semantic_attested"
 tests = [
   "uv run --group dev pytest tests/unit/cli/test_contracts_land.py tests/unit/cli/test_contracts_closeout.py tests/unit/cli/test_lifecycle_hardening.py -q",
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/core.py packages/ethos/src/ethos/domain/land/publication.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py tests/unit/cli/test_contracts_land.py",

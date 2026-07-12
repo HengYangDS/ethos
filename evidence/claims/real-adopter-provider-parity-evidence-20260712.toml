@@ -7,7 +7,7 @@ summary = "Digest-bound, local-only evidence for generic, GitHub, and GitLab ove
 
 [evidence]
 dated = "evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md"
-sha256 = "c61ad15315e19a24438ff39a84900ea833e1818f8b86bde617d0d5ff26e1db0b"
+sha256 = "7a01946dafa5b8b5a1730af4bf0bb6776e1998fed5b66f28f1dee906bc83644a"
 evidence_ids = ["evidence:real-adopter-provider-parity-evidence-20260712"]
 binding = "digest-bound current-head local overlay and shadow-parity observation"
 verifier = "digest_only"

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
+import sys
+import tomllib
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -9,6 +13,8 @@ WHEEL_PROJECTIONS = (
     ("system/gates.toml", "gates.toml"),
     ("system/invalid_states.toml", "invalid_states.toml"),
     ("system/workflows.toml", "workflows.toml"),
+    ("system/coupling.toml", "coupling.toml"),
+    ("system/standards.toml", "standards.toml"),
     ("system/policies/evidence-layout.toml", "evidence_layout.toml"),
     (
         "system/policies/generated-artifact-topology.toml",
@@ -21,7 +27,7 @@ def _read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_action_graph_does_not_reintroduce_custom_dag_traversal() -> None:
+def test_graph_and_workflow_projections_use_the_shared_kernel() -> None:
     source = _read("packages/ethos-core/src/ethos_core/action_graph/core.py")
     forbidden_tokens = (
         "visiting",
@@ -35,18 +41,10 @@ def test_action_graph_does_not_reintroduce_custom_dag_traversal() -> None:
     for token in forbidden_tokens:
         assert token not in source
     assert "GraphKernel" in source
-
-
-def test_shared_graph_kernel_uses_standard_graphlib() -> None:
     source = _read("packages/ethos-core/src/ethos_core/graph/core.py")
-
     assert "from graphlib import" in source
     assert "TopologicalSorter" in source
-
-
-def test_workflow_runtime_projection_uses_shared_graph_kernel() -> None:
     source = _read("packages/ethos-core/src/ethos_core/contracts/workflow.py")
-
     assert "GraphKernel" in source
     assert "GraphNode" in source
     assert "TopologicalSorter" not in source
@@ -54,16 +52,40 @@ def test_workflow_runtime_projection_uses_shared_graph_kernel() -> None:
         assert token not in source
 
 
-def test_wheel_resources_are_build_projections() -> None:
-    package_config = _read("packages/ethos-core/pyproject.toml")
+def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) -> None:
+    package_config = tomllib.loads(_read("packages/ethos-core/pyproject.toml"))
+    build = package_config["tool"]["hatch"]["build"]
+    wheel = build["targets"]["wheel"]["force-include"]
+    sdist = build["targets"]["sdist"]["force-include"]
 
+    assert build["hooks"]["custom"]["path"] == "src/ethos_core/build_hook.py"
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
-        assert f'"../../{canonical}" = "ethos_core/data/{resource}"' in package_config
+        assert sdist[f"../../{canonical}"] == f"src/ethos_core/data/{resource}"
+        assert wheel[f"src/ethos_core/data/{resource}"] == f"ethos_core/data/{resource}"
+    interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
+    interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
+    monkeypatch.setitem(sys.modules, interface.__name__, interface)
+    path = ROOT / "packages/ethos-core/src/ethos_core/build_hook.py"
+    spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    hook = object.__new__(module.CustomBuildHook)
+    object.__setattr__(hook, "_root", (ROOT / "packages/ethos-core").as_posix())
+    build_data: dict[str, object] = {}
+    hook.initialize("standard", build_data)
+    assert build_data == {}
+    hook.initialize("editable", build_data)
+    for canonical, resource in WHEEL_PROJECTIONS:
+        assert build_data["force_include_editable"][(ROOT / canonical).as_posix()] == (
+            f"ethos_core/data/{resource}"
+        )
 
 
-def test_generated_artifact_topology_policy_is_declaration_first() -> None:
+def test_declaration_backed_runtime_policies_are_first_class() -> None:
     declaration = ROOT / "system/policies/generated-artifact-topology.toml"
     source = _read("packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py")
 
@@ -85,9 +107,6 @@ def test_generated_artifact_topology_policy_is_declaration_first() -> None:
         "_generated_denial_policy",
     ):
         assert token not in source
-
-
-def test_evidence_layout_policy_is_declaration_first() -> None:
     declaration = ROOT / "system/policies/evidence-layout.toml"
     source = _read("packages/ethos-core/src/ethos_core/contracts/evidence/layout.py")
     runtime = _read("packages/ethos/src/ethos/repository/evidence/topology.py")
@@ -101,9 +120,6 @@ def test_evidence_layout_policy_is_declaration_first() -> None:
     assert 'allowed_root_dirs = ["claims", "chronicle", "parity"]' in declaration.read_text(
         encoding="utf-8"
     )
-
-
-def test_gate_registry_is_declaration_first() -> None:
     declaration = ROOT / "system/gates.toml"
     contract = _read("packages/ethos-core/src/ethos_core/contracts/gates.py")
     runtime = _read("packages/ethos/src/ethos/repository/policy/gates.py")
@@ -116,9 +132,6 @@ def test_gate_registry_is_declaration_first() -> None:
     assert '"repository-audit": Gate(' not in runtime
     assert "PRODUCT_DEFAULT_GATE_IDS = (" not in runtime
     assert "QualityGateDescriptor(" not in quality
-
-
-def test_quality_command_registry_is_declaration_first() -> None:
     declaration = ROOT / "system/commands.toml"
     contract = _read("packages/ethos-core/src/ethos_core/contracts/commands.py")
     registry = _read("packages/ethos/src/ethos/surface/cli/quality/registry.py")

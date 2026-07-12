@@ -6,9 +6,9 @@ summary = "ETHOS preflights each active OpenSpec archive through the configured 
 
 [evidence]
 dated = "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md"
-sha256 = "128e209d32be7e0261409362b555bf84c66849fc7cc3b5ea81d27d8ce621259c"
+sha256 = "c89ff4e508ffbe15b26319f98d7aab8dd626cd49131177f03c5ed26aec5bda90"
 evidence_ids = ["evidence:openspec-archive-preflight-20260712"]
-binding = "The active carrier, lifecycle adapter, transition projections, focused regressions, and dated construction record bind official isolated archive preflight semantics."
+binding = "The active carrier, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind official isolated archive preflight semantics."
 verifier = "semantic"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/product/test_openspec_cache.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_preflight.py tests/unit/product/test_openspec_substrate.py",
@@ -48,6 +48,7 @@ kill_signal = "An active change can pass lifecycle admission while the same offi
 
 [promotion]
 targets = [
+  ".ethos/rules.toml",
   "packages/ethos/src/ethos/adapters/openspec/preflight",
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
   "packages/ethos/src/ethos/adapters/openspec/metadata/core.py",

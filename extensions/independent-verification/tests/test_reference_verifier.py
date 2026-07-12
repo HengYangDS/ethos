@@ -10,7 +10,10 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
-MODULE_PATH = ROOT / "reference_adapters/independent_identity/reference_verifier.py"
+MODULE_PATH = (
+    ROOT / "extensions/independent-verification/adapters/independent_identity/reference_verifier.py"
+)
+LEGACY_ROOT = ROOT / "reference_adapters"
 
 
 def _adapter():
@@ -51,6 +54,11 @@ def _request(**overrides: object) -> dict[str, object]:
     }
     request.update(overrides)
     return request
+
+
+def test_reference_verifier_has_one_extension_owned_source() -> None:
+    assert MODULE_PATH.is_file()
+    assert not LEGACY_ROOT.exists()
 
 
 def test_reference_adapter_rejects_foreign_sha_and_unallowlisted_remote(

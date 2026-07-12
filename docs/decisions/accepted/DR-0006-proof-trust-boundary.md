@@ -118,8 +118,9 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 - `packages/ethos/src/ethos/adapters/admission/evidence/external.py`,
   `packages/ethos-core/src/ethos_core/contracts/evidence/external.py` — exact receipt
   contract and provider-local admission boundary.
-- `reference_adapters/independent_identity/reference_verifier.py` — optional,
-  one-shot constrained reference adapter; no daemon or scheduling surface.
+- `extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
+  — optional, one-shot constrained reference adapter; no daemon or scheduling
+  surface.
 
 ## Revisit Trigger
 

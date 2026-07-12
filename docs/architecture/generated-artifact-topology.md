@@ -154,7 +154,12 @@ the command writes it:
 - `tools/ci/scripts/run-python-tests.sh` must call pytest with the explicit
   `.config/checks/pytest/pytest.ini` owner, route pytest cache to
   `build/runtime/tool-cache/pytest`, send coverage and JUnit machine evidence to
-  `build/evidence/quality/tests/`, and use an explicit scratch temp directory.
+  `build/evidence/quality/tests/`, use an explicit scratch temp directory, and
+  guard its generated coverage writer with a process-identity lock (PID plus
+  start fingerprint). A dead recorded owner may be reclaimed; an unknown or
+  live owner is never preempted and must fail after the bounded
+  `ETHOS_COVERAGE_LOCK_WAIT_SECONDS` interval rather than leaving a later proof
+  waiting forever.
 - Ruff entrypoints must set `--cache-dir` or `RUFF_CACHE_DIR` to
   `build/runtime/tool-cache/ruff`.
 - import-linter entrypoints must set `--cache-dir` or `IMPORT_LINTER_CACHE_DIR`

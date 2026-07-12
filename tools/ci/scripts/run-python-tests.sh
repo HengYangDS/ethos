@@ -28,10 +28,16 @@ evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"
 coverage_evidence_dir="${evidence_root}/coverage"
 pytest_evidence_dir="${evidence_root}/pytest"
 coverage_lock_dir="${coverage_evidence_dir}/.write.lock"
+coverage_lock_owner_path="${coverage_lock_dir}/owner.pid"
+coverage_lock_wait_seconds="${ETHOS_COVERAGE_LOCK_WAIT_SECONDS:-30}"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"
 workers="${ETHOS_TEST_WORKERS:-8}"
 durations="${ETHOS_TEST_DURATIONS:-20}"
 shards="${ETHOS_TEST_SHARDS:-1}"
+if ! [[ "${coverage_lock_wait_seconds}" =~ ^[0-9]+$ ]]; then
+  echo "ETHOS_COVERAGE_LOCK_WAIT_SECONDS must be a non-negative integer" >&2
+  exit 2
+fi
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
   if ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; then
     echo "ETHOS_TEST_SHARDS must be a positive integer" >&2
@@ -62,6 +68,7 @@ cleanup_root_coverage_artifacts() {
 
 release_coverage_lock() {
   if [[ "${coverage_lock_acquired}" == "true" ]]; then
+    rm -f "${coverage_lock_owner_path}"
     rmdir "${coverage_lock_dir}" 2>/dev/null || true
   fi
 }
@@ -75,11 +82,63 @@ cleanup_and_release() {
 # The latest coverage XML and pytest-cov SQLite shards are one generated evidence
 # boundary. Concurrent proof/local-ci runs must not clean or combine the same files
 # while another run is writing them; coverage evidence writes are serialized here.
+# A dead writer must not turn an interrupted local proof into an infinite wait, so
+# each new lock carries its owner PID and process-start fingerprint. Unknown or
+# live owners are never preempted; they fail with a bounded, actionable diagnostic
+# instead.
+coverage_lock_process_start() {
+  local owner_pid="$1"
+  ps -o lstart= -p "${owner_pid}" 2>/dev/null | tr -s ' ' | sed 's/^ //' || true
+}
+
+coverage_lock_owner_is_dead() {
+  local owner_pid=""
+  local owner_started_at=""
+  local current_started_at=""
+  [[ -f "${coverage_lock_owner_path}" ]] || return 1
+  IFS=$'\t' read -r owner_pid owner_started_at < "${coverage_lock_owner_path}" || return 1
+  [[ "${owner_pid}" =~ ^[1-9][0-9]*$ && -n "${owner_started_at}" ]] || return 1
+  if ! kill -0 "${owner_pid}" 2>/dev/null; then
+    return 0
+  fi
+  current_started_at="$(coverage_lock_process_start "${owner_pid}")"
+  [[ -n "${current_started_at}" && "${current_started_at}" != "${owner_started_at}" ]]
+}
+
+reclaim_stale_coverage_lock() {
+  coverage_lock_owner_is_dead || return 1
+  rm -f "${coverage_lock_owner_path}"
+  if rmdir "${coverage_lock_dir}" 2>/dev/null; then
+    echo "reclaimed stale coverage evidence lock: ${coverage_lock_dir}" >&2
+    return 0
+  fi
+  return 1
+}
+
+coverage_lock_wait_started="${SECONDS}"
 while ! mkdir "${coverage_lock_dir}" 2>/dev/null; do
+  if reclaim_stale_coverage_lock; then
+    continue
+  fi
+  if (( SECONDS - coverage_lock_wait_started >= coverage_lock_wait_seconds )); then
+    owner_metadata="unknown"
+    if [[ -f "${coverage_lock_owner_path}" ]]; then
+      IFS= read -r owner_metadata < "${coverage_lock_owner_path}" || owner_metadata="unreadable"
+    fi
+    echo "coverage evidence lock remained unavailable after ${coverage_lock_wait_seconds}s: ${coverage_lock_dir} (owner=${owner_metadata})" >&2
+    exit 1
+  fi
   echo "waiting for coverage evidence lock: ${coverage_lock_dir}" >&2
   sleep 1
 done
 coverage_lock_acquired="true"
+coverage_lock_owner_started_at="$(coverage_lock_process_start "$$")"
+if [[ -z "${coverage_lock_owner_started_at}" ]] || ! printf '%s\t%s\n' "$$" "${coverage_lock_owner_started_at}" > "${coverage_lock_owner_path}"; then
+  coverage_lock_acquired="false"
+  rmdir "${coverage_lock_dir}" 2>/dev/null || true
+  echo "failed to record coverage evidence lock owner: ${coverage_lock_dir}" >&2
+  exit 1
+fi
 
 # Start each trust-bearing test run from a clean generated evidence boundary.
 # pytest-cov and xdist create SQLite shards next to COVERAGE_FILE; older or

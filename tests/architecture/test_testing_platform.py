@@ -56,6 +56,18 @@ def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:
     assert "coverage evidence writes are serialized" in script
 
 
+def test_python_test_gate_recovers_only_dead_coverage_lock_owners() -> None:
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+
+    assert "coverage_lock_owner_path" in script
+    assert "kill -0" in script
+    assert "coverage_lock_process_start" in script
+    assert "ps -o lstart=" in script
+    assert "reclaimed stale coverage evidence lock" in script
+    assert "ETHOS_COVERAGE_LOCK_WAIT_SECONDS" in script
+    assert "coverage evidence lock remained unavailable" in script
+
+
 def test_python_test_gate_can_shard_without_lowering_coverage_floor() -> None:
     script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
 

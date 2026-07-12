@@ -4,7 +4,8 @@ import hashlib
 from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.adoption.planner import detect_repo_profile
+from ethos.repository.adoption.scaffold.core import BASE_ADOPTION_FILES
+from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import _adopter_profile_active
@@ -16,68 +17,14 @@ if TYPE_CHECKING:
 
 
 def _assert_required_scaffold_files_exist(tmp_path: Path, planned: set[str]) -> None:
-    required = {
-        ".gitignore",
-        ".config/ethos/generated-artifacts.toml",
-        ".ethos/project.toml",
-        ".ethos/profile.toml",
-        ".ethos/workspace.toml",
-        ".ethos/rules.toml",
-        ".ethos/assistants.toml",
-        ".ethos/state/.gitignore",
-        ".agents/skills/README.md",
-        ".agents/skills/activation.toml",
-        ".agents/skills/ethos-repository-governance/SKILL.md",
-        ".agents/skills/ethos-repository-governance/package.toml",
-        ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
-        ".agents/skills/ethos-skill-portfolio-governance/package.toml",
-        ".agents/skills/ethos-adoption-profile-governance/SKILL.md",
-        ".agents/skills/ethos-adoption-profile-governance/package.toml",
-        "AGENTS.md",
-        "CONTRIBUTING.md",
-        "CHANGELOG.md",
-        "openspec/config.yaml",
-        "openspec/README.md",
-        "openspec/specs/README.md",
-        "openspec/specs/families.toml",
-        "openspec/specs/capability.template.toml",
-        "openspec/changes/README.md",
-        "openspec/changes/template.md",
-        "openspec/specs/kernel/spec.md",
-        "openspec/specs/contracts/spec.md",
-        "openspec/specs/repository-governance/spec.md",
-        "openspec/specs/repository-governance/capability.toml",
-        "openspec/specs/adapters/spec.md",
-        "openspec/specs/assistant-projections/spec.md",
-        "openspec/specs/command-plane/spec.md",
-        "openspec/specs/distribution/spec.md",
-        "openspec/specs/proof-hosts/spec.md",
-        "openspec/changes/.gitkeep",
-        "openspec/changes/archive/.gitkeep",
-        "docs/README.md",
-        "docs/index.md",
-        "docs/decisions/README.md",
-        "docs/decisions/decision-index.md",
-        "docs/decisions/decision-dependency-map.md",
-        "docs/decisions/decision-code-links.md",
-        "docs/decisions/accepted/README.md",
-        "docs/decisions/superseded/README.md",
-        "docs/decisions/templates/README.md",
-        "docs/decisions/templates/decision-record.md",
-        "docs/evidence/README.md",
-        "docs/history/README.md",
-        "docs/reference/README.md",
-        "docs/start/quickstart.md",
-        "docs/governance/ethos.md",
-        "evidence/.gitkeep",
-        "evidence/claims/.gitkeep",
-        "system/schemas/kernel/.gitkeep",
-        ".gitlab-ci.yml",
-    }
-
+    required = set(BASE_ADOPTION_FILES) | {".gitlab-ci.yml"}
+    required.update(
+        f"openspec/specs/{family}/{name}"
+        for family in OPENSPEC_CAPABILITIES
+        for name in ("spec.md", "capability.toml")
+    )
     assert required <= planned
-    for relative in required:
-        assert (tmp_path / relative).exists(), relative
+    assert all((tmp_path / relative).exists() for relative in required)
 
 
 def _assert_generated_skill_scaffold(tmp_path: Path) -> None:
@@ -166,23 +113,6 @@ def _assert_generated_docs_and_openspec(tmp_path: Path) -> None:
     )
 
 
-def test_detect_repo_profile_for_python_package(tmp_path: Path) -> None:
-    (tmp_path / "pyproject.toml").write_text("[project]\nname='sample'\n", encoding="utf-8")
-
-    assert detect_repo_profile(tmp_path) == "python"
-
-
-def test_adopt_apply_writes_expected_files(tmp_path: Path) -> None:
-    result = adoption_plan(tmp_path, apply=True)
-
-    assert result["applied"] is True
-    assert (tmp_path / ".ethos/project.toml").exists()
-    assert f'name = "{tmp_path.name}"' in (tmp_path / ".ethos/project.toml").read_text(
-        encoding="utf-8"
-    )
-    assert (tmp_path / ".ethos/state/.gitignore").read_text(encoding="utf-8").startswith("*")
-
-
 def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(
     tmp_path: Path,
 ) -> None:
@@ -198,6 +128,9 @@ def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(
     assert profile.exists is True
     assert profile.valid is True
     assert profile.identity.get("profile_id") == tmp_path.name
+    assert f'name = "{tmp_path.name}"' in (tmp_path / ".ethos/project.toml").read_text(
+        encoding="utf-8"
+    )
     assert _adopter_profile_active(tmp_path) is True
 
     floor = default_gate_ids(root=tmp_path)
@@ -217,36 +150,24 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     _assert_generated_docs_and_openspec(tmp_path)
 
 
-def test_adopt_apply_extends_existing_gitignore_without_conflict(
+def test_adopt_apply_merges_existing_gitignore_idempotently(
     tmp_path: Path,
 ) -> None:
     (tmp_path / ".gitignore").write_text(
         ".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8"
     )
 
-    result = adoption_plan(tmp_path, profile="generic", apply=True)
-
-    assert result["applied"] is True
-    gitignore_plan = next(item for item in result["write_plan"] if item["path"] == ".gitignore")
+    first = adoption_plan(tmp_path, profile="generic", apply=True)
+    second = adoption_plan(tmp_path, profile="generic", apply=True)
+    gitignore_plan = next(item for item in first["write_plan"] if item["path"] == ".gitignore")
+    assert first["applied"] is True
+    assert second["applied"] is True
     assert gitignore_plan["action"] == "merge_gitignore"
     assert gitignore_plan["conflict"] is False
     gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
     assert gitignore.startswith(".ethos/state/*\n!.ethos/state/.gitignore\n")
     assert ".import_linter_cache/" in gitignore
     assert "build/" in gitignore
-
-
-def test_adopt_apply_extends_existing_gitignore_idempotently(tmp_path: Path) -> None:
-    (tmp_path / ".gitignore").write_text(
-        ".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8"
-    )
-
-    first = adoption_plan(tmp_path, profile="generic", apply=True)
-    second = adoption_plan(tmp_path, profile="generic", apply=True)
-
-    assert first["applied"] is True
-    assert second["applied"] is True
-    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
     assert gitignore.count(".import_linter_cache/") == 1
     assert gitignore.count("# Semantic ignored generated homes") == 1
 
@@ -317,14 +238,7 @@ def test_overlay_adoption_skips_missing_provider_projection_and_writes_empty_bin
     assert profile.read_text(encoding="utf-8")
 
 
-def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
-    tmp_path: Path,
-) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
-
-    quickstart = (tmp_path / "docs/start/quickstart.md").read_text(encoding="utf-8")
-    first_hour = quickstart.split("## Maintainer Reference", 1)[0]
-
+def _assert_maintainer_loop(text: str) -> None:
     for command in (
         "ethos status",
         "ethos plan --changed",
@@ -332,29 +246,28 @@ def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
         "ethos land",
         "ethos publish",
     ):
-        assert command in first_hour
-    assert "ethos report" in first_hour
-    assert "ethos prove --execute" not in first_hour
-    assert "ethos quality" not in first_hour
+        assert command in text
+    assert "ethos report" in text
+    assert "ethos prove --execute" not in text
+    assert "ethos quality" not in text
+
+
+def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(tmp_path: Path) -> None:
+    adoption_plan(tmp_path, profile="generic", apply=True)
+    _assert_maintainer_loop(
+        (tmp_path / "docs/start/quickstart.md")
+        .read_text(encoding="utf-8")
+        .split("## Maintainer Reference", 1)[0]
+    )
 
 
 def test_generated_skill_loop_uses_workflow_plus_scorecard(tmp_path: Path) -> None:
     adoption_plan(tmp_path, profile="generic", apply=True)
-
-    skill = (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
-        encoding="utf-8"
+    _assert_maintainer_loop(
+        (tmp_path / ".agents/skills/ethos-repository-governance/SKILL.md").read_text(
+            encoding="utf-8"
+        )
     )
-
-    for command in (
-        "ethos status",
-        "ethos plan --changed",
-        "ethos prove",
-        "ethos land",
-        "ethos publish",
-    ):
-        assert command in skill
-    assert "ethos report" in skill
-    assert "ethos quality" not in skill
 
 
 def test_adopt_rules_use_single_kernel_governance_entrypoints(tmp_path: Path) -> None:

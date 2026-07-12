@@ -20,6 +20,9 @@ _ARTIFACT_ROOT = Path("build") / "artifacts" / "lane-resolution"
 _RECEIPTS = "receipts"
 _CLEARS = "clears"
 _RECEIPT_INVALID = "lane_resolution_receipt_invalid"
+_PRESERVATION_MANIFEST_INVALID = "lane_resolution_preservation_manifest_invalid"
+_PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
+_PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,29 @@ def write_resolution_receipt(*, root: Path, receipt: dict[str, object]) -> str:
     destination = _receipt_path(root, str(validated["decision_id"]))
     _write_json_atomic(destination, validated)
     return destination.relative_to(root).as_posix()
+
+
+def verify_preservation_package(*, root: Path, package: dict[str, object]) -> None:
+    """Fail closed unless the preservation package is complete and digest-bound."""
+    destination = (root / Path(str(package.get("path") or ""))).resolve()
+    try:
+        destination.relative_to(root.resolve())
+    except ValueError as exc:
+        raise ValueError(_PRESERVATION_PACKAGE_OUTSIDE_ROOT) from exc
+    manifest = package.get("manifest")
+    if not isinstance(manifest, dict):
+        raise TypeError(_PRESERVATION_MANIFEST_INVALID)
+    checks = (("repository.bundle", "bundle_sha256"), ("tracked.patch", "patch_sha256"))
+    if any(
+        not (path := destination / name).is_file()
+        or sha256_digest(path) != str(manifest.get(key) or "")
+        for name, key in checks
+    ):
+        raise ValueError(_PRESERVATION_PACKAGE_INVALID)
+    archive_digest = str(manifest.get("untracked_archive_sha256") or "")
+    archive = destination / "untracked.tar"
+    if archive_digest and (not archive.is_file() or sha256_digest(archive) != archive_digest):
+        raise ValueError(_PRESERVATION_PACKAGE_INVALID)
 
 
 def lane_resolution_inventory(*, root: Path) -> dict[str, object]:

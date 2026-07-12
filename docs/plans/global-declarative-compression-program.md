@@ -86,13 +86,13 @@ binding, and lane-resolution receipts. It expires in T8 and must be deleted by
 consolidating their scenario tests, runner wrappers, templates, and provider
 copies; it is not permission to retain duplicate behavior.
 
-The reconciliation record is exact rather than aspirational. On the merged
-2026-07-12 Work Lane it bounds 1,233 product-Python, 1,781 test-Python, 347
-other-Python, 368 shell, 102 JSON, and 15 Jinja effective lines. Together with
-the foundation record its aggregate allowance is 4,190, below the immutable
-5,267 maximum. The same snapshot remains **35,779 global** and **29,390 Python**
-effective lines above the terminal maxima; T8 and T9 cannot close while any of
-that gap or either active debt record remains.
+The reconciliation record is exact rather than aspirational. After merging the
+2026-07-12 external-overlay candidate and normalizing its format, it bounds
+1,276 product-Python, 1,783 test-Python, 347 other-Python, 368 shell, 102 JSON,
+and 15 Jinja effective lines. Together with the foundation record its aggregate
+allowance is 4,226, below the immutable 5,267 maximum. The same snapshot remains
+**35,829 global** and **29,435 Python** effective lines above the terminal maxima;
+T8 and T9 cannot close while any of that gap or either active debt record remains.
 
 ## Final Technical Choices
 

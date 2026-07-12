@@ -43,10 +43,6 @@ def available_profiles() -> tuple[str, ...]:
     return PROFILES
 
 
-def _canonical_profile(profile: str) -> str:
-    return profile
-
-
 def detect_repo_profile(root: Path) -> str:
     if (root / ".gitlab-ci.yml").exists():
         return "gitlab"
@@ -73,39 +69,32 @@ def _append_gitignore_lines(existing: str, missing_lines: tuple[str, ...]) -> st
     return f"{existing}{separator}\n" + "\n".join(missing_lines) + "\n"
 
 
-def _observed_files(root: Path, profile: str) -> dict[str, bool]:
-    return {relative: (root / relative).exists() for relative in PROFILE_READ_FILES[profile]}
-
-
 def _profile_match(root: Path, profile: str, detected_profile: str) -> dict[str, object]:
-    if profile == "generic":
-        return {"ok": True, "reasons": ["matched:generic"]}
     required = PROFILE_MATCH_REQUIRED[profile]
-    if profile == detected_profile or any((root / relative).exists() for relative in required):
+    if profile in ("generic", detected_profile) or any(
+        (root / relative).exists() for relative in required
+    ):
         return {"ok": True, "reasons": [f"matched:{profile}"]}
-    reasons = [f"detected:{detected_profile}"]
-    reasons.extend(f"missing:{relative}" for relative in required)
-    return {"ok": False, "reasons": reasons}
+    return {
+        "ok": False,
+        "reasons": [f"detected:{detected_profile}", *(f"missing:{item}" for item in required)],
+    }
 
 
-def _overlay_preserves(relative: str, profile: str) -> bool:
-    """Return whether overlay mode preserves this adopter-owned scaffold surface."""
-    if relative in _OVERLAY_ROOT_FILES or relative.startswith(_OVERLAY_PREFIXES):
-        return True
-    if profile == "gitlab" and relative == ".gitlab-ci.yml":
-        return True
-    return profile == "github" and relative.startswith(".github/")
-
-
-def _overlay_skips_missing(root: Path, relative: str, profile: str) -> bool:
-    """Return whether an existing adopter root owns a missing scaffold child."""
-    if relative.startswith("docs/"):
-        return (root / "docs").exists()
-    if relative.startswith("openspec/"):
-        return (root / "openspec").exists()
-    if profile == "gitlab" and relative == ".gitlab-ci.yml":
-        return True
-    return profile == "github" and relative.startswith(".github/")
+def _overlay_action(root: Path, relative: str, profile: str, *, existed: bool) -> str:
+    """Return the non-destructive overlay action for an adopter-owned surface."""
+    provider = (profile == "gitlab" and relative == ".gitlab-ci.yml") or (
+        profile == "github" and relative.startswith(".github/")
+    )
+    preserved = (
+        provider or relative in _OVERLAY_ROOT_FILES or relative.startswith(_OVERLAY_PREFIXES)
+    )
+    missing_root = (relative.startswith("docs/") and (root / "docs").exists()) or (
+        relative.startswith("openspec/") and (root / "openspec").exists()
+    )
+    if existed and preserved:
+        return "preserve_existing"
+    return "preserve_adopter_root" if provider or missing_root else ""
 
 
 def _write_plan(
@@ -120,29 +109,28 @@ def _write_plan(
         content = files[relative]
         target = root / relative
         existed = target.exists()
-        conflict = False
-        existing_sha256 = ""
+        overlay_action = (
+            _overlay_action(root, relative, profile, existed=existed) if overlay else ""
+        )
         if not existed:
-            action = (
-                "preserve_adopter_root"
-                if overlay and _overlay_skips_missing(root, relative, profile)
-                else "create"
-            )
+            action, conflict = overlay_action or "create", False
         else:
             existing = target.read_text(encoding="utf-8")
-            existing_sha256 = _sha256_text(existing)
             if existing == content:
-                action = "keep_existing"
+                action, conflict = "keep_existing", False
             elif existing == "":
-                action = "write_empty"
+                action, conflict = "write_empty", False
             elif relative == ".gitignore":
                 missing_lines = _missing_gitignore_lines(existing, content)
-                action = "keep_existing" if not missing_lines else "merge_gitignore"
-            elif overlay and _overlay_preserves(relative, profile):
-                action = "preserve_existing"
+                action, conflict = (
+                    "keep_existing" if not missing_lines else "merge_gitignore",
+                    False,
+                )
             else:
-                action = "skip_existing_nonempty"
-                conflict = True
+                action, conflict = (
+                    overlay_action or "skip_existing_nonempty",
+                    not bool(overlay_action),
+                )
         entry: dict[str, object] = {
             "path": relative,
             "action": action,
@@ -152,7 +140,7 @@ def _write_plan(
             "preview": content.splitlines()[0] if content.splitlines() else "",
         }
         if overlay:
-            entry["existing_sha256"] = existing_sha256
+            entry["existing_sha256"] = _sha256_text(existing) if existed else ""
         plan.append(entry)
     return plan
 
@@ -165,12 +153,14 @@ def adoption_plan(
     apply: bool = False,
 ) -> dict[str, object]:
     requested_profile = profile or detect_repo_profile(root)
-    selected_profile = _canonical_profile(requested_profile)
+    selected_profile = requested_profile
     if selected_profile not in PROFILES:
         msg = f"unknown ETHOS adoption profile: {selected_profile}"
         raise ValueError(msg)
     detected_profile = detect_repo_profile(root)
-    observed = _observed_files(root, selected_profile)
+    observed = {
+        relative: (root / relative).exists() for relative in PROFILE_READ_FILES[selected_profile]
+    }
     profile_match = _profile_match(root, selected_profile, detected_profile)
     files = default_files(root, selected_profile)
     planned = sorted(files)

@@ -32,6 +32,21 @@ def _write_json(path: Path, payload: object) -> Path:
     return path
 
 
+def _native_proof_payload(head: str) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "command": "prove",
+        "ok": True,
+        "state": "proven",
+        "summary": {"evidence_digest": "a" * 64},
+        "data": {
+            "executed": True,
+            "evidence": {"head": head},
+            "provenance": {"predicate": {"head": head}},
+        },
+    }
+
+
 def _identity_payload(now: datetime) -> dict[str, object]:
     return {
         "identity_ref": "workload:issuer:subject:build-1",
@@ -88,6 +103,55 @@ def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -
     )
     assert verifier._git(tmp_path, "rev-parse", "HEAD") == "value"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert verifier._run(tmp_path, "git", "status").returncode == 0  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"command": "prove", "ok": True, "state": "proven", "data": {}},
+        {
+            "command": "prove",
+            "ok": True,
+            "state": "proven",
+            "data": {"executed": True, "evidence": [], "provenance": {}},
+        },
+        {
+            "command": "prove",
+            "ok": True,
+            "state": "proven",
+            "data": {"executed": True, "evidence": {}, "provenance": []},
+        },
+        {
+            "command": "prove",
+            "ok": True,
+            "state": "proven",
+            "data": {"executed": True, "evidence": {}, "provenance": {}},
+        },
+        {
+            "command": "prove",
+            "ok": True,
+            "state": "proven",
+            "data": {
+                "executed": True,
+                "evidence": {},
+                "provenance": {"predicate": {"head": "b"}},
+            },
+        },
+        {
+            "command": "prove",
+            "ok": True,
+            "state": "proven",
+            "data": {
+                "executed": True,
+                "evidence": {"head": "a"},
+                "provenance": {"predicate": {"head": "b"}},
+            },
+        },
+    ],
+)
+def test_native_proof_parser_fails_closed_for_noncanonical_payloads(payload: object) -> None:
+    assert verifier._native_executed_proof_head(payload) == ""  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
 
 def test_verifier_control_digest_and_decision_matrix(tmp_path: Path, monkeypatch) -> None:
@@ -151,7 +215,7 @@ def test_verifier_main_projects_exact_receipt(tmp_path: Path, monkeypatch) -> No
     candidate_root = tmp_path / "candidate"
     accepted_root.mkdir()
     candidate_root.mkdir()
-    proof = _write_json(tmp_path / "proof.json", {"head": "b", "state": "proven"})
+    proof = _write_json(tmp_path / "proof.json", _native_proof_payload("b"))
     decision = _write_json(tmp_path / "decision.json", {"decision": "bound"})
     receipt = tmp_path / "receipt.json"
     args = argparse.Namespace(
@@ -186,7 +250,7 @@ def test_verifier_main_projects_exact_receipt(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setattr(
         verifier,
         "_json",
-        lambda path: {"head": "b", "state": "proven"} if path == proof else {"ok": True},
+        lambda path: _native_proof_payload("b") if path == proof else {"ok": True},
     )
     monkeypatch.setattr(verifier, "_validate_bootstrap_decision", lambda *args, **kwargs: None)
     monkeypatch.setattr(verifier, "_control_digest", lambda *args, **kwargs: "d" * 64)
@@ -226,7 +290,7 @@ def test_verifier_original_module_entrypoint_executes(tmp_path: Path, monkeypatc
     )
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
-    proof = _write_json(tmp_path / "proof.json", {"head": candidate_head, "state": "proven"})
+    proof = _write_json(tmp_path / "proof.json", _native_proof_payload(candidate_head))
     verifier_path = Path(verifier.__file__).resolve()
     decision = _write_json(
         tmp_path / "decision.json",

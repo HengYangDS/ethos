@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import ethos.adapters.admission.control.verifier as control_verifier
 from ethos.adapters.admission.control.replacement import control_replacement_report
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -138,7 +139,20 @@ def test_external_evidence_and_declarative_policy_changes_require_incumbent_veri
         assert report["required"] is True, relative_path
 
 
-def test_protected_bootstrap_verifier_mints_exact_digest_bound_receipt(tmp_path: Path) -> None:
+def test_native_proof_parser_rejects_handwritten_head_state_envelope() -> None:
+    candidate_head = "a" * 40
+
+    assert (
+        control_verifier._native_executed_proof_head(  # noqa: RUF100, SLF001 - asserts the standalone verifier's fail-closed parser
+            {"head": candidate_head, "state": "proven"}
+        )
+        == ""
+    )
+
+
+def test_protected_bootstrap_verifier_mints_receipt_from_native_executed_proof(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -160,7 +174,20 @@ def test_protected_bootstrap_verifier_mints_exact_digest_bound_receipt(tmp_path:
     candidate_head = git(candidate, "rev-parse", "HEAD")
     proof = tmp_path / "candidate-proof.json"
     proof.write_text(
-        json.dumps({"head": candidate_head, "state": "proven", "digest": "a" * 64}),
+        json.dumps(
+            {
+                "schema_version": 1,
+                "command": "prove",
+                "ok": True,
+                "state": "proven",
+                "summary": {"evidence_digest": "a" * 64},
+                "data": {
+                    "executed": True,
+                    "evidence": {"head": candidate_head},
+                    "provenance": {"predicate": {"head": candidate_head}},
+                },
+            }
+        ),
         encoding="utf-8",
     )
     receipt = tmp_path / "receipt.json"

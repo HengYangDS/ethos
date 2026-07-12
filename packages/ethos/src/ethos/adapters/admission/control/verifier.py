@@ -77,8 +77,9 @@ def main() -> int:
     _require(bool(control_paths), "control_replacement_not_detected")
 
     proof = _json(proof_path)
-    _require(proof.get("head") == args.candidate_head, "candidate_proof_head_mismatch")
-    _require(proof.get("state") == "proven", "candidate_proof_not_proven")
+    proof_head = _native_executed_proof_head(proof)
+    _require(proof_head, "candidate_proof_not_proven")
+    _require(proof_head == args.candidate_head, "candidate_proof_head_mismatch")
     proof_digest = _sha256(proof_path)
     verifier_digest = _sha256(verifier_path)
 
@@ -196,6 +197,31 @@ def _json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     _require(isinstance(payload, dict), f"invalid_json_mapping:{path.name}")
     return payload
+
+
+def _native_executed_proof_head(proof: dict[str, Any]) -> str:
+    """Return the candidate HEAD only for a native executed ETHOS proof result."""
+    if (
+        proof.get("command") != "prove"
+        or proof.get("ok") is not True
+        or proof.get("state") != "proven"
+    ):
+        return ""
+    data = proof.get("data")
+    if not isinstance(data, dict) or data.get("executed") is not True:
+        return ""
+    evidence = data.get("evidence")
+    provenance = data.get("provenance")
+    if not isinstance(evidence, dict) or not isinstance(provenance, dict):
+        return ""
+    predicate = provenance.get("predicate")
+    if not isinstance(predicate, dict):
+        return ""
+    evidence_head = evidence.get("head")
+    predicate_head = predicate.get("head")
+    if not isinstance(evidence_head, str) or evidence_head != predicate_head:
+        return ""
+    return evidence_head
 
 
 def _sha256(path: Path) -> str:

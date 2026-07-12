@@ -352,19 +352,8 @@ def test_adopt_overlay_apply_preserves_existing_adopter_entrypoint(
     agent_entrypoint = repo / "AGENTS.md"
     agent_entrypoint.write_text("# Existing adopter guide\n", encoding="utf-8")
 
-    payload = run_ethos(
-        "adopt",
-        "--root",
-        str(repo),
-        "--overlay",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-
+    command = ("adopt", "--root", str(repo), "--overlay", "--apply", "--authorize")
+    payload = run_ethos(*command, "--expect-head", head, "--json", cwd=repo)
     assert payload["ok"] is True
     assert payload["data"]["mode"] == "overlay"
     assert payload["data"]["preserved_files"][0]["path"] == "AGENTS.md"

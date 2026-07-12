@@ -15,6 +15,9 @@ from pydantic import ValidationError
 from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.resolution._shared import sha256_digest
+from ethos.adapters.mutation.resolution.receipts import (
+    verify_preservation_package as _verify_preservation_package,
+)
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
@@ -23,10 +26,7 @@ from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_DECIDE
 from ethos_core.contracts.lifecycle.core import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-
-_PRESERVATION_MANIFEST_INVALID = "lane_resolution_preservation_manifest_invalid"
-_PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
-_PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
+from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
 
 
 def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -263,51 +263,35 @@ def _leases(root: Path) -> list[dict[str, Any]]:
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
     try:
         payload = json.loads(path.resolve().read_text(encoding="utf-8"))
-        observation = LaneObservation.model_validate(payload.get("observation"))
-        LaneResolutionDecision(
-            decision_id=payload.get("decision_id"),
-            disposition=payload.get("disposition"),
-            observation=observation,
-            evidence_refs=tuple(payload.get("evidence_refs", [])),
-            chronicle_ref=payload.get("chronicle_ref"),
-            chronicle_digest=payload.get("chronicle_digest"),
-            recovery_plan=payload.get("recovery_plan"),
-            reason=payload.get("reason"),
-            break_glass=bool(payload.get("break_glass")),
+        decision = LaneResolutionDecision.model_validate(
+            {field: payload[field] for field in LaneResolutionDecision.model_fields}
         )
-    except (OSError, json.JSONDecodeError, ValidationError, TypeError):
+    except (KeyError, OSError, json.JSONDecodeError, ValidationError, TypeError):
         return {}, ["lane_resolution_decision_invalid"]
     validation = validate_schema_instance(
         "lane-resolution-decision.schema.json", payload, root=root
     )
     if not validation["ok"]:
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
-    if observation.digest() != payload.get("observation_digest"):
+    if decision.observation.digest() != payload.get("observation_digest"):
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_digest_invalid"]
     return cast("dict[str, Any]", payload), []
 
 
 def _local_artifact_path(root: Path, path: Path) -> bool:
-    resolved = path.resolve()
-    repository = root.resolve()
     try:
-        relative = resolved.relative_to(repository)
+        relative = path.resolve().relative_to(root.resolve())
     except ValueError:
         return True
     return relative.parts[:2] in {("build", "artifacts"), ("build", "evidence")}
 
 
 def _untracked_digest(path: Path) -> str:
-    inventory = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=path,
-        check=False,
-        capture_output=True,
-    )
-    if inventory.returncode != 0:
+    inventory = _untracked_files(path)
+    if inventory is None:
         return hashlib.sha256(b"unavailable").hexdigest()
     digest = hashlib.sha256()
-    for raw in sorted(item for item in inventory.stdout.split(b"\0") if item):
+    for raw in inventory:
         relative = raw.decode(errors="surrogateescape")
         digest.update(raw)
         digest.update(b"\0")
@@ -315,6 +299,20 @@ def _untracked_digest(path: Path) -> str:
         digest.update(file_path.read_bytes() if file_path.is_file() else b"")
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _untracked_files(path: Path) -> list[bytes] | None:
+    inventory = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=path,
+        check=False,
+        capture_output=True,
+    )
+    return (
+        None
+        if inventory.returncode
+        else sorted(item for item in inventory.stdout.split(b"\0") if item)
+    )
 
 
 def _accepted_chronicle(
@@ -327,11 +325,11 @@ def _accepted_chronicle(
         relative = path.relative_to(root.resolve()).as_posix()
     except ValueError:
         return "", "", ["lane_resolution_chronicle_outside_repository"]
-    if not relative.startswith("evidence/chronicle/") or not path.is_file():
-        return relative, "", ["lane_resolution_chronicle_missing"]
-    if f"lane_resolution/{disposition}" not in path.read_text(encoding="utf-8"):
+    if relative.startswith("evidence/chronicle/") and path.is_file():
+        if f"lane_resolution/{disposition}" in path.read_text(encoding="utf-8"):
+            return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
         return relative, "", ["lane_resolution_chronicle_disposition_mismatch"]
-    return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
+    return relative, "", ["lane_resolution_chronicle_missing"]
 
 
 def _preserve(
@@ -357,17 +355,10 @@ def _preserve(
         capture_output=True,
     )
     patch.write_bytes(completed.stdout)
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=observation.path,
-        check=False,
-        capture_output=True,
-    )
-    if untracked.returncode != 0:
+    untracked = _untracked_files(Path(observation.path))
+    if untracked is None:
         raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
-    untracked_paths = [
-        path.decode(errors="surrogateescape") for path in untracked.stdout.split(b"\0") if path
-    ]
+    untracked_paths = [path.decode(errors="surrogateescape") for path in untracked]
     archive = package / "untracked.tar"
     if untracked_paths:
         _run(
@@ -421,30 +412,6 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
         raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
 
 
-def _verify_preservation_package(*, root: Path, package: dict[str, object]) -> None:
-    """Fail closed unless the preservation package is complete and digest-bound."""
-    relative = Path(str(package.get("path") or ""))
-    destination = (root / relative).resolve()
-    try:
-        destination.relative_to(root.resolve())
-    except ValueError as exc:
-        raise ValueError(_PRESERVATION_PACKAGE_OUTSIDE_ROOT) from exc
-    manifest = package.get("manifest")
-    if not isinstance(manifest, dict):
-        raise TypeError(_PRESERVATION_MANIFEST_INVALID)
-    checks = (
-        (destination / "repository.bundle", "bundle_sha256"),
-        (destination / "tracked.patch", "patch_sha256"),
-    )
-    for path, key in checks:
-        if not path.is_file() or sha256_digest(path) != str(manifest.get(key) or ""):
-            raise ValueError(_PRESERVATION_PACKAGE_INVALID)
-    archive_digest = str(manifest.get("untracked_archive_sha256") or "")
-    archive = destination / "untracked.tar"
-    if archive_digest and (not archive.is_file() or sha256_digest(archive) != archive_digest):
-        raise ValueError(_PRESERVATION_PACKAGE_INVALID)
-
-
 def _completion_receipt(
     *,
     decision: dict[str, Any],
@@ -454,27 +421,28 @@ def _completion_receipt(
 ) -> dict[str, object]:
     manifest = preservation_package.get("manifest")
     manifest_payload = cast("dict[str, object]", manifest) if isinstance(manifest, dict) else {}
-    return {
-        "receipt_id": f"lane-resolution-receipt:{uuid.uuid4()}",
-        "decision_id": str(decision["decision_id"]),
-        "disposition": str(decision["disposition"]),
-        "completed": True,
-        "state": state,
-        "observation_digest": observation.digest(),
-        "reconciliation_required": bool(decision.get("break_glass")),
-        "lane_ref": observation.lane_ref,
-        "head": observation.head,
-        "preservation_package": str(preservation_package.get("path") or ""),
-        "preservation_manifest_sha256": _manifest_digest(manifest_payload),
-        "mints_authority": False,
-    }
+    return LaneResolutionReceipt(
+        receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
+        decision_id=str(decision["decision_id"]),
+        disposition=cast("Any", decision["disposition"]),
+        completed=True,
+        state=state,
+        observation_digest=observation.digest(),
+        reconciliation_required=bool(decision.get("break_glass")),
+        lane_ref=observation.lane_ref,
+        head=observation.head,
+        preservation_package=str(preservation_package.get("path") or ""),
+        preservation_manifest_sha256=_manifest_digest(manifest_payload),
+        mints_authority=False,
+    ).to_payload()
 
 
 def _manifest_digest(manifest: dict[str, object]) -> str:
-    if not manifest:
-        return ""
-    content = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-    return hashlib.sha256(content.encode()).hexdigest()
+    return (
+        hashlib.sha256((json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()).hexdigest()
+        if manifest
+        else ""
+    )
 
 
 def _chronicle_decision(decision: dict[str, Any]) -> dict[str, object]:
@@ -540,6 +508,7 @@ def _envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound
 
 
 def _empty_observation(root: Path, branch: str) -> LaneObservation:
+    empty_digest = hashlib.sha256(b"").hexdigest()
     return LaneObservation(
         lane_ref=branch or "unknown",
         head="0" * 40,
@@ -549,8 +518,8 @@ def _empty_observation(root: Path, branch: str) -> LaneObservation:
         foreign=True,
         orphan=True,
         ambiguous=True,
-        tracked_digest=hashlib.sha256(b"").hexdigest(),
-        untracked_digest=hashlib.sha256(b"").hexdigest(),
+        tracked_digest=empty_digest,
+        untracked_digest=empty_digest,
     )
 
 

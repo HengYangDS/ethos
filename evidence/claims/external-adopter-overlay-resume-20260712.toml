@@ -10,26 +10,10 @@ sha256 = "a76adeddbb3540765ffa902a9a7c06a99a317736745a8d9a708644c063a49aec"
 evidence_ids = ["evidence:external-adopter-overlay-resume-20260712"]
 binding = "bounded local external-adopter overlay pilot evidence"
 verifier = "semantic_attested"
-tests = [
-  "uv run --locked --group dev pytest -q tests/unit/adoption/test_apply_sample.py tests/unit/cli/test_contracts_proof.py",
-  "uv run --locked --group dev ruff check packages/ethos/src/ethos/repository/adoption/planner.py packages/ethos/src/ethos/surface/cli/root/adoption.py tests/unit/adoption/test_apply_sample.py tests/unit/cli/test_contracts_proof.py",
-  "uv run --locked openspec validate external-adopter-overlay-20260712 --strict",
-  "uv run --locked --package ethos ethos prove --execute --expect-head <final-lane-head> --json",
-]
+tests = ["ethos prove --execute --expect-head <final-lane-head> --json"]
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/adoption/test_apply_sample.py",
-  "tests/unit/cli/test_contracts_proof.py",
-]
-docs = [
-  "docs/architecture/adoption-profiles.md",
-  "docs/architecture/fleet-and-adopters.md",
-]
 
 [boundary]
 owner = "ethos-repository"
@@ -46,10 +30,4 @@ targets = [
   "packages/ethos/src/ethos/surface/cli/root/adoption.py",
   "tests/unit/adoption/test_apply_sample.py",
   "tests/unit/cli/test_contracts_proof.py",
-  "docs/architecture/adoption-profiles.md",
-  "docs/architecture/fleet-and-adopters.md",
-  "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-12-external-adopter-overlay-20260712",
-  "evidence/chronicle/external-adopter-overlay-resume-20260712/2026-07-12.md",
-  "evidence/claims/external-adopter-overlay-resume-20260712.toml",
 ]

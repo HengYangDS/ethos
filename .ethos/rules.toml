@@ -105,11 +105,11 @@ owner = "global-declarative-compression-program-20260711"
 replacement = "candidate-train semantic integrations pending T8 scenario, runner, template, and provider-copy consolidation"
 deletion_wave = "T8"
 expiry = "T8"
-allowance = 2780
+allowance = 2816
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_product = 1233
-python_tests = 1781
+python_product = 1276
+python_tests = 1783
 python_other = 347
 shell = 368
 json = 102

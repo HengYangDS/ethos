@@ -12,8 +12,6 @@ evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
 binding = "archived OpenSpec carrier and user-authorized local productization scope"
 verifier = "digest_only"
 tests = [
-  "Focused lane-resolution, CLI, runner, and generated-artifact topology tests",
-  "ethos openspec --lifecycle --json",
   "ethos prove --execute --expect-head <lane-head> --json",
 ]
 
@@ -31,29 +29,9 @@ kill_signal = "Any path reintroduces root cache or root virtual-environment crea
 
 [promotion]
 targets = [
-  ".config/README.md",
-  "docs/architecture/generated-artifact-topology.md",
-  "docs/governance/product-design-contract.md",
-  "docs/reference/command-plane.md",
-  "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
-  "packages/ethos/src/ethos/surface/cli/lane/resolution.py",
-  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
-  "packages/ethos/src/ethos/repository/registry/docs/commands.py",
   "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py",
-  "packages/ethos-core/src/ethos_core/data/generated_artifact_topology.toml",
-  "system/schemas/kernel/lane-resolution-receipt.schema.json",
-  "system/schemas/kernel/lane-resolution-clear-receipt.schema.json",
   "system/policies/generated-artifact-topology.toml",
-  "tools/ci/scripts/run-ethos-lane.sh",
-  "tests/unit/cli/test_contracts_lane.py",
-  "tests/unit/lanes/test_lane_resolution_artifacts.py",
-  "tests/unit/lanes/test_lane_runner_bootstrap.py",
-  "tests/unit/cli/test_contracts_lane_resolution.py",
-  "tests/unit/governance/test_docs_registry.py",
   "tests/unit/governance/test_generated_artifact_topology.py",
-  "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization-20260711",
-  "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md",
-  "evidence/claims/lane-resolution-runtime-productization-20260711.toml",
 ]

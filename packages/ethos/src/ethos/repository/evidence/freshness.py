@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-import ethos.adapters.repo.git as git_adapter
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
@@ -16,17 +15,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def evidence_freshness_report(root: Path, *, current_head: str = "") -> dict[str, Any]:
+def evidence_freshness_report(root: Path, *, current_head: str) -> dict[str, Any]:
     """Compose claim, evolution, and evidence-topology freshness checks.
 
     Args:
         root: Repository root to inspect.
-        current_head: Git HEAD used to classify active claim freshness.
+        current_head: Caller-supplied Git HEAD used to classify active claim freshness.
 
     Returns:
         A read-only report for the public evidence freshness quality gate.
     """
-    head = current_head or git_adapter.current_tracked_head(root)
+    head = current_head
     claim_report = claims_report(root, current_head=head)
     evolution = evolution_report(root)
     topology = evidence_topology_report(root)

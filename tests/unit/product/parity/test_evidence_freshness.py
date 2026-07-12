@@ -27,7 +27,6 @@ def test_evidence_freshness_surfaces_configured_generic_parity_gap(
         lambda _root: {"ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(freshness, "profile_relative_root", lambda *_args: "evidence")
-    monkeypatch.setattr(freshness.git_adapter, "current_tracked_head", lambda _root: "head-1")
     evidence = tmp_path / "evidence" / "parity" / "generic-shadow.json"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("{}\n", encoding="utf-8")

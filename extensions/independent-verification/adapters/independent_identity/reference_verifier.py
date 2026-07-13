@@ -242,7 +242,8 @@ def _run(
 
 
 def _git_text(config: ReferenceVerifierConfig, checkout: Path, *args: str) -> str:
-    completed = _run(config, [_GIT.as_posix(), *args], checkout, proof=True)
+    command = [_GIT.as_posix(), "-c", "core.hooksPath=/dev/null", "-C", checkout.as_posix(), *args]
+    completed = _run(config, command, checkout, proof=True)
     if completed.returncode != 0:
         _fail("independent_checkout_failed")
     return completed.stdout.decode("utf-8", errors="replace").strip()

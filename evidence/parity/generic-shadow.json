@@ -37,7 +37,9 @@
     "target_root": "<repo>",
     "target_head": "847e375e2edeec9d7f50cd65bf1bf754ed525e5d",
     "product_head": "847e375e2edeec9d7f50cd65bf1bf754ed525e5d",
-    "changed_paths": [],
+    "changed_paths": [
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -77,7 +79,7 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f2e3e08e260e144301f96af31a768e9cf64acfe7ae6114c730a9b25a477c73fd"
+        "sha256": "147f60aa9751b1a124bc8bae54438339ee400b1e029061a5bd091c4f727c99cd"
       },
       {
         "path": "evidence/claims",

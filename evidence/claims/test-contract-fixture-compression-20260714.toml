@@ -1,0 +1,50 @@
+[claim]
+id = "test-contract-fixture-compression-20260714"
+change_id = "test-contract-fixture-compression-20260714"
+subject = "quality:declarative-cli-contract-fixture-compression"
+state = "active"
+summary = "CLI lifecycle tests reuse typed inert fixtures and workspace-status schema tests reuse the canonical complete sample while public contracts remain explicit."
+
+[evidence]
+dated = "evidence/chronicle/test-contract-fixture-compression-20260714/2026-07-14.md"
+sha256 = "5e392d9bc411579a749523efef5a798464960996bd79bf461ce7421eaafba838"
+evidence_ids = ["evidence:test-contract-fixture-compression-20260714"]
+binding = "The bounded OpenSpec carrier, 1,619-to-1,296 formatter-clean scoped ELOC reduction, focused CLI and schema results, final parity, and HEAD-bound proof bind this test-only compression slice."
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest -q --no-cov tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py",
+  "uv run --all-packages --group dev ruff format --check tests/support/contract_helpers.py tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py",
+  "uv run --all-packages --group dev ruff check tests/support/contract_helpers.py tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py",
+  "uv run --package ethos ethos quality source-budget --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+tests = [
+  "tests/support/contract_helpers.py",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/governance/validation/test_schemas.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "CLI lifecycle fixture and workspace-status schema test representation only; production lifecycle, command, schema, and dependency semantics remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-13-test-contract-fixture-compression-20260714"
+fallback = "Restore the explicit fixture choreography or complete schema envelope only if helper reuse loses public-contract precision, coverage, or net deletion."
+kill_signal = "A command-specific state, gap, payload assertion, or schema rejection regresses, or formatter-clean scoped ELOC does not decline."
+
+[promotion]
+targets = [
+  { kind = "tests", path = "tests/support/contract_helpers.py" },
+  { kind = "tests", path = "tests/unit/cli/test_contracts_land.py" },
+  { kind = "tests", path = "tests/unit/governance/validation/test_schemas.py" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-test-contract-fixture-compression-20260714" },
+  { kind = "evidence", path = "evidence/claims/test-contract-fixture-compression-20260714.toml" },
+  { kind = "evidence", path = "evidence/chronicle/test-contract-fixture-compression-20260714/2026-07-14.md" },
+]

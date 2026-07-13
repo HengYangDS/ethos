@@ -6,10 +6,13 @@ import hashlib
 import json
 import subprocess
 from typing import TYPE_CHECKING
+from typing import Any
 
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 MIGRATED_CAPABILITIES = [
@@ -60,6 +63,41 @@ def accepted_difference(
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def successful_shadow_run(
+    calls: list[tuple[list[str], Path]],
+    *,
+    reported_command: str = "status",
+) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """Return an inert successful subprocess runner and record its invocation."""
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs["cwd"]))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps({"ok": True, "command": reported_command, "state": "ready"}),
+            stderr="",
+        )
+
+    return fake_run
+
+
+def checkout_work_lane(repo: Path) -> None:
+    """Put a fixture repository in its deterministic parity-evidence Work Lane."""
+    subprocess.run(
+        ["git", "checkout", "-b", "work/parity-evidence"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/parity-evidence",
+        holder_ref="agent:codex:thread:parity-evidence",
+        payload={"expected_head": git_head(repo)},
+    )
 
 
 def write_parity_evidence(

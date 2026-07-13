@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.shadow.core as shadow_core
-from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES
 from tests.unit.product.parity.snapshots import SHADOW_COMMANDS
+from tests.unit.product.parity.snapshots import checkout_work_lane
 from tests.unit.product.parity.snapshots import git_head
 from tests.unit.product.parity.snapshots import init_git_repo
 from tests.unit.product.parity.snapshots import set_durable_evidence_root
@@ -18,21 +17,6 @@ from tests.unit.product.parity.snapshots import sha256_text
 
 if TYPE_CHECKING:
     import pytest
-
-
-def _checkout_work_lane(repo: Path) -> None:
-    subprocess.run(
-        ["git", "checkout", "-b", "work/parity-evidence"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
-    acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/parity-evidence",
-        holder_ref="agent:codex:thread:parity-evidence",
-        payload={"expected_head": git_head(repo)},
-    )
 
 
 def test_parity_shadow_write_evidence_blocks_protected_root_without_writing(
@@ -87,14 +71,15 @@ def test_parity_shadow_write_evidence_records_freshness_and_capability_basis(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
-    _checkout_work_lane(product)
+    checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
-    _checkout_work_lane(target)
+    checkout_work_lane(target)
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None
     ) -> dict[str, object]:
+        _ = (timeout_seconds, product_root)
         return {
             "ok": True,
             "state": "matched",
@@ -194,14 +179,15 @@ def test_parity_shadow_write_evidence_for_external_adopter_writes_target_evidenc
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
-    _checkout_work_lane(product)
+    checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
-    _checkout_work_lane(target)
+    checkout_work_lane(target)
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None
     ) -> dict[str, object]:
+        _ = (timeout_seconds, product_root)
         return {
             "ok": True,
             "state": "matched",
@@ -262,15 +248,16 @@ def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
-    _checkout_work_lane(product)
+    checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
     set_durable_evidence_root(target, "docs/evidence")
-    _checkout_work_lane(target)
+    checkout_work_lane(target)
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None
     ) -> dict[str, object]:
+        _ = (timeout_seconds, product_root)
         return {
             "ok": True,
             "state": "matched",
@@ -313,12 +300,13 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     product = init_git_repo(tmp_path / "product")
-    _checkout_work_lane(product)
+    checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
 
     def fake_shadow(
         *, target: Path, timeout_seconds: int, product_root: Path | None = None
     ) -> dict[str, object]:
+        _ = (timeout_seconds, product_root)
         return {
             "ok": True,
             "state": "matched",

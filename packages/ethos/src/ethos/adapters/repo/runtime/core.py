@@ -73,7 +73,10 @@ def runtime_binding(root: Path) -> dict[str, object]:
     next_action = (
         "runner, schema, and audit root are aligned"
         if state == "bound_to_audit_root"
-        else "declared external runner is active; use a checkout-bound runner when changing command or schema surfaces"
+        else (
+            "declared external runner is active; use a checkout-bound runner "
+            "when changing command or schema surfaces"
+        )
         if state == "external_declared_runner"
         else (
             "rerun with a package-bound runner from the audited checkout "

@@ -249,6 +249,22 @@ def test_semantic_attestation_receipt_rejects_nonabsolute_receipt_root(
     assert "sample-claim:semantic_attestation_receipt_invalid" in report["required_gaps"]
 
 
+def test_semantic_attestation_receipt_requires_provider_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A semantic verifier does not silently fall back when no receipt root is configured."""
+    root, head = _semantic_claim_fixture(tmp_path, monkeypatch)
+    monkeypatch.delenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR")
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest",
+        lambda *_a, **_k: "b" * 64,
+    )
+
+    report = claims_report(root, current_head=head)
+
+    assert "sample-claim:semantic_attestation_receipt_required" in report["required_gaps"]
+
+
 def test_digest_only_claim_does_not_require_semantic_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

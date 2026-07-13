@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 5267
+maximum_total = 5355
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -129,6 +129,14 @@ python_product = 253
 python_tests = 267
 yaml = 2
 toml = 80
+
+[[quality.source_budget.debt.records]]
+id = "bounded-lane-retirement-20260714"
+owner = "bounded-lane-retirement-20260714"
+replacement = "compress duplicate landed-retirement fixtures and retain only the minimal regression carrier"
+deletion_wave = "bounded-retirement-compression"
+expiry = "bounded-retirement-compression"
+allowance = 88
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

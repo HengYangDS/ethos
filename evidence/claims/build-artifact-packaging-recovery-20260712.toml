@@ -3,9 +3,9 @@ evidence = { dated = "evidence/chronicle/build-artifact-packaging-recovery-20260
   "evidence:build-artifact-packaging-recovery-20260712",
 ], binding = "Digest-bound local package build and architecture observation.", verifier = "digest_only", freshness = { mode = "historical" } }
 boundary = { owner = "ethos-repository", scope = "Core package artifact projection and local build recovery." }
-carriers = { openspec = "openspec/changes/build-artifact-packaging-recovery-20260712", fallback = "Retain the last verified package configuration.", kill_signal = "Treat as remote publication, release authorization, or semantic-correctness proof." }
+carriers = { openspec = "openspec/changes/archive/2026-07-13-build-artifact-packaging-recovery-20260712", fallback = "Retain the last verified package configuration.", kill_signal = "Treat as remote publication, release authorization, or semantic-correctness proof." }
 promotion = { targets = [
-  "openspec/changes/build-artifact-packaging-recovery-20260712",
+  "openspec/changes/archive/2026-07-13-build-artifact-packaging-recovery-20260712",
   "evidence/claims/build-artifact-packaging-recovery-20260712.toml",
   "evidence/chronicle/build-artifact-packaging-recovery-20260712/2026-07-12.md",
 ] }

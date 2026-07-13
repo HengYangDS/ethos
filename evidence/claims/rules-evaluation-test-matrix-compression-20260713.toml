@@ -7,7 +7,7 @@ summary = "Equivalent rule-evaluation facts use compact immutable declarations a
 
 [evidence]
 dated = "evidence/chronicle/rules-evaluation-test-matrix-compression-20260713/2026-07-13.md"
-sha256 = "d285777968d8cf1de03deb4f1714c3d4dd87b4f65d64dcafd2214bec6294174c"
+sha256 = "50c782e58d8a3fb165cd425b40f524610974f2b57e3b5d193f8d5bd0c86b4823"
 evidence_ids = [
   "evidence:rules-evaluation-test-matrix-compression-20260713",
   "test:tests/unit/kernel/rules/test_evaluation.py",
@@ -39,7 +39,7 @@ owner = "quality"
 scope = "Rule-evaluation test-fixture representation and coverage-only test duplication; product policy semantics and public command behavior remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/rules-evaluation-test-matrix-compression-20260713"
+openspec = "openspec/changes/archive/2026-07-13-rules-evaluation-test-matrix-compression-20260713"
 fallback = "Restore the prior focused test bodies only if the compact fact declarations and canonical edge test cannot preserve the same public contracts and coverage; do not retain a second permanent test representation."
 kill_signal = "The scoped effective test-line total does not decline, a former fail-closed gap loses coverage, or the repository coverage floor falls below 100 percent."
 
@@ -49,6 +49,7 @@ targets = [
   { kind = "tests", path = "tests/unit/kernel/rules/test_evaluation.py" },
   { kind = "tests", path = "tests/unit/coverage/test_cov_v2_policy_edges.py" },
   { kind = "tests", path = "tests/unit/coverage/test_cov_v3_policy_edges.py" },
-  { kind = "openspec", path = "openspec/changes/rules-evaluation-test-matrix-compression-20260713" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-rules-evaluation-test-matrix-compression-20260713" },
+  { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/rules-evaluation-test-matrix-compression-20260713/2026-07-13.md" },
 ]

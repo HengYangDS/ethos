@@ -9,6 +9,7 @@ import pytest
 
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.contracts.evidence.semantic import SemanticAttestationReceipt
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -209,8 +210,6 @@ def test_semantic_attestation_claim_schema_requires_semantic_scope(
 
 def test_semantic_attestation_receipt_model_rejects_tampered_payload_digest() -> None:
     """The typed receipt contract rejects a self-inconsistent canonical payload."""
-    from ethos_core.contracts.evidence.semantic import SemanticAttestationReceipt
-
     payload = {
         "schema_version": 1,
         "kind": "semantic-attestation",

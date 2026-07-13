@@ -480,6 +480,7 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert expected_state["remote_availability_state"] in {
         "unconfigured",
         "unavailable",
+        "not_probed",
     }
     assert mutation["decision"]["decision_basis"]["identity_basis"] == "not_evaluated"
 

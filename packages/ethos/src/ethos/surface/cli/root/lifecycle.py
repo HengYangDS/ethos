@@ -67,6 +67,7 @@ class _PublishOptions:
     apply: bool = False
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    probe_remote: Annotated[bool, Parameter(name="--probe-remote")] = False
 
 
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
@@ -451,7 +452,11 @@ def publish(
     )
     remote_sync = git.remote_tracking_sync(repo, str(branch))
     remote_availability = {
-        **git.remote_availability(repo),
+        **(
+            git.remote_availability(repo)
+            if options.probe_remote
+            else git.remote_availability_not_probed(repo)
+        ),
         "tracking_sync": remote_sync,
     }
     local_ci_fallback = land_publication.local_ci_fallback_package(

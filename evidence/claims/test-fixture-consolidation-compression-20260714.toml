@@ -1,0 +1,30 @@
+[claim]
+id = "test-fixture-consolidation-compression-20260714"
+change_id = "test-fixture-consolidation-compression-20260714"
+subject = "quality:work-lane-admission-test-compression"
+state = "active"
+summary = "Equivalent Work-Lane admission tests use bounded declarative matrices while preserving state-specific gaps and no-worktree invariants."
+
+[evidence]
+dated = "evidence/chronicle/test-fixture-consolidation-compression-20260714/2026-07-14.md"
+sha256 = "0d936fae6ff7ffe727a2ff7e1187f04c5e9fe8cb534584dd30302d7928876f61"
+evidence_ids = ["evidence:test-fixture-consolidation-compression-20260714"]
+binding = "The OpenSpec carrier, formatter-clean test deletion, focused test result, and promotion targets bind this bounded compression slice."
+verifier = "semantic"
+
+[evidence.freshness]
+mode = "semantic_scope"
+head = "e25f89186ea168187a8f7e8aea97787e0e0d10e1"
+semantic_sha256 = "sha256:2cbbbf12cca60b8bf51a2d7b4f2a6df19ff7950c1a4b88732804dbf495ec8d2d"
+
+[boundary]
+owner = "quality"
+scope = "Work-Lane admission test representation only; production lifecycle semantics remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/test-fixture-consolidation-compression-20260714"
+fallback = "Restore prior named tests if the matrix loses behavior parity or net deletion."
+kill_signal = "A required gap or no-worktree invariant regresses, or scoped ELOC does not decline."
+
+[promotion]
+targets = [{ kind = "tests", path = "tests/unit/lanes/test_lanes_lifecycle.py" }, { kind = "openspec", path = "openspec/changes/test-fixture-consolidation-compression-20260714" }, { kind = "evidence", path = "evidence/chronicle/test-fixture-consolidation-compression-20260714/2026-07-14.md" }]

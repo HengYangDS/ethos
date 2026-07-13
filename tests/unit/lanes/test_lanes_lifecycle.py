@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import pytest
+
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation import lanes as lane_mutation
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
@@ -343,10 +345,24 @@ def test_start_work_lane_defaults_path_to_sibling_candidate_home(
     assert git(expected, "branch", "--show-current") == "work/feature"
 
 
-def test_start_work_lane_apply_requires_candidate_branch(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("mode", "expected_gap"),
+    [
+        ("branch_missing", "candidate_branch_missing"),
+        ("worktree_missing", "candidate_worktree_missing"),
+        ("worktree_dirty", "candidate_worktree_dirty"),
+    ],
+)
+def test_start_work_lane_apply_requires_ready_candidate(
+    tmp_path: Path, mode: str, expected_gap: str
+) -> None:
     repo = init_repo(tmp_path / "repo")
+    if mode == "worktree_missing":
+        git(repo, "branch", "candidate/dev", "dev")
+    elif mode == "worktree_dirty":
+        candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+        (candidate / "README.md").write_text("# dirty candidate\n", encoding="utf-8")
     worktree = tmp_path / "repo-work-feature"
-
     report = start_work_lane(
         root=repo,
         name="feature",
@@ -354,49 +370,9 @@ def test_start_work_lane_apply_requires_candidate_branch(tmp_path: Path) -> None
         holder_ref="agent:test:case:agent-test",
         apply=True,
     )
-
     assert report["ok"] is False
     assert report["state"] == "blocked"
-    assert "candidate_branch_missing" in report["required_gaps"]
-    assert not worktree.exists()
-
-
-def test_start_work_lane_apply_requires_candidate_worktree(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    git(repo, "branch", "candidate/dev", "dev")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert "candidate_worktree_missing" in report["required_gaps"]
-    assert not worktree.exists()
-
-
-def test_start_work_lane_apply_rejects_dirty_candidate_worktree(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    (candidate / "README.md").write_text("# dirty candidate\n", encoding="utf-8")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["candidate_worktree_dirty"]
+    assert expected_gap in report["required_gaps"]
     assert not worktree.exists()
 
 
@@ -655,54 +631,34 @@ def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
     assert report["required_gaps"] == ["authorization_required", "expect_head_required"]
 
 
-def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path) -> None:
+@pytest.mark.parametrize("mode", ["nested_work_lane", "dirty_accepted_root"])
+def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path, mode: str) -> None:
     repo = init_repo(tmp_path / "repo")
-    current_worktree = tmp_path / "repo-work-current"
-    new_worktree = tmp_path / "repo-work-nested"
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "work/current",
-        current_worktree.as_posix(),
-        "dev",
-    )
-
-    report = start_work_lane(
-        root=current_worktree,
-        name="nested",
-        path=new_worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
-    assert not new_worktree.exists()
-
-
-def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    root = repo
+    name = "feature"
     worktree = tmp_path / "repo-work-feature"
-    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-
+    if mode == "nested_work_lane":
+        root = tmp_path / "repo-work-current"
+        name = "nested"
+        worktree = tmp_path / "repo-work-nested"
+        git(repo, "worktree", "add", "-b", "work/current", root.as_posix(), "dev")
+    else:
+        add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+        (repo / "README.md").write_text("# changed\n", encoding="utf-8")
     report = start_work_lane(
-        root=repo,
-        name="feature",
+        root=root,
+        name=name,
         path=worktree,
         holder_ref="agent:test:case:agent-test",
         apply=True,
     )
-
     assert report["ok"] is False
     assert report["state"] == "blocked"
-    assert report["role"] == "accepted_root"
-    assert report["dirty"] is True
     assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
     assert not worktree.exists()
+    if mode == "dirty_accepted_root":
+        assert report["role"] == "accepted_root"
+        assert report["dirty"] is True
 
 
 def test_workspace_status_reports_runtime_binding_for_audited_checkout(

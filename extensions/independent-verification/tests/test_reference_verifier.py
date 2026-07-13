@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -128,3 +129,72 @@ def test_reference_adapter_never_forwards_keys_to_proof_children(
     assert "UNRELATED" not in child
     assert all("KEY" not in key for key in child)
     assert os.environ["ETHOS_SIGNING_KEY"] == "private-key-material"
+
+
+def test_reference_adapter_prepares_an_offline_snapshot_runtime(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    checkout = config.checkout_root / "snapshot" / "checkout"
+    monkeypatch.setenv("SSH_AUTH_SOCK", "/private/key-agent.sock")
+
+    environment = module.proof_child_environment(config, checkout=checkout)
+
+    assert environment["HOME"] == (checkout.parent / "scratch").as_posix()
+    assert environment["PYTHONPATH"] == ":".join(
+        [
+            (checkout / "packages/ethos/src").as_posix(),
+            (checkout / "packages/ethos-core/src").as_posix(),
+        ]
+    )
+    assert environment["ETHOS_RUNTIME_BOOTSTRAPPED"] == "1"
+    assert environment["UV_OFFLINE"] == "1"
+    assert environment["UV_NO_SYNC"] == "1"
+    assert environment["OPENSPEC_TELEMETRY"] == "0"
+    assert config.runtime_python.parent.as_posix() in environment["PATH"]
+    assert "SSH_AUTH_SOCK" not in environment
+
+
+def test_reference_adapter_uses_snapshot_parent_for_proof_execution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    config.sandbox_exec.write_text("", encoding="utf-8")
+    config.sandbox_exec.chmod(0o755)
+    checkout = config.checkout_root / "snapshot" / "checkout"
+    checkout.mkdir(parents=True)
+    captured: dict[str, object] = {}
+
+    def run(*args, **kwargs):
+        captured.update(args=args, **kwargs)
+        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+
+    module._run(config, ["/usr/bin/git", "status"], checkout)
+
+    assert captured["cwd"] == checkout.parent
+    environment = captured["env"]
+    assert environment["PYTHONPATH"].startswith(checkout.as_posix())
+    assert environment["UV_OFFLINE"] == "1"
+
+
+def test_reference_adapter_profile_supports_the_offline_runtime_without_broker_state(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    checkout = config.checkout_root / "snapshot" / "checkout"
+
+    profile = module._sandbox_profile(config, checkout)
+
+    assert "(deny default)" in profile
+    assert "(deny network*)" not in profile
+    assert "/opt/homebrew" in profile
+    assert "com.apple.SystemConfiguration.configd" in profile
+    assert '(literal "/bin/ps")' in profile
+    assert config.signing_key.as_posix() not in profile
+    assert config.receipt_store.as_posix() not in profile
+    assert checkout.parent.as_posix() in profile

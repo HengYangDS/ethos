@@ -146,13 +146,40 @@ def validate_request(config: ReferenceVerifierConfig, request: dict[str, object]
             _fail(f"request_invalid:{field}")
 
 
-def proof_child_environment(config: ReferenceVerifierConfig) -> dict[str, str]:
-    """Return the tiny, key-free environment passed to clone and proof children."""
-    return {
+def proof_child_environment(
+    config: ReferenceVerifierConfig, *, checkout: Path | None = None
+) -> dict[str, str]:
+    """Return a key-free, offline environment bound to one checkout when present."""
+    environment = {
         "HOME": config.checkout_root.parent.as_posix(),
         "LANG": "C.UTF-8",
-        "PATH": "/usr/bin:/bin",
+        "PATH": f"{config.runtime_python.parent.as_posix()}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHON": config.runtime_python.as_posix(),
+        "ETHOS_PYTHON": config.runtime_python.as_posix(),
+        "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "OPENSPEC_TELEMETRY": "0",
+        "UV_NO_SYNC": "1",
+        "UV_OFFLINE": "1",
+        "UV_PROJECT_ENVIRONMENT": config.runtime_python.parent.parent.as_posix(),
     }
+    if checkout is not None:
+        scratch = checkout.parent / "scratch"
+        cache = scratch / "cache"
+        environment.update(
+            {
+                "HOME": scratch.as_posix(),
+                "TMPDIR": scratch.as_posix(),
+                "UV_CACHE_DIR": cache.as_posix(),
+                "XDG_CACHE_HOME": cache.as_posix(),
+                "RUFF_CACHE_DIR": (cache / "ruff").as_posix(),
+                "PYTHONPATH": ":".join(
+                    (checkout / path).as_posix()
+                    for path in ("packages/ethos/src", "packages/ethos-core/src")
+                ),
+            }
+        )
+    return environment
 
 
 def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
@@ -160,6 +187,9 @@ def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
     roots = [
         "/System",
         "/usr",
+        "/bin",
+        "/sbin",
+        "/opt/homebrew",
         config.runtime_python.parent.parent.as_posix(),
         config.checkout_root.as_posix(),
         checkout.parent.as_posix(),
@@ -170,15 +200,11 @@ def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
             "(version 1)",
             "(deny default)",
             f"(allow file-read* {reads})",
-            f'(allow file-write* (subpath "{config.checkout_root.as_posix()}"))',
-            "(allow process-exec",
-            f'  (literal "{_GIT.as_posix()}")',
-            f'  (literal "{config.runtime_python.as_posix()}")',
-            '  (literal "/bin/sh")',
-            '  (literal "/bin/bash")',
-            f'  (subpath "{checkout.as_posix()}"))',
+            f'(allow file-write* (subpath "{checkout.parent.as_posix()}"))',
+            "(allow process-exec)",
             "(allow process-fork)",
-            "(deny network*)",
+            '(allow mach-lookup (global-name "com.apple.SystemConfiguration.configd"))',
+            '(allow process-exec (with no-sandbox) (literal "/bin/ps"))',
         ]
     )
 
@@ -224,8 +250,8 @@ def _run(
 ) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
         sandboxed_command(config, command, checkout),
-        cwd=config.checkout_root,
-        env=proof_child_environment(config),
+        cwd=checkout.parent,
+        env=proof_child_environment(config, checkout=checkout if checkout.is_dir() else None),
         input=None,
         capture_output=True,
         check=False,

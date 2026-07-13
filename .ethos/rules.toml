@@ -108,9 +108,9 @@ expiry = "T8"
 allowance = 3237
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_product = 1108
-python_tests = 2056
-python_other = 497
+python_product = 1096
+python_tests = 2057
+python_other = 508
 shell = 368
 yaml = 4
 json = 102

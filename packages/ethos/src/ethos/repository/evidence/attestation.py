@@ -21,31 +21,29 @@ def semantic_attestation(
     if evidence.get("verifier") != "semantic_attested":
         return {}
     config = evidence.get("semantic_attestation")
-    if not isinstance(config, dict):
-        return _unattested()
-    receipt_id = str(config.get("receipt_id") or "")
+    receipt_id = str(config.get("receipt_id") or "") if isinstance(config, dict) else ""
     receipt_dir = os.environ.get("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR", "")
     if (
         not receipt_id
         or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", receipt_id)
         or not receipt_dir
     ):
-        return _unattested()
-    path, gap = _external_receipt_path(binding[0], receipt_dir, receipt_id)
-    if gap:
-        return {
-            "state": "unattested" if gap.endswith("required") else "invalid",
-            "required_gaps": [gap],
-        }
+        return _result("unattested", "semantic_attestation_receipt_required")
+    receipt_root = Path(receipt_dir).expanduser()
+    if not receipt_root.is_absolute():
+        return _result("invalid", "semantic_attestation_receipt_invalid")
+    receipt_root, root = receipt_root.resolve(), binding[0].resolve()
+    path = (receipt_root / f"{receipt_id}.json").resolve()
+    if receipt_root.is_relative_to(root) or path.is_relative_to(root):
+        return _result("invalid", "semantic_attestation_receipt_inside_repository")
+    if not path.is_file():
+        return _result("unattested", "semantic_attestation_receipt_required")
     try:
-        raw = path.read_bytes() if path else b""
+        raw = path.read_bytes()
         receipt = SemanticAttestationReceipt.model_validate(json.loads(raw))
     except (OSError, TypeError, ValueError):
-        return {
-            "state": "invalid",
-            "required_gaps": ["semantic_attestation_receipt_invalid"],
-        }
-    gaps = _receipt_binding_gaps(receipt, raw, config, binding)
+        return _result("invalid", "semantic_attestation_receipt_invalid")
+    gaps = _receipt_binding_gaps(receipt, raw, config or {}, binding)
     return {
         "state": "attested" if not gaps else "invalid",
         "receipt_id": receipt_id,
@@ -56,29 +54,8 @@ def semantic_attestation(
     }
 
 
-def _unattested() -> dict[str, object]:
-    return {
-        "state": "unattested",
-        "required_gaps": ["semantic_attestation_receipt_required"],
-    }
-
-
-def _external_receipt_path(
-    root: Path, receipt_dir_value: str, receipt_id: str
-) -> tuple[Path | None, str]:
-    """Resolve exactly one receipt and reject repository-local evidence."""
-    receipt_dir = Path(receipt_dir_value).expanduser()
-    if not receipt_dir.is_absolute():
-        return None, "semantic_attestation_receipt_invalid"
-    receipt_dir, root = receipt_dir.resolve(), root.resolve()
-    receipt_path = (receipt_dir / f"{receipt_id}.json").resolve()
-    if receipt_dir.is_relative_to(root) or receipt_path.is_relative_to(root):
-        return None, "semantic_attestation_receipt_inside_repository"
-    return (
-        (receipt_path, "")
-        if receipt_path.is_file()
-        else (None, "semantic_attestation_receipt_required")
-    )
+def _result(state: str, gap: str) -> dict[str, object]:
+    return {"state": state, "required_gaps": [gap]}
 
 
 def _receipt_binding_gaps(
@@ -87,48 +64,31 @@ def _receipt_binding_gaps(
     config: dict[str, Any],
     binding: AttestationBinding,
 ) -> list[str]:
-    """Return candidate receipt facts that differ from the exact claim binding."""
     _, claim_id, evidence_sha256, scope_sha256, current_head = binding
     declared = (str(config.get(key) or "") for key in ("receipt_sha256", "scope_sha256", "head"))
     receipt_digest, declared_scope, declared_head = declared
-    checks = (
-        (
-            claim_id,
-            claim_id,
-            receipt.claim_id,
-            "semantic_attestation_claim_id_mismatch",
-        ),
-        (
-            evidence_sha256,
-            evidence_sha256,
-            receipt.evidence_sha256,
-            "semantic_attestation_evidence_digest_mismatch",
-        ),
-        (
-            scope_sha256,
-            declared_scope,
-            receipt.scope_sha256,
-            "semantic_attestation_scope_digest_mismatch",
-        ),
-        (
-            current_head,
-            declared_head,
-            receipt.head,
-            "semantic_attestation_head_mismatch",
-        ),
-    )
+    actuals = (claim_id, evidence_sha256, scope_sha256, current_head)
+    declared_values = (claim_id, evidence_sha256, declared_scope, declared_head)
+    received = (receipt.claim_id, receipt.evidence_sha256, receipt.scope_sha256, receipt.head)
     gaps = [
         gap
-        for actual, declared, value, gap in checks
+        for actual, declared, value, gap in zip(
+            actuals,
+            declared_values,
+            received,
+            (
+                "semantic_attestation_claim_id_mismatch",
+                "semantic_attestation_evidence_digest_mismatch",
+                "semantic_attestation_scope_digest_mismatch",
+                "semantic_attestation_head_mismatch",
+            ),
+            strict=True,
+        )
         if not actual or actual != declared or value != actual
     ]
     if hashlib.sha256(raw).hexdigest() != receipt_digest:
         gaps.append("semantic_attestation_receipt_digest_mismatch")
     now = datetime.now(UTC)
-    if (
-        receipt.issued_at > now
-        or receipt.valid_until <= now
-        or receipt.valid_until <= receipt.issued_at
-    ):
+    if receipt.issued_at > now or receipt.valid_until <= max(now, receipt.issued_at):
         gaps.append("semantic_attestation_receipt_stale")
     return gaps

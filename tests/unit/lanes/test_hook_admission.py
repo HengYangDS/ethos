@@ -199,7 +199,22 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
 def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
     leased_worktree: Path,
 ) -> None:
+    branch_head = git(leased_worktree, "rev-parse", "HEAD")
     git(leased_worktree, "checkout", "--detach")
+    (leased_worktree / "REBASE.md").write_text("# replay checkpoint\n", encoding="utf-8")
+    git(leased_worktree, "add", "REBASE.md")
+    git(
+        leased_worktree,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "replay checkpoint",
+    )
+    detached_head = git(leased_worktree, "rev-parse", "HEAD")
+    assert detached_head != branch_head
     git_dir = Path(git(leased_worktree, "rev-parse", "--absolute-git-dir"))
     rebase_dir = git_dir / "rebase-merge"
     rebase_dir.mkdir()
@@ -223,6 +238,10 @@ def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
         "source": "git_rebase_head_name",
         "rebase_head_name": "work/feature",
     }
+    lease_check = report["admission"]["work_lane_lease"]
+    assert lease_check["current_head"] == detached_head
+    assert lease_check["binding_head"] == branch_head
+    assert lease_check["head_source"] == "rebase_branch_ref"
 
 
 def test_git_path_falls_back_to_dot_git_when_git_path_is_unavailable(
@@ -237,7 +256,9 @@ def test_git_path_falls_back_to_dot_git_when_git_path_is_unavailable(
     assert admission_prewrite._git_path(tmp_path) == tmp_path / ".git"
 
 
-def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(tmp_path: Path) -> None:
+def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     git(repo, "checkout", "--detach")
     git_dir = Path(git(repo, "rev-parse", "--absolute-git-dir"))
@@ -386,7 +407,11 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
         check=True,
     )
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 
     # protected accepted root without proof -> blocked
@@ -548,7 +573,9 @@ def test_push_identity_policy_reports_author_and_committer_independently(
     committer_drift_head = git(second_repo, "rev-parse", "HEAD")
 
     committer_drift = push_identity_policy_report(
-        root=second_repo, pushed_head=committer_drift_head, remote_head=second_remote_head
+        root=second_repo,
+        pushed_head=committer_drift_head,
+        remote_head=second_remote_head,
     )
 
     assert (
@@ -644,14 +671,16 @@ def test_executed_proof_record_rejects_forgery(
 
     # bare forgery — no evidence body
     (proof_dir / f"{head}.json").write_text(
-        json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}), encoding="utf-8"
+        json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}),
+        encoding="utf-8",
     )
     assert executed_proof_record(tmp_path, head) is None
     assert "proof_not_proven" in proof_gaps(tmp_path, head)
 
     # Non-proven local state never admits a proof even if the file is present.
     (proof_dir / f"{head}.json").write_text(
-        json.dumps({"head": head, "state": "pending", "evidence_digest": "x"}), encoding="utf-8"
+        json.dumps({"head": head, "state": "pending", "evidence_digest": "x"}),
+        encoding="utf-8",
     )
     assert executed_proof_record(tmp_path, head) is None
 

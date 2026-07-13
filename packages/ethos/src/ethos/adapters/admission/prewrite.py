@@ -49,6 +49,7 @@ def prewrite_guard(
         status=status,
         role=role,
         branch=effective["branch"],
+        head_source=effective["source"],
         tracked_write_requested=tracked_write_requested,
     )
     editor_check = _editor_root_check(
@@ -156,6 +157,7 @@ def _work_lane_lease_check(
     status: dict[str, object],
     role: str,
     branch: str,
+    head_source: str,
     tracked_write_requested: bool,
 ) -> dict[str, object]:
     if role != ROLE_WORK_LANE or not tracked_write_requested:
@@ -186,11 +188,17 @@ def _work_lane_lease_check(
             "reason": f"work_lane_missing_lease:{branch}",
         }
     current_head = _current_head(root)
+    binding_head, binding_head_source = _binding_head(
+        root=root,
+        branch=branch,
+        head_source=head_source,
+        current_head=current_head,
+    )
     reason = _lease_binding_reason(
         branch=branch,
         lease=lease,
         actor=actor,
-        current_head=current_head,
+        current_head=binding_head,
     )
     if reason:
         return {
@@ -203,6 +211,8 @@ def _work_lane_lease_check(
             "epoch": integer_value(lease.get("epoch")),
             "expected_head": str(lease.get("expected_head") or ""),
             "current_head": current_head,
+            "binding_head": binding_head,
+            "head_source": binding_head_source,
             "reason": reason,
         }
     return {
@@ -215,6 +225,8 @@ def _work_lane_lease_check(
         "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
         "current_head": current_head,
+        "binding_head": binding_head,
+        "head_source": binding_head_source,
         "reason": "matched",
     }
 
@@ -248,6 +260,23 @@ def _current_head(root: Path) -> str:
         capture_output=True,
     )
     return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _binding_head(
+    *, root: Path, branch: str, head_source: str, current_head: str
+) -> tuple[str, str]:
+    """Return the ref head that a lease must bind for this write transition."""
+    if head_source != "git_rebase_head_name":
+        return current_head, "head"
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
+        cwd=root,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    binding_head = completed.stdout.strip() if completed.returncode == 0 else ""
+    return binding_head, "rebase_branch_ref"
 
 
 def _prewrite_decision(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

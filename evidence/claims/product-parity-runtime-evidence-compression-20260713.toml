@@ -7,7 +7,7 @@ summary = "Product-parity runtime, evidence-writing, and report tests use compac
 
 [evidence]
 dated = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md"
-sha256 = "de67727936fe16e4b503a853c4fd68d9f2134b4a92f80cc2e8d4256eadeb2484"
+sha256 = "ac303d2d3ff1181178a59859b58f238d8f2d6db7fe9bccf10885900964c8f53e"
 evidence_ids = [
   "evidence:product-parity-runtime-evidence-compression-20260713",
   "test:tests/unit/product/parity/test_runners.py",
@@ -41,7 +41,7 @@ owner = "quality"
 scope = "Product-parity runtime/evidence/report test representation only; production parity execution, evidence semantics, and public command contracts remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/product-parity-runtime-evidence-compression-20260713"
+openspec = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression-20260713"
 fallback = "Restore the former focused test representation only if the compact fixtures or literal tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations."
 kill_signal = "The scoped effective test-line total does not decline, a retained diagnostic boundary loses coverage, a quality ratchet grows, or repository coverage falls below 100 percent."
 
@@ -52,6 +52,7 @@ targets = [
   { kind = "tests", path = "tests/unit/product/parity/test_evidence_writing.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_report.py" },
   { kind = "schema", path = ".config/checks/ruff/ratchet.toml" },
-  { kind = "openspec", path = "openspec/changes/product-parity-runtime-evidence-compression-20260713" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression-20260713" },
+  { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md" },
 ]

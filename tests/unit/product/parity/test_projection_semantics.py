@@ -7,6 +7,7 @@ import ethos.adapters.shadow.semantics as shadow_semantics
 from ethos.adapters.shadow.semantics import accepted_semantic_differences
 from ethos.adapters.shadow.semantics import semantic_diff
 from ethos.repository.policy.schema import validate_schema_instance
+from tests.unit.product.parity.snapshots import parity_payload
 
 
 def test_shadow_semantic_diff_compares_plan_gate_dimension() -> None:
@@ -30,49 +31,75 @@ def test_shadow_semantic_diff_compares_plan_gate_dimension() -> None:
     assert diff == {"required_gate_ids": {"external": ["unit"], "embedded": []}}
 
 
-def test_shadow_plan_projection_deduplicates_required_gate_ids() -> None:
-    external = {
-        "ok": True,
-        "command": "plan",
-        "state": "planned",
-        "required_gaps": [],
-        "data": {
-            "required_gates": [
-                {"id": "proof"},
-                {"id": "proof"},
-                {"id": "markdown"},
-            ]
-        },
-    }
-    embedded = {
-        "ok": True,
-        "command": "plan",
-        "state": "planned",
-        "required_gaps": [],
-        "data": {"required_gates": [{"id": "markdown"}, {"id": "proof"}]},
-    }
-
-    assert semantic_diff(("plan", "--changed"), external, embedded) == {}
-
-
-def test_shadow_status_projection_accepts_embedded_top_level_fields() -> None:
-    external = {
-        "ok": True,
-        "command": "status",
-        "state": "ready",
-        "required_gaps": [],
-        "data": {"role": "accepted_root", "dirty": False, "changed_paths": []},
-    }
-    embedded = {
-        "ok": True,
-        "command": "status",
-        "required_gaps": [],
-        "role": "accepted_root",
-        "dirty": False,
-        "changed_paths": [],
-    }
-
-    assert shadow_semantics.semantic_diff(("status",), external, embedded) == {}
+@pytest.mark.parametrize(
+    ("command", "external", "embedded"),
+    [
+        pytest.param(
+            ("plan", "--changed"),
+            parity_payload(
+                "plan",
+                ok=True,
+                state="planned",
+                data={"required_gates": [{"id": "proof"}, {"id": "proof"}, {"id": "markdown"}]},
+            ),
+            parity_payload(
+                "plan",
+                ok=True,
+                state="planned",
+                data={"required_gates": [{"id": "markdown"}, {"id": "proof"}]},
+            ),
+            id="deduplicated-plan-gates",
+        ),
+        pytest.param(
+            ("status",),
+            parity_payload(
+                "status",
+                ok=True,
+                state="ready",
+                data={"role": "accepted_root", "dirty": False, "changed_paths": []},
+            ),
+            parity_payload(
+                "status", ok=True, state=None, role="accepted_root", dirty=False, changed_paths=[]
+            ),
+            id="status-top-level-fields",
+        ),
+        pytest.param(
+            ("report",),
+            parity_payload("report", ok=True, state="ready"),
+            parity_payload(
+                "report",
+                ok=True,
+                state=None,
+                summary={"blocking_gap_count": 0},
+                scorecards=[{"id": "governance", "ok": True, "required_gaps": []}],
+            ),
+            id="report-blocking-gap-default",
+        ),
+        pytest.param(
+            ("playbooks", "route", "--changed"),
+            parity_payload(
+                "playbooks route",
+                ok=True,
+                state="routed",
+                data={"selected": [{"id": "repo-local-skill"}]},
+            ),
+            parity_payload("playbooks route", ok=True, state=None, route_hints=[]),
+            id="playbook-schema-details",
+        ),
+        pytest.param(
+            ("prove",),
+            parity_payload("prove", ok=True, state="ready"),
+            parity_payload("prove", ok=True, state={}),
+            id="prove-ready-state",
+        ),
+    ],
+)
+def test_shadow_semantic_diff_normalizes_explicit_projection_payloads(
+    command: tuple[str, ...],
+    external: dict[str, object],
+    embedded: dict[str, object],
+) -> None:
+    assert semantic_diff(command, external, embedded) == {}
 
 
 @pytest.mark.parametrize(
@@ -86,53 +113,16 @@ def test_shadow_status_projection_normalizes_legacy_role_aliases(
     external_role: str,
     embedded_role: str,
 ) -> None:
-    external = {
-        "ok": True,
-        "command": "status",
-        "state": "ready",
-        "required_gaps": [],
-        "summary": {"role": external_role, "dirty": False},
-    }
-    embedded = {
-        "ok": True,
-        "command": "status",
-        "required_gaps": [],
-        "summary": {"role": embedded_role, "dirty": False},
-    }
-
-    assert shadow_semantics.semantic_diff(("status",), external, embedded) == {}
-
-
-def test_shadow_report_projection_normalizes_missing_blocking_gap_count() -> None:
-    external = {"ok": True, "command": "report", "state": "ready", "required_gaps": []}
-    embedded = {
-        "ok": True,
-        "command": "report",
-        "summary": {"blocking_gap_count": 0},
-        "required_gaps": [],
-        "scorecards": [{"id": "governance", "ok": True, "required_gaps": []}],
-    }
-
-    assert shadow_semantics.semantic_diff(("report",), external, embedded) == {}
-
-
-def test_shadow_playbooks_projection_ignores_schema_specific_route_details() -> None:
-    external = {
-        "ok": True,
-        "command": "playbooks route",
-        "state": "routed",
-        "required_gaps": [],
-        "data": {"selected": [{"id": "repo-local-skill"}]},
-    }
-    embedded = {
-        "ok": True,
-        "command": "playbooks route",
-        "required_gaps": [],
-        "route_hints": [],
-    }
-
     assert (
-        shadow_semantics.semantic_diff(("playbooks", "route", "--changed"), external, embedded)
+        semantic_diff(
+            ("status",),
+            parity_payload(
+                "status", ok=True, state="ready", summary={"role": external_role, "dirty": False}
+            ),
+            parity_payload(
+                "status", ok=True, state=None, summary={"role": embedded_role, "dirty": False}
+            ),
+        )
         == {}
     )
 
@@ -159,74 +149,33 @@ def test_shadow_timeout_is_process_failure() -> None:
     assert shadow_execution.process_failed(result) is True
 
 
-def test_shadow_semantic_diff_derives_state_for_minimal_status_payload() -> None:
-    external = {
-        "ok": True,
-        "command": "status",
-        "state": "ready",
-        "required_gaps": [],
-        "data": {"role": "accepted_root"},
-    }
-    embedded = {
-        "ok": True,
-        "command": "status",
-        "summary": {"dirty": False},
-        "required_gaps": [],
-        "role": "accepted_root",
-    }
-
+@pytest.mark.parametrize(
+    ("external", "embedded"),
+    [
+        pytest.param(
+            parity_payload("status", ok=True, state="ready", data={"role": "accepted_root"}),
+            parity_payload(
+                "status", ok=True, state=None, summary={"dirty": False}, role="accepted_root"
+            ),
+            id="minimal-status",
+        ),
+        pytest.param(
+            parity_payload("plan", ok=True, state="planned"),
+            parity_payload("plan", ok=True, state=None, summary={"changed_path_count": 0}),
+            id="legacy-plan",
+        ),
+        pytest.param(
+            parity_payload("assistants doctor", ok=True, state="ready"),
+            parity_payload("assistants doctor", ok=True, state=None, summary={"surface_count": 4}),
+            id="legacy-assistants-doctor",
+        ),
+    ],
+)
+def test_shadow_semantic_diff_derives_equivalent_payload_state(
+    external: dict[str, object],
+    embedded: dict[str, object],
+) -> None:
     assert semantic_diff(external, embedded) == {}
-
-
-def test_shadow_semantic_diff_derives_state_for_legacy_plan_payload() -> None:
-    external = {
-        "ok": True,
-        "command": "plan",
-        "state": "planned",
-        "required_gaps": [],
-    }
-    embedded = {
-        "ok": True,
-        "command": "plan",
-        "summary": {"changed_path_count": 0},
-        "required_gaps": [],
-    }
-
-    assert semantic_diff(external, embedded) == {}
-
-
-def test_shadow_semantic_diff_derives_state_for_legacy_assistants_doctor_payload() -> None:
-    external = {
-        "ok": True,
-        "command": "assistants doctor",
-        "state": "ready",
-        "required_gaps": [],
-    }
-    embedded = {
-        "ok": True,
-        "command": "assistants doctor",
-        "summary": {"surface_count": 4},
-        "required_gaps": [],
-    }
-
-    assert semantic_diff(external, embedded) == {}
-
-
-def test_shadow_semantic_diff_normalizes_ready_prove_against_minimal_payload() -> None:
-    external = {
-        "ok": True,
-        "command": "prove",
-        "state": "ready",
-        "required_gaps": [],
-    }
-    embedded = {
-        "ok": True,
-        "command": "prove",
-        "state": {},
-        "required_gaps": [],
-    }
-
-    assert semantic_diff(("prove",), external, embedded) == {}
 
 
 @pytest.mark.parametrize(

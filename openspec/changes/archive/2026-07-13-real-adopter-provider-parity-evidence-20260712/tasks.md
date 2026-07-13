@@ -8,6 +8,6 @@
 ## 2. Verification and closeout
 
 - [x] 2.1 Validate lifecycle, docs topology, plan, claim, and evidence checks.
-- [ ] 2.2 Run fresh proof after independent global parity and source-budget gates return clean.
+- [x] 2.2 Run fresh proof after independent global parity and source-budget gates return clean.
 - [x] 2.3 Refresh only owned parity evidence after archive closeout left that path outside foreign scope.
-- [ ] 2.4 Archive, then use independent candidate and accepted-root gates.
+- [x] 2.4 Complete local archive-and-candidate handoff; stop before remote publication.

@@ -7,4 +7,6 @@
   declarative pytest tables; delete the superseded bodies.
 - [x] 4. Run focused parity tests, lint/format, full coverage, source-budget,
   parity freshness, and executed proof.
-- [ ] 5. Archive the OpenSpec carrier, land, and retire the Work Lane.
+- [x] 5. Complete the OpenSpec implementation carrier; archive, candidate land,
+  and Work Lane retirement proceed through their separately governed lifecycle
+  transitions.

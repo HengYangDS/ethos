@@ -47,9 +47,7 @@ def prewrite_guard(
     lease_check = _work_lane_lease_check(
         root=root,
         status=status,
-        role=role,
-        branch=effective["branch"],
-        head_source=effective["source"],
+        effective=effective,
         tracked_write_requested=tracked_write_requested,
     )
     editor_check = _editor_root_check(
@@ -155,11 +153,13 @@ def _work_lane_lease_check(
     *,
     root: Path,
     status: dict[str, object],
-    role: str,
-    branch: str,
-    head_source: str,
+    effective: dict[str, str],
     tracked_write_requested: bool,
 ) -> dict[str, object]:
+    """Evaluate the current Work Lane lease against its lifecycle binding."""
+    role = effective["role"]
+    branch = effective["branch"]
+    head_source = effective["source"]
     if role != ROLE_WORK_LANE or not tracked_write_requested:
         return {
             "ok": True,

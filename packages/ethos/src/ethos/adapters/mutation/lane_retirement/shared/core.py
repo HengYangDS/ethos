@@ -154,7 +154,10 @@ def holder_authority_gaps(selected: list[dict[str, object]]) -> list[str]:
 
 def has_changed_paths(root: Path, *, runner: GitRunner) -> bool:
     """Fail closed when Git cannot prove the linked Work Lane is clean."""
-    completed = runner(root, "status", "--porcelain", "--untracked-files=all", check=False)
+    try:
+        completed = runner(root, "status", "--porcelain", "--untracked-files=all", check=False)
+    except OSError:
+        return True
     return completed.returncode != 0 or bool(completed.stdout.strip())
 
 

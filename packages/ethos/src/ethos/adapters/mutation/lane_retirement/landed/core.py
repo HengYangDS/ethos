@@ -51,12 +51,16 @@ def retire_landed_work_lanes(
     leases = active_runtime.leases_by_branch(
         cast("list[dict[str, str]]", worktrees), current_path=repo
     )
+    candidate_lanes = [
+        lane
+        for lane in worktrees
+        if lane["role"] == ROLE_WORK_LANE and (branch is None or lane["branch"] == branch)
+    ]
     lanes = [
         _retirement_lane(repo, lane, leases=leases, runtime=active_runtime)
-        for lane in worktrees
-        if lane["role"] == ROLE_WORK_LANE
+        for lane in candidate_lanes
     ]
-    selected = [lane for lane in lanes if branch is None or lane["branch"] == branch]
+    selected = lanes
     gaps: list[str] = []
     if branch is not None and not selected:
         gaps.append("retire_branch_not_found")

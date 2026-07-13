@@ -70,6 +70,17 @@ def test_reference_adapter_refuses_unavailable_sandbox_and_receipt_store(tmp_pat
     config = _config(module, tmp_path)
     with pytest.raises(module.VerificationError, match="sandbox_unavailable"):
         module.sandboxed_command(config, ["/usr/bin/git", "status"], tmp_path / "checkout")
+    config.sandbox_exec.touch()
+    config.sandbox_exec.chmod(0o755)
+    profile = module.sandboxed_command(config, ["/usr/bin/git", "status"], tmp_path / "checkout")[2]
+    for token in (
+        '(import "system.sb")',
+        "(deny network*)",
+        '(deny file-read* file-write* (subpath "/var/db/ethos"))',
+        f'(deny file-read* file-write* (literal "{config.signing_key.as_posix()}"))',
+        f'(deny file-read* file-write* (subpath "{config.receipt_store.as_posix()}"))',
+    ):
+        assert token in profile
     config.receipt_store.write_text("not a directory", encoding="utf-8")
     with pytest.raises(module.VerificationError, match="receipt_publication_failed"):
         module.publish_receipt(config, "receipt.json", {"result": "pass"})
@@ -85,17 +96,3 @@ def test_reference_adapter_prepares_key_free_snapshot_environment(tmp_path: Path
     assert environment["PYTHONPATH"].startswith(checkout.as_posix())
     assert "SSH_AUTH_SOCK" not in environment
     assert "ETHOS_SIGNING_KEY" not in environment
-
-
-def test_reference_adapter_profile_rejects_network_and_provider_state(tmp_path: Path) -> None:
-    module = _adapter()
-    config = _config(module, tmp_path)
-    profile = module._sandbox_profile(config, config.checkout_root / "snapshot" / "checkout")
-    for token in (
-        '(import "system.sb")',
-        "(deny network*)",
-        '(deny file-read* file-write* (subpath "/var/db/ethos"))',
-        f'(deny file-read* file-write* (literal "{config.signing_key.as_posix()}"))',
-        f'(deny file-read* file-write* (subpath "{config.receipt_store.as_posix()}"))',
-    ):
-        assert token in profile

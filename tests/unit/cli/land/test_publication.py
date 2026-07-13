@@ -137,7 +137,8 @@ def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> Non
     import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates command dependencies
 
     def unexpected_probe(_repo: Path) -> dict[str, object]:
-        raise AssertionError("publish must not probe a remote without --probe-remote")
+        message = "publish must not probe a remote without --probe-remote"
+        raise AssertionError(message)
 
     monkeypatch.setattr(lifecycle_cli.git, "remote_availability", unexpected_probe)
     monkeypatch.setattr(

@@ -42,9 +42,11 @@ def test_graph_and_workflow_projections_use_the_shared_kernel() -> None:
         assert token not in source
     assert "GraphKernel" in source
     source = _read("packages/ethos-core/src/ethos_core/graph/core.py")
-    assert "from graphlib import" in source and "TopologicalSorter" in source
+    assert "from graphlib import" in source
+    assert "TopologicalSorter" in source
     source = _read("packages/ethos-core/src/ethos_core/contracts/workflow.py")
-    assert "GraphKernel" in source and "GraphNode" in source
+    assert "GraphKernel" in source
+    assert "GraphNode" in source
     assert "TopologicalSorter" not in source
     for token in ("visiting", "visited", "while remaining", "def visit("):
         assert token not in source
@@ -66,7 +68,7 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
     monkeypatch.setitem(sys.modules, interface.__name__, interface)
     path = ROOT / "packages/ethos-core/src/ethos_core/packaging/hooks.py"
-    spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
+    spec = importlib.util.spec_from_file_location("ethos_core.packaging.hooks", path)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)

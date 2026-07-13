@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from tests.support.contract_helpers import adopt_and_commit
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
+from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -116,49 +118,9 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
 def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    worktree = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     work_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -191,38 +153,11 @@ def test_land_dry_run_reports_stale_candidate_base_with_refresh_action(
     }
 
 
-def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    worktree = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+def test_land_dry_run_requires_executed_proof_before_ready_state(
+    tmp_path: Path,
+) -> None:
+    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     work_head = git(worktree, "rev-parse", "HEAD")
 
     payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
@@ -254,37 +189,8 @@ def test_land_dry_run_requires_executed_proof_before_ready_state(tmp_path: Path)
 
 
 def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    worktree = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     work_head = git(worktree, "rev-parse", "HEAD")
     seed_executed_proof(worktree, work_head)
 
@@ -335,49 +241,9 @@ def test_land_dry_run_reports_ready_after_executed_proof(tmp_path: Path) -> None
 
 
 def test_lane_refresh_base_apply_rebases_stale_work_lane(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    worktree = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _repo, candidate, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -485,26 +351,10 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert mutation["decision"]["decision_basis"]["identity_basis"] == "not_evaluated"
 
 
-def test_publish_apply_defers_when_remote_transition_is_not_performed(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    worktree = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--root",
-        repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
-    )
+def test_publish_apply_defers_when_remote_transition_is_not_performed(
+    tmp_path: Path,
+) -> None:
+    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
     head = git(worktree, "rev-parse", "HEAD")
     seed_executed_proof(worktree, head)
 
@@ -772,7 +622,9 @@ def test_publish_apply_requires_authorization_and_expected_head(tmp_path: Path) 
     assert "expect_head_required" in payload["required_gaps"]
 
 
-def test_publish_apply_rejects_accepted_root_even_when_authorized(tmp_path: Path) -> None:
+def test_publish_apply_rejects_accepted_root_even_when_authorized(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
 

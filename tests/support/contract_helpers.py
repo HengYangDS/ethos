@@ -9,12 +9,71 @@ from __future__ import annotations
 
 import subprocess
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.repository.adoption.planner import adoption_plan
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+class WorkLaneFixture(NamedTuple):
+    """A generic adopted repository with its candidate and owned Work Lane."""
+
+    repository: Path
+    candidate: Path
+    worktree: Path
+
+
+def start_adopted_work_lane(
+    tmp_path: Path,
+    *,
+    name: str = "feature",
+    holder_ref: str = "agent:test:case:agent-test",
+) -> WorkLaneFixture:
+    """Create a generic adopted repository, candidate worktree, and owned lane."""
+    from tests.support.ethos_cli_runner import run_ethos
+
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    worktree = tmp_path / f"repo-work-{name}"
+    run_ethos(
+        "lane",
+        "start",
+        name,
+        "--root",
+        repo.as_posix(),
+        "--path",
+        worktree.as_posix(),
+        "--holder-ref",
+        holder_ref,
+        "--apply",
+        "--json",
+        cwd=repo,
+    )
+    return WorkLaneFixture(repo, candidate, worktree)
+
+
+def commit_fixture_file(root: Path, relative: str, content: str, message: str) -> str:
+    """Write and commit a fixture file, returning the resulting HEAD."""
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    git(root, "add", relative)
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        message,
+    )
+    return git(root, "rev-parse", "HEAD")
 
 
 def git(root: Path, *args: str) -> str:

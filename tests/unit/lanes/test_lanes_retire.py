@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -653,3 +654,68 @@ def test_foreign_unknown_scope_is_advisory_when_current_scope_is_bounded() -> No
 
     assert required == []
     assert "coordination_gap:foreign_scope_unknown:work/unknown" in advisory
+
+
+def test_retire_landed_selected_lane_ignores_unavailable_foreign_worktree(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    owned = tmp_path / "repo-work-owned"
+    missing_foreign = tmp_path / "repo-work-missing-foreign"
+    git(repo, "worktree", "add", "-b", "work/owned", owned.as_posix(), "dev")
+    git(repo, "worktree", "add", "-b", "work/foreign", missing_foreign.as_posix(), "dev")
+    owned_head = git(owned, "rev-parse", "HEAD")
+    shutil.rmtree(missing_foreign)
+
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/owned",
+        holder_ref="agent:test:case:owner",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch="work/owned",
+        expect_head=owned_head,
+        apply=True,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "retired"
+    assert not owned.exists()
+    assert git(repo, "branch", "--list", "work/owned") == ""
+    assert git(repo, "branch", "--list", "work/foreign") != ""
+
+
+def test_retire_landed_selected_unavailable_worktree_fails_closed(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    missing = tmp_path / "repo-work-missing"
+    git(repo, "worktree", "add", "-b", "work/missing", missing.as_posix(), "dev")
+    missing_head = git(missing, "rev-parse", "HEAD")
+    shutil.rmtree(missing)
+
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/missing",
+        holder_ref="agent:test:case:owner",
+        ttl_seconds=3600,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch="work/missing",
+        expect_head=missing_head,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["work_lane_dirty"]
+    assert git(repo, "branch", "--list", "work/missing") != ""

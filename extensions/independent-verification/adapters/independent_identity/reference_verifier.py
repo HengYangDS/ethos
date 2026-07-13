@@ -61,18 +61,21 @@ def _hex(value: object, lengths: tuple[int, ...]) -> bool:
     return (
         isinstance(value, str)
         and len(value) in lengths
-        and all(char in "0123456789abcdef" for char in value)
+        and not set(value) - set("0123456789abcdef")
     )
-
-
-def _sha256(value: object) -> bool:
-    return _hex(value, (_SHA256_LENGTH,))
 
 
 def _string(value: object, field: str) -> str:
     if not isinstance(value, str) or not value:
         _fail(f"config_invalid:{field}")
     return value
+
+
+def _path(value: object, field: str, *, keep: bool = False) -> Path:
+    path = Path(_string(value, field)).expanduser()
+    if not path.is_absolute():
+        _fail(f"config_invalid:{field}")
+    return path if keep else path.resolve()
 
 
 def load_config(path: Path) -> ReferenceVerifierConfig:
@@ -85,10 +88,11 @@ def load_config(path: Path) -> ReferenceVerifierConfig:
         value if isinstance(value := payload.get(field), dict) else {}
         for field in ("identity", "source", "runtime", "signing", "storage")
     )
-    if not _sha256(
+    if not _hex(
         implementation_digest := _string(
             runtime.get("implementation_digest"), "implementation_digest"
-        )
+        ),
+        (_SHA256_LENGTH,),
     ):
         _fail("config_invalid:implementation_digest")
     if not _hex(commit := _string(source.get("commit"), "commit"), (40, 64)):
@@ -97,19 +101,15 @@ def load_config(path: Path) -> ReferenceVerifierConfig:
         account=_string(identity.get("account"), "account"),
         remote=_string(source.get("remote"), "remote"),
         commit=commit,
-        runtime_python=Path(_string(runtime.get("python"), "runtime.python")).expanduser(),
+        runtime_python=_path(runtime.get("python"), "runtime.python", keep=True),
         implementation_digest=implementation_digest,
-        signing_key=Path(_string(signing.get("key"), "signing.key")).expanduser(),
+        signing_key=_path(signing.get("key"), "signing.key"),
         key_id=_string(signing.get("key_id"), "signing.key_id"),
-        receipt_store=Path(
-            _string(storage.get("receipt_store"), "storage.receipt_store")
-        ).expanduser(),
-        checkout_root=Path(
-            _string(storage.get("checkout_root"), "storage.checkout_root")
-        ).expanduser(),
-        sandbox_exec=Path(
-            _string(payload.get("sandbox_exec", _DEFAULT_SANDBOX.as_posix()), "sandbox_exec")
-        ).expanduser(),
+        receipt_store=_path(storage.get("receipt_store"), "storage.receipt_store"),
+        checkout_root=_path(storage.get("checkout_root"), "storage.checkout_root"),
+        sandbox_exec=_path(
+            payload.get("sandbox_exec", _DEFAULT_SANDBOX.as_posix()), "sandbox_exec"
+        ),
     )
 
 
@@ -128,7 +128,7 @@ def validate_request(config: ReferenceVerifierConfig, request: dict[str, object]
     if not _hex(request.get("tree"), (40, 64)):
         _fail("request_invalid:tree")
     for field in ("proof_floor_digest", "policy_digest"):
-        if not _sha256(request.get(field)):
+        if not _hex(request.get(field), (_SHA256_LENGTH,)):
             _fail(f"request_invalid:{field}")
 
 
@@ -142,12 +142,10 @@ def proof_child_environment(
         "LANG": "C.UTF-8",
         "PATH": f"{config.runtime_python.parent.as_posix()}:"
         "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-        "PYTHON": python,
         "ETHOS_PYTHON": python,
         "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
         "OPENSPEC_TELEMETRY": "0",
-        "UV_NO_SYNC": "1",
         "UV_OFFLINE": "1",
         "UV_PROJECT_ENVIRONMENT": config.runtime_python.parent.parent.as_posix(),
     }

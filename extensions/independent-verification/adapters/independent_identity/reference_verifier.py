@@ -23,7 +23,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
 from typing import NoReturn
 
 _GIT = Path("/usr/bin/git")
@@ -58,36 +57,16 @@ class ReferenceVerifierConfig:
     sandbox_exec: Path = _DEFAULT_SANDBOX
 
 
+def _hex(value: object, lengths: tuple[int, ...]) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) in lengths
+        and all(char in "0123456789abcdef" for char in value)
+    )
+
+
 def _sha256(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) == _SHA256_LENGTH
-        and all(char in "0123456789abcdef" for char in value)
-    )
-
-
-def _git_object_id(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) in {40, 64}
-        and all(char in "0123456789abcdef" for char in value)
-    )
-
-
-def _mapping(value: object) -> dict[str, Any]:
-    return value if isinstance(value, dict) else {}
-
-
-def _absolute(value: object, field: str, *, preserve_symlink: bool = False) -> Path:
-    if not isinstance(value, str) or not value:
-        _fail(f"config_invalid:{field}")
-    path = Path(value).expanduser()
-    if not path.is_absolute():
-        _fail(f"config_invalid:{field}")
-    # The provider runtime is commonly a virtualenv's ``bin/python`` symlink.
-    # Resolving only that path discards the virtualenv prefix and silently falls
-    # back to its base interpreter, losing the provider's pinned dependencies.
-    return path if preserve_symlink else path.resolve()
+    return _hex(value, (_SHA256_LENGTH,))
 
 
 def _string(value: object, field: str) -> str:
@@ -102,47 +81,51 @@ def load_config(path: Path) -> ReferenceVerifierConfig:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         _fail("config_unreadable")
-    identity = _mapping(payload.get("identity"))
-    source = _mapping(payload.get("source"))
-    runtime = _mapping(payload.get("runtime"))
-    signing = _mapping(payload.get("signing"))
-    storage = _mapping(payload.get("storage"))
-    implementation_digest = _string(runtime.get("implementation_digest"), "implementation_digest")
-    if not _sha256(implementation_digest):
+    identity, source, runtime, signing, storage = (
+        value if isinstance(value := payload.get(field), dict) else {}
+        for field in ("identity", "source", "runtime", "signing", "storage")
+    )
+    if not _sha256(
+        implementation_digest := _string(
+            runtime.get("implementation_digest"), "implementation_digest"
+        )
+    ):
         _fail("config_invalid:implementation_digest")
-    commit = _string(source.get("commit"), "commit")
-    if not _git_object_id(commit):
+    if not _hex(commit := _string(source.get("commit"), "commit"), (40, 64)):
         _fail("config_invalid:commit")
     return ReferenceVerifierConfig(
         account=_string(identity.get("account"), "account"),
         remote=_string(source.get("remote"), "remote"),
         commit=commit,
-        runtime_python=_absolute(runtime.get("python"), "runtime.python", preserve_symlink=True),
+        runtime_python=Path(_string(runtime.get("python"), "runtime.python")).expanduser(),
         implementation_digest=implementation_digest,
-        signing_key=_absolute(signing.get("key"), "signing.key"),
+        signing_key=Path(_string(signing.get("key"), "signing.key")).expanduser(),
         key_id=_string(signing.get("key_id"), "signing.key_id"),
-        receipt_store=_absolute(storage.get("receipt_store"), "storage.receipt_store"),
-        checkout_root=_absolute(storage.get("checkout_root"), "storage.checkout_root"),
-        sandbox_exec=_absolute(
-            payload.get("sandbox_exec", _DEFAULT_SANDBOX.as_posix()), "sandbox_exec"
-        ),
+        receipt_store=Path(
+            _string(storage.get("receipt_store"), "storage.receipt_store")
+        ).expanduser(),
+        checkout_root=Path(
+            _string(storage.get("checkout_root"), "storage.checkout_root")
+        ).expanduser(),
+        sandbox_exec=Path(
+            _string(payload.get("sandbox_exec", _DEFAULT_SANDBOX.as_posix()), "sandbox_exec")
+        ).expanduser(),
     )
 
 
 def validate_request(config: ReferenceVerifierConfig, request: dict[str, object]) -> None:
     """Require the request to match the configured immutable source and proof form."""
-    if request.get("remote") != config.remote:
-        _fail("remote_not_allowlisted")
-    if request.get("commit") != config.commit:
-        _fail("foreign_commit")
-    if request.get("action") != "publish":
-        _fail("action_not_allowlisted")
-    if request.get("proof_floor_id") != "ethos:promotion-required-gates:v1":
-        _fail("proof_floor_not_allowlisted")
-    request_implementation = request.get("implementation_digest")
-    if request_implementation not in {"", config.implementation_digest}:
+    for field, expected, error in (
+        ("remote", config.remote, "remote_not_allowlisted"),
+        ("commit", config.commit, "foreign_commit"),
+        ("action", "publish", "action_not_allowlisted"),
+        ("proof_floor_id", "ethos:promotion-required-gates:v1", "proof_floor_not_allowlisted"),
+    ):
+        if request.get(field) != expected:
+            _fail(error)
+    if request.get("implementation_digest") not in {"", config.implementation_digest}:
         _fail("implementation_mismatch")
-    if not _git_object_id(request.get("tree")):
+    if not _hex(request.get("tree"), (40, 64)):
         _fail("request_invalid:tree")
     for field in ("proof_floor_digest", "policy_digest"):
         if not _sha256(request.get(field)):
@@ -153,12 +136,14 @@ def proof_child_environment(
     config: ReferenceVerifierConfig, *, checkout: Path | None = None
 ) -> dict[str, str]:
     """Return a key-free, offline environment bound to one checkout when present."""
+    python = config.runtime_python.as_posix()
     environment = {
         "HOME": config.checkout_root.parent.as_posix(),
         "LANG": "C.UTF-8",
-        "PATH": f"{config.runtime_python.parent.as_posix()}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-        "PYTHON": config.runtime_python.as_posix(),
-        "ETHOS_PYTHON": config.runtime_python.as_posix(),
+        "PATH": f"{config.runtime_python.parent.as_posix()}:"
+        "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHON": python,
+        "ETHOS_PYTHON": python,
         "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
         "OPENSPEC_TELEMETRY": "0",
@@ -166,23 +151,20 @@ def proof_child_environment(
         "UV_OFFLINE": "1",
         "UV_PROJECT_ENVIRONMENT": config.runtime_python.parent.parent.as_posix(),
     }
-    if checkout is not None:
-        scratch = checkout.parent / "scratch"
-        cache = scratch / "cache"
-        environment.update(
-            {
-                "HOME": scratch.as_posix(),
-                "TMPDIR": scratch.as_posix(),
-                "UV_CACHE_DIR": cache.as_posix(),
-                "XDG_CACHE_HOME": cache.as_posix(),
-                "RUFF_CACHE_DIR": (cache / "ruff").as_posix(),
-                "PYTHONPATH": ":".join(
-                    (checkout / path).as_posix()
-                    for path in ("packages/ethos/src", "packages/ethos-core/src")
-                ),
-            }
-        )
-    return environment
+    if checkout is None:
+        return environment
+    scratch, cache = checkout.parent / "scratch", checkout.parent / "scratch" / "cache"
+    return environment | {
+        "HOME": scratch.as_posix(),
+        "TMPDIR": scratch.as_posix(),
+        "UV_CACHE_DIR": cache.as_posix(),
+        "XDG_CACHE_HOME": cache.as_posix(),
+        "RUFF_CACHE_DIR": (cache / "ruff").as_posix(),
+        "PYTHONPATH": ":".join(
+            (checkout / path).as_posix()
+            for path in ("packages/ethos/src", "packages/ethos-core/src")
+        ),
+    }
 
 
 def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
@@ -201,16 +183,11 @@ def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
             "(allow process-fork)",
             '(allow mach-lookup (global-name "com.apple.SystemConfiguration.configd"))',
             '(allow process-exec (with no-sandbox) (literal "/bin/ps"))',
-            '(deny file-read* (subpath "/etc/ethos"))',
-            '(deny file-write* (subpath "/etc/ethos"))',
-            '(deny file-read* (subpath "/var/db/ethos"))',
-            '(deny file-write* (subpath "/var/db/ethos"))',
-            '(deny file-read* (subpath "/Library/Application Support/ETHOS"))',
-            '(deny file-write* (subpath "/Library/Application Support/ETHOS"))',
-            f'(deny file-read* (literal "{config.signing_key.as_posix()}"))',
-            f'(deny file-write* (literal "{config.signing_key.as_posix()}"))',
-            f'(deny file-read* (subpath "{config.receipt_store.as_posix()}"))',
-            f'(deny file-write* (subpath "{config.receipt_store.as_posix()}"))',
+            '(deny file-read* file-write* (subpath "/etc/ethos"))',
+            '(deny file-read* file-write* (subpath "/var/db/ethos"))',
+            '(deny file-read* file-write* (subpath "/Library/Application Support/ETHOS"))',
+            f'(deny file-read* file-write* (literal "{config.signing_key.as_posix()}"))',
+            f'(deny file-read* file-write* (subpath "{config.receipt_store.as_posix()}"))',
         ]
     )
 
@@ -221,14 +198,9 @@ def sandboxed_command(
     """Prefix one fixed command with mandatory sandbox-exec or refuse execution."""
     if not config.sandbox_exec.is_file() or not os.access(config.sandbox_exec, os.X_OK):
         _fail("sandbox_unavailable")
-    if not command or Path(command[0]) not in {_GIT, config.runtime_python}:
+    if not command or command[0] not in (_GIT.as_posix(), config.runtime_python.as_posix()):
         _fail("command_not_allowlisted")
-    return [
-        config.sandbox_exec.as_posix(),
-        "-p",
-        _sandbox_profile(config, checkout),
-        *command,
-    ]
+    return [config.sandbox_exec.as_posix(), "-p", _sandbox_profile(config, checkout), *command]
 
 
 def publish_receipt(
@@ -256,15 +228,14 @@ def _run(
     command: list[str],
     checkout: Path,
     *,
-    prepared_checkout: bool = False,
+    proof: bool = False,
 ) -> subprocess.CompletedProcess[bytes]:
-    """Run one allowlisted command after separating clone and proof environments."""
     cwd = checkout.parent
     cwd.mkdir(parents=True, exist_ok=True)
     return subprocess.run(
         sandboxed_command(config, command, checkout),
         cwd=cwd,
-        env=proof_child_environment(config, checkout=checkout if prepared_checkout else None),
+        env=proof_child_environment(config, checkout=checkout if proof else None),
         input=None,
         capture_output=True,
         check=False,
@@ -273,7 +244,7 @@ def _run(
 
 
 def _git_text(config: ReferenceVerifierConfig, checkout: Path, *args: str) -> str:
-    completed = _run(config, [_GIT.as_posix(), *args], checkout, prepared_checkout=True)
+    completed = _run(config, [_GIT.as_posix(), *args], checkout, proof=True)
     if completed.returncode != 0:
         _fail("independent_checkout_failed")
     return completed.stdout.decode("utf-8", errors="replace").strip()
@@ -326,22 +297,16 @@ def _assert_identity(config: ReferenceVerifierConfig) -> None:
 
 
 def _proof_floor_digest(result: dict[str, object]) -> str:
-    data = _mapping(result.get("data"))
-    graph = _mapping(data.get("action_graph"))
-    nodes = graph.get("nodes")
-    gate_ids = (
-        [
-            node.get("id")
-            for node in nodes
-            if isinstance(node, dict) and isinstance(node.get("id"), str)
-        ]
-        if isinstance(nodes, list)
-        else []
+    data = result.get("data")
+    graph = data.get("action_graph") if isinstance(data, dict) else {}
+    nodes = graph.get("nodes") if isinstance(graph, dict) else ()
+    gate_ids = sorted(
+        node["id"]
+        for node in (nodes if isinstance(nodes, list) else ())
+        if isinstance(node, dict) and isinstance(node.get("id"), str)
     )
     return hashlib.sha256(
-        json.dumps({"gate_ids": sorted(gate_ids)}, sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        json.dumps({"gate_ids": gate_ids}, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
 
 
@@ -365,31 +330,13 @@ def reexecute(config: ReferenceVerifierConfig, request: dict[str, object]) -> Pa
                 checkout.as_posix(),
             ],
             checkout,
+            proof=True,
         )
         if clone.returncode != 0:
             _fail("independent_checkout_failed")
-        _git_text(
-            config,
-            checkout,
-            "-C",
-            checkout.as_posix(),
-            "checkout",
-            "--detach",
-            config.commit,
-        )
-        _git_text(
-            config,
-            checkout,
-            "-C",
-            checkout.as_posix(),
-            "config",
-            "core.hooksPath",
-            ".githooks",
-        )
-        actual_commit = _git_text(config, checkout, "-C", checkout.as_posix(), "rev-parse", "HEAD")
-        actual_tree = _git_text(
-            config, checkout, "-C", checkout.as_posix(), "rev-parse", "HEAD^{tree}"
-        )
+        _git_text(config, checkout, "checkout", "--detach", config.commit)
+        actual_commit = _git_text(config, checkout, "rev-parse", "HEAD")
+        actual_tree = _git_text(config, checkout, "rev-parse", "HEAD^{tree}")
         if actual_commit != config.commit or actual_tree != request["tree"]:
             _fail("independent_checkout_binding_mismatch")
         proof = _run(
@@ -407,7 +354,6 @@ def reexecute(config: ReferenceVerifierConfig, request: dict[str, object]) -> Pa
                 "--json",
             ],
             checkout,
-            prepared_checkout=True,
         )
         try:
             proof_payload = json.loads(proof.stdout.decode("utf-8"))
